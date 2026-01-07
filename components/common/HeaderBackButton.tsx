@@ -19,6 +19,18 @@ export const HeaderBackButton: React.FC<Props> = ({
 }) => {
   const router = useRouter();
 
+  if (Platform.OS === "ios") {
+    return (
+      <TouchableOpacity
+        onPress={() => router.back()}
+        className='flex items-center justify-center w-9 h-9'
+        {...touchableOpacityProps}
+      >
+        <Ionicons name='arrow-back' size={24} color='white' />
+      </TouchableOpacity>
+    );
+  }
+
   if (background === "transparent" && Platform.OS !== "android")
     return (
       <TouchableOpacity
@@ -43,7 +55,7 @@ export const HeaderBackButton: React.FC<Props> = ({
   return (
     <TouchableOpacity
       onPress={() => router.back()}
-      className=' bg-neutral-800/80 rounded-full p-2'
+      className=' rounded-full p-2'
       {...touchableOpacityProps}
     >
       <Ionicons

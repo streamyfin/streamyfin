@@ -1,17 +1,15 @@
-import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
-
-const _DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
-import Dropdown from "@/components/common/Dropdown";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { PlatformDropdown } from "../PlatformDropdown";
 import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
@@ -24,9 +22,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
-
-  if (isTv) return null;
-  if (!settings) return null;
 
   const subtitleModes = [
     SubtitlePlaybackMode.Default,
@@ -45,6 +40,55 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
     [SubtitlePlaybackMode.None]: "home.settings.subtitles.modes.None",
   };
 
+  const subtitleLanguageOptionGroups = useMemo(() => {
+    const options = [
+      {
+        type: "radio" as const,
+        label: t("home.settings.subtitles.none"),
+        value: "none",
+        selected: !settings?.defaultSubtitleLanguage,
+        onPress: () => updateSettings({ defaultSubtitleLanguage: null }),
+      },
+      ...(cultures?.map((culture) => ({
+        type: "radio" as const,
+        label: culture.DisplayName || "Unknown",
+        value:
+          culture.ThreeLetterISOLanguageName ||
+          culture.DisplayName ||
+          "unknown",
+        selected:
+          culture.ThreeLetterISOLanguageName ===
+          settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
+        onPress: () => updateSettings({ defaultSubtitleLanguage: culture }),
+      })) || []),
+    ];
+
+    return [
+      {
+        options,
+      },
+    ];
+  }, [cultures, settings?.defaultSubtitleLanguage, t, updateSettings]);
+
+  const subtitleModeOptionGroups = useMemo(() => {
+    const options = subtitleModes.map((mode) => ({
+      type: "radio" as const,
+      label: t(subtitleModeKeys[mode]) || String(mode),
+      value: String(mode),
+      selected: mode === settings?.subtitleMode,
+      onPress: () => updateSettings({ subtitleMode: mode }),
+    }));
+
+    return [
+      {
+        options,
+      },
+    ];
+  }, [settings?.subtitleMode, t, updateSettings]);
+
+  if (isTv) return null;
+  if (!settings) return null;
+
   return (
     <View {...props}>
       <ListGroup
@@ -56,20 +100,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         }
       >
         <ListItem title={t("home.settings.subtitles.subtitle_language")}>
-          <Dropdown
-            data={[
-              {
-                DisplayName: t("home.settings.subtitles.none"),
-                ThreeLetterISOLanguageName: "none-subs",
-              },
-              ...(cultures ?? []),
-            ]}
-            keyExtractor={(item) =>
-              item?.ThreeLetterISOLanguageName ?? "unknown"
-            }
-            titleExtractor={(item) => item?.DisplayName}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={subtitleLanguageOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {settings?.defaultSubtitleLanguage?.DisplayName ||
                     t("home.settings.subtitles.none")}
@@ -79,18 +113,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.language")}
-            onSelected={(defaultSubtitleLanguage) =>
-              updateSettings({
-                defaultSubtitleLanguage:
-                  defaultSubtitleLanguage.DisplayName ===
-                  t("home.settings.subtitles.none")
-                    ? null
-                    : defaultSubtitleLanguage,
-              })
-            }
+            title={t("home.settings.subtitles.language")}
           />
         </ListItem>
 
@@ -98,13 +123,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           title={t("home.settings.subtitles.subtitle_mode")}
           disabled={pluginSettings?.subtitleMode?.locked}
         >
-          <Dropdown
-            data={subtitleModes}
-            disabled={pluginSettings?.subtitleMode?.locked}
-            keyExtractor={String}
-            titleExtractor={(item) => t(subtitleModeKeys[item]) || String(item)}
-            title={
-              <TouchableOpacity className='flex flex-row items-center justify-between py-3 pl-3'>
+          <PlatformDropdown
+            groups={subtitleModeOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {t(subtitleModeKeys[settings?.subtitleMode]) ||
                     t("home.settings.subtitles.loading")}
@@ -114,10 +136,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                   size={18}
                   color='#5A5960'
                 />
-              </TouchableOpacity>
+              </View>
             }
-            label={t("home.settings.subtitles.subtitle_mode")}
-            onSelected={(subtitleMode) => updateSettings({ subtitleMode })}
+            title={t("home.settings.subtitles.subtitle_mode")}
           />
         </ListItem>
 
@@ -139,12 +160,14 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           disabled={pluginSettings?.subtitleSize?.locked}
         >
           <Stepper
-            value={settings.subtitleSize}
+            value={settings.subtitleSize / 100}
             disabled={pluginSettings?.subtitleSize?.locked}
-            step={5}
-            min={0}
-            max={120}
-            onUpdate={(subtitleSize) => updateSettings({ subtitleSize })}
+            step={0.1}
+            min={0.3}
+            max={1.5}
+            onUpdate={(value) =>
+              updateSettings({ subtitleSize: Math.round(value * 100) })
+            }
           />
         </ListItem>
       </ListGroup>

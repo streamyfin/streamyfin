@@ -22,7 +22,7 @@ const PersonPoster: React.FC<Props & ViewProps> = ({
   const { jellyseerrApi } = useJellyseerr();
   const router = useRouter();
   const segments = useSegments();
-  const from = segments[2] || "(home)";
+  const from = (segments as string[])[2] || "(home)";
 
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (

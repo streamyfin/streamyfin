@@ -18,7 +18,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
 import { useInterval } from "@/hooks/useInterval";
@@ -26,6 +26,13 @@ import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import {
+  deleteServerCredential,
+  getServerCredential,
+  migrateServersList,
+  type SavedServer,
+  saveServerCredential,
+} from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
 
 interface Server {
@@ -40,9 +47,15 @@ interface JellyfinContextValue {
   discoverServers: (url: string) => Promise<Server[]>;
   setServer: (server: Server) => Promise<void>;
   removeServer: () => void;
-  login: (username: string, password: string) => Promise<void>;
+  login: (
+    username: string,
+    password: string,
+    serverName?: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
+  loginWithSavedCredential: (serverUrl: string) => Promise<void>;
+  removeSavedCredential: (serverUrl: string) => Promise<void>;
 }
 
 const JellyfinContext = createContext<JellyfinContextValue | undefined>(
@@ -64,7 +77,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setJellyfin(
         () =>
           new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.36.0" },
+            clientInfo: { name: "Streamyfin", version: "0.52.0" },
             deviceInfo: {
               name: deviceName,
               id,
@@ -87,7 +100,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.36.0"`,
+      }, DeviceId="${deviceId}", Version="0.52.0"`,
     };
   }, [deviceId]);
 
@@ -166,7 +179,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   }, [api]);
 
   useInterval(pollQuickConnect, isPolling ? 1000 : null);
-  useInterval(refreshStreamyfinPluginSettings, 60 * 5 * 1000); // 5 min
+
+  // Refresh plugin settings when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        refreshStreamyfinPluginSettings();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const discoverServers = async (url: string): Promise<Server[]> => {
     const servers =
@@ -183,13 +206,24 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setApi(apiInstance);
       storage.set("serverUrl", server.address);
     },
-    onSuccess: (_, server) => {
+    onSuccess: async (_, server) => {
       const previousServers = JSON.parse(
         storage.getString("previousServers") || "[]",
+      ) as SavedServer[];
+
+      // Check if we have saved credentials for this server
+      const existingServer = previousServers.find(
+        (s) => s.address === server.address,
       );
-      const updatedServers = [
-        server,
-        ...previousServers.filter((s: Server) => s.address !== server.address),
+
+      const updatedServers: SavedServer[] = [
+        {
+          address: server.address,
+          name: existingServer?.name,
+          hasCredentials: existingServer?.hasCredentials ?? false,
+          username: existingServer?.username,
+        },
+        ...previousServers.filter((s) => s.address !== server.address),
       ];
       storage.set(
         "previousServers",
@@ -203,7 +237,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeServerMutation = useMutation({
     mutationFn: async () => {
-      storage.delete("serverUrl");
+      storage.remove("serverUrl");
       setApi(null);
     },
     onError: (error) => {
@@ -215,9 +249,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     mutationFn: async ({
       username,
       password,
+      serverName,
     }: {
       username: string;
       password: string;
+      serverName?: string;
     }) => {
       if (!api || !jellyfin) throw new Error("API not initialized");
 
@@ -229,6 +265,18 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           storage.set("user", JSON.stringify(auth.data.User));
           setApi(jellyfin.createApi(api?.basePath, auth.data?.AccessToken));
           storage.set("token", auth.data?.AccessToken);
+
+          // Save credentials to secure storage for quick switching
+          if (api.basePath) {
+            await saveServerCredential({
+              serverUrl: api.basePath,
+              serverName: serverName || "",
+              token: auth.data.AccessToken,
+              userId: auth.data.User.Id || "",
+              username,
+              savedAt: Date.now(),
+            });
+          }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
@@ -279,21 +327,91 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      api
+      await api
         ?.delete(`/Streamyfin/device/${deviceId}`)
         .then((_r) => writeInfoLog("Deleted expo push token for device"))
         .catch((_e) =>
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
-      storage.delete("token");
+      storage.remove("token");
       setUser(null);
       setApi(null);
       setPluginSettings(undefined);
       await clearAllJellyseerData();
+      // Note: We keep saved credentials for quick switching back
     },
     onError: (error) => {
       console.error("Logout failed:", error);
+    },
+  });
+
+  const loginWithSavedCredentialMutation = useMutation({
+    mutationFn: async (serverUrl: string) => {
+      if (!jellyfin) throw new Error("Jellyfin not initialized");
+
+      const credential = await getServerCredential(serverUrl);
+      if (!credential) {
+        throw new Error("No saved credential found");
+      }
+
+      // Create API instance with saved token
+      const apiInstance = jellyfin.createApi(serverUrl, credential.token);
+      if (!apiInstance) {
+        throw new Error("Failed to create API instance");
+      }
+
+      // Validate token by fetching current user
+      try {
+        const response = await getUserApi(apiInstance).getCurrentUser();
+
+        // Token is valid, update state
+        setApi(apiInstance);
+        setUser(response.data);
+        storage.set("serverUrl", serverUrl);
+        storage.set("token", credential.token);
+        storage.set("user", JSON.stringify(response.data));
+
+        // Update previousServers list
+        const previousServers = JSON.parse(
+          storage.getString("previousServers") || "[]",
+        ) as SavedServer[];
+        const updatedServers: SavedServer[] = [
+          {
+            address: serverUrl,
+            name: credential.serverName,
+            hasCredentials: true,
+            username: credential.username,
+          },
+          ...previousServers.filter((s) => s.address !== serverUrl),
+        ].slice(0, 5);
+        storage.set("previousServers", JSON.stringify(updatedServers));
+
+        // Refresh plugin settings
+        await refreshStreamyfinPluginSettings();
+      } catch (error) {
+        // Token is invalid/expired - remove it
+        if (
+          axios.isAxiosError(error) &&
+          (error.response?.status === 401 || error.response?.status === 403)
+        ) {
+          await deleteServerCredential(serverUrl);
+          throw new Error(t("server.session_expired"));
+        }
+        throw error;
+      }
+    },
+    onError: (error) => {
+      console.error("Quick login failed:", error);
+    },
+  });
+
+  const removeSavedCredentialMutation = useMutation({
+    mutationFn: async (serverUrl: string) => {
+      await deleteServerCredential(serverUrl);
+    },
+    onError: (error) => {
+      console.error("Failed to remove saved credential:", error);
     },
   });
 
@@ -311,6 +429,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!jellyfin) return;
 
       try {
+        // Run migration for server list format (once)
+        const migrated = storage.getBoolean("credentialsMigrated");
+        if (!migrated) {
+          await migrateServersList();
+          storage.set("credentialsMigrated", true);
+        }
+
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
         const storedUser = getUserFromStorage();
@@ -325,6 +450,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const response = await getUserApi(apiInstance).getCurrentUser();
           setUser(response.data);
+
+          // Migrate current session to secure storage if not already saved
+          const existingCredential = await getServerCredential(serverUrl);
+          if (!existingCredential && storedUser?.Name) {
+            await saveServerCredential({
+              serverUrl,
+              serverName: "",
+              token,
+              userId: storedUser.Id || "",
+              username: storedUser.Name,
+              savedAt: Date.now(),
+            });
+          }
         }
       } catch (e) {
         console.error(e);
@@ -340,10 +478,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     discoverServers,
     setServer: (server) => setServerMutation.mutateAsync(server),
     removeServer: () => removeServerMutation.mutateAsync(),
-    login: (username, password) =>
-      loginMutation.mutateAsync({ username, password }),
+    login: (username, password, serverName) =>
+      loginMutation.mutateAsync({ username, password, serverName }),
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
+    loginWithSavedCredential: (serverUrl) =>
+      loginWithSavedCredentialMutation.mutateAsync(serverUrl),
+    removeSavedCredential: (serverUrl) =>
+      removeSavedCredentialMutation.mutateAsync(serverUrl),
   };
 
   useEffect(() => {
@@ -374,7 +516,7 @@ function useProtectedRoute(user: UserDto | null, loaded = false) {
   useEffect(() => {
     if (loaded === false) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup = segments.length > 1 && segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {
       console.log("Redirected to login");

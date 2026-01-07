@@ -1,11 +1,12 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
   PlayServicesState,
@@ -23,6 +24,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useHaptic } from "@/hooks/useHaptic";
+import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { getDownloadedItemById } from "@/providers/Downloads/database";
+import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
@@ -32,13 +36,15 @@ import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { runtimeTicksToMinutes } from "@/utils/time";
-import type { Button } from "./Button";
+import { Button } from "./Button";
+import { Text } from "./common/Text";
 import type { SelectedOptions } from "./ItemContent";
 
-interface Props extends React.ComponentProps<typeof Button> {
+interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
   isOffline?: boolean;
+  colors?: ThemeColors;
 }
 
 const ANIMATION_DURATION = 500;
@@ -48,23 +54,27 @@ export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
   isOffline,
-  ...props
+  colors,
 }: Props) => {
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
   const mediaStatus = useMediaStatus();
   const { t } = useTranslation();
+  const { showModal, hideModal } = useGlobalModal();
 
-  const [colorAtom] = useAtom(itemThemeColorAtom);
+  const [globalColorAtom] = useAtom(itemThemeColorAtom);
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+
+  // Use colors prop if provided, otherwise fallback to global atom
+  const effectiveColors = colors || globalColorAtom;
 
   const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
-  const endColor = useSharedValue(colorAtom);
-  const startColor = useSharedValue(colorAtom);
+  const endColor = useSharedValue(effectiveColors);
+  const startColor = useSharedValue(effectiveColors);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
   const { settings, updateSettings } = useSettings();
@@ -80,11 +90,8 @@ export const PlayButton: React.FC<Props> = ({
     [router, isOffline],
   );
 
-  const onPress = useCallback(async () => {
-    console.log("onPress");
+  const handleNormalPlayFlow = useCallback(async () => {
     if (!item) return;
-
-    lightHapticFeedback();
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
@@ -159,7 +166,7 @@ export const PlayButton: React.FC<Props> = ({
                     api,
                     item,
                     deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks!,
+                    startTimeTicks: item?.UserData?.PlaybackPositionTicks ?? 0,
                     userId: user.Id,
                     audioStreamIndex: selectedOptions.audioIndex,
                     maxStreamingBitrate: selectedOptions.bitrate?.value,
@@ -267,6 +274,117 @@ export const PlayButton: React.FC<Props> = ({
     showActionSheetWithOptions,
     mediaStatus,
     selectedOptions,
+    goToPlayer,
+    isOffline,
+    t,
+  ]);
+
+  const onPress = useCallback(async () => {
+    if (!item) return;
+
+    lightHapticFeedback();
+
+    // Check if item is downloaded
+    const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
+
+    if (downloadedItem) {
+      if (Platform.OS === "android") {
+        // Show bottom sheet for Android
+        showModal(
+          <BottomSheetView>
+            <View className='px-4 mt-4 mb-12'>
+              <View className='pb-6'>
+                <Text className='text-2xl font-bold mb-2'>
+                  {t("player.downloaded_file_title")}
+                </Text>
+                <Text className='opacity-70 text-base'>
+                  {t("player.downloaded_file_message")}
+                </Text>
+              </View>
+              <View className='space-y-3'>
+                <Button
+                  onPress={() => {
+                    hideModal();
+                    const queryParams = new URLSearchParams({
+                      itemId: item.Id!,
+                      offline: "true",
+                      playbackPosition:
+                        item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                    });
+                    goToPlayer(queryParams.toString());
+                  }}
+                  color='purple'
+                >
+                  {Platform.OS === "android"
+                    ? "Play downloaded file"
+                    : t("player.downloaded_file_yes")}
+                </Button>
+                <Button
+                  onPress={() => {
+                    hideModal();
+                    handleNormalPlayFlow();
+                  }}
+                  color='white'
+                  variant='border'
+                >
+                  {Platform.OS === "android"
+                    ? "Stream file"
+                    : t("player.downloaded_file_no")}
+                </Button>
+              </View>
+            </View>
+          </BottomSheetView>,
+          {
+            snapPoints: ["35%"],
+            enablePanDownToClose: true,
+          },
+        );
+      } else {
+        // Show alert for iOS
+        Alert.alert(
+          t("player.downloaded_file_title"),
+          t("player.downloaded_file_message"),
+          [
+            {
+              text: t("player.downloaded_file_yes"),
+              onPress: () => {
+                const queryParams = new URLSearchParams({
+                  itemId: item.Id!,
+                  offline: "true",
+                  playbackPosition:
+                    item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                });
+                goToPlayer(queryParams.toString());
+              },
+              isPreferred: true,
+            },
+            {
+              text: t("player.downloaded_file_no"),
+              onPress: () => {
+                handleNormalPlayFlow();
+              },
+            },
+            {
+              text: t("player.downloaded_file_cancel"),
+              style: "cancel",
+            },
+          ],
+        );
+      }
+      return;
+    }
+
+    // If not downloaded, proceed with normal flow
+    handleNormalPlayFlow();
+  }, [
+    item,
+    lightHapticFeedback,
+    handleNormalPlayFlow,
+    goToPlayer,
+    t,
+    showModal,
+    hideModal,
+    effectiveColors,
   ]);
 
   const derivedTargetWidth = useDerivedValue(() => {
@@ -297,7 +415,7 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   useAnimatedReaction(
-    () => colorAtom,
+    () => effectiveColors,
     (newColor) => {
       endColor.value = newColor;
       colorChangeProgress.value = 0;
@@ -306,19 +424,19 @@ export const PlayButton: React.FC<Props> = ({
         easing: Easing.bezier(0.9, 0, 0.31, 0.99),
       });
     },
-    [colorAtom],
+    [effectiveColors],
   );
 
   useEffect(() => {
     const timeout_2 = setTimeout(() => {
-      startColor.value = colorAtom;
+      startColor.value = effectiveColors;
       startWidth.value = targetWidth.value;
     }, ANIMATION_DURATION);
 
     return () => {
       clearTimeout(timeout_2);
     };
-  }, [colorAtom, item]);
+  }, [effectiveColors, item]);
 
   /**
    * ANIMATED STYLES
@@ -354,9 +472,6 @@ export const PlayButton: React.FC<Props> = ({
       [startColor.value.text, endColor.value.text],
     ),
   }));
-  /**
-   * *********************
-   */
 
   return (
     <TouchableOpacity
@@ -364,10 +479,9 @@ export const PlayButton: React.FC<Props> = ({
       accessibilityLabel='Play button'
       accessibilityHint='Tap to play the media'
       onPress={onPress}
-      className={"relative"}
-      {...props}
+      className={"relative flex-1"}
     >
-      <View className='absolute w-full h-full top-0 left-0 rounded-xl z-10 overflow-hidden'>
+      <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>
         <Animated.View
           style={[
             animatedPrimaryStyle,
@@ -381,19 +495,23 @@ export const PlayButton: React.FC<Props> = ({
 
       <Animated.View
         style={[animatedAverageStyle, { opacity: 0.5 }]}
-        className='absolute w-full h-full top-0 left-0 rounded-xl'
+        className='absolute w-full h-full top-0 left-0 rounded-full'
       />
       <View
         style={{
           borderWidth: 1,
-          borderColor: colorAtom.primary,
+          borderColor: effectiveColors.primary,
           borderStyle: "solid",
         }}
-        className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
+        className='flex flex-row items-center justify-center bg-transparent rounded-full z-20 h-12 w-full '
       >
         <View className='flex flex-row items-center space-x-2'>
           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-            {runtimeTicksToMinutes(item?.RunTimeTicks)}
+            {runtimeTicksToMinutes(
+              (item?.RunTimeTicks || 0) -
+                (item?.UserData?.PlaybackPositionTicks || 0),
+            )}
+            {(item?.UserData?.PlaybackPositionTicks || 0) > 0 && " left"}
           </Animated.Text>
           <Animated.Text style={animatedTextStyle}>
             <Ionicons name='play-circle' size={24} />
@@ -402,15 +520,6 @@ export const PlayButton: React.FC<Props> = ({
             <Animated.Text style={animatedTextStyle}>
               <Feather name='cast' size={22} />
               <CastButton tintColor='transparent' />
-            </Animated.Text>
-          )}
-          {!client && settings?.openInVLC && (
-            <Animated.Text style={animatedTextStyle}>
-              <MaterialCommunityIcons
-                name='vlc'
-                size={18}
-                color={animatedTextStyle.color}
-              />
             </Animated.Text>
           )}
         </View>

@@ -1,17 +1,151 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Platform, View } from "react-native";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
 
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
-import { useTranslation } from "react-i18next";
-
 export default function IndexLayout() {
   const { settings, updateSettings, pluginSettings } = useSettings();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const { t } = useTranslation();
+
+  // Reset dropdown state when component unmounts or navigates away
+  useEffect(() => {
+    return () => {
+      setDropdownOpen(false);
+    };
+  }, []);
+
+  // Memoize callbacks to prevent recreating on every render
+  const handleDisplayRow = useCallback(() => {
+    updateSettings({
+      libraryOptions: {
+        ...settings.libraryOptions,
+        display: "row",
+      },
+    });
+  }, [settings.libraryOptions, updateSettings]);
+
+  const handleDisplayList = useCallback(() => {
+    updateSettings({
+      libraryOptions: {
+        ...settings.libraryOptions,
+        display: "list",
+      },
+    });
+  }, [settings.libraryOptions, updateSettings]);
+
+  const handleImageStylePoster = useCallback(() => {
+    updateSettings({
+      libraryOptions: {
+        ...settings.libraryOptions,
+        imageStyle: "poster",
+      },
+    });
+  }, [settings.libraryOptions, updateSettings]);
+
+  const handleImageStyleCover = useCallback(() => {
+    updateSettings({
+      libraryOptions: {
+        ...settings.libraryOptions,
+        imageStyle: "cover",
+      },
+    });
+  }, [settings.libraryOptions, updateSettings]);
+
+  const handleToggleTitles = useCallback(() => {
+    updateSettings({
+      libraryOptions: {
+        ...settings.libraryOptions,
+        showTitles: !settings.libraryOptions.showTitles,
+      },
+    });
+  }, [settings.libraryOptions, updateSettings]);
+
+  const handleToggleStats = useCallback(() => {
+    updateSettings({
+      libraryOptions: {
+        ...settings.libraryOptions,
+        showStats: !settings.libraryOptions.showStats,
+      },
+    });
+  }, [settings.libraryOptions, updateSettings]);
+
+  // Memoize groups to prevent recreating the array on every render
+  const dropdownGroups = useMemo(
+    () => [
+      {
+        title: t("library.options.display"),
+        options: [
+          {
+            type: "radio" as const,
+            label: t("library.options.row"),
+            value: "row",
+            selected: settings.libraryOptions.display === "row",
+            onPress: handleDisplayRow,
+          },
+          {
+            type: "radio" as const,
+            label: t("library.options.list"),
+            value: "list",
+            selected: settings.libraryOptions.display === "list",
+            onPress: handleDisplayList,
+          },
+        ],
+      },
+      {
+        title: t("library.options.image_style"),
+        options: [
+          {
+            type: "radio" as const,
+            label: t("library.options.poster"),
+            value: "poster",
+            selected: settings.libraryOptions.imageStyle === "poster",
+            onPress: handleImageStylePoster,
+          },
+          {
+            type: "radio" as const,
+            label: t("library.options.cover"),
+            value: "cover",
+            selected: settings.libraryOptions.imageStyle === "cover",
+            onPress: handleImageStyleCover,
+          },
+        ],
+      },
+      {
+        title: "Options",
+        options: [
+          {
+            type: "toggle" as const,
+            label: t("library.options.show_titles"),
+            value: settings.libraryOptions.showTitles,
+            onToggle: handleToggleTitles,
+            disabled: settings.libraryOptions.imageStyle === "poster",
+          },
+          {
+            type: "toggle" as const,
+            label: t("library.options.show_stats"),
+            value: settings.libraryOptions.showStats,
+            onToggle: handleToggleStats,
+          },
+        ],
+      },
+    ],
+    [
+      t,
+      settings.libraryOptions,
+      handleDisplayRow,
+      handleDisplayList,
+      handleImageStylePoster,
+      handleImageStyleCover,
+      handleToggleTitles,
+      handleToggleStats,
+    ],
+  );
 
   if (!settings?.libraryOptions) return null;
 
@@ -21,178 +155,28 @@ export default function IndexLayout() {
         name='index'
         options={{
           headerShown: !Platform.isTV,
-          headerLargeTitle: true,
           headerTitle: t("tabs.library"),
-          headerBlurEffect: "prominent",
-          headerLargeStyle: {
-            backgroundColor: "black",
-          },
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerRight: () =>
             !pluginSettings?.libraryOptions?.locked &&
             !Platform.isTV && (
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <Ionicons
-                    name='ellipsis-horizontal-outline'
-                    size={24}
-                    color='white'
-                  />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content
-                  align={"end"}
-                  alignOffset={-10}
-                  avoidCollisions={false}
-                  collisionPadding={0}
-                  loop={false}
-                  side={"bottom"}
-                  sideOffset={10}
-                >
-                  <DropdownMenu.Label>
-                    {t("library.options.display")}
-                  </DropdownMenu.Label>
-                  <DropdownMenu.Group key='display-group'>
-                    <DropdownMenu.Sub>
-                      <DropdownMenu.SubTrigger key='image-style-trigger'>
-                        {t("library.options.display")}
-                      </DropdownMenu.SubTrigger>
-                      <DropdownMenu.SubContent
-                        alignOffset={-10}
-                        avoidCollisions={true}
-                        collisionPadding={0}
-                        loop={true}
-                        sideOffset={10}
-                      >
-                        <DropdownMenu.CheckboxItem
-                          key='display-option-1'
-                          value={settings.libraryOptions.display === "row"}
-                          onValueChange={() =>
-                            updateSettings({
-                              libraryOptions: {
-                                ...settings.libraryOptions,
-                                display: "row",
-                              },
-                            })
-                          }
-                        >
-                          <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key='display-title-1'>
-                            {t("library.options.row")}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.CheckboxItem>
-                        <DropdownMenu.CheckboxItem
-                          key='display-option-2'
-                          value={settings.libraryOptions.display === "list"}
-                          onValueChange={() =>
-                            updateSettings({
-                              libraryOptions: {
-                                ...settings.libraryOptions,
-                                display: "list",
-                              },
-                            })
-                          }
-                        >
-                          <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key='display-title-2'>
-                            {t("library.options.list")}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.CheckboxItem>
-                      </DropdownMenu.SubContent>
-                    </DropdownMenu.Sub>
-                    <DropdownMenu.Sub>
-                      <DropdownMenu.SubTrigger key='image-style-trigger'>
-                        {t("library.options.image_style")}
-                      </DropdownMenu.SubTrigger>
-                      <DropdownMenu.SubContent
-                        alignOffset={-10}
-                        avoidCollisions={true}
-                        collisionPadding={0}
-                        loop={true}
-                        sideOffset={10}
-                      >
-                        <DropdownMenu.CheckboxItem
-                          key='poster-option'
-                          value={
-                            settings.libraryOptions.imageStyle === "poster"
-                          }
-                          onValueChange={() =>
-                            updateSettings({
-                              libraryOptions: {
-                                ...settings.libraryOptions,
-                                imageStyle: "poster",
-                              },
-                            })
-                          }
-                        >
-                          <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key='poster-title'>
-                            {t("library.options.poster")}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.CheckboxItem>
-                        <DropdownMenu.CheckboxItem
-                          key='cover-option'
-                          value={settings.libraryOptions.imageStyle === "cover"}
-                          onValueChange={() =>
-                            updateSettings({
-                              libraryOptions: {
-                                ...settings.libraryOptions,
-                                imageStyle: "cover",
-                              },
-                            })
-                          }
-                        >
-                          <DropdownMenu.ItemIndicator />
-                          <DropdownMenu.ItemTitle key='cover-title'>
-                            {t("library.options.cover")}
-                          </DropdownMenu.ItemTitle>
-                        </DropdownMenu.CheckboxItem>
-                      </DropdownMenu.SubContent>
-                    </DropdownMenu.Sub>
-                  </DropdownMenu.Group>
-                  <DropdownMenu.Group key='show-titles-group'>
-                    <DropdownMenu.CheckboxItem
-                      disabled={settings.libraryOptions.imageStyle === "poster"}
-                      key='show-titles-option'
-                      value={settings.libraryOptions.showTitles}
-                      onValueChange={(newValue: string) => {
-                        if (settings.libraryOptions.imageStyle === "poster")
-                          return;
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            showTitles: newValue === "on",
-                          },
-                        });
-                      }}
-                    >
-                      <DropdownMenu.ItemIndicator />
-                      <DropdownMenu.ItemTitle key='show-titles-title'>
-                        {t("library.options.show_titles")}
-                      </DropdownMenu.ItemTitle>
-                    </DropdownMenu.CheckboxItem>
-                    <DropdownMenu.CheckboxItem
-                      key='show-stats-option'
-                      value={settings.libraryOptions.showStats}
-                      onValueChange={(newValue: string) => {
-                        updateSettings({
-                          libraryOptions: {
-                            ...settings.libraryOptions,
-                            showStats: newValue === "on",
-                          },
-                        });
-                      }}
-                    >
-                      <DropdownMenu.ItemIndicator />
-                      <DropdownMenu.ItemTitle key='show-stats-title'>
-                        {t("library.options.show_stats")}
-                      </DropdownMenu.ItemTitle>
-                    </DropdownMenu.CheckboxItem>
-                  </DropdownMenu.Group>
-
-                  <DropdownMenu.Separator />
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+              <PlatformDropdown
+                open={dropdownOpen}
+                onOpenChange={setDropdownOpen}
+                trigger={
+                  <View className='pl-1.5'>
+                    <Ionicons
+                      name='ellipsis-horizontal-outline'
+                      size={24}
+                      color='white'
+                    />
+                  </View>
+                }
+                title={t("library.options.display")}
+                groups={dropdownGroups}
+              />
             ),
         }}
       />
@@ -201,7 +185,7 @@ export default function IndexLayout() {
         options={{
           title: "",
           headerShown: !Platform.isTV,
-          headerBlurEffect: "prominent",
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
@@ -214,7 +198,7 @@ export default function IndexLayout() {
         options={{
           title: "",
           headerShown: !Platform.isTV,
-          headerBlurEffect: "prominent",
+          headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}

@@ -1,0 +1,315 @@
+import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { FlashList } from "@shopify/flash-list";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text } from "@/components/common/Text";
+import { Loader } from "@/components/Loader";
+import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
+import { MusicTrackItem } from "@/components/music/MusicTrackItem";
+import { PlaylistOptionsSheet } from "@/components/music/PlaylistOptionsSheet";
+import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
+import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import { useRemoveFromPlaylist } from "@/hooks/usePlaylistMutations";
+import { downloadTrack, getLocalPath } from "@/providers/AudioStorage";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { runtimeTicksToMinutes } from "@/utils/time";
+
+const ARTWORK_SIZE = 120;
+
+export default function PlaylistDetailScreen() {
+  const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
+  const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  const { t } = useTranslation();
+  const { playQueue } = useMusicPlayer();
+
+  const [selectedTrack, setSelectedTrack] = useState<BaseItemDto | null>(null);
+  const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+  const [playlistOptionsOpen, setPlaylistOptionsOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const removeFromPlaylist = useRemoveFromPlaylist();
+
+  const handleTrackOptionsPress = useCallback((track: BaseItemDto) => {
+    setSelectedTrack(track);
+    setTrackOptionsOpen(true);
+  }, []);
+
+  const handleAddToPlaylist = useCallback(() => {
+    setPlaylistPickerOpen(true);
+  }, []);
+
+  const handleCreateNewPlaylist = useCallback(() => {
+    setCreatePlaylistOpen(true);
+  }, []);
+
+  const handleRemoveFromPlaylist = useCallback(() => {
+    if (selectedTrack?.Id && playlistId) {
+      removeFromPlaylist.mutate({
+        playlistId,
+        entryIds: [selectedTrack.PlaylistItemId ?? selectedTrack.Id],
+      });
+    }
+  }, [selectedTrack, playlistId, removeFromPlaylist]);
+
+  const { data: playlist, isLoading: loadingPlaylist } = useQuery({
+    queryKey: ["music-playlist", playlistId, user?.Id],
+    queryFn: async () => {
+      const response = await getUserLibraryApi(api!).getItem({
+        userId: user?.Id,
+        itemId: playlistId!,
+      });
+      return response.data;
+    },
+    enabled: !!api && !!user?.Id && !!playlistId,
+  });
+
+  const { data: tracks, isLoading: loadingTracks } = useQuery({
+    queryKey: ["music-playlist-tracks", playlistId, user?.Id],
+    queryFn: async () => {
+      const response = await getItemsApi(api!).getItems({
+        userId: user?.Id,
+        parentId: playlistId,
+      });
+      return response.data.Items || [];
+    },
+    enabled: !!api && !!user?.Id && !!playlistId,
+  });
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: playlist?.Name ?? "",
+      headerTransparent: true,
+      headerStyle: { backgroundColor: "transparent" },
+      headerShadowVisible: false,
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setPlaylistOptionsOpen(true)}
+          className='p-1.5'
+        >
+          <Ionicons name='ellipsis-horizontal' size={24} color='white' />
+        </TouchableOpacity>
+      ),
+    });
+  }, [playlist?.Name, navigation]);
+
+  const imageUrl = useMemo(
+    () => (playlist ? getPrimaryImageUrl({ api, item: playlist }) : null),
+    [api, playlist],
+  );
+
+  const totalDuration = useMemo(() => {
+    if (!tracks) return "";
+    const totalTicks = tracks.reduce(
+      (acc, track) => acc + (track.RunTimeTicks || 0),
+      0,
+    );
+    return runtimeTicksToMinutes(totalTicks);
+  }, [tracks]);
+
+  const handlePlayAll = useCallback(() => {
+    if (tracks && tracks.length > 0) {
+      playQueue(tracks, 0);
+    }
+  }, [playQueue, tracks]);
+
+  const handleShuffle = useCallback(() => {
+    if (tracks && tracks.length > 0) {
+      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+      playQueue(shuffled, 0);
+    }
+  }, [playQueue, tracks]);
+
+  // Check if all tracks are already downloaded
+  const allTracksDownloaded = useMemo(() => {
+    if (!tracks || tracks.length === 0) return false;
+    return tracks.every((track) => !!getLocalPath(track.Id));
+  }, [tracks]);
+
+  const handleDownloadPlaylist = useCallback(async () => {
+    if (!tracks || !api || !user?.Id || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      for (const track of tracks) {
+        if (!track.Id || getLocalPath(track.Id)) continue;
+        const result = await getAudioStreamUrl(api, user.Id, track.Id);
+        if (result?.url && !result.isTranscoding) {
+          await downloadTrack(track.Id, result.url, {
+            permanent: true,
+            container: result.mediaSource?.Container || undefined,
+          });
+        }
+      }
+    } catch {
+      // Silent fail
+    }
+    setIsDownloading(false);
+  }, [tracks, api, user?.Id, isDownloading]);
+
+  const isLoading = loadingPlaylist || loadingTracks;
+
+  // Only show loading if we have no cached data to display
+  if (isLoading && !playlist) {
+    return (
+      <View className='flex-1 justify-center items-center bg-black'>
+        <Loader />
+      </View>
+    );
+  }
+
+  if (!playlist) {
+    return (
+      <View className='flex-1 justify-center items-center bg-black'>
+        <Text className='text-neutral-500'>
+          {t("music.playlist_not_found")}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlashList
+      data={tracks || []}
+      contentContainerStyle={{
+        paddingBottom: insets.bottom + 100,
+      }}
+      ListHeaderComponent={
+        <View
+          className='items-center px-4 pb-6 bg-black'
+          style={{ paddingTop: insets.top + 50 }}
+        >
+          {/* Playlist artwork */}
+          <View
+            style={{
+              width: ARTWORK_SIZE,
+              height: ARTWORK_SIZE,
+              borderRadius: 8,
+              overflow: "hidden",
+              backgroundColor: "#1a1a1a",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.3,
+              shadowRadius: 12,
+              elevation: 8,
+            }}
+          >
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+                cachePolicy='memory-disk'
+              />
+            ) : (
+              <View className='flex-1 items-center justify-center bg-neutral-800'>
+                <Ionicons name='list' size={60} color='#666' />
+              </View>
+            )}
+          </View>
+
+          {/* Playlist info */}
+          <Text className='text-white text-xl font-bold mt-4 text-center'>
+            {playlist.Name}
+          </Text>
+          <Text className='text-neutral-500 text-sm mt-1'>
+            {tracks?.length} tracks • {totalDuration}
+          </Text>
+
+          {/* Play buttons */}
+          <View className='flex flex-row mt-4 items-center'>
+            <TouchableOpacity
+              onPress={handlePlayAll}
+              className='flex flex-row items-center bg-purple-600 px-6 py-3 rounded-full mr-3'
+            >
+              <Ionicons name='play' size={20} color='white' />
+              <Text className='text-white font-medium ml-2'>
+                {t("music.play")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleShuffle}
+              className='flex flex-row items-center bg-neutral-800 px-6 py-3 rounded-full mr-3'
+            >
+              <Ionicons name='shuffle' size={20} color='white' />
+              <Text className='text-white font-medium ml-2'>
+                {t("music.shuffle")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDownloadPlaylist}
+              disabled={allTracksDownloaded || isDownloading}
+              className='flex items-center justify-center bg-neutral-800 p-3 rounded-full'
+            >
+              {isDownloading ? (
+                <ActivityIndicator size={20} color='white' />
+              ) : (
+                <Ionicons
+                  name={
+                    allTracksDownloaded
+                      ? "checkmark-circle"
+                      : "download-outline"
+                  }
+                  size={20}
+                  color={allTracksDownloaded ? "#22c55e" : "white"}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      }
+      renderItem={({ item, index }) => (
+        <MusicTrackItem
+          track={item}
+          index={index + 1}
+          queue={tracks}
+          onOptionsPress={handleTrackOptionsPress}
+        />
+      )}
+      keyExtractor={(item) => item.Id!}
+      ListFooterComponent={
+        <>
+          <TrackOptionsSheet
+            open={trackOptionsOpen}
+            setOpen={setTrackOptionsOpen}
+            track={selectedTrack}
+            onAddToPlaylist={handleAddToPlaylist}
+            playlistId={playlistId}
+            onRemoveFromPlaylist={handleRemoveFromPlaylist}
+          />
+          <PlaylistPickerSheet
+            open={playlistPickerOpen}
+            setOpen={setPlaylistPickerOpen}
+            trackToAdd={selectedTrack}
+            onCreateNew={handleCreateNewPlaylist}
+          />
+          <CreatePlaylistModal
+            open={createPlaylistOpen}
+            setOpen={setCreatePlaylistOpen}
+            initialTrackId={selectedTrack?.Id}
+          />
+          <PlaylistOptionsSheet
+            open={playlistOptionsOpen}
+            setOpen={setPlaylistOptionsOpen}
+            playlist={playlist}
+          />
+        </>
+      }
+    />
+  );
+}

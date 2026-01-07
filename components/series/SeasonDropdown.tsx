@@ -1,11 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useEffect, useMemo } from "react";
-import { Platform, TouchableOpacity, View } from "react-native";
-
-const DropdownMenu = !Platform.isTV ? require("zeego/dropdown-menu") : null;
-
 import { t } from "i18next";
+import { useEffect, useMemo, useState } from "react";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "../common/Text";
+import { PlatformDropdown } from "../PlatformDropdown";
 
 type Props = {
   item: BaseItemDto;
@@ -33,6 +31,7 @@ export const SeasonDropdown: React.FC<Props> = ({
   onSelect,
 }) => {
   const isTv = Platform.isTV;
+  const [open, setOpen] = useState(false);
 
   const keys = useMemo<SeasonKeys>(
     () =>
@@ -53,6 +52,31 @@ export const SeasonDropdown: React.FC<Props> = ({
   const seasonIndex = useMemo(
     () => state[(item[keys.id] as string) ?? ""],
     [state, item, keys],
+  );
+
+  const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
+    Number(a[keys.index]) - Number(b[keys.index]);
+
+  const optionGroups = useMemo(
+    () => [
+      {
+        options:
+          seasons?.sort(sortByIndex).map((season: any) => {
+            const title =
+              season[keys.title] ||
+              season.Name ||
+              `Season ${season.IndexNumber}`;
+            return {
+              type: "radio" as const,
+              label: title,
+              value: season.Id || season.IndexNumber,
+              selected: Number(season[keys.index]) === Number(seasonIndex),
+              onPress: () => onSelect(season),
+            };
+          }) || [],
+      },
+    ],
+    [seasons, keys, seasonIndex, onSelect],
   );
 
   useEffect(() => {
@@ -96,45 +120,23 @@ export const SeasonDropdown: React.FC<Props> = ({
     keys,
   ]);
 
-  const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
-    Number(a[keys.index]) - Number(b[keys.index]);
-
   if (isTv) return null;
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <View className='flex flex-row'>
-          <TouchableOpacity className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
+    <PlatformDropdown
+      groups={optionGroups}
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <TouchableOpacity onPress={() => setOpen(true)}>
+          <View className='bg-neutral-900 rounded-2xl border-neutral-900 border px-3 py-2 flex flex-row items-center justify-between'>
             <Text>
               {t("item_card.season")} {seasonIndex}
             </Text>
-          </TouchableOpacity>
-        </View>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content
-        loop={true}
-        side='bottom'
-        align='start'
-        alignOffset={0}
-        avoidCollisions={true}
-        collisionPadding={8}
-        sideOffset={8}
-      >
-        <DropdownMenu.Label>{t("item_card.seasons")}</DropdownMenu.Label>
-        {seasons?.sort(sortByIndex).map((season: any) => {
-          const title =
-            season[keys.title] || season.Name || `Season ${season.IndexNumber}`;
-          return (
-            <DropdownMenu.Item
-              key={season.Id || season.IndexNumber}
-              onSelect={() => onSelect(season)}
-            >
-              <DropdownMenu.ItemTitle>{title}</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          );
-        })}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+          </View>
+        </TouchableOpacity>
+      }
+      title={t("item_card.seasons")}
+    />
   );
 };

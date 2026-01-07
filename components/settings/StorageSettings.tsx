@@ -40,7 +40,6 @@ export const StorageSettings = () => {
   };
 
   const calculatePercentage = (value: number, total: number) => {
-    console.log("usage", value, total);
     return ((value / total) * 100).toFixed(2);
   };
 

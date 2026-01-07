@@ -16,7 +16,10 @@ export function Input(props: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
   return Platform.isTV ? (
-    <TouchableOpacity onFocus={() => inputRef?.current?.focus?.()}>
+    <TouchableOpacity
+      onPress={() => inputRef?.current?.focus?.()}
+      activeOpacity={1}
+    >
       <TextInput
         ref={inputRef}
         className={`

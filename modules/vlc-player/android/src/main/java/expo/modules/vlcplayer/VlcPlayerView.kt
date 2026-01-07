@@ -212,9 +212,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSource(source: Map<String, Any>) {
         log.debug("setting source $source")
         if (hasSource) {
-            log.debug("Source already set. Resuming")
-            mediaPlayer?.attachViews(videoLayout, null, false, false)
-            play()
+            log.debug("Source already set. Ignoring.")
             return
         }
         val mediaOptions = source["mediaOptions"] as? Map<String, Any> ?: emptyMap()
@@ -343,6 +341,11 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setVideoScaleFactor(scaleFactor: Float) {
         log.debug("Setting video scale factor: $scaleFactor")
         mediaPlayer?.scale = scaleFactor
+    }
+
+    fun setRate(rate: Float) {
+        log.debug("Setting playback rate: $rate")
+        mediaPlayer?.rate = rate
     }
 
     private fun setInitialExternalSubtitles() {

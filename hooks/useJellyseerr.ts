@@ -10,10 +10,10 @@ import type {
 } from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
 import "@/augmentations";
-import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
@@ -66,8 +66,8 @@ const JELLYSEERR_USER = "JELLYSEERR_USER";
 const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
 
 export const clearJellyseerrStorageData = () => {
-  storage.delete(JELLYSEERR_USER);
-  storage.delete(JELLYSEERR_COOKIES);
+  storage.remove(JELLYSEERR_USER);
+  storage.remove(JELLYSEERR_COOKIES);
 };
 
 export enum Endpoints {
@@ -244,6 +244,22 @@ export class JellyseerrApi {
       .then(({ data }) => data);
   }
 
+  async approveRequest(requestId: number): Promise<MediaRequest> {
+    return this.axios
+      ?.post<MediaRequest>(
+        `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/approve`,
+      )
+      .then(({ data }) => data);
+  }
+
+  async declineRequest(requestId: number): Promise<MediaRequest> {
+    return this.axios
+      ?.post<MediaRequest>(
+        `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/decline`,
+      )
+      .then(({ data }) => data);
+  }
+
   async requests(
     params = {
       filter: "all",
@@ -387,7 +403,7 @@ export class JellyseerrApi {
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.status === 403) {
+        if (error.response?.status === 403) {
           clearJellyseerrStorageData();
         }
         return Promise.reject(error);
@@ -420,7 +436,7 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
@@ -512,7 +528,8 @@ export const useJellyseerr = () => {
   };
 
   const jellyseerrRegion = useMemo(
-    () => jellyseerrUser?.settings?.region || "US",
+    // streamingRegion and discoverRegion exists. region doesn't
+    () => jellyseerrUser?.settings?.discoverRegion || "US",
     [jellyseerrUser],
   );
 

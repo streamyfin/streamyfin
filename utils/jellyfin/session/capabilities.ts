@@ -1,7 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { AxiosResponse } from "axios";
-import type { Settings } from "@/utils/atoms/settings";
-import { generateDeviceProfile } from "@/utils/profiles/native";
+import type { Settings } from "../../atoms/settings";
+import { generateDeviceProfile } from "../../profiles/native";
 import { getAuthHeaders } from "../jellyfin";
 
 interface PostCapabilitiesParams {

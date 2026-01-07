@@ -16,7 +16,7 @@ export const AddToFavorites: FC<Props> = ({ item, ...props }) => {
       <RoundButton
         size='large'
         icon={isFavorite ? "heart" : "heart-outline"}
-        fillColor={isFavorite ? "primary" : undefined}
+        color={isFavorite ? "purple" : "white"}
         onPress={toggleFavorite}
       />
     </View>

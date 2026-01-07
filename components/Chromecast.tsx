@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useCallback, useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, TouchableOpacity } from "react-native";
 import GoogleCast, {
   CastButton,
   CastContext,
@@ -41,6 +41,22 @@ export function Chromecast({
       Platform.OS === "android" ? <CastButton tintColor='transparent' /> : null,
     [Platform.OS],
   );
+
+  if (Platform.OS === "ios") {
+    return (
+      <TouchableOpacity
+        className='mr-4'
+        onPress={() => {
+          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+          else CastContext.showCastDialog();
+        }}
+        {...props}
+      >
+        <AndroidCastButton />
+        <Feather name='cast' size={22} color={"white"} />
+      </TouchableOpacity>
+    );
+  }
 
   if (background === "transparent")
     return (

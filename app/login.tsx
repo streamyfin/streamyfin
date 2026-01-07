@@ -4,17 +4,16 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
-import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
@@ -32,8 +31,13 @@ const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const { setServer, login, removeServer, initiateQuickConnect } =
-    useJellyfin();
+  const {
+    setServer,
+    login,
+    removeServer,
+    initiateQuickConnect,
+    loginWithSavedCredential,
+  } = useJellyfin();
 
   const {
     apiUrl: _apiUrl,
@@ -43,14 +47,14 @@ const Login: React.FC = () => {
 
   const [loadingServerCheck, setLoadingServerCheck] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const [serverURL, setServerURL] = useState<string>(_apiUrl);
+  const [serverURL, setServerURL] = useState<string>(_apiUrl || "");
   const [serverName, setServerName] = useState<string>("");
   const [credentials, setCredentials] = useState<{
     username: string;
     password: string;
   }>({
-    username: _username,
-    password: _password,
+    username: _username || "",
+    password: _password || "",
   });
 
   /**
@@ -63,12 +67,13 @@ const Login: React.FC = () => {
           address: _apiUrl,
         });
 
+        // Wait for server setup and state updates to complete
         setTimeout(() => {
           if (_username && _password) {
             setCredentials({ username: _username, password: _password });
             login(_username, _password);
           }
-        }, 300);
+        }, 0);
       }
     })();
   }, [_apiUrl, _username, _password]);
@@ -82,10 +87,10 @@ const Login: React.FC = () => {
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center'
+            className='flex flex-row items-center pr-2 pl-1'
           >
             <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className='ml-2 text-purple-600'>
+            <Text className=' ml-1 text-purple-600'>
               {t("login.change_server")}
             </Text>
           </TouchableOpacity>
@@ -100,7 +105,7 @@ const Login: React.FC = () => {
     try {
       const result = CredentialsSchema.safeParse(credentials);
       if (result.success) {
-        await login(credentials.username, credentials.password);
+        await login(credentials.username, credentials.password, serverName);
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -114,6 +119,10 @@ const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickLoginWithSavedCredential = async (serverUrl: string) => {
+    await loginWithSavedCredential(serverUrl);
   };
 
   /**
@@ -262,24 +271,39 @@ const Login: React.FC = () => {
               <Input
                 placeholder={t("login.username_placeholder")}
                 onChangeText={(text: string) =>
-                  setCredentials({ ...credentials, username: text })
+                  setCredentials((prev) => ({ ...prev, username: text }))
                 }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.username) {
+                    setCredentials((prev) => ({ ...prev, username: newValue }));
+                  }
+                }}
                 value={credentials.username}
                 keyboardType='default'
                 returnKeyType='done'
                 autoCapitalize='none'
-                textContentType='oneTimeCode'
+                autoCorrect={false}
+                textContentType='username'
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               {/* Password */}
               <Input
                 placeholder={t("login.password_placeholder")}
                 onChangeText={(text: string) =>
-                  setCredentials({ ...credentials, password: text })
+                  setCredentials((prev) => ({ ...prev, password: text }))
                 }
+                onEndEditing={(e) => {
+                  const newValue = e.nativeEvent.text;
+                  if (newValue && newValue !== credentials.password) {
+                    setCredentials((prev) => ({ ...prev, password: newValue }));
+                  }
+                }}
                 value={credentials.password}
                 secureTextEntry
                 keyboardType='default'
@@ -289,10 +313,17 @@ const Login: React.FC = () => {
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               <View className='mt-4'>
-                <Button onPress={handleLogin}>{t("login.login_button")}</Button>
+                <Button
+                  onPress={handleLogin}
+                  disabled={!credentials.username.trim()}
+                >
+                  {t("login.login_button")}
+                </Button>
               </View>
               <View className='mt-3'>
                 <Button
@@ -334,6 +365,8 @@ const Login: React.FC = () => {
                 autoCapitalize='none'
                 textContentType='URL'
                 maxLength={500}
+                autoFocus={false}
+                blurOnSubmit={true}
               />
 
               {/* Full-width primary button */}
@@ -357,9 +390,10 @@ const Login: React.FC = () => {
                   }}
                 />
                 <PreviousServersList
-                  onServerSelect={async (s: any) => {
+                  onServerSelect={async (s) => {
                     await handleConnect(s.address);
                   }}
+                  onQuickLogin={handleQuickLoginWithSavedCredential}
                 />
               </View>
             </View>
@@ -371,11 +405,12 @@ const Login: React.FC = () => {
     // Mobile layout
     <SafeAreaView style={{ flex: 1, paddingBottom: 16 }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
       >
         {api?.basePath ? (
-          <View className='flex flex-col h-full relative items-center justify-center'>
-            <View className='px-4 -mt-20 w-full'>
+          <View className='flex flex-col flex-1 justify-center'>
+            <View className='px-4 w-full'>
               <View className='flex flex-col space-y-2'>
                 <Text className='text-2xl font-bold -mb-2'>
                   {serverName ? (
@@ -391,15 +426,23 @@ const Login: React.FC = () => {
                 <Input
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
-                    setCredentials({ ...credentials, username: text })
+                    setCredentials((prev) => ({ ...prev, username: text }))
                   }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.username) {
+                      setCredentials((prev) => ({
+                        ...prev,
+                        username: newValue,
+                      }));
+                    }
+                  }}
                   value={credentials.username}
                   keyboardType='default'
                   returnKeyType='done'
                   autoCapitalize='none'
-                  // Changed from username to oneTimeCode because it is a known issue in RN
-                  // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
-                  textContentType='oneTimeCode'
+                  autoCorrect={false}
+                  textContentType='username'
                   clearButtonMode='while-editing'
                   maxLength={500}
                 />
@@ -407,8 +450,17 @@ const Login: React.FC = () => {
                 <Input
                   placeholder={t("login.password_placeholder")}
                   onChangeText={(text) =>
-                    setCredentials({ ...credentials, password: text })
+                    setCredentials((prev) => ({ ...prev, password: text }))
                   }
+                  onEndEditing={(e) => {
+                    const newValue = e.nativeEvent.text;
+                    if (newValue && newValue !== credentials.password) {
+                      setCredentials((prev) => ({
+                        ...prev,
+                        password: newValue,
+                      }));
+                    }
+                  }}
                   value={credentials.password}
                   secureTextEntry
                   keyboardType='default'
@@ -422,6 +474,7 @@ const Login: React.FC = () => {
                   <Button
                     onPress={handleLogin}
                     loading={loading}
+                    disabled={!credentials.username.trim()}
                     className='flex-1 mr-2'
                   >
                     {t("login.login_button")}
@@ -443,7 +496,7 @@ const Login: React.FC = () => {
             <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
           </View>
         ) : (
-          <View className='flex flex-col h-full items-center justify-center w-full'>
+          <View className='flex flex-col flex-1 items-center justify-center w-full'>
             <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
               <Image
                 style={{
@@ -492,6 +545,7 @@ const Login: React.FC = () => {
                 onServerSelect={async (s) => {
                   await handleConnect(s.address);
                 }}
+                onQuickLogin={handleQuickLoginWithSavedCredential}
               />
             </View>
           </View>
