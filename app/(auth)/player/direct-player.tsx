@@ -1081,7 +1081,10 @@ export default function page() {
                 onVideoProgress={onProgressVlc}
                 onVideoStateChange={onPlaybackStateChangedVlc}
                 onPipStarted={onPipStartedVlc}
-                onVideoLoadEnd={() => setIsVideoLoaded(true)}
+                onVideoLoadEnd={() => {
+                  setIsVideoLoaded(true);
+                  setTracksReady(true);
+                }}
                 onVideoError={(e: PlaybackStatePayload) => {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
