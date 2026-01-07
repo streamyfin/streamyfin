@@ -117,7 +117,7 @@
     "@react-native-community/cli": "20.1.0",
     "@react-native-tvos/config-tv": "0.1.4",
     "@types/jest": "29.5.14",
-    "@types/lodash": "4.17.20",
+    "@types/lodash": "4.17.21",
     "@types/react": "~19.1.10",
     "@types/react-test-renderer": "19.1.0",
     "cross-env": "10.1.0",
