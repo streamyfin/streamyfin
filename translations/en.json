@@ -189,6 +189,18 @@
         "hardware_decode": "Hardware Decoding",
         "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
       },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
       "video_player": {
         "title": "Video Player",
         "video_player": "Video Player",

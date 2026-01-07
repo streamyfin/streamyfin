@@ -25,7 +25,7 @@ const SUBTITLE_SIZE_PRESETS = [
 
 const DropdownView = () => {
   const { subtitleTracks, audioTracks } = useVideoContext();
-  const { item, mediaSource } = usePlayerContext();
+  const { item, mediaSource, useVlcPlayer } = usePlayerContext();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
 
@@ -110,17 +110,19 @@ const DropdownView = () => {
         })),
       });
 
-      // Subtitle Size Section
-      groups.push({
-        title: "Subtitle Size",
-        options: SUBTITLE_SIZE_PRESETS.map((preset) => ({
-          type: "radio" as const,
-          label: preset.label,
-          value: preset.value.toString(),
-          selected: settings.subtitleSize === preset.value,
-          onPress: () => updateSettings({ subtitleSize: preset.value }),
-        })),
-      });
+      // Subtitle Size Section (KSPlayer only - VLC uses settings)
+      if (!useVlcPlayer) {
+        groups.push({
+          title: "Subtitle Size",
+          options: SUBTITLE_SIZE_PRESETS.map((preset) => ({
+            type: "radio" as const,
+            label: preset.label,
+            value: preset.value.toString(),
+            selected: settings.subtitleSize === preset.value,
+            onPress: () => updateSettings({ subtitleSize: preset.value }),
+          })),
+        });
+      }
     }
 
     // Audio Section
@@ -149,6 +151,7 @@ const DropdownView = () => {
     audioIndex,
     settings.subtitleSize,
     updateSettings,
+    useVlcPlayer,
     // Note: subtitleTracks and audioTracks are intentionally excluded
     // because we use subtitleTracksKey and audioTracksKey for stability
   ]);
