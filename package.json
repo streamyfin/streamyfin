@@ -123,7 +123,7 @@
     "cross-env": "10.1.0",
     "expo-doctor": "1.17.14",
     "husky": "9.1.7",
-    "lint-staged": "16.2.6",
+    "lint-staged": "16.2.7",
     "react-test-renderer": "19.1.1",
     "typescript": "5.9.3"
   },
