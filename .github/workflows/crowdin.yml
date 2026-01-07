@@ -45,6 +45,6 @@ jobs:
           # Commit customization
           commit_message: "feat(i18n): update translations from Crowdin"
         env:
-          GITHUB_TOKEN: ${{ secrets.CROWDIN_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
           CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
