@@ -28,6 +28,7 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import { OUTLINE_THICKNESS, VLC_COLORS } from "@/constants/SubtitleConstants";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -672,11 +673,62 @@ export default function page() {
       }
     }
 
-    // Add subtitle styling
+    // Add VLC subtitle styling from settings
     if (settings.subtitleSize) {
       initOptions.push(`--sub-text-scale=${settings.subtitleSize}`);
     }
-    initOptions.push("--sub-margin=40");
+    initOptions.push(`--sub-margin=${settings.vlcSubtitleMargin ?? 40}`);
+
+    // Text color
+    if (
+      settings.vlcTextColor &&
+      VLC_COLORS[settings.vlcTextColor] !== undefined
+    ) {
+      initOptions.push(`--freetype-color=${VLC_COLORS[settings.vlcTextColor]}`);
+    }
+
+    // Background styling
+    if (
+      settings.vlcBackgroundColor &&
+      VLC_COLORS[settings.vlcBackgroundColor] !== undefined
+    ) {
+      initOptions.push(
+        `--freetype-background-color=${VLC_COLORS[settings.vlcBackgroundColor]}`,
+      );
+    }
+    if (settings.vlcBackgroundOpacity !== undefined) {
+      initOptions.push(
+        `--freetype-background-opacity=${settings.vlcBackgroundOpacity}`,
+      );
+    }
+
+    // Outline styling
+    if (
+      settings.vlcOutlineColor &&
+      VLC_COLORS[settings.vlcOutlineColor] !== undefined
+    ) {
+      initOptions.push(
+        `--freetype-outline-color=${VLC_COLORS[settings.vlcOutlineColor]}`,
+      );
+    }
+    if (settings.vlcOutlineOpacity !== undefined) {
+      initOptions.push(
+        `--freetype-outline-opacity=${settings.vlcOutlineOpacity}`,
+      );
+    }
+    if (
+      settings.vlcOutlineThickness &&
+      OUTLINE_THICKNESS[settings.vlcOutlineThickness] !== undefined
+    ) {
+      initOptions.push(
+        `--freetype-outline-thickness=${OUTLINE_THICKNESS[settings.vlcOutlineThickness]}`,
+      );
+    }
+
+    // Bold text
+    if (settings.vlcIsBold) {
+      initOptions.push("--freetype-bold");
+    }
 
     // For transcoded streams, the server already handles seeking via startTimeTicks,
     // so we should NOT also tell the player to seek (would cause double-seeking).
@@ -703,6 +755,14 @@ export default function page() {
     subtitleIndex,
     audioIndex,
     settings.subtitleSize,
+    settings.vlcTextColor,
+    settings.vlcBackgroundColor,
+    settings.vlcBackgroundOpacity,
+    settings.vlcOutlineColor,
+    settings.vlcOutlineOpacity,
+    settings.vlcOutlineThickness,
+    settings.vlcIsBold,
+    settings.vlcSubtitleMargin,
   ]);
 
   const volumeUpCb = useCallback(async () => {

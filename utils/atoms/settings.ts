@@ -189,6 +189,15 @@ export type Settings = {
   ksSubtitleColor: string;
   ksSubtitleBackgroundColor: string;
   ksSubtitleFontName: string;
+  // VLC subtitle settings
+  vlcTextColor?: string;
+  vlcBackgroundColor?: string;
+  vlcBackgroundOpacity?: number;
+  vlcOutlineColor?: string;
+  vlcOutlineOpacity?: number;
+  vlcOutlineThickness?: "None" | "Thin" | "Normal" | "Thick";
+  vlcIsBold?: boolean;
+  vlcSubtitleMargin?: number;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -278,6 +287,15 @@ export const defaultValues: Settings = {
   ksSubtitleColor: "#FFFFFF",
   ksSubtitleBackgroundColor: "#00000080",
   ksSubtitleFontName: "System",
+  // VLC subtitle defaults
+  vlcTextColor: "White",
+  vlcBackgroundColor: "Black",
+  vlcBackgroundOpacity: 128,
+  vlcOutlineColor: "Black",
+  vlcOutlineOpacity: 255,
+  vlcOutlineThickness: "Normal",
+  vlcIsBold: false,
+  vlcSubtitleMargin: 40,
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
