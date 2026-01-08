@@ -5,6 +5,8 @@ import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { AnimatedEqualizer } from "@/components/music/AnimatedEqualizer";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import {
   audioStorageEvents,
@@ -27,7 +29,7 @@ interface Props {
 
 export const MusicTrackItem: React.FC<Props> = ({
   track,
-  index,
+  index: _index,
   queue,
   showArtwork = true,
   onOptionsPress,
@@ -36,6 +38,7 @@ export const MusicTrackItem: React.FC<Props> = ({
   const { playTrack, currentTrack, isPlaying, loadingTrackId } =
     useMusicPlayer();
   const { isConnected, serverConnected } = useNetworkStatus();
+  const haptic = useHaptic("light");
 
   const imageUrl = useMemo(() => {
     const albumId = track.AlbumId || track.ParentId;
@@ -109,8 +112,9 @@ export const MusicTrackItem: React.FC<Props> = ({
   }, [onOptionsPress, track]);
 
   const handleOptionsPress = useCallback(() => {
+    haptic();
     onOptionsPress?.(track);
-  }, [onOptionsPress, track]);
+  }, [haptic, onOptionsPress, track]);
 
   return (
     <TouchableOpacity
@@ -118,24 +122,15 @@ export const MusicTrackItem: React.FC<Props> = ({
       onLongPress={handleLongPress}
       delayLongPress={300}
       disabled={isUnavailableOffline}
-      className={`flex flex-row items-center py-3 ${isCurrentTrack ? "bg-purple-900/20" : ""}`}
+      className={`flex-row items-center py-1.5 pl-4 pr-3 ${isCurrentTrack ? "bg-purple-900/20" : ""}`}
       style={isUnavailableOffline ? { opacity: 0.5 } : undefined}
     >
-      {index !== undefined && (
-        <View className='w-8 items-center'>
-          {isCurrentTrack && isPlaying ? (
-            <Ionicons name='musical-note' size={16} color='#9334E9' />
-          ) : (
-            <Text className='text-neutral-500 text-sm'>{index}</Text>
-          )}
-        </View>
-      )}
-
+      {/* Album artwork */}
       {showArtwork && (
         <View
           style={{
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             borderRadius: 4,
             overflow: "hidden",
             backgroundColor: "#1a1a1a",
@@ -151,7 +146,7 @@ export const MusicTrackItem: React.FC<Props> = ({
             />
           ) : (
             <View className='flex-1 items-center justify-center bg-neutral-800'>
-              <Ionicons name='musical-note' size={20} color='#737373' />
+              <Ionicons name='musical-note' size={18} color='#737373' />
             </View>
           )}
           {isTrackLoading && (
@@ -173,19 +168,21 @@ export const MusicTrackItem: React.FC<Props> = ({
         </View>
       )}
 
+      {/* Track info */}
       <View className='flex-1 mr-3'>
-        <Text
-          numberOfLines={1}
-          className={`text-sm ${isCurrentTrack ? "text-purple-400 font-medium" : "text-white"}`}
-        >
-          {track.Name}
-        </Text>
-        <Text numberOfLines={1} className='text-neutral-400 text-xs mt-0.5'>
+        <View className='flex-row items-center'>
+          {isCurrentTrack && isPlaying && <AnimatedEqualizer />}
+          <Text
+            numberOfLines={1}
+            className={`flex-1 text-sm ${isCurrentTrack ? "text-purple-400 font-medium" : "text-white"}`}
+          >
+            {track.Name}
+          </Text>
+        </View>
+        <Text numberOfLines={1} className='text-neutral-500 text-xs mt-0.5'>
           {track.Artists?.join(", ") || track.AlbumArtist}
         </Text>
       </View>
-
-      <Text className='text-neutral-500 text-xs mr-2'>{duration}</Text>
 
       {/* Download status indicator */}
       {downloadStatus === "downloading" && (
@@ -198,19 +195,23 @@ export const MusicTrackItem: React.FC<Props> = ({
       {downloadStatus === "downloaded" && (
         <Ionicons
           name='checkmark-circle'
-          size={16}
+          size={14}
           color='#22c55e'
           style={{ marginRight: 8 }}
         />
       )}
 
+      {/* Duration */}
+      <Text className='text-neutral-500 text-xs'>{duration}</Text>
+
+      {/* Options button */}
       {onOptionsPress && (
         <TouchableOpacity
           onPress={handleOptionsPress}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className='p-1'
+          className='pl-3 py-1'
         >
-          <Ionicons name='ellipsis-vertical' size={18} color='#737373' />
+          <Ionicons name='ellipsis-vertical' size={16} color='#737373' />
         </TouchableOpacity>
       )}
     </TouchableOpacity>

@@ -20,6 +20,7 @@ interface PlayerContextProps {
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
   tracksReady: boolean;
+  useVlcPlayer: boolean;
 }
 
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
@@ -31,6 +32,7 @@ interface PlayerProviderProps {
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
   tracksReady: boolean;
+  useVlcPlayer: boolean;
 }
 
 export const PlayerProvider: React.FC<PlayerProviderProps> = ({
@@ -40,10 +42,18 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   mediaSource,
   isVideoLoaded,
   tracksReady,
+  useVlcPlayer,
 }) => {
   const value = useMemo(
-    () => ({ playerRef, item, mediaSource, isVideoLoaded, tracksReady }),
-    [playerRef, item, mediaSource, isVideoLoaded, tracksReady],
+    () => ({
+      playerRef,
+      item,
+      mediaSource,
+      isVideoLoaded,
+      tracksReady,
+      useVlcPlayer,
+    }),
+    [playerRef, item, mediaSource, isVideoLoaded, tracksReady, useVlcPlayer],
   );
 
   return (

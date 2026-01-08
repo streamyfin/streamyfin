@@ -85,8 +85,6 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     track ?? ({ Id: "", UserData: { IsFavorite: false } } as BaseItemDto),
   );
 
-  const snapPoints = useMemo(() => ["65%"], []);
-
   // Check download status (storageUpdateCounter triggers re-evaluation when download completes)
   const isAlreadyDownloaded = useMemo(
     () => isPermanentlyDownloaded(track?.Id),
@@ -220,8 +218,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
-      index={0}
-      snapPoints={snapPoints}
+      enableDynamicSizing
       onChange={handleSheetChanges}
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={{

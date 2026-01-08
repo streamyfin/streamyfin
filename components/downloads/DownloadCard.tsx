@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { t } from "i18next";
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";
 import { JobStatus } from "@/providers/Downloads/types";
@@ -37,7 +37,7 @@ interface DownloadCardProps extends TouchableOpacityProps {
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   const { cancelDownload } = useDownload();
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const handleDelete = async (id: string) => {
     try {

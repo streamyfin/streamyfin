@@ -10,10 +10,10 @@ import type {
 } from "@/utils/jellyseerr/server/models/Search";
 import { storage } from "@/utils/mmkv";
 import "@/augmentations";
-import { useQueryClient } from "@tanstack/react-query";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
@@ -436,7 +436,7 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);

@@ -57,7 +57,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { SfAudioTrack } from "@/modules";
+import type { SfAudioTrack, TrackInfo } from "@/modules";
 import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
@@ -75,7 +75,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource } = usePlayerContext();
+  const { tracksReady, mediaSource, useVlcPlayer } = usePlayerContext();
   const playerControls = usePlayerControls();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
@@ -131,6 +131,94 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     if (!tracksReady) return;
 
     const fetchTracks = async () => {
+      // For VLC player, use simpler track handling with server indices
+      if (useVlcPlayer) {
+        // Get VLC track info (VLC returns TrackInfo[] with 'index' property)
+        const vlcSubtitleData = (await playerControls
+          .getSubtitleTracks()
+          .catch(() => null)) as TrackInfo[] | null;
+        const vlcAudioData = (await playerControls
+          .getAudioTracks()
+          .catch(() => null)) as TrackInfo[] | null;
+
+        // VLC reverses HLS subtitles during transcoding
+        let vlcSubs: TrackInfo[] = vlcSubtitleData ? [...vlcSubtitleData] : [];
+        if (isTranscoding && vlcSubs.length > 1) {
+          vlcSubs = [vlcSubs[0], ...vlcSubs.slice(1).reverse()];
+        }
+
+        // Build subtitle tracks for VLC
+        const subs: Track[] = [];
+        let vlcSubIndex = 1; // VLC track indices start at 1 (0 is usually "Disable")
+
+        for (const sub of allSubs) {
+          const isTextBased =
+            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
+            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
+            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
+
+          // Get VLC's internal index for this track
+          const vlcTrackIndex = vlcSubs[vlcSubIndex]?.index ?? -1;
+          if (isTextBased) vlcSubIndex++;
+
+          // For image-based subs during transcoding, or non-text subs, use replacePlayer
+          const needsPlayerRefresh =
+            (isTranscoding && isImageBasedSubtitle(sub)) || !isTextBased;
+
+          subs.push({
+            name: sub.DisplayTitle || "Unknown",
+            index: sub.Index ?? -1,
+            mpvIndex: vlcTrackIndex,
+            setTrack: () => {
+              if (needsPlayerRefresh) {
+                replacePlayer({ subtitleIndex: String(sub.Index) });
+              } else if (vlcTrackIndex !== -1) {
+                playerControls.setSubtitleTrack(vlcTrackIndex);
+                router.setParams({ subtitleIndex: String(sub.Index) });
+              } else {
+                replacePlayer({ subtitleIndex: String(sub.Index) });
+              }
+            },
+          });
+        }
+
+        // Add "Disable" option
+        subs.unshift({
+          name: "Disable",
+          index: -1,
+          mpvIndex: -1,
+          setTrack: () => {
+            playerControls.setSubtitleTrack(-1);
+            router.setParams({ subtitleIndex: "-1" });
+          },
+        });
+
+        // Build audio tracks for VLC
+        const vlcAudio: TrackInfo[] = vlcAudioData ? [...vlcAudioData] : [];
+        const audio: Track[] = allAudio.map((a, idx) => {
+          const vlcTrackIndex = vlcAudio[idx + 1]?.index ?? idx;
+
+          return {
+            name: a.DisplayTitle || "Unknown",
+            index: a.Index ?? -1,
+            mpvIndex: vlcTrackIndex,
+            setTrack: () => {
+              if (isTranscoding) {
+                replacePlayer({ audioIndex: String(a.Index) });
+              } else {
+                playerControls.setAudioTrack(vlcTrackIndex);
+                router.setParams({ audioIndex: String(a.Index) });
+              }
+            },
+          };
+        });
+
+        setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
+        setAudioTracks(audio);
+        return;
+      }
+
+      // KSPlayer track handling (original logic)
       const audioData = await playerControls.getAudioTracks().catch(() => null);
       const playerAudio = (audioData as SfAudioTrack[]) ?? [];
 
@@ -259,7 +347,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-  }, [tracksReady, mediaSource]);
+  }, [tracksReady, mediaSource, useVlcPlayer]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>

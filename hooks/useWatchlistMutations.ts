@@ -1,7 +1,8 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { toast } from "sonner-native";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
@@ -17,7 +18,7 @@ import type {
 export const useCreateWatchlist = () => {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const mutation = useMutation({
     mutationFn: async (
@@ -58,7 +59,7 @@ export const useCreateWatchlist = () => {
 export const useUpdateWatchlist = () => {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const mutation = useMutation({
     mutationFn: async ({
@@ -106,7 +107,7 @@ export const useUpdateWatchlist = () => {
 export const useDeleteWatchlist = () => {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const mutation = useMutation({
     mutationFn: async (watchlistId: number): Promise<void> => {
@@ -147,7 +148,7 @@ export const useDeleteWatchlist = () => {
 export const useAddToWatchlist = () => {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const mutation = useMutation({
     mutationFn: async ({
@@ -205,7 +206,7 @@ export const useAddToWatchlist = () => {
 export const useRemoveFromWatchlist = () => {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const mutation = useMutation({
     mutationFn: async ({

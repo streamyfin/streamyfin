@@ -10,10 +10,11 @@ import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 interface Props {
   album: BaseItemDto;
-  width?: number;
 }
 
-export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
+const IMAGE_SIZE = 56;
+
+export const MusicAlbumRowCard: React.FC<Props> = ({ album }) => {
   const [api] = useAtom(apiAtom);
   const router = useRouter();
 
@@ -32,13 +33,12 @@ export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
   return (
     <TouchableOpacity
       onPress={handlePress}
-      style={{ width }}
-      className='flex flex-col'
+      className='flex-row items-center py-2'
     >
       <View
         style={{
-          width,
-          height: width,
+          width: IMAGE_SIZE,
+          height: IMAGE_SIZE,
           borderRadius: 8,
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
@@ -53,16 +53,18 @@ export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
           />
         ) : (
           <View className='flex-1 items-center justify-center bg-neutral-800'>
-            <Text className='text-4xl'>🎵</Text>
+            <Text className='text-2xl'>🎵</Text>
           </View>
         )}
       </View>
-      <Text numberOfLines={1} className='text-white text-sm font-medium mt-2'>
-        {album.Name}
-      </Text>
-      <Text numberOfLines={1} className='text-neutral-400 text-xs'>
-        {album.AlbumArtist || album.Artists?.join(", ")}
-      </Text>
+      <View className='flex-1 ml-3'>
+        <Text numberOfLines={1} className='text-white text-base font-medium'>
+          {album.Name}
+        </Text>
+        <Text numberOfLines={1} className='text-neutral-400 text-sm mt-0.5'>
+          {album.AlbumArtist || album.Artists?.join(", ")}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 };

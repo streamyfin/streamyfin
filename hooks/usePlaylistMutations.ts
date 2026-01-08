@@ -1,8 +1,9 @@
 import { getLibraryApi, getPlaylistsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner-native";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 /**
@@ -11,7 +12,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 export const useCreatePlaylist = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const { t } = useTranslation();
 
   const mutation = useMutation({
@@ -58,7 +59,7 @@ export const useCreatePlaylist = () => {
 export const useAddToPlaylist = () => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const { t } = useTranslation();
 
   const mutation = useMutation({
@@ -108,7 +109,7 @@ export const useAddToPlaylist = () => {
  */
 export const useRemoveFromPlaylist = () => {
   const api = useAtomValue(apiAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const { t } = useTranslation();
 
   const mutation = useMutation({
@@ -160,7 +161,7 @@ export const useRemoveFromPlaylist = () => {
  */
 export const useDeletePlaylist = () => {
   const api = useAtomValue(apiAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const { t } = useTranslation();
 
   const mutation = useMutation({

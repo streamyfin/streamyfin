@@ -1,9 +1,10 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import NetInfo from "@react-native-community/netinfo";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
+import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
@@ -187,11 +188,29 @@ export default function RootLayout() {
   );
 }
 
+// Set up online manager for network-aware query behavior
+onlineManager.setEventListener((setOnline) => {
+  return NetInfo.addEventListener((state) => {
+    setOnline(!!state.isConnected);
+  });
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30000, // 30 seconds - data is fresh
-      gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep in cache for persistence
+      staleTime: 0, // Always stale - triggers background refetch on mount
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep in cache for offline
+      networkMode: "offlineFirst", // Return cache first, refetch if online
+      refetchOnMount: true, // Refetch when component mounts
+      refetchOnReconnect: true, // Refetch when network reconnects
+      refetchOnWindowFocus: false, // Not needed for mobile
+      retry: (failureCount) => {
+        if (!onlineManager.isOnline()) return false;
+        return failureCount < 3;
+      },
+    },
+    mutations: {
+      networkMode: "online", // Only run mutations when online
     },
   },
 });

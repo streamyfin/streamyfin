@@ -1,7 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
@@ -331,11 +331,25 @@ export default function IndexLayout() {
       <Stack.Screen
         name='intro/page'
         options={{
-          headerShown: false,
+          headerShown: true,
           title: "",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
-              <Feather name='chevron-left' size={28} color='white' />
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => null,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => _router.back()}
+              style={{
+                marginRight: Platform.OS === "android" ? 16 : 0,
+                paddingHorizontal: 6,
+              }}
+            >
+              <Text
+                style={{ color: "#9333ea", fontSize: 17, fontWeight: "600" }}
+              >
+                {t("home.intro.done_button")}
+              </Text>
             </TouchableOpacity>
           ),
           presentation: "modal",

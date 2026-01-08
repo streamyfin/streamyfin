@@ -8,12 +8,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Dimensions,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -30,8 +25,7 @@ import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const ARTWORK_SIZE = SCREEN_WIDTH * 0.5;
+const ARTWORK_SIZE = 120;
 
 export default function PlaylistDetailScreen() {
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>();

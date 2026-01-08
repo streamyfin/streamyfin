@@ -1,4 +1,6 @@
+import { ExpoAvRoutePickerView } from "@douglowder/expo-av-route-picker-view";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -6,7 +8,13 @@ import type {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -20,17 +28,30 @@ import DraggableFlatList, {
   type RenderItemParams,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
+import { CastButton, CastState } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import TextTicker from "react-native-text-ticker";
+import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
+import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
+import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import { useFavorite } from "@/hooks/useFavorite";
+import { useMusicCast } from "@/hooks/useMusicCast";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
   type RepeatMode,
   useMusicPlayer,
 } from "@/providers/MusicPlayerProvider";
 import { formatBitrate } from "@/utils/bitrate";
 import { formatDuration } from "@/utils/time";
+
+// Conditionally require VolumeManager (not available on TV)
+const VolumeManager = Platform.isTV
+  ? null
+  : require("react-native-volume-manager");
 
 const formatFileSize = (bytes?: number | null) => {
   if (!bytes) return null;
@@ -52,9 +73,22 @@ type ViewMode = "player" | "queue";
 
 export default function NowPlayingScreen() {
   const [api] = useAtom(apiAtom);
+  const [user] = useAtom(userAtom);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>("player");
+  const [trackOptionsOpen, setTrackOptionsOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+
+  const {
+    isConnected: isCastConnected,
+    castQueue,
+    castState,
+  } = useMusicCast({
+    api,
+    userId: user?.Id,
+  });
 
   const {
     currentTrack,
@@ -78,7 +112,12 @@ export default function NowPlayingScreen() {
     removeFromQueue,
     reorderQueue,
     stop,
+    pause,
   } = useMusicPlayer();
+
+  const { isFavorite, toggleFavorite } = useFavorite(
+    currentTrack ?? ({ Id: "" } as BaseItemDto),
+  );
 
   const sliderProgress = useSharedValue(0);
   const sliderMin = useSharedValue(0);
@@ -91,6 +130,21 @@ export default function NowPlayingScreen() {
   useEffect(() => {
     sliderMax.value = duration > 0 ? duration : 1;
   }, [duration, sliderMax]);
+
+  // Auto-cast queue when Chromecast becomes connected and pause local playback
+  const prevCastState = useRef<CastState | null | undefined>(null);
+  useEffect(() => {
+    if (
+      castState === CastState.CONNECTED &&
+      prevCastState.current !== CastState.CONNECTED &&
+      queue.length > 0
+    ) {
+      // Just connected - pause local playback and cast the queue
+      pause();
+      castQueue({ queue, startIndex: queueIndex });
+    }
+    prevCastState.current = castState;
+  }, [castState, queue, queueIndex, castQueue, pause]);
 
   const imageUrl = useMemo(() => {
     if (!api || !currentTrack) return null;
@@ -106,10 +160,16 @@ export default function NowPlayingScreen() {
     return formatDuration(progressTicks);
   }, [progress]);
 
-  const durationText = useMemo(() => {
+  const _durationText = useMemo(() => {
     const durationTicks = duration * 10000000;
     return formatDuration(durationTicks);
   }, [duration]);
+
+  const remainingText = useMemo(() => {
+    const remaining = Math.max(0, duration - progress);
+    const remainingTicks = remaining * 10000000;
+    return `-${formatDuration(remainingTicks)}`;
+  }, [duration, progress]);
 
   const handleSliderComplete = useCallback(
     (value: number) => {
@@ -134,6 +194,18 @@ export default function NowPlayingScreen() {
     setRepeatMode(nextMode);
   }, [repeatMode, setRepeatMode]);
 
+  const handleOptionsPress = useCallback(() => {
+    setTrackOptionsOpen(true);
+  }, []);
+
+  const handleAddToPlaylist = useCallback(() => {
+    setPlaylistPickerOpen(true);
+  }, []);
+
+  const handleCreateNewPlaylist = useCallback(() => {
+    setCreatePlaylistOpen(true);
+  }, []);
+
   const getRepeatIcon = (): string => {
     switch (repeatMode) {
       case "one":
@@ -150,108 +222,133 @@ export default function NowPlayingScreen() {
 
   if (!currentTrack) {
     return (
+      <BottomSheetModalProvider>
+        <View
+          className='flex-1 bg-[#121212] items-center justify-center'
+          style={{
+            paddingTop: Platform.OS === "android" ? insets.top : 0,
+            paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
+          }}
+        >
+          <Text className='text-neutral-500'>No track playing</Text>
+        </View>
+      </BottomSheetModalProvider>
+    );
+  }
+
+  return (
+    <BottomSheetModalProvider>
       <View
-        className='flex-1 bg-[#121212] items-center justify-center'
+        className='flex-1 bg-[#121212]'
         style={{
           paddingTop: Platform.OS === "android" ? insets.top : 0,
           paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
         }}
       >
-        <Text className='text-neutral-500'>No track playing</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View
-      className='flex-1 bg-[#121212]'
-      style={{
-        paddingTop: Platform.OS === "android" ? insets.top : 0,
-        paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
-      }}
-    >
-      {/* Header */}
-      <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
-        <TouchableOpacity
-          onPress={handleClose}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          className='p-2'
-        >
-          <Ionicons name='chevron-down' size={28} color='white' />
-        </TouchableOpacity>
-
-        <View className='flex-row'>
+        {/* Header */}
+        <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
           <TouchableOpacity
-            onPress={() => setViewMode("player")}
-            className='px-3 py-1'
+            onPress={handleClose}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className='p-2'
           >
-            <Text
-              className={
-                viewMode === "player"
-                  ? "text-white font-semibold"
-                  : "text-neutral-500"
-              }
-            >
-              Now Playing
-            </Text>
+            <Ionicons name='chevron-down' size={28} color='white' />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setViewMode("queue")}
-            className='px-3 py-1'
-          >
-            <Text
-              className={
-                viewMode === "queue"
-                  ? "text-white font-semibold"
-                  : "text-neutral-500"
-              }
+
+          <View className='flex-row'>
+            <TouchableOpacity
+              onPress={() => setViewMode("player")}
+              className='px-3 py-1'
             >
-              Queue ({queue.length})
-            </Text>
-          </TouchableOpacity>
+              <Text
+                className={
+                  viewMode === "player"
+                    ? "text-white font-semibold"
+                    : "text-neutral-500"
+                }
+              >
+                Now Playing
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setViewMode("queue")}
+              className='px-3 py-1'
+            >
+              <Text
+                className={
+                  viewMode === "queue"
+                    ? "text-white font-semibold"
+                    : "text-neutral-500"
+                }
+              >
+                Queue ({queue.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {/* Empty placeholder to balance header layout */}
+          <View className='p-2' style={{ width: 44 }} />
         </View>
-        <View style={{ width: 16 }} />
-      </View>
 
-      {viewMode === "player" ? (
-        <PlayerView
-          api={api}
-          currentTrack={currentTrack}
-          imageUrl={imageUrl}
-          sliderProgress={sliderProgress}
-          sliderMin={sliderMin}
-          sliderMax={sliderMax}
-          progressText={progressText}
-          durationText={durationText}
-          isPlaying={isPlaying}
-          isLoading={isLoading}
-          repeatMode={repeatMode}
-          shuffleEnabled={shuffleEnabled}
-          canGoNext={canGoNext}
-          canGoPrevious={canGoPrevious}
-          onSliderComplete={handleSliderComplete}
-          onTogglePlayPause={togglePlayPause}
-          onNext={next}
-          onPrevious={previous}
-          onCycleRepeat={cycleRepeatMode}
-          onToggleShuffle={toggleShuffle}
-          getRepeatIcon={getRepeatIcon}
-          queue={queue}
-          queueIndex={queueIndex}
-          mediaSource={mediaSource}
-          isTranscoding={isTranscoding}
+        {viewMode === "player" ? (
+          <PlayerView
+            api={api}
+            currentTrack={currentTrack}
+            imageUrl={imageUrl}
+            sliderProgress={sliderProgress}
+            sliderMin={sliderMin}
+            sliderMax={sliderMax}
+            progressText={progressText}
+            remainingText={remainingText}
+            isPlaying={isPlaying}
+            isLoading={isLoading}
+            repeatMode={repeatMode}
+            shuffleEnabled={shuffleEnabled}
+            canGoNext={canGoNext}
+            canGoPrevious={canGoPrevious}
+            onSliderComplete={handleSliderComplete}
+            onTogglePlayPause={togglePlayPause}
+            onNext={next}
+            onPrevious={previous}
+            onCycleRepeat={cycleRepeatMode}
+            onToggleShuffle={toggleShuffle}
+            getRepeatIcon={getRepeatIcon}
+            mediaSource={mediaSource}
+            isTranscoding={isTranscoding}
+            isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+            onOptionsPress={handleOptionsPress}
+            isCastConnected={isCastConnected}
+          />
+        ) : (
+          <QueueView
+            api={api}
+            queue={queue}
+            queueIndex={queueIndex}
+            onJumpToIndex={jumpToIndex}
+            onRemoveFromQueue={removeFromQueue}
+            onReorderQueue={reorderQueue}
+          />
+        )}
+
+        <TrackOptionsSheet
+          open={trackOptionsOpen}
+          setOpen={setTrackOptionsOpen}
+          track={currentTrack}
+          onAddToPlaylist={handleAddToPlaylist}
         />
-      ) : (
-        <QueueView
-          api={api}
-          queue={queue}
-          queueIndex={queueIndex}
-          onJumpToIndex={jumpToIndex}
-          onRemoveFromQueue={removeFromQueue}
-          onReorderQueue={reorderQueue}
+        <PlaylistPickerSheet
+          open={playlistPickerOpen}
+          setOpen={setPlaylistPickerOpen}
+          trackToAdd={currentTrack}
+          onCreateNew={handleCreateNewPlaylist}
         />
-      )}
-    </View>
+        <CreatePlaylistModal
+          open={createPlaylistOpen}
+          setOpen={setCreatePlaylistOpen}
+          initialTrackId={currentTrack?.Id}
+        />
+      </View>
+    </BottomSheetModalProvider>
   );
 }
 
@@ -263,7 +360,7 @@ interface PlayerViewProps {
   sliderMin: any;
   sliderMax: any;
   progressText: string;
-  durationText: string;
+  remainingText: string;
   isPlaying: boolean;
   isLoading: boolean;
   repeatMode: RepeatMode;
@@ -277,10 +374,12 @@ interface PlayerViewProps {
   onCycleRepeat: () => void;
   onToggleShuffle: () => void;
   getRepeatIcon: () => string;
-  queue: BaseItemDto[];
-  queueIndex: number;
   mediaSource: MediaSourceInfo | null;
   isTranscoding: boolean;
+  isFavorite: boolean | undefined;
+  onToggleFavorite: () => void;
+  onOptionsPress: () => void;
+  isCastConnected: boolean;
 }
 
 const PlayerView: React.FC<PlayerViewProps> = ({
@@ -290,7 +389,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   sliderMin,
   sliderMax,
   progressText,
-  durationText,
+  remainingText,
   isPlaying,
   isLoading,
   repeatMode,
@@ -304,14 +403,41 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   onCycleRepeat,
   onToggleShuffle,
   getRepeatIcon,
-  queue,
-  queueIndex,
   mediaSource,
   isTranscoding,
+  isFavorite,
+  onToggleFavorite,
+  onOptionsPress,
+  isCastConnected,
 }) => {
   const audioStream = useMemo(() => {
     return mediaSource?.MediaStreams?.find((stream) => stream.Type === "Audio");
   }, [mediaSource]);
+
+  // Volume slider state
+  const volumeProgress = useSharedValue(0);
+  const volumeMin = useSharedValue(0);
+  const volumeMax = useSharedValue(1);
+  const isTv = Platform.isTV;
+
+  useEffect(() => {
+    if (isTv || !VolumeManager) return;
+    // Get initial volume
+    VolumeManager.getVolume().then(({ volume }: { volume: number }) => {
+      volumeProgress.value = volume;
+    });
+    // Listen to volume changes
+    const listener = VolumeManager.addVolumeListener((result: VolumeResult) => {
+      volumeProgress.value = result.volume;
+    });
+    return () => listener.remove();
+  }, [isTv, volumeProgress]);
+
+  const handleVolumeChange = useCallback((value: number) => {
+    if (VolumeManager) {
+      VolumeManager.setVolume(value);
+    }
+  }, []);
 
   const fileSize = formatFileSize(mediaSource?.Size);
   const codec = audioStream?.Codec?.toUpperCase();
@@ -353,19 +479,60 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         )}
       </View>
 
-      {/* Track info */}
+      {/* Track info with actions */}
       <View className='mb-6'>
-        <Text numberOfLines={1} className='text-white text-2xl font-bold'>
-          {currentTrack.Name}
-        </Text>
-        <Text numberOfLines={1} className='text-purple-400 text-lg mt-1'>
-          {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
-        </Text>
-        {currentTrack.Album && (
-          <Text numberOfLines={1} className='text-neutral-500 text-sm mt-1'>
-            {currentTrack.Album}
-          </Text>
-        )}
+        <View className='flex-row items-start justify-between'>
+          <View className='flex-1 mr-4'>
+            <TextTicker
+              style={{ color: "white", fontSize: 24, fontWeight: "bold" }}
+              duration={Math.max(4000, (currentTrack.Name?.length || 0) * 250)}
+              loop
+              bounce={false}
+              repeatSpacer={80}
+              marqueeDelay={1500}
+              scroll={false}
+              animationType='scroll'
+              easing={(t) => t}
+            >
+              {currentTrack.Name}
+            </TextTicker>
+            <TextTicker
+              style={{ color: "#a3a3a3", fontSize: 18 }}
+              duration={Math.max(
+                4000,
+                (
+                  currentTrack.Artists?.join(", ") ||
+                  currentTrack.AlbumArtist ||
+                  ""
+                ).length * 250,
+              )}
+              loop
+              bounce={false}
+              repeatSpacer={80}
+              marqueeDelay={2000}
+              scroll={false}
+              animationType='scroll'
+              easing={(t) => t}
+            >
+              {currentTrack.Artists?.join(", ") || currentTrack.AlbumArtist}
+            </TextTicker>
+          </View>
+          <TouchableOpacity
+            onPress={onToggleFavorite}
+            className='p-2'
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorite ? "#ec4899" : "white"}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onOptionsPress} className='p-2'>
+            <Ionicons name='ellipsis-horizontal' size={24} color='white' />
+          </TouchableOpacity>
+        </View>
 
         {/* Audio Stats */}
         {hasAudioStats && (
@@ -395,28 +562,36 @@ const PlayerView: React.FC<PlayerViewProps> = ({
       <View className='mb-4'>
         <Slider
           theme={{
-            maximumTrackTintColor: "#333",
-            minimumTrackTintColor: "#9334E9",
-            bubbleBackgroundColor: "#9334E9",
-            bubbleTextColor: "#fff",
+            maximumTrackTintColor: "rgba(255,255,255,0.2)",
+            minimumTrackTintColor: "#fff",
+            bubbleBackgroundColor: "#fff",
+            bubbleTextColor: "#666",
           }}
           progress={sliderProgress}
           minimumValue={sliderMin}
           maximumValue={sliderMax}
           onSlidingComplete={onSliderComplete}
-          thumbWidth={16}
-          sliderHeight={6}
-          containerStyle={{ borderRadius: 10 }}
+          renderThumb={() => null}
+          sliderHeight={8}
+          containerStyle={{ borderRadius: 100 }}
           renderBubble={() => null}
         />
-        <View className='flex flex-row justify-between px-1 mt-2'>
+        <View className='flex flex-row justify-between mt-2'>
           <Text className='text-neutral-500 text-xs'>{progressText}</Text>
-          <Text className='text-neutral-500 text-xs'>{durationText}</Text>
+          <Text className='text-neutral-500 text-xs'>{remainingText}</Text>
         </View>
       </View>
 
-      {/* Main Controls */}
-      <View className='flex flex-row items-center justify-center mb-2'>
+      {/* Main Controls with Shuffle & Repeat */}
+      <View className='flex flex-row items-center justify-center mb-6'>
+        <TouchableOpacity onPress={onToggleShuffle} className='p-3'>
+          <Ionicons
+            name='shuffle'
+            size={24}
+            color={shuffleEnabled ? "#9334E9" : "#666"}
+          />
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={onPrevious}
           disabled={!canGoPrevious || isLoading}
@@ -429,7 +604,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         <TouchableOpacity
           onPress={onTogglePlayPause}
           disabled={isLoading}
-          className='mx-8 bg-white rounded-full p-4'
+          className='mx-4 bg-white rounded-full p-4'
         >
           {isLoading ? (
             <ActivityIndicator size={36} color='#121212' />
@@ -451,38 +626,75 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         >
           <Ionicons name='play-skip-forward' size={32} color='white' />
         </TouchableOpacity>
-      </View>
 
-      {/* Shuffle & Repeat Controls */}
-      <View className='flex flex-row items-center justify-center mb-2'>
-        <TouchableOpacity onPress={onToggleShuffle} className='p-3 mx-4'>
-          <Ionicons
-            name='shuffle'
-            size={24}
-            color={shuffleEnabled ? "#9334E9" : "#666"}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={onCycleRepeat} className='p-3 mx-4 relative'>
+        <TouchableOpacity onPress={onCycleRepeat} className='p-3 relative'>
           <Ionicons
             name={getRepeatIcon() as any}
             size={24}
             color={repeatMode !== "off" ? "#9334E9" : "#666"}
           />
           {repeatMode === "one" && (
-            <View className='absolute right-0 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
+            <View className='absolute right-0 top-1 bg-purple-600 rounded-full w-4 h-4 items-center justify-center'>
               <Text className='text-white text-[10px] font-bold'>1</Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Queue info */}
-      {queue.length > 1 && (
-        <View className='items-center mb-4'>
-          <Text className='text-neutral-500 text-sm'>
-            {queueIndex + 1} of {queue.length}
-          </Text>
+      {/* Volume Slider */}
+      {!isTv && VolumeManager && (
+        <View className='flex-row items-center mb-6'>
+          <Ionicons name='volume-low' size={20} color='#666' />
+          <View className='flex-1 mx-3'>
+            <Slider
+              theme={{
+                maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                minimumTrackTintColor: "#fff",
+              }}
+              progress={volumeProgress}
+              minimumValue={volumeMin}
+              maximumValue={volumeMax}
+              onSlidingComplete={handleVolumeChange}
+              renderThumb={() => null}
+              sliderHeight={8}
+              containerStyle={{ borderRadius: 100 }}
+              renderBubble={() => null}
+            />
+          </View>
+          <Ionicons name='volume-high' size={20} color='#666' />
+        </View>
+      )}
+
+      {/* AirPlay & Chromecast Buttons */}
+      {!isTv && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 32,
+            marginBottom: 16,
+          }}
+        >
+          {/* AirPlay (iOS only) */}
+          {Platform.OS === "ios" && (
+            <View style={{ transform: [{ scale: 2.8 }] }}>
+              <ExpoAvRoutePickerView
+                style={{ width: 24, height: 24 }}
+                tintColor='#666666'
+                activeTintColor='#9334E9'
+              />
+            </View>
+          )}
+          {/* Chromecast */}
+          <CastButton
+            style={{
+              width: 24,
+              height: 24,
+              tintColor: isCastConnected ? "#9334E9" : "#666",
+              transform: [{ translateY: 1 }],
+            }}
+          />
         </View>
       )}
     </ScrollView>
