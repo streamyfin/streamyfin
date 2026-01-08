@@ -568,8 +568,9 @@ export default function page() {
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
-    // For offline playback, subtitles are embedded in the downloaded file
-    // For online playback, get external subtitle URLs from server
+    // Get external subtitle URLs
+    // - Online: prepend API base path to server URLs
+    // - Offline: use local file paths (stored in DeliveryUrl during download)
     let externalSubs: string[] | undefined;
     if (!offline && api?.basePath) {
       externalSubs = mediaSource?.MediaStreams?.filter(
@@ -578,6 +579,13 @@ export default function page() {
           s.DeliveryMethod === "External" &&
           s.DeliveryUrl,
       ).map((s) => `${api.basePath}${s.DeliveryUrl}`);
+    } else if (offline) {
+      externalSubs = mediaSource?.MediaStreams?.filter(
+        (s) =>
+          s.Type === "Subtitle" &&
+          s.DeliveryMethod === "External" &&
+          s.DeliveryUrl,
+      ).map((s) => s.DeliveryUrl!);
     }
 
     // Calculate track IDs for initial selection
@@ -641,7 +649,9 @@ export default function page() {
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
-    // For VLC, external subtitles need name and DeliveryUrl
+    // Get external subtitle URLs for VLC (need name and DeliveryUrl)
+    // - Online: prepend API base path to server URLs
+    // - Offline: use local file paths (stored in DeliveryUrl during download)
     let externalSubs: { name: string; DeliveryUrl: string }[] | undefined;
     if (!offline && api?.basePath) {
       externalSubs = mediaSource?.MediaStreams?.filter(
@@ -652,6 +662,16 @@ export default function page() {
       ).map((s) => ({
         name: s.DisplayTitle || s.Title || `Subtitle ${s.Index}`,
         DeliveryUrl: `${api.basePath}${s.DeliveryUrl}`,
+      }));
+    } else if (offline) {
+      externalSubs = mediaSource?.MediaStreams?.filter(
+        (s) =>
+          s.Type === "Subtitle" &&
+          s.DeliveryMethod === "External" &&
+          s.DeliveryUrl,
+      ).map((s) => ({
+        name: s.DisplayTitle || s.Title || `Subtitle ${s.Index}`,
+        DeliveryUrl: s.DeliveryUrl!,
       }));
     }
 
