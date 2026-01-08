@@ -58,6 +58,8 @@ export function useDownloadOperations({
       item: BaseItemDto,
       mediaSource: MediaSourceInfo,
       maxBitrate: Bitrate,
+      audioStreamIndex?: number,
+      subtitleStreamIndex?: number,
     ) => {
       if (!api || !item.Id || !authHeader) {
         console.warn("startBackgroundDownload ~ Missing required params");
@@ -114,6 +116,8 @@ export function useDownloadOperations({
           trickPlayData: additionalAssets.trickPlayData,
           introSegments: additionalAssets.introSegments,
           creditSegments: additionalAssets.creditSegments,
+          audioStreamIndex,
+          subtitleStreamIndex,
         };
 
         // Add to processes

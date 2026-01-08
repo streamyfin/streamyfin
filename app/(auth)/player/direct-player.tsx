@@ -141,7 +141,9 @@ export default function page() {
   const offline = offlineStr === "true";
   const playbackManager = usePlaybackManager({ isOffline: offline });
 
-  const audioIndex = audioIndexStr
+  // Audio index: use URL param if provided, otherwise use stored index for offline playback
+  // This is computed after downloadedItem is available, see audioIndexResolved below
+  const audioIndexFromUrl = audioIndexStr
     ? Number.parseInt(audioIndexStr, 10)
     : undefined;
   const subtitleIndex = subtitleIndexStr
@@ -159,6 +161,17 @@ export default function page() {
     isLoading: true,
     isError: false,
   });
+
+  // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
+  const audioIndex = useMemo(() => {
+    if (audioIndexFromUrl !== undefined) {
+      return audioIndexFromUrl;
+    }
+    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
+      return downloadedItem.userData.audioStreamIndex;
+    }
+    return undefined;
+  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
 
   // Get the playback speed for this item based on settings
   const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
@@ -1119,6 +1132,8 @@ export default function page() {
       isVideoLoaded={isVideoLoaded}
       tracksReady={tracksReady}
       useVlcPlayer={useVlcPlayer}
+      offline={offline}
+      downloadedItem={downloadedItem}
     >
       <VideoProvider>
         <View
