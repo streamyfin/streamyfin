@@ -238,7 +238,7 @@ export default function IndexLayout() {
           ),
         }}
       />
-      <Stack.Screen
+      <Stack.ScreenVideo
         name='settings/plugins/jellyseerr/page'
         options={{
           title: "Jellyseerr",

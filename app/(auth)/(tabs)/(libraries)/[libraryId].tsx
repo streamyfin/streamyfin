@@ -191,6 +191,10 @@ const Page = () => {
         itemType = "Series";
       } else if (library.CollectionType === "boxsets") {
         itemType = "BoxSet";
+      } else if (library.CollectionType === "homevideos") {
+        itemType = "Video";
+      } else if (library.CollectionType === "musicvideos") {
+        itemType = "MusicVideo";
       }
 
       const response = await getItemsApi(api).getItems({
