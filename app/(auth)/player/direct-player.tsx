@@ -299,7 +299,11 @@ export default function page() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: generateDeviceProfile(),
+            deviceProfile: generateDeviceProfile({
+              platform: Platform.OS as "ios" | "android",
+              player: useVlcPlayer ? "vlc" : "ksplayer",
+              audioMode: settings.audioTranscodeMode,
+            }),
           });
           if (!res) return;
           const { mediaSource, sessionId, url } = res;

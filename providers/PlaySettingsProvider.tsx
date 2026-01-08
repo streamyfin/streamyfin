@@ -5,8 +5,9 @@ import type {
 import { useAtomValue } from "jotai";
 import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
+import { Platform } from "react-native";
 import type { Bitrate } from "@/components/BitrateSelector";
-import { settingsAtom } from "@/utils/atoms/settings";
+import { settingsAtom, VideoPlayerIOS } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
@@ -77,7 +78,19 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const native = generateDeviceProfile();
+        // Determine which player is being used:
+        // - Android always uses VLC
+        // - iOS uses user setting (VLC is default)
+        const useVlcPlayer =
+          Platform.OS === "android" ||
+          (Platform.OS === "ios" &&
+            settings.videoPlayerIOS === VideoPlayerIOS.VLC);
+
+        const native = generateDeviceProfile({
+          platform: Platform.OS as "ios" | "android",
+          player: useVlcPlayer ? "vlc" : "ksplayer",
+          audioMode: settings.audioTranscodeMode,
+        });
         const data = await getStreamUrl({
           api,
           deviceProfile: native,
