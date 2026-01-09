@@ -42,6 +42,7 @@ export default function TabLayout() {
         activeIndicatorColor={"#392c3b"}
         scrollEdgeAppearance='default'
       >
+        <NativeTabs.Screen redirect name='index' />
         <NativeTabs.Screen
           listeners={(_e) => ({
             tabPress: (_e) => {

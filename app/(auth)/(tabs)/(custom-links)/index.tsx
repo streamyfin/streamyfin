@@ -29,7 +29,7 @@ export default function menuLinks() {
       );
       const config = response?.data;
 
-      if (!config && !Object.hasOwn(config, "menuLinks")) {
+      if (!config || !Object.hasOwn(config, "menuLinks")) {
         console.error("Menu links not found");
         return;
       }
