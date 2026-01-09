@@ -64,7 +64,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
   );
 
   // Fetch fresh user data
-  const { data: freshUserData, refetch: refetchUser } = useQuery({
+  const { data: freshUserData } = useQuery({
     queryKey: ["admin", "user", user?.Id],
     queryFn: async () => {
       if (!api || !user?.Id) throw new Error("No API available");
