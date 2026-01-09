@@ -52,6 +52,7 @@ class MpvPlayerView: ExpoView {
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false  // For PiP - ignores transient states during seek
+	private var _isZoomedToFill: Bool = false
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -267,6 +268,17 @@ class MpvPlayerView: ExpoView {
 	
 	func setSubtitleFontSize(_ size: Int) {
 		renderer?.setSubtitleFontSize(size)
+	}
+
+	// MARK: - Video Scaling
+
+	func setZoomedToFill(_ zoomed: Bool) {
+		_isZoomedToFill = zoomed
+		displayLayer.videoGravity = zoomed ? .resizeAspectFill : .resizeAspect
+	}
+
+	func isZoomedToFill() -> Bool {
+		return _isZoomedToFill
 	}
 
 	deinit {

@@ -69,7 +69,7 @@ export default function page() {
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
     "default",
   );
-  const [isZoomedToFill, _setIsZoomedToFill] = useState(false);
+  const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -725,9 +725,10 @@ export default function page() {
   }, []);
 
   const handleZoomToggle = useCallback(async () => {
-    // Zoom toggle not currently supported in MPV
-    // Could be implemented via mpv's video-zoom property in the future
-  }, []);
+    const newZoomState = !isZoomedToFill;
+    await videoRef.current?.setZoomedToFill?.(newZoomState);
+    setIsZoomedToFill(newZoomState);
+  }, [isZoomedToFill]);
 
   // Apply subtitle settings when video loads
   useEffect(() => {
