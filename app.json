@@ -58,7 +58,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.6"
+            "deploymentTarget": "15.6",
+            "useFrameworks": "static"
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
@@ -120,7 +121,14 @@
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"]
+      ["./plugins/withGradleProperties.js"],
+      [
+        "./plugins/withGitPod.js",
+        {
+          "podName": "MPVKit-GPL",
+          "podspecUrl": "https://raw.githubusercontent.com/Alexk2309/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
