@@ -1,0 +1,19 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="expo.modules.mpvplayer" >
+4
+5    <uses-sdk android:minSdkVersion="26" />
+6    <!-- Required for network streaming -->
+7    <uses-permission android:name="android.permission.INTERNET" />
+7-->/Users/alexkim/Code/streamyfin/modules/mpv-player/android/src/main/AndroidManifest.xml:3:5-67
+7-->/Users/alexkim/Code/streamyfin/modules/mpv-player/android/src/main/AndroidManifest.xml:3:22-64
+8
+9    <!-- Picture-in-Picture feature -->
+10    <uses-feature
+10-->/Users/alexkim/Code/streamyfin/modules/mpv-player/android/src/main/AndroidManifest.xml:6:5-8:36
+11        android:name="android.software.picture_in_picture"
+11-->/Users/alexkim/Code/streamyfin/modules/mpv-player/android/src/main/AndroidManifest.xml:7:9-59
+12        android:required="false" />
+12-->/Users/alexkim/Code/streamyfin/modules/mpv-player/android/src/main/AndroidManifest.xml:8:9-33
+13
+14</manifest>

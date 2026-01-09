@@ -115,6 +115,18 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "hwdec", "videotoolbox"))
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
         checkError(mpv_set_option_string(handle, "hwdec-software-fallback", "no"))
+        
+        // Seeking optimization - faster seeking at the cost of less precision
+        // Use keyframe seeking by default (much faster for network streams)
+        checkError(mpv_set_option_string(handle, "hr-seek", "no"))
+        // Drop frames during seeking for faster response
+        checkError(mpv_set_option_string(handle, "hr-seek-framedrop", "yes"))
+        
+        // Demuxer cache settings for better network streaming
+        checkError(mpv_set_option_string(handle, "cache", "yes"))
+        checkError(mpv_set_option_string(handle, "demuxer-max-bytes", "150MiB"))
+        checkError(mpv_set_option_string(handle, "demuxer-max-back-bytes", "75MiB"))
+        checkError(mpv_set_option_string(handle, "demuxer-readahead-secs", "20"))
     
         // Subtitle and audio settings
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
@@ -369,8 +381,18 @@ final class MPVLayerRenderer {
                 }
             }
             
+        case MPV_EVENT_SEEK:
+            // Seek started - show loading indicator
+            if !isLoading {
+                isLoading = true
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.renderer(self, didChangeLoading: true)
+                }
+            }
+            
         case MPV_EVENT_PLAYBACK_RESTART:
-            // Video playback has started/restarted
+            // Video playback has started/restarted (including after seek)
             if isLoading {
                 isLoading = false
                 DispatchQueue.main.async { [weak self] in

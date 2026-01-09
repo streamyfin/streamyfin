@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="expo.modules.mpvplayer" >
+
+    <uses-sdk android:minSdkVersion="26" />
+    <!-- Required for network streaming -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Picture-in-Picture feature -->
+    <uses-feature
+        android:name="android.software.picture_in_picture"
+        android:required="false" />
+
+</manifest>
