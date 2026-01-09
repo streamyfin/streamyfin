@@ -1,5 +1,0 @@
-{
-  "name": "addSPMDependenciesToMainTarget",
-  "version": "1.0.0",
-  "main": "app.plugin.js"
-}

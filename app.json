@@ -135,12 +135,10 @@
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
       [
-        "./plugins/addSPMDependenciesToMainTarget",
+        "./plugins/withGitPod.js",
         {
-          "version": "0.40.0",
-          "repositoryUrl": "https://github.com/Alexk2309/mpvkit-private",
-          "repoName": "mpvkit-private",
-          "productName": "MPVKit"
+          "podName": "MPVKit-GPL",
+          "podspecUrl": "https://raw.githubusercontent.com/Alexk2309/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
         }
       ]
     ],
