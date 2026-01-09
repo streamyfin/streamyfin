@@ -11,6 +11,7 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import {
   audioStorageEvents,
   getLocalPath,
+  isCached,
   isPermanentDownloading,
   isPermanentlyDownloaded,
 } from "@/providers/AudioStorage";
@@ -52,20 +53,20 @@ export const MusicTrackItem: React.FC<Props> = ({
   const isTrackLoading = loadingTrackId === track.Id;
 
   // Track download status with reactivity to completion events
-  // Only track permanent downloads - we don't show UI for auto-caching
   const [downloadStatus, setDownloadStatus] = useState<
-    "none" | "downloading" | "downloaded"
+    "none" | "downloading" | "downloaded" | "cached"
   >(() => {
     if (isPermanentlyDownloaded(track.Id)) return "downloaded";
     if (isPermanentDownloading(track.Id)) return "downloading";
+    if (isCached(track.Id)) return "cached";
     return "none";
   });
 
-  // Listen for download completion/error events (only for permanent downloads)
+  // Listen for download completion/error events
   useEffect(() => {
     const onComplete = (event: { itemId: string; permanent: boolean }) => {
-      if (event.itemId === track.Id && event.permanent) {
-        setDownloadStatus("downloaded");
+      if (event.itemId === track.Id) {
+        setDownloadStatus(event.permanent ? "downloaded" : "cached");
       }
     };
     const onError = (event: { itemId: string }) => {
@@ -83,12 +84,18 @@ export const MusicTrackItem: React.FC<Props> = ({
     };
   }, [track.Id]);
 
-  // Also check periodically if permanent download started (for when download is triggered externally)
+  // Re-check status when track changes (for list item recycling)
   useEffect(() => {
-    if (downloadStatus === "none" && isPermanentDownloading(track.Id)) {
+    if (isPermanentlyDownloaded(track.Id)) {
+      setDownloadStatus("downloaded");
+    } else if (isPermanentDownloading(track.Id)) {
       setDownloadStatus("downloading");
+    } else if (isCached(track.Id)) {
+      setDownloadStatus("cached");
+    } else {
+      setDownloadStatus("none");
     }
-  });
+  }, [track.Id]);
 
   const _isDownloaded = downloadStatus === "downloaded";
   // Check if available locally (either cached or permanently downloaded)
@@ -184,7 +191,7 @@ export const MusicTrackItem: React.FC<Props> = ({
         </Text>
       </View>
 
-      {/* Download status indicator */}
+      {/* Download/cache status indicator */}
       {downloadStatus === "downloading" && (
         <ActivityIndicator
           size={14}
