@@ -28,6 +28,7 @@ import { Text } from "@/components/common/Text";
 import { useFavorite } from "@/hooks/useFavorite";
 import {
   audioStorageEvents,
+  deleteTrack,
   downloadTrack,
   isCached,
   isPermanentDownloading,
@@ -78,6 +79,11 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     return () => {
       audioStorageEvents.off("complete", handleComplete);
     };
+  }, [track?.Id]);
+
+  // Force re-evaluation of cache status when track changes
+  useEffect(() => {
+    setStorageUpdateCounter((c) => c + 1);
   }, [track?.Id]);
 
   // Use a placeholder item for useFavorite when track is null
@@ -179,6 +185,13 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     setIsDownloadingTrack(false);
     setOpen(false);
   }, [track?.Id, api, user?.Id, isAlreadyDownloaded, setOpen]);
+
+  const handleDelete = useCallback(async () => {
+    if (!track?.Id) return;
+    await deleteTrack(track.Id);
+    setStorageUpdateCounter((c) => c + 1);
+    setOpen(false);
+  }, [track?.Id, setOpen]);
 
   const handleGoToArtist = useCallback(() => {
     const artistId = track?.ArtistItems?.[0]?.Id;
@@ -386,6 +399,23 @@ export const TrackOptionsSheet: React.FC<Props> = ({
                   {t("music.track_options.cached")}
                 </Text>
               </View>
+            </>
+          )}
+
+          {(isAlreadyDownloaded || isOnlyCached) && (
+            <>
+              <View style={styles.separator} />
+              <TouchableOpacity
+                onPress={handleDelete}
+                className='flex-row items-center px-4 py-3.5'
+              >
+                <Ionicons name='trash-outline' size={22} color='#ef4444' />
+                <Text className='text-red-500 ml-4 text-base'>
+                  {isAlreadyDownloaded
+                    ? t("music.track_options.delete_download")
+                    : t("music.track_options.delete_cache")}
+                </Text>
+              </TouchableOpacity>
             </>
           )}
         </View>

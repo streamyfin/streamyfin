@@ -724,6 +724,8 @@
       "downloaded": "Downloaded",
       "downloading": "Downloading...",
       "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
       "go_to_artist": "Go to Artist",
       "go_to_album": "Go to Album",
       "add_to_favorites": "Add to Favorites",

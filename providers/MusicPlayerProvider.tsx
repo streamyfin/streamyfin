@@ -556,9 +556,11 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       if (!api || !user?.Id) return;
 
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
+      const failedItemIds: string[] = []; // Track items that failed to prepare
 
       // Process tracks BEFORE the start index (insert at position 0, pushing current track forward)
       const beforeTracks: Track[] = [];
+      const beforeSuccessIds: string[] = []; // Track successful IDs to maintain order
       for (let i = 0; i < startIndex; i++) {
         const item = queue[i];
         if (!item.Id) continue;
@@ -566,9 +568,12 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         const prepared = await prepareTrack(item, preferLocal);
         if (prepared) {
           beforeTracks.push(prepared.track);
+          beforeSuccessIds.push(item.Id);
           if (prepared.mediaInfo) {
             mediaInfoMap[item.Id] = prepared.mediaInfo;
           }
+        } else {
+          failedItemIds.push(item.Id);
         }
       }
 
@@ -600,7 +605,35 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
               },
             }));
           }
+        } else {
+          failedItemIds.push(item.Id);
         }
+      }
+
+      // Remove failed items from queue to keep it in sync with TrackPlayer
+      if (failedItemIds.length > 0) {
+        console.log(
+          `[MusicPlayer] Removing ${failedItemIds.length} unavailable tracks from queue`,
+        );
+        setState((prev) => {
+          const newQueue = prev.queue.filter(
+            (t) => !failedItemIds.includes(t.Id!),
+          );
+          const newOriginalQueue = prev.originalQueue.filter(
+            (t) => !failedItemIds.includes(t.Id!),
+          );
+          // Recalculate queue index based on current track position in filtered queue
+          const currentTrackId = prev.currentTrack?.Id;
+          const newQueueIndex = currentTrackId
+            ? newQueue.findIndex((t) => t.Id === currentTrackId)
+            : 0;
+          return {
+            ...prev,
+            queue: newQueue,
+            originalQueue: newOriginalQueue,
+            queueIndex: newQueueIndex >= 0 ? newQueueIndex : prev.queueIndex,
+          };
+        });
       }
     },
     [api, user?.Id, prepareTrack],
@@ -610,7 +643,26 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     async (queue: BaseItemDto[], startIndex: number) => {
       if (!api || !user?.Id || queue.length === 0) return;
 
-      const targetItem = queue[startIndex];
+      const preferLocal = settings?.preferLocalAudio ?? true;
+
+      // Apply offline filtering at the start to ensure state.queue matches TrackPlayer queue
+      let finalQueue = queue;
+      let finalIndex = startIndex;
+
+      if (isOffline) {
+        const filtered = filterQueueForOffline(queue, startIndex);
+        finalQueue = filtered.queue;
+        finalIndex = filtered.startIndex;
+
+        if (finalQueue.length === 0) {
+          console.warn(
+            "[MusicPlayer] No downloaded tracks available for offline playback",
+          );
+          return;
+        }
+      }
+
+      const targetItem = finalQueue[finalIndex];
       setState((prev) => ({
         ...prev,
         isLoading: true,
@@ -618,8 +670,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }));
 
       try {
-        const preferLocal = settings?.preferLocalAudio ?? true;
-
         // PHASE 1: Prepare and play the target track immediately
         const targetTrackResult = await prepareTrack(targetItem, preferLocal);
 
@@ -640,8 +690,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         // Update state for immediate playback
         setState((prev) => ({
           ...prev,
-          queue,
-          originalQueue: queue,
+          queue: finalQueue,
+          originalQueue: finalQueue,
           queueIndex: 0, // Target track is at index 0 in TrackPlayer initially
           currentTrack: targetItem,
           isLoading: false,
@@ -663,8 +713,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         reportPlaybackStart(targetItem, targetTrackResult.sessionId);
 
         // PHASE 2: Load remaining tracks in background (non-blocking)
-        if (queue.length > 1) {
-          loadRemainingTracksInBackground(queue, startIndex, preferLocal);
+        if (finalQueue.length > 1) {
+          loadRemainingTracksInBackground(finalQueue, finalIndex, preferLocal);
         }
       } catch (error) {
         console.error("[MusicPlayer] Error loading queue:", error);
@@ -682,6 +732,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       settings?.preferLocalAudio,
       prepareTrack,
       loadRemainingTracksInBackground,
+      isOffline,
     ],
   );
 
@@ -1407,13 +1458,18 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, []);
 
   // Sync state from TrackPlayer (called when active track changes)
+  // Uses ID-based lookup instead of index to handle queue mismatches
   const syncFromTrackPlayer = useCallback(async () => {
-    const index = await TrackPlayer.getActiveTrackIndex();
-    if (index !== undefined && index < state.queue.length) {
+    const activeTrack = await TrackPlayer.getActiveTrack();
+    if (!activeTrack?.id) return;
+
+    // Find track by ID, not by index - handles cases where queues have different tracks
+    const trackIndex = state.queue.findIndex((t) => t.Id === activeTrack.id);
+    if (trackIndex >= 0) {
       setState((prev) => ({
         ...prev,
-        queueIndex: index,
-        currentTrack: prev.queue[index],
+        queueIndex: trackIndex,
+        currentTrack: prev.queue[trackIndex],
       }));
     }
   }, [state.queue]);
