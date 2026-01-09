@@ -574,10 +574,8 @@ function useProtectedRoute(user: UserDto | null, loaded = false) {
     const inAuthGroup = segments.length > 1 && segments[0] === "(auth)";
 
     if (!user?.Id && inAuthGroup) {
-      console.log("Redirected to login");
       router.replace("/login");
     } else if (user?.Id && !inAuthGroup) {
-      console.log("Redirected to home");
       router.replace("/(auth)/(tabs)/(home)/");
     }
   }, [user, segments, loaded]);

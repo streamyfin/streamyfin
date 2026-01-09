@@ -36,9 +36,11 @@ import { Colors } from "@/constants/Colors";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
+import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { storage } from "@/utils/mmkv";
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -79,6 +81,21 @@ export const Home = () => {
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
+  const { showIntro } = useIntroSheet();
+
+  // Show intro modal on first launch
+  useEffect(() => {
+    const hasShownIntro = storage.getBoolean("hasShownIntro");
+    if (!hasShownIntro) {
+      const timer = setTimeout(() => {
+        showIntro();
+      }, 1000);
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [showIntro]);
 
   useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
