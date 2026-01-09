@@ -500,7 +500,10 @@
       "password_optional": "Passord (valgfritt)",
       "enter_password": "Skriv inn passord",
       "username_required": "Brukernavn er påkrevd",
-      "create_error": "Kunne ikke opprette bruker. Vennligst prøv igjen."
+      "create_error": "Kunne ikke opprette bruker. Vennligst prøv igjen.",
+      "library_access": "Bibliotektilgang",
+      "enable_all_libraries": "Aktiver tilgang til alle biblioteker",
+      "no_libraries_found": "Ingen biblioteker funnet"
     }
   },
   "tabs": {

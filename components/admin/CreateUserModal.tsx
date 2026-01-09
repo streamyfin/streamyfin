@@ -2,16 +2,24 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
+  BottomSheetScrollView,
   BottomSheetTextInput,
-  BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { getLibraryApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Keyboard, Platform, View } from "react-native";
+import {
+  ActivityIndicator,
+  Keyboard,
+  Platform,
+  Switch,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -38,29 +46,78 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [enableAllLibraries, setEnableAllLibraries] = useState(true);
+  const [selectedLibraries, setSelectedLibraries] = useState<string[]>([]);
 
   const isAndroid = Platform.OS === "android";
   const snapPoints = useMemo(
-    () => (isAndroid ? ["100%"] : ["55%"]),
+    () => (isAndroid ? ["100%"] : ["80%"]),
     [isAndroid],
   );
+
+  // Fetch available libraries (excluding playlists and other non-library types)
+  const { data: libraries, isLoading: librariesLoading } = useQuery({
+    queryKey: ["admin", "libraries"],
+    queryFn: async () => {
+      if (!api) throw new Error("No API available");
+      const response = await getLibraryApi(api).getMediaFolders();
+      // Filter out playlists and other non-library collection types
+      const validCollectionTypes = [
+        "movies",
+        "tvshows",
+        "music",
+        "musicvideos",
+        "homevideos",
+        "boxsets",
+        "books",
+        "mixed",
+      ];
+      return (response.data.Items || []).filter(
+        (item) =>
+          item.CollectionType &&
+          validCollectionTypes.includes(item.CollectionType.toLowerCase()),
+      );
+    },
+    enabled: !!api && visible,
+  });
 
   const createUserMutation = useMutation({
     mutationFn: async ({
       name,
       password,
+      enableAllLibraries,
+      enabledLibraries,
     }: {
       name: string;
       password?: string;
+      enableAllLibraries: boolean;
+      enabledLibraries: string[];
     }) => {
       if (!api) throw new Error("No API available");
+
+      // Create the user
       const response = await getUserApi(api).createUserByName({
         createUserByName: {
           Name: name,
           Password: password || undefined,
         },
       });
-      return response.data;
+
+      const newUser = response.data;
+
+      // Update user policy with library access if not enabling all libraries
+      if (!enableAllLibraries && newUser.Id && newUser.Policy) {
+        await getUserApi(api).updateUserPolicy({
+          userId: newUser.Id,
+          userPolicy: {
+            ...newUser.Policy,
+            EnableAllFolders: false,
+            EnabledFolders: enabledLibraries,
+          },
+        });
+      }
+
+      return newUser;
     },
     onSuccess: () => {
       successHaptic();
@@ -78,6 +135,8 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
     setUsername("");
     setPassword("");
     setError(null);
+    setEnableAllLibraries(true);
+    setSelectedLibraries([]);
   };
 
   useEffect(() => {
@@ -120,7 +179,17 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
     createUserMutation.mutate({
       name: username.trim(),
       password: password || undefined,
+      enableAllLibraries,
+      enabledLibraries: selectedLibraries,
     });
+  };
+
+  const toggleLibrary = (libraryId: string) => {
+    setSelectedLibraries((prev) =>
+      prev.includes(libraryId)
+        ? prev.filter((id) => id !== libraryId)
+        : [...prev, libraryId],
+    );
   };
 
   const isValid = username.trim().length > 0;
@@ -139,11 +208,13 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
       android_keyboardInputMode='adjustResize'
       topInset={isAndroid ? 0 : undefined}
     >
-      <BottomSheetView
+      <BottomSheetScrollView
         style={{
           flex: 1,
           paddingLeft: Math.max(16, insets.left),
           paddingRight: Math.max(16, insets.right),
+        }}
+        contentContainerStyle={{
           paddingBottom: Math.max(16, insets.bottom),
         }}
       >
@@ -204,9 +275,61 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 color: "white",
                 fontSize: 16,
               }}
-              onSubmitEditing={handleCreate}
-              returnKeyType='done'
             />
+          </View>
+
+          {/* Library Access Section */}
+          <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 mb-4'>
+            <Text className='text-neutral-400 text-sm mb-3'>
+              {t("admin.users.library_access")}
+            </Text>
+
+            {/* Enable All Libraries Toggle */}
+            <TouchableOpacity
+              onPress={() => setEnableAllLibraries(!enableAllLibraries)}
+              className='flex-row items-center justify-between py-2'
+            >
+              <Text className='text-white'>
+                {t("admin.users.enable_all_libraries")}
+              </Text>
+              <Switch
+                value={enableAllLibraries}
+                onValueChange={setEnableAllLibraries}
+                trackColor={{ false: "#374151", true: "#7C3AED" }}
+                thumbColor='white'
+              />
+            </TouchableOpacity>
+
+            {/* Individual Library Selection */}
+            {!enableAllLibraries && (
+              <View className='mt-3 pt-3 border-t border-neutral-700'>
+                {librariesLoading ? (
+                  <ActivityIndicator size='small' color='#9CA3AF' />
+                ) : libraries && libraries.length > 0 ? (
+                  libraries.map((library: BaseItemDto) => (
+                    <TouchableOpacity
+                      key={library.Id}
+                      onPress={() => library.Id && toggleLibrary(library.Id)}
+                      className='flex-row items-center justify-between py-2'
+                    >
+                      <Text className='text-neutral-300'>{library.Name}</Text>
+                      <Switch
+                        value={selectedLibraries.includes(library.Id || "")}
+                        onValueChange={() => {
+                          if (library.Id) toggleLibrary(library.Id);
+                        }}
+                        trackColor={{ false: "#374151", true: "#7C3AED" }}
+                        thumbColor='white'
+                      />
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text className='text-neutral-500 text-center'>
+                    {t("admin.users.no_libraries_found")}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Error Message */}
@@ -238,7 +361,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
             </Button>
           </View>
         </View>
-      </BottomSheetView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   );
 };

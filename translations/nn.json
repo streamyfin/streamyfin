@@ -500,7 +500,10 @@
       "password_optional": "Passord (valfritt)",
       "enter_password": "Skriv inn passord",
       "username_required": "Brukarnamn er påkrevd",
-      "create_error": "Kunne ikkje oppretta brukar. Ver venleg og prøv igjen."
+      "create_error": "Kunne ikkje oppretta brukar. Ver venleg og prøv igjen.",
+      "library_access": "Bibliotektilgang",
+      "enable_all_libraries": "Aktiver tilgang til alle bibliotek",
+      "no_libraries_found": "Ingen bibliotek funne"
     }
   },
   "tabs": {

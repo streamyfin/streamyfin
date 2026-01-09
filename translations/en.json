@@ -496,7 +496,10 @@
         "password_optional": "Password (optional)",
         "enter_password": "Enter password",
         "username_required": "Username is required",
-        "create_error": "Failed to create user. Please try again."
+        "create_error": "Failed to create user. Please try again.",
+        "library_access": "Library Access",
+        "enable_all_libraries": "Enable access to all libraries",
+        "no_libraries_found": "No libraries found"
       },
       "tasks": {
         "unnamed_task": "Unnamed Task",
