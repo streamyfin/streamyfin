@@ -499,7 +499,19 @@
         "create_error": "Failed to create user. Please try again.",
         "library_access": "Library Access",
         "enable_all_libraries": "Enable access to all libraries",
-        "no_libraries_found": "No libraries found"
+        "no_libraries_found": "No libraries found",
+        "edit_user": "Edit User",
+        "change_password": "Change Password",
+        "new_password": "New password",
+        "save_changes": "Save Changes",
+        "update_error": "Failed to update user. Please try again.",
+        "password_updated": "Password Updated",
+        "password_updated_description": "The user's password has been changed successfully.",
+        "password_update_error": "Failed to update password. Please try again.",
+        "danger_zone": "Danger Zone",
+        "delete_user": "Delete User",
+        "delete_confirm": "Are you sure you want to delete {{username}}? This action cannot be undone.",
+        "delete_error": "Failed to delete user. Please try again."
       },
       "tasks": {
         "unnamed_task": "Unnamed Task",

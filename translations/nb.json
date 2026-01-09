@@ -503,7 +503,19 @@
       "create_error": "Kunne ikke opprette bruker. Vennligst prøv igjen.",
       "library_access": "Bibliotektilgang",
       "enable_all_libraries": "Aktiver tilgang til alle biblioteker",
-      "no_libraries_found": "Ingen biblioteker funnet"
+      "no_libraries_found": "Ingen biblioteker funnet",
+      "edit_user": "Rediger bruker",
+      "change_password": "Endre passord",
+      "new_password": "Nytt passord",
+      "save_changes": "Lagre endringer",
+      "update_error": "Kunne ikke oppdatere bruker. Vennligst prøv igjen.",
+      "password_updated": "Passord oppdatert",
+      "password_updated_description": "Brukerens passord har blitt endret.",
+      "password_update_error": "Kunne ikke oppdatere passord. Vennligst prøv igjen.",
+      "danger_zone": "Faresone",
+      "delete_user": "Slett bruker",
+      "delete_confirm": "Er du sikker på at du vil slette {{username}}? Denne handlingen kan ikke angres.",
+      "delete_error": "Kunne ikke slette bruker. Vennligst prøv igjen."
     }
   },
   "tabs": {

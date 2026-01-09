@@ -503,7 +503,19 @@
       "create_error": "Kunne ikkje oppretta brukar. Ver venleg og prøv igjen.",
       "library_access": "Bibliotektilgang",
       "enable_all_libraries": "Aktiver tilgang til alle bibliotek",
-      "no_libraries_found": "Ingen bibliotek funne"
+      "no_libraries_found": "Ingen bibliotek funne",
+      "edit_user": "Rediger brukar",
+      "change_password": "Endre passord",
+      "new_password": "Nytt passord",
+      "save_changes": "Lagre endringar",
+      "update_error": "Kunne ikkje oppdatera brukar. Ver venleg og prøv igjen.",
+      "password_updated": "Passord oppdatert",
+      "password_updated_description": "Brukaren sitt passord har blitt endra.",
+      "password_update_error": "Kunne ikkje oppdatera passord. Ver venleg og prøv igjen.",
+      "danger_zone": "Faresone",
+      "delete_user": "Slett brukar",
+      "delete_confirm": "Er du sikker på at du vil sletta {{username}}? Denne handlinga kan ikkje angrast.",
+      "delete_error": "Kunne ikkje sletta brukar. Ver venleg og prøv igjen."
     }
   },
   "tabs": {

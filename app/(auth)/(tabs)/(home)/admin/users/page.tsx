@@ -4,11 +4,12 @@ import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CreateUserModal } from "@/components/admin/CreateUserModal";
+import { EditUserModal } from "@/components/admin/EditUserModal";
 import { UserCard } from "@/components/admin/UserCard";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -19,6 +20,18 @@ export default function UsersPage() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserDto | null>(null);
+
+  const handleEditUser = useCallback((user: UserDto) => {
+    setSelectedUser(user);
+    setEditModalVisible(true);
+  }, []);
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditModalVisible(false);
+    setSelectedUser(null);
+  }, []);
 
   const {
     data: users,
@@ -54,7 +67,7 @@ export default function UsersPage() {
   }
 
   const renderUserItem = ({ item }: { item: UserDto }) => (
-    <UserCard user={item} />
+    <UserCard user={item} onPress={() => handleEditUser(item)} />
   );
 
   return (
@@ -100,6 +113,12 @@ export default function UsersPage() {
       <CreateUserModal
         visible={createModalVisible}
         onClose={() => setCreateModalVisible(false)}
+      />
+
+      <EditUserModal
+        visible={editModalVisible}
+        onClose={handleCloseEditModal}
+        user={selectedUser}
       />
     </View>
   );
