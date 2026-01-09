@@ -38,7 +38,7 @@ struct VideoLoadConfig {
 // to apply the proper styling (e.g. border radius and shadows).
 class MpvPlayerView: ExpoView {
 	private let displayLayer = AVSampleBufferDisplayLayer()
-	private var renderer: MPVSoftwareRenderer?
+	private var renderer: MPVLayerRenderer?
 	private var videoContainer: UIView!
 	private var pipController: PiPController?
 
@@ -83,7 +83,7 @@ class MpvPlayerView: ExpoView {
 			videoContainer.bottomAnchor.constraint(equalTo: bottomAnchor)
 		])
 
-		renderer = MPVSoftwareRenderer(displayLayer: displayLayer)
+		renderer = MPVLayerRenderer(displayLayer: displayLayer)
 		renderer?.delegate = self
 
 		// Setup PiP
@@ -276,10 +276,10 @@ class MpvPlayerView: ExpoView {
 	}
 }
 
-// MARK: - MPVSoftwareRendererDelegate
+// MARK: - MPVLayerRendererDelegate
 
-extension MpvPlayerView: MPVSoftwareRendererDelegate {
-	func renderer(_: MPVSoftwareRenderer, didUpdatePosition position: Double, duration: Double) {
+extension MpvPlayerView: MPVLayerRendererDelegate {
+	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double) {
 		cachedPosition = position
 		cachedDuration = duration
 		
@@ -298,7 +298,7 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 
-	func renderer(_: MPVSoftwareRenderer, didChangePause isPaused: Bool) {
+	func renderer(_: MPVLayerRenderer, didChangePause isPaused: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			// Don't update intendedPlayState here - it's only set by user actions (play/pause)
@@ -314,7 +314,7 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 
-	func renderer(_: MPVSoftwareRenderer, didChangeLoading isLoading: Bool) {
+	func renderer(_: MPVLayerRenderer, didChangeLoading isLoading: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			self.onPlaybackStateChange([
@@ -323,7 +323,7 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 
-	func renderer(_: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool) {
+	func renderer(_: MPVLayerRenderer, didBecomeReadyToSeek: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			self.onPlaybackStateChange([
@@ -332,7 +332,7 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 	
-	func renderer(_: MPVSoftwareRenderer, didBecomeTracksReady: Bool) {
+	func renderer(_: MPVLayerRenderer, didBecomeTracksReady: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			self.onTracksReady([:])

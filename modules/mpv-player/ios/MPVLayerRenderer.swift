@@ -4,17 +4,17 @@ import CoreMedia
 import CoreVideo
 import AVFoundation
 
-protocol MPVSoftwareRendererDelegate: AnyObject {
-    func renderer(_ renderer: MPVSoftwareRenderer, didUpdatePosition position: Double, duration: Double)
-    func renderer(_ renderer: MPVSoftwareRenderer, didChangePause isPaused: Bool)
-    func renderer(_ renderer: MPVSoftwareRenderer, didChangeLoading isLoading: Bool)
-    func renderer(_ renderer: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool)
-    func renderer(_ renderer: MPVSoftwareRenderer, didBecomeTracksReady: Bool)
+protocol MPVLayerRendererDelegate: AnyObject {
+    func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double)
+    func renderer(_ renderer: MPVLayerRenderer, didChangePause isPaused: Bool)
+    func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
+    func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
+    func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
 }
 
 /// MPV player using vo_avfoundation for video output.
 /// This renders video directly to AVSampleBufferDisplayLayer for PiP support.
-final class MPVSoftwareRenderer {
+final class MPVLayerRenderer {
     enum RendererError: Error {
         case mpvCreationFailed
         case mpvInitialization(Int32)
@@ -36,7 +36,7 @@ final class MPVSoftwareRenderer {
     private var isRunning = false
     private var isStopping = false
     
-    weak var delegate: MPVSoftwareRendererDelegate?
+    weak var delegate: MPVLayerRendererDelegate?
     
     // Thread-safe state for playback
     private var _cachedDuration: Double = 0
@@ -132,7 +132,7 @@ final class MPVSoftwareRenderer {
         // Setup wakeup callback
         mpv_set_wakeup_callback(handle, { ctx in
             guard let ctx = ctx else { return }
-            let instance = Unmanaged<MPVSoftwareRenderer>.fromOpaque(ctx).takeUnretainedValue()
+            let instance = Unmanaged<MPVLayerRenderer>.fromOpaque(ctx).takeUnretainedValue()
             instance.processEvents()
         }, Unmanaged.passUnretained(self).toOpaque())
         
