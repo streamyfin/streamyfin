@@ -4,24 +4,23 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useRouter } from "expo-router";
-import { type Dispatch, type FC, type SetStateAction } from "react";
-import {
-  Platform,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { type FC, useCallback, useState } from "react";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PlaybackSpeedSelector } from "@/components/PlaybackSpeedSelector";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useSettings, VideoPlayer } from "@/utils/atoms/settings";
+import { useOrientation } from "@/hooks/useOrientation";
+import { OrientationLock } from "@/packages/expo-screen-orientation";
+import { useSettings, VideoPlayerIOS } from "@/utils/atoms/settings";
 import { ICON_SIZES } from "./constants";
-import { VideoProvider } from "./contexts/VideoContext";
 import DropdownView from "./dropdown/DropdownView";
-import { type ScaleFactor, ScaleFactorSelector } from "./ScaleFactorSelector";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import {
   type AspectRatio,
   AspectRatioSelector,
 } from "./VideoScalingModeSelector";
+import { type ScaleFactor, VlcZoomControl } from "./VlcZoomControl";
+import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
   item: BaseItemDto;
@@ -34,17 +33,18 @@ interface HeaderControlsProps {
   goToNextItem: (options: { isAutoPlay?: boolean }) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
-  getAudioTracks?: (() => Promise<any[] | null>) | (() => any[]);
-  getSubtitleTracks?: (() => Promise<any[] | null>) | (() => any[]);
-  setAudioTrack?: (index: number) => void;
-  setSubtitleTrack?: (index: number) => void;
-  setSubtitleURL?: (url: string, customName: string) => void;
+  useVlcPlayer?: boolean;
+  // VLC-specific props
   aspectRatio?: AspectRatio;
-  scaleFactor?: ScaleFactor;
-  setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
-  setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
   setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
+  scaleFactor?: ScaleFactor;
   setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
+  // KSPlayer-specific props
+  isZoomedToFill?: boolean;
+  onZoomToggle?: () => void;
+  // Playback speed props
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const HeaderControls: FC<HeaderControlsProps> = ({
@@ -58,43 +58,51 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   goToNextItem,
   previousItem,
   nextItem,
-  getAudioTracks,
-  getSubtitleTracks,
-  setAudioTrack,
-  setSubtitleTrack,
-  setSubtitleURL,
+  useVlcPlayer = false,
   aspectRatio = "default",
-  scaleFactor = 1.0,
-  setAspectRatio,
-  setScaleFactor,
   setVideoAspectRatio,
+  scaleFactor = 0,
   setVideoScaleFactor,
+  isZoomedToFill = false,
+  onZoomToggle,
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
   const lightHapticFeedback = useHaptic("light");
-
-  const handleAspectRatioChange = async (newRatio: AspectRatio) => {
-    if (!setAspectRatio || !setVideoAspectRatio) return;
-
-    setAspectRatio(newRatio);
-    const aspectRatioString = newRatio === "default" ? null : newRatio;
-    await setVideoAspectRatio(aspectRatioString);
-  };
-
-  const handleScaleFactorChange = async (newScale: ScaleFactor) => {
-    if (!setScaleFactor || !setVideoScaleFactor) return;
-
-    setScaleFactor(newScale);
-    await setVideoScaleFactor(newScale);
-  };
+  const { orientation, lockOrientation } = useOrientation();
+  const [isTogglingOrientation, setIsTogglingOrientation] = useState(false);
 
   const onClose = async () => {
     lightHapticFeedback();
     router.back();
   };
+
+  const toggleOrientation = useCallback(async () => {
+    if (isTogglingOrientation) return;
+
+    setIsTogglingOrientation(true);
+    lightHapticFeedback();
+
+    try {
+      const isPortrait =
+        orientation === OrientationLock.PORTRAIT_UP ||
+        orientation === OrientationLock.PORTRAIT_DOWN;
+
+      await lockOrientation(
+        isPortrait ? OrientationLock.LANDSCAPE : OrientationLock.PORTRAIT_UP,
+      );
+    } finally {
+      setIsTogglingOrientation(false);
+    }
+  }, [
+    orientation,
+    lockOrientation,
+    isTogglingOrientation,
+    lightHapticFeedback,
+  ]);
 
   return (
     <View
@@ -102,33 +110,41 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         {
           position: "absolute",
           top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
+          left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
           right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-          width: settings?.safeAreaInControlsEnabled
-            ? screenWidth - insets.left - insets.right
-            : screenWidth,
         },
       ]}
       pointerEvents={showControls ? "auto" : "none"}
-      className={"flex flex-row w-full pt-2"}
+      className='flex flex-row justify-between'
     >
-      <View className='mr-auto'>
+      <View className='mr-auto p-2' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
-          <VideoProvider
-            getAudioTracks={getAudioTracks}
-            getSubtitleTracks={getSubtitleTracks}
-            setAudioTrack={setAudioTrack}
-            setSubtitleTrack={setSubtitleTrack}
-            setSubtitleURL={setSubtitleURL}
-          >
+          <View pointerEvents='auto'>
             <DropdownView />
-          </VideoProvider>
+          </View>
         )}
       </View>
 
       <View className='flex flex-row items-center space-x-2'>
+        {!Platform.isTV && (
+          <TouchableOpacity
+            onPress={toggleOrientation}
+            disabled={isTogglingOrientation}
+            className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+            accessibilityLabel='Toggle screen orientation'
+            accessibilityHint='Toggles the screen orientation between portrait and landscape'
+          >
+            <MaterialIcons
+              name='screen-rotation'
+              size={ICON_SIZES.HEADER}
+              color='white'
+              style={{ opacity: isTogglingOrientation ? 0.5 : 1 }}
+            />
+          </TouchableOpacity>
+        )}
         {!Platform.isTV &&
-          (settings.defaultPlayer === VideoPlayer.VLC_4 ||
-            Platform.OS === "android") && (
+          startPictureInPicture &&
+          settings?.videoPlayerIOS !== VideoPlayerIOS.VLC && (
             <TouchableOpacity
               onPress={startPictureInPicture}
               className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
@@ -172,16 +188,47 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             />
           </TouchableOpacity>
         )}
-        <AspectRatioSelector
-          currentRatio={aspectRatio}
-          onRatioChange={handleAspectRatioChange}
-          disabled={!setVideoAspectRatio}
-        />
-        <ScaleFactorSelector
-          currentScale={scaleFactor}
-          onScaleChange={handleScaleFactorChange}
-          disabled={!setVideoScaleFactor}
-        />
+        {/* Playback Speed Control */}
+        {!Platform.isTV && setPlaybackSpeed && (
+          <PlaybackSpeedSelector
+            selected={playbackSpeed}
+            onChange={setPlaybackSpeed}
+            item={item}
+          />
+        )}
+        {/* VLC-specific controls: Aspect Ratio and Scale/Zoom */}
+        {useVlcPlayer && (
+          <AspectRatioSelector
+            currentRatio={aspectRatio}
+            onRatioChange={async (newRatio) => {
+              if (setVideoAspectRatio) {
+                const aspectRatioString =
+                  newRatio === "default" ? null : newRatio;
+                await setVideoAspectRatio(aspectRatioString);
+              }
+            }}
+            disabled={!setVideoAspectRatio}
+          />
+        )}
+        {useVlcPlayer && (
+          <VlcZoomControl
+            currentScale={scaleFactor}
+            onScaleChange={async (newScale) => {
+              if (setVideoScaleFactor) {
+                await setVideoScaleFactor(newScale);
+              }
+            }}
+            disabled={!setVideoScaleFactor}
+          />
+        )}
+        {/* KSPlayer-specific control: Zoom to Fill */}
+        {!useVlcPlayer && (
+          <ZoomToggle
+            isZoomedToFill={isZoomedToFill}
+            onToggle={onZoomToggle ?? (() => {})}
+            disabled={!onZoomToggle}
+          />
+        )}
         <TouchableOpacity
           onPress={onClose}
           className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'

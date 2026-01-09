@@ -59,6 +59,13 @@ export type ChapterInfo = {
   duration: number;
 };
 
+export type NowPlayingMetadata = {
+  title?: string;
+  artist?: string;
+  albumTitle?: string;
+  artworkUri?: string;
+};
+
 export type VlcPlayerViewProps = {
   source: VlcPlayerSource;
   style?: ViewStyle | ViewStyle[];
@@ -67,6 +74,7 @@ export type VlcPlayerViewProps = {
   muted?: boolean;
   volume?: number;
   videoAspectRatio?: string;
+  nowPlayingMetadata?: NowPlayingMetadata;
   onVideoProgress?: (event: ProgressUpdatePayload) => void;
   onVideoStateChange?: (event: PlaybackStatePayload) => void;
   onVideoLoadStart?: (event: VideoLoadStartPayload) => void;

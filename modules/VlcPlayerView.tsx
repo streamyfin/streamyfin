@@ -102,6 +102,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       muted,
       volume,
       videoAspectRatio,
+      nowPlayingMetadata,
       onVideoLoadStart,
       onVideoStateChange,
       onVideoProgress,
@@ -111,14 +112,19 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
       ...otherProps
     } = props;
 
-    const processedSource: VlcPlayerSource =
+    const baseSource: VlcPlayerSource =
       typeof source === "string"
         ? ({ uri: source } as unknown as VlcPlayerSource)
         : source;
 
-    if (processedSource.startPosition !== undefined) {
-      processedSource.startPosition = Math.floor(processedSource.startPosition);
-    }
+    // Create a new object to avoid mutating frozen source
+    const processedSource: VlcPlayerSource = {
+      ...baseSource,
+      startPosition:
+        baseSource.startPosition !== undefined
+          ? Math.floor(baseSource.startPosition)
+          : undefined,
+    };
 
     return (
       <NativeView
@@ -131,6 +137,7 @@ const VlcPlayerView = React.forwardRef<VlcPlayerViewRef, VlcPlayerViewProps>(
         muted={muted}
         volume={volume}
         videoAspectRatio={videoAspectRatio}
+        nowPlayingMetadata={nowPlayingMetadata}
         onVideoLoadStart={onVideoLoadStart}
         onVideoLoadEnd={onVideoLoadEnd}
         onVideoStateChange={onVideoStateChange}

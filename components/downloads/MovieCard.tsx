@@ -29,15 +29,15 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { showActionSheetWithOptions } = useActionSheet();
 
   const base64Image = useMemo(() => {
-    return storage.getString(item?.Id!);
-  }, []);
+    return item?.Id ? storage.getString(item.Id) : undefined;
+  }, [item?.Id]);
 
   /**
    * Handles deleting the file with haptic feedback.
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id, item.Type);
+      deleteFile(item.Id);
     }
   }, [deleteFile, item.Id]);
 

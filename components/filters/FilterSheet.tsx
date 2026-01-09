@@ -109,11 +109,22 @@ export const FilterSheet = <T,>({
   // to implement efficient "load more" functionality
   useEffect(() => {
     if (!_data || _data.length === 0) return;
-    const tmp = new Set(data);
+
+    const newData = [...data];
+
     for (let i = offset; i < Math.min(_data.length, offset + LIMIT); i++) {
-      tmp.add(_data[i]);
+      const item = _data[i];
+      // Check if this item already exists in our data array
+      // some dups happened with re-renders during testing
+      const exists = newData.some((existingItem) =>
+        isEqual(existingItem, item),
+      );
+      if (!exists) {
+        newData.push(item);
+      }
     }
-    setData(Array.from(tmp));
+
+    setData(newData);
   }, [offset, _data]);
 
   useEffect(() => {
@@ -233,7 +244,7 @@ export const FilterSheet = <T,>({
           {data.length < (_data?.length || 0) && (
             <Button
               onPress={() => {
-                setOffset(offset + 100);
+                setOffset(offset + LIMIT);
               }}
             >
               Load more

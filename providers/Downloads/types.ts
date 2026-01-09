@@ -21,6 +21,8 @@ interface UserData {
   subtitleStreamIndex: number;
   /** The last known audio stream index. */
   audioStreamIndex: number;
+  /** Whether the downloaded file was transcoded (has only one audio track). */
+  isTranscoded: boolean;
 }
 
 /** Represents a segment of time in a media item, used for intro/credit skipping. */
@@ -46,6 +48,8 @@ export interface DownloadedItem {
   videoFilePath: string;
   /** The size of the video file in bytes. */
   videoFileSize: number;
+  /** The video filename (for easy File object reconstruction). Optional for backwards compatibility. */
+  videoFileName?: string;
   /** The local file path of the downloaded trickplay images. */
   trickPlayData?: TrickPlayData;
   /** The intro segments for the item. */
@@ -111,7 +115,6 @@ export type JobStatus = {
   /** Current status of the download job */
   status:
     | "downloading" // The job is actively downloading
-    | "paused" // The job is paused
     | "error" // The job encountered an error
     | "pending" // The job is waiting to start
     | "completed" // The job has finished downloading
@@ -131,14 +134,18 @@ export type JobStatus = {
   /** Estimated total size of the download in bytes (optional) this is used when we
    * download transcoded content because we don't know the size of the file until it's downloaded */
   estimatedTotalSizeBytes?: number;
-  /** Timestamp when the download was paused (optional) */
-  pausedAt?: Date;
-  /** Progress percentage when download was paused (optional) */
-  pausedProgress?: number;
-  /** Bytes downloaded when download was paused (optional) */
-  pausedBytes?: number;
-  /** Bytes downloaded in the current session (since last resume). Used for session-only speed calculation. */
-  lastSessionBytes?: number;
-  /** Timestamp when the session-only bytes were last updated. */
-  lastSessionUpdateTime?: Date;
+  /** Timestamp of when the download actually started (optional) */
+  startTime?: Date;
+  /** Whether the download is being transcoded (optional) */
+  isTranscoding?: boolean;
+  /** Pre-downloaded trickplay data (optional) - downloaded before video starts */
+  trickPlayData?: TrickPlayData;
+  /** Pre-downloaded intro segments (optional) - downloaded before video starts */
+  introSegments?: MediaTimeSegment[];
+  /** Pre-downloaded credit segments (optional) - downloaded before video starts */
+  creditSegments?: MediaTimeSegment[];
+  /** The audio stream index selected for this download */
+  audioStreamIndex?: number;
+  /** The subtitle stream index selected for this download */
+  subtitleStreamIndex?: number;
 };

@@ -18,9 +18,9 @@ interface BottomControlsProps {
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  isVlc: boolean;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
+  hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   nextItem?: BaseItemDto | null;
@@ -66,9 +66,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showRemoteBubble,
   currentTime,
   remainingTime,
-  isVlc,
   showSkipButton,
   showSkipCreditButton,
+  hasContentAfterCredits,
   skipIntro,
   skipCredit,
   nextItem,
@@ -114,10 +114,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
         }}
       >
         <View
-          style={{
-            flexDirection: "column",
-            alignSelf: "flex-end",
-          }}
+          className='flex flex-col items-start shrink'
           pointerEvents={showControls ? "box-none" : "none"}
         >
           {item?.Type === "Episode" && (
@@ -133,14 +130,19 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Text className='text-xs opacity-50'>{item?.Album}</Text>
           )}
         </View>
-        <View className='flex flex-row space-x-2'>
+        <View className='flex flex-row space-x-2 shrink-0'>
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
             buttonText='Skip Intro'
           />
+          {/* Smart Skip Credits behavior:
+              - Show "Skip Credits" if there's content after credits OR no next episode
+              - Show "Next Episode" if credits extend to video end AND next episode exists */}
           <SkipButton
-            showButton={showSkipCreditButton}
+            showButton={
+              showSkipCreditButton && (hasContentAfterCredits || !nextItem)
+            }
             onPress={skipCredit}
             buttonText='Skip Credits'
           />
@@ -151,9 +153,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
               show={
                 !nextItem
                   ? false
-                  : isVlc
-                    ? remainingTime < 10000
-                    : remainingTime < 10
+                  : // Show during credits if no content after, OR near end of video
+                    (showSkipCreditButton && !hasContentAfterCredits) ||
+                    remainingTime < 10000
               }
               onFinish={handleNextEpisodeAutoPlay}
               onPress={handleNextEpisodeManual}
@@ -211,7 +213,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <TimeDisplay
             currentTime={currentTime}
             remainingTime={remainingTime}
-            isVlc={isVlc}
           />
         </View>
       </View>

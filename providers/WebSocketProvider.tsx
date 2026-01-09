@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
@@ -42,6 +43,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const deviceId = useMemo(() => {
     return getOrSetDeviceId();
   }, []);
+  const reconnectAttemptsRef = useRef(0);
 
   const connectWebSocket = useCallback(() => {
     if (!deviceId || !api?.accessToken) {
@@ -58,9 +60,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const newWebSocket = new WebSocket(url);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 10000;
+
     newWebSocket.onopen = () => {
       console.log("WebSocket connection opened");
       setIsConnected(true);
+      reconnectAttemptsRef.current = 0;
       keepAliveInterval = setInterval(() => {
         if (newWebSocket.readyState === WebSocket.OPEN) {
           newWebSocket.send(JSON.stringify({ MessageType: "KeepAlive" }));
@@ -68,18 +74,16 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }, 30000);
     };
 
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    const reconnectDelay = 10000;
-
     newWebSocket.onerror = (e) => {
       console.error("WebSocket error:", e);
       setIsConnected(false);
 
-      if (reconnectAttempts < maxReconnectAttempts) {
-        reconnectAttempts++;
+      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+        reconnectAttemptsRef.current++;
         setTimeout(() => {
-          console.log(`WebSocket reconnect attempt ${reconnectAttempts}`);
+          console.log(
+            `WebSocket reconnect attempt ${reconnectAttemptsRef.current}`,
+          );
           connectWebSocket();
         }, reconnectDelay);
       } else {
@@ -96,7 +100,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     newWebSocket.onmessage = (e) => {
       try {
         const message = JSON.parse(e.data);
-        console.log("[WS] Received message:", message);
         setLastMessage(message); // Store the last message in context
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -124,12 +127,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const handlePlayCommand = useCallback(
     (data: any) => {
       if (!data || !data.ItemIds || !data.ItemIds.length) {
-        console.warn("[WS] Received Play command with no items");
         return;
       }
 
       const itemId = data.ItemIds[0];
-      console.log(`[WS] Handling Play command for item: ${itemId}`);
 
       router.push({
         pathname: "/(auth)/player/direct-player",

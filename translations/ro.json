@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Altele",
-        "follow_device_orientation": "Rotire automată",
         "video_orientation": "Orientarea video",
         "orientation": "Orientare",
         "orientations": {
@@ -144,9 +143,6 @@
       },
       "downloads": {
         "downloads_title": "Descărcări",
-        "download_method": "Metoda de descărcare",
-        "remux_max_download": "Remux max download",
-        "auto_download": "Descărcare automată",
         "optimized_versions_server": "Optimized versions server",
         "save_button": "Salvează",
         "optimized_server": "Server optimizat",

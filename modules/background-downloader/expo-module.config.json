@@ -1,0 +1,12 @@
+{
+  "name": "background-downloader",
+  "version": "1.0.0",
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["BackgroundDownloaderModule"],
+    "appDelegateSubscribers": ["BackgroundDownloaderAppDelegate"]
+  },
+  "android": {
+    "modules": ["expo.modules.backgrounddownloader.BackgroundDownloaderModule"]
+  }
+}

@@ -1,24 +1,10 @@
-export type VLCColor =
-  | "Black"
-  | "Gray"
-  | "Silver"
-  | "White"
-  | "Maroon"
-  | "Red"
-  | "Fuchsia"
-  | "Yellow"
-  | "Olive"
-  | "Green"
-  | "Teal"
-  | "Lime"
-  | "Purple"
-  | "Navy"
-  | "Blue"
-  | "Aqua";
+/**
+ * VLC subtitle styling constants
+ * These values are used with VLC's FreeType subtitle rendering engine
+ */
 
-export type OutlineThickness = "None" | "Thin" | "Normal" | "Thick";
-
-export const VLC_COLORS: Record<VLCColor, number> = {
+// VLC color values (decimal representation of hex colors)
+export const VLC_COLORS: Record<string, number> = {
   Black: 0,
   Gray: 8421504,
   Silver: 12632256,
@@ -37,9 +23,18 @@ export const VLC_COLORS: Record<VLCColor, number> = {
   Aqua: 65535,
 };
 
-export const OUTLINE_THICKNESS: Record<OutlineThickness, number> = {
+// VLC color names for UI display
+export const VLC_COLOR_OPTIONS = Object.keys(VLC_COLORS);
+
+// VLC outline thickness values in pixels
+export const OUTLINE_THICKNESS: Record<string, number> = {
   None: 0,
   Thin: 2,
   Normal: 4,
   Thick: 6,
 };
+
+// Outline thickness options for UI
+export const OUTLINE_THICKNESS_OPTIONS = Object.keys(
+  OUTLINE_THICKNESS,
+) as Array<"None" | "Thin" | "Normal" | "Thick">;

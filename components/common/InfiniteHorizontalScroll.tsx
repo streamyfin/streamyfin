@@ -59,6 +59,7 @@ export function InfiniteHorizontalScroll({
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
     queryKey,
     queryFn,
+    staleTime: 60 * 1000, // 1 minute
     getNextPageParam: (lastPage, pages) => {
       if (
         !lastPage?.Items ||
@@ -119,7 +120,6 @@ export function InfiniteHorizontalScroll({
         renderItem={({ item, index }) => (
           <View className='mr-2'>{renderItem(item, index)}</View>
         )}
-        estimatedItemSize={height}
         horizontal
         onEndReached={() => {
           if (hasNextPage) {

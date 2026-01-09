@@ -6,19 +6,19 @@ import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
+import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
+import { MediaSourceButton } from "@/components/MediaSourceButton";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 // const PlayButton = !Platform.isTV ? require("@/components/PlayButton") : null;
 import { PlayButton } from "@/components/PlayButton";
 import { PlayedStatus } from "@/components/PlayedStatus";
 import { SimilarItems } from "@/components/SimilarItems";
-import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { CurrentSeries } from "@/components/series/CurrentSeries";
 import { SeasonEpisodesCarousel } from "@/components/series/SeasonEpisodesCarousel";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -29,13 +29,10 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
-import { BitrateSheet } from "./BitRateSheet";
+import { AddToWatchlist } from "./AddToWatchlist";
 import { ItemHeader } from "./ItemHeader";
 import { ItemTechnicalDetails } from "./ItemTechnicalDetails";
-import { MediaSourceSheet } from "./MediaSourceSheet";
-import { MoreMoviesWithActor } from "./MoreMoviesWithActor";
 import { PlayInRemoteSessionButton } from "./PlayInRemoteSession";
-import { TrackSheet } from "./TrackSheet";
 
 const Chromecast = !Platform.isTV ? require("./Chromecast") : null;
 
@@ -49,17 +46,17 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   isOffline: boolean;
+  itemWithSources?: BaseItemDto | null;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, isOffline }) => {
+  ({ item, isOffline, itemWithSources }) => {
     const [api] = useAtom(apiAtom);
     const { settings } = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const [user] = useAtom(userAtom);
-    const { t } = useTranslation();
 
     const itemColors = useImageColorsReturn({ item });
 
@@ -70,17 +67,22 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
+    // Use itemWithSources for play settings since it has MediaSources data
     const {
       defaultAudioIndex,
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(item!, settings);
+    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
       [api, item],
     );
+
+    const onLogoLoad = React.useCallback(() => {
+      setLoadingLogo(false);
+    }, []);
 
     const loading = useMemo(() => {
       return Boolean(logoUrl && loadingLogo);
@@ -90,7 +92,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     useEffect(() => {
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
+        mediaSource: defaultMediaSource ?? undefined,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
       }));
@@ -102,7 +104,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     ]);
 
     useEffect(() => {
-      if (!Platform.isTV) {
+      if (!Platform.isTV && itemWithSources) {
         navigation.setOptions({
           headerRight: () =>
             item &&
@@ -112,14 +114,19 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={item} size='large' />
+                      <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+                    {user?.Policy?.IsAdministrator &&
+                      !settings.hideRemoteSessionButton && (
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                      )}
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    {settings.streamyStatsServerUrl &&
+                      !settings.hideWatchlistsTab && (
+                        <AddToWatchlist item={item} />
+                      )}
                   </View>
                 )}
               </View>
@@ -129,21 +136,34 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 {item.Type !== "Program" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
-                      <DownloadSingleItem item={item} size='large' />
+                      <DownloadSingleItem item={itemWithSources} size='large' />
                     )}
-                    {user?.Policy?.IsAdministrator && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
+                    {user?.Policy?.IsAdministrator &&
+                      !settings.hideRemoteSessionButton && (
+                        <PlayInRemoteSessionButton item={item} size='large' />
+                      )}
 
                     <PlayedStatus items={[item]} size='large' />
                     <AddToFavorites item={item} />
+                    {settings.streamyStatsServerUrl &&
+                      !settings.hideWatchlistsTab && (
+                        <AddToWatchlist item={item} />
+                      )}
                   </View>
                 )}
               </View>
             )),
         });
       }
-    }, [item, navigation, user]);
+    }, [
+      item,
+      navigation,
+      user,
+      itemWithSources,
+      settings.hideRemoteSessionButton,
+      settings.streamyStatsServerUrl,
+      settings.hideWatchlistsTab,
+    ]);
 
     useEffect(() => {
       if (item) {
@@ -165,7 +185,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
         }}
       >
         <ParallaxScrollView
-          className={`flex-1 ${loading ? "opacity-0" : "opacity-100"}`}
+          className='flex-1'
           headerHeight={headerHeight}
           headerImage={
             <View style={[{ flex: 1 }]}>
@@ -192,8 +212,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   width: "100%",
                 }}
                 contentFit='contain'
-                onLoad={() => setLoadingLogo(false)}
-                onError={() => setLoadingLogo(false)}
+                onLoad={onLogoLoad}
+                onError={onLogoLoad}
               />
             ) : (
               <View />
@@ -201,76 +221,27 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
           }
         >
           <View className='flex flex-col bg-transparent shrink'>
-            <View className='flex flex-col px-4 w-full space-y-2 pt-2 mb-2 shrink'>
+            <View className='flex flex-col px-4 w-full pt-2 mb-2 shrink'>
               <ItemHeader item={item} className='mb-2' />
-              {item.Type !== "Program" && !Platform.isTV && !isOffline && (
-                <View className='flex flex-row items-center justify-start w-full h-16'>
-                  <BitrateSheet
-                    className='mr-1'
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) => prev && { ...prev, bitrate: val },
-                      )
-                    }
-                    selected={selectedOptions.bitrate}
-                  />
-                  <MediaSourceSheet
-                    className='mr-1'
-                    item={item}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            mediaSource: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions.mediaSource}
-                  />
-                  <TrackSheet
-                    className='mr-1'
-                    streamType='Audio'
-                    title={t("item_card.audio")}
-                    source={selectedOptions.mediaSource}
-                    onChange={(val) => {
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            audioIndex: val,
-                          },
-                      );
-                    }}
-                    selected={selectedOptions.audioIndex}
-                  />
-                  <TrackSheet
-                    source={selectedOptions.mediaSource}
-                    streamType='Subtitle'
-                    title={t("item_card.subtitles")}
-                    onChange={(val) =>
-                      setSelectedOptions(
-                        (prev) =>
-                          prev && {
-                            ...prev,
-                            subtitleIndex: val,
-                          },
-                      )
-                    }
-                    selected={selectedOptions.subtitleIndex}
-                  />
-                </View>
-              )}
 
-              <PlayButton
-                className='grow'
-                selectedOptions={selectedOptions}
-                item={item}
-                isOffline={isOffline}
-                colors={itemColors}
-              />
+              <View className='flex flex-row px-0 mb-2 justify-between space-x-2'>
+                <PlayButton
+                  selectedOptions={selectedOptions}
+                  item={item}
+                  isOffline={isOffline}
+                  colors={itemColors}
+                />
+                <View className='w-1' />
+                {!isOffline && (
+                  <MediaSourceButton
+                    selectedOptions={selectedOptions}
+                    setSelectedOptions={setSelectedOptions}
+                    item={itemWithSources}
+                    colors={itemColors}
+                  />
+                )}
+              </View>
             </View>
-
             {item.Type === "Episode" && (
               <SeasonEpisodesCarousel
                 item={item}
@@ -279,33 +250,21 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
               />
             )}
 
-            {!isOffline && (
-              <ItemTechnicalDetails source={selectedOptions.mediaSource} />
-            )}
+            {!isOffline &&
+              selectedOptions.mediaSource?.MediaStreams &&
+              selectedOptions.mediaSource.MediaStreams.length > 0 && (
+                <ItemTechnicalDetails source={selectedOptions.mediaSource} />
+              )}
+
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
             {item.Type !== "Program" && (
               <>
                 {item.Type === "Episode" && !isOffline && (
-                  <CurrentSeries item={item} className='mb-4' />
+                  <CurrentSeries item={item} className='mb-2' />
                 )}
 
-                {!isOffline && (
-                  <CastAndCrew item={item} className='mb-4' loading={loading} />
-                )}
-
-                {item.People && item.People.length > 0 && !isOffline && (
-                  <View className='mb-4'>
-                    {item.People.slice(0, 3).map((person, idx) => (
-                      <MoreMoviesWithActor
-                        currentItem={item}
-                        key={idx}
-                        actorId={person.Id!}
-                        className='mb-4'
-                      />
-                    ))}
-                  </View>
-                )}
+                <ItemPeopleSections item={item} isOffline={isOffline} />
 
                 {!isOffline && <SimilarItems itemId={item.Id} />}
               </>

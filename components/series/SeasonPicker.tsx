@@ -86,7 +86,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         seasonId: selectedSeasonId,
         enableUserData: true,
         // Note: Including trick play is necessary to enable trick play downloads
-        fields: ["Overview", "Trickplay"],
+        fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
       });
 
       if (res.data.TotalRecordCount === 0)

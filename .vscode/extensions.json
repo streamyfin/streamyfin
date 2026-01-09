@@ -1,0 +1,24 @@
+{
+  // ==========================================
+  // Streamyfin - Recommended VS Code Extensions
+  // ==========================================
+  // Essential extensions for working with Streamyfin
+  // See .github/copilot-instructions.md for coding standards
+
+  "recommendations": [
+    // Code Quality & Formatting
+    "biomejs.biome", // Fast formatter and linter for JavaScript/TypeScript - replaces ESLint + Prettier
+
+    // React Native & Expo
+    "expo.vscode-expo-tools", // Official Expo extension - provides commands, debugging, and config IntelliSense
+    "msjsdiag.vscode-react-native", // React Native debugging and IntelliSense - essential for RN development
+
+    // Developer Experience
+    "bradlc.vscode-tailwindcss", // Tailwind CSS IntelliSense - autocomplete for NativeWind classes
+    "yoavbls.pretty-ts-errors", // Makes TypeScript error messages human-readable with formatting and highlights
+    "usernamehw.errorlens", // Shows errors and warnings inline in the editor - faster debugging
+
+    // Bun Support
+    "oven.bun-vscode" // Official Bun extension - provides debugging and language support for Bun runtime
+  ]
+}

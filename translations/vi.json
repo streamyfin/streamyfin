@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Khác",
-        "follow_device_orientation": "Tự xoay màn hình",
         "video_orientation": "Hướng video",
         "orientation": "Hướng",
         "orientations": {
@@ -144,9 +143,6 @@
       },
       "downloads": {
         "downloads_title": "Tải xuống",
-        "download_method": "Phương pháp tải",
-        "remux_max_download": "Giới hạn tải Remux tối đa",
-        "auto_download": "Tự động tải",
         "optimized_versions_server": "Máy chủ phiên bản tối ưu",
         "save_button": "Lưu",
         "optimized_server": "Máy chủ tối ưu",

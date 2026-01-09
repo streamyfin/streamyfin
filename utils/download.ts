@@ -10,20 +10,15 @@ const useDownloadHelper = () => {
   const { saveImage } = useImageStorage();
 
   const saveSeriesPrimaryImage = async (item: BaseItemDto) => {
-    console.log(`Attempting to save primary image for item: ${item.Id}`);
     if (
       item.Type === "Episode" &&
       item.SeriesId &&
       !storage.getString(item.SeriesId)
     ) {
-      console.log(`Saving primary image for series: ${item.SeriesId}`);
       await saveImage(
         item.SeriesId,
         getPrimaryImageUrlById({ api, id: item.SeriesId }),
       );
-      console.log(`Primary image saved for series: ${item.SeriesId}`);
-    } else {
-      console.log(`Skipping primary image save for item: ${item.Id}`);
     }
   };
 
@@ -31,3 +26,28 @@ const useDownloadHelper = () => {
 };
 
 export default useDownloadHelper;
+
+/**
+ * Estimates the download file size based on bitrate and video duration.
+ * Used when transcoding at lower bitrates where final size is unknown.
+ * Adds 10% overhead to account for container and metadata.
+ *
+ * @param bitrateValue - The bitrate in bits per second
+ * @param runTimeTicks - The video duration in ticks (1 tick = 100 nanoseconds)
+ * @returns Estimated file size in bytes (with 10% overhead), or undefined if duration is invalid
+ */
+export function estimateDownloadSize(
+  bitrateValue: number,
+  runTimeTicks?: number | null,
+): number | undefined {
+  if (!runTimeTicks || runTimeTicks <= 0) return undefined;
+
+  // Convert ticks to seconds (1 tick = 100 nanoseconds)
+  const durationSeconds = runTimeTicks / 10000000;
+
+  // Calculate size in bytes: (bitrate * duration) / 8
+  // Add 10% overhead for container and metadata
+  const estimatedBytes = ((bitrateValue * durationSeconds) / 8) * 1.1;
+
+  return Math.floor(estimatedBytes);
+}

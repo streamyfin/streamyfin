@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Інші",
-        "follow_device_orientation": "Дотримуйтесь орієнтації пристрою",
         "video_orientation": "Орієнтація відео",
         "orientation": "Orientation",
         "orientations": {
@@ -143,9 +142,6 @@
       },
       "downloads": {
         "downloads_title": "Завантаження",
-        "download_method": "Метод завантаження",
-        "remux_max_download": "Remux max download",
-        "auto_download": "Авто-завантаження",
         "optimized_versions_server": "Сервер оптимізованих версій",
         "save_button": "Зберегти",
         "optimized_server": "Оптимізований Сервер",

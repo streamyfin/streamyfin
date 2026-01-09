@@ -16,7 +16,7 @@ interface LogEntry {
 const mmkvStorage = createJSONStorage(() => ({
   getItem: (key: string) => storage.getString(key) || null,
   setItem: (key: string, value: string) => storage.set(key, value),
-  removeItem: (key: string) => storage.delete(key),
+  removeItem: (key: string) => storage.remove(key),
 }));
 const logsAtom = atomWithStorage("logs", [], mmkvStorage);
 
@@ -55,7 +55,6 @@ export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
 
   storage.set("logs", JSON.stringify(recentLogs));
-  console.log(message);
 };
 
 export const writeInfoLog = (message: string, data?: any) =>
@@ -74,7 +73,7 @@ export const readFromLog = (): LogEntry[] => {
 };
 
 export const clearLogs = () => {
-  storage.delete("logs");
+  storage.remove("logs");
 };
 
 export const dumpDownloadDiagnostics = (extra: any = {}) => {

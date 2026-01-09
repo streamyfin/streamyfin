@@ -16,6 +16,12 @@ public class VlcPlayerModule: Module {
                 }
             }
 
+            Prop("nowPlayingMetadata") { (view: VlcPlayerView, metadata: [String: String]?) in
+                if let metadata = metadata {
+                    view.setNowPlayingMetadata(metadata)
+                }
+            }
+
             Events(
                 "onPlaybackStateChanged",
                 "onVideoStateChange",
@@ -72,6 +78,10 @@ public class VlcPlayerModule: Module {
 
             AsyncFunction("getSubtitleTracks") { (view: VlcPlayerView) -> [[String: Any]]? in
                 return view.getSubtitleTracks()
+            }
+
+            AsyncFunction("setRate") { (view: VlcPlayerView, rate: Float) in
+                view.setRate(rate)
             }
         }
     }

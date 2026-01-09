@@ -48,17 +48,19 @@ export const CenterControls: FC<CenterControlsProps> = ({
       }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          transform: [{ rotate: "270deg" }],
-          left: 0,
-          bottom: 30,
-        }}
-      >
-        <BrightnessSlider />
-      </View>
+      {!settings?.hideBrightnessSlider && (
+        <View
+          style={{
+            position: "absolute",
+            alignItems: "center",
+            transform: [{ rotate: "270deg" }],
+            left: 0,
+            bottom: 30,
+          }}
+        >
+          <BrightnessSlider />
+        </View>
+      )}
 
       {!Platform.isTV && (
         <TouchableOpacity onPress={handleSkipBackward}>
@@ -135,18 +137,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
         </TouchableOpacity>
       )}
 
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          transform: [{ rotate: "270deg" }],
-          bottom: 30,
-          right: 0,
-          opacity: showAudioSlider || showControls ? 1 : 0,
-        }}
-      >
-        <AudioSlider setVisibility={setShowAudioSlider} />
-      </View>
+      {!settings?.hideVolumeSlider && (
+        <View
+          style={{
+            position: "absolute",
+            alignItems: "center",
+            transform: [{ rotate: "270deg" }],
+            bottom: 30,
+            right: 0,
+            opacity: showAudioSlider || showControls ? 1 : 0,
+          }}
+        >
+          <AudioSlider setVisibility={setShowAudioSlider} />
+        </View>
+      )}
     </View>
   );
 };
