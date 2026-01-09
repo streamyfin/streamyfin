@@ -661,7 +661,7 @@ export default function page() {
   );
 
   /** PiP handler for MPV */
-  const onPictureInPictureChange = useCallback(
+  const _onPictureInPictureChange = useCallback(
     (e: { nativeEvent: { isActive: boolean } }) => {
       const { isActive } = e.nativeEvent;
       setIsPipMode(isActive);
@@ -810,7 +810,6 @@ export default function page() {
               style={{ width: "100%", height: "100%" }}
               onProgress={onProgress}
               onPlaybackStateChange={onPlaybackStateChanged}
-              onPictureInPictureChange={onPictureInPictureChange}
               onLoad={() => setIsVideoLoaded(true)}
               onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                 console.error("Video Error:", e.nativeEvent);
