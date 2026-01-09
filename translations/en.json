@@ -132,7 +132,15 @@
         "audio_language": "Audio Language",
         "audio_hint": "Choose a default audio language.",
         "none": "None",
-        "language": "Language"
+        "language": "Language",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Subtitles",

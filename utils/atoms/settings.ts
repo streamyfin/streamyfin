@@ -140,6 +140,14 @@ export enum VideoPlayerIOS {
   VLC = "vlc",
 }
 
+// Audio transcoding mode - controls how surround audio is handled
+export enum AudioTranscodeMode {
+  Auto = "auto", // Platform/player defaults (recommended)
+  ForceStereo = "stereo", // Always transcode to stereo
+  Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
+  AllowAll = "passthrough", // Direct play all (for external DAC users)
+}
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -218,6 +226,8 @@ export type Settings = {
   audioMaxCacheSizeMB: number;
   // Music playback
   preferLocalAudio: boolean;
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode;
 };
 
 export interface Lockable<T> {
@@ -316,6 +326,8 @@ export const defaultValues: Settings = {
   audioMaxCacheSizeMB: 500,
   // Music playback
   preferLocalAudio: true,
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode.Auto,
 };
 
 const loadSettings = (): Partial<Settings> => {

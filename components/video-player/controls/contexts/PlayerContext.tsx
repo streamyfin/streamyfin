@@ -10,6 +10,7 @@ import React, {
   useMemo,
 } from "react";
 import type { SfPlayerViewRef, VlcPlayerViewRef } from "@/modules";
+import type { DownloadedItem } from "@/providers/Downloads/types";
 
 // Union type for both player refs
 type PlayerRef = SfPlayerViewRef | VlcPlayerViewRef;
@@ -21,6 +22,8 @@ interface PlayerContextProps {
   isVideoLoaded: boolean;
   tracksReady: boolean;
   useVlcPlayer: boolean;
+  offline: boolean;
+  downloadedItem: DownloadedItem | null;
 }
 
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
@@ -33,6 +36,8 @@ interface PlayerProviderProps {
   isVideoLoaded: boolean;
   tracksReady: boolean;
   useVlcPlayer: boolean;
+  offline?: boolean;
+  downloadedItem?: DownloadedItem | null;
 }
 
 export const PlayerProvider: React.FC<PlayerProviderProps> = ({
@@ -43,6 +48,8 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   isVideoLoaded,
   tracksReady,
   useVlcPlayer,
+  offline = false,
+  downloadedItem = null,
 }) => {
   const value = useMemo(
     () => ({
@@ -52,8 +59,19 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       isVideoLoaded,
       tracksReady,
       useVlcPlayer,
+      offline,
+      downloadedItem,
     }),
-    [playerRef, item, mediaSource, isVideoLoaded, tracksReady, useVlcPlayer],
+    [
+      playerRef,
+      item,
+      mediaSource,
+      isVideoLoaded,
+      tracksReady,
+      useVlcPlayer,
+      offline,
+      downloadedItem,
+    ],
   );
 
   return (

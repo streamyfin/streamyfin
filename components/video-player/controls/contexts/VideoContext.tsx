@@ -75,7 +75,8 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, useVlcPlayer } = usePlayerContext();
+  const { tracksReady, mediaSource, useVlcPlayer, offline, downloadedItem } =
+    usePlayerContext();
   const playerControls = usePlayerControls();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
@@ -131,6 +132,86 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     if (!tracksReady) return;
 
     const fetchTracks = async () => {
+      // Check if this is offline transcoded content
+      // For transcoded offline content, only ONE audio track exists in the file
+      const isOfflineTranscoded =
+        offline && downloadedItem?.userData?.isTranscoded === true;
+
+      if (isOfflineTranscoded) {
+        // Build single audio track entry - only the downloaded track exists
+        const downloadedAudioIndex = downloadedItem.userData.audioStreamIndex;
+        const downloadedTrack = allAudio.find(
+          (a) => a.Index === downloadedAudioIndex,
+        );
+
+        if (downloadedTrack) {
+          const audio: Track[] = [
+            {
+              name: downloadedTrack.DisplayTitle || "Audio",
+              index: downloadedTrack.Index ?? 0,
+              mpvIndex: useVlcPlayer ? 0 : 1, // Only track in file
+              setTrack: () => {
+                // Track is already selected (only one available)
+                router.setParams({ audioIndex: String(downloadedTrack.Index) });
+              },
+            },
+          ];
+          setAudioTracks(audio);
+        } else {
+          // Fallback: show no audio tracks if the stored track wasn't found
+          setAudioTracks([]);
+        }
+
+        // For subtitles in transcoded offline content:
+        // - Text-based subs may still be embedded
+        // - Image-based subs were burned in during transcoding
+        const downloadedSubtitleIndex =
+          downloadedItem.userData.subtitleStreamIndex;
+        const subs: Track[] = [];
+
+        // Add "Disable" option
+        subs.push({
+          name: "Disable",
+          index: -1,
+          mpvIndex: -1,
+          setTrack: () => {
+            playerControls.setSubtitleTrack(-1);
+            router.setParams({ subtitleIndex: "-1" });
+          },
+        });
+
+        // For text-based subs, they should still be available in the file
+        let subIdx = 1;
+        for (const sub of allSubs) {
+          if (sub.IsTextSubtitleStream) {
+            subs.push({
+              name: sub.DisplayTitle || "Unknown",
+              index: sub.Index ?? -1,
+              mpvIndex: subIdx,
+              setTrack: () => {
+                playerControls.setSubtitleTrack(subIdx);
+                router.setParams({ subtitleIndex: String(sub.Index) });
+              },
+            });
+            subIdx++;
+          } else if (sub.Index === downloadedSubtitleIndex) {
+            // This image-based sub was burned in - show it but indicate it's active
+            subs.push({
+              name: `${sub.DisplayTitle || "Unknown"} (burned in)`,
+              index: sub.Index ?? -1,
+              mpvIndex: -1, // Can't be changed
+              setTrack: () => {
+                // Already burned in, just update params
+                router.setParams({ subtitleIndex: String(sub.Index) });
+              },
+            });
+          }
+        }
+
+        setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
+        return;
+      }
+
       // For VLC player, use simpler track handling with server indices
       if (useVlcPlayer) {
         // Get VLC track info (VLC returns TrackInfo[] with 'index' property)
@@ -347,7 +428,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-  }, [tracksReady, mediaSource, useVlcPlayer]);
+  }, [tracksReady, mediaSource, useVlcPlayer, offline, downloadedItem]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>
