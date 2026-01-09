@@ -1,11 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CreateUserModal } from "@/components/admin/CreateUserModal";
 import { UserCard } from "@/components/admin/UserCard";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -15,6 +18,7 @@ export default function UsersPage() {
   const [api] = useAtom(apiAtom);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const [createModalVisible, setCreateModalVisible] = useState(false);
 
   const {
     data: users,
@@ -62,9 +66,20 @@ export default function UsersPage() {
       }}
     >
       <View className='px-4 py-4'>
-        <Text className='text-2xl font-bold text-white mb-2'>
-          {t("admin.users.title", "Manage Users")}
-        </Text>
+        <View className='flex-row justify-between items-center mb-2'>
+          <Text className='text-2xl font-bold text-white'>
+            {t("admin.users.title", "Manage Users")}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setCreateModalVisible(true)}
+            className='bg-purple-600 px-4 py-2 rounded-lg flex-row items-center'
+          >
+            <Ionicons name='add' size={20} color='white' />
+            <Text className='text-white font-semibold ml-1'>
+              {t("admin.users.create", "Create")}
+            </Text>
+          </TouchableOpacity>
+        </View>
         <Text className='text-neutral-400 mb-4'>
           {t("admin.users.subtitle", `${users?.length || 0} users found`)}
         </Text>
@@ -80,6 +95,11 @@ export default function UsersPage() {
         }}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View className='h-2' />}
+      />
+
+      <CreateUserModal
+        visible={createModalVisible}
+        onClose={() => setCreateModalVisible(false)}
       />
     </View>
   );

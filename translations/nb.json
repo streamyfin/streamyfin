@@ -491,7 +491,16 @@
         "month_ago_plural": "{{count}} måneder siden",
         "year_ago": "{{count}} år siden",
         "year_ago_plural": "{{count}} år siden"
-      }
+      },
+      "create": "Opprett",
+      "create_user": "Opprett bruker",
+      "create_user_description": "Legg til en ny bruker på Jellyfin-serveren din.",
+      "username": "Brukernavn",
+      "enter_username": "Skriv inn brukernavn",
+      "password_optional": "Passord (valgfritt)",
+      "enter_password": "Skriv inn passord",
+      "username_required": "Brukernavn er påkrevd",
+      "create_error": "Kunne ikke opprette bruker. Vennligst prøv igjen."
     }
   },
   "tabs": {

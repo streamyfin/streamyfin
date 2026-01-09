@@ -491,7 +491,16 @@
         "month_ago_plural": "{{count}} månadar sidan",
         "year_ago": "{{count}} år sidan",
         "year_ago_plural": "{{count}} år sidan"
-      }
+      },
+      "create": "Opprett",
+      "create_user": "Opprett brukar",
+      "create_user_description": "Legg til ein ny brukar på Jellyfin-tenaren din.",
+      "username": "Brukarnamn",
+      "enter_username": "Skriv inn brukarnamn",
+      "password_optional": "Passord (valfritt)",
+      "enter_password": "Skriv inn passord",
+      "username_required": "Brukarnamn er påkrevd",
+      "create_error": "Kunne ikkje oppretta brukar. Ver venleg og prøv igjen."
     }
   },
   "tabs": {

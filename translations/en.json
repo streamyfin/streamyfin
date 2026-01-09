@@ -487,7 +487,16 @@
         "yesterday": "Yesterday",
         "days_ago": "{{count}} days ago",
         "folders_count": "{{count}} folders",
-        "parental_rating": "Rating"
+        "parental_rating": "Rating",
+        "create": "Create",
+        "create_user": "Create User",
+        "create_user_description": "Add a new user to your Jellyfin server.",
+        "username": "Username",
+        "enter_username": "Enter username",
+        "password_optional": "Password (optional)",
+        "enter_password": "Enter password",
+        "username_required": "Username is required",
+        "create_error": "Failed to create user. Please try again."
       },
       "tasks": {
         "unnamed_task": "Unnamed Task",
