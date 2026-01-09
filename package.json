@@ -48,6 +48,7 @@
     "expo-brightness": "~14.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "18.0.13",
+    "expo-crypto": "^15.0.8",
     "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
     "expo-font": "~14.0.10",

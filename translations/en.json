@@ -38,7 +38,40 @@
     "session_expired": "Session Expired",
     "please_login_again": "Your saved session has expired. Please log in again.",
     "remove_saved_login": "Remove Saved Login",
-    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time."
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
     "checking_server_connection": "Checking server connection...",
@@ -441,7 +474,11 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "ok": "OK",
-    "remove": "Remove"
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
   },
   "search": {
     "search": "Search...",

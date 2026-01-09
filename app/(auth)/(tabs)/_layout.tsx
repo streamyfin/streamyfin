@@ -7,7 +7,7 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
+import { useFocusEffect, withLayoutContext } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
@@ -15,6 +15,7 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
 import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
+import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
@@ -31,21 +32,21 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
-  const router = useRouter();
+  const { showIntro } = useIntroSheet();
 
   useFocusEffect(
     useCallback(() => {
       const hasShownIntro = storage.getBoolean("hasShownIntro");
       if (!hasShownIntro) {
         const timer = setTimeout(() => {
-          router.push("/intro/page");
+          showIntro();
         }, 1000);
 
         return () => {
           clearTimeout(timer);
         };
       }
-    }, []),
+    }, [showIntro]),
   );
 
   return (
