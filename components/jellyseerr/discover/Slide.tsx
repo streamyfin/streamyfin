@@ -1,16 +1,15 @@
 import { FlashList } from "@shopify/flash-list";
-import type { ContentStyle } from "@shopify/flash-list/src/FlashListProps";
 import { t } from "i18next";
 import type React from "react";
 import type { PropsWithChildren } from "react";
-import { View, type ViewProps } from "react-native";
+import { View, type ViewProps, type ViewStyle } from "react-native";
 import { Text } from "@/components/common/Text";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 
 export interface SlideProps {
   slide: DiscoverSlider;
-  contentContainerStyle?: ContentStyle;
+  contentContainerStyle?: ViewStyle;
 }
 
 interface Props<T> extends SlideProps {
@@ -45,7 +44,6 @@ const Slide = <T,>({
         }}
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
-        estimatedItemSize={250}
         data={data}
         onEndReachedThreshold={1}
         onEndReached={onEndReached}

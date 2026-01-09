@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "其他",
-        "follow_device_orientation": "自動旋轉",
         "video_orientation": "影片方向",
         "orientation": "方向",
         "orientations": {
@@ -144,9 +143,6 @@
       },
       "downloads": {
         "downloads_title": "下載",
-        "download_method": "下載方法",
-        "remux_max_download": "Remux 最大下載",
-        "auto_download": "自動下載",
         "optimized_versions_server": "Optimized Version 伺服器",
         "save_button": "保存",
         "optimized_server": "Optimized Server",

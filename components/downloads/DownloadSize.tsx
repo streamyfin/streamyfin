@@ -13,14 +13,13 @@ export const DownloadSize: React.FC<DownloadSizeProps> = ({
   items,
   ...props
 }) => {
-  const { getDownloadedItemSize, getDownloadedItems } = useDownload();
-  const downloadedFiles = getDownloadedItems();
+  const { getDownloadedItemSize, downloadedItems } = useDownload();
   const [size, setSize] = useState<string | undefined>();
 
   const itemIds = useMemo(() => items.map((i) => i.Id), [items]);
 
   useEffect(() => {
-    if (!downloadedFiles) return;
+    if (!downloadedItems) return;
 
     let s = 0;
 
@@ -32,7 +31,7 @@ export const DownloadSize: React.FC<DownloadSizeProps> = ({
       }
     }
     setSize(s.bytesToReadable());
-  }, [itemIds]);
+  }, [itemIds, downloadedItems, getDownloadedItemSize]);
 
   const sizeText = useMemo(() => {
     if (!size) return "...";

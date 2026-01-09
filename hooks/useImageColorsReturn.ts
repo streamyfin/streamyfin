@@ -2,8 +2,14 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
-import { getColors, ImageColorsResult } from "react-native-image-colors";
+import type * as ImageColorsType from "react-native-image-colors";
 import { apiAtom } from "@/providers/JellyfinProvider";
+
+// Conditionally import react-native-image-colors only on non-TV platforms
+const ImageColors = Platform.isTV
+  ? null
+  : (require("react-native-image-colors") as typeof ImageColorsType);
+
 import {
   adjustToNearBlack,
   calculateTextColor,
@@ -80,11 +86,13 @@ export const useImageColorsReturn = ({
       }
 
       // Extract colors from the image
-      getColors(source.uri, {
+      if (!ImageColors?.getColors) return;
+
+      ImageColors.getColors(source.uri, {
         fallback: "#fff",
         cache: false,
       })
-        .then((colors: ImageColorsResult) => {
+        .then((colors: ImageColorsType.ImageColorsResult) => {
           let primary = "#fff";
           let text = "#000";
           let backup = "#fff";

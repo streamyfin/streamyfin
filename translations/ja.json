@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "その他",
-        "follow_device_orientation": "画面の自動回転",
         "video_orientation": "動画の向き",
         "orientation": "向き",
         "orientations": {
@@ -141,9 +140,6 @@
       },
       "downloads": {
         "downloads_title": "ダウンロード",
-        "download_method": "ダウンロード方法",
-        "remux_max_download": "Remux最大ダウンロード数",
-        "auto_download": "自動ダウンロード",
         "optimized_versions_server": "Optimized versionsサーバー",
         "save_button": "保存",
         "optimized_server": "Optimizedサーバー",

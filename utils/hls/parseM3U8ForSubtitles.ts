@@ -44,12 +44,13 @@ export async function parseM3U8ForSubtitles(
 
 function parseAttributes(line: string): { [key: string]: string } {
   const attributes: { [key: string]: string } = {};
-  const parts = line.split(",");
-  parts.forEach((part) => {
-    const [key, value] = part.split("=");
-    if (key && value) {
-      attributes[key.trim()] = value.replace(/"/g, "").trim();
-    }
-  });
+  const regex = /([A-Z-]+)=(?:"([^"]*)"|([^,]*))/g;
+
+  for (const match of line.matchAll(regex)) {
+    const key = match[1];
+    const value = match[2] ?? match[3]; // quoted or unquoted
+    attributes[key] = value;
+  }
+
   return attributes;
 }

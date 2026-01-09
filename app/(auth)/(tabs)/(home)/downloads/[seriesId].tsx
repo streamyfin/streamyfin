@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { FlashList } from "@shopify/flash-list";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { EpisodeCard } from "@/components/downloads/EpisodeCard";
 import {
@@ -23,21 +25,23 @@ export default function page() {
   const [seasonIndexState, setSeasonIndexState] = useState<SeasonIndexState>(
     {},
   );
-  const { getDownloadedItems, deleteItems } = useDownload();
+  const { downloadedItems, deleteItems } = useDownload();
+  const insets = useSafeAreaInsets();
 
   const series = useMemo(() => {
     try {
       return (
-        getDownloadedItems()
+        downloadedItems
           ?.filter((f) => f.item.SeriesId === seriesId)
           ?.sort(
-            (a, b) => a?.item.ParentIndexNumber! - b.item.ParentIndexNumber!,
+            (a, b) =>
+              (a.item.ParentIndexNumber ?? 0) - (b.item.ParentIndexNumber ?? 0),
           ) || []
       );
     } catch {
       return [];
     }
-  }, [getDownloadedItems]);
+  }, [downloadedItems, seriesId]);
 
   // Group episodes by season in a single pass
   const seasonGroups = useMemo(() => {
@@ -70,8 +74,9 @@ export default function page() {
   }, [seasonGroups]);
 
   const seasonIndex =
-    seasonIndexState[series?.[0]?.item?.ParentId ?? ""] ||
-    episodeSeasonIndex ||
+    seasonIndexState[series?.[0]?.item?.ParentId ?? ""] ??
+    episodeSeasonIndex ??
+    series?.[0]?.item?.ParentIndexNumber ??
     "";
 
   const groupBySeason = useMemo<BaseItemDto[]>(() => {
@@ -80,9 +85,9 @@ export default function page() {
 
   const initialSeasonIndex = useMemo(
     () =>
-      Object.values(groupBySeason)?.[0]?.ParentIndexNumber ??
+      groupBySeason?.[0]?.ParentIndexNumber ??
       series?.[0]?.item?.ParentIndexNumber,
-    [groupBySeason],
+    [groupBySeason, series],
   );
 
   useEffect(() => {
@@ -91,7 +96,7 @@ export default function page() {
         title: series[0].item.SeriesName,
       });
     } else {
-      storage.delete(seriesId);
+      storage.remove(seriesId);
       router.back();
     }
   }, [series]);
@@ -107,44 +112,70 @@ export default function page() {
         },
         {
           text: "Delete",
-          onPress: () => deleteItems(groupBySeason),
+          onPress: () =>
+            deleteItems(
+              groupBySeason
+                .map((item) => item.Id)
+                .filter((id) => id !== undefined),
+            ),
           style: "destructive",
         },
       ],
     );
-  }, [groupBySeason]);
+  }, [groupBySeason, deleteItems]);
+
+  const ListHeaderComponent = useCallback(() => {
+    if (series.length === 0) return null;
+
+    return (
+      <View className='flex flex-row items-center justify-start pb-2'>
+        <SeasonDropdown
+          item={series[0].item}
+          seasons={uniqueSeasons}
+          state={seasonIndexState}
+          initialSeasonIndex={initialSeasonIndex!}
+          onSelect={(season) => {
+            setSeasonIndexState((prev) => ({
+              ...prev,
+              [series[0].item.ParentId ?? ""]: season.ParentIndexNumber,
+            }));
+          }}
+        />
+        <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center ml-2'>
+          <Text className='text-xs font-bold'>{groupBySeason.length}</Text>
+        </View>
+        <View className='bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center ml-auto'>
+          <TouchableOpacity onPress={deleteSeries}>
+            <Ionicons name='trash' size={20} color='white' />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }, [
+    series,
+    uniqueSeasons,
+    seasonIndexState,
+    initialSeasonIndex,
+    groupBySeason,
+    deleteSeries,
+  ]);
 
   return (
     <View className='flex-1'>
-      {series.length > 0 && (
-        <View className='flex flex-row items-center justify-start my-2 px-4'>
-          <SeasonDropdown
-            item={series[0].item}
-            seasons={uniqueSeasons}
-            state={seasonIndexState}
-            initialSeasonIndex={initialSeasonIndex!}
-            onSelect={(season) => {
-              setSeasonIndexState((prev) => ({
-                ...prev,
-                [series[0].item.ParentId ?? ""]: season.ParentIndexNumber,
-              }));
-            }}
-          />
-          <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center ml-2'>
-            <Text className='text-xs font-bold'>{groupBySeason.length}</Text>
-          </View>
-          <View className='bg-neutral-800/80 rounded-full h-9 w-9 flex items-center justify-center ml-auto'>
-            <TouchableOpacity onPress={deleteSeries}>
-              <Ionicons name='trash' size={20} color='white' />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-      <ScrollView key={seasonIndex} className='px-4'>
-        {groupBySeason.map((episode, index) => (
-          <EpisodeCard key={index} item={episode} />
-        ))}
-      </ScrollView>
+      <FlashList
+        key={seasonIndex}
+        data={groupBySeason}
+        renderItem={({ item }) => <EpisodeCard item={item} />}
+        keyExtractor={(item, index) => item.Id ?? `episode-${index}`}
+        ListHeaderComponent={ListHeaderComponent}
+        contentInsetAdjustmentBehavior='automatic'
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingLeft: insets.left + 16,
+          paddingRight: insets.right + 16,
+          paddingTop: Platform.OS === "android" ? 10 : 8,
+        }}
+      />
     </View>
   );
 }

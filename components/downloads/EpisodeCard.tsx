@@ -28,7 +28,7 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
    */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
-      deleteFile(item.Id, "Episode");
+      deleteFile(item.Id);
       successHapticFeedback();
     }
   }, [deleteFile, item.Id]);

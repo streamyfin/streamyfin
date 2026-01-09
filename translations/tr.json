@@ -113,7 +113,6 @@
       },
       "other": {
         "other_title": "Diğer",
-        "follow_device_orientation": "Otomatik Döndürme",
         "video_orientation": "Video Yönü",
         "orientation": "Yön",
         "orientations": {
@@ -143,9 +142,6 @@
       },
       "downloads": {
         "downloads_title": "İndirmeler",
-        "download_method": "İndirme Yöntemi",
-        "remux_max_download": "Remux max indirme",
-        "auto_download": "Otomatik İndirme",
         "optimized_versions_server": "Optimize edilmiş sürümler sunucusu",
         "save_button": "Kaydet",
         "optimized_server": "Optimize Sunucu",

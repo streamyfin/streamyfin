@@ -124,7 +124,6 @@
       },
       "other": {
         "other_title": "أخرى",
-        "follow_device_orientation": "تدوير تلقائي",
         "video_orientation": "اتجاه الفيديو",
         "orientation": "الاتجاه",
         "orientations": {
@@ -155,9 +154,6 @@
       },
       "downloads": {
         "downloads_title": "التنزيلات",
-        "download_method": "طريقة التنزيل",
-        "remux_max_download": "الحد الأقصى لتنزيل الريمكس",
-        "auto_download": "تنزيل تلقائي",
         "optimized_versions_server": "خادم الإصدارات المحسّنة",
         "save_button": "حفظ",
         "optimized_server": "الخادم المحسن",

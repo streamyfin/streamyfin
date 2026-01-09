@@ -47,7 +47,6 @@ const JellyseerrSeasonEpisodes: React.FC<{
       horizontal
       loading={isLoading}
       showsHorizontalScrollIndicator={false}
-      estimatedItemSize={50}
       data={seasonWithEpisodes?.episodes}
       keyExtractor={(item) => item.id.toString()}
       renderItem={(item, index) => (
@@ -284,7 +283,6 @@ const JellyseerrSeasons: React.FC<{
         </View>
       )}
       ItemSeparatorComponent={() => <View className='h-2' />}
-      estimatedItemSize={250}
       renderItem={({ item: season }) => (
         <>
           <TouchableOpacity

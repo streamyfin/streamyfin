@@ -7,12 +7,15 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
+import { useFocusEffect, withLayoutContext } from "expo-router";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
+import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
+import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
@@ -29,25 +32,25 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
-  const router = useRouter();
+  const { showIntro } = useIntroSheet();
 
   useFocusEffect(
     useCallback(() => {
       const hasShownIntro = storage.getBoolean("hasShownIntro");
       if (!hasShownIntro) {
         const timer = setTimeout(() => {
-          router.push("/intro/page");
+          showIntro();
         }, 1000);
 
         return () => {
           clearTimeout(timer);
         };
       }
-    }, []),
+    }, [showIntro]),
   );
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
@@ -55,6 +58,7 @@ export default function TabLayout() {
           backgroundColor: "#121212",
         }}
         tabBarActiveTintColor={Colors.primary}
+        activeIndicatorColor={"#392c3b"}
         scrollEdgeAppearance='default'
       >
         <NativeTabs.Screen redirect name='index' />
@@ -70,10 +74,7 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/house.fill.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "house.fill" }
-                      : { sfSymbol: "house" },
+                : (_e) => ({ sfSymbol: "house.fill" }),
           }}
         />
         <NativeTabs.Screen
@@ -84,14 +85,12 @@ export default function TabLayout() {
           })}
           name='(search)'
           options={{
+            role: "search",
             title: t("tabs.search"),
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/magnifyingglass.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "magnifyingglass" }
-                      : { sfSymbol: "magnifyingglass" },
+                : (_e) => ({ sfSymbol: "magnifyingglass" }),
           }}
         />
         <NativeTabs.Screen
@@ -100,14 +99,20 @@ export default function TabLayout() {
             title: t("tabs.favorites"),
             tabBarIcon:
               Platform.OS === "android"
-                ? ({ focused }) =>
-                    focused
-                      ? require("@/assets/icons/heart.fill.png")
-                      : require("@/assets/icons/heart.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "heart.fill" }
-                      : { sfSymbol: "heart" },
+                ? (_e) => require("@/assets/icons/heart.fill.png")
+                : (_e) => ({ sfSymbol: "heart.fill" }),
+          }}
+        />
+        <NativeTabs.Screen
+          name='(watchlists)'
+          options={{
+            title: t("watchlists.title"),
+            tabBarItemHidden:
+              !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
+            tabBarIcon:
+              Platform.OS === "android"
+                ? (_e) => require("@/assets/icons/list.png")
+                : (_e) => ({ sfSymbol: "list.bullet.rectangle" }),
           }}
         />
         <NativeTabs.Screen
@@ -117,10 +122,7 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/server.rack.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "rectangle.stack.fill" }
-                      : { sfSymbol: "rectangle.stack" },
+                : (_e) => ({ sfSymbol: "rectangle.stack.fill" }),
           }}
         />
         <NativeTabs.Screen
@@ -131,13 +133,12 @@ export default function TabLayout() {
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.png")
-                : ({ focused }) =>
-                    focused
-                      ? { sfSymbol: "list.dash.fill" }
-                      : { sfSymbol: "list.dash" },
+                : (_e) => ({ sfSymbol: "list.dash.fill" }),
           }}
         />
       </NativeTabs>
-    </>
+      <MiniPlayerBar />
+      <MusicPlaybackEngine />
+    </View>
   );
 }
