@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,6 +15,7 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
@@ -26,7 +26,7 @@ export default function page() {
   const insets = useSafeAreaInsets();
 
   const { settings, updateSettings, pluginSettings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const [value, setValue] = useState<string>(settings?.marlinServerUrl || "");
 

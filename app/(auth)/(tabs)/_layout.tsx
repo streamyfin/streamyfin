@@ -7,8 +7,7 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
-import { useCallback } from "react";
+import { withLayoutContext } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
@@ -17,7 +16,6 @@ import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { storage } from "@/utils/mmkv";
 
 const { Navigator } = createNativeBottomTabNavigator();
 
@@ -31,22 +29,6 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
-  const router = useRouter();
-
-  useFocusEffect(
-    useCallback(() => {
-      const hasShownIntro = storage.getBoolean("hasShownIntro");
-      if (!hasShownIntro) {
-        const timer = setTimeout(() => {
-          router.push("/intro/page");
-        }, 1000);
-
-        return () => {
-          clearTimeout(timer);
-        };
-      }
-    }, []),
-  );
 
   return (
     <View style={{ flex: 1 }}>

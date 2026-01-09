@@ -236,11 +236,23 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
+        // Get the audio/subtitle indices that were used for this download
+        const downloadAudioIndex =
+          itemsNotDownloaded.length > 1
+            ? getDefaultPlaySettings(item, settings!).audioIndex
+            : selectedOptions?.audioIndex;
+        const downloadSubtitleIndex =
+          itemsNotDownloaded.length > 1
+            ? getDefaultPlaySettings(item, settings!).subtitleIndex
+            : selectedOptions?.subtitleIndex;
+
         await startBackgroundDownload(
           url,
           item,
           mediaSource,
           selectedOptions?.bitrate || defaultBitrate,
+          downloadAudioIndex,
+          downloadSubtitleIndex,
         );
       }
     },

@@ -402,8 +402,18 @@ export function isCached(itemId: string | undefined): boolean {
         if (file.exists) {
           return true;
         }
+        // File doesn't exist - clean up stale index entry
+        console.log(
+          `[AudioStorage] Cleaning up stale cache entry: ${itemId} (file missing)`,
+        );
+        index.totalCacheSize -= info.size;
+        delete index.tracks[itemId];
+        saveStorageIndex();
       } catch {
-        // File doesn't exist
+        // File check failed - clean up stale index entry
+        index.totalCacheSize -= info.size;
+        delete index.tracks[itemId];
+        saveStorageIndex();
       }
     }
   } catch {

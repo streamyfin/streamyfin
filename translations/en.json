@@ -29,10 +29,49 @@
     "server_url_placeholder": "http(s)://your-server.com",
     "connect_button": "Connect",
     "previous_servers": "Previous Servers",
-    "clear_button": "Clear",
+    "clear_button": "Clear all",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Search for Local Servers",
     "searching": "Searching...",
-    "servers": "Servers"
+    "servers": "Servers",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
     "checking_server_connection": "Checking server connection...",
@@ -126,7 +165,15 @@
         "audio_language": "Audio Language",
         "audio_hint": "Choose a default audio language.",
         "none": "None",
-        "language": "Language"
+        "language": "Language",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Subtitles",
@@ -182,6 +229,18 @@
         "ksplayer_title": "KSPlayer Settings",
         "hardware_decode": "Hardware Decoding",
         "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
       },
       "video_player": {
         "title": "Video Player",
@@ -413,7 +472,13 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
   },
   "search": {
     "search": "Search...",
@@ -427,6 +492,10 @@
     "episodes": "Episodes",
     "collections": "Collections",
     "actors": "Actors",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Request Movies",
     "request_series": "Request Series",
     "recently_added": "Recently Added",
@@ -655,6 +724,8 @@
       "downloaded": "Downloaded",
       "downloading": "Downloading...",
       "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
       "go_to_artist": "Go to Artist",
       "go_to_album": "Go to Album",
       "add_to_favorites": "Add to Favorites",
@@ -680,6 +751,11 @@
       "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
       "deleted": "Playlist deleted",
       "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
     }
   },
   "watchlists": {

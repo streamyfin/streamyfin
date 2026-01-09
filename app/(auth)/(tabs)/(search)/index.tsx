@@ -5,6 +5,7 @@ import type {
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import {
@@ -39,6 +40,7 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
@@ -197,6 +199,36 @@ export default function search() {
     [api, searchEngine, settings, user?.Id],
   );
 
+  // Separate search function for music types - always uses Jellyfin since Streamystats doesn't support music
+  const jellyfinSearchFn = useCallback(
+    async ({
+      types,
+      query,
+    }: {
+      types: BaseItemKind[];
+      query: string;
+    }): Promise<BaseItemDto[]> => {
+      if (!api || !query) {
+        return [];
+      }
+
+      try {
+        const searchApi = await getItemsApi(api).getItems({
+          searchTerm: query,
+          limit: 10,
+          includeItemTypes: types,
+          recursive: true,
+          userId: user?.Id,
+        });
+
+        return (searchApi.data.Items as BaseItemDto[]) || [];
+      } catch (_error) {
+        return [];
+      }
+    },
+    [api, user?.Id],
+  );
+
   type HeaderSearchBarRef = {
     focus: () => void;
     blur: () => void;
@@ -287,19 +319,74 @@ export default function search() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
+  // Music search queries - always use Jellyfin since Streamystats doesn't support music
+  const { data: artists, isFetching: l9 } = useQuery({
+    queryKey: ["search", "artists", debouncedSearch],
+    queryFn: () =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["MusicArtist"],
+      }),
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  const { data: albums, isFetching: l10 } = useQuery({
+    queryKey: ["search", "albums", debouncedSearch],
+    queryFn: () =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["MusicAlbum"],
+      }),
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  const { data: songs, isFetching: l11 } = useQuery({
+    queryKey: ["search", "songs", debouncedSearch],
+    queryFn: () =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["Audio"],
+      }),
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
+  const { data: playlists, isFetching: l12 } = useQuery({
+    queryKey: ["search", "playlists", debouncedSearch],
+    queryFn: () =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["Playlist"],
+      }),
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
   const noResults = useMemo(() => {
     return !(
       movies?.length ||
       episodes?.length ||
       series?.length ||
       collections?.length ||
-      actors?.length
+      actors?.length ||
+      artists?.length ||
+      albums?.length ||
+      songs?.length ||
+      playlists?.length
     );
-  }, [episodes, movies, series, collections, actors]);
+  }, [
+    episodes,
+    movies,
+    series,
+    collections,
+    actors,
+    artists,
+    albums,
+    songs,
+    playlists,
+  ]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l7 || l8;
-  }, [l1, l2, l3, l7, l8]);
+    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12;
+  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12]);
 
   return (
     <ScrollView
@@ -308,6 +395,7 @@ export default function search() {
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
+        paddingBottom: 60,
       }}
     >
       {/* <View
@@ -445,6 +533,172 @@ export default function search() {
                   <ItemCardText item={item} />
                 </TouchableItemRouter>
               )}
+            />
+            {/* Music search results */}
+            <SearchItemWrapper
+              items={artists}
+              header={t("search.artists")}
+              renderItem={(item: BaseItemDto) => {
+                const imageUrl = getPrimaryImageUrl({ api, item });
+                return (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className='flex flex-col w-24 mr-2 items-center'
+                  >
+                    <View
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 40,
+                        overflow: "hidden",
+                        backgroundColor: "#1a1a1a",
+                      }}
+                    >
+                      {imageUrl ? (
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit='cover'
+                        />
+                      ) : (
+                        <View className='flex-1 items-center justify-center bg-neutral-800'>
+                          <Text className='text-xl'>👤</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text numberOfLines={2} className='mt-2 text-center'>
+                      {item.Name}
+                    </Text>
+                  </TouchableItemRouter>
+                );
+              }}
+            />
+            <SearchItemWrapper
+              items={albums}
+              header={t("search.albums")}
+              renderItem={(item: BaseItemDto) => {
+                const imageUrl = getPrimaryImageUrl({ api, item });
+                return (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className='flex flex-col w-28 mr-2'
+                  >
+                    <View
+                      style={{
+                        width: 112,
+                        height: 112,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        backgroundColor: "#1a1a1a",
+                      }}
+                    >
+                      {imageUrl ? (
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit='cover'
+                        />
+                      ) : (
+                        <View className='flex-1 items-center justify-center bg-neutral-800'>
+                          <Text className='text-4xl'>🎵</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text numberOfLines={2} className='mt-2'>
+                      {item.Name}
+                    </Text>
+                    <Text className='opacity-50 text-xs' numberOfLines={1}>
+                      {item.AlbumArtist || item.Artists?.join(", ")}
+                    </Text>
+                  </TouchableItemRouter>
+                );
+              }}
+            />
+            <SearchItemWrapper
+              items={songs}
+              header={t("search.songs")}
+              renderItem={(item: BaseItemDto) => {
+                const imageUrl = getPrimaryImageUrl({ api, item });
+                return (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className='flex flex-col w-28 mr-2'
+                  >
+                    <View
+                      style={{
+                        width: 112,
+                        height: 112,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        backgroundColor: "#1a1a1a",
+                      }}
+                    >
+                      {imageUrl ? (
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit='cover'
+                        />
+                      ) : (
+                        <View className='flex-1 items-center justify-center bg-neutral-800'>
+                          <Text className='text-4xl'>🎵</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text numberOfLines={2} className='mt-2'>
+                      {item.Name}
+                    </Text>
+                    <Text className='opacity-50 text-xs' numberOfLines={1}>
+                      {item.Artists?.join(", ") || item.AlbumArtist}
+                    </Text>
+                  </TouchableItemRouter>
+                );
+              }}
+            />
+            <SearchItemWrapper
+              items={playlists}
+              header={t("search.playlists")}
+              renderItem={(item: BaseItemDto) => {
+                const imageUrl = getPrimaryImageUrl({ api, item });
+                return (
+                  <TouchableItemRouter
+                    item={item}
+                    key={item.Id}
+                    className='flex flex-col w-28 mr-2'
+                  >
+                    <View
+                      style={{
+                        width: 112,
+                        height: 112,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        backgroundColor: "#1a1a1a",
+                      }}
+                    >
+                      {imageUrl ? (
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={{ width: "100%", height: "100%" }}
+                          contentFit='cover'
+                        />
+                      ) : (
+                        <View className='flex-1 items-center justify-center bg-neutral-800'>
+                          <Text className='text-4xl'>🎶</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text numberOfLines={2} className='mt-2'>
+                      {item.Name}
+                    </Text>
+                    <Text className='opacity-50 text-xs'>
+                      {item.ChildCount} tracks
+                    </Text>
+                  </TouchableItemRouter>
+                );
+              }}
             />
           </View>
         ) : (

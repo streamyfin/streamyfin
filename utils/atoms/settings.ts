@@ -134,6 +134,18 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// Audio transcoding mode - controls how surround audio is handled
+// This controls server-side transcoding behavior for audio streams.
+// MPV decodes via FFmpeg and supports most formats, but mobile devices
+// can't passthrough to external receivers, so this primarily affects
+// bandwidth usage and server load.
+export enum AudioTranscodeMode {
+  Auto = "auto", // Platform defaults (recommended)
+  ForceStereo = "stereo", // Always transcode to stereo
+  Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
+  AllowAll = "passthrough", // Direct play all audio formats
+}
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -196,6 +208,8 @@ export type Settings = {
   audioMaxCacheSizeMB: number;
   // Music playback
   preferLocalAudio: boolean;
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode;
 };
 
 export interface Lockable<T> {
@@ -278,6 +292,8 @@ export const defaultValues: Settings = {
   audioMaxCacheSizeMB: 500,
   // Music playback
   preferLocalAudio: true,
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode.Auto,
 };
 
 const loadSettings = (): Partial<Settings> => {

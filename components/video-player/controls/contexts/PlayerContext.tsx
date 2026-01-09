@@ -10,6 +10,7 @@ import React, {
   useMemo,
 } from "react";
 import type { MpvPlayerViewRef } from "@/modules";
+import type { DownloadedItem } from "@/providers/Downloads/types";
 
 interface PlayerContextProps {
   playerRef: MutableRefObject<MpvPlayerViewRef | null>;
@@ -17,6 +18,8 @@ interface PlayerContextProps {
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
   tracksReady: boolean;
+  offline: boolean;
+  downloadedItem: DownloadedItem | null;
 }
 
 const PlayerContext = createContext<PlayerContextProps | undefined>(undefined);
@@ -28,6 +31,8 @@ interface PlayerProviderProps {
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
   tracksReady: boolean;
+  offline?: boolean;
+  downloadedItem?: DownloadedItem | null;
 }
 
 export const PlayerProvider: React.FC<PlayerProviderProps> = ({
@@ -37,10 +42,28 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   mediaSource,
   isVideoLoaded,
   tracksReady,
+  offline = false,
+  downloadedItem = null,
 }) => {
   const value = useMemo(
-    () => ({ playerRef, item, mediaSource, isVideoLoaded, tracksReady }),
-    [playerRef, item, mediaSource, isVideoLoaded, tracksReady],
+    () => ({
+      playerRef,
+      item,
+      mediaSource,
+      isVideoLoaded,
+      tracksReady,
+      offline,
+      downloadedItem,
+    }),
+    [
+      playerRef,
+      item,
+      mediaSource,
+      isVideoLoaded,
+      tracksReady,
+      offline,
+      downloadedItem,
+    ],
   );
 
   return (

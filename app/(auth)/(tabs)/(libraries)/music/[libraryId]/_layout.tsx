@@ -13,8 +13,7 @@ import { useTranslation } from "react-i18next";
 const { Navigator } = createMaterialTopTabNavigator();
 
 const TAB_LABEL_FONT_SIZE = 13;
-const TAB_ITEM_HORIZONTAL_PADDING = 18;
-const TAB_ITEM_MIN_WIDTH = 110;
+const TAB_ITEM_HORIZONTAL_PADDING = 12;
 
 export const Tab = withLayoutContext<
   MaterialTopTabNavigationOptions,
@@ -48,7 +47,6 @@ const Layout = () => {
           },
           tabBarItemStyle: {
             width: "auto",
-            minWidth: TAB_ITEM_MIN_WIDTH,
             paddingHorizontal: TAB_ITEM_HORIZONTAL_PADDING,
           },
           tabBarStyle: { backgroundColor: "black" },

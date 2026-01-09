@@ -328,19 +328,6 @@ export default function IndexLayout() {
           ),
         }}
       />
-      <Stack.Screen
-        name='intro/page'
-        options={{
-          headerShown: false,
-          title: "",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
-          presentation: "modal",
-        }}
-      />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
         <Stack.Screen key={name} name={name} options={options} />
       ))}

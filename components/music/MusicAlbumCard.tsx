@@ -13,7 +13,7 @@ interface Props {
   width?: number;
 }
 
-export const MusicAlbumCard: React.FC<Props> = ({ album, width = 150 }) => {
+export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
   const [api] = useAtom(apiAtom);
   const router = useRouter();
 

@@ -5,6 +5,7 @@ import type {
 import { useAtomValue } from "jotai";
 import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
+import { Platform } from "react-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -77,7 +78,12 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        const native = generateDeviceProfile();
+        // Generate device profile for MPV player
+        const native = generateDeviceProfile({
+          platform: Platform.OS as "ios" | "android",
+          player: "mpv",
+          audioMode: settings.audioTranscodeMode,
+        });
         const data = await getStreamUrl({
           api,
           deviceProfile: native,
