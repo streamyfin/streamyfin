@@ -19,12 +19,12 @@ import { getSubtitleProfiles } from "./subtitles";
  */
 
 /**
- * Audio profiles for react-native-track-player based on platform capabilities.
- * iOS uses AVPlayer, Android uses ExoPlayer - each has different codec support.
+ * Audio direct play profiles for standalone audio items in MPV player.
+ * These define which audio file formats can be played directly without transcoding.
  */
 const getAudioDirectPlayProfile = (platform) => {
   if (platform === "ios") {
-    // iOS AVPlayer supported formats
+    // iOS audio formats supported by MPV
     return {
       Type: MediaTypes.Audio,
       Container: "mp3,m4a,aac,flac,alac,wav,aiff,caf",
@@ -32,7 +32,7 @@ const getAudioDirectPlayProfile = (platform) => {
     };
   }
 
-  // Android ExoPlayer supported formats
+  // Android audio formats supported by MPV
   return {
     Type: MediaTypes.Audio,
     Container: "mp3,m4a,aac,ogg,flac,wav,webm,mka",
@@ -40,16 +40,20 @@ const getAudioDirectPlayProfile = (platform) => {
   };
 };
 
+/**
+ * Audio codec profiles for standalone audio items in MPV player.
+ * These define codec constraints for audio file playback.
+ */
 const getAudioCodecProfile = (platform) => {
   if (platform === "ios") {
-    // iOS AVPlayer codec constraints
+    // iOS audio codec constraints for MPV
     return {
       Type: MediaTypes.Audio,
       Codec: "aac,ac3,eac3,mp3,flac,alac,opus,pcm",
     };
   }
 
-  // Android ExoPlayer codec constraints
+  // Android audio codec constraints for MPV
   return {
     Type: MediaTypes.Audio,
     Codec: "aac,ac3,eac3,mp3,flac,vorbis,opus,pcm",
@@ -191,3 +195,6 @@ export const generateDeviceProfile = (options = {}) => {
 
   return profile;
 };
+
+// Default export for backward compatibility
+export default generateDeviceProfile();

@@ -1,7 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import native from "@/utils/profiles/native";
+import trackPlayerProfile from "@/utils/profiles/trackplayer";
 
 export interface AudioStreamResult {
   url: string;
@@ -26,7 +26,7 @@ export const getAudioStreamUrl = async (
         method: "POST",
         data: {
           userId,
-          deviceProfile: native,
+          deviceProfile: trackPlayerProfile,
           startTimeTicks: 0,
           isPlayback: true,
           autoOpenLiveStream: true,
