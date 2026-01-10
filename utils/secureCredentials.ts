@@ -35,12 +35,22 @@ export interface SavedServerAccount {
 }
 
 /**
+ * Local network configuration for automatic URL switching.
+ */
+export interface LocalNetworkConfig {
+  localUrl: string;
+  homeWifiSSIDs: string[];
+  enabled: boolean;
+}
+
+/**
  * Server with multiple saved accounts.
  */
 export interface SavedServer {
   address: string;
   name?: string;
   accounts: SavedServerAccount[];
+  localNetworkConfig?: LocalNetworkConfig;
 }
 
 /**
@@ -343,6 +353,37 @@ export function addServerToList(serverUrl: string, serverName?: string): void {
   // Keep max 10 servers
   const updatedServers = [newServer, ...servers].slice(0, 10);
   storage.set("previousServers", JSON.stringify(updatedServers));
+}
+
+/**
+ * Update local network configuration for a server.
+ */
+export function updateServerLocalConfig(
+  serverUrl: string,
+  config: LocalNetworkConfig | undefined,
+): void {
+  const servers = getPreviousServers();
+  const updatedServers = servers.map((server) => {
+    if (server.address === serverUrl) {
+      return {
+        ...server,
+        localNetworkConfig: config,
+      };
+    }
+    return server;
+  });
+  storage.set("previousServers", JSON.stringify(updatedServers));
+}
+
+/**
+ * Get local network configuration for a server.
+ */
+export function getServerLocalConfig(
+  serverUrl: string,
+): LocalNetworkConfig | undefined {
+  const servers = getPreviousServers();
+  const server = servers.find((s) => s.address === serverUrl);
+  return server?.localNetworkConfig;
 }
 
 /**
