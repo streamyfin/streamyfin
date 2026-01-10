@@ -7,7 +7,6 @@ import { useRouter } from "expo-router";
 import { type FC, useCallback, useState } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PlaybackSpeedSelector } from "@/components/PlaybackSpeedSelector";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -106,7 +105,10 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       <View className='mr-auto p-2' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
           <View pointerEvents='auto'>
-            <DropdownView />
+            <DropdownView
+              playbackSpeed={playbackSpeed}
+              setPlaybackSpeed={setPlaybackSpeed}
+            />
           </View>
         )}
       </View>
@@ -171,14 +173,6 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
               color='white'
             />
           </TouchableOpacity>
-        )}
-        {/* Playback Speed Control */}
-        {!Platform.isTV && setPlaybackSpeed && (
-          <PlaybackSpeedSelector
-            selected={playbackSpeed}
-            onChange={setPlaybackSpeed}
-            item={item}
-          />
         )}
         {/* MPV Zoom Toggle */}
         <ZoomToggle
