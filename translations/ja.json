@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "サーバーの応答に時間がかかりすぎています。しばらくしてからもう一度お試しください。",
     "server_received_too_many_requests_try_again_later": "サーバーにリクエストが多すぎます。後でもう一度お試しください。",
     "there_is_a_server_error": "サーバーエラーが発生しました",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "予期しないエラーが発生しました。サーバーのURLを正しく入力しましたか？"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "予期しないエラーが発生しました。サーバーのURLを正しく入力しましたか？",
+    "too_old_server_text": "サポートされていないJellyfinサーバー発見",
+    "too_old_server_description": "Jellyfinを最新バージョンにアップデートしてください"
   },
   "server": {
     "enter_url_to_jellyfin_server": "JellyfinサーバーのURLを入力してください",
@@ -28,19 +30,64 @@
     "connect_button": "接続",
     "previous_servers": "前のサーバー",
     "clear_button": "クリア",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "ローカルサーバーを検索",
     "searching": "検索中...",
-    "servers": "サーバー"
+    "servers": "サーバー",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "サーバー接続を確認しています...",
     "no_internet": "インターネット接続がありません",
     "no_items": "アイテムはありません",
     "no_internet_message": "心配しないでください。\nダウンロードしたコンテンツは引き続き視聴できます。",
+    "checking_server_connection_message": "サーバーへの接続を確認しています",
     "go_to_downloads": "ダウンロードに移動",
+    "retry": "再試行する",
+    "server_unreachable": "サーバーに到達できません",
+    "server_unreachable_message": "サーバーに接続できませんでした。\nネットワーク接続を確認してください。",
     "oops": "おっと！",
     "error_message": "何か問題が発生しました。\nログアウトして再度ログインしてください。",
     "continue_watching": "続きを見る",
     "next_up": "次の動画",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "{{libraryName}}に最近追加された",
     "suggested_movies": "おすすめ映画",
     "suggested_episodes": "おすすめエピソード",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "設定",
       "log_out_button": "ログアウト",
+      "categories": {
+        "title": "カテゴリ"
+      },
+      "playback_controls": {
+        "title": "再生と操作"
+      },
+      "audio_subtitles": {
+        "title": "音声と字幕"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "ユーザー情報",
         "user": "ユーザー",
@@ -85,21 +146,42 @@
         "rewind_length": "巻き戻しの長さ",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "ジェスチャーコントロール",
+        "horizontal_swipe_skip": "水平方向にスワイプしてスキップ",
+        "horizontal_swipe_skip_description": "コントロールが非表示の場合は左右にスワイプしてスキップします",
+        "left_side_brightness": "左側の明るさコントロール",
+        "left_side_brightness_description": "左側を上下にスワイプして明るさを調整する",
+        "right_side_volume": "右側の音量制御",
+        "right_side_volume_description": "右側の上下にスワイプして音量を調整します",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "オーディオ",
         "set_audio_track": "前のアイテムからオーディオトラックを設定",
         "audio_language": "オーディオ言語",
         "audio_hint": "デフォルトのオーディオ言語を選択します。",
         "none": "なし",
-        "language": "言語"
+        "language": "言語",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "字幕",
+        "subtitle_hint": "字幕設定を構成します。",
         "subtitle_language": "字幕の言語",
         "subtitle_mode": "字幕モード",
         "set_subtitle_track": "前のアイテムから字幕トラックを設定",
         "subtitle_size": "字幕サイズ",
-        "subtitle_hint": "字幕設定を構成します。",
         "none": "なし",
         "language": "言語",
         "loading": "ロード中",
@@ -109,7 +191,63 @@
           "Always": "常に",
           "None": "なし",
           "OnlyForced": "強制のみ"
-        }
+        },
+        "text_color": "テキストの色",
+        "background_color": "背景色",
+        "outline_color": "アウトラインの色",
+        "outline_thickness": "概要 厚さ",
+        "background_opacity": "背景の透明度",
+        "outline_opacity": "アウトラインの透明度",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "ブラック",
+          "Gray": "グレー",
+          "Silver": "シルバー",
+          "White": "白",
+          "Maroon": "Maroon",
+          "Red": "赤",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "黄色",
+          "Olive": "オリーブ",
+          "Green": "緑",
+          "Teal": "ティール",
+          "Lime": "黄緑",
+          "Purple": "パープル",
+          "Navy": "海軍format@@0",
+          "Blue": "青",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "なし",
+          "Thin": "細いです",
+          "Normal": "標準",
+          "Thick": "濃厚な"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "その他",
@@ -134,23 +272,28 @@
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
         "show_custom_menu_links": "カスタムメニューのリンクを表示",
+        "show_large_home_carousel": "大きなヒーロー（Beta）",
         "hide_libraries": "ライブラリを非表示",
         "select_liraries_you_want_to_hide": "ライブラリタブとホームページセクションから非表示にするライブラリを選択します。",
-        "disable_haptic_feedback": "触覚フィードバックを無効にする"
+        "disable_haptic_feedback": "触覚フィードバックを無効にする",
+        "default_quality": "デフォルトの品質",
+        "default_playback_speed": "Default Playback Speed",
+        "max_auto_play_episode_count": "自動再生エピソードの最大数",
+        "disabled": "無効"
       },
       "downloads": {
-        "downloads_title": "ダウンロード",
-        "optimized_versions_server": "Optimized versionsサーバー",
-        "save_button": "保存",
-        "optimized_server": "Optimizedサーバー",
-        "optimized": "最適化",
-        "default": "デフォルト",
-        "optimized_version_hint": "OptimizeサーバーのURLを入力します。URLにはhttpまたはhttpsを含め、オプションでポートを指定します。",
-        "read_more_about_optimized_server": "Optimizeサーバーの詳細をご覧ください。",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:ポート",
-        "default_quality": "デフォルトの品質",
-        "disabled": "無効"
+        "downloads_title": "ダウンロード"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "プラグイン",
@@ -161,8 +304,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "パスワード",
           "password_placeholder": "Jellyfinユーザー {{username}} のパスワードを入力してください",
-          "save_button": "保存",
-          "clear_button": "クリア",
           "login_button": "ログイン",
           "total_media_requests": "メディアリクエストの合計",
           "movie_quota_limit": "映画のクオータ制限",
@@ -173,9 +314,9 @@
           "unlimited": "無制限",
           "plus_n_more": "+{{n}} more",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "デフォルト",
+            "VOTE_COUNT_AND_AVERAGE": "投票数と平均",
+            "POPULARITY": "人気"
           }
         },
         "marlin_search": {
@@ -186,18 +327,60 @@
           "read_more_about_marlin": "Marlinについて詳しく読む。",
           "save_button": "保存",
           "toasts": {
-            "saved": "保存しました"
-          }
+            "saved": "保存しました",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
         "storage_title": "ストレージ",
         "app_usage": "アプリ {{usedSpace}}%",
-        "phone_usage": "電話 {{availableSpace}}%",
+        "device_usage": "デバイス {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} 使用済み",
-        "delete_all_downloaded_files": "すべてのダウンロードファイルを削除"
+        "delete_all_downloaded_files": "すべてのダウンロードファイルを削除",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "イントロ",
         "show_intro": "イントロを表示",
         "reset_intro": "イントロをリセット"
       },
@@ -205,36 +388,38 @@
         "logs_title": "ログ",
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
-        "level": "Level",
+        "level": "レベル",
         "no_logs_available": "ログがありません",
         "delete_all_logs": "すべてのログを削除"
       },
       "languages": {
         "title": "言語",
         "app_language": "アプリの言語",
-        "app_language_description": "アプリの言語を選択。",
         "system": "システム"
       },
       "toasts": {
         "error_deleting_files": "ファイルの削除エラー",
         "background_downloads_enabled": "バックグラウンドでのダウンロードは有効です",
-        "background_downloads_disabled": "バックグラウンドでのダウンロードは無効です",
-        "connected": "接続済み",
-        "could_not_connect": "接続できません",
-        "invalid_url": "無効なURL"
+        "background_downloads_disabled": "バックグラウンドでのダウンロードは無効です"
       }
+    },
+    "sessions": {
+      "title": "セッション",
+      "no_active_sessions": "アクティブなセッションはありません"
     },
     "downloads": {
       "downloads_title": "ダウンロード",
       "tvseries": "TVシリーズ",
       "movies": "映画",
       "queue": "キュー",
+      "other_media": "その他のメディア",
       "queue_hint": "アプリを再起動するとキューとダウンロードは失われます",
       "no_items_in_queue": "キューにアイテムがありません",
       "no_downloaded_items": "ダウンロードしたアイテムはありません",
       "delete_all_movies_button": "すべての映画を削除",
       "delete_all_tvseries_button": "すべてのシリーズを削除",
       "delete_all_button": "すべて削除",
+      "delete_all_other_media_button": "他のメディアを削除する",
       "active_download": "アクティブなダウンロード",
       "no_active_downloads": "アクティブなダウンロードはありません",
       "active_downloads": "アクティブなダウンロード",
@@ -245,35 +430,57 @@
       "something_went_wrong": "問題が発生しました",
       "could_not_get_stream_url_from_jellyfin": "JellyfinからストリームURLを取得できませんでした",
       "eta": "ETA {{eta}}",
-      "methods": "方法",
       "toasts": {
         "you_are_not_allowed_to_download_files": "ファイルをダウンロードする権限がありません。",
         "deleted_all_movies_successfully": "すべての映画を正常に削除しました！",
         "failed_to_delete_all_movies": "すべての映画を削除できませんでした",
         "deleted_all_tvseries_successfully": "すべてのシリーズを正常に削除しました！",
         "failed_to_delete_all_tvseries": "すべてのシリーズを削除できませんでした",
+        "deleted_media_successfully": "他のメディアを削除しました！",
+        "failed_to_delete_media": "他のメディアの削除に失敗しました",
+        "download_deleted": "ダウンロードが削除されました",
         "download_cancelled": "ダウンロードをキャンセルしました",
-        "could_not_cancel_download": "ダウンロードをキャンセルできませんでした",
+        "could_not_delete_download": "ダウンロードを削除できませんでした",
+        "download_paused": "ダウンロードを一時停止しました",
+        "could_not_pause_download": "ダウンロードを一時停止できませんでした",
+        "download_resumed": "ダウンロード再開",
+        "could_not_resume_download": "ダウンロードを再開できませんでした",
         "download_completed": "ダウンロードが完了しました",
-        "download_started_for": "{{item}}のダウンロードが開始されました",
-        "item_is_ready_to_be_downloaded": "{{item}}をダウンロードする準備ができました",
-        "download_stated_for_item": "{{item}}のダウンロードが開始されました",
+        "download_failed": "ダウンロードに失敗しました",
         "download_failed_for_item": "{{item}}のダウンロードに失敗しました - {{error}}",
         "download_completed_for_item": "{{item}}のダウンロードが完了しました",
-        "queued_item_for_optimization": "{{item}}をoptimizeのキューに追加しました",
-        "failed_to_start_download_for_item": "{{item}}のダウンロードを開始できませんでした: {{message}}",
-        "server_responded_with_status_code": "サーバーはステータス{{statusCode}}で応答しました",
-        "no_response_received_from_server": "サーバーからの応答がありません",
-        "error_setting_up_the_request": "リクエストの設定中にエラーが発生しました",
-        "failed_to_start_download_for_item_unexpected_error": "{{item}}のダウンロードを開始できませんでした: 予期しないエラーが発生しました",
+        "download_started_for_item": "{{item}} のダウンロードを開始しました",
+        "failed_to_start_download": "ダウンロードの開始に失敗しました",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "すべてのファイル、フォルダ、ジョブが正常に削除されました",
-        "an_error_occured_while_deleting_files_and_jobs": "ファイルとジョブの削除中にエラーが発生しました",
-        "go_to_downloads": "ダウンロードに移動"
+        "failed_to_clean_cache_directory": "キャッシュディレクトリのクリーンアップに失敗しました",
+        "could_not_get_download_url_for_item": "{{itemName}} のダウンロードURLを取得できませんでした",
+        "go_to_downloads": "ダウンロードに移動",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
+  "common": {
+    "select": "選択",
+    "no_trailer_available": "トレーラーがありません",
+    "video": "映像",
+    "audio": "音声",
+    "subtitle": "字幕",
+    "play": "再生",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "ここを検索...",
     "search": "検索...",
     "x_items": "{{count}}のアイテム",
     "library": "ライブラリ",
@@ -285,6 +492,10 @@
     "episodes": "エピソード",
     "collections": "コレクション",
     "actors": "俳優",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "映画をリクエスト",
     "request_series": "シリーズをリクエスト",
     "recently_added": "最近の追加",
@@ -310,7 +521,6 @@
     "tmdb_tv_streaming_services": "TMDBシリーズストリーミングサービス"
   },
   "library": {
-    "no_items_found": "アイテムが見つかりません",
     "no_results": "検索結果はありません",
     "no_libraries_found": "ライブラリが見つかりません",
     "item_types": {
@@ -333,9 +543,8 @@
       "genres": "ジャンル",
       "years": "年",
       "sort_by": "ソート",
+      "filter_by": "Filter By",
       "sort_order": "ソート順",
-      "asc": "Ascending",
-      "desc": "Descending",
       "tags": "タグ"
     }
   },
@@ -359,17 +568,18 @@
     "client_error": "クライアントエラー",
     "could_not_create_stream_for_chromecast": "Chromecastのストリームを作成できませんでした",
     "message_from_server": "サーバーからのメッセージ",
-    "video_has_finished_playing": "ビデオの再生が終了しました！",
-    "no_video_source": "動画ソースがありません...",
     "next_episode": "次のエピソード",
     "refresh_tracks": "トラックを更新",
-    "subtitle_tracks": "字幕トラック:",
     "audio_tracks": "音声トラック:",
     "playback_state": "再生状態:",
-    "no_data_available": "データなし",
     "index": "インデックス:",
     "continue_watching": "視聴を続ける",
-    "go_back": "戻る"
+    "go_back": "戻る",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "次",
@@ -385,6 +595,7 @@
     "no_similar_items_found": "類似のアイテムは見つかりませんでした",
     "video": "映像",
     "more_details": "さらに詳細を表示",
+    "media_options": "Media Options",
     "quality": "画質",
     "audio": "音声",
     "subtitles": "字幕",
@@ -399,15 +610,13 @@
       "download_episode": "エピソードをダウンロード",
       "download_movie": "映画をダウンロード",
       "download_x_item": "{{item_count}}のアイテムをダウンロード",
-      "download_button": "ダウンロード",
-      "using_optimized_server": "Optimizeサーバーを使用する",
-      "using_default_method": "デフォルトの方法を使用"
+      "download_unwatched_only": "未視聴のみ",
+      "download_button": "ダウンロード"
     }
   },
   "live_tv": {
     "next": "次",
     "previous": "前",
-    "live_tv": "ライブTV",
     "coming_soon": "近日公開",
     "on_now": "現在",
     "shows": "表示",
@@ -455,6 +664,10 @@
     "number_episodes": "エピソード{{episode_number}}",
     "born": "生まれ",
     "appearances": "出演",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseerrサーバーは最小バージョン要件を満たしていません。少なくとも 2.0.0 に更新してください。",
       "jellyseerr_test_failed": "Jellyseerrテストに失敗しました。もう一度お試しください。",
@@ -462,7 +675,11 @@
       "issue_submitted": "チケットを送信しました！",
       "requested_item": "{{item}}をリクエスト！",
       "you_dont_have_permission_to_request": "リクエストする権限がありません！",
-      "something_went_wrong_requesting_media": "メディアのリクエスト中に問題が発生しました。"
+      "something_went_wrong_requesting_media": "メディアのリクエスト中に問題が発生しました。",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -471,5 +688,129 @@
     "library": "ライブラリ",
     "custom_links": "カスタムリンク",
     "favorites": "お気に入り"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

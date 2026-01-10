@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Serveren svarer for langsomt, prøv igen senere",
     "server_received_too_many_requests_try_again_later": "Serveren modtog for mange forespørgsler, prøv igen senere.",
     "there_is_a_server_error": "Der er en serverfejl",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Der opstod en uventet fejl. Har du indtastet serverens URL korrekt?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Der opstod en uventet fejl. Har du indtastet serverens URL korrekt?",
+    "too_old_server_text": "Ikke Understøttet Jellyfin Server Opdaget",
+    "too_old_server_description": "Opdater venligst Jellyfin til den seneste version"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Indtast URL'en til din Jellyfin server",
@@ -28,19 +30,64 @@
     "connect_button": "Forbind",
     "previous_servers": "Tidligere servere",
     "clear_button": "Ryd",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Søg efter lokale servere",
     "searching": "Søger...",
-    "servers": "Servere"
+    "servers": "Servere",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Kontrollerer serverforbindelse...",
     "no_internet": "Ingen internetforbindelse",
     "no_items": "Ingen elementer",
     "no_internet_message": "Ingen bekymringer, du kan stadig se\ndownloadet indhold.",
+    "checking_server_connection_message": "Kontrollerer forbindelse til server",
     "go_to_downloads": "Gå til downloads",
+    "retry": "Forsøg igen",
+    "server_unreachable": "Server Utilgængelig",
+    "server_unreachable_message": "Kunne ikke nå serveren.\nKontroller venligst din netværksforbindelse.",
     "oops": "Ups!",
     "error_message": "Noget gik galt.\nLog venligst ud og ind igen.",
     "continue_watching": "Fortsæt med at se",
     "next_up": "Næste",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Senest tilføjet i {{libraryName}}",
     "suggested_movies": "Foreslåede film",
     "suggested_episodes": "Foreslåede episoder",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "Indstillinger",
       "log_out_button": "Log ud",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Brugerinfo",
         "user": "Bruger",
@@ -85,21 +146,42 @@
         "rewind_length": "Spol tilbage længde",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Bevægelsesstyring",
+        "horizontal_swipe_skip": "Vandret Stryg for at springe over",
+        "horizontal_swipe_skip_description": "Stryg venstre/højre, når kontroller skjules for at springe over",
+        "left_side_brightness": "Kontrol Af Venstre Lysstyrke",
+        "left_side_brightness_description": "Stryg op/ned på venstre side for at justere lysstyrken",
+        "right_side_volume": "Højre Side Volumen Kontrol",
+        "right_side_volume_description": "Stryg op/ned på højre side for at justere lydstyrken",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "Lyd",
         "set_audio_track": "Sæt lydspor fra forrige element",
         "audio_language": "Lydsprog",
         "audio_hint": "Vælg et standardsprog for lyd.",
         "none": "Ingen",
-        "language": "Sprog"
+        "language": "Sprog",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Undertekster",
+        "subtitle_hint": "Konfigurer undertekstpræference.",
         "subtitle_language": "Undertekstsprog",
         "subtitle_mode": "Underteksttilstand",
         "set_subtitle_track": "Sæt undertekstspor fra forrige element",
         "subtitle_size": "Undertekststørrelse",
-        "subtitle_hint": "Konfigurer undertekstpræference.",
         "none": "Ingen",
         "language": "Sprog",
         "loading": "Indlæser",
@@ -109,7 +191,63 @@
           "Always": "Altid",
           "None": "Ingen",
           "OnlyForced": "Kun tvungne undertekster"
-        }
+        },
+        "text_color": "Tekst Farve",
+        "background_color": "Baggrunds Farve",
+        "outline_color": "Omrids Farve",
+        "outline_thickness": "Omrids Tykkelse",
+        "background_opacity": "Baggrunds Gennemsigtighed",
+        "outline_opacity": "Omrids Gennemsigtighed",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Sort",
+          "Gray": "Grå",
+          "Silver": "Sølv",
+          "White": "Hvid",
+          "Maroon": "Maroon",
+          "Red": "Rød",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Gul",
+          "Olive": "Oliven",
+          "Green": "Grøn",
+          "Teal": "Grønblåt",
+          "Lime": "Limegrøn",
+          "Purple": "Lilla",
+          "Navy": "Flåden",
+          "Blue": "Blå",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "Ingen",
+          "Thin": "Tynd",
+          "Normal": "Normal",
+          "Thick": "Tyk"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Andet",
@@ -134,22 +272,28 @@
           "VLC_4": "VLC 4 (Eksperimentel + PiP)"
         },
         "show_custom_menu_links": "Vis tilpassede menulinks",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Skjul biblioteker",
         "select_liraries_you_want_to_hide": "Vælg de biblioteker, du ønsker at skjule fra fanen Bibliotek og startside sektionerne.",
         "disable_haptic_feedback": "Deaktiver haptisk feedback",
-        "default_quality": "Standard kvalitet"
+        "default_quality": "Standard kvalitet",
+        "default_playback_speed": "Default Playback Speed",
+        "max_auto_play_episode_count": "Maks. Auto Afspil Episode Antal",
+        "disabled": "Deaktiveret"
       },
       "downloads": {
-        "downloads_title": "Downloads",
-        "optimized_versions_server": "Optimeret versionsserver",
-        "save_button": "Gem",
-        "optimized_server": "Optimeret server",
-        "optimized": "Optimeret",
-        "default": "Standard",
-        "optimized_version_hint": "Indtast URL'en til den optimerede server. URL'en skal inkludere http eller https og eventuelt porten.",
-        "read_more_about_optimized_server": "Læs mere om den optimerede server.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "downloads_title": "Downloads"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Plugins",
@@ -160,8 +304,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Adgangskode",
           "password_placeholder": "Indtast adgangskode for Jellyfin bruger {{username}}",
-          "save_button": "Gem",
-          "clear_button": "Ryd",
           "login_button": "Log ind",
           "total_media_requests": "Samlede medieanmodninger",
           "movie_quota_limit": "Begrænsning for filmkvote",
@@ -185,8 +327,40 @@
           "read_more_about_marlin": "Læs mere om Marlin.",
           "save_button": "Gem",
           "toasts": {
-            "saved": "Gemt"
-          }
+            "saved": "Gemt",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -194,9 +368,19 @@
         "app_usage": "App {{usedSpace}}% brugt",
         "device_usage": "Enhedsforbrug: {{availableSpace}}%",
         "size_used": "{{used}} af {{total}} brugt",
-        "delete_all_downloaded_files": "Slet alle downloadede filer"
+        "delete_all_downloaded_files": "Slet alle downloadede filer",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Vis intro",
         "reset_intro": "Nulstil intro"
       },
@@ -211,16 +395,12 @@
       "languages": {
         "title": "Sprog",
         "app_language": "App sprog",
-        "app_language_description": "Vælg sproget for appen.",
         "system": "System"
       },
       "toasts": {
         "error_deleting_files": "Fejl ved sletning af filer",
         "background_downloads_enabled": "Baggrundsdownloads aktiveret",
-        "background_downloads_disabled": "Baggrundsdownloads deaktiveret",
-        "connected": "Forbundet",
-        "could_not_connect": "Kunne ikke oprette forbindelse",
-        "invalid_url": "Ugyldig URL"
+        "background_downloads_disabled": "Baggrundsdownloads deaktiveret"
       }
     },
     "sessions": {
@@ -232,12 +412,14 @@
       "tvseries": "TV-serier",
       "movies": "Film",
       "queue": "Kø",
+      "other_media": "Andre medier",
       "queue_hint": "Kø og downloads vil gå tabt ved genstart af appen",
       "no_items_in_queue": "Ingen elementer i køen",
       "no_downloaded_items": "Ingen downloadede elementer",
       "delete_all_movies_button": "Slet alle film",
       "delete_all_tvseries_button": "Slet alle TV-serier",
       "delete_all_button": "Slet alle",
+      "delete_all_other_media_button": "Slet andre medier",
       "active_download": "Aktiv download",
       "no_active_downloads": "Ingen aktive downloads",
       "active_downloads": "Aktive downloads",
@@ -248,35 +430,57 @@
       "something_went_wrong": "Noget gik galt",
       "could_not_get_stream_url_from_jellyfin": "Kunne ikke hente stream URL'en fra Jellyfin",
       "eta": "ETA {{eta}}",
-      "methods": "Metoder",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Du har ikke tilladelse til at downloade filer.",
         "deleted_all_movies_successfully": "Alle film er slettet med succes!",
         "failed_to_delete_all_movies": "Kunne ikke slette alle film",
         "deleted_all_tvseries_successfully": "Alle TV-serier er slettet med succes!",
         "failed_to_delete_all_tvseries": "Kunne ikke slette alle TV-serier",
+        "deleted_media_successfully": "Slettede andre medier med succes!",
+        "failed_to_delete_media": "Kunne ikke slette andre medier",
+        "download_deleted": "Download Slettet",
         "download_cancelled": "Download afbrudt",
-        "could_not_cancel_download": "Kunne ikke annullere download",
+        "could_not_delete_download": "Kunne Ikke Slette Download",
+        "download_paused": "Download Pauset",
+        "could_not_pause_download": "Kunne Ikke Pause Download",
+        "download_resumed": "Download Genoprettet",
+        "could_not_resume_download": "Kunne Ikke Genoptage Download",
         "download_completed": "Download fuldført",
-        "download_started_for": "Download startet for {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} er klar til download",
-        "download_stated_for_item": "Download startet for {{item}}",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "Download mislykkedes for {{item}} - {{error}}",
         "download_completed_for_item": "Download fuldført for {{item}}",
-        "queued_item_for_optimization": "Sat {{item}} i kø til optimering",
-        "failed_to_start_download_for_item": "Kunne ikke starte download for {{item}}: {{message}}",
-        "server_responded_with_status_code": "Serveren svarede med status {{statusCode}}",
-        "no_response_received_from_server": "Intet svar modtaget fra serveren",
-        "error_setting_up_the_request": "Fejl ved opsætning af anmodningen",
-        "failed_to_start_download_for_item_unexpected_error": "Kunne ikke starte download for {{item}}: Uventet fejl",
+        "download_started_for_item": "Download startet til {{item}}",
+        "failed_to_start_download": "Kunne ikke starte download",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "Alle filer, mapper og jobs blev slettet med succes",
-        "an_error_occured_while_deleting_files_and_jobs": "Der opstod en fejl under sletning af filer og jobs",
-        "go_to_downloads": "Gå til downloads"
+        "failed_to_clean_cache_directory": "Kunne ikke rense cache-mappe",
+        "could_not_get_download_url_for_item": "Kunne ikke hente download URL til {{itemName}}",
+        "go_to_downloads": "Gå til downloads",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
+  "common": {
+    "select": "Vælg",
+    "no_trailer_available": "Intet påhængskøretøj tilgængeligt",
+    "video": "Video",
+    "audio": "Lyd",
+    "subtitle": "Undertekster",
+    "play": "Afspil",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Søg her...",
     "search": "Søg...",
     "x_items": "{{count}} elementer",
     "library": "Bibliotek",
@@ -288,6 +492,10 @@
     "episodes": "Episoder",
     "collections": "Samlinger",
     "actors": "Skuespillere",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Anmod om film",
     "request_series": "Anmod om serier",
     "recently_added": "Senest tilføjet",
@@ -313,7 +521,6 @@
     "tmdb_tv_streaming_services": "TMDB TV-streamingtjenester"
   },
   "library": {
-    "no_items_found": "Ingen elementer fundet",
     "no_results": "Ingen resultater",
     "no_libraries_found": "Ingen biblioteker fundet",
     "item_types": {
@@ -336,10 +543,9 @@
       "genres": "Genrer",
       "years": "År",
       "sort_by": "Sortér efter",
+      "filter_by": "Filter By",
       "sort_order": "Sorteringsrækkefølge",
-      "asc": "Stigende",
-      "desc": "Faldende",
-      "tags": "Tags"
+      "tags": "Mærker"
     }
   },
   "favorites": {
@@ -362,15 +568,18 @@
     "client_error": "Klientfejl",
     "could_not_create_stream_for_chromecast": "Kunne ikke oprette en stream til Chromecast",
     "message_from_server": "Besked fra server: {{message}}",
-    "video_has_finished_playing": "Videoen er færdig med at spille!",
-    "no_video_source": "Ingen videokilde...",
     "next_episode": "Næste episode",
     "refresh_tracks": "Opdater spor",
-    "subtitle_tracks": "Undertekstspor:",
     "audio_tracks": "Lydspor:",
     "playback_state": "Afspilningstilstand:",
-    "no_data_available": "Ingen data tilgængelig",
-    "index": "Indeks:"
+    "index": "Indeks:",
+    "continue_watching": "Fortsæt med at se",
+    "go_back": "Gå Tilbage",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Næste",
@@ -386,6 +595,7 @@
     "no_similar_items_found": "Ingen lignende elementer fundet",
     "video": "Video",
     "more_details": "Flere detaljer",
+    "media_options": "Media Options",
     "quality": "Kvalitet",
     "audio": "Lyd",
     "subtitles": "Undertekster",
@@ -400,18 +610,16 @@
       "download_episode": "Download episode",
       "download_movie": "Download film",
       "download_x_item": "Download {{item_count}} elementer",
-      "download_button": "Download",
-      "using_optimized_server": "Bruger optimeret server",
-      "using_default_method": "Bruger standardmetode"
+      "download_unwatched_only": "Kun Usete",
+      "download_button": "Hent"
     }
   },
   "live_tv": {
     "next": "Næste",
     "previous": "Forrige",
-    "live_tv": "Live TV",
     "coming_soon": "Kommer snart",
     "on_now": "Lige nu",
-    "shows": "Shows",
+    "shows": "Serier",
     "movies": "Film",
     "sports": "Sport",
     "for_kids": "For børn",
@@ -448,7 +656,7 @@
     "currently_streaming_on": "Streames aktuelt på",
     "advanced": "Avanceret",
     "request_as": "Anmod som",
-    "tags": "Tags",
+    "tags": "Mærker",
     "quality_profile": "Kvalitetsprofil",
     "root_folder": "Rodmappe",
     "season_all": "Sæson (alle)",
@@ -456,6 +664,10 @@
     "number_episodes": "{{episode_number}} episoder",
     "born": "Født",
     "appearances": "Medvirkninger",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseerr serveren opfylder ikke minimumskravene! Opdater venligst til mindst 2.0.0",
       "jellyseerr_test_failed": "Jellyseerr test mislykkedes. Prøv venligst igen.",
@@ -463,7 +675,11 @@
       "issue_submitted": "Problem indsendt!",
       "requested_item": "Anmodet om {{item}}!",
       "you_dont_have_permission_to_request": "Du har ikke tilladelse til at anmode!",
-      "something_went_wrong_requesting_media": "Noget gik galt ved anmodning om medie!"
+      "something_went_wrong_requesting_media": "Noget gik galt ved anmodning om medie!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -472,5 +688,129 @@
     "library": "Bibliotek",
     "custom_links": "Tilpassede links",
     "favorites": "Favoritter"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Máy chủ phản hồi quá lâu, vui lòng thử lại sau",
     "server_received_too_many_requests_try_again_later": "Máy chủ nhận quá nhiều yêu cầu, vui lòng thử lại sau.",
     "there_is_a_server_error": "Đã xảy ra lỗi ở máy chủ",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Đã xảy ra lỗi không mong muốn. Bạn có chắc đã nhập đúng URL máy chủ?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Đã xảy ra lỗi không mong muốn. Bạn có chắc đã nhập đúng URL máy chủ?",
+    "too_old_server_text": "Unsupported Jellyfin Server Discovered",
+    "too_old_server_description": "Please update Jellyfin to the latest version"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Nhập URL máy chủ Jellyfin của bạn",
@@ -28,19 +30,64 @@
     "connect_button": "Kết nối",
     "previous_servers": "Máy chủ trước đó",
     "clear_button": "Xóa",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Tìm máy chủ trong mạng",
     "searching": "Đang tìm...",
-    "servers": "Máy chủ"
+    "servers": "Máy chủ",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Checking server connection...",
     "no_internet": "Không có Internet",
     "no_items": "Không có nội dung",
     "no_internet_message": "Không sao, bạn vẫn có thể xem được nội dung đã tải xuống.",
+    "checking_server_connection_message": "Checking connection to server",
     "go_to_downloads": "Tới phần tải về",
+    "retry": "Retry",
+    "server_unreachable": "Server Unreachable",
+    "server_unreachable_message": "Could not reach the server.\nPlease check your network connection.",
     "oops": "Ối!",
     "error_message": "Có lỗi xảy ra.\nVui lòng đăng xuất rồi đăng nhập lại.",
     "continue_watching": "Tiếp tục xem",
     "next_up": "Tiếp theo",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Mới thêm trong {{libraryName}}",
     "suggested_movies": "Phim gợi ý",
     "suggested_episodes": "Tập gợi ý",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "Cài đặt",
       "log_out_button": "Đăng xuất",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Thông tin người dùng",
         "user": "Người dùng",
@@ -85,21 +146,42 @@
         "rewind_length": "Thời gian tua lui",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Gesture Controls",
+        "horizontal_swipe_skip": "Horizontal Swipe to Skip",
+        "horizontal_swipe_skip_description": "Swipe left/right when controls are hidden to skip",
+        "left_side_brightness": "Left Side Brightness Control",
+        "left_side_brightness_description": "Swipe up/down on left side to adjust brightness",
+        "right_side_volume": "Right Side Volume Control",
+        "right_side_volume_description": "Swipe up/down on right side to adjust volume",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "Âm thanh",
         "set_audio_track": "Chọn track âm thanh từ mục trước",
         "audio_language": "Ngôn ngữ âm thanh",
         "audio_hint": "Chọn ngôn ngữ âm thanh mặc định.",
         "none": "Không có",
-        "language": "Ngôn ngữ"
+        "language": "Ngôn ngữ",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Phụ đề",
+        "subtitle_hint": "Cấu hình tùy chọn phụ đề.",
         "subtitle_language": "Ngôn ngữ phụ đề",
         "subtitle_mode": "Chế độ phụ đề",
         "set_subtitle_track": "Chọn phụ đề từ mục trước",
         "subtitle_size": "Cỡ chữ",
-        "subtitle_hint": "Cấu hình tùy chọn phụ đề.",
         "none": "Không có",
         "language": "Ngôn ngữ",
         "loading": "Đang tải",
@@ -109,7 +191,63 @@
           "Always": "Luôn hiện",
           "None": "Không hiển thị",
           "OnlyForced": "Bắt buộc"
-        }
+        },
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "outline_color": "Outline Color",
+        "outline_thickness": "Outline Thickness",
+        "background_opacity": "Background Opacity",
+        "outline_opacity": "Outline Opacity",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Black",
+          "Gray": "Gray",
+          "Silver": "Silver",
+          "White": "White",
+          "Maroon": "Maroon",
+          "Red": "Red",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Yellow",
+          "Olive": "Olive",
+          "Green": "Green",
+          "Teal": "Teal",
+          "Lime": "Lime",
+          "Purple": "Purple",
+          "Navy": "Navy",
+          "Blue": "Blue",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "Không có",
+          "Thin": "Thin",
+          "Normal": "Normal",
+          "Thick": "Thick"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Khác",
@@ -134,24 +272,28 @@
           "VLC_4": "VLC 4 (Thử nghiệm + PiP)"
         },
         "show_custom_menu_links": "Hiện liên kết tùy chỉnh",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Ẩn thư viện",
         "select_liraries_you_want_to_hide": "Chọn các thư viện muốn ẩn khỏi mục Thư viện và Trang chủ.",
         "disable_haptic_feedback": "Tắt phản hồi rung",
         "default_quality": "Chất lượng mặc định",
+        "default_playback_speed": "Default Playback Speed",
         "max_auto_play_episode_count": "Số tập tự chạy tối đa",
         "disabled": "Đã tắt"
       },
       "downloads": {
-        "downloads_title": "Tải xuống",
-        "optimized_versions_server": "Máy chủ phiên bản tối ưu",
-        "save_button": "Lưu",
-        "optimized_server": "Máy chủ tối ưu",
-        "optimized": "Tối ưu",
-        "default": "Mặc định",
-        "optimized_version_hint": "Nhập URL máy chủ tối ưu. Phải có http hoặc https và cổng nếu cần.",
-        "read_more_about_optimized_server": "Tìm hiểu thêm về máy chủ tối ưu.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "downloads_title": "Tải xuống"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Plugin",
@@ -162,8 +304,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Mật khẩu",
           "password_placeholder": "Nhập mật khẩu cho người dùng {{username}} Jellyfin",
-          "save_button": "Lưu",
-          "clear_button": "Xóa",
           "login_button": "Đăng nhập",
           "total_media_requests": "Tổng số lượt yêu cầu nội dung",
           "movie_quota_limit": "Giới hạn phim",
@@ -187,8 +327,40 @@
           "read_more_about_marlin": "Tìm hiểu thêm về Marlin.",
           "save_button": "Lưu",
           "toasts": {
-            "saved": "Đã lưu"
-          }
+            "saved": "Đã lưu",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -196,9 +368,19 @@
         "app_usage": "Ứng dụng sử dụng {{usedSpace}}%",
         "device_usage": "Thiết bị sử dụng {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} đã dùng",
-        "delete_all_downloaded_files": "Xóa toàn bộ tập tin đã tải"
+        "delete_all_downloaded_files": "Xóa toàn bộ tập tin đã tải",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Hiện giới thiệu",
         "reset_intro": "Đặt lại giới thiệu"
       },
@@ -213,16 +395,12 @@
       "languages": {
         "title": "Ngôn ngữ",
         "app_language": "Ngôn ngữ ứng dụng",
-        "app_language_description": "Chọn ngôn ngữ cho ứng dụng.",
         "system": "Hệ thống"
       },
       "toasts": {
         "error_deleting_files": "Lỗi khi xóa tập tin",
         "background_downloads_enabled": "Tải trong nền đã bật",
-        "background_downloads_disabled": "Tải trong nền đã tắt",
-        "connected": "Đã kết nối",
-        "could_not_connect": "Không thể kết nối",
-        "invalid_url": "URL không hợp lệ"
+        "background_downloads_disabled": "Tải trong nền đã tắt"
       }
     },
     "sessions": {
@@ -234,12 +412,14 @@
       "tvseries": "Chương trình TV",
       "movies": "Phim",
       "queue": "Hàng đợi",
+      "other_media": "Other media",
       "queue_hint": "Hàng đợi và tải xuống sẽ bị mất khi khởi động lại ứng dụng",
       "no_items_in_queue": "Không có mục trong hàng đợi",
       "no_downloaded_items": "Không có mục đã tải",
       "delete_all_movies_button": "Xóa tất cả phim",
       "delete_all_tvseries_button": "Xóa tất cả chương trình TV",
       "delete_all_button": "Xóa tất cả",
+      "delete_all_other_media_button": "Delete other media",
       "active_download": "Đang tải xuống",
       "no_active_downloads": "Không có tải xuống đang diễn ra",
       "active_downloads": "Đang tải xuống",
@@ -250,35 +430,57 @@
       "something_went_wrong": "Đã xảy ra lỗi",
       "could_not_get_stream_url_from_jellyfin": "Không thể lấy URL phát trực tiếp từ Jellyfin",
       "eta": "Thời gian còn lại {{eta}}",
-      "methods": "Phương pháp",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Bạn không có quyền tải nội dung.",
         "deleted_all_movies_successfully": "Đã xóa tất cả phim thành công!",
         "failed_to_delete_all_movies": "Xóa phim thất bại",
         "deleted_all_tvseries_successfully": "Đã xóa tất cả chương trình TV thành công!",
         "failed_to_delete_all_tvseries": "Xóa chương trình TV thất bại",
+        "deleted_media_successfully": "Deleted other media Successfully!",
+        "failed_to_delete_media": "Failed to Delete other media",
+        "download_deleted": "Download Deleted",
         "download_cancelled": "Tải xuống bị hủy",
-        "could_not_cancel_download": "Không thể hủy tải xuống",
+        "could_not_delete_download": "Could Not Delete Download",
+        "download_paused": "Download Paused",
+        "could_not_pause_download": "Could Not Pause Download",
+        "download_resumed": "Download Resumed",
+        "could_not_resume_download": "Could Not Resume Download",
         "download_completed": "Tải xuống hoàn tất",
-        "download_started_for": "Bắt đầu tải {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} đã sẵn sàng để tải",
-        "download_stated_for_item": "Bắt đầu tải {{item}}",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "Tải {{item}} thất bại – {{error}}",
         "download_completed_for_item": "Tải xong {{item}}",
-        "queued_item_for_optimization": "Đã đưa {{item}} vào hàng đợi tối ưu hóa",
-        "failed_to_start_download_for_item": "Không thể bắt đầu tải {{item}}: {{message}}",
-        "server_responded_with_status_code": "Máy chủ phản hồi mã {{statusCode}}",
-        "no_response_received_from_server": "Không nhận được phản hồi từ máy chủ",
-        "error_setting_up_the_request": "Lỗi khi thiết lập yêu cầu",
-        "failed_to_start_download_for_item_unexpected_error": "Không thể bắt đầu tải {{item}}: Lỗi không mong muốn",
+        "download_started_for_item": "Download Started for {{item}}",
+        "failed_to_start_download": "Failed to start download",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "Đã xóa thành công tất cả tập tin, thư mục và công việc",
-        "an_error_occured_while_deleting_files_and_jobs": "Đã xảy ra lỗi khi xóa tập tin và công việc",
-        "go_to_downloads": "Tới phần tải về"
+        "failed_to_clean_cache_directory": "Failed to clean cache directory",
+        "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
+        "go_to_downloads": "Tới phần tải về",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
+  "common": {
+    "select": "Select",
+    "no_trailer_available": "No trailer available",
+    "video": "Video",
+    "audio": "Âm thanh",
+    "subtitle": "Phụ đề",
+    "play": "Play",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Tìm tại đây...",
     "search": "Tìm...",
     "x_items": "{{count}} mục",
     "library": "Thư viện",
@@ -290,6 +492,10 @@
     "episodes": "Tập",
     "collections": "Bộ sưu tập",
     "actors": "Diễn viên",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Yêu cầu phim",
     "request_series": "Yêu cầu chương trình",
     "recently_added": "Mới thêm",
@@ -315,7 +521,6 @@
     "tmdb_tv_streaming_services": "Dịch vụ streaming TV TMDB"
   },
   "library": {
-    "no_items_found": "Không tìm thấy nội dung",
     "no_results": "Không có kết quả",
     "no_libraries_found": "Không tìm thấy thư viện",
     "item_types": {
@@ -338,9 +543,8 @@
       "genres": "Thể loại",
       "years": "Năm",
       "sort_by": "Sắp xếp theo",
+      "filter_by": "Filter By",
       "sort_order": "Thứ tự",
-      "asc": "Tăng dần",
-      "desc": "Giảm dần",
       "tags": "Thẻ"
     }
   },
@@ -364,17 +568,18 @@
     "client_error": "Lỗi phía máy khách",
     "could_not_create_stream_for_chromecast": "Không thể tạo luồng cho Chromecast",
     "message_from_server": "Thông báo từ máy chủ: {{message}}",
-    "video_has_finished_playing": "Video đã phát xong!",
-    "no_video_source": "Không có nguồn video...",
     "next_episode": "Tập tiếp theo",
     "refresh_tracks": "Làm mới các track",
-    "subtitle_tracks": "Track phụ đề:",
     "audio_tracks": "Track âm thanh:",
     "playback_state": "Trạng thái phát:",
-    "no_data_available": "Không có dữ liệu",
     "index": "Chỉ mục:",
     "continue_watching": "Tiếp tục xem",
-    "go_back": "Quay lại"
+    "go_back": "Quay lại",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Tiếp theo",
@@ -390,6 +595,7 @@
     "no_similar_items_found": "Không tìm thấy nội dung tương tự",
     "video": "Video",
     "more_details": "Xem thêm chi tiết",
+    "media_options": "Media Options",
     "quality": "Chất lượng",
     "audio": "Âm thanh",
     "subtitles": "Phụ đề",
@@ -404,15 +610,13 @@
       "download_episode": "Tải tập",
       "download_movie": "Tải phim",
       "download_x_item": "Tải {{item_count}} nội dung",
-      "download_button": "Tải",
-      "using_optimized_server": "Đang dùng máy chủ tối ưu",
-      "using_default_method": "Đang dùng phương pháp mặc định"
+      "download_unwatched_only": "Unwatched Only",
+      "download_button": "Tải"
     }
   },
   "live_tv": {
     "next": "Tiếp theo",
     "previous": "Trước đó",
-    "live_tv": "TV trực tiếp",
     "coming_soon": "Sắp chiếu",
     "on_now": "Đang phát",
     "shows": "Chương trình",
@@ -460,6 +664,10 @@
     "number_episodes": "{{episode_number}} tập",
     "born": "Ngày sinh",
     "appearances": "Lần xuất hiện",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Máy chủ Jellyseerr không đạt yêu cầu tối thiểu! Vui lòng cập nhật lên ít nhất 2.0.0",
       "jellyseerr_test_failed": "Kiểm tra Jellyseerr thất bại. Vui lòng thử lại.",
@@ -467,7 +675,11 @@
       "issue_submitted": "Đã gửi báo lỗi!",
       "requested_item": "Đã yêu cầu {{item}}!",
       "you_dont_have_permission_to_request": "Bạn không có quyền để yêu cầu!",
-      "something_went_wrong_requesting_media": "Có lỗi khi thực hiện yêu cầu!"
+      "something_went_wrong_requesting_media": "Có lỗi khi thực hiện yêu cầu!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -476,5 +688,129 @@
     "library": "Thư viện",
     "custom_links": "Liên kết tùy chỉnh",
     "favorites": "Yêu thích"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

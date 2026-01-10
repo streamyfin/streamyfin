@@ -20,27 +20,74 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Palvelin reagoi liian hitaasti, yritä myöhemmin uudelleen",
     "server_received_too_many_requests_try_again_later": "Palvelin sai liian monta pyyntöä, yritä myöhemmin uudelleen.",
     "there_is_a_server_error": "Palvelimessa on virhe",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Odottamaton virhe tapahtui. Syötitkö palvelimen URL-osoitteen oikein?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Odottamaton virhe tapahtui. Syötitkö palvelimen URL-osoitteen oikein?",
+    "too_old_server_text": "Ei-tuettu Jellyfin-palvelin löydetty",
+    "too_old_server_description": "Ole hyvä ja päivitä Jellyfin uusimpaan versioon"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Syötä URL-osoite Jellyfin-palvelimellesi",
     "server_url_placeholder": "http(s)://oma-palvelin.com",
     "connect_button": "Yhdistä",
-    "previous_servers": "edelliset palvelimet",
+    "previous_servers": "Edelliset palvelimet",
     "clear_button": "Tyhjennä",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Etsi paikallisia palvelimia",
     "searching": "Etsitään...",
-    "servers": "Palvelimet"
+    "servers": "Palvelimet",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Tarkistetaan palvelinyhteyttä...",
     "no_internet": "Ei internet-yhteyttä",
     "no_items": "Ei kohteita",
     "no_internet_message": "Ei hätää, voit silti katsella\nladattua sisältöä.",
+    "checking_server_connection_message": "Tarkistetaan yhteyttä palvelimeen",
     "go_to_downloads": "Siirry latauksiin",
+    "retry": "Yritä Uudelleen",
+    "server_unreachable": "Palvelinta Ei Saavutettavissa",
+    "server_unreachable_message": "Palvelimeen ei saatu yhteyttä.\nTarkista verkkoyhteytesi.",
     "oops": "Ups!",
     "error_message": "Jotain meni pieleen.\nKirjaudu ulos ja takaisin sisään.",
     "continue_watching": "Jatka katsomista",
     "next_up": "Seuraavaksi",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Äskettäin lisätty {{libraryName}}-kirjastoon",
     "suggested_movies": "Ehdotetut elokuvat",
     "suggested_episodes": "Ehdotetut jaksot",
@@ -52,7 +99,7 @@
       "jellyseerr_feature_description": "Yhdistä Jellyseerr-instanssiisi ja pyydä elokuvia suoraan sovelluksessa.",
       "downloads_feature_title": "Lataukset",
       "downloads_feature_description": "Lataa elokuvia ja TV-sarjoja katsottavaksi offline-tilassa. Käytä joko oletusmenetelmää tai asenna optimoitu palvelin ladataksesi tiedostoja taustalla.",
-      "chromecast_feature_description": "Lähetä elokuvia ja TV-sarjoja Chromecast-laitteillesi.",
+      "chromecast_feature_description": "Toista elokuvia ja TV-sarjoja Chromecast-laitteillesi.",
       "centralised_settings_plugin_title": "Keskitetty asetusten liitännäinen",
       "centralised_settings_plugin_description": "Määritä asetukset keskitetystä sijainnista Jellyfin-palvelimellasi. Kaikki asiakasasetukset kaikille käyttäjille synkronoidaan automaattisesti.",
       "done_button": "Valmis",
@@ -62,16 +109,30 @@
     "settings": {
       "settings_title": "Asetukset",
       "log_out_button": "Kirjaudu ulos",
+      "categories": {
+        "title": "Kategoriat"
+      },
+      "playback_controls": {
+        "title": "Toisto ja ohjaimet"
+      },
+      "audio_subtitles": {
+        "title": "Ääni ja tekstitykset"
+      },
+      "appearance": {
+        "title": "Ulkoasu",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Käyttäjätiedot",
         "user": "Käyttäjä",
         "server": "Palvelin",
-        "token": "Token",
+        "token": "Pääsymerkki",
         "app_version": "Sovelluksen versio"
       },
       "quick_connect": {
         "quick_connect_title": "Pikayhdistys",
-        "authorize_button": "Valtuuta Pikayhdistys",
+        "authorize_button": "Valtuuta pikayhdistys",
         "enter_the_quick_connect_code": "Syötä nopean yhteyden koodi...",
         "success": "Onnistui",
         "quick_connect_autorized": "Pikayhdistys valtuutettu",
@@ -85,21 +146,42 @@
         "rewind_length": "Taaksepäin hyppäämisen pituus",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Ele Ohjaus",
+        "horizontal_swipe_skip": "Ohita vaakatasossa pyyhkäisemällä",
+        "horizontal_swipe_skip_description": "Pyyhkäise vasemmalle/oikealle kun hallintaoikeudet on piilotettu ohittaaksesi",
+        "left_side_brightness": "Näytön kirkkauden säätö vasemmalla",
+        "left_side_brightness_description": "Pyyhkäise ylös/alas säätääksesi kirkkautta",
+        "right_side_volume": "Äänenvoimakkuudensäätö oikealla",
+        "right_side_volume_description": "Pyyhkäise ylös- tai alaspäin säätääksesi äänenvoimakkuutta",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "Ääni",
         "set_audio_track": "Aseta ääniura edellisestä kohteesta",
-        "audio_language": "Ääni kieli",
+        "audio_language": "Äänen kieli",
         "audio_hint": "Valitse oletusäänen kieli.",
         "none": "Ei mitään",
-        "language": "Kieli"
+        "language": "Kieli",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Tekstitykset",
+        "subtitle_hint": "Määritä tekstitysasetukset.",
         "subtitle_language": "Tekstityksen kieli",
         "subtitle_mode": "Tekstitysmoodi",
         "set_subtitle_track": "Aseta tekstitys edellisestä kohteesta",
         "subtitle_size": "Tekstityksen koko",
-        "subtitle_hint": "Määritä tekstitysasetukset.",
         "none": "Ei mitään",
         "language": "Kieli",
         "loading": "Ladataan",
@@ -109,7 +191,63 @@
           "Always": "Aina",
           "None": "Ei mitään",
           "OnlyForced": "Vain pakotettu"
-        }
+        },
+        "text_color": "Tekstin väri",
+        "background_color": "Taustaväri",
+        "outline_color": "Ääriviivan väri",
+        "outline_thickness": "Ääriviivan paksuus",
+        "background_opacity": "Taustan läpinäkyvyys",
+        "outline_opacity": "Ääriviivan Läpinäkyvyys",
+        "bold_text": "Lihavoi teksti",
+        "colors": {
+          "Black": "Musta",
+          "Gray": "Harmaa",
+          "Silver": "Hopea",
+          "White": "Valkoinen",
+          "Maroon": "Maroon",
+          "Red": "Punainen",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Keltainen",
+          "Olive": "Oliivit",
+          "Green": "Vihreä",
+          "Teal": "Sinappi",
+          "Lime": "Limea",
+          "Purple": "Violetti",
+          "Navy": "Laiva",
+          "Blue": "Sininen",
+          "Aqua": "Vesi"
+        },
+        "thickness": {
+          "None": "Ei mitään",
+          "Thin": "Ohut",
+          "Normal": "Normaali",
+          "Thick": "Paksu"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Muut",
@@ -134,22 +272,28 @@
           "VLC_4": "VLC 4 (Kokeellinen + PiP)"
         },
         "show_custom_menu_links": "Näytä mukautetut valikkolinkit",
+        "show_large_home_carousel": "Näytä suuri kotikaruselli (beta)",
         "hide_libraries": "Piilota kirjastot",
         "select_liraries_you_want_to_hide": "Valitse kirjastot, jotka haluat piilottaa Kirjasto-välilehdeltä ja etusivun osioista.",
         "disable_haptic_feedback": "Poista haptinen palautteet käytöstä",
-        "default_quality": "Oletuslaatu"
+        "default_quality": "Oletuslaatu",
+        "default_playback_speed": "Default Playback Speed",
+        "max_auto_play_episode_count": "Automaattisten Toistojaksojen Maksimimäärä",
+        "disabled": "Pois Käytöstä"
       },
       "downloads": {
-        "downloads_title": "Lataukset",
-        "optimized_versions_server": "Optimoitujen versioiden palvelin",
-        "save_button": "Tallenna",
-        "optimized_server": "Optimoitu palvelin",
-        "optimized": "Optimoitu",
-        "default": "Oletus",
-        "optimized_version_hint": "Syötä optimoidun palvelimen URL-osoite. URL-osoitteen tulee sisältää http tai https ja valinnaisesti portti.",
-        "read_more_about_optimized_server": "Lue lisää optimoidusta palvelimesta.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://verkkotunnus.org:portti"
+        "downloads_title": "Lataukset"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Liitännäiset",
@@ -160,8 +304,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Salasana",
           "password_placeholder": "Syötä salasana Jellyfin-käyttäjälle {{username}}",
-          "save_button": "Tallenna",
-          "clear_button": "Tyhjennä",
           "login_button": "Kirjaudu sisään",
           "total_media_requests": "Yhteensä mediapyynnöt",
           "movie_quota_limit": "Elokuvakiintiön raja",
@@ -179,14 +321,46 @@
         },
         "marlin_search": {
           "enable_marlin_search": "Ota Marlin-haku käyttöön",
-          "url": "URL",
+          "url": "URL-osoite",
           "server_url_placeholder": "http(s)://verkkotunnus.org:portti",
           "marlin_search_hint": "Syötä Marlin-palvelimen URL-osoite. URL-osoitteen tulee sisältää http tai https ja valinnaisesti portti.",
           "read_more_about_marlin": "Lue lisää Marlinista.",
           "save_button": "Tallenna",
           "toasts": {
-            "saved": "Tallennettu"
-          }
+            "saved": "Tallennettu",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -194,10 +368,20 @@
         "app_usage": "Sovelluksen käyttö {{usedSpace}}%",
         "device_usage": "Laitteen käyttö {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} käytössä",
-        "delete_all_downloaded_files": "Poista kaikki ladatut tiedostot"
+        "delete_all_downloaded_files": "Poista kaikki ladatut tiedostot",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
-        "show_intro": "Näytä intro",
+        "title": "Esittely",
+        "show_intro": "Näytä esittely",
         "reset_intro": "Nollaa intro"
       },
       "logs": {
@@ -211,16 +395,12 @@
       "languages": {
         "title": "Kielet",
         "app_language": "Sovelluksen kieli",
-        "app_language_description": "Valitse sovelluksen kieli.",
         "system": "Järjestelmä"
       },
       "toasts": {
         "error_deleting_files": "Virhe tiedostojen poistamisessa",
         "background_downloads_enabled": "Taustalataukset käytössä",
-        "background_downloads_disabled": "Taustalataukset pois käytöstä",
-        "connected": "Yhdistetty",
-        "could_not_connect": "Yhteyttä ei voitu muodostaa",
-        "invalid_url": "Virheellinen URL"
+        "background_downloads_disabled": "Taustalataukset pois käytöstä"
       }
     },
     "sessions": {
@@ -232,12 +412,14 @@
       "tvseries": "TV-sarjat",
       "movies": "Elokuvat",
       "queue": "Jonot",
+      "other_media": "Muu media",
       "queue_hint": "Jonot ja lataukset menetetään sovelluksen uudelleenkäynnistyksen yhteydessä",
       "no_items_in_queue": "Ei kohteita jonossa",
       "no_downloaded_items": "Ei ladattuja kohteita",
       "delete_all_movies_button": "Poista kaikki elokuvat",
       "delete_all_tvseries_button": "Poista kaikki TV-sarjat",
       "delete_all_button": "Poista kaikki",
+      "delete_all_other_media_button": "Poista muu media",
       "active_download": "Aktiivinen lataus",
       "no_active_downloads": "Ei aktiivisia latauksia",
       "active_downloads": "Aktiiviset lataukset",
@@ -248,35 +430,57 @@
       "something_went_wrong": "Jotain meni pieleen",
       "could_not_get_stream_url_from_jellyfin": "Ei voitu saada suoratoiston URL:ia Jellyfinilta",
       "eta": "Arvio {{eta}}",
-      "methods": "Menetelmät",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Sinulla ei ole lupaa ladata tiedostoja.",
         "deleted_all_movies_successfully": "Kaikki elokuvat poistettu onnistuneesti!",
         "failed_to_delete_all_movies": "Kaikkien elokuvien poistaminen epäonnistui",
         "deleted_all_tvseries_successfully": "Kaikki TV-sarjat poistettu onnistuneesti!",
         "failed_to_delete_all_tvseries": "Kaikkien TV-sarjojen poistaminen epäonnistui",
+        "deleted_media_successfully": "Muu media poistettu onnistuneesti!",
+        "failed_to_delete_media": "Muiden medioiden poistaminen epäonnistui",
+        "download_deleted": "Lataus Poistettu",
         "download_cancelled": "Lataus peruutettu",
-        "could_not_cancel_download": "Latausta ei voitu peruuttaa",
+        "could_not_delete_download": "Latausta Ei Voitu Poistaa",
+        "download_paused": "Lataus Keskeytetty",
+        "could_not_pause_download": "Latausta Ei Voitu Keskeyttää",
+        "download_resumed": "Lataus Jatketaan",
+        "could_not_resume_download": "Latausta Ei Voitu Jatkaa.",
         "download_completed": "Lataus valmis",
-        "download_started_for": "Lataus aloitettu kohteelle {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} on valmis ladattavaksi",
-        "download_stated_for_item": "Lataus aloitettu kohteelle {{item}}",
+        "download_failed": "Lataus epäonnistui",
         "download_failed_for_item": "Lataus epäonnistui kohteelle {{item}} - {{error}}",
         "download_completed_for_item": "Lataus valmis kohteelle {{item}}",
-        "queued_item_for_optimization": "Jonotettu {{item}} optimointia varten",
-        "failed_to_start_download_for_item": "Latauksen aloittaminen kohteelle {{item}} epäonnistui: {{message}}",
-        "server_responded_with_status_code": "Palvelin vastasi tilakoodilla {{statusCode}}",
-        "no_response_received_from_server": "Palvelimelta ei saatu vastausta",
-        "error_setting_up_the_request": "Virhe pyynnön asetuksessa",
-        "failed_to_start_download_for_item_unexpected_error": "Latauksen aloittaminen kohteelle {{item}} epäonnistui: Odottamaton virhe",
+        "download_started_for_item": "Lataus aloitettiin nimellä {{item}}",
+        "failed_to_start_download": "Lataamisen aloittaminen epäonnistui",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "Kaikki lataukset poistettu onnistuneesti",
+        "files_deleted_by_type": "{{count}} {{type}} poistettu",
         "all_files_folders_and_jobs_deleted_successfully": "Kaikki tiedostot, kansiot ja tehtävät poistettu onnistuneesti",
-        "an_error_occured_while_deleting_files_and_jobs": "Virhe tapahtui tiedostojen ja tehtävien poistamisen aikana",
-        "go_to_downloads": "Siirry latauksiin"
+        "failed_to_clean_cache_directory": "Välimuistin hakemiston puhdistus epäonnistui",
+        "could_not_get_download_url_for_item": "Latauksen URL-osoitetta ei voitu ladata {{itemName}}",
+        "go_to_downloads": "Siirry latauksiin",
+        "file_deleted": "{{item}} poistettu"
       }
     }
   },
+  "common": {
+    "select": "Valitse",
+    "no_trailer_available": "Perävaunua ei saatavilla",
+    "video": "Video",
+    "audio": "Ääni",
+    "subtitle": "Tekstitys",
+    "play": "Toista",
+    "none": "Ei mitään",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Hae täältä...",
     "search": "Haku...",
     "x_items": "{{count}} kohdetta",
     "library": "Kirjasto",
@@ -288,6 +492,10 @@
     "episodes": "Jaksot",
     "collections": "Kokoelmat",
     "actors": "Näyttelijät",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Pyydä elokuvia",
     "request_series": "Pyydä sarjoja",
     "recently_added": "Äskettäin lisätty",
@@ -297,7 +505,7 @@
     "popular_movies": "Suositut elokuvat",
     "movie_genres": "Elokuvagenret",
     "upcoming_movies": "Tulevat elokuvat",
-    "studios": "Studios",
+    "studios": "Studio",
     "popular_tv": "Suositut TV-ohjelmat",
     "tv_genres": "TV-genret",
     "upcoming_tv": "Tulevat TV-ohjelmat",
@@ -313,7 +521,6 @@
     "tmdb_tv_streaming_services": "TMDB TV:n suoratoistopalvelut"
   },
   "library": {
-    "no_items_found": "Ei kohteita löytynyt",
     "no_results": "Ei tuloksia",
     "no_libraries_found": "Ei kirjastoja löytynyt",
     "item_types": {
@@ -336,79 +543,80 @@
       "genres": "Genret",
       "years": "Vuodet",
       "sort_by": "Lajittele",
+      "filter_by": "Filter By",
       "sort_order": "Lajittelujärjestys",
-      "asc": "Nouseva",
-      "desc": "Laskeva",
       "tags": "Tunnisteet"
-    },
-    "favorites": {
-      "series": "Sarjat",
-      "movies": "Elokuvat",
-      "episodes": "Jaksot",
-      "videos": "Videot",
-      "boxsets": "Bokset",
-      "playlists": "Soittolistat",
-      "noDataTitle": "Ei suosikkeja vielä",
-      "noData": "Merkitse kohteita suosikeiksi, jotta ne näkyvät täällä nopeaa pääsyä varten."
-    },
-    "custom_links": {
-      "no_links": "Ei linkkejä"
-    },
-    "player": {
-      "error": "Virhe",
-      "failed_to_get_stream_url": "Suoratoisto-URL:n saaminen epäonnistui",
-      "an_error_occured_while_playing_the_video": "Virhe tapahtui videota toistettaessa. Tarkista lokit asetuksista.",
-      "client_error": "Asiakasvirhe",
-      "could_not_create_stream_for_chromecast": "Suoratoistoa ei voitu luoda Chromecastille",
-      "message_from_server": "Viesti palvelimelta: {{message}}",
-      "video_has_finished_playing": "Video on lopettanut toistamisen!",
-      "no_video_source": "Ei videolähdettä...",
-      "next_episode": "Seuraava jakso",
-      "refresh_tracks": "Päivitä raidat",
-      "subtitle_tracks": "Tekstitysraidat:",
-      "audio_tracks": "Ääniraidat:",
-      "playback_state": "Toistotila:",
-      "no_data_available": "Ei tietoja saatavilla",
-      "index": "Indeksi:"
-    },
-    "item_card": {
-      "next_up": "Seuraavaksi",
-      "no_items_to_display": "Ei näytettäviä kohteita",
-      "cast_and_crew": "Näyttelijät ja työryhmä",
-      "series": "Sarjat",
-      "seasons": "Kausi(t)",
-      "season": "Kausi",
-      "no_episodes_for_this_season": "Ei jaksoja tälle kaudelle",
-      "overview": "Yhteenveto",
-      "more_with": "Lisää {{name}}:n kanssa",
-      "similar_items": "Samanlaiset kohteet",
-      "no_similar_items_found": "Ei löytynyt samanlaisia kohteita",
-      "video": "Video",
-      "more_details": "Lisätietoja",
-      "quality": "Laatu",
-      "audio": "Ääni",
-      "subtitles": "Tekstitys",
-      "show_more": "Näytä lisää",
-      "show_less": "Näytä vähemmän",
-      "appeared_in": "Ilmestyi",
-      "could_not_load_item": "Kohteen lataaminen epäonnistui",
-      "none": "Ei mitään",
-      "download": {
-        "download_season": "Lataa kausi",
-        "download_series": "Lataa sarja",
-        "download_episode": "Lataa jakso",
-        "download_movie": "Lataa elokuva",
-        "download_x_item": "Lataa {{item_count}} kohdetta",
-        "download_button": "Lataa",
-        "using_optimized_server": "Käytetään optimoitua palvelinta",
-        "using_default_method": "Käytetään oletusmenetelmää"
-      }
+    }
+  },
+  "favorites": {
+    "series": "Sarjat",
+    "movies": "Elokuvat",
+    "episodes": "Jaksot",
+    "videos": "Videot",
+    "boxsets": "bokset",
+    "playlists": "Soittolistat",
+    "noDataTitle": "Ei Vielä Suosikkeja",
+    "noData": "Merkitse kohteet suosikeiksi, jotta ne näkyvät täällä nopeasti päästäksesi."
+  },
+  "custom_links": {
+    "no_links": "Ei Linkkejä"
+  },
+  "player": {
+    "error": "Virhe",
+    "failed_to_get_stream_url": "Lähetyksen URL-osoitteen haku epäonnistui",
+    "an_error_occured_while_playing_the_video": "Videon toiston yhteydessä tapahtui virhe. Tarkista lokit asetuksista.",
+    "client_error": "Asiakkaan Virhe",
+    "could_not_create_stream_for_chromecast": "Suoratoistoa ei voitu luoda Chromecastia varten",
+    "message_from_server": "Viesti palvelimelta: {{message}}",
+    "next_episode": "Seuraava Jakso",
+    "refresh_tracks": "Päivitä Kappaleet",
+    "audio_tracks": "Ääni Kappaleet:",
+    "playback_state": "Toiston Tila:",
+    "index": "Indeksi:",
+    "continue_watching": "Jatka katsomista",
+    "go_back": "Siirry Takaisin",
+    "downloaded_file_title": "Tämä tiedosto on ladattuna",
+    "downloaded_file_message": "Haluatko toistaa ladatun tiedoston?",
+    "downloaded_file_yes": "Kyllä",
+    "downloaded_file_no": "Ei",
+    "downloaded_file_cancel": "Peruuta"
+  },
+  "item_card": {
+    "next_up": "Seuraavaksi",
+    "no_items_to_display": "Ei kohteita näytettäväksi",
+    "cast_and_crew": "Lähetä & Miehistö",
+    "series": "Sarjat",
+    "seasons": "Kaudet",
+    "season": "Kausi",
+    "no_episodes_for_this_season": "Ei jaksoja tälle kaudelle",
+    "overview": "Yleiskatsaus",
+    "more_with": "Enemmän {{name}} kanssa",
+    "similar_items": "Samankaltaiset Kohteet",
+    "no_similar_items_found": "Samankaltaisia Tuotteita Ei Löytynyt",
+    "video": "Video",
+    "more_details": "Lisää Yksityiskohtia",
+    "media_options": "Media-asetukset",
+    "quality": "Laatu",
+    "audio": "Ääni",
+    "subtitles": "Tekstitys",
+    "show_more": "Näytä Lisää",
+    "show_less": "Näytä Vähemmän",
+    "appeared_in": "Esiintyy Sisään",
+    "could_not_load_item": "Kohdetta Ei Voitu Ladata",
+    "none": "Ei mitään",
+    "download": {
+      "download_season": "Lataa Kausi",
+      "download_series": "Lataa Sarja",
+      "download_episode": "Lataa Jakso",
+      "download_movie": "Lataa Elokuva",
+      "download_x_item": "Lataa {{item_count}} Kohteita",
+      "download_unwatched_only": "Vain Katsomattomat",
+      "download_button": "Lataa"
     }
   },
   "live_tv": {
     "next": "Seuraava",
     "previous": "Edellinen",
-    "live_tv": "Live TV",
     "coming_soon": "Tulossa pian",
     "on_now": "Nykyään",
     "shows": "Ohjelmat",
@@ -456,6 +664,10 @@
     "number_episodes": "{{episode_number}} jaksoa",
     "born": "Syntynyt",
     "appearances": "Ulkonäöt",
+    "approve": "Hyväksy",
+    "decline": "Hylkää",
+    "requested_by": "Käyttäjän {{user}} pyynnöstä",
+    "unknown_user": "Tuntematon käyttäjä",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseerr-palvelin ei täytä vähimmäisversiovaatimuksia! Päivitä vähintään versioon 2.0.0",
       "jellyseerr_test_failed": "Jellyseerr-testi epäonnistui. Yritä uudelleen.",
@@ -463,7 +675,11 @@
       "issue_submitted": "Ongelma lähetetty!",
       "requested_item": "Pyydetty {{item}}!",
       "you_dont_have_permission_to_request": "Sinulla ei ole lupaa pyytää!",
-      "something_went_wrong_requesting_media": "Jotain meni pieleen mediaa pyydettäessä!"
+      "something_went_wrong_requesting_media": "Jotain meni pieleen mediaa pyydettäessä!",
+      "request_approved": "Pyyntö hyväksytty!",
+      "request_declined": "Pyyntö hylätty!",
+      "failed_to_approve_request": "Pyynnön hyväksyminen epäonnistui",
+      "failed_to_decline_request": "Pyynnön hylkääminen epäonnistui"
     }
   },
   "tabs": {
@@ -472,5 +688,129 @@
     "library": "Kirjasto",
     "custom_links": "Mukautetut linkit",
     "favorites": "Suosikit"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }
