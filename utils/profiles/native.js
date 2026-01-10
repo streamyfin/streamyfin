@@ -63,52 +63,56 @@ const getAudioCodecProfile = (platform) => {
 /**
  * Gets the video audio codec configuration based on platform and audio mode.
  *
- * MPV handles most codecs well. TrueHD is only enabled in passthrough mode
- * for users with external DAC/receiver setups.
+ * MPV (via FFmpeg) can decode all audio codecs including TrueHD and DTS-HD MA.
+ * The audioMode setting only controls the maximum channel count - MPV will
+ * decode and downmix as needed.
  *
  * @param {PlatformType} platform
  * @param {AudioTranscodeModeType} audioMode
  * @returns {{ directPlayCodec: string, maxAudioChannels: string }}
  */
 const getVideoAudioCodecs = (platform, audioMode) => {
-  // Base codecs that work everywhere
+  // Base codecs
   const baseCodecs = "aac,mp3,flac,opus,vorbis";
 
-  // Surround codecs - MPV handles these well
+  // Surround codecs
   const surroundCodecs = "ac3,eac3,dts";
 
-  // Lossless HD codecs - only for passthrough mode
+  // Lossless HD codecs - MPV decodes these and downmixes as needed
   const losslessHdCodecs = "truehd";
 
   // Platform-specific codecs
   const platformCodecs = platform === "ios" ? "alac,wma" : "wma";
 
+  // MPV can decode all codecs - only channel count varies by mode
+  const allCodecs = `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`;
+
   switch (audioMode) {
     case "stereo":
-      // Force stereo transcoding - only allow basic codecs
+      // Limit to 2 channels - MPV will decode and downmix
       return {
-        directPlayCodec: `${baseCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "2",
       };
 
     case "5.1":
-      // Allow up to 5.1 - include surround codecs but not lossless HD
+      // Limit to 6 channels
       return {
-        directPlayCodec: `${baseCodecs},${surroundCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "6",
       };
 
     case "passthrough":
-      // Allow all codecs - for users with external DAC/receiver
+      // Allow up to 8 channels - for external DAC/receiver setups
       return {
-        directPlayCodec: `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "8",
       };
 
     default:
-      // Auto mode: default to 5.1 support for MPV
+      // Auto mode: default to 5.1 (6 channels)
       return {
-        directPlayCodec: `${baseCodecs},${surroundCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "6",
       };
   }
