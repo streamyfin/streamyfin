@@ -62,7 +62,7 @@ function StatusDisplay({
 export function LocalNetworkSettings(): React.ReactElement | null {
   const { t } = useTranslation();
   const { permissionStatus, requestPermission } = useWifiSSID();
-  const { isUsingLocalUrl, currentSSID } = useServerUrl();
+  const { isUsingLocalUrl, currentSSID, refreshUrlState } = useServerUrl();
 
   const remoteUrl = storage.getString("serverUrl");
   const [config, setConfig] = useState<LocalNetworkConfig>(DEFAULT_CONFIG);
@@ -81,8 +81,10 @@ export function LocalNetworkSettings(): React.ReactElement | null {
       if (!remoteUrl) return;
       setConfig(newConfig);
       updateServerLocalConfig(remoteUrl, newConfig);
+      // Trigger URL re-evaluation after config change
+      refreshUrlState();
     },
-    [remoteUrl],
+    [remoteUrl, refreshUrlState],
   );
 
   const handleToggleEnabled = useCallback(

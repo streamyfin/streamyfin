@@ -1,12 +1,6 @@
-import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import * as Location from "expo-location";
 import { useCallback, useEffect, useState } from "react";
-
-// Configure NetInfo to fetch WiFi SSID on iOS
-// This must be called before any NetInfo operations
-NetInfo.configure({
-  shouldFetchWiFiSSID: true,
-});
+import { getSSID } from "@/modules/wifi-ssid";
 
 export type PermissionStatus =
   | "granted"
@@ -34,30 +28,34 @@ function mapLocationStatus(
   }
 }
 
-function extractSSIDFromState(state: NetInfoState): string | null {
-  if (state.type === "wifi" && state.details?.ssid) {
-    return state.details.ssid;
-  }
-  return null;
-}
-
 export function useWifiSSID(): UseWifiSSIDReturn {
   const [ssid, setSSID] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] =
     useState<PermissionStatus>("undetermined");
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchSSID = useCallback(async () => {
+    const result = await getSSID();
+    console.log("[WiFi Debug] Native module SSID:", result);
+    setSSID(result);
+  }, []);
+
   const requestPermission = useCallback(async (): Promise<boolean> => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       const newStatus = mapLocationStatus(status);
       setPermissionStatus(newStatus);
+
+      if (newStatus === "granted") {
+        await fetchSSID();
+      }
+
       return newStatus === "granted";
     } catch {
       setPermissionStatus("unavailable");
       return false;
     }
-  }, []);
+  }, [fetchSSID]);
 
   useEffect(() => {
     async function initialize() {
@@ -68,8 +66,7 @@ export function useWifiSSID(): UseWifiSSIDReturn {
         setPermissionStatus(mappedStatus);
 
         if (mappedStatus === "granted") {
-          const state = await NetInfo.fetch();
-          setSSID(extractSSIDFromState(state));
+          await fetchSSID();
         }
       } catch {
         setPermissionStatus("unavailable");
@@ -78,38 +75,18 @@ export function useWifiSSID(): UseWifiSSIDReturn {
     }
 
     initialize();
-  }, []);
+  }, [fetchSSID]);
 
+  // Refresh SSID when permission status changes to granted
   useEffect(() => {
-    if (permissionStatus !== "granted") return;
+    if (permissionStatus === "granted") {
+      fetchSSID();
 
-    // Fetch current state immediately when permission is granted
-    // On iOS, we need to actively use Location services before SSID is available
-    (async () => {
-      try {
-        // Request location to activate Core Location (required for SSID access on iOS)
-        await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Lowest,
-        });
-      } catch (e) {
-        console.log("[WiFi Debug] Location fetch failed (may be expected):", e);
-      }
-
-      const state = await NetInfo.fetch();
-      console.log(
-        "[WiFi Debug] NetInfo state:",
-        JSON.stringify(state, null, 2),
-      );
-      console.log("[WiFi Debug] Permission status:", permissionStatus);
-      setSSID(extractSSIDFromState(state));
-    })();
-
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setSSID(extractSSIDFromState(state));
-    });
-
-    return unsubscribe;
-  }, [permissionStatus]);
+      // Also set up an interval to periodically check SSID
+      const interval = setInterval(fetchSSID, 10000); // Check every 10 seconds
+      return () => clearInterval(interval);
+    }
+  }, [permissionStatus, fetchSSID]);
 
   return {
     ssid,

@@ -3,6 +3,7 @@ import type React from "react";
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -17,6 +18,7 @@ interface ServerUrlContextValue {
   effectiveServerUrl: string | null;
   isUsingLocalUrl: boolean;
   currentSSID: string | null;
+  refreshUrlState: () => void;
 }
 
 const ServerUrlContext = createContext<ServerUrlContextValue | null>(null);
@@ -31,6 +33,13 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
   const api = useAtomValue(apiAtom);
   const { switchServerUrl } = useJellyfin();
   const { ssid, permissionStatus } = useWifiSSID();
+
+  console.log(
+    "[ServerUrlProvider] ssid:",
+    ssid,
+    "permissionStatus:",
+    permissionStatus,
+  );
 
   const [isUsingLocalUrl, setIsUsingLocalUrl] = useState(false);
   const [effectiveServerUrl, setEffectiveServerUrl] = useState<string | null>(
@@ -52,6 +61,39 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
     }
   }, [api?.basePath, effectiveServerUrl]);
 
+  // Function to evaluate and switch URL based on current config and SSID
+  const evaluateAndSwitchUrl = useCallback(() => {
+    const remoteUrl = remoteUrlRef.current;
+    if (!remoteUrl || !switchServerUrl) return;
+
+    const config = getServerLocalConfig(remoteUrl);
+    const shouldUseLocal = Boolean(
+      config?.enabled &&
+        config.localUrl &&
+        ssid !== null &&
+        config.homeWifiSSIDs.includes(ssid),
+    );
+
+    const targetUrl = shouldUseLocal ? config!.localUrl : remoteUrl;
+
+    console.log("[ServerUrlProvider] evaluateAndSwitchUrl:", {
+      ssid,
+      shouldUseLocal,
+      targetUrl,
+      config,
+    });
+
+    switchServerUrl(targetUrl);
+    setIsUsingLocalUrl(shouldUseLocal);
+    setEffectiveServerUrl(targetUrl);
+  }, [ssid, switchServerUrl]);
+
+  // Manual refresh function for when config changes
+  const refreshUrlState = useCallback(() => {
+    console.log("[ServerUrlProvider] refreshUrlState called");
+    evaluateAndSwitchUrl();
+  }, [evaluateAndSwitchUrl]);
+
   // Debounced SSID change handler
   useEffect(() => {
     if (permissionStatus !== "granted") return;
@@ -64,22 +106,7 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      const remoteUrl = remoteUrlRef.current;
-      if (!remoteUrl || !switchServerUrl) return;
-
-      const config = getServerLocalConfig(remoteUrl);
-      const shouldUseLocal = Boolean(
-        config?.enabled &&
-          config.localUrl &&
-          ssid !== null &&
-          config.homeWifiSSIDs.includes(ssid),
-      );
-
-      const targetUrl = shouldUseLocal ? config!.localUrl : remoteUrl;
-
-      switchServerUrl(targetUrl);
-      setIsUsingLocalUrl(shouldUseLocal);
-      setEffectiveServerUrl(targetUrl);
+      evaluateAndSwitchUrl();
     }, DEBOUNCE_MS);
 
     return () => {
@@ -87,7 +114,7 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [ssid, permissionStatus, switchServerUrl]);
+  }, [ssid, permissionStatus, evaluateAndSwitchUrl]);
 
   return (
     <ServerUrlContext.Provider
@@ -95,6 +122,7 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
         effectiveServerUrl,
         isUsingLocalUrl,
         currentSSID: ssid,
+        refreshUrlState,
       }}
     >
       {children}
