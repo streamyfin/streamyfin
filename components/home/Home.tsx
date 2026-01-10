@@ -38,6 +38,7 @@ import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybac
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
@@ -50,6 +51,7 @@ type InfiniteScrollingCollectionListSection = {
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
   priority?: 1 | 2; // 1 = high priority (loads first), 2 = low priority
+  parentId?: string; // Library ID for "See All" navigation
 };
 
 type MediaListSectionType = {
@@ -230,6 +232,7 @@ export const Home = () => {
       },
       type: "InfiniteScrollingCollectionList",
       pageSize,
+      parentId,
     }),
     [api, user?.Id],
   );
@@ -633,6 +636,18 @@ export const Home = () => {
             ) : null;
           if (section.type === "InfiniteScrollingCollectionList") {
             const isHighPriority = section.priority === 1;
+            const handleSeeAll = section.parentId
+              ? () => {
+                  router.push({
+                    pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+                    params: {
+                      libraryId: section.parentId!,
+                      sortBy: SortByOption.DateCreated,
+                      sortOrder: SortOrderOption.Descending,
+                    },
+                  } as any);
+                }
+              : undefined;
             return (
               <View key={index} className='flex flex-col space-y-4'>
                 <InfiniteScrollingCollectionList
@@ -648,6 +663,7 @@ export const Home = () => {
                       ? () => markSectionLoaded(section.queryKey)
                       : undefined
                   }
+                  onPressSeeAll={handleSeeAll}
                 />
                 {streamystatsSections}
               </View>
