@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Сервер долго не отвечает, попробуйте позже.",
     "server_received_too_many_requests_try_again_later": "Сервер получил слишком много запросов, попробуйте позже.",
     "there_is_a_server_error": "Возникла ошибка сервера",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Возникла непредвиденная ошибка. Вы правильно ввели URL?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Возникла непредвиденная ошибка. Вы правильно ввели URL?",
+    "too_old_server_text": "Неподдерживаемый сервер Jellyfin обнаружен",
+    "too_old_server_description": "Пожалуйста, обновите Jellyfin до последней версии"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Укажите URL на ваш Jellyfin сервер",
@@ -28,19 +30,64 @@
     "connect_button": "Подключиться",
     "previous_servers": "предыдущие серверы",
     "clear_button": "Очистить",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Поиск локальных серверов",
     "searching": "Поиск...",
-    "servers": "Сервера"
+    "servers": "Сервера",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Проверка соединения с сервером...",
     "no_internet": "Нет интернета",
     "no_items": "Нет элементов",
     "no_internet_message": "Не переживайте, Вы всё ещё можете смотреть\nскачанный контент.",
+    "checking_server_connection_message": "Проверка соединения с сервером",
     "go_to_downloads": "В загрузки",
+    "retry": "Повторить",
+    "server_unreachable": "Сервер недоступен",
+    "server_unreachable_message": "Could not reach the server.\nPlease check your network connection.",
     "oops": "Упс!",
     "error_message": "Что-то пошло не так.\nПожалуйста выйдите и зайдите снова.",
     "continue_watching": "Продолжить просмотр",
     "next_up": "Следующее",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Недавно добавлено в {{libraryName}}",
     "suggested_movies": "Предложенные фильмы",
     "suggested_episodes": "Предложенные серии",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "Настройки",
       "log_out_button": "Выйти",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Информация о пользователе",
         "user": "Пользователь",
@@ -85,21 +146,42 @@
         "rewind_length": "Длина перемотки",
         "seconds_unit": "c"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Управление жестами",
+        "horizontal_swipe_skip": "Горизонтальный свайп, чтобы пропустить",
+        "horizontal_swipe_skip_description": "Проведите влево/вправо, когда элементы управления скрыты, чтобы пропустить",
+        "left_side_brightness": "Управление яркостью левой стороны",
+        "left_side_brightness_description": "Смахните вверх/вниз на левой стороне для настройки яркости",
+        "right_side_volume": "Управление громкостью справа",
+        "right_side_volume_description": "Свайп вверх/вниз с правой стороны для настройки громкости",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "Аудио",
         "set_audio_track": "Устанавливать аудио дорожку из предыдущего элемента",
         "audio_language": "Язык аудио",
         "audio_hint": "Выберите стандартный язык аудио.",
         "none": "Отсутствует",
-        "language": "Язык"
+        "language": "Язык",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Субтитры",
+        "subtitle_hint": "Настроить субтитры.",
         "subtitle_language": "Язык субтитров",
         "subtitle_mode": "Режим субтитров",
         "set_subtitle_track": "Устанавливать субтитры из предыдущего элемента",
         "subtitle_size": "Размер субтитров",
-        "subtitle_hint": "Настроить субтитры.",
         "none": "Отсутствует",
         "language": "Язык",
         "loading": "Загрузка",
@@ -109,7 +191,63 @@
           "Always": "Всегда",
           "None": "Отсутствует",
           "OnlyForced": "Только принудительные"
-        }
+        },
+        "text_color": "Цвет текста",
+        "background_color": "Цвет фона",
+        "outline_color": "Цвет контура",
+        "outline_thickness": "Толщина контура",
+        "background_opacity": "Прозрачность фона",
+        "outline_opacity": "Прозрачность контура",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Черный",
+          "Gray": "Серый",
+          "Silver": "Серебряный",
+          "White": "Белый",
+          "Maroon": "Марун",
+          "Red": "Красный",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Жёлтый",
+          "Olive": "Олив",
+          "Green": "Зелёный",
+          "Teal": "Бирюзовый",
+          "Lime": "Лаймовый",
+          "Purple": "Фиолетовый",
+          "Navy": "Тёмно-синий",
+          "Blue": "Синий",
+          "Aqua": "Акваа"
+        },
+        "thickness": {
+          "None": "Отсутствует",
+          "Thin": "Тонкий",
+          "Normal": "Обычный",
+          "Thick": "Толстый"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Другое",
@@ -134,23 +272,28 @@
           "VLC_4": "VLC 4 (Экспериментальный + PiP)"
         },
         "show_custom_menu_links": "Показать ссылки кастомного меню",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Скрыть библиотеки",
         "select_liraries_you_want_to_hide": "Выберите Библиотеки, которое хотите спрятать из вкладки Библиотеки и домашней страницы.",
         "disable_haptic_feedback": "Отключить тактильную обратную связь",
         "default_quality": "Качество по умолчанию",
+        "default_playback_speed": "Default Playback Speed",
+        "max_auto_play_episode_count": "Максимальное количество автовоспроизведения эпизодов",
         "disabled": "Отключено"
       },
       "downloads": {
-        "downloads_title": "Загрузки",
-        "optimized_versions_server": "Оптимизированные версии сервера",
-        "save_button": "Сохранить",
-        "optimized_server": "Оптимизированный сервер",
-        "optimized": "Оптимизированный",
-        "default": "По умолчанию",
-        "optimized_version_hint": "Укажите URL на оптимизированный сервер. URL должен включать http or https и опционально порт.",
-        "read_more_about_optimized_server": "Узнать больше про оптимизацию сервера.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domain.org:port"
+        "downloads_title": "Загрузки"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Плагины",
@@ -161,8 +304,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Пароль",
           "password_placeholder": "Введите пароль для пользователя Jellyfin {{username}}",
-          "save_button": "Сохранить",
-          "clear_button": "Очистить",
           "login_button": "Войти",
           "total_media_requests": "Всего запросов на медиа",
           "movie_quota_limit": "Ограничение квоты на фильмы",
@@ -180,14 +321,46 @@
         },
         "marlin_search": {
           "enable_marlin_search": "Включить Marlin Search ",
-          "url": "URL",
+          "url": "URL-адрес",
           "server_url_placeholder": "http(s)://domain.org:port",
           "marlin_search_hint": "Введите URL для Marlin сервера. URL должен включать http or https и опционально порт.",
           "read_more_about_marlin": "Узнать больше о Marlin.",
           "save_button": "Сохранить",
           "toasts": {
-            "saved": "Сохранено"
-          }
+            "saved": "Сохранено",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -195,30 +368,39 @@
         "app_usage": "Приложение {{usedSpace}}%",
         "device_usage": "Устройство {{availableSpace}}%",
         "size_used": "{{used}} из {{total}} использовано",
-        "delete_all_downloaded_files": "Удалить все загруженные файлы"
+        "delete_all_downloaded_files": "Удалить все загруженные файлы",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Показать вступление",
         "reset_intro": "Сбросить вступление"
       },
       "logs": {
         "logs_title": "Логи",
+        "export_logs": "Экспорт журналов",
+        "click_for_more_info": "Нажмите для получения дополнительной информации",
+        "level": "Уровень",
         "no_logs_available": "Логи не доступны",
         "delete_all_logs": "Удалить все логи"
       },
       "languages": {
         "title": "Языки",
         "app_language": "Язык приложения",
-        "app_language_description": "Выберите язык для приложения.",
         "system": "Системный"
       },
       "toasts": {
         "error_deleting_files": "Ошибка при удалении файлов",
         "background_downloads_enabled": "Фоновая загрузка включена",
-        "background_downloads_disabled": "Фоновая загрузка отключена",
-        "connected": "Подключено",
-        "could_not_connect": "Не удалось подключиться",
-        "invalid_url": "Неверный URL"
+        "background_downloads_disabled": "Фоновая загрузка отключена"
       }
     },
     "sessions": {
@@ -230,12 +412,14 @@
       "tvseries": "Сериалы",
       "movies": "Фильмы",
       "queue": "Очередь",
+      "other_media": "Другие медиа",
       "queue_hint": "Очередь и загрузки будут удалены при перезагрузке приложения",
       "no_items_in_queue": "Нет элементов в очереди",
       "no_downloaded_items": "Нет загруженых предметов",
       "delete_all_movies_button": "Удалить все фильмы",
       "delete_all_tvseries_button": "Удалить все сериалы",
       "delete_all_button": "Удалить все",
+      "delete_all_other_media_button": "Удалить другой материал",
       "active_download": "Активно загружается",
       "no_active_downloads": "Нет активных загрузок",
       "active_downloads": "Активные загрузки",
@@ -246,35 +430,57 @@
       "something_went_wrong": "Что-то пошло не так",
       "could_not_get_stream_url_from_jellyfin": "Не удалось получить ссылку трансляции из Jellyfin",
       "eta": "ETA {{eta}}",
-      "methods": "Методы",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Нет разрешения на скачивание файлов.",
         "deleted_all_movies_successfully": "Все фильмы были успешно удалены!",
         "failed_to_delete_all_movies": "Возникла ошибка при удалении всех фильмов",
         "deleted_all_tvseries_successfully": "Все сериалы были успешно удалены!",
         "failed_to_delete_all_tvseries": "Возникла ошибка при удалении всех сериалов",
+        "deleted_media_successfully": "Другие носители успешно удалены!",
+        "failed_to_delete_media": "Не удалось удалить другой файл",
+        "download_deleted": "Загрузка удалена",
         "download_cancelled": "Загрузка отменена",
-        "could_not_cancel_download": "Не удалось отменить загрузку",
+        "could_not_delete_download": "Не удалось удалить загрузку",
+        "download_paused": "Загрузка приостановлена",
+        "could_not_pause_download": "Не удалось приостановить загрузку",
+        "download_resumed": "Загрузка возобновлена",
+        "could_not_resume_download": "Не удалось продолжить загрузку",
         "download_completed": "Загрузка завершена",
-        "download_started_for": "Загрузка {{item}} началась",
-        "item_is_ready_to_be_downloaded": "{{item}} готов к загрузке",
-        "download_stated_for_item": "Загрузка {{item} началась",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "Загрузка {{item}} провалилась с ошибкой: {{error}}",
         "download_completed_for_item": "{{item}} успешно загружен",
-        "queued_item_for_optimization": "{{item}} поставлен в очередь для оптимизации",
-        "failed_to_start_download_for_item": "Не удалось начать загрузку {{item}}: {{message}}",
-        "server_responded_with_status_code": "Сервер ответил со статусом {{statusCode}}",
-        "no_response_received_from_server": "Нет ответа от сервера",
-        "error_setting_up_the_request": "Ошибка при создании запроса",
-        "failed_to_start_download_for_item_unexpected_error": "Не удалось начать загрузку {{item}}: Неожиданная ошибка",
+        "download_started_for_item": "Загрузка началась для {{item}}",
+        "failed_to_start_download": "Не удалось начать загрузку",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и задачи были успешно удалены",
-        "an_error_occured_while_deleting_files_and_jobs": "Возникла ошибка при удалении файлов и работ",
-        "go_to_downloads": "В загрузки"
+        "failed_to_clean_cache_directory": "Не удалось очистить директорию кэша",
+        "could_not_get_download_url_for_item": "Не удалось получить URL загрузки для {{itemName}}",
+        "go_to_downloads": "В загрузки",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
+  "common": {
+    "select": "Выбрать",
+    "no_trailer_available": "Прицеп недоступен",
+    "video": "Видео",
+    "audio": "Звук",
+    "subtitle": "Субтитры",
+    "play": "Играть",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Искать здесь...",
     "search": "Поиск...",
     "x_items": "{{count}} предметов",
     "library": "Библиотека",
@@ -286,6 +492,10 @@
     "episodes": "Серии",
     "collections": "Коллекции",
     "actors": "Актеры",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Запросить фильмы",
     "request_series": "Запросить сериалы",
     "recently_added": "Недавно добавлено",
@@ -311,7 +521,6 @@
     "tmdb_tv_streaming_services": "TMDB Потоковые сервисы сериалов"
   },
   "library": {
-    "no_items_found": "элементы не найдены",
     "no_results": "Нет результатов",
     "no_libraries_found": "Библиотеки не найдены",
     "item_types": {
@@ -334,9 +543,8 @@
       "genres": "Жанры",
       "years": "Года",
       "sort_by": "Сортировать по",
+      "filter_by": "Filter By",
       "sort_order": "Порядок сортировки",
-      "asc": "По Возрастанию",
-      "desc": "По убыванию",
       "tags": "Тэги"
     }
   },
@@ -360,17 +568,18 @@
     "client_error": "Ошибка клиента",
     "could_not_create_stream_for_chromecast": "Не удалось создать поток для Chromecast",
     "message_from_server": "Сообщение от сервера: {{message}}",
-    "video_has_finished_playing": "Видео закончило воспроизводиться!",
-    "no_video_source": "Нет источника видео...",
     "next_episode": "Следующая серия",
     "refresh_tracks": "Обновить дорожки",
-    "subtitle_tracks": "Субтитры:",
     "audio_tracks": "Аудио дорожки:",
     "playback_state": "Состояние воспроизведения:",
-    "no_data_available": "Данные не доступны",
     "index": "Индекс:",
     "continue_watching": "Продолжить просмотр",
-    "go_back": "Назад"
+    "go_back": "Назад",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Следующее",
@@ -386,6 +595,7 @@
     "no_similar_items_found": "Похожие элементы не найдены",
     "video": "Видео",
     "more_details": "Больше деталей",
+    "media_options": "Media Options",
     "quality": "Качество",
     "audio": "Звук",
     "subtitles": "Субтитры",
@@ -400,15 +610,13 @@
       "download_episode": "Загрузить серию",
       "download_movie": "Скачать фильм",
       "download_x_item": "Загрузить {{item_count}} элементов",
-      "download_button": "Загрузить",
-      "using_optimized_server": "Использовать оптимизированный сервер",
-      "using_default_method": "Использовать стандартный метод"
+      "download_unwatched_only": "Только непросмотренные",
+      "download_button": "Загрузить"
     }
   },
   "live_tv": {
     "next": "Следующая",
     "previous": "Предыдущая",
-    "live_tv": "Прямой эфир ТВ",
     "coming_soon": "Скоро",
     "on_now": "Сейчас в эфире",
     "shows": "Сериалы",
@@ -456,6 +664,10 @@
     "number_episodes": "{{episode_number}} серий",
     "born": "Рожден",
     "appearances": "Появления",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Сервер Jellyseerr не соответствует минимальным требованиям версии! Пожалуйста, обновите до версии не ниже 2.0.0",
       "jellyseerr_test_failed": "Тест Jellyseerr не пройден. Попробуйте еще раз.",
@@ -463,7 +675,11 @@
       "issue_submitted": "Проблема отправлена!",
       "requested_item": "Запрошено {{item}}!",
       "you_dont_have_permission_to_request": "У вас нет разрешения на запрос!",
-      "something_went_wrong_requesting_media": "Что-то пошло не так при запросе медиафайлов!"
+      "something_went_wrong_requesting_media": "Что-то пошло не так при запросе медиафайлов!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -472,5 +688,129 @@
     "library": "Библиотека",
     "custom_links": "Кастомные ссылки",
     "favorites": "Избранное"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor está tardando mucho en responder, inténtalo de nuevo más tarde.",
     "server_received_too_many_requests_try_again_later": "El servidor está recibiendo muchas peticiones, inténtalo de nuevo más tarde.",
     "there_is_a_server_error": "Hay un error en el servidor",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Ha ocurrido un error inesperado. ¿Has introducido la URL correcta?",
+    "too_old_server_text": "Servidor Jellyfin no soportado descubierto",
+    "too_old_server_description": "Por favor, actualiza Jellyfin a la última versión"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Introduce la URL de tu servidor Jellyfin",
@@ -28,19 +30,64 @@
     "connect_button": "Conectar",
     "previous_servers": "Servidores previos",
     "clear_button": "Limpiar",
+    "swipe_to_remove": "Deslizar para eliminar",
     "search_for_local_servers": "Buscar servidores locales",
     "searching": "Buscando...",
-    "servers": "Servidores"
+    "servers": "Servidores",
+    "saved": "Guardado",
+    "session_expired": "Sesión Caducada",
+    "please_login_again": "Su sesión guardada ha caducado. Por favor, inicie sesión de nuevo.",
+    "remove_saved_login": "Eliminar inicio de sesión guardado",
+    "remove_saved_login_description": "Esto eliminará tus credenciales guardadas para este servidor. Tendrás que volver a introducir tu nombre de usuario y contraseña la próxima vez.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Comprobando conexión con el servidor...",
     "no_internet": "Sin internet",
     "no_items": "No hay ítems",
     "no_internet_message": "No te preocupes, todavía puedes\nver el contenido descargado.",
+    "checking_server_connection_message": "Comprobando conexión con el servidor",
     "go_to_downloads": "Ir a descargas",
+    "retry": "Reintentar",
+    "server_unreachable": "Servidor inaccesible",
+    "server_unreachable_message": "No se pudo acceder al servidor.\nCompruebe su conexión de red.",
     "oops": "¡Vaya!",
     "error_message": "Algo ha salido mal.\nPor favor, cierra la sesión y vuelve a iniciar.",
     "continue_watching": "Seguir viendo",
     "next_up": "A continuación",
+    "continue_and_next_up": "Continuar y siguiente",
     "recently_added_in": "Recientemente añadido en {{libraryName}}",
     "suggested_movies": "Películas sugeridas",
     "suggested_episodes": "Episodios sugeridos",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "Configuración",
       "log_out_button": "Cerrar sesión",
+      "categories": {
+        "title": "Categorías"
+      },
+      "playback_controls": {
+        "title": "Reproducción y controles"
+      },
+      "audio_subtitles": {
+        "title": "Audio y subtítulos"
+      },
+      "appearance": {
+        "title": "Apariencia",
+        "merge_next_up_continue_watching": "Fusionar continuar viendo y siguiente",
+        "hide_remote_session_button": "Ocultar botón de sesión remota"
+      },
       "user_info": {
         "user_info_title": "Información de usuario",
         "user": "Usuario",
@@ -85,21 +146,42 @@
         "rewind_length": "Longitud de retroceso",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Controles de gestos",
+        "horizontal_swipe_skip": "Deslizar horizontal para omitir",
+        "horizontal_swipe_skip_description": "Desliza hacia izquierda/derecha cuando los controles están ocultos para omitir",
+        "left_side_brightness": "Control de brillo lateral izquierdo",
+        "left_side_brightness_description": "Desliza hacia arriba/abajo en el lado izquierdo para ajustar el brillo",
+        "right_side_volume": "Control de volumen derecho",
+        "right_side_volume_description": "Desliza hacia arriba/abajo en el lado derecho para ajustar el volumen",
+        "hide_volume_slider": "Ocultar control deslizante de volumen",
+        "hide_volume_slider_description": "Ocultar control deslizante de volumen en el reproductor de vídeo",
+        "hide_brightness_slider": "Ocultar control deslizante de ajuste de brillo",
+        "hide_brightness_slider_description": "Ocultar control deslizante de brillo en el reproductor de vídeo"
+      },
       "audio": {
         "audio_title": "Audio",
         "set_audio_track": "Establecer pista del elemento anterior",
         "audio_language": "Idioma de audio",
         "audio_hint": "Elige un idioma de audio por defecto.",
         "none": "Ninguno",
-        "language": "Idioma"
+        "language": "Idioma",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Subtítulos",
+        "subtitle_hint": "Configurar preferencias de subtítulos.",
         "subtitle_language": "Idioma de subtítulos",
         "subtitle_mode": "Modo de subtítulos",
         "set_subtitle_track": "Establecer pista del elemento anterior",
         "subtitle_size": "Tamaño de subtítulos",
-        "subtitle_hint": "Configurar preferencias de subtítulos.",
         "none": "Ninguno",
         "language": "Idioma",
         "loading": "Cargando",
@@ -109,7 +191,63 @@
           "Always": "Siempre",
           "None": "Nada",
           "OnlyForced": "Solo forzados"
-        }
+        },
+        "text_color": "Color del texto",
+        "background_color": "Color de fondo",
+        "outline_color": "Color de salida",
+        "outline_thickness": "Grosor exterior",
+        "background_opacity": "Opacidad de fondo",
+        "outline_opacity": "Opacidad exterior",
+        "bold_text": "Texto en negrita",
+        "colors": {
+          "Black": "Negro",
+          "Gray": "Gris",
+          "Silver": "Plata",
+          "White": "Blanco",
+          "Maroon": "Granate",
+          "Red": "Rojo",
+          "Fuchsia": "Fucsia",
+          "Yellow": "Amarillo",
+          "Olive": "Oliva",
+          "Green": "Verde",
+          "Teal": "Cereal",
+          "Lime": "Lima",
+          "Purple": "Morado",
+          "Navy": "Naval",
+          "Blue": "Azul",
+          "Aqua": "Agua"
+        },
+        "thickness": {
+          "None": "Ninguno",
+          "Thin": "Ligero",
+          "Normal": "Normal",
+          "Thick": "Grosor"
+        },
+        "subtitle_color": "Color de los Subtítulos",
+        "subtitle_background_color": "Color del fondo",
+        "subtitle_font": "Fuente de los subtítulos",
+        "ksplayer_title": "Ajustes de KSPlayer",
+        "hardware_decode": "Decodificación de hardware",
+        "hardware_decode_description": "Utilizar la aceleración de hardware para la decodificación de vídeo. Deshabilite si experimenta problemas de reproducción."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Reproductor de vídeo",
+        "video_player": "Reproductor de vídeo",
+        "video_player_description": "Elige qué reproductor de vídeo en iOS",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Otros",
@@ -128,29 +266,34 @@
           "UNKNOWN": "Desconocida"
         },
         "safe_area_in_controls": "Área segura en controles",
-        "video_player": "Video player",
+        "video_player": "Reproductor de vídeo",
         "video_players": {
           "VLC_3": "VLC 3",
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
         "show_custom_menu_links": "Mostrar enlaces de menú personalizados",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecciona las bibliotecas que quieres ocultar de la pestaña Bibliotecas y de Inicio.",
         "disable_haptic_feedback": "Desactivar feedback háptico",
         "default_quality": "Calidad por defecto",
+        "default_playback_speed": "Velocidad de reproducción predeterminada",
+        "max_auto_play_episode_count": "Máximo número de episodios de Auto Play",
         "disabled": "Deshabilitado"
       },
       "downloads": {
-        "downloads_title": "Descargas",
-        "optimized_versions_server": "Servidor de versiones optimizadas",
-        "save_button": "Guardar",
-        "optimized_server": "Servidor optimizado",
-        "optimized": "Optimizado",
-        "default": "Por defecto",
-        "optimized_version_hint": "Introduce la URL del servidor de versiones optimizadas. La URL debe incluir http o https y opcionalmente el puerto.",
-        "read_more_about_optimized_server": "Leer más sobre el servidor de versiones optimizadas.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://dominio.org:puerto"
+        "downloads_title": "Descargas"
+      },
+      "music": {
+        "title": "Música",
+        "playback_title": "Reproducir",
+        "playback_description": "Configurar cómo se reproduce la música.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Almacenando en caché",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "",
+        "max_cache_size": "Tamaño máximo del caché"
       },
       "plugins": {
         "plugins_title": "Plugins",
@@ -159,10 +302,8 @@
           "server_url": "URL del servidor",
           "server_url_hint": "Ejemplo: http(s)://tu-dominio.url\n(añade el puerto si es necesario)",
           "server_url_placeholder": "URL de Jellyseerr...",
-          "password": "Contrasñea",
+          "password": "Contraseña",
           "password_placeholder": "Introduce la contraseña de Jellyfin de {{username}}",
-          "save_button": "Guardar",
-          "clear_button": "Limpiar",
           "login_button": "Iniciar sesión",
           "total_media_requests": "Peticiones totales de medios",
           "movie_quota_limit": "Límite de cuota de películas",
@@ -173,9 +314,9 @@
           "unlimited": "Ilimitado",
           "plus_n_more": "+{{n}} more",
           "order_by": {
-            "DEFAULT": "Default",
-            "VOTE_COUNT_AND_AVERAGE": "Vote count and average",
-            "POPULARITY": "Popularity"
+            "DEFAULT": "Por defecto",
+            "VOTE_COUNT_AND_AVERAGE": "Número de votos y promedio",
+            "POPULARITY": "Popularidad"
           }
         },
         "marlin_search": {
@@ -186,8 +327,40 @@
           "read_more_about_marlin": "Leer más sobre Marlin.",
           "save_button": "Guardar",
           "toasts": {
-            "saved": "Guardado"
-          }
+            "saved": "Guardado",
+            "refreshed": "Ajustes del servidor actualizados"
+          },
+          "refresh_from_server": "Actualizar ajustes del servidor"
+        },
+        "streamystats": {
+          "enable_streamystats": "Habilitar Streamystats",
+          "disable_streamystats": "Deshabilitar Streamystats",
+          "enable_search": "Usar para la búsqueda",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.ejemplo.com",
+          "streamystats_search_hint": "Introduzca la URL para su servidor Streamystats. La URL debe incluir http o https y opcionalmente el puerto.",
+          "read_more_about_streamystats": "Leer más sobre Streamystats.",
+          "save_button": "Guardar",
+          "save": "Guardar",
+          "features_title": "Características",
+          "home_sections_title": "Secciones de inicio",
+          "enable_movie_recommendations": "Recomendaciones de películas",
+          "enable_series_recommendations": "Recomendaciones de series",
+          "enable_promoted_watchlists": "Listas promocionadas",
+          "hide_watchlists_tab": "Ocultar pestaña de listas",
+          "home_sections_hint": "Mostrar recomendaciones personalizadas y listas promovidas de Streamystats en la página principal.",
+          "recommended_movies": "Películas recomendadas",
+          "recommended_series": "Series recomendadas",
+          "toasts": {
+            "saved": "Guardado",
+            "refreshed": "Ajustes actualizados desde el servidor",
+            "disabled": "Streamystats deshabilitado"
+          },
+          "refresh_from_server": "Actualizar ajustes desde el servidor"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Habilitar la integración de la lista de seguimiento",
+          "watchlist_button": "Activar o desactivar la integración de la lista de seguimiento"
         }
       },
       "storage": {
@@ -195,9 +368,19 @@
         "app_usage": "App {{usedSpace}}%",
         "device_usage": "Dispositivo {{availableSpace}}%",
         "size_used": "{{used}} de {{total}} usado",
-        "delete_all_downloaded_files": "Eliminar todos los archivos descargados"
+        "delete_all_downloaded_files": "Eliminar todos los archivos descargados",
+        "music_cache_title": "Caché de música",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Activar Caché de Música",
+        "clear_music_cache": "Borrar Caché de Música",
+        "music_cache_size": "Caché {{Tamaño}}",
+        "music_cache_cleared": "Caché de música eliminado",
+        "delete_all_downloaded_songs": "Eliminar todas las descargas",
+        "downloaded_songs_size": "{{tamaño}} descargado",
+        "downloaded_songs_deleted": "Canciones descargadas eliminadas"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Mostrar intro",
         "reset_intro": "Restablecer intro"
       },
@@ -205,36 +388,38 @@
         "logs_title": "Registros",
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
-        "level": "Level",
+        "level": "Nivel",
         "no_logs_available": "No hay registros disponibles",
         "delete_all_logs": "Eliminar todos los registros"
       },
       "languages": {
         "title": "Idiomas",
         "app_language": "Idioma de la app",
-        "app_language_description": "Selecciona el idioma de la app.",
         "system": "Sistema"
       },
       "toasts": {
         "error_deleting_files": "Error al eliminar archivos",
         "background_downloads_enabled": "Descargas en segundo plano habilitadas",
-        "background_downloads_disabled": "Descargas en segundo plano deshabilitadas",
-        "connected": "Conectado",
-        "could_not_connect": "No se pudo conectar",
-        "invalid_url": "URL inválida"
+        "background_downloads_disabled": "Descargas en segundo plano deshabilitadas"
       }
+    },
+    "sessions": {
+      "title": "Sesiones",
+      "no_active_sessions": "No hay sesiones activas"
     },
     "downloads": {
       "downloads_title": "Descargas",
       "tvseries": "Series",
       "movies": "Películas",
       "queue": "Cola",
+      "other_media": "Otros medios",
       "queue_hint": "La cola de series y películas se perderá al reiniciar la app",
       "no_items_in_queue": "No hay ítems en la cola",
       "no_downloaded_items": "No hay ítems descargados",
       "delete_all_movies_button": "Eliminar todas las películas",
       "delete_all_tvseries_button": "Eliminar todas las series",
       "delete_all_button": "Eliminar todo",
+      "delete_all_other_media_button": "Eliminar otros medios",
       "active_download": "Descarga activa",
       "no_active_downloads": "No hay descargas activas",
       "active_downloads": "Descargas activas",
@@ -245,37 +430,59 @@
       "something_went_wrong": "Algo ha salido mal",
       "could_not_get_stream_url_from_jellyfin": "No se pudo obtener la URL del stream de Jellyfin",
       "eta": "{{eta}} restante",
-      "methods": "Métodos",
       "toasts": {
         "you_are_not_allowed_to_download_files": "No tienes permiso para descargar archivos.",
         "deleted_all_movies_successfully": "¡Todas las películas eliminadas con éxito!",
         "failed_to_delete_all_movies": "Error al eliminar todas las películas",
         "deleted_all_tvseries_successfully": "¡Todas las series eliminadas con éxito!",
         "failed_to_delete_all_tvseries": "Error al eliminar todas las series",
+        "deleted_media_successfully": "¡Otros medios eliminados con éxito!",
+        "failed_to_delete_media": "Error al eliminar otros medios",
+        "download_deleted": "Descarga eliminada",
         "download_cancelled": "Descarga cancelada",
-        "could_not_cancel_download": "No se pudo cancelar la descarga",
+        "could_not_delete_download": "No se pudo eliminar la descarga",
+        "download_paused": "Descarga pausada",
+        "could_not_pause_download": "No se pudo pausar la descarga",
+        "download_resumed": "Descarga rebatida",
+        "could_not_resume_download": "No se pudo reiniciar la descarga",
         "download_completed": "Descarga completada",
-        "download_started_for": "Descarga iniciada para {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} está listo para ser descargado",
-        "download_stated_for_item": "Descarga iniciada para {{item}}",
+        "download_failed": "Descarga fallida",
         "download_failed_for_item": "Descarga fallida para {{item}} - {{error}}",
         "download_completed_for_item": "Descarga completada para {{item}}",
-        "queued_item_for_optimization": "{{item}} en cola para optimización",
-        "failed_to_start_download_for_item": "Error al iniciar la descarga para {{item}}: {{message}}",
-        "server_responded_with_status_code": "El servidor ha respondido con el estado {{statusCode}}",
-        "no_response_received_from_server": "No se ha recibido respuesta del servidor",
-        "error_setting_up_the_request": "Error al configurar la petición",
-        "failed_to_start_download_for_item_unexpected_error": "Error al iniciar la descarga para {{item}}: Error inesperado",
+        "download_started_for_item": "Descarga iniciada para {{item}}",
+        "failed_to_start_download": "Error al iniciar la descarga",
+        "item_already_downloading": "{{item}} ya está descargando",
+        "all_files_deleted": "Todas las descargas eliminadas correctamente",
+        "files_deleted_by_type": "{{count}} {{type}} eliminado",
         "all_files_folders_and_jobs_deleted_successfully": "Todos los archivos, carpetas y trabajos eliminados con éxito",
-        "an_error_occured_while_deleting_files_and_jobs": "Ha ocurrido un error al eliminar archivos y trabajos",
-        "go_to_downloads": "Ir a descargas"
+        "failed_to_clean_cache_directory": "Error al limpiar el directorio de caché",
+        "could_not_get_download_url_for_item": "No se pudo obtener la URL de descarga para {{itemName}}",
+        "go_to_downloads": "Ir a descargas",
+        "file_deleted": "{{item}} eliminado"
       }
     }
   },
+  "common": {
+    "select": "Seleccionar",
+    "no_trailer_available": "No hay tráiler disponible",
+    "video": "Vídeo",
+    "audio": "Audio",
+    "subtitle": "Subtítulos",
+    "play": "Jugar",
+    "none": "Nada",
+    "track": "Pista",
+    "cancel": "Cancelar",
+    "delete": "Borrar",
+    "ok": "Aceptar",
+    "remove": "Eliminar",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Buscar aquí...",
     "search": "Buscar...",
-    "x_items": "{{count}} ítems",
+    "x_items": "{{count}} Elementos",
     "library": "Biblioteca",
     "discover": "Descubrir",
     "no_results": "Sin resultados",
@@ -285,12 +492,16 @@
     "episodes": "Episodios",
     "collections": "Colecciones",
     "actors": "Actores",
+    "artists": "Artistas",
+    "albums": "Álbumes",
+    "songs": "Canciones",
+    "playlists": "Listas de reproducción",
     "request_movies": "Solicitar películas",
     "request_series": "Solicitar series",
     "recently_added": "Recientemente añadido",
     "recent_requests": "Solicitudes recientes",
     "plex_watchlist": "Lista de seguimiento de Plex",
-    "trending": "Trending",
+    "trending": "Tendencias",
     "popular_movies": "Películas populares",
     "movie_genres": "Géneros de películas",
     "upcoming_movies": "Próximas películas",
@@ -310,21 +521,20 @@
     "tmdb_tv_streaming_services": "Servicios de streaming de series de TMDB"
   },
   "library": {
-    "no_items_found": "No se han encontrado ítems",
     "no_results": "Sin resultados",
     "no_libraries_found": "No se han encontrado bibliotecas",
     "item_types": {
-      "movies": "películas",
-      "series": "series",
-      "boxsets": "colecciones",
-      "items": "ítems"
+      "movies": "Películas",
+      "series": "Series",
+      "boxsets": "Colecciones",
+      "items": "Elementos"
     },
     "options": {
       "display": "Mostrar",
       "row": "Fila",
       "list": "Lista",
       "image_style": "Estilo de imagen",
-      "poster": "Poster",
+      "poster": "Póster",
       "cover": "Portada",
       "show_titles": "Mostrar títulos",
       "show_stats": "Mostrar estadísticas"
@@ -333,9 +543,8 @@
       "genres": "Géneros",
       "years": "Años",
       "sort_by": "Ordenar por",
+      "filter_by": "Filtrar por",
       "sort_order": "Ordenar",
-      "asc": "Ascending",
-      "desc": "Descending",
       "tags": "Etiquetas"
     }
   },
@@ -345,7 +554,7 @@
     "episodes": "Episodios",
     "videos": "Vídeos",
     "boxsets": "Colecciones",
-    "playlists": "Playlists",
+    "playlists": "Listas",
     "noDataTitle": "Aún no hay favoritos",
     "noData": "Marca elementos como favoritos para verlos aparecer aquí para un acceso rápido."
   },
@@ -354,22 +563,23 @@
   },
   "player": {
     "error": "Error",
-    "failed_to_get_stream_url": "Error al obtener la URL del stream",
+    "failed_to_get_stream_url": "Error al obtener la URL del Steam",
     "an_error_occured_while_playing_the_video": "Ha ocurrido un error al reproducir el vídeo. Comprueba los registros en la configuración.",
     "client_error": "Error del cliente",
-    "could_not_create_stream_for_chromecast": "No se pudo crear el stream para Chromecast",
+    "could_not_create_stream_for_chromecast": "No se pudo crear el Steam para Chromecast",
     "message_from_server": "Mensaje del servidor: {{message}}",
-    "video_has_finished_playing": "El vídeo ha terminado de reproducirse",
-    "no_video_source": "No hay fuente de vídeo...",
     "next_episode": "Siguiente episodio",
     "refresh_tracks": "Refrescar pistas",
-    "subtitle_tracks": "Pistas de subtítulos:",
     "audio_tracks": "Pistas de audio:",
     "playback_state": "Estado de la reproducción:",
-    "no_data_available": "No hay datos disponibles",
     "index": "Índice:",
     "continue_watching": "Continuar viendo",
-    "go_back": "Volver"
+    "go_back": "Volver",
+    "downloaded_file_title": "Ya tienes este archivo descargado",
+    "downloaded_file_message": "¿Quieres reproducir el archivo descargado?",
+    "downloaded_file_yes": "Sí",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancelar"
   },
   "item_card": {
     "next_up": "A continuación",
@@ -385,6 +595,7 @@
     "no_similar_items_found": "No se han encontrado ítems similares",
     "video": "Vídeo",
     "more_details": "Más detalles",
+    "media_options": "Opciones de medios",
     "quality": "Calidad",
     "audio": "Audio",
     "subtitles": "Subtítulos",
@@ -399,15 +610,13 @@
       "download_episode": "Descargar episodio",
       "download_movie": "Descargar película",
       "download_x_item": "Descargar {{item_count}} ítems",
-      "download_button": "Descargar",
-      "using_optimized_server": "Usando servidor optimizado",
-      "using_default_method": "Usando método por defecto"
+      "download_unwatched_only": "No visto",
+      "download_button": "Descargar"
     }
   },
   "live_tv": {
     "next": "Siguiente",
     "previous": "Anterior",
-    "live_tv": "TV en directo",
     "coming_soon": "Próximamente",
     "on_now": "En directo",
     "shows": "Programas",
@@ -450,11 +659,15 @@
     "tags": "Etiquetas",
     "quality_profile": "Perfil de calidad",
     "root_folder": "Carpeta raíz",
-    "season_all": "Season (all)",
+    "season_all": "Temporada (Todas)",
     "season_number": "Temporada {{season_number}}",
-    "number_episodes": "{{episode_number}} episodios",
+    "number_episodes": "{{episode_number}} Episodios",
     "born": "Nacido",
     "appearances": "Apariciones",
+    "approve": "Aprobar",
+    "decline": "Rechazar",
+    "requested_by": "Solicitado por {{user}}",
+    "unknown_user": "Usuario desconocido",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "¡Jellyseer no cumple con los requisitos! Por favor, actualízalo al menos a la versión 2.0.0.",
       "jellyseerr_test_failed": "La prueba de Jellyseerr ha fallado. Por favor inténtalo de nuevo.",
@@ -462,7 +675,11 @@
       "issue_submitted": "¡Problema enviado!",
       "requested_item": "¡{{item}} solicitado!",
       "you_dont_have_permission_to_request": "¡No tienes permiso para solicitar!",
-      "something_went_wrong_requesting_media": "¡Algo ha salido mal solicitando los medios!"
+      "something_went_wrong_requesting_media": "¡Algo ha salido mal solicitando los medios!",
+      "request_approved": "¡Solicitud aprobada!",
+      "request_declined": "¡Solicitud rechazada!",
+      "failed_to_approve_request": "Error al aprobar la solicitud",
+      "failed_to_decline_request": "Error al rechazar la solicitud"
     }
   },
   "tabs": {
@@ -471,5 +688,129 @@
     "library": "Bibliotecas",
     "custom_links": "Enlaces personalizados",
     "favorites": "Favoritos"
+  },
+  "music": {
+    "title": "Música",
+    "tabs": {
+      "suggestions": "Sugerencias",
+      "albums": "Álbumes",
+      "artists": "Artistas",
+      "playlists": "Listas de reproducción",
+      "tracks": "Canciones"
+    },
+    "filters": {
+      "all": "Todas"
+    },
+    "recently_added": "Recientemente añadido",
+    "recently_played": "Reproducidos Recientemente",
+    "frequently_played": "Reproducido con frecuencia",
+    "explore": "Explorar",
+    "top_tracks": "Canciones Populares",
+    "play": "Reproducir",
+    "shuffle": "Aleatorio",
+    "play_top_tracks": "Reproducir canciones populares",
+    "no_suggestions": "No hay sugerencias",
+    "no_albums": "No se encontraron álbumes",
+    "no_artists": "No se han encontrado artistas",
+    "no_playlists": "No se han encontrado listas de reproducción",
+    "album_not_found": "Álbum no encontrado.",
+    "artist_not_found": "Artista no encontrado",
+    "playlist_not_found": "Lista no encontrada",
+    "track_options": {
+      "play_next": "Reproducir siguiente",
+      "add_to_queue": "Añadir a la Cola",
+      "add_to_playlist": "Añadir a la Lista de Reproducción",
+      "download": "Descargar",
+      "downloaded": "Descargado",
+      "downloading": "Descargando...",
+      "cached": "En caché",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Ir al artista",
+      "go_to_album": "Ir al álbum",
+      "add_to_favorites": "Añadir a Favoritos",
+      "remove_from_favorites": "Eliminar de Favoritos",
+      "remove_from_playlist": "Eliminar de la lista de reproducción"
+    },
+    "playlists": {
+      "create_playlist": "Crear una lista de reproducción",
+      "playlist_name": "Nombre de la lista de reproducción",
+      "enter_name": "Introducir nombre de la lista de reproducción",
+      "create": "Crear",
+      "search_playlists": "Buscar listas de reproducción...",
+      "added_to": "Añadido a {{name}}",
+      "added": "Añadido a la lista de reproducción",
+      "removed_from": "Eliminado de {{name}}",
+      "removed": "Quitar de la lista de reproducción",
+      "created": "Lista de reproducción creada",
+      "create_new": "Crear una nueva lista de reproducción",
+      "failed_to_add": "Error al añadir a la lista de reproducción",
+      "failed_to_remove": "Error al eliminar de la lista de reproducción",
+      "failed_to_create": "Error al crear lista de reproducción",
+      "delete_playlist": "Eliminar lista de reproducción",
+      "delete_confirm": "¿Está seguro que desea eliminar \"{{name}}\"? Esta acción no se puede deshacer.",
+      "deleted": "Lista de reproducción eliminada",
+      "failed_to_delete": "Error al eliminar lista de reproducción"
+    },
+    "sort": {
+      "title": "Ordenar por",
+      "alphabetical": "Alfabéticamente",
+      "date_created": "Fecha de creación"
+    }
+  },
+  "watchlists": {
+    "title": "Listas de seguimiento",
+    "my_watchlists": "Mi lista de seguimiento",
+    "public_watchlists": "Listas de seguimiento públicas",
+    "create_title": "Crear lista de seguimiento",
+    "edit_title": "Editar lista de seguimiento",
+    "create_button": "Crear lista de seguimiento",
+    "save_button": "Guardar cambios",
+    "delete_button": "Borrar",
+    "remove_button": "Eliminar",
+    "cancel_button": "Cancelar",
+    "name_label": "Nombre",
+    "name_placeholder": "Introduce el nombre de la lista de seguimiento",
+    "description_label": "Descripción",
+    "description_placeholder": "Introduce una descripción (opcional)",
+    "is_public_label": "Listas de seguimiento públicas",
+    "is_public_description": "Permitir que otros vean esta lista de seguimiento",
+    "allowed_type_label": "Tipo de contenido",
+    "sort_order_label": "Ordenación por defecto",
+    "empty_title": "No hay listas de seguimiento",
+    "empty_description": "Crea tu primera lista de seguimiento para empezar a organizar tus medios",
+    "empty_watchlist": "Esta lista de seguimiento está vacía",
+    "empty_watchlist_hint": "Añadir elementos de tu biblioteca a esta lista de seguimiento",
+    "not_configured_title": "Streamystats no configurado",
+    "not_configured_description": "Configura Streamystats en ajustes para usar listas de seguimiento",
+    "go_to_settings": "Ir a la configuración",
+    "add_to_watchlist": "Añadir a Lista de Seguimiento",
+    "remove_from_watchlist": "Quitar de la lista de seguimiento",
+    "select_watchlist": "Seleccionar lista de seguimiento",
+    "create_new": "Crear nueva lista de seguimiento",
+    "item": "elemento",
+    "items": "elementos",
+    "public": "Público",
+    "private": "Privado",
+    "you": "Tú",
+    "by_owner": "Por otro usuario",
+    "not_found": "Lista de seguimiento no encontrada",
+    "delete_confirm_title": "Eliminar lista de seguimiento",
+    "delete_confirm_message": "¿Está seguro que desea eliminar\"{{name}}\"? Esta acción no se puede deshacer.",
+    "remove_item_title": "Borrar de la lista de seguimiento",
+    "remove_item_message": "¿Eliminar\"{{name}}\" de esta lista de seguimiento?",
+    "loading": "Cargando listas de seguimiento...",
+    "no_compatible_watchlists": "No hay listas de seguimiento compatibles",
+    "create_one_first": "Crear una lista vigilada que acepte este tipo de contenido"
+  },
+  "playback_speed": {
+    "title": "Velocidad de reproducción",
+    "apply_to": "Aplicar a",
+    "speed": "Velocidad",
+    "scope": {
+      "media": "Solo este medio",
+      "show": "Este programa",
+      "all": "Todos los medios (por defecto)"
+    }
   }
 }

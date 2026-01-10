@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor triga massa a respondre, torneu-ho a provar més tard",
     "server_received_too_many_requests_try_again_later": "El servidor ha rebut massa sol·licituds, torneu-ho a provar més tard.",
     "there_is_a_server_error": "Error del servidor",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "S'ha produït un error inesperat. Heu introduït correctament l'URL del servidor?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "S'ha produït un error inesperat. Heu introduït correctament l'URL del servidor?",
+    "too_old_server_text": "Unsupported Jellyfin Server Discovered",
+    "too_old_server_description": "Please update Jellyfin to the latest version"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Introdueix l'URL del vostre servidor Jellyfin",
@@ -28,19 +30,64 @@
     "connect_button": "Connecta",
     "previous_servers": "servidors anteriors",
     "clear_button": "Esborra",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Cercar servidors locals",
     "searching": "Cercant...",
-    "servers": "Servidors"
+    "servers": "Servidors",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Checking server connection...",
     "no_internet": "Sense internet",
     "no_items": "No hi ha elements",
     "no_internet_message": "No us preocupeu, encara podeu veure\nel contingut descarregat.",
+    "checking_server_connection_message": "Checking connection to server",
     "go_to_downloads": "Anar a les descàrregues",
+    "retry": "Retry",
+    "server_unreachable": "Server Unreachable",
+    "server_unreachable_message": "Could not reach the server.\nPlease check your network connection.",
     "oops": "Oops!",
     "error_message": "Alguna cosa ha anat malament.\nTanqueu la sessió i torneu-la a iniciar.",
     "continue_watching": "Continua veient",
     "next_up": "A continuació",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Afegit recentment a {{libraryName}}",
     "suggested_movies": "Pel·lícules suggerides",
     "suggested_episodes": "Episodis suggerits",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "Configuració",
       "log_out_button": "Tanca sessió",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Informació de l'usuari",
         "user": "Usuari",
@@ -85,21 +146,42 @@
         "rewind_length": "Durada del rebobinat",
         "seconds_unit": "s"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "Gesture Controls",
+        "horizontal_swipe_skip": "Horizontal Swipe to Skip",
+        "horizontal_swipe_skip_description": "Swipe left/right when controls are hidden to skip",
+        "left_side_brightness": "Left Side Brightness Control",
+        "left_side_brightness_description": "Swipe up/down on left side to adjust brightness",
+        "right_side_volume": "Right Side Volume Control",
+        "right_side_volume_description": "Swipe up/down on right side to adjust volume",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "Àudio",
         "set_audio_track": "Establir pista d'àudio de l'element anterior",
         "audio_language": "Idioma de l'àudio",
         "audio_hint": "Trieu un idioma d'àudio per defecte.",
         "none": "Cap",
-        "language": "Idioma"
+        "language": "Idioma",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Subtítols",
+        "subtitle_hint": "Configureu les preferències dels subtítols.",
         "subtitle_language": "Idioma dels subtítols",
         "subtitle_mode": "Mode dels subtítols",
         "set_subtitle_track": "Establir pista de subtítols de l'element anterior",
         "subtitle_size": "Mida dels subtítols",
-        "subtitle_hint": "Configureu les preferències dels subtítols.",
         "none": "Cap",
         "language": "Idioma",
         "loading": "Carregant",
@@ -109,7 +191,63 @@
           "Always": "Sempre",
           "None": "Cap",
           "OnlyForced": "Només els forçats"
-        }
+        },
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "outline_color": "Outline Color",
+        "outline_thickness": "Outline Thickness",
+        "background_opacity": "Background Opacity",
+        "outline_opacity": "Outline Opacity",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Black",
+          "Gray": "Gray",
+          "Silver": "Silver",
+          "White": "White",
+          "Maroon": "Maroon",
+          "Red": "Red",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Yellow",
+          "Olive": "Olive",
+          "Green": "Green",
+          "Teal": "Teal",
+          "Lime": "Lime",
+          "Purple": "Purple",
+          "Navy": "Navy",
+          "Blue": "Blue",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "Cap",
+          "Thin": "Thin",
+          "Normal": "Normal",
+          "Thick": "Thick"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Altres",
@@ -134,24 +272,28 @@
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
         "show_custom_menu_links": "Mostrar enllaços del menú personalitzats",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Oculta biblioteques",
         "select_liraries_you_want_to_hide": "Seleccioneu les biblioteques que voleu ocultar de la pestanya Biblioteca i de les seccions de la pàgina d'inici.",
         "disable_haptic_feedback": "Desactiva la resposta hàptica",
         "default_quality": "Qualitat per defecte",
+        "default_playback_speed": "Default Playback Speed",
         "max_auto_play_episode_count": "Nombre màxim d'episodis de reproducció automàtica",
         "disabled": "Desactivat"
       },
       "downloads": {
-        "downloads_title": "Descàrregues",
-        "optimized_versions_server": "Servidor de versions optimitzades",
-        "save_button": "Desa",
-        "optimized_server": "Servidor optimitzat",
-        "optimized": "Optimitzat",
-        "default": "Per defecte",
-        "optimized_version_hint": "Introdueix l'URL del servidor d'optimització. L'URL ha d'incloure http o https i opcionalment el port.",
-        "read_more_about_optimized_server": "Mostra més sobre el servidor d'optimització.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domini.org:port"
+        "downloads_title": "Descàrregues"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Connectors",
@@ -162,8 +304,6 @@
           "server_url_placeholder": "URL de Jellyseerr...",
           "password": "Contrasenya",
           "password_placeholder": "Introdueix la contrasenya per a l'usuari de Jellyfin {{username}}",
-          "save_button": "Desa",
-          "clear_button": "Esborra",
           "login_button": "Inicia sessió",
           "total_media_requests": "Sol·licituds totals de contingut",
           "movie_quota_limit": "Límit de quota de pel·lícules",
@@ -187,8 +327,40 @@
           "read_more_about_marlin": "Mostra més sobre Marlin.",
           "save_button": "Desa",
           "toasts": {
-            "saved": "Desat"
-          }
+            "saved": "Desat",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -196,9 +368,19 @@
         "app_usage": "Aplicació {{usedSpace}}%",
         "device_usage": "Dispositiu {{availableSpace}}%",
         "size_used": "{{used}} de {{total}} utilitzat",
-        "delete_all_downloaded_files": "Suprimeix tots els fitxers descarregats"
+        "delete_all_downloaded_files": "Suprimeix tots els fitxers descarregats",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Mostra la introducció",
         "reset_intro": "Restableix la introducció"
       },
@@ -213,16 +395,12 @@
       "languages": {
         "title": "Idiomes",
         "app_language": "Idioma de l'aplicació",
-        "app_language_description": "Seleccioneu l'idioma de l'aplicació.",
         "system": "Sistema"
       },
       "toasts": {
         "error_deleting_files": "Error en suprimir fitxers",
         "background_downloads_enabled": "Descàrregues en segon pla activades",
-        "background_downloads_disabled": "Descàrregues en segon pla desactivades",
-        "connected": "Connectat",
-        "could_not_connect": "No s'ha pogut connectar",
-        "invalid_url": "URL invàlida"
+        "background_downloads_disabled": "Descàrregues en segon pla desactivades"
       }
     },
     "sessions": {
@@ -234,12 +412,14 @@
       "tvseries": "Sèries",
       "movies": "Pel·lícules",
       "queue": "Cua",
+      "other_media": "Other media",
       "queue_hint": "La cua i les descàrregues es perdran en reiniciar l'aplicació",
       "no_items_in_queue": "No hi ha elements a la cua",
       "no_downloaded_items": "No hi ha elements descarregats",
       "delete_all_movies_button": "Suprimeix totes les pel·lícules",
       "delete_all_tvseries_button": "Suprimeix totes les sèries",
       "delete_all_button": "Suprimeix-ho tot",
+      "delete_all_other_media_button": "Delete other media",
       "active_download": "Descàrrega activa",
       "no_active_downloads": "No hi ha descàrregues actives",
       "active_downloads": "Descàrregues actives",
@@ -250,35 +430,57 @@
       "something_went_wrong": "Alguna cosa ha anat malament",
       "could_not_get_stream_url_from_jellyfin": "No s'ha pogut obtenir l'URL del flux de Jellyfin",
       "eta": "ETA {{eta}}",
-      "methods": "Mètodes",
       "toasts": {
         "you_are_not_allowed_to_download_files": "No teniu permís per descarregar fitxers.",
         "deleted_all_movies_successfully": "S'han suprimit totes les pel·lícules correctament!",
         "failed_to_delete_all_movies": "No s'han pogut suprimir totes les pel·lícules",
         "deleted_all_tvseries_successfully": "S'han suprimit totes les sèries correctament!",
         "failed_to_delete_all_tvseries": "No s'han pogut suprimir totes les sèries",
+        "deleted_media_successfully": "Deleted other media Successfully!",
+        "failed_to_delete_media": "Failed to Delete other media",
+        "download_deleted": "Download Deleted",
         "download_cancelled": "Descàrrega cancel·lada",
-        "could_not_cancel_download": "No s'ha pogut cancel·lar la descàrrega",
+        "could_not_delete_download": "Could Not Delete Download",
+        "download_paused": "Download Paused",
+        "could_not_pause_download": "Could Not Pause Download",
+        "download_resumed": "Download Resumed",
+        "could_not_resume_download": "Could Not Resume Download",
         "download_completed": "Descàrrega completada",
-        "download_started_for": "S'ha iniciat la descàrrega per a {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} està preparat per ser descarregat",
-        "download_stated_for_item": "S'ha iniciat la descàrrega per a {{item}}",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "Ha fallat la descàrrega per a {{item}} - {{error}}",
         "download_completed_for_item": "S'ha completat la descàrrega per a {{item}}",
-        "queued_item_for_optimization": "S'ha afegit {{item}} a la cua per a l'optimització",
-        "failed_to_start_download_for_item": "No s'ha pogut iniciar la descàrrega per a {{item}}: {{message}}",
-        "server_responded_with_status_code": "El servidor ha respost amb l'estat {{statusCode}}",
-        "no_response_received_from_server": "No s'ha rebut resposta del servidor",
-        "error_setting_up_the_request": "Error en configurar la sol·licitud",
-        "failed_to_start_download_for_item_unexpected_error": "No s'ha pogut iniciar la descàrrega per a {{item}}: Error inesperat",
+        "download_started_for_item": "Download Started for {{item}}",
+        "failed_to_start_download": "Failed to start download",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "Tots els fitxers, carpetes i treballs s'han suprimit correctament",
-        "an_error_occured_while_deleting_files_and_jobs": "S'ha produït un error en suprimir fitxers i treballs",
-        "go_to_downloads": "Ves a les descàrregues"
+        "failed_to_clean_cache_directory": "Failed to clean cache directory",
+        "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
+        "go_to_downloads": "Ves a les descàrregues",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
+  "common": {
+    "select": "Select",
+    "no_trailer_available": "No trailer available",
+    "video": "Vídeo",
+    "audio": "Àudio",
+    "subtitle": "Subtítols",
+    "play": "Play",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Cerca aquí...",
     "search": "Cerca...",
     "x_items": "{{count}} elements",
     "library": "Biblioteca",
@@ -290,6 +492,10 @@
     "episodes": "Episodis",
     "collections": "Col·leccions",
     "actors": "Actors",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Sol·licita pel·lícules",
     "request_series": "Sol·licita sèries",
     "recently_added": "Afegit recentment",
@@ -315,7 +521,6 @@
     "tmdb_tv_streaming_services": "Serveis de reproducció de sèries TMDB"
   },
   "library": {
-    "no_items_found": "No s'han trobat elements",
     "no_results": "No hi ha resultats",
     "no_libraries_found": "No s'han trobat biblioteques",
     "item_types": {
@@ -338,9 +543,8 @@
       "genres": "Gèneres",
       "years": "Anys",
       "sort_by": "Ordenar per",
+      "filter_by": "Filter By",
       "sort_order": "Ordre",
-      "asc": "Ascendent",
-      "desc": "Descendent",
       "tags": "Etiquetes"
     }
   },
@@ -364,17 +568,18 @@
     "client_error": "Error del client",
     "could_not_create_stream_for_chromecast": "No s'ha pogut crear un flux per a Chromecast",
     "message_from_server": "Missatge del servidor: {{message}}",
-    "video_has_finished_playing": "El vídeo ha acabat de reproduir-se!",
-    "no_video_source": "No hi ha font de vídeo...",
     "next_episode": "Episodi següent",
     "refresh_tracks": "Actualitzar pistes",
-    "subtitle_tracks": "Pistes de subtítols:",
     "audio_tracks": "Pistes d'àudio:",
     "playback_state": "Estat de reproducció:",
-    "no_data_available": "No hi ha dades disponibles",
     "index": "Índex:",
     "continue_watching": "Continuar veient",
-    "go_back": "Enrere"
+    "go_back": "Enrere",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "A continuació",
@@ -390,6 +595,7 @@
     "no_similar_items_found": "No s'han trobat elements similars",
     "video": "Vídeo",
     "more_details": "Més detalls",
+    "media_options": "Media Options",
     "quality": "Qualitat",
     "audio": "Àudio",
     "subtitles": "Subtítols",
@@ -404,15 +610,13 @@
       "download_episode": "Descarrega l'episodi",
       "download_movie": "Descarrega la pel·lícula",
       "download_x_item": "Descarrega {{item_count}} elements",
-      "download_button": "Descarrega",
-      "using_optimized_server": "Utilitzant servidor optimitzat",
-      "using_default_method": "Utilitzant mètode per defecte"
+      "download_unwatched_only": "Unwatched Only",
+      "download_button": "Descarrega"
     }
   },
   "live_tv": {
     "next": "Següent",
     "previous": "Anterior",
-    "live_tv": "TV en directe",
     "coming_soon": "Pròximament",
     "on_now": "Ara en emissió",
     "shows": "Programes",
@@ -460,6 +664,10 @@
     "number_episodes": "{{episode_number}} episodis",
     "born": "Nascut",
     "appearances": "Aparicions",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "El servidor Jellyseerr no compleix els requisits mínims de versió! Actualitzeu-lo almenys a la versió 2.0.0",
       "jellyseerr_test_failed": "Ha fallat la prova de Jellyseerr. Torneu-ho a provar.",
@@ -467,7 +675,11 @@
       "issue_submitted": "Incidència enviada!",
       "requested_item": "S'ha sol·licitat {{item}}!",
       "you_dont_have_permission_to_request": "No teniu permís per sol·licitar!",
-      "something_went_wrong_requesting_media": "Alguna cosa ha anat malament en sol·licitar contingut!"
+      "something_went_wrong_requesting_media": "Alguna cosa ha anat malament en sol·licitar contingut!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -476,5 +688,129 @@
     "library": "Biblioteca",
     "custom_links": "Enllaços personalitzats",
     "favorites": "Preferits"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

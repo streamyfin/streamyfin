@@ -17,10 +17,12 @@
     "change_server": "Ho'Do' veS yIghoS",
     "invalid_username_or_password": "tlhIngan pagh ngoq De' law'be'",
     "user_does_not_have_permission_to_log_in": "tlhIngan lut 'el je'laHbe'",
-    "server_is_taking_too_long_to_respond_try_again_later": "Ho'Do' veS jachrup. pItlh yIHaD.",
+    "server_is_taking_too_long_to_respond_try_again_later": "Ho'Do' veS jachrup. pItlh yIHaD",
     "server_received_too_many_requests_try_again_later": "Ho'Do' veS lutlh ngeb petlh law'. pItlh yIHaD.",
     "there_is_a_server_error": "Ho'Do' veS ghIq maS",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "num ghIq Doch. URL mej Danej'a'?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "num ghIq Doch. URL mej Danej'a'?",
+    "too_old_server_text": "Unsupported Jellyfin Server Discovered",
+    "too_old_server_description": "**Jellyfin chu'qu' Dotlh yIchoHmoH**"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Jellyfin Ho'Do' veS URL yI'el",
@@ -28,19 +30,64 @@
     "connect_button": "yIngoq!",
     "previous_servers": "namen Ho'Do' veS",
     "clear_button": "yIQaw'",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "val Ho'Do' veS yISam",
     "searching": "Sam...",
-    "servers": "Ho'Do' veS"
+    "servers": "Ho'Do' veS",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "De’wI’ rarlu’ ’e’ wI’ol",
     "no_internet": "ret pagh",
     "no_items": "Doch pagh",
     "no_internet_message": "QublaHbe'.\nDoch Qaw'laHnIS SoH.",
+    "checking_server_connection_message": "Checking connection to server",
     "go_to_downloads": "Qaw' Doch yIghoS",
+    "retry": "Retry",
+    "server_unreachable": "De’wI’ ghomlu’be’",
+    "server_unreachable_message": "Could not reach the server.\nPlease check your network connection.",
     "oops": "QI'ya!",
     "error_message": "Doch rurbe'.\nyIQo' 'ej yI'elqa'.",
     "continue_watching": "tlhol yIHaDqa'",
     "next_up": "wej",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "num tu'lu' {{libraryName}}",
     "suggested_movies": "rutlh DIS",
     "suggested_episodes": "rutlh Hem",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "men",
       "log_out_button": "yIQo'",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "tlhIngan De'",
         "user": "tlhIngan",
@@ -85,21 +146,42 @@
         "rewind_length": "bavHom vum",
         "seconds_unit": "tera' rep"
       },
+      "gesture_controls": {
+        "gesture_controls_title": "QavwI' 'ej Qap",
+        "horizontal_swipe_skip": "SaS mup loSmeH",
+        "horizontal_swipe_skip_description": "Swipe left/right when controls are hidden to skip",
+        "left_side_brightness": "Left Side Brightness Control",
+        "left_side_brightness_description": "Swipe up/down on left side to adjust brightness",
+        "right_side_volume": "Right Side Volume Control",
+        "right_side_volume_description": "Swipe up/down on right side to adjust volume",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+      },
       "audio": {
         "audio_title": "QoQ",
         "set_audio_track": "namen Doch QoQ ret yISeH",
         "audio_language": "QoQ Hol",
         "audio_hint": "QoQ Hol wa' yIwIv.",
         "none": "pagh",
-        "language": "Hol"
+        "language": "Hol",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "De' chu'",
+        "subtitle_hint": "De' chu' wIvlaw' yISeH.",
         "subtitle_language": "De' chu' Hol",
         "subtitle_mode": "De' chu' mIw",
         "set_subtitle_track": "namen Doch De' chu' ret yISeH",
         "subtitle_size": "De' chu' qIt",
-        "subtitle_hint": "De' chu' wIvlaw' yISeH.",
         "none": "pagh",
         "language": "Hol",
         "loading": "tlha'... ",
@@ -109,7 +191,63 @@
           "Always": "reH",
           "None": "pagh",
           "OnlyForced": "Dun je'"
-        }
+        },
+        "text_color": "GhItlh rIt",
+        "background_color": "Tlhagh rIt",
+        "outline_color": "Outline Color",
+        "outline_thickness": "Outline Thickness",
+        "background_opacity": "Background Opacity",
+        "outline_opacity": "Outline Opacity",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Black",
+          "Gray": "Gray",
+          "Silver": "Silver",
+          "White": "White",
+          "Maroon": "Maroon",
+          "Red": "Red",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Yellow",
+          "Olive": "Olive",
+          "Green": "Green",
+          "Teal": "Teal",
+          "Lime": "Lime",
+          "Purple": "Purple",
+          "Navy": "Navy",
+          "Blue": "Blue",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "pagh",
+          "Thin": "Thin",
+          "Normal": "Normal",
+          "Thick": "Thick"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "patlh",
@@ -134,22 +272,28 @@
           "VLC_4": "VLC 4 (PiP mIwHa')"
         },
         "show_custom_menu_links": "menuDaq ret teqlu' yInej",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "De'wI' bom yIQIj",
         "select_liraries_you_want_to_hide": "De'wI' bom Danej QIj yIwIv.",
         "disable_haptic_feedback": "Qub quvHa' yIQIj",
-        "default_quality": "wa' luj"
+        "default_quality": "wa' luj",
+        "default_playback_speed": "Default Playback Speed",
+        "max_auto_play_episode_count": "Max Auto Play Episode Count",
+        "disabled": "Disabled"
       },
       "downloads": {
-        "downloads_title": "Qaw' Doch",
-        "optimized_versions_server": "luj wej Ho'Do' veS",
-        "save_button": "yIqIp",
-        "optimized_server": "luj Ho'Do' veS",
-        "optimized": "luj",
-        "default": "wa'",
-        "optimized_version_hint": "luj Ho'Do' veS URL yI'el.",
-        "read_more_about_optimized_server": "luj Ho'Do' veS latlh yIlaD",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domajn.org:pord"
+        "downloads_title": "Qaw' Doch"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "mIwHom",
@@ -160,8 +304,6 @@
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "ngoq De'",
           "password_placeholder": "tlhIngan {{username}} ngoq De' yI'el",
-          "save_button": "yIqIp",
-          "clear_button": "yIQaw'",
           "login_button": "yI'el!",
           "total_media_requests": "Hoch tlhol petlh",
           "movie_quota_limit": "DIS petlh Dun",
@@ -185,8 +327,40 @@
           "read_more_about_marlin": "Marlin latlh yIlaD",
           "save_button": "yIqIp",
           "toasts": {
-            "saved": "qIp"
-          }
+            "saved": "qIp",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -194,9 +368,19 @@
         "app_usage": "ghun {{usedSpace}}%",
         "device_usage": "naDev {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} ram",
-        "delete_all_downloaded_files": "Hoch Qaw' Doch yIQaw'"
+        "delete_all_downloaded_files": "Hoch Qaw' Doch yIQaw'",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "chu' Doch yIHoch",
         "reset_intro": "chu' Doch yIQaw'qa'"
       },
@@ -211,16 +395,12 @@
       "languages": {
         "title": "Holmey",
         "app_language": "ghun Hol",
-        "app_language_description": "ghun Hol yIwIv.",
         "system": "mIw'a'"
       },
       "toasts": {
         "error_deleting_files": "Qaw' ghIq",
         "background_downloads_enabled": "tlhegh Qaw' chu'",
-        "background_downloads_disabled": "tlhegh Qaw' QIj",
-        "connected": "ngoQ",
-        "could_not_connect": "ngoQlaHbe'",
-        "invalid_url": "URL law'be'"
+        "background_downloads_disabled": "tlhegh Qaw' QIj"
       }
     },
     "sessions": {
@@ -232,12 +412,14 @@
       "tvseries": "TV Hem",
       "movies": "DIS",
       "queue": "ghom",
+      "other_media": "Other media",
       "queue_hint": "ghun ghImDI' ghom Qaw'laH.",
       "no_items_in_queue": "ghom Doch pagh",
       "no_downloaded_items": "Qaw' Doch pagh",
       "delete_all_movies_button": "Hoch DIS yIQaw'",
       "delete_all_tvseries_button": "Hoch TV Hem yIQaw'",
       "delete_all_button": "Hoch yIQaw'",
+      "delete_all_other_media_button": "Delete other media",
       "active_download": "chu' Qaw'",
       "no_active_downloads": "chu' Qaw' pagh",
       "active_downloads": "chu' Qaw'",
@@ -248,35 +430,57 @@
       "something_went_wrong": "Doch rurbe'",
       "could_not_get_stream_url_from_jellyfin": "Jellyfin tlhol ret URL tu'laHbe'",
       "eta": "ETA {{eta}}",
-      "methods": "mIw",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Doch Qaw' je'laHbe'.",
         "deleted_all_movies_successfully": "Hoch DIS Qaw' Qapla'!",
         "failed_to_delete_all_movies": "Hoch DIS Qaw'laHbe'",
         "deleted_all_tvseries_successfully": "Hoch TV Hem Qaw' Qapla'!",
         "failed_to_delete_all_tvseries": "Hoch TV Hem Qaw'laHbe'",
+        "deleted_media_successfully": "Deleted other media Successfully!",
+        "failed_to_delete_media": "Failed to Delete other media",
+        "download_deleted": "Download Deleted",
         "download_cancelled": "Qaw' ghIm",
-        "could_not_cancel_download": "Qaw' ghImlaHbe'",
+        "could_not_delete_download": "Could Not Delete Download",
+        "download_paused": "Download Paused",
+        "could_not_pause_download": "Could Not Pause Download",
+        "download_resumed": "Download Resumed",
+        "could_not_resume_download": "Could Not Resume Download",
         "download_completed": "Qaw' Qapla'",
-        "download_started_for": "{{item}} Qaw' vIlchu'",
-        "item_is_ready_to_be_downloaded": "{{item}} Qaw'laHnIS",
-        "download_stated_for_item": "{{item}} Qaw' vIlchu'",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "{{item}} Qaw'laHbe' - {{error}}",
         "download_completed_for_item": "{{item}} Qaw' Qapla'",
-        "queued_item_for_optimization": "{{item}} luj ghom",
-        "failed_to_start_download_for_item": "{{item}} Qaw' vIlchu'laHbe': {{message}}",
-        "server_responded_with_status_code": "Ho'Do' veS jachrup {{statusCode}}",
-        "no_response_received_from_server": "Ho'Do' veS jachbe'",
-        "error_setting_up_the_request": "petlh SeH ghIq",
-        "failed_to_start_download_for_item_unexpected_error": "{{item}} Qaw' vIlchu'laHbe': num ghIq",
+        "download_started_for_item": "Download Started for {{item}}",
+        "failed_to_start_download": "Failed to start download",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "Hoch De', ram 'ej vum Qaw' Qapla'",
-        "an_error_occured_while_deleting_files_and_jobs": "De', ram 'ej vum Qaw'DI' ghIq",
-        "go_to_downloads": "Qaw' Doch yIghoS"
+        "failed_to_clean_cache_directory": "Failed to clean cache directory",
+        "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
+        "go_to_downloads": "Qaw' Doch yIghoS",
+        "file_deleted": "{{item}} deleted"
       }
     }
   },
+  "common": {
+    "select": "Select",
+    "no_trailer_available": "No trailer available",
+    "video": "mu'tlhegh",
+    "audio": "QoQ",
+    "subtitle": "De' chu'",
+    "play": "Play",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "DaH yISam...",
     "search": "yISam...",
     "x_items": "{{count}} Doch",
     "library": "De'wI' bom",
@@ -288,6 +492,10 @@
     "episodes": "HemHom",
     "collections": "ghom",
     "actors": "tlholwI'",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "DIS yIpetlh",
     "request_series": "Hem yIpetlh",
     "recently_added": "num tu'",
@@ -313,7 +521,6 @@
     "tmdb_tv_streaming_services": "TMDB TV tlhol mIw"
   },
   "library": {
-    "no_items_found": "Doch pagh tu'",
     "no_results": "Doch pagh tu'",
     "no_libraries_found": "De'wI' bom pagh tu'",
     "item_types": {
@@ -336,9 +543,8 @@
       "genres": "qorDu'",
       "years": "DIS",
       "sort_by": "yIwIv",
+      "filter_by": "Filter By",
       "sort_order": "wIv mIw",
-      "asc": "Dung",
-      "desc": "nuq",
       "tags": "De'Hom"
     }
   },
@@ -362,15 +568,18 @@
     "client_error": "lut 'el ghIq",
     "could_not_create_stream_for_chromecast": "Chromecast tlhol ret qonlaHbe'",
     "message_from_server": "Ho'Do' veS jach: {{message}}",
-    "video_has_finished_playing": "mu'tlhegh tlhol Qapla'!",
-    "no_video_source": "mu'tlhegh wang pagh",
     "next_episode": "wej HemHom",
     "refresh_tracks": "ret yIchu'qa'",
-    "subtitle_tracks": "De' chu' ret:",
     "audio_tracks": "QoQ ret:",
     "playback_state": "tlhol mIw:",
-    "no_data_available": "De' pagh tu'",
-    "index": "nem:"
+    "index": "nem:",
+    "continue_watching": "tlhol yIHaDqa'",
+    "go_back": "Go Back",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "wej",
@@ -386,6 +595,7 @@
     "no_similar_items_found": "Doch rur pagh tu'",
     "video": "mu'tlhegh",
     "more_details": "latlh De'",
+    "media_options": "Media Options",
     "quality": "luj",
     "audio": "QoQ",
     "subtitles": "De' chu'",
@@ -400,15 +610,13 @@
       "download_episode": "HemHom yIQaw'",
       "download_movie": "DIS yIQaw'",
       "download_x_item": "{{item_count}} Doch yIQaw'",
-      "download_button": "yIQaw'",
-      "using_optimized_server": "luj Ho'Do' veS tu'lu'",
-      "using_default_method": "wa' mIw tu'lu'"
+      "download_unwatched_only": "Unwatched Only",
+      "download_button": "yIQaw'"
     }
   },
   "live_tv": {
     "next": "wej",
     "previous": "namen",
-    "live_tv": "chu' TV",
     "coming_soon": "wej lup",
     "on_now": "DaH",
     "shows": "tlhol",
@@ -456,6 +664,10 @@
     "number_episodes": "{{episode_number}} HemHom",
     "born": "poS",
     "appearances": "tlholvam",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Jellyseerr Ho'Do' veS wej law'be'! 2.0.0 yIchu'!",
       "jellyseerr_test_failed": "Jellyseerr nejlaHbe'. yIHaDqa'.",
@@ -463,7 +675,11 @@
       "issue_submitted": "ghIq nejqa'!",
       "requested_item": "{{item}} petlh!",
       "you_dont_have_permission_to_request": "petlh je'laHbe'!",
-      "something_went_wrong_requesting_media": "tlhol petlhDI' Doch rurbe'!"
+      "something_went_wrong_requesting_media": "tlhol petlhDI' Doch rurbe'!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -472,5 +688,129 @@
     "library": "De'wI' bom",
     "custom_links": "teqlu' ret",
     "favorites": "wIv Doch"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }
