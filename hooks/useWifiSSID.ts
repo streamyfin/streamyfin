@@ -2,6 +2,12 @@ import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import * as Location from "expo-location";
 import { useCallback, useEffect, useState } from "react";
 
+// Configure NetInfo to fetch WiFi SSID on iOS
+// This must be called before any NetInfo operations
+NetInfo.configure({
+  shouldFetchWiFiSSID: true,
+});
+
 export type PermissionStatus =
   | "granted"
   | "denied"
@@ -78,14 +84,25 @@ export function useWifiSSID(): UseWifiSSIDReturn {
     if (permissionStatus !== "granted") return;
 
     // Fetch current state immediately when permission is granted
-    NetInfo.fetch().then((state) => {
+    // On iOS, we need to actively use Location services before SSID is available
+    (async () => {
+      try {
+        // Request location to activate Core Location (required for SSID access on iOS)
+        await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Lowest,
+        });
+      } catch (e) {
+        console.log("[WiFi Debug] Location fetch failed (may be expected):", e);
+      }
+
+      const state = await NetInfo.fetch();
       console.log(
         "[WiFi Debug] NetInfo state:",
         JSON.stringify(state, null, 2),
       );
       console.log("[WiFi Debug] Permission status:", permissionStatus);
       setSSID(extractSSIDFromState(state));
-    });
+    })();
 
     const unsubscribe = NetInfo.addEventListener((state) => {
       setSSID(extractSSIDFromState(state));
