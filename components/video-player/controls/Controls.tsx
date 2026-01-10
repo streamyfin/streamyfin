@@ -110,7 +110,7 @@ export const Controls: FC<Props> = ({
   } = useTrickplay(item);
 
   const min = useSharedValue(0);
-  const max = useSharedValue(item.RunTimeTicks || 0);
+  const max = useSharedValue(ticksToMs(item.RunTimeTicks || 0));
 
   // Animation values for controls
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);

@@ -109,6 +109,9 @@ final class PiPController: NSObject {
     }
     
     func updatePlaybackState() {
+        // Only invalidate when PiP is active to avoid "no context menu visible" warnings
+        guard isPictureInPictureActive else { return }
+        
         if Thread.isMainThread {
             pipController?.invalidatePlaybackState()
         } else {
@@ -127,8 +130,10 @@ final class PiPController: NSObject {
             CMTimebaseSetTime(tb, time: time)
         }
         
-        // Always invalidate to refresh the PiP UI
-        updatePlaybackState()
+        // Only invalidate when PiP is active to avoid unnecessary updates
+        if isPictureInPictureActive {
+            updatePlaybackState()
+        }
     }
     
     /// Updates the current playback time from seconds

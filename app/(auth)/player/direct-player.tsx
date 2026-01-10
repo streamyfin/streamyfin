@@ -15,7 +15,7 @@ import { router, useGlobalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, View } from "react-native";
+import { Alert, Platform, useWindowDimensions, View } from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 
 import { BITRATES } from "@/components/BitrateSelector";
@@ -62,6 +62,8 @@ export default function page() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const { settings, updateSettings } = useSettings();
+
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
@@ -728,7 +730,32 @@ export default function page() {
     const newZoomState = !isZoomedToFill;
     await videoRef.current?.setZoomedToFill?.(newZoomState);
     setIsZoomedToFill(newZoomState);
-  }, [isZoomedToFill]);
+
+    // Adjust subtitle position to compensate for video cropping when zoomed
+    if (newZoomState) {
+      // Get video dimensions from mediaSource
+      const videoStream = stream?.mediaSource?.MediaStreams?.find(
+        (s) => s.Type === "Video",
+      );
+      const videoWidth = videoStream?.Width ?? 1920;
+      const videoHeight = videoStream?.Height ?? 1080;
+
+      const videoAR = videoWidth / videoHeight;
+      const screenAR = screenWidth / screenHeight;
+
+      if (screenAR > videoAR) {
+        // Screen is wider than video - video height extends beyond screen
+        // Calculate exact subtitle position to keep them visible above the crop
+        // Formula: newSubPos = 50 × (1 + videoAR / screenAR)
+        const newSubPos = Math.round(50 * (1 + videoAR / screenAR));
+        await videoRef.current?.setSubtitlePosition?.(newSubPos);
+      }
+      // If videoAR >= screenAR, sides are cropped but bottom is visible, no adjustment needed
+    } else {
+      // Restore to default position (bottom of video frame)
+      await videoRef.current?.setSubtitlePosition?.(100);
+    }
+  }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
 
   // Apply subtitle settings when video loads
   useEffect(() => {

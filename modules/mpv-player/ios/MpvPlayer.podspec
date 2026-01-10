@@ -15,27 +15,6 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.dependency 'MPVKit-GPL'
 
-  s.frameworks = [
-    'AVFoundation',
-    'AudioToolbox',
-    'CoreAudio',
-    'CoreVideo',
-    'CoreFoundation',
-    'CoreMedia',
-    'Metal',
-    'VideoToolbox'
-  ]
-
-  s.libraries = [
-    'bz2',
-    'iconv',
-    'expat',
-    'resolv',
-    'xml2',
-    'z',
-    'c++'
-  ]
-
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

@@ -145,7 +145,6 @@ final class MPVLayerRenderer {
             let instance = Unmanaged<MPVLayerRenderer>.fromOpaque(ctx).takeUnretainedValue()
             instance.processEvents()
         }, Unmanaged.passUnretained(self).toOpaque())
-
         isRunning = true
     }
     
@@ -190,7 +189,6 @@ final class MPVLayerRenderer {
         pendingExternalSubtitles = externalSubtitles ?? []
         self.initialSubtitleId = initialSubtitleId
         self.initialAudioId = initialAudioId
-
         queue.async { [weak self] in
             guard let self else { return }
             self.isLoading = true
@@ -206,19 +204,16 @@ final class MPVLayerRenderer {
             // Stop previous playback before loading new file
             self.command(handle, ["stop"])
             self.updateHTTPHeaders(headers)
-
             // Set start position
             if let startPos = startPosition, startPos > 0 {
                 self.setProperty(name: "start", value: String(format: "%.2f", startPos))
             } else {
                 self.setProperty(name: "start", value: "0")
             }
-
             // Set initial audio track if specified
             if let audioId = self.initialAudioId, audioId > 0 {
                 self.setAudioTrack(audioId)
             }
-
             // Set initial subtitle track if no external subs
             if self.pendingExternalSubtitles.isEmpty {
                 if let subId = self.initialSubtitleId {
@@ -229,7 +224,6 @@ final class MPVLayerRenderer {
             } else {
                 self.disableSubtitles()
             }
-
             let target = url.isFileURL ? url.path : url.absoluteString
             self.command(handle, ["loadfile", target, "replace"])
         }
@@ -293,7 +287,6 @@ final class MPVLayerRenderer {
             ("track-list/count", MPV_FORMAT_INT64),
             ("paused-for-cache", MPV_FORMAT_FLAG)
         ]
-
         for (name, format) in properties {
             mpv_observe_property(handle, 0, name, format)
         }
@@ -353,7 +346,6 @@ final class MPVLayerRenderer {
                     command(handle, ["sub-add", subUrl])
                 }
                 pendingExternalSubtitles = []
-
                 // Set subtitle after external subs are added
                 if let subId = initialSubtitleId {
                     setSubtitleTrack(subId)
@@ -361,7 +353,6 @@ final class MPVLayerRenderer {
                     disableSubtitles()
                 }
             }
-
             if !isReadyToSeek {
                 isReadyToSeek = true
                 DispatchQueue.main.async { [weak self] in
@@ -369,7 +360,6 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didBecomeReadyToSeek: true)
                 }
             }
-
             // Notify loading ended
             if isLoading {
                 isLoading = false
@@ -378,9 +368,19 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didChangeLoading: false)
                 }
             }
-
+            
+        case MPV_EVENT_SEEK:
+            // Seek started - show loading indicator
+            if !isLoading {
+                isLoading = true
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.renderer(self, didChangeLoading: true)
+                }
+            }
+            
         case MPV_EVENT_PLAYBACK_RESTART:
-            // Video playback has started/restarted
+            // Video playback has started/restarted (including after seek)
             if isLoading {
                 isLoading = false
                 DispatchQueue.main.async { [weak self] in
@@ -388,7 +388,6 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didChangeLoading: false)
                 }
             }
-
         case MPV_EVENT_PROPERTY_CHANGE:
             if let property = event.data?.assumingMemoryBound(to: mpv_event_property.self).pointee.name {
                 let name = String(cString: property)
@@ -409,7 +408,6 @@ final class MPVLayerRenderer {
                     Logger.shared.log("mpv[\(component)] \(text)", type: "Warn")
                 }
             }
-
         default:
             break
         }
@@ -417,7 +415,6 @@ final class MPVLayerRenderer {
     
     private func refreshProperty(named name: String, event: mpv_event) {
         guard let handle = mpv else { return }
-
         switch name {
         case "duration":
             var value = Double(0)
@@ -429,7 +426,6 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration)
                 }
             }
-
         case "time-pos":
             var value = Double(0)
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
@@ -440,7 +436,6 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration)
                 }
             }
-
         case "pause":
             var flag: Int32 = 0
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_FLAG, value: &flag)
@@ -454,7 +449,6 @@ final class MPVLayerRenderer {
                     }
                 }
             }
-
         case "paused-for-cache":
             var flag: Int32 = 0
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_FLAG, value: &flag)
@@ -468,7 +462,6 @@ final class MPVLayerRenderer {
                     }
                 }
             }
-
         case "track-list/count":
             var trackCount: Int64 = 0
             let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_INT64, value: &trackCount)
@@ -479,7 +472,6 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didBecomeTracksReady: true)
                 }
             }
-
         default:
             break
         }
