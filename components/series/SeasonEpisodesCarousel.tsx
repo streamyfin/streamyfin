@@ -1,12 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, type ViewStyle } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -17,7 +18,6 @@ import { ItemCardText } from "../ItemCardText";
 interface Props {
   item?: BaseItemDto | null;
   loading?: boolean;
-  isOffline?: boolean;
   style?: ViewStyle;
   containerStyle?: ViewStyle;
 }
@@ -25,17 +25,14 @@ interface Props {
 export const SeasonEpisodesCarousel: React.FC<Props> = ({
   item,
   loading,
-  isOffline,
   style,
   containerStyle,
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const isOffline = useOfflineMode();
+  const router = useRouter();
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
@@ -51,11 +48,15 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     queryKey: ["episodes", seasonId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        return downloadedFiles
-          ?.filter(
-            (f) => f.item.Type === "Episode" && f.item.SeasonId === seasonId,
-          )
-          .map((f) => f.item);
+        // Read from database (will have fresh data after invalidation)
+        const downloadedFiles = getDownloadedItems();
+        return (
+          downloadedFiles
+            ?.filter(
+              (f) => f.item.Type === "Episode" && f.item.SeasonId === seasonId,
+            )
+            .map((f) => f.item) ?? []
+        );
       }
       if (!api || !user?.Id || !item?.SeriesId) return [];
       const response = await getTvShowsApi(api).getEpisodes({
@@ -73,7 +74,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
       });
       return response.data.Items as BaseItemDto[];
     },
-    enabled: !!api && !!user?.Id && !!seasonId,
+    enabled: !!seasonId && (isOffline || (!!api && !!user?.Id)),
   });
 
   useEffect(() => {

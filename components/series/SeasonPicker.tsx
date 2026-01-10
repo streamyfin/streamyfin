@@ -10,7 +10,9 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
@@ -31,6 +33,8 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
   const [user] = useAtom(userAtom);
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
   const { t } = useTranslation();
+  const isOffline = useOfflineMode();
+  const { getDownloadedItems } = useDownload();
 
   const seasonIndex = useMemo(
     () => seasonIndexState[item.Id ?? ""],
@@ -38,8 +42,36 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
   );
 
   const { data: seasons } = useQuery({
-    queryKey: ["seasons", item.Id],
+    queryKey: ["seasons", item.Id, isOffline],
     queryFn: async () => {
+      if (isOffline) {
+        // Get unique seasons from downloaded episodes
+        const downloadedFiles = getDownloadedItems();
+        const episodes = downloadedFiles?.filter(
+          (f) => f.item.SeriesId === item.Id,
+        );
+        const seasonNumbers = Array.from(
+          new Set(
+            episodes
+              ?.map((f) => f.item.ParentIndexNumber)
+              .filter((n) => n !== undefined && n !== null),
+          ),
+        ).sort((a, b) => (a ?? 0) - (b ?? 0));
+
+        // Create season-like objects from episode data
+        return seasonNumbers.map((seasonNum) => {
+          const firstEpisode = episodes?.find(
+            (e) => e.item.ParentIndexNumber === seasonNum,
+          )?.item;
+          return {
+            Id: `offline-season-${seasonNum}`,
+            IndexNumber: seasonNum,
+            Name: firstEpisode?.SeasonName || `Season ${seasonNum}`,
+            SeriesId: item.Id,
+          } as BaseItemDto;
+        });
+      }
+
       if (!api || !user?.Id || !item.Id) return [];
       const response = await api.axiosInstance.get(
         `${api.basePath}/Shows/${item.Id}/Seasons`,
@@ -58,8 +90,8 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
 
       return response.data.Items;
     },
-    staleTime: 60,
-    enabled: !!api && !!user?.Id && !!item.Id,
+    staleTime: isOffline ? Infinity : 60,
+    enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
 
   const selectedSeasonId: string | null = useMemo(() => {
@@ -73,9 +105,38 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     return season.Id!;
   }, [seasons, seasonIndex]);
 
+  // For offline mode, we use season index number instead of ID
+  const selectedSeasonNumber = useMemo(() => {
+    if (!isOffline) return null;
+    const season = seasons?.find(
+      (s: BaseItemDto) =>
+        s.IndexNumber === seasonIndex || s.Name === seasonIndex,
+    );
+    return season?.IndexNumber ?? null;
+  }, [isOffline, seasons, seasonIndex]);
+
   const { data: episodes, isPending } = useQuery({
-    queryKey: ["episodes", item.Id, selectedSeasonId],
+    queryKey: [
+      "episodes",
+      item.Id,
+      isOffline ? selectedSeasonNumber : selectedSeasonId,
+      isOffline,
+    ],
     queryFn: async () => {
+      if (isOffline) {
+        const downloadedFiles = getDownloadedItems();
+        return (
+          downloadedFiles
+            ?.filter(
+              (f) =>
+                f.item.SeriesId === item.Id &&
+                f.item.ParentIndexNumber === selectedSeasonNumber,
+            )
+            .map((f) => f.item)
+            .sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0)) || []
+        );
+      }
+
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) {
         return [];
       }
@@ -85,7 +146,6 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
         userId: user.Id,
         seasonId: selectedSeasonId,
         enableUserData: true,
-        // Note: Including trick play is necessary to enable trick play downloads
         fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
       });
 
@@ -97,7 +157,10 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
 
       return res.data.Items;
     },
-    enabled: !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
+    staleTime: isOffline ? Infinity : 0,
+    enabled: isOffline
+      ? !!item.Id && selectedSeasonNumber !== null
+      : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
   });
 
   // Used for height calculation
@@ -127,7 +190,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
             }));
           }}
         />
-        {episodes?.length ? (
+        {episodes?.length && !isOffline ? (
           <View className='flex flex-row items-center space-x-2'>
             <DownloadItems
               title={t("item_card.download.download_season")}
@@ -180,9 +243,11 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
                     {runtimeTicksToSeconds(e.RunTimeTicks)}
                   </Text>
                 </View>
-                <View className='self-start ml-auto -mt-0.5'>
-                  <DownloadSingleItem item={e} />
-                </View>
+                {!isOffline && (
+                  <View className='self-start ml-auto -mt-0.5'>
+                    <DownloadSingleItem item={e} />
+                  </View>
+                )}
               </View>
 
               <Text

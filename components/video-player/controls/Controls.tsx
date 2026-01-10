@@ -3,7 +3,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { type FC, useCallback, useEffect, useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
@@ -15,12 +15,14 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
+import useRouter from "@/hooks/useAppRouter";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { DownloadedItem } from "@/providers/Downloads/types";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { ticksToMs } from "@/utils/time";
@@ -49,7 +51,6 @@ interface Props {
   enableTrickplay?: boolean;
   togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
-  offline?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
   startPictureInPicture?: () => Promise<void>;
@@ -83,12 +84,12 @@ export const Controls: FC<Props> = ({
   aspectRatio = "default",
   isZoomedToFill = false,
   onZoomToggle,
-  offline = false,
   api = null,
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
 }) => {
+  const offline = useOfflineMode();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");

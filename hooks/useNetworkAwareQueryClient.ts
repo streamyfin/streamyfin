@@ -36,12 +36,26 @@ export function useNetworkAwareQueryClient(): NetworkAwareQueryClient {
   );
 
   return useMemo(() => {
-    // Create a proxy-like object that inherits from queryClient
-    // but overrides invalidateQueries
-    const wrapped = Object.create(queryClient) as NetworkAwareQueryClient;
-    wrapped.invalidateQueries = networkAwareInvalidate;
-    wrapped.forceInvalidateQueries =
-      queryClient.invalidateQueries.bind(queryClient);
-    return wrapped;
+    // Use a Proxy to wrap the queryClient and override invalidateQueries.
+    // Object.create doesn't work because QueryClient uses private fields (#)
+    // which can only be accessed on the exact instance they were defined on.
+    const forceInvalidate = queryClient.invalidateQueries.bind(queryClient);
+
+    return new Proxy(queryClient, {
+      get(target, prop) {
+        if (prop === "invalidateQueries") {
+          return networkAwareInvalidate;
+        }
+        if (prop === "forceInvalidateQueries") {
+          return forceInvalidate;
+        }
+        const value = Reflect.get(target, prop, target);
+        // Bind methods to the original target to preserve private field access
+        if (typeof value === "function") {
+          return value.bind(target);
+        }
+        return value;
+      },
+    }) as NetworkAwareQueryClient;
   }, [queryClient, networkAwareInvalidate]);
 }

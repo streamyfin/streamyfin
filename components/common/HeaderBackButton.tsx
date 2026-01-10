@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView, type BlurViewProps } from "expo-blur";
-import { useRouter } from "expo-router";
-import { Platform } from "react-native";
-import { Pressable, type PressableProps } from "react-native-gesture-handler";
+import { Platform, Pressable, PressableProps } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 
 interface Props extends BlurViewProps {
   background?: "blur" | "transparent";

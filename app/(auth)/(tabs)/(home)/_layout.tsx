@@ -1,9 +1,10 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 

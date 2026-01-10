@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -14,86 +15,144 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
+import { storage } from "@/utils/mmkv";
 
 const page: React.FC = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const params = useLocalSearchParams();
-  const { id: seriesId, seasonIndex } = params as {
+  const {
+    id: seriesId,
+    seasonIndex,
+    offline: offlineParam,
+  } = params as {
     id: string;
     seasonIndex: string;
+    offline?: string;
   };
+
+  const isOffline = offlineParam === "true";
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const { getDownloadedItems } = useDownload();
 
+  // For offline mode, construct series data from downloaded episodes
   const { data: item } = useQuery({
-    queryKey: ["series", seriesId],
-    queryFn: async () =>
-      await getUserItemData({
+    queryKey: ["series", seriesId, isOffline],
+    queryFn: async () => {
+      if (isOffline) {
+        const downloadedFiles = getDownloadedItems();
+        const episodes = downloadedFiles?.filter(
+          (f) => f.item.SeriesId === seriesId,
+        );
+        if (episodes && episodes.length > 0) {
+          const firstEpisode = episodes[0].item;
+          // Construct a series-like object from episode data
+          return {
+            Id: seriesId,
+            Name: firstEpisode.SeriesName,
+            Type: "Series",
+            ProductionYear: firstEpisode.ProductionYear,
+            Overview: firstEpisode.SeriesName, // Limited info in offline mode
+          } as BaseItemDto;
+        }
+        return null;
+      }
+      return await getUserItemData({
         api,
         userId: user?.Id,
         itemId: seriesId,
-      }),
-    staleTime: 60 * 1000,
+      });
+    },
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    enabled: isOffline || (!!api && !!user?.Id),
   });
 
-  const backdropUrl = useMemo(
-    () =>
-      getBackdropUrl({
-        api,
-        item,
-        quality: 90,
-        width: 1000,
-      }),
-    [item],
-  );
+  // For offline mode, use stored base64 image
+  const base64Image = useMemo(() => {
+    if (isOffline) {
+      return storage.getString(seriesId);
+    }
+    return null;
+  }, [isOffline, seriesId]);
 
-  const logoUrl = useMemo(
-    () =>
-      getLogoImageUrlById({
-        api,
-        item,
-      }),
-    [item],
-  );
+  const backdropUrl = useMemo(() => {
+    if (isOffline && base64Image) {
+      return `data:image/jpeg;base64,${base64Image}`;
+    }
+    return getBackdropUrl({
+      api,
+      item,
+      quality: 90,
+      width: 1000,
+    });
+  }, [isOffline, base64Image, api, item]);
+
+  const logoUrl = useMemo(() => {
+    if (isOffline) {
+      return null; // No logo in offline mode
+    }
+    return getLogoImageUrlById({
+      api,
+      item,
+    });
+  }, [isOffline, api, item]);
 
   const { data: allEpisodes, isLoading } = useQuery({
-    queryKey: ["AllEpisodes", item?.Id],
+    queryKey: ["AllEpisodes", seriesId, isOffline],
     queryFn: async () => {
-      if (!api || !user?.Id || !item?.Id) return [];
+      if (isOffline) {
+        const downloadedFiles = getDownloadedItems();
+        return (
+          downloadedFiles
+            ?.filter((f) => f.item.SeriesId === seriesId)
+            .map((f) => f.item)
+            .sort(
+              (a, b) =>
+                (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
+                (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
+            ) || []
+        );
+      }
+      if (!api || !user?.Id) return [];
 
       const res = await getTvShowsApi(api).getEpisodes({
-        seriesId: item.Id,
+        seriesId: seriesId,
         userId: user.Id,
         enableUserData: true,
-        // Note: Including trick play is necessary to enable trick play downloads
         fields: ["MediaSources", "MediaStreams", "Overview", "Trickplay"],
       });
       return res?.data.Items || [];
     },
     select: (data) =>
-      // This needs to be sorted by parent index number and then index number, that way we can download the episodes in the correct order.
       [...(data || [])].sort(
         (a, b) =>
           (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
           (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
       ),
-    staleTime: 60,
-    enabled: !!api && !!user?.Id && !!item?.Id,
+    staleTime: isOffline ? Infinity : 60,
+    enabled: isOffline || (!!api && !!user?.Id),
   });
 
   useEffect(() => {
+    // Don't show header buttons in offline mode
+    if (isOffline) {
+      navigation.setOptions({
+        headerRight: () => null,
+      });
+      return;
+    }
+
     navigation.setOptions({
       headerRight: () =>
-        !isLoading &&
-        item &&
-        allEpisodes &&
-        allEpisodes.length > 0 && (
+        !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <View className='flex flex-row items-center space-x-2'>
             <AddToFavorites item={item} />
             {!Platform.isTV && (
@@ -114,49 +173,64 @@ const page: React.FC = () => {
               />
             )}
           </View>
-        ),
+        ) : null,
     });
-  }, [allEpisodes, isLoading, item]);
+  }, [allEpisodes, isLoading, item, isOffline]);
 
-  if (!item || !backdropUrl) return null;
+  // For offline mode, we can show the page even without backdropUrl
+  if (!item || (!isOffline && !backdropUrl)) return null;
 
   return (
-    <ParallaxScrollView
-      headerHeight={400}
-      headerImage={
-        <Image
-          source={{
-            uri: backdropUrl,
-          }}
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
-        />
-      }
-      logo={
-        logoUrl ? (
-          <Image
-            source={{
-              uri: logoUrl,
-            }}
-            style={{
-              height: 130,
-              width: "100%",
-            }}
-            contentFit='contain'
-          />
-        ) : undefined
-      }
-    >
-      <View className='flex flex-col pt-4'>
-        <SeriesHeader item={item} />
-        <View className='mb-4'>
-          <NextUp seriesId={seriesId} />
+    <OfflineModeProvider isOffline={isOffline}>
+      <ParallaxScrollView
+        headerHeight={400}
+        headerImage={
+          backdropUrl ? (
+            <Image
+              source={{
+                uri: backdropUrl,
+              }}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                width: "100%",
+                height: "100%",
+                backgroundColor: "#1a1a1a",
+              }}
+            />
+          )
+        }
+        logo={
+          logoUrl ? (
+            <Image
+              source={{
+                uri: logoUrl,
+              }}
+              style={{
+                height: 130,
+                width: "100%",
+              }}
+              contentFit='contain'
+            />
+          ) : undefined
+        }
+      >
+        <View className='flex flex-col pt-4'>
+          <SeriesHeader item={item} />
+          {!isOffline && (
+            <View className='mb-4'>
+              <NextUp seriesId={seriesId} />
+            </View>
+          )}
+          <SeasonPicker item={item} initialSeasonIndex={Number(seasonIndex)} />
         </View>
-        <SeasonPicker item={item} initialSeasonIndex={Number(seasonIndex)} />
-      </View>
-    </ParallaxScrollView>
+      </ParallaxScrollView>
+    </OfflineModeProvider>
   );
 };
 

@@ -4,7 +4,7 @@ import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
-import { router, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
 import type React from "react";
@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { AppState, Platform } from "react-native";
 import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
+import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
@@ -567,6 +568,7 @@ export const useJellyfin = (): JellyfinContextValue => {
 
 function useProtectedRoute(user: UserDto | null, loaded = false) {
   const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     if (loaded === false) return;

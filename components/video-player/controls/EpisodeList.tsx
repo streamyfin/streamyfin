@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useGlobalSearchParams } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -21,6 +20,7 @@ import {
 import { useDownload } from "@/providers/DownloadProvider";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
 
@@ -40,10 +40,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const scrollToIndex = (index: number) => {
     scrollViewRef.current?.scrollToIndex(index, 100);
   };
-  const { offline } = useGlobalSearchParams<{
-    offline: string;
-  }>();
-  const isOffline = offline === "true";
+  const isOffline = useOfflineMode();
 
   // Set the initial season index
   useEffect(() => {
@@ -116,6 +113,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const { data: episodes, isLoading: episodesLoading } = useQuery({
     queryKey: ["episodes", item.SeriesId, selectedSeasonId],
     queryFn: async () => {
+      console.log("isOffline", isOffline);
       if (isOffline) {
         if (!item.SeriesId) return [];
         return downloadedFiles
@@ -153,6 +151,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
 
   const queryClient = useQueryClient();
   useEffect(() => {
+    // Don't prefetch when offline - data is already local
+    if (isOffline) return;
+
     for (const e of episodes || []) {
       queryClient.prefetchQuery({
         queryKey: ["item", e.Id],
@@ -168,7 +169,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         staleTime: 60 * 5 * 1000,
       });
     }
-  }, [episodes]);
+  }, [episodes, isOffline]);
 
   // Scroll to the current item when episodes are fetched
   useEffect(() => {

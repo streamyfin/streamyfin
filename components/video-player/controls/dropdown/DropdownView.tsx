@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
@@ -8,6 +8,8 @@ import {
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
+import useRouter from "@/hooks/useAppRouter";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
@@ -38,8 +40,9 @@ const DropdownView = ({
   const { item, mediaSource } = usePlayerContext();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
+  const isOffline = useOfflineMode();
 
-  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
@@ -47,14 +50,11 @@ const DropdownView = ({
       mediaSourceId: string;
       bitrateValue: string;
       playbackPosition: string;
-      offline: string;
     }>();
 
   // Use ref to track playbackPosition without causing re-renders
   const playbackPositionRef = useRef(playbackPosition);
   playbackPositionRef.current = playbackPosition;
-
-  const isOffline = offline === "true";
 
   // Stabilize IDs to prevent unnecessary recalculations
   const itemIdRef = useRef(item.Id);

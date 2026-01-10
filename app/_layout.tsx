@@ -47,7 +47,7 @@ import type {
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { router, Stack, useSegments } from "expo-router";
+import { Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
@@ -56,6 +56,7 @@ import { I18nextProvider } from "react-i18next";
 import { Appearance } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import "react-native-reanimated";
@@ -80,14 +81,9 @@ SplashScreen.setOptions({
   fade: true,
 });
 
-function redirect(notification: typeof Notifications.Notification) {
-  const url = notification.request.content.data?.url;
-  if (url) {
-    router.push(url);
-  }
-}
-
 function useNotificationObserver() {
+  const router = useRouter();
+
   useEffect(() => {
     if (Platform.isTV) return;
 
@@ -98,14 +94,17 @@ function useNotificationObserver() {
         if (!isMounted || !response?.notification) {
           return;
         }
-        redirect(response?.notification);
+        const url = response?.notification.request.content.data?.url;
+        if (url) {
+          router.push(url);
+        }
       },
     );
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [router]);
 }
 
 if (!Platform.isTV) {
@@ -230,6 +229,7 @@ function Layout() {
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const _segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     i18n.changeLanguage(

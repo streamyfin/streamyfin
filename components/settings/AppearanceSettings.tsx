@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking, Switch } from "react-native";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";

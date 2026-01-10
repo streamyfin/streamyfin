@@ -1,14 +1,14 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useRouter, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
-  isOffline?: boolean;
 }
 
 export const itemRouter = (item: BaseItemDto, from: string) => {
@@ -134,26 +134,18 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
 
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
-  isOffline = false,
   children,
   ...props
 }) => {
-  const router = useRouter();
   const segments = useSegments();
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
+  const router = useRouter();
 
   const from = (segments as string[])[2] || "(home)";
 
   const handlePress = useCallback(() => {
-    // For offline mode, we still need to use query params
-    if (isOffline) {
-      const url = `${itemRouter(item, from)}&offline=true`;
-      router.push(url as any);
-      return;
-    }
-
     // Force music libraries to navigate via the explicit string route.
     // This avoids losing the dynamic [libraryId] param when going through a nested navigator.
     if ("CollectionType" in item && item.CollectionType === "music") {
@@ -163,7 +155,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
 
     const navigation = getItemNavigation(item, from);
     router.push(navigation as any);
-  }, [from, isOffline, item, router]);
+  }, [from, item, router]);
 
   const showActionSheet = useCallback(() => {
     if (
