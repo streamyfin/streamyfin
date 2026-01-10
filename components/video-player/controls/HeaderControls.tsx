@@ -94,9 +94,10 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       style={[
         {
           position: "absolute",
-          top: settings?.safeAreaInControlsEnabled ? insets.top : 0,
-          left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-          right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+          top: (settings?.safeAreaInControlsEnabled ?? true) ? insets.top : 0,
+          left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
+          right:
+            (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
         },
       ]}
       pointerEvents={showControls ? "auto" : "none"}
