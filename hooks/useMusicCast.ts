@@ -3,6 +3,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useCallback } from "react";
 import CastContext, {
   CastState,
+  MediaStreamType,
   PlayServicesState,
   useCastState,
   useRemoteMediaClient,
@@ -82,10 +83,18 @@ export const useMusicCast = ({ api, userId }: UseMusicCastOptions) => {
               streamResult.mediaSource?.Container,
             );
 
+            // Calculate stream duration in seconds from runtime ticks
+            const streamDurationSeconds = track.RunTimeTicks
+              ? track.RunTimeTicks / 10000000
+              : undefined;
+
             return {
               mediaInfo: {
+                contentId: track.Id,
                 contentUrl: streamResult.url,
                 contentType,
+                streamType: MediaStreamType.BUFFERED,
+                streamDuration: streamDurationSeconds,
                 metadata: {
                   type: "musicTrack" as const,
                   title: track.Name || "Unknown Track",

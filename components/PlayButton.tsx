@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
+  MediaStreamType,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -185,11 +186,23 @@ export const PlayButton: React.FC<Props> = ({
                     return;
                   }
 
+                  // Calculate start time in seconds from playback position
+                  const startTimeSeconds =
+                    (item?.UserData?.PlaybackPositionTicks ?? 0) / 10000000;
+
+                  // Calculate stream duration in seconds from runtime
+                  const streamDurationSeconds = item.RunTimeTicks
+                    ? item.RunTimeTicks / 10000000
+                    : undefined;
+
                   client
                     .loadMedia({
                       mediaInfo: {
+                        contentId: item.Id,
                         contentUrl: data?.url,
                         contentType: "video/mp4",
+                        streamType: MediaStreamType.BUFFERED,
+                        streamDuration: streamDurationSeconds,
                         metadata:
                           item.Type === "Episode"
                             ? {
@@ -241,7 +254,7 @@ export const PlayButton: React.FC<Props> = ({
                                   ],
                                 },
                       },
-                      startTime: 0,
+                      startTime: startTimeSeconds,
                     })
                     .then(() => {
                       // state is already set when reopening current media, so skip it here.
