@@ -291,11 +291,7 @@ export default function page() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: generateDeviceProfile({
-              platform: Platform.OS as "ios" | "android",
-              player: "mpv",
-              audioMode: settings.audioTranscodeMode,
-            }),
+            deviceProfile: generateDeviceProfile(),
           });
           if (!res) return;
           const { mediaSource, sessionId, url } = res;
@@ -539,15 +535,10 @@ export default function page() {
       : (item?.UserData?.PlaybackPositionTicks ?? 0);
     const startPos = ticksToSeconds(startTicks);
 
-    // For transcoded streams, the server already handles seeking via startTimeTicks,
-    // so we should NOT also tell the player to seek (would cause double-seeking).
-    // For direct play/stream, the player needs to seek itself.
-    const playerStartPos = isTranscoding ? 0 : startPos;
-
     // Build source config - headers only needed for online streaming
     const source: MpvVideoSource = {
       url: stream.url,
-      startPosition: playerStartPos,
+      startPosition: startPos,
       autoplay: true,
       initialSubtitleId,
       initialAudioId,
@@ -751,9 +742,14 @@ export default function page() {
 
       if (screenAR > videoAR) {
         // Screen is wider than video - video height extends beyond screen
-        // Calculate exact subtitle position to keep them visible above the crop
-        // Formula: newSubPos = 50 × (1 + videoAR / screenAR)
-        const newSubPos = Math.round(50 * (1 + videoAR / screenAR));
+        // Calculate how much of the video is cropped at the bottom (as % of video height)
+        const bottomCropPercent = 50 * (1 - videoAR / screenAR);
+        // Only adjust by 70% of the crop to keep a comfortable margin from the edge
+        // (subtitles already have some built-in padding from the bottom)
+        const adjustmentFactor = 0.7;
+        const newSubPos = Math.round(
+          100 - bottomCropPercent * adjustmentFactor,
+        );
         await videoRef.current?.setSubtitlePosition?.(newSubPos);
       }
       // If videoAR >= screenAR, sides are cropped but bottom is visible, no adjustment needed
