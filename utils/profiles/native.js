@@ -9,12 +9,12 @@ import { getSubtitleProfiles } from "./subtitles";
 
 /**
  * @typedef {"ios" | "android"} PlatformType
- * @typedef {"vlc" | "ksplayer"} PlayerType
+ * @typedef {"mpv"} PlayerType
  * @typedef {"auto" | "stereo" | "5.1" | "passthrough"} AudioTranscodeModeType
  *
  * @typedef {Object} ProfileOptions
  * @property {PlatformType} [platform] - Target platform
- * @property {PlayerType} [player] - Video player being used
+ * @property {PlayerType} [player] - Video player being used (MPV only)
  * @property {AudioTranscodeModeType} [audioMode] - Audio transcoding mode
  */
 
@@ -57,31 +57,28 @@ const getAudioCodecProfile = (platform) => {
 };
 
 /**
- * Gets the video audio codec configuration based on platform, player, and audio mode.
+ * Gets the video audio codec configuration based on platform and audio mode.
  *
- * Key insight: VLC handles AC3/EAC3/DTS downmixing fine.
- * Only TrueHD and DTS-HD MA (lossless 7.1) cause issues on mobile devices
- * because VLC's internal downmixing from 7.1 to stereo fails on some Android audio pipelines.
+ * MPV handles most codecs well. TrueHD is only enabled in passthrough mode
+ * for users with external DAC/receiver setups.
  *
  * @param {PlatformType} platform
- * @param {PlayerType} player
  * @param {AudioTranscodeModeType} audioMode
  * @returns {{ directPlayCodec: string, maxAudioChannels: string }}
  */
-const getVideoAudioCodecs = (platform, player, audioMode) => {
+const getVideoAudioCodecs = (platform, audioMode) => {
   // Base codecs that work everywhere
   const baseCodecs = "aac,mp3,flac,opus,vorbis";
 
-  // Surround codecs that VLC handles well (downmixes properly)
+  // Surround codecs - MPV handles these well
   const surroundCodecs = "ac3,eac3,dts";
 
-  // Lossless HD codecs that cause issues with VLC's downmixing on mobile
+  // Lossless HD codecs - only for passthrough mode
   const losslessHdCodecs = "truehd";
 
   // Platform-specific codecs
   const platformCodecs = platform === "ios" ? "alac,wma" : "wma";
 
-  // Handle explicit user settings first
   switch (audioMode) {
     case "stereo":
       // Force stereo transcoding - only allow basic codecs
@@ -103,26 +100,14 @@ const getVideoAudioCodecs = (platform, player, audioMode) => {
         directPlayCodec: `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`,
         maxAudioChannels: "8",
       };
+
     default:
-      // Auto mode: platform and player-specific defaults
-      break;
+      // Auto mode: default to 5.1 support for MPV
+      return {
+        directPlayCodec: `${baseCodecs},${surroundCodecs},${platformCodecs}`,
+        maxAudioChannels: "6",
+      };
   }
-
-  // Auto mode logic based on platform and player
-  if (player === "ksplayer" && platform === "ios") {
-    // KSPlayer on iOS handles all codecs well, including TrueHD
-    return {
-      directPlayCodec: `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`,
-      maxAudioChannels: "8",
-    };
-  }
-
-  // VLC on Android or iOS - don't include TrueHD (causes 7.1 downmix issues)
-  // DTS core is fine, VLC handles it well. Only lossless 7.1 formats are problematic.
-  return {
-    directPlayCodec: `${baseCodecs},${surroundCodecs},${platformCodecs}`,
-    maxAudioChannels: "6",
-  };
 };
 
 /**
@@ -133,28 +118,18 @@ const getVideoAudioCodecs = (platform, player, audioMode) => {
  */
 export const generateDeviceProfile = (options = {}) => {
   const platform = options.platform || Platform.OS;
-  const player = options.player || "mpv";
   const audioMode = options.audioMode || "auto";
 
   const { directPlayCodec, maxAudioChannels } = getVideoAudioCodecs(
     platform,
-    player,
     audioMode,
   );
 
-  // MPV is the default player, but keep backward compatibility with vlc/ksplayer options
-  const playerName =
-    player === "mpv"
-      ? "MPV"
-      : player === "ksplayer"
-        ? "KSPlayer"
-        : "VLC Player";
-
   /**
-   * Device profile for Native video player
+   * Device profile for MPV player
    */
   const profile = {
-    Name: `1. ${playerName}`,
+    Name: "1. MPV",
     MaxStaticBitrate: 999_999_999,
     MaxStreamingBitrate: 999_999_999,
     CodecProfiles: [

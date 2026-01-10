@@ -13,7 +13,6 @@ import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { VideoPlayerSettings } from "./VideoPlayerSettings";
 
 export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -231,8 +230,6 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
       </ListGroup>
-
-      <VideoPlayerSettings />
     </DisabledSetting>
   );
 };

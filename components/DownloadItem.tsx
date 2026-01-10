@@ -209,6 +209,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           subtitleStreamIndex: subtitleIndex ?? -1,
           maxBitrate: selectedOptions?.bitrate || defaultBitrate,
           deviceId: api.deviceInfo.id,
+          audioMode: settings?.audioTranscodeMode,
         });
 
         return {

@@ -5,7 +5,7 @@
  */
 
 export type PlatformType = "ios" | "android";
-export type PlayerType = "mpv" | "vlc" | "ksplayer";
+export type PlayerType = "mpv";
 export type AudioTranscodeModeType = "auto" | "stereo" | "5.1" | "passthrough";
 
 export interface ProfileOptions {

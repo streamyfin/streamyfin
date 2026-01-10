@@ -8,7 +8,7 @@
  * ============================================================================
  *
  * - Jellyfin is source of truth for subtitle list (embedded + external)
- * - KSPlayer only knows about:
+ * - MPV only knows about:
  *   - Embedded subs it finds in the video stream
  *   - External subs we explicitly add via addSubtitleFile()
  * - UI shows Jellyfin's complete list
@@ -24,8 +24,8 @@
  *    - Value of -1 means disabled/none
  *
  * 2. MPV INDEX (track.mpvIndex)
- *    - KSPlayer's internal track ID
- *    - KSPlayer orders tracks as: [all embedded, then all external]
+ *    - MPV's internal track ID
+ *    - MPV orders tracks as: [all embedded, then all external]
  *    - IDs: 1..embeddedCount for embedded, embeddedCount+1.. for external
  *    - Value of -1 means track needs replacePlayer() (e.g., burned-in sub)
  *
@@ -34,15 +34,15 @@
  * ============================================================================
  *
  * Embedded (DeliveryMethod.Embed):
- *   - Already in KSPlayer's track list
+ *   - Already in MPV's track list
  *   - Select via setSubtitleTrack(mpvId)
  *
  * External (DeliveryMethod.External):
- *   - Loaded into KSPlayer's srtControl on video start
+ *   - Loaded into MPV on video start
  *   - Select via setSubtitleTrack(embeddedCount + externalPosition + 1)
  *
  * Image-based during transcoding:
- *   - Burned into video by Jellyfin, not in KSPlayer
+ *   - Burned into video by Jellyfin, not in MPV
  *   - Requires replacePlayer() to change
  */
 
@@ -217,7 +217,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
       const playerAudio = (audioData as MpvAudioTrack[]) ?? [];
 
       // Separate embedded vs external subtitles from Jellyfin's list
-      // KSPlayer orders tracks as: [all embedded, then all external]
+      // MPV orders tracks as: [all embedded, then all external]
       const embeddedSubs = allSubs.filter(
         (s) => s.DeliveryMethod === SubtitleDeliveryMethod.Embed,
       );
@@ -225,7 +225,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         (s) => s.DeliveryMethod === SubtitleDeliveryMethod.External,
       );
 
-      // Count embedded subs that will be in KSPlayer
+      // Count embedded subs that will be in MPV
       // (excludes image-based subs during transcoding as they're burned in)
       const embeddedInPlayer = embeddedSubs.filter(
         (s) => !isTranscoding || !isImageBasedSubtitle(s),
@@ -252,8 +252,8 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           continue;
         }
 
-        // Calculate KSPlayer track ID based on type
-        // KSPlayer IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
+        // Calculate MPV track ID based on type
+        // MPV IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
         let mpvId = -1;
 
         if (isEmbedded) {
