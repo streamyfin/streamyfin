@@ -420,7 +420,16 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun getCurrentAudioTrack(): Int {
         return MPVLib.getPropertyInt("aid") ?: 0
     }
-    
+
+    // MARK: - Video Scaling
+
+    fun setZoomedToFill(zoomed: Boolean) {
+        // panscan: 0.0 = fit (letterbox), 1.0 = fill (crop)
+        val panscanValue = if (zoomed) 1.0 else 0.0
+        Log.i(TAG, "setZoomedToFill: setting panscan to $panscanValue")
+        MPVLib.setPropertyDouble("panscan", panscanValue)
+    }
+
     // MARK: - MPVLib.EventObserver
     
     override fun eventProperty(property: String) {
