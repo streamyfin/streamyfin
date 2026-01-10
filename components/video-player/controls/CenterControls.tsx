@@ -38,8 +38,8 @@ export const CenterControls: FC<CenterControlsProps> = ({
       style={{
         position: "absolute",
         top: "50%",
-        left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-        right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+        left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
+        right: (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",

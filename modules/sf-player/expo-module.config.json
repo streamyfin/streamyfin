@@ -1,9 +1,0 @@
-{
-  "platforms": ["ios", "tvos", "android"],
-  "ios": {
-    "modules": ["SfPlayerModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.sfplayer.SfPlayerModule"]
-  }
-}

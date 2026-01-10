@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity } from "react-native";
+import { Platform } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { useStreamystatsEnabled } from "@/hooks/useWatchlists";
 
@@ -22,14 +23,14 @@ export default function WatchlistsLayout() {
           headerShadowVisible: false,
           headerRight: streamystatsEnabled
             ? () => (
-                <TouchableOpacity
+                <Pressable
                   onPress={() =>
                     router.push("/(auth)/(tabs)/(watchlists)/create")
                   }
                   className='p-1.5'
                 >
                   <Ionicons name='add' size={24} color='white' />
-                </TouchableOpacity>
+                </Pressable>
               )
             : undefined,
         }}

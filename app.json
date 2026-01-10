@@ -58,7 +58,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.6"
+            "deploymentTarget": "15.6",
+            "useFrameworks": "static"
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
@@ -66,7 +67,7 @@
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
             "kotlinVersion": "2.0.21",
-            "minSdkVersion": 24,
+            "minSdkVersion": 26,
             "usesCleartextTraffic": true,
             "packagingOptions": {
               "jniLibs": {
@@ -82,12 +83,6 @@
         "expo-screen-orientation",
         {
           "initialOrientation": "DEFAULT"
-        }
-      ],
-      [
-        "expo-sensors",
-        {
-          "motionPermission": "Allow Streamyfin to access your device motion for landscape video watching."
         }
       ],
       "expo-localization",
@@ -120,7 +115,14 @@
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"]
+      ["./plugins/withGradleProperties.js"],
+      [
+        "./plugins/withGitPod.js",
+        {
+          "podName": "MPVKit-GPL",
+          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

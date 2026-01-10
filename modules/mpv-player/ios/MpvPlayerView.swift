@@ -38,7 +38,7 @@ struct VideoLoadConfig {
 // to apply the proper styling (e.g. border radius and shadows).
 class MpvPlayerView: ExpoView {
 	private let displayLayer = AVSampleBufferDisplayLayer()
-	private var renderer: MPVSoftwareRenderer?
+	private var renderer: MPVLayerRenderer?
 	private var videoContainer: UIView!
 	private var pipController: PiPController?
 
@@ -52,6 +52,7 @@ class MpvPlayerView: ExpoView {
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false  // For PiP - ignores transient states during seek
+	private var _isZoomedToFill: Bool = false
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -83,7 +84,7 @@ class MpvPlayerView: ExpoView {
 			videoContainer.bottomAnchor.constraint(equalTo: bottomAnchor)
 		])
 
-		renderer = MPVSoftwareRenderer(displayLayer: displayLayer)
+		renderer = MPVLayerRenderer(displayLayer: displayLayer)
 		renderer?.delegate = self
 
 		// Setup PiP
@@ -148,12 +149,14 @@ class MpvPlayerView: ExpoView {
 	func play() {
 		intendedPlayState = true
 		renderer?.play()
+		pipController?.setPlaybackRate(1.0)
 		pipController?.updatePlaybackState()
 	}
 
 	func pause() {
 		intendedPlayState = false
 		renderer?.pausePlayback()
+		pipController?.setPlaybackRate(0.0)
 		pipController?.updatePlaybackState()
 	}
 
@@ -267,6 +270,17 @@ class MpvPlayerView: ExpoView {
 		renderer?.setSubtitleFontSize(size)
 	}
 
+	// MARK: - Video Scaling
+
+	func setZoomedToFill(_ zoomed: Bool) {
+		_isZoomedToFill = zoomed
+		displayLayer.videoGravity = zoomed ? .resizeAspectFill : .resizeAspect
+	}
+
+	func isZoomedToFill() -> Bool {
+		return _isZoomedToFill
+	}
+
 	deinit {
 		pipController?.stopPictureInPicture()
 		renderer?.stop()
@@ -274,18 +288,18 @@ class MpvPlayerView: ExpoView {
 	}
 }
 
-// MARK: - MPVSoftwareRendererDelegate
+// MARK: - MPVLayerRendererDelegate
 
-extension MpvPlayerView: MPVSoftwareRendererDelegate {
-	func renderer(_: MPVSoftwareRenderer, didUpdatePosition position: Double, duration: Double) {
+extension MpvPlayerView: MPVLayerRendererDelegate {
+	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double) {
 		cachedPosition = position
 		cachedDuration = duration
 		
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
-			// Only update PiP state when PiP is active
+			// Update PiP current time for progress bar
 			if self.pipController?.isPictureInPictureActive == true {
-				self.pipController?.updatePlaybackState()
+				self.pipController?.setCurrentTimeFromSeconds(position, duration: duration)
 			}
 			
 			self.onProgress([
@@ -296,21 +310,23 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 
-	func renderer(_: MPVSoftwareRenderer, didChangePause isPaused: Bool) {
+	func renderer(_: MPVLayerRenderer, didChangePause isPaused: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			// Don't update intendedPlayState here - it's only set by user actions (play/pause)
 			// This prevents PiP UI flicker during seeking
+			
+			// Sync timebase rate with actual playback state
+			self.pipController?.setPlaybackRate(isPaused ? 0.0 : 1.0)
+			
 			self.onPlaybackStateChange([
 				"isPaused": isPaused,
 				"isPlaying": !isPaused,
 			])
-			// Note: Don't call updatePlaybackState() here to avoid flicker
-			// PiP queries pipControllerIsPlaying when it needs the state
 		}
 	}
 
-	func renderer(_: MPVSoftwareRenderer, didChangeLoading isLoading: Bool) {
+	func renderer(_: MPVLayerRenderer, didChangeLoading isLoading: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			self.onPlaybackStateChange([
@@ -319,7 +335,7 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 
-	func renderer(_: MPVSoftwareRenderer, didBecomeReadyToSeek: Bool) {
+	func renderer(_: MPVLayerRenderer, didBecomeReadyToSeek: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			self.onPlaybackStateChange([
@@ -328,7 +344,7 @@ extension MpvPlayerView: MPVSoftwareRendererDelegate {
 		}
 	}
 	
-	func renderer(_: MPVSoftwareRenderer, didBecomeTracksReady: Bool) {
+	func renderer(_: MPVLayerRenderer, didBecomeTracksReady: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
 			self.onTracksReady([:])
@@ -343,12 +359,14 @@ extension MpvPlayerView: PiPControllerDelegate {
 		print("PiP will start")
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
-		pipController?.updatePlaybackState()
+		// Set current time for PiP progress bar
+		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
 	}
 	
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
 		print("PiP did start: \(didStartPictureInPicture)")
-		pipController?.updatePlaybackState()
+		// Ensure current time is synced when PiP starts
+		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
 	}
 	
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
@@ -371,12 +389,16 @@ extension MpvPlayerView: PiPControllerDelegate {
 	
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
-		play()
+		intendedPlayState = true
+		renderer?.play()
+		pipController?.setPlaybackRate(1.0)
 	}
 	
 	func pipControllerPause(_ controller: PiPController) {
 		print("PiP pause requested")
-		pause()
+		intendedPlayState = false
+		renderer?.pausePlayback()
+		pipController?.setPlaybackRate(0.0)
 	}
 	
 	func pipController(_ controller: PiPController, skipByInterval interval: CMTime) {
@@ -393,5 +415,9 @@ extension MpvPlayerView: PiPControllerDelegate {
 	
 	func pipControllerDuration(_ controller: PiPController) -> Double {
 		return getDuration()
+	}
+	
+	func pipControllerCurrentPosition(_ controller: PiPController) -> Double {
+		return getCurrentPosition()
 	}
 }

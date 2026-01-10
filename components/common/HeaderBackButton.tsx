@@ -1,42 +1,36 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView, type BlurViewProps } from "expo-blur";
 import { useRouter } from "expo-router";
-import {
-  Platform,
-  TouchableOpacity,
-  type TouchableOpacityProps,
-} from "react-native";
+import { Platform } from "react-native";
+import { Pressable, type PressableProps } from "react-native-gesture-handler";
 
 interface Props extends BlurViewProps {
   background?: "blur" | "transparent";
-  touchableOpacityProps?: TouchableOpacityProps;
+  pressableProps?: Omit<PressableProps, "onPress">;
 }
 
 export const HeaderBackButton: React.FC<Props> = ({
   background = "transparent",
-  touchableOpacityProps,
+  pressableProps,
   ...props
 }) => {
   const router = useRouter();
 
   if (Platform.OS === "ios") {
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={() => router.back()}
         className='flex items-center justify-center w-9 h-9'
-        {...touchableOpacityProps}
+        {...pressableProps}
       >
         <Ionicons name='arrow-back' size={24} color='white' />
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   if (background === "transparent" && Platform.OS !== "android")
     return (
-      <TouchableOpacity
-        onPress={() => router.back()}
-        {...touchableOpacityProps}
-      >
+      <Pressable onPress={() => router.back()} {...pressableProps}>
         <BlurView
           {...props}
           intensity={100}
@@ -49,14 +43,14 @@ export const HeaderBackButton: React.FC<Props> = ({
             color='white'
           />
         </BlurView>
-      </TouchableOpacity>
+      </Pressable>
     );
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => router.back()}
       className=' rounded-full p-2'
-      {...touchableOpacityProps}
+      {...pressableProps}
     >
       <Ionicons
         className='drop-shadow-2xl'
@@ -64,6 +58,6 @@ export const HeaderBackButton: React.FC<Props> = ({
         size={24}
         color='white'
       />
-    </TouchableOpacity>
+    </Pressable>
   );
 };

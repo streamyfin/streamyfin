@@ -8,7 +8,7 @@
  * ============================================================================
  *
  * - Jellyfin is source of truth for subtitle list (embedded + external)
- * - KSPlayer only knows about:
+ * - MPV only knows about:
  *   - Embedded subs it finds in the video stream
  *   - External subs we explicitly add via addSubtitleFile()
  * - UI shows Jellyfin's complete list
@@ -24,8 +24,8 @@
  *    - Value of -1 means disabled/none
  *
  * 2. MPV INDEX (track.mpvIndex)
- *    - KSPlayer's internal track ID
- *    - KSPlayer orders tracks as: [all embedded, then all external]
+ *    - MPV's internal track ID
+ *    - MPV orders tracks as: [all embedded, then all external]
  *    - IDs: 1..embeddedCount for embedded, embeddedCount+1.. for external
  *    - Value of -1 means track needs replacePlayer() (e.g., burned-in sub)
  *
@@ -34,15 +34,15 @@
  * ============================================================================
  *
  * Embedded (DeliveryMethod.Embed):
- *   - Already in KSPlayer's track list
+ *   - Already in MPV's track list
  *   - Select via setSubtitleTrack(mpvId)
  *
  * External (DeliveryMethod.External):
- *   - Loaded into KSPlayer's srtControl on video start
+ *   - Loaded into MPV on video start
  *   - Select via setSubtitleTrack(embeddedCount + externalPosition + 1)
  *
  * Image-based during transcoding:
- *   - Burned into video by Jellyfin, not in KSPlayer
+ *   - Burned into video by Jellyfin, not in MPV
  *   - Requires replacePlayer() to change
  */
 
@@ -57,7 +57,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { SfAudioTrack, TrackInfo } from "@/modules";
+import type { MpvAudioTrack } from "@/modules";
 import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
@@ -75,7 +75,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, useVlcPlayer, offline, downloadedItem } =
+  const { tracksReady, mediaSource, offline, downloadedItem } =
     usePlayerContext();
   const playerControls = usePlayerControls();
 
@@ -149,7 +149,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
             {
               name: downloadedTrack.DisplayTitle || "Audio",
               index: downloadedTrack.Index ?? 0,
-              mpvIndex: useVlcPlayer ? 0 : 1, // Only track in file
+              mpvIndex: 1, // Only track in file (MPV uses 1-based indexing)
               setTrack: () => {
                 // Track is already selected (only one available)
                 router.setParams({ audioIndex: String(downloadedTrack.Index) });
@@ -212,99 +212,12 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         return;
       }
 
-      // For VLC player, use simpler track handling with server indices
-      if (useVlcPlayer) {
-        // Get VLC track info (VLC returns TrackInfo[] with 'index' property)
-        const vlcSubtitleData = (await playerControls
-          .getSubtitleTracks()
-          .catch(() => null)) as TrackInfo[] | null;
-        const vlcAudioData = (await playerControls
-          .getAudioTracks()
-          .catch(() => null)) as TrackInfo[] | null;
-
-        // VLC reverses HLS subtitles during transcoding
-        let vlcSubs: TrackInfo[] = vlcSubtitleData ? [...vlcSubtitleData] : [];
-        if (isTranscoding && vlcSubs.length > 1) {
-          vlcSubs = [vlcSubs[0], ...vlcSubs.slice(1).reverse()];
-        }
-
-        // Build subtitle tracks for VLC
-        const subs: Track[] = [];
-        let vlcSubIndex = 1; // VLC track indices start at 1 (0 is usually "Disable")
-
-        for (const sub of allSubs) {
-          const isTextBased =
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
-
-          // Get VLC's internal index for this track
-          const vlcTrackIndex = vlcSubs[vlcSubIndex]?.index ?? -1;
-          if (isTextBased) vlcSubIndex++;
-
-          // For image-based subs during transcoding, or non-text subs, use replacePlayer
-          const needsPlayerRefresh =
-            (isTranscoding && isImageBasedSubtitle(sub)) || !isTextBased;
-
-          subs.push({
-            name: sub.DisplayTitle || "Unknown",
-            index: sub.Index ?? -1,
-            mpvIndex: vlcTrackIndex,
-            setTrack: () => {
-              if (needsPlayerRefresh) {
-                replacePlayer({ subtitleIndex: String(sub.Index) });
-              } else if (vlcTrackIndex !== -1) {
-                playerControls.setSubtitleTrack(vlcTrackIndex);
-                router.setParams({ subtitleIndex: String(sub.Index) });
-              } else {
-                replacePlayer({ subtitleIndex: String(sub.Index) });
-              }
-            },
-          });
-        }
-
-        // Add "Disable" option
-        subs.unshift({
-          name: "Disable",
-          index: -1,
-          mpvIndex: -1,
-          setTrack: () => {
-            playerControls.setSubtitleTrack(-1);
-            router.setParams({ subtitleIndex: "-1" });
-          },
-        });
-
-        // Build audio tracks for VLC
-        const vlcAudio: TrackInfo[] = vlcAudioData ? [...vlcAudioData] : [];
-        const audio: Track[] = allAudio.map((a, idx) => {
-          const vlcTrackIndex = vlcAudio[idx + 1]?.index ?? idx;
-
-          return {
-            name: a.DisplayTitle || "Unknown",
-            index: a.Index ?? -1,
-            mpvIndex: vlcTrackIndex,
-            setTrack: () => {
-              if (isTranscoding) {
-                replacePlayer({ audioIndex: String(a.Index) });
-              } else {
-                playerControls.setAudioTrack(vlcTrackIndex);
-                router.setParams({ audioIndex: String(a.Index) });
-              }
-            },
-          };
-        });
-
-        setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
-        setAudioTracks(audio);
-        return;
-      }
-
-      // KSPlayer track handling (original logic)
+      // MPV track handling
       const audioData = await playerControls.getAudioTracks().catch(() => null);
-      const playerAudio = (audioData as SfAudioTrack[]) ?? [];
+      const playerAudio = (audioData as MpvAudioTrack[]) ?? [];
 
       // Separate embedded vs external subtitles from Jellyfin's list
-      // KSPlayer orders tracks as: [all embedded, then all external]
+      // MPV orders tracks as: [all embedded, then all external]
       const embeddedSubs = allSubs.filter(
         (s) => s.DeliveryMethod === SubtitleDeliveryMethod.Embed,
       );
@@ -312,7 +225,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         (s) => s.DeliveryMethod === SubtitleDeliveryMethod.External,
       );
 
-      // Count embedded subs that will be in KSPlayer
+      // Count embedded subs that will be in MPV
       // (excludes image-based subs during transcoding as they're burned in)
       const embeddedInPlayer = embeddedSubs.filter(
         (s) => !isTranscoding || !isImageBasedSubtitle(s),
@@ -339,8 +252,8 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           continue;
         }
 
-        // Calculate KSPlayer track ID based on type
-        // KSPlayer IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
+        // Calculate MPV track ID based on type
+        // MPV IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
         let mpvId = -1;
 
         if (isEmbedded) {
@@ -428,7 +341,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-  }, [tracksReady, mediaSource, useVlcPlayer, offline, downloadedItem]);
+  }, [tracksReady, mediaSource, offline, downloadedItem]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>

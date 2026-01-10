@@ -134,18 +134,16 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
-// iOS video player selection
-export enum VideoPlayerIOS {
-  KSPlayer = "ksplayer",
-  VLC = "vlc",
-}
-
 // Audio transcoding mode - controls how surround audio is handled
+// This controls server-side transcoding behavior for audio streams.
+// MPV decodes via FFmpeg and supports most formats, but mobile devices
+// can't passthrough to external receivers, so this primarily affects
+// bandwidth usage and server load.
 export enum AudioTranscodeMode {
-  Auto = "auto", // Platform/player defaults (recommended)
+  Auto = "auto", // Platform defaults (recommended)
   ForceStereo = "stereo", // Always transcode to stereo
   Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
-  AllowAll = "passthrough", // Direct play all (for external DAC users)
+  AllowAll = "passthrough", // Direct play all audio formats
 }
 
 export type Settings = {
@@ -192,20 +190,6 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
-  // KSPlayer settings
-  ksHardwareDecode: boolean;
-  ksSubtitleColor: string;
-  ksSubtitleBackgroundColor: string;
-  ksSubtitleFontName: string;
-  // VLC subtitle settings
-  vlcTextColor?: string;
-  vlcBackgroundColor?: string;
-  vlcBackgroundOpacity?: number;
-  vlcOutlineColor?: string;
-  vlcOutlineOpacity?: number;
-  vlcOutlineThickness?: "None" | "Thin" | "Normal" | "Thick";
-  vlcIsBold?: boolean;
-  vlcSubtitleMargin?: number;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -215,8 +199,6 @@ export type Settings = {
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
-  // iOS video player selection
-  videoPlayerIOS: VideoPlayerIOS;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -292,20 +274,6 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
-  // KSPlayer defaults
-  ksHardwareDecode: true,
-  ksSubtitleColor: "#FFFFFF",
-  ksSubtitleBackgroundColor: "#00000080",
-  ksSubtitleFontName: "System",
-  // VLC subtitle defaults
-  vlcTextColor: "White",
-  vlcBackgroundColor: "Black",
-  vlcBackgroundOpacity: 128,
-  vlcOutlineColor: "Black",
-  vlcOutlineOpacity: 255,
-  vlcOutlineThickness: "Normal",
-  vlcIsBold: false,
-  vlcSubtitleMargin: 40,
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
@@ -315,8 +283,6 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
-  // iOS video player selection - default to VLC
-  videoPlayerIOS: VideoPlayerIOS.VLC,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,

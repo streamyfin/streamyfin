@@ -3,13 +3,8 @@ import { useNavigation, useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, Platform, ScrollView, View } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
@@ -103,12 +98,12 @@ export default function page() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
+        <Pressable
           onPress={bottomSheetModalRef.current?.present}
           className='px-2'
         >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
-        </TouchableOpacity>
+        </Pressable>
       ),
     });
   }, [downloadedFiles]);

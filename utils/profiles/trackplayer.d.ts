@@ -5,19 +5,15 @@
  */
 
 export type PlatformType = "ios" | "android";
-export type PlayerType = "mpv";
-export type AudioTranscodeModeType = "auto" | "stereo" | "5.1" | "passthrough";
 
-export interface ProfileOptions {
+export interface TrackPlayerProfileOptions {
   /** Target platform */
   platform?: PlatformType;
-  /** Video player being used */
-  player?: PlayerType;
-  /** Audio transcoding mode */
-  audioMode?: AudioTranscodeModeType;
 }
 
-export function generateDeviceProfile(options?: ProfileOptions): any;
+export function generateTrackPlayerProfile(
+  options?: TrackPlayerProfileOptions,
+): any;
 
 declare const _default: any;
 export default _default;

@@ -37,7 +37,6 @@ import { useVideoTime } from "./hooks/useVideoTime";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
-import { type ScaleFactor } from "./VlcZoomControl";
 
 interface Props {
   item: BaseItemDto;
@@ -56,13 +55,7 @@ interface Props {
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
-  useVlcPlayer?: boolean;
-  // VLC-specific props
-  setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
   aspectRatio?: AspectRatio;
-  scaleFactor?: ScaleFactor;
-  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
-  // KSPlayer-specific props
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
   api?: Api | null;
@@ -87,11 +80,7 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
-  useVlcPlayer = false,
-  setVideoAspectRatio,
   aspectRatio = "default",
-  scaleFactor = 0,
-  setVideoScaleFactor,
   isZoomedToFill = false,
   onZoomToggle,
   offline = false,
@@ -121,7 +110,7 @@ export const Controls: FC<Props> = ({
   } = useTrickplay(item);
 
   const min = useSharedValue(0);
-  const max = useSharedValue(item.RunTimeTicks || 0);
+  const max = useSharedValue(ticksToMs(item.RunTimeTicks || 0));
 
   // Animation values for controls
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
@@ -483,11 +472,7 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
-              useVlcPlayer={useVlcPlayer}
               aspectRatio={aspectRatio}
-              setVideoAspectRatio={setVideoAspectRatio}
-              scaleFactor={scaleFactor}
-              setVideoScaleFactor={setVideoScaleFactor}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={onZoomToggle}
               playbackSpeed={playbackSpeed}

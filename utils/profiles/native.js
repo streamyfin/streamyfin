@@ -9,22 +9,22 @@ import { getSubtitleProfiles } from "./subtitles";
 
 /**
  * @typedef {"ios" | "android"} PlatformType
- * @typedef {"vlc" | "ksplayer"} PlayerType
+ * @typedef {"mpv"} PlayerType
  * @typedef {"auto" | "stereo" | "5.1" | "passthrough"} AudioTranscodeModeType
  *
  * @typedef {Object} ProfileOptions
  * @property {PlatformType} [platform] - Target platform
- * @property {PlayerType} [player] - Video player being used
+ * @property {PlayerType} [player] - Video player being used (MPV only)
  * @property {AudioTranscodeModeType} [audioMode] - Audio transcoding mode
  */
 
 /**
- * Audio profiles for react-native-track-player based on platform capabilities.
- * iOS uses AVPlayer, Android uses ExoPlayer - each has different codec support.
+ * Audio direct play profiles for standalone audio items in MPV player.
+ * These define which audio file formats can be played directly without transcoding.
  */
 const getAudioDirectPlayProfile = (platform) => {
   if (platform === "ios") {
-    // iOS AVPlayer supported formats
+    // iOS audio formats supported by MPV
     return {
       Type: MediaTypes.Audio,
       Container: "mp3,m4a,aac,flac,alac,wav,aiff,caf",
@@ -32,7 +32,7 @@ const getAudioDirectPlayProfile = (platform) => {
     };
   }
 
-  // Android ExoPlayer supported formats
+  // Android audio formats supported by MPV
   return {
     Type: MediaTypes.Audio,
     Container: "mp3,m4a,aac,ogg,flac,wav,webm,mka",
@@ -40,16 +40,20 @@ const getAudioDirectPlayProfile = (platform) => {
   };
 };
 
+/**
+ * Audio codec profiles for standalone audio items in MPV player.
+ * These define codec constraints for audio file playback.
+ */
 const getAudioCodecProfile = (platform) => {
   if (platform === "ios") {
-    // iOS AVPlayer codec constraints
+    // iOS audio codec constraints for MPV
     return {
       Type: MediaTypes.Audio,
       Codec: "aac,ac3,eac3,mp3,flac,alac,opus,pcm",
     };
   }
 
-  // Android ExoPlayer codec constraints
+  // Android audio codec constraints for MPV
   return {
     Type: MediaTypes.Audio,
     Codec: "aac,ac3,eac3,mp3,flac,vorbis,opus,pcm",
@@ -57,72 +61,61 @@ const getAudioCodecProfile = (platform) => {
 };
 
 /**
- * Gets the video audio codec configuration based on platform, player, and audio mode.
+ * Gets the video audio codec configuration based on platform and audio mode.
  *
- * Key insight: VLC handles AC3/EAC3/DTS downmixing fine.
- * Only TrueHD and DTS-HD MA (lossless 7.1) cause issues on mobile devices
- * because VLC's internal downmixing from 7.1 to stereo fails on some Android audio pipelines.
+ * MPV (via FFmpeg) can decode all audio codecs including TrueHD and DTS-HD MA.
+ * The audioMode setting only controls the maximum channel count - MPV will
+ * decode and downmix as needed.
  *
  * @param {PlatformType} platform
- * @param {PlayerType} player
  * @param {AudioTranscodeModeType} audioMode
  * @returns {{ directPlayCodec: string, maxAudioChannels: string }}
  */
-const getVideoAudioCodecs = (platform, player, audioMode) => {
-  // Base codecs that work everywhere
+const getVideoAudioCodecs = (platform, audioMode) => {
+  // Base codecs
   const baseCodecs = "aac,mp3,flac,opus,vorbis";
 
-  // Surround codecs that VLC handles well (downmixes properly)
+  // Surround codecs
   const surroundCodecs = "ac3,eac3,dts";
 
-  // Lossless HD codecs that cause issues with VLC's downmixing on mobile
+  // Lossless HD codecs - MPV decodes these and downmixes as needed
   const losslessHdCodecs = "truehd";
 
   // Platform-specific codecs
   const platformCodecs = platform === "ios" ? "alac,wma" : "wma";
 
-  // Handle explicit user settings first
+  // MPV can decode all codecs - only channel count varies by mode
+  const allCodecs = `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`;
+
   switch (audioMode) {
     case "stereo":
-      // Force stereo transcoding - only allow basic codecs
+      // Limit to 2 channels - MPV will decode and downmix
       return {
-        directPlayCodec: `${baseCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "2",
       };
 
     case "5.1":
-      // Allow up to 5.1 - include surround codecs but not lossless HD
+      // Limit to 6 channels
       return {
-        directPlayCodec: `${baseCodecs},${surroundCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "6",
       };
 
     case "passthrough":
-      // Allow all codecs - for users with external DAC/receiver
+      // Allow up to 8 channels - for external DAC/receiver setups
       return {
-        directPlayCodec: `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`,
+        directPlayCodec: allCodecs,
         maxAudioChannels: "8",
       };
+
     default:
-      // Auto mode: platform and player-specific defaults
-      break;
+      // Auto mode: default to 5.1 (6 channels)
+      return {
+        directPlayCodec: allCodecs,
+        maxAudioChannels: "6",
+      };
   }
-
-  // Auto mode logic based on platform and player
-  if (player === "ksplayer" && platform === "ios") {
-    // KSPlayer on iOS handles all codecs well, including TrueHD
-    return {
-      directPlayCodec: `${baseCodecs},${surroundCodecs},${losslessHdCodecs},${platformCodecs}`,
-      maxAudioChannels: "8",
-    };
-  }
-
-  // VLC on Android or iOS - don't include TrueHD (causes 7.1 downmix issues)
-  // DTS core is fine, VLC handles it well. Only lossless 7.1 formats are problematic.
-  return {
-    directPlayCodec: `${baseCodecs},${surroundCodecs},${platformCodecs}`,
-    maxAudioChannels: "6",
-  };
 };
 
 /**
@@ -133,22 +126,18 @@ const getVideoAudioCodecs = (platform, player, audioMode) => {
  */
 export const generateDeviceProfile = (options = {}) => {
   const platform = options.platform || Platform.OS;
-  const player = options.player || "vlc";
   const audioMode = options.audioMode || "auto";
 
   const { directPlayCodec, maxAudioChannels } = getVideoAudioCodecs(
     platform,
-    player,
     audioMode,
   );
 
-  const playerName = player === "ksplayer" ? "KSPlayer" : "VLC Player";
-
   /**
-   * Device profile for Native video player
+   * Device profile for MPV player
    */
   const profile = {
-    Name: `1. ${playerName}`,
+    Name: "1. MPV",
     MaxStaticBitrate: 999_999_999,
     MaxStreamingBitrate: 999_999_999,
     CodecProfiles: [
@@ -210,3 +199,6 @@ export const generateDeviceProfile = (options = {}) => {
 
   return profile;
 };
+
+// Default export for backward compatibility
+export default generateDeviceProfile();
