@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import type { PropsWithChildren } from "react";
-import { Platform, TouchableOpacity, type ViewProps } from "react-native";
+import { Platform, type ViewProps } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { useHaptic } from "@/hooks/useHaptic";
 
 interface Props extends ViewProps {
@@ -38,7 +39,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
 
   if (Platform.OS === "ios") {
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
         {...(viewProps as any)}
@@ -51,13 +52,13 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
           />
         ) : null}
         {children ? children : null}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
   if (fillColor)
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
         {...(viewProps as any)}
@@ -70,12 +71,12 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
           />
         ) : null}
         {children ? children : null}
-      </TouchableOpacity>
+      </Pressable>
     );
 
   if (background === false)
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
         {...(viewProps as any)}
@@ -88,12 +89,12 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
           />
         ) : null}
         {children ? children : null}
-      </TouchableOpacity>
+      </Pressable>
     );
 
   if (Platform.OS === "android")
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={handlePress}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${
           fillColor ? fillColorClass : "bg-transparent"
@@ -108,11 +109,11 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
           />
         ) : null}
         {children ? children : null}
-      </TouchableOpacity>
+      </Pressable>
     );
 
   return (
-    <TouchableOpacity onPress={handlePress} {...(viewProps as any)}>
+    <Pressable onPress={handlePress} {...(viewProps as any)}>
       <BlurView
         intensity={90}
         className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass}`}
@@ -127,6 +128,6 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
         ) : null}
         {children ? children : null}
       </BlurView>
-    </TouchableOpacity>
+    </Pressable>
   );
 };

@@ -21,9 +21,9 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -118,7 +118,7 @@ export const Home = () => {
     }
     navigation.setOptions({
       headerLeft: () => (
-        <TouchableOpacity
+        <Pressable
           onPress={() => {
             router.push("/(auth)/downloads");
           }}
@@ -130,7 +130,7 @@ export const Home = () => {
             color={hasDownloads ? Colors.primary : "white"}
             size={24}
           />
-        </TouchableOpacity>
+        </Pressable>
       ),
     });
   }, [navigation, router, hasDownloads]);
