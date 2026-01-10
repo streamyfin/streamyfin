@@ -111,7 +111,9 @@ export const Controls: FC<Props> = ({
   } = useTrickplay(item);
 
   const min = useSharedValue(0);
-  const max = useSharedValue(ticksToMs(item.RunTimeTicks || 0));
+  // Regular value for use during render (avoids Reanimated warning)
+  const maxMs = ticksToMs(item.RunTimeTicks || 0);
+  const max = useSharedValue(maxMs);
 
   // Animation values for controls
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
@@ -304,7 +306,7 @@ export const Controls: FC<Props> = ({
       offline,
       api,
       downloadedFiles,
-      max.value,
+      maxMs,
     );
 
   const goToItemCommon = useCallback(

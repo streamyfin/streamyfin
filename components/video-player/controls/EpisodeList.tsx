@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -21,8 +21,10 @@ import { useDownload } from "@/providers/DownloadProvider";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
+import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 
 type Props = {
   item: BaseItemDto;
@@ -41,6 +43,8 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     scrollViewRef.current?.scrollToIndex(index, 100);
   };
   const isOffline = useOfflineMode();
+  const { settings } = useSettings();
+  const insets = useSafeAreaInsets();
 
   // Set the initial season index
   useEffect(() => {
@@ -182,15 +186,24 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   }, [episodes, item.Id]);
 
   return (
-    <SafeAreaView
+    <View
       style={{
         position: "absolute",
         backgroundColor: "black",
         height: "100%",
         width: "100%",
+        paddingTop:
+          (settings?.safeAreaInControlsEnabled ?? true) ? insets.top : 0,
+        paddingLeft:
+          (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
+        paddingRight:
+          (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
       }}
     >
-      <View className='flex-row items-center p-4 z-10'>
+      <View
+        style={{ padding: HEADER_LAYOUT.CONTAINER_PADDING }}
+        className='flex-row items-center z-10'
+      >
         {seasons && seasons.length > 0 && !episodesLoading && episodes && (
           <SeasonDropdown
             item={item}
@@ -208,9 +221,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           onPress={async () => {
             close();
           }}
-          className='aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2 ml-auto'
+          className='aspect-square flex flex-col rounded-xl items-center justify-center p-2 ml-auto'
         >
-          <Ionicons name='close' size={24} color='white' />
+          <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
         </TouchableOpacity>
       </View>
 
@@ -275,6 +288,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           showsHorizontalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
