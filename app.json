@@ -120,7 +120,7 @@
         "./plugins/withGitPod.js",
         {
           "podName": "MPVKit-GPL",
-          "podspecUrl": "https://raw.githubusercontent.com/Alexk2309/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
+          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
         }
       ]
     ],
