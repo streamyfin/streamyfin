@@ -322,9 +322,6 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
-            // redirect if internal notification
-            redirect(response?.notification);
-
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
