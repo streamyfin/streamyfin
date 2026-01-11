@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import {
   type OptionGroup,
@@ -18,36 +19,8 @@ interface AspectRatioSelectorProps {
 interface AspectRatioOption {
   id: AspectRatio;
   label: string;
-  description: string;
+  descriptionKey: string;
 }
-
-const ASPECT_RATIO_OPTIONS: AspectRatioOption[] = [
-  {
-    id: "default",
-    label: "Original",
-    description: "Use video's original aspect ratio",
-  },
-  {
-    id: "16:9",
-    label: "16:9",
-    description: "Widescreen (most common)",
-  },
-  {
-    id: "4:3",
-    label: "4:3",
-    description: "Traditional TV format",
-  },
-  {
-    id: "1:1",
-    label: "1:1",
-    description: "Square format",
-  },
-  {
-    id: "21:9",
-    label: "21:9",
-    description: "Ultra-wide cinematic",
-  },
-];
 
 export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   currentRatio,
@@ -55,11 +28,40 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   disabled = false,
 }) => {
   const lightHapticFeedback = useHaptic("light");
+  const { t } = useTranslation();
 
   const handleRatioSelect = (ratio: AspectRatio) => {
     onRatioChange(ratio);
     lightHapticFeedback();
   };
+
+  const ASPECT_RATIO_OPTIONS: AspectRatioOption[] = [
+    {
+      id: "default",
+      label: t("player.aspect_ratio_original"),
+      descriptionKey: "player.aspect_ratio_original_description",
+    },
+    {
+      id: "16:9",
+      label: "16:9",
+      descriptionKey: "player.aspect_ratio_16_9_description",
+    },
+    {
+      id: "4:3",
+      label: "4:3",
+      descriptionKey: "player.aspect_ratio_4_3_description",
+    },
+    {
+      id: "1:1",
+      label: "1:1",
+      descriptionKey: "player.aspect_ratio_1_1_description",
+    },
+    {
+      id: "21:9",
+      label: "21:9",
+      descriptionKey: "player.aspect_ratio_21_9_description",
+    },
+  ];
 
   const optionGroups = useMemo<OptionGroup[]>(() => {
     return [
@@ -94,7 +96,7 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
 
   return (
     <PlatformDropdown
-      title='Aspect Ratio'
+      title={t("player.aspect_ratio_title")}
       groups={optionGroups}
       trigger={trigger}
       bottomSheetConfig={{

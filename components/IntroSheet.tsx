@@ -158,12 +158,12 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
               </View>
               <View className='shrink ml-2'>
                 <Text className='font-bold mb-1'>
-                  {t("home.intro.centralised_settings_plugin_title")}
+                  {t("home.intro.centralized_settings_plugin_title")}
                 </Text>
                 <View className='flex-row flex-wrap items-baseline'>
                   <Text className='shrink text-xs'>
                     {t(
-                      "home.intro.centralised_settings_plugin_description",
+                      "home.intro.centralized_settings_plugin_description",
                     )}{" "}
                   </Text>
                   <TouchableOpacity

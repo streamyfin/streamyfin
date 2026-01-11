@@ -22,13 +22,28 @@
 
 ## 🌟 Features
 
-- 🚀 **Skip Intro / Credits Support**: Lets you quickly skip intros and credits during playback
-- 🖼️ **Trickplay images**: The new golden standard for chapter previews when seeking
-- 📥 **Download media**: Save your media locally and watch it offline
-- ⚙️ **Settings management**: Manage app configurations for all users through our plugin
-- 🤖 **Seerr (formerly Jellyseerr) integration**: Request media directly in the app
-- 👁️ **Sessions view:** View all active sessions currently streaming on your server
+### 🎬 Media Playback
+- 🚀 **Skip Intro / Credits**: Automatically skip intros and credits during playback
+- 🖼️ **Trickplay Images**: Chapter previews with thumbnails when seeking
+- 🎵 **Music Library**: Full support for music playback with playlists and queue management
+- 📺 **Live TV**: Watch and record live television streams
 - 📡 **Chromecast**: Cast your media to any Chromecast-enabled device
+- 🎥 **MPV Player**: Powerful open-source player with wide format support
+
+### 📱 Media Management
+- 📥 **Download Media**: Save movies, shows, and music locally for offline viewing
+- ⭐ **Favorites**: Quick access to your favorite content
+- 📋 **Watchlists**: Create and manage custom watchlists with Streamystats integration
+- 🔖 **Continue Watching**: Pick up right where you left off
+- 🎯 **Next Up**: Smart suggestions for your next episode
+
+### ⚙️ Advanced Features
+- 🤖 **Seerr Integration**: Request new media directly in the app
+- 🔍 **Smart Search**: Powerful search with Marlin Search and Streamystats support
+- 👁️ **Active Sessions**: View all active streams on your server
+- 🌐 **Multi-Language**: Available in 20+ languages with Crowdin integration
+- 🎨 **Customizable**: Personalize your home screen and settings
+- 🔌 **Plugin System**: Centralized settings sync across all devices via Jellyfin plugin
 
 ## 🧪 Experimental Features
 
@@ -40,12 +55,13 @@ Downloading works by using FFmpeg to convert an HLS stream into a video file on 
 
 ### 🧩 Streamyfin Plugin
 
-The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that holds all settings for the client Streamyfin. This allows you to synchronize settings across all your users, like for example:
+The Jellyfin Plugin for Streamyfin synchronizes settings across all your devices and users. Install it on your Jellyfin server to enable:
 
 - Automatic Seerr login with no user input required
-- Set your preferred default languages
-- Configure download method and search provider
-- Personalize your home screen
+- Default language preferences for audio and subtitles
+- Configure download settings and search providers (Marlin, Streamystats)
+- Customize your home screen layout and sections
+- Centralized configuration management
 - And much more
 
 [Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
@@ -59,11 +75,24 @@ Chromecast support is currently under development. Video casting is already avai
 Streamyfin uses [MPV](https://mpv.io/) as its primary video player on all platforms, powered by [MPVKit](https://github.com/mpvkit/MPVKit). MPV is a powerful, open-source media player known for its wide format support and high-quality playback.
 Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building the native MPV module in Streamyfin.
 
-### 🔍 Jellysearch
+### 🎵 Music Library
 
-[Jellysearch](https://gitlab.com/DomiStyle/jellysearch) works with Streamyfin
+Streamyfin now includes full music library support with features like:
 
-> A fast full-text search proxy for Jellyfin. Integrates seamlessly with most Jellyfin clients.
+- Browse your music collection by artists, albums, and playlists
+- Create and manage custom playlists
+- Queue management with shuffle and repeat
+- Background playback
+- Now playing screen with album artwork
+- Download songs for offline listening
+
+### 🔍 Advanced Search
+
+Streamyfin supports multiple search providers:
+
+- **Marlin Search**: Fast semantic search for your Jellyfin library
+- **Streamystats**: Advanced statistics and personalized recommendations
+- **Jellysearch**: Fast full-text search proxy ([Jellysearch](https://gitlab.com/DomiStyle/jellysearch))
 
 ## 🛣️ Roadmap
 
@@ -131,10 +160,20 @@ Need assistance or have any questions?
 
 ## ❓ FAQ
 
-1. Q: Why can't I see my libraries in Streamyfin?  
-   A: Make sure your server is running one of the latest versions and that you have at least one library that isn't audio only
-2. Q: Why can't I see my music library?
-   A: We don't currently support music and are unlikely to support music in the near future
+1. **Q: Why can't I see my libraries in Streamyfin?**  
+   A: Ensure your Jellyfin server is running a recent version (10.10.0+) and that you have proper permissions to access the libraries.
+
+2. **Q: How do I enable downloads?**  
+   A: Downloads use FFmpeg to convert HLS streams. Ensure your server has transcoding enabled and sufficient resources.
+
+3. **Q: Does Streamyfin support subtitles?**  
+   A: Yes, with full customization including size, color, position, and automatic language selection.
+
+4. **Q: Can I use Streamyfin on Apple TV or Android TV?**  
+   A: Yes, Streamyfin has dedicated TV builds optimized for remote control navigation. Please note that TV platforms are currently in early development and not very stable. Android TV is currently the most reliable platform for testing.
+
+5. **Q: How do I set up Seerr integration?**  
+   A: Go to Settings → Plugins → Seerr, enter your server URL and Jellyfin credentials.
 
 ## 📝 Credits
 

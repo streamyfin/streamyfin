@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import {
@@ -41,6 +42,7 @@ const DropdownView = ({
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const isOffline = useOfflineMode();
+  const { t } = useTranslation();
 
   const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
     useLocalSearchParams<{
@@ -194,7 +196,7 @@ const DropdownView = ({
 
   return (
     <PlatformDropdown
-      title='Playback Options'
+      title={t("player.playback_options_title")}
       groups={optionGroups}
       trigger={trigger}
       expoUIConfig={{}}
