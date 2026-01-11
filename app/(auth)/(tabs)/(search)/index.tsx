@@ -3,6 +3,7 @@ import type {
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
+import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
@@ -20,7 +21,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDebounce } from "use-debounce";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
@@ -72,7 +72,23 @@ export default function search() {
   const [searchType, setSearchType] = useState<SearchType>("Library");
   const [search, setSearch] = useState<string>("");
 
-  const [debouncedSearch] = useDebounce(search, 500);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const searchDebouncer = useAsyncDebouncer(
+    async (query: string) => {
+      // Cancel previous in-flight requests
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+      setDebouncedSearch(query);
+      return query;
+    },
+    { wait: 200 },
+  );
+
+  useEffect(() => {
+    searchDebouncer.maybeExecute(search);
+  }, [search]);
 
   const [api] = useAtom(apiAtom);
 
@@ -102,9 +118,11 @@ export default function search() {
     async ({
       types,
       query,
+      signal,
     }: {
       types: BaseItemKind[];
       query: string;
+      signal?: AbortSignal;
     }): Promise<BaseItemDto[]> => {
       if (!api || !query) {
         return [];
@@ -112,13 +130,16 @@ export default function search() {
 
       try {
         if (searchEngine === "Jellyfin") {
-          const searchApi = await getItemsApi(api).getItems({
-            searchTerm: query,
-            limit: 10,
-            includeItemTypes: types,
-            recursive: true,
-            userId: user?.Id,
-          });
+          const searchApi = await getItemsApi(api).getItems(
+            {
+              searchTerm: query,
+              limit: 10,
+              includeItemTypes: types,
+              recursive: true,
+              userId: user?.Id,
+            },
+            { signal },
+          );
 
           return (searchApi.data.Items as BaseItemDto[]) || [];
         }
@@ -147,6 +168,7 @@ export default function search() {
             query,
             searchType as "movies" | "series" | "episodes" | "actors" | "media",
             10,
+            signal,
           );
 
           const allIds: string[] = [
@@ -161,10 +183,13 @@ export default function search() {
             return [];
           }
 
-          const itemsResponse = await getItemsApi(api).getItems({
-            ids: allIds,
-            enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-          });
+          const itemsResponse = await getItemsApi(api).getItems(
+            {
+              ids: allIds,
+              enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+            },
+            { signal },
+          );
 
           return (itemsResponse.data.Items as BaseItemDto[]) || [];
         }
@@ -180,7 +205,7 @@ export default function search() {
           .map((type) => encodeURIComponent(type))
           .join("&includeItemTypes=")}`;
 
-        const response1 = await axios.get(url);
+        const response1 = await axios.get(url, { signal });
 
         const ids = response1.data.ids;
 
@@ -188,13 +213,20 @@ export default function search() {
           return [];
         }
 
-        const response2 = await getItemsApi(api).getItems({
-          ids,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-        });
+        const response2 = await getItemsApi(api).getItems(
+          {
+            ids,
+            enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          },
+          { signal },
+        );
 
         return (response2.data.Items as BaseItemDto[]) || [];
-      } catch (_error) {
+      } catch (error) {
+        // Silently handle aborted requests
+        if (error instanceof Error && error.name === "AbortError") {
+          return [];
+        }
         return [];
       }
     },
@@ -206,25 +238,34 @@ export default function search() {
     async ({
       types,
       query,
+      signal,
     }: {
       types: BaseItemKind[];
       query: string;
+      signal?: AbortSignal;
     }): Promise<BaseItemDto[]> => {
       if (!api || !query) {
         return [];
       }
 
       try {
-        const searchApi = await getItemsApi(api).getItems({
-          searchTerm: query,
-          limit: 10,
-          includeItemTypes: types,
-          recursive: true,
-          userId: user?.Id,
-        });
+        const searchApi = await getItemsApi(api).getItems(
+          {
+            searchTerm: query,
+            limit: 10,
+            includeItemTypes: types,
+            recursive: true,
+            userId: user?.Id,
+          },
+          { signal },
+        );
 
         return (searchApi.data.Items as BaseItemDto[]) || [];
-      } catch (_error) {
+      } catch (error) {
+        // Silently handle aborted requests
+        if (error instanceof Error && error.name === "AbortError") {
+          return [];
+        }
         return [];
       }
     },
@@ -277,6 +318,7 @@ export default function search() {
       searchFn({
         query: debouncedSearch,
         types: ["Movie"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -287,6 +329,7 @@ export default function search() {
       searchFn({
         query: debouncedSearch,
         types: ["Series"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -297,6 +340,7 @@ export default function search() {
       searchFn({
         query: debouncedSearch,
         types: ["Episode"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -307,6 +351,7 @@ export default function search() {
       searchFn({
         query: debouncedSearch,
         types: ["BoxSet"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -317,6 +362,7 @@ export default function search() {
       searchFn({
         query: debouncedSearch,
         types: ["Person"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -328,6 +374,7 @@ export default function search() {
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["MusicArtist"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -338,6 +385,7 @@ export default function search() {
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["MusicAlbum"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -348,6 +396,7 @@ export default function search() {
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["Audio"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -358,6 +407,7 @@ export default function search() {
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["Playlist"],
+        signal: abortControllerRef.current?.signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });

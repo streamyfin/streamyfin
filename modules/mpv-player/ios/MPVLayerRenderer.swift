@@ -98,13 +98,6 @@ final class MPVLayerRenderer {
         checkError(mpv_request_log_messages(handle, "no"))
         #endif
 
-        // Detect if running on simulator
-        #if targetEnvironment(simulator)
-        let isSimulator = true
-        #else
-        let isSimulator = false
-        #endif
-
         // Pass the AVSampleBufferDisplayLayer to mpv via --wid
         // The vo_avfoundation driver expects this
         let layerPtrInt = Int(bitPattern: Unmanaged.passUnretained(displayLayer).toOpaque())
@@ -121,8 +114,11 @@ final class MPVLayerRenderer {
         // Hardware decoding with VideoToolbox
         // On simulator, use software decoding since VideoToolbox is not available
         // On device, use VideoToolbox with software fallback enabled
-        let hwdecValue = isSimulator ? "no" : "videotoolbox"
-        checkError(mpv_set_option_string(handle, "hwdec", hwdecValue))
+        #if targetEnvironment(simulator)
+        checkError(mpv_set_option_string(handle, "hwdec", "no"))
+        #else
+        checkError(mpv_set_option_string(handle, "hwdec", "videotoolbox"))
+        #endif
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
         checkError(mpv_set_option_string(handle, "hwdec-software-fallback", "yes"))
 
@@ -306,6 +302,7 @@ final class MPVLayerRenderer {
         }
     }
     
+    @discardableResult
     private func commandSync(_ handle: OpaquePointer, _ args: [String]) -> Int32 {
         guard !args.isEmpty else { return -1 }
         return withCStringArray(args) { pointer in
