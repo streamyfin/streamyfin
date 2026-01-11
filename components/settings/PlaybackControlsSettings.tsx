@@ -211,7 +211,23 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
 
-        <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
+        <ListItem
+          title={t("home.settings.other.auto_play_next_episode")}
+          disabled={pluginSettings?.autoPlayNextEpisode?.locked}
+        >
+          <Switch
+            value={settings.autoPlayNextEpisode}
+            disabled={pluginSettings?.autoPlayNextEpisode?.locked}
+            onValueChange={(autoPlayNextEpisode) =>
+              updateSettings({ autoPlayNextEpisode })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.other.max_auto_play_episode_count")}
+          disabled={!settings.autoPlayNextEpisode}
+        >
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}
             trigger={
