@@ -51,12 +51,13 @@ class MpvPlayerView: ExpoView {
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
-	private var intendedPlayState: Bool = false  // For PiP - ignores transient states during seek
+	private var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
 		setupView()
+		// Note: Decoder reset is handled automatically via KVO in MPVLayerRenderer
 	}
 
 	private func setupView() {
@@ -361,6 +362,11 @@ extension MpvPlayerView: PiPControllerDelegate {
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
 		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		
+		// Reset to fit for PiP (zoomed video doesn't display correctly in PiP)
+		if _isZoomedToFill {
+			displayLayer.videoGravity = .resizeAspect
+		}
 	}
 	
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
@@ -380,6 +386,11 @@ extension MpvPlayerView: PiPControllerDelegate {
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
 		pipController?.updatePlaybackState()
+		
+		// Restore the user's zoom preference
+		if _isZoomedToFill {
+			displayLayer.videoGravity = .resizeAspectFill
+		}
 	}
 	
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {

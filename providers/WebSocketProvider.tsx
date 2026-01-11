@@ -1,5 +1,4 @@
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
-import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -12,6 +11,7 @@ import {
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 

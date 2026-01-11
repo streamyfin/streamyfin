@@ -1,10 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { router } from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { HorizontalScroll } from "../common/HorizontalScroll";
@@ -18,6 +18,7 @@ interface Props extends ViewProps {
 export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
   const [api] = useAtom(apiAtom);
   const { t } = useTranslation();
+  const router = useRouter();
 
   return (
     <View {...props}>

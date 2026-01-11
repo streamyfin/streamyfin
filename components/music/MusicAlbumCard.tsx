@@ -1,10 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 

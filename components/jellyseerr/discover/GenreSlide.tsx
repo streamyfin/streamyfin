@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { router, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import type React from "react";
 import { useCallback } from "react";
 import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
+import useRouter from "@/hooks/useAppRouter";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 import type { GenreSliderItem } from "@/utils/jellyseerr/server/interfaces/api/discoverInterfaces";
@@ -13,6 +14,7 @@ import { genreColorMap } from "@/utils/jellyseerr/src/components/Discover/consta
 const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
+  const router = useRouter();
   const from = (segments as string[])[2] || "(home)";
 
   const navigate = useCallback(

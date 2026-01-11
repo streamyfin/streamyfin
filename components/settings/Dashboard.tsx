@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";

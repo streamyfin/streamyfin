@@ -2,13 +2,14 @@ import type {
   BaseItemDto,
   BaseItemPerson,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { router, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { HorizontalScroll } from "../common/HorizontalScroll";
@@ -24,6 +25,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
   const [api] = useAtom(apiAtom);
   const segments = useSegments();
   const { t } = useTranslation();
+  const router = useRouter();
   const from = (segments as string[])[2];
 
   const destinctPeople = useMemo(() => {

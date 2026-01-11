@@ -1,14 +1,16 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useRouter, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { useDownload } from "@/providers/DownloadProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
-  isOffline?: boolean;
 }
 
 export const itemRouter = (item: BaseItemDto, from: string) => {
@@ -134,26 +136,20 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
 
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
-  isOffline = false,
   children,
   ...props
 }) => {
-  const router = useRouter();
   const segments = useSegments();
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
+  const router = useRouter();
+  const isOffline = useOfflineMode();
+  const { deleteFile } = useDownload();
 
   const from = (segments as string[])[2] || "(home)";
 
   const handlePress = useCallback(() => {
-    // For offline mode, we still need to use query params
-    if (isOffline) {
-      const url = `${itemRouter(item, from)}&offline=true`;
-      router.push(url as any);
-      return;
-    }
-
     // Force music libraries to navigate via the explicit string route.
     // This avoids losing the dynamic [libraryId] param when going through a nested navigator.
     if ("CollectionType" in item && item.CollectionType === "music") {
@@ -163,7 +159,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
 
     const navigation = getItemNavigation(item, from);
     router.push(navigation as any);
-  }, [from, isOffline, item, router]);
+  }, [from, item, router]);
 
   const showActionSheet = useCallback(() => {
     if (
@@ -179,14 +175,19 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       "Mark as Played",
       "Mark as Not Played",
       isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
+      ...(isOffline ? ["Delete Download"] : []),
       "Cancel",
     ];
     const cancelButtonIndex = options.length - 1;
+    const destructiveButtonIndex = isOffline
+      ? cancelButtonIndex - 1
+      : undefined;
 
     showActionSheetWithOptions(
       {
         options,
         cancelButtonIndex,
+        destructiveButtonIndex,
       },
       async (selectedIndex) => {
         if (selectedIndex === 0) {
@@ -195,6 +196,8 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           await markAsPlayedStatus(false);
         } else if (selectedIndex === 2) {
           toggleFavorite();
+        } else if (isOffline && selectedIndex === 3 && item.Id) {
+          deleteFile(item.Id);
         }
       },
     );
@@ -203,6 +206,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     isFavorite,
     markAsPlayedStatus,
     toggleFavorite,
+    isOffline,
+    deleteFile,
+    item.Id,
   ]);
 
   if (

@@ -18,7 +18,6 @@ interface PlayerContextProps {
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
   tracksReady: boolean;
-  offline: boolean;
   downloadedItem: DownloadedItem | null;
 }
 
@@ -31,7 +30,6 @@ interface PlayerProviderProps {
   mediaSource: MediaSourceInfo | null | undefined;
   isVideoLoaded: boolean;
   tracksReady: boolean;
-  offline?: boolean;
   downloadedItem?: DownloadedItem | null;
 }
 
@@ -42,7 +40,6 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
   mediaSource,
   isVideoLoaded,
   tracksReady,
-  offline = false,
   downloadedItem = null,
 }) => {
   const value = useMemo(
@@ -52,18 +49,9 @@ export const PlayerProvider: React.FC<PlayerProviderProps> = ({
       mediaSource,
       isVideoLoaded,
       tracksReady,
-      offline,
       downloadedItem,
     }),
-    [
-      playerRef,
-      item,
-      mediaSource,
-      isVideoLoaded,
-      tracksReady,
-      offline,
-      downloadedItem,
-    ],
+    [playerRef, item, mediaSource, isVideoLoaded, tracksReady, downloadedItem],
   );
 
   return (
