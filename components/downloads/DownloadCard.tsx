@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
 import { t } from "i18next";
 import { useMemo } from "react";
 import {
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { calculateSmoothedETA } from "@/providers/Downloads/hooks/useDownloadSpeedCalculator";

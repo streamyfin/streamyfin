@@ -6,7 +6,6 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -38,6 +37,7 @@ import { Text } from "@/components/common/Text";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
 import { TrackOptionsSheet } from "@/components/music/TrackOptionsSheet";
+import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMusicCast } from "@/hooks/useMusicCast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";

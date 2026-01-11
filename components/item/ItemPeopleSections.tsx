@@ -8,17 +8,14 @@ import { InteractionManager, View, type ViewProps } from "react-native";
 import { MoreMoviesWithActor } from "@/components/MoreMoviesWithActor";
 import { CastAndCrew } from "@/components/series/CastAndCrew";
 import { useItemPeopleQuery } from "@/hooks/useItemPeopleQuery";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
-  isOffline: boolean;
 }
 
-export const ItemPeopleSections: React.FC<Props> = ({
-  item,
-  isOffline,
-  ...props
-}) => {
+export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
+  const isOffline = useOfflineMode();
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {

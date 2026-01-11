@@ -10,13 +10,12 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { router, useGlobalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, useWindowDimensions, View } from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
-
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -27,6 +26,7 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
@@ -44,6 +44,9 @@ import {
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+
+import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+
 import { useSettings } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -60,6 +63,7 @@ export default function page() {
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const router = useRouter();
   const { settings, updateSettings } = useSettings();
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -87,10 +91,9 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
-  const downloadedFiles = useMemo(
-    () => downloadUtils.getDownloadedItems(),
-    [downloadUtils.getDownloadedItems],
-  );
+  // Call directly instead of useMemo - the function reference doesn't change
+  // when data updates, only when the provider initializes
+  const downloadedFiles = downloadUtils.getDownloadedItems();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -109,7 +112,7 @@ export default function page() {
     bitrateValue: bitrateValueStr,
     offline: offlineStr,
     playbackPosition: playbackPositionFromUrl,
-  } = useGlobalSearchParams<{
+  } = useLocalSearchParams<{
     itemId: string;
     audioIndex: string;
     subtitleIndex: string;
@@ -677,8 +680,8 @@ export default function page() {
         return;
       }
 
-      if (isLoading) {
-        setIsBuffering(true);
+      if (isLoading !== undefined) {
+        setIsBuffering(isLoading);
       }
     },
     [playbackManager, item?.Id, progress],
@@ -833,99 +836,99 @@ export default function page() {
     );
 
   return (
-    <PlayerProvider
-      playerRef={videoRef}
-      item={item}
-      mediaSource={stream?.mediaSource}
-      isVideoLoaded={isVideoLoaded}
-      tracksReady={tracksReady}
-      offline={offline}
-      downloadedItem={downloadedItem}
-    >
-      <VideoProvider>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "black",
-            height: "100%",
-            width: "100%",
-          }}
-        >
+    <OfflineModeProvider isOffline={offline}>
+      <PlayerProvider
+        playerRef={videoRef}
+        item={item}
+        mediaSource={stream?.mediaSource}
+        isVideoLoaded={isVideoLoaded}
+        tracksReady={tracksReady}
+        downloadedItem={downloadedItem}
+      >
+        <VideoProvider>
           <View
             style={{
-              display: "flex",
-              width: "100%",
+              flex: 1,
+              backgroundColor: "black",
               height: "100%",
-              position: "relative",
-              flexDirection: "column",
-              justifyContent: "center",
+              width: "100%",
             }}
           >
-            <MpvPlayerView
-              ref={videoRef}
-              source={videoSource}
-              style={{ width: "100%", height: "100%" }}
-              onProgress={onProgress}
-              onPlaybackStateChange={onPlaybackStateChanged}
-              onLoad={() => setIsVideoLoaded(true)}
-              onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
-                console.error("Video Error:", e.nativeEvent);
-                Alert.alert(
-                  t("player.error"),
-                  t("player.an_error_occured_while_playing_the_video"),
-                );
-                writeToLog("ERROR", "Video Error", e.nativeEvent);
+            <View
+              style={{
+                display: "flex",
+                width: "100%",
+                height: "100%",
+                position: "relative",
+                flexDirection: "column",
+                justifyContent: "center",
               }}
-              onTracksReady={() => {
-                setTracksReady(true);
-              }}
-            />
-            {!hasPlaybackStarted && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: "black",
-                  justifyContent: "center",
-                  alignItems: "center",
+            >
+              <MpvPlayerView
+                ref={videoRef}
+                source={videoSource}
+                style={{ width: "100%", height: "100%" }}
+                onProgress={onProgress}
+                onPlaybackStateChange={onPlaybackStateChanged}
+                onLoad={() => setIsVideoLoaded(true)}
+                onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
+                  console.error("Video Error:", e.nativeEvent);
+                  Alert.alert(
+                    t("player.error"),
+                    t("player.an_error_occured_while_playing_the_video"),
+                  );
+                  writeToLog("ERROR", "Video Error", e.nativeEvent);
                 }}
-              >
-                <Loader />
-              </View>
+                onTracksReady={() => {
+                  setTracksReady(true);
+                }}
+              />
+              {!hasPlaybackStarted && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "black",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Loader />
+                </View>
+              )}
+            </View>
+            {isMounted === true && item && !isPipMode && (
+              <Controls
+                mediaSource={stream?.mediaSource}
+                item={item}
+                togglePlay={togglePlay}
+                isPlaying={isPlaying}
+                isSeeking={isSeeking}
+                progress={progress}
+                cacheProgress={cacheProgress}
+                isBuffering={isBuffering}
+                showControls={showControls}
+                setShowControls={setShowControls}
+                startPictureInPicture={startPictureInPicture}
+                play={play}
+                pause={pause}
+                seek={seek}
+                enableTrickplay={true}
+                aspectRatio={aspectRatio}
+                isZoomedToFill={isZoomedToFill}
+                onZoomToggle={handleZoomToggle}
+                api={api}
+                downloadedFiles={downloadedFiles}
+                playbackSpeed={currentPlaybackSpeed}
+                setPlaybackSpeed={handleSetPlaybackSpeed}
+              />
             )}
           </View>
-          {isMounted === true && item && !isPipMode && (
-            <Controls
-              mediaSource={stream?.mediaSource}
-              item={item}
-              togglePlay={togglePlay}
-              isPlaying={isPlaying}
-              isSeeking={isSeeking}
-              progress={progress}
-              cacheProgress={cacheProgress}
-              isBuffering={isBuffering}
-              showControls={showControls}
-              setShowControls={setShowControls}
-              startPictureInPicture={startPictureInPicture}
-              play={play}
-              pause={pause}
-              seek={seek}
-              enableTrickplay={true}
-              offline={offline}
-              aspectRatio={aspectRatio}
-              isZoomedToFill={isZoomedToFill}
-              onZoomToggle={handleZoomToggle}
-              api={api}
-              downloadedFiles={downloadedFiles}
-              playbackSpeed={currentPlaybackSpeed}
-              setPlaybackSpeed={handleSetPlaybackSpeed}
-            />
-          )}
-        </View>
-      </VideoProvider>
-    </PlayerProvider>
+        </VideoProvider>
+      </PlayerProvider>
+    </OfflineModeProvider>
   );
 }

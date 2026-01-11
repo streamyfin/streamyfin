@@ -1,9 +1,10 @@
-import { router, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import type React from "react";
 import { useCallback } from "react";
 import { TouchableOpacity, type ViewProps } from "react-native";
 import GenericSlideCard from "@/components/jellyseerr/discover/GenericSlideCard";
 import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
+import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import {
   COMPANY_LOGO_IMAGE_FILTER,
@@ -16,6 +17,7 @@ const CompanySlide: React.FC<
 > = ({ slide, data, ...props }) => {
   const segments = useSegments();
   const { jellyseerrApi } = useJellyseerr();
+  const router = useRouter();
   const from = (segments as string[])[2] || "(home)";
 
   const navigate = useCallback(

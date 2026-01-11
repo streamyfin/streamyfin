@@ -507,7 +507,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.MPV_EVENT_FILE_LOADED -> {
                 // Add external subtitles now that file is loaded
                 if (pendingExternalSubtitles.isNotEmpty()) {
-                    for (subUrl in pendingExternalSubtitles) {
+                    pendingExternalSubtitles.forEachIndexed { index, subUrl ->
+                        android.util.Log.d("MPVRenderer", "Adding external subtitle [$index]: $subUrl")
                         MPVLib.command(arrayOf("sub-add", subUrl))
                     }
                     pendingExternalSubtitles = emptyList()

@@ -36,6 +36,9 @@ final class MPVLayerRenderer {
     private var isRunning = false
     private var isStopping = false
     
+    // KVO observation for display layer status
+    private var statusObservation: NSKeyValueObservation?
+    
     weak var delegate: MPVLayerRendererDelegate?
     
     // Thread-safe state for playback
@@ -78,6 +81,37 @@ final class MPVLayerRenderer {
     
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
+        observeDisplayLayerStatus()
+    }
+    
+   
+    /// Watches for display layer failures and auto-recovers.
+    ///
+    /// iOS aggressively kills VideoToolbox decoder sessions when the app is
+    /// backgrounded, the screen is locked, or system resources are low.
+    /// This causes the video to go black - especially problematic for PiP.
+    ///
+    /// This KVO observer detects when the display layer status becomes `.failed`
+    /// and automatically reinitializes the hardware decoder to restore video.
+    private func observeDisplayLayerStatus() {
+        statusObservation = displayLayer.observe(\.status, options: [.new]) { [weak self] layer, _ in
+            guard let self else { return }
+            
+            if layer.status == .failed {
+                print("🔧 Display layer failed - auto-resetting decoder")
+                self.queue.async {
+                    self.performDecoderReset()
+                }
+            }
+        }
+    }
+    
+    /// Actually performs the decoder reset (called by observer or manually)
+    private func performDecoderReset() {
+        guard let handle = mpv else { return }
+        print("🔧 Resetting decoder: status=\(displayLayer.status.rawValue), requiresFlush=\(displayLayer.requiresFlushToResumeDecoding)")
+        commandSync(handle, ["set", "hwdec", "no"])
+        commandSync(handle, ["set", "hwdec", "auto"])
     }
     
     deinit {
@@ -149,6 +183,10 @@ final class MPVLayerRenderer {
         if !isRunning, mpv == nil { return }
         isRunning = false
         isStopping = true
+        
+        // Stop observing display layer status
+        statusObservation?.invalidate()
+        statusObservation = nil
         
         queue.sync { [weak self] in
             guard let self, let handle = self.mpv else { return }
@@ -339,8 +377,10 @@ final class MPVLayerRenderer {
             // Add external subtitles now that the file is loaded
             let hadExternalSubs = !pendingExternalSubtitles.isEmpty
             if hadExternalSubs, let handle = mpv {
-                for subUrl in pendingExternalSubtitles {
-                    command(handle, ["sub-add", subUrl])
+                for (index, subUrl) in pendingExternalSubtitles.enumerated() {
+                    print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
+                    // Use commandSync to ensure subs are added in exact order (not async)
+                    commandSync(handle, ["sub-add", subUrl])
                 }
                 pendingExternalSubtitles = []
                 // Set subtitle after external subs are added
@@ -531,7 +571,9 @@ final class MPVLayerRenderer {
         cachedPosition = clamped
         commandSync(handle, ["seek", String(clamped), "absolute"])
     }
-    
+
+
+
     func seek(by seconds: Double) {
         guard let handle = mpv else { return }
         let newPosition = max(0, cachedPosition + seconds)

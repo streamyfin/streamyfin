@@ -15,3 +15,7 @@ export const ICON_SIZES = {
   HEADER: 24,
   CENTER: 50,
 } as const;
+
+export const HEADER_LAYOUT = {
+  CONTAINER_PADDING: 8, // p-2 = 8px (matches HeaderControls)
+} as const;

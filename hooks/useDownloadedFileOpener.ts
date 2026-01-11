@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useRouter } from "expo-router";
 import { useCallback } from "react";
+import useRouter from "@/hooks/useAppRouter";
 import { usePlaySettings } from "@/providers/PlaySettingsProvider";
 import { writeToLog } from "@/utils/log";
 

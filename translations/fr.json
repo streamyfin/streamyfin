@@ -49,29 +49,29 @@
     "save_for_later": "Enregistrer ce compte",
     "security_option": "Options de sécurité",
     "no_protection": "Aucune protection",
-    "no_protection_desc": "Quick login without authentication",
-    "pin_code": "PIN code",
-    "pin_code_desc": "4-digit PIN required when switching",
-    "password": "Re-enter password",
-    "password_desc": "Password required when switching",
-    "save_button": "Save",
-    "cancel_button": "Cancel"
+    "no_protection_desc": "Connexion rapide sans authentification",
+    "pin_code": "Code PIN",
+    "pin_code_desc": "Code PIN à 4 chiffres requis lors du changement",
+    "password": "Confirmer le mot de passe",
+    "password_desc": "Mot de passe requis lors du changement",
+    "save_button": "Enregistrer",
+    "cancel_button": "Annuler"
   },
   "pin": {
-    "enter_pin": "Enter PIN",
-    "enter_pin_for": "Enter PIN for {{username}}",
-    "enter_4_digits": "Enter 4 digits",
-    "invalid_pin": "Invalid PIN",
-    "setup_pin": "Set Up PIN",
-    "confirm_pin": "Confirm PIN",
-    "pins_dont_match": "PINs don't match",
-    "forgot_pin": "Forgot PIN?",
-    "forgot_pin_desc": "Your saved credentials will be removed"
+    "enter_pin": "Saisir le code PIN",
+    "enter_pin_for": "Saisissez le code PIN pour {{username}}",
+    "enter_4_digits": "Saisissez 4 chiffres",
+    "invalid_pin": "Code PIN incorrect",
+    "setup_pin": "Configurer le code PIN",
+    "confirm_pin": "Confirmer le code PIN",
+    "pins_dont_match": "Les codes PIN ne correspondent pas",
+    "forgot_pin": "Code PIN oublié ?",
+    "forgot_pin_desc": "Vos identifiants enregistrés seront supprimés"
   },
   "password": {
-    "enter_password": "Enter Password",
-    "enter_password_for": "Enter password for {{username}}",
-    "invalid_password": "Invalid password"
+    "enter_password": "Veuillez saisir le mot de passe",
+    "enter_password_for": "Entrez le mot de passe pour {{username}}",
+    "invalid_password": "Mot de passe incorrect"
   },
   "home": {
     "checking_server_connection": "Vérification de la connexion au serveur...",
@@ -87,7 +87,7 @@
     "error_message": "Quelque chose s'est mal passé.\nVeuillez vous reconnecter à nouveau.",
     "continue_watching": "Continuer à regarder",
     "next_up": "À suivre",
-    "continue_and_next_up": "Continue & Next Up",
+    "continue_and_next_up": "Continuer de regarder et à suivre",
     "recently_added_in": "Ajoutés récemment dans {{libraryName}}",
     "suggested_movies": "Films suggérés",
     "suggested_episodes": "Épisodes suggérés",
@@ -120,8 +120,36 @@
       },
       "appearance": {
         "title": "Apparence",
-        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
-        "hide_remote_session_button": "Hide Remote Session Button"
+        "merge_next_up_continue_watching": "Fusionner, continuer à regarder et à suivre",
+        "hide_remote_session_button": "Masquer le bouton de session distante"
+      },
+      "network": {
+        "title": "Réseau",
+        "local_network": "Réseau local",
+        "auto_switch_enabled": "Basculement automatique quand à la maison",
+        "auto_switch_description": "Basculer automatiquement vers l'URL locale lorsque vous êtes connecté au Wi-Fi de la maison",
+        "local_url": "URL locale",
+        "local_url_hint": "Entrez l'adresse de votre serveur local (exemple, http://192.168.1.100:8096)",
+        "local_url_placeholder": "http://192.168.1.100:8096",
+        "home_wifi_networks": "Réseaux Wi-Fi domestiques",
+        "add_current_network": "Ajouter \"{{ssid}}\"",
+        "not_connected_to_wifi": "Non connecté au WiFi",
+        "no_networks_configured": "Pas de réseau configuré",
+        "add_network_hint": "Ajouter votre réseau Wi-Fi domestique pour activer la commutation automatique",
+        "current_wifi": "WiFi actuel",
+        "using_url": "Utilisant",
+        "local": "URL locale",
+        "remote": "URL à distance",
+        "not_connected": "Non connecté",
+        "current_server": "Serveur actuel",
+        "remote_url": "URL à distance",
+        "active_url": "URL active",
+        "not_configured": "Non configuré",
+        "network_added": "Réseau ajouté",
+        "network_already_added": "Réseau déjà ajouté",
+        "no_wifi_connected": "Non connecté au WiFi",
+        "permission_denied": "Autorisation de localisation refusée",
+        "permission_denied_explanation": "Une autorisation de localisation est requise pour détecter le réseau Wifi afin de changer automatiquement. Veuillez l’activer dans les paramètres."
       },
       "user_info": {
         "user_info_title": "Informations utilisateur",
@@ -154,10 +182,10 @@
         "left_side_brightness_description": "Glisser vers le haut/bas sur le côté gauche pour ajuster la luminosité",
         "right_side_volume": "Contrôle du volume du côté droit",
         "right_side_volume_description": "Glisser vers le haut/bas sur le côté droit pour ajuster le volume",
-        "hide_volume_slider": "Hide Volume Slider",
-        "hide_volume_slider_description": "Hide the volume slider in the video player",
-        "hide_brightness_slider": "Hide Brightness Slider",
-        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
+        "hide_volume_slider": "Masquer le curseur de volume",
+        "hide_volume_slider_description": "Masquer le curseur de volume dans le lecteur vidéo",
+        "hide_brightness_slider": "Cacher le curseur de luminosité",
+        "hide_brightness_slider_description": "Masquer le curseur de volume dans le lecteur vidéo"
       },
       "audio": {
         "audio_title": "Audio",
@@ -167,12 +195,12 @@
         "none": "Aucune",
         "language": "Langage",
         "transcode_mode": {
-          "title": "Audio Transcoding",
-          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "title": "Transcodage audio",
+          "description": "Contrôle la gestion de l'audio surround (7.1, TrueHD, DTS-HD)",
           "auto": "Auto",
-          "stereo": "Force Stereo",
-          "5_1": "Allow 5.1",
-          "passthrough": "Passthrough"
+          "stereo": "Forcer la stéréo",
+          "5_1": "Autoriser 5.1",
+          "passthrough": "Intercommunication"
         }
       },
       "subtitles": {
@@ -223,29 +251,29 @@
           "Normal": "Normale",
           "Thick": "Épais"
         },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+        "subtitle_color": "Couleur des sous-titres",
+        "subtitle_background_color": "Couleur d'arrière-plan",
+        "subtitle_font": "Police des sous-titres",
+        "ksplayer_title": "Paramètres de KSPlayer",
+        "hardware_decode": "Décodage matériel",
+        "hardware_decode_description": "Utilisez l’accélération matérielle pour le décodage vidéo. Désactivez si vous rencontrez des problèmes de lecture."
       },
       "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
+        "title": "Paramètres des sous-titres VLC",
+        "hint": "Personnaliser l'apparence des sous-titres pour le lecteur VLC. Les changements prennent effet lors de la lecture suivante.",
+        "text_color": "Couleur du texte",
+        "background_color": "Couleur d'arrière-plan",
+        "background_opacity": "Opacité de l'arrière-plan",
+        "outline_color": "Couleur du contour",
+        "outline_opacity": "Opacité du contour",
+        "outline_thickness": "Épaisseur du contour",
+        "bold": "Texte en gras",
+        "margin": "Marge inférieure"
       },
       "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
+        "title": "Lecteur vidéo",
+        "video_player": "Lecteur vidéo",
+        "video_player_description": "Choisissez le lecteur vidéo à utiliser sur iOS.",
         "ksplayer": "KSPlayer",
         "vlc": "VLC"
       },
@@ -278,6 +306,7 @@
         "disable_haptic_feedback": "Désactiver le retour haptique",
         "default_quality": "Qualité par défaut",
         "default_playback_speed": "Default Playback Speed",
+        "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Nombre d'épisodes en lecture automatique max",
         "disabled": "Désactivé"
       },
@@ -341,26 +370,26 @@
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
           "save_button": "Save",
-          "save": "Save",
-          "features_title": "Features",
-          "home_sections_title": "Home Sections",
-          "enable_movie_recommendations": "Movie Recommendations",
-          "enable_series_recommendations": "Series Recommendations",
-          "enable_promoted_watchlists": "Promoted Watchlists",
-          "hide_watchlists_tab": "Hide Watchlists Tab",
-          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
-          "recommended_movies": "Recommended Movies",
-          "recommended_series": "Recommended Series",
+          "save": "Enregistrer",
+          "features_title": "Fonctionnalités",
+          "home_sections_title": "Sections de la page d´accueil",
+          "enable_movie_recommendations": "Recommandations de films",
+          "enable_series_recommendations": "Recommandations de séries",
+          "enable_promoted_watchlists": "Listes de lecture promues",
+          "hide_watchlists_tab": "Masquer l'onglet des listes de lecture",
+          "home_sections_hint": "Afficher des recommandations personnalisées et des listes de lecture promues de Streamystats sur la page d’accueil.",
+          "recommended_movies": "Films Recommandés",
+          "recommended_series": "Séries recommandées",
           "toasts": {
-            "saved": "Saved",
-            "refreshed": "Settings refreshed from server",
-            "disabled": "Streamystats disabled"
+            "saved": "Enregistré",
+            "refreshed": "Paramètres actualisés depuis le serveur",
+            "disabled": "Streamystats désactivé"
           },
-          "refresh_from_server": "Refresh Settings from Server"
+          "refresh_from_server": "Rafraîchir les paramètres depuis le serveur"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Activer l'intégration de notre liste de lecture",
+          "watchlist_button": "Activer l'intégration de notre liste de lecture"
         }
       },
       "storage": {
@@ -369,15 +398,15 @@
         "device_usage": "Appareil {{availableSpace}}%",
         "size_used": "{{used}} de {{total}} utilisés",
         "delete_all_downloaded_files": "Supprimer tous les fichiers téléchargés",
-        "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
-        "clear_music_cache": "Clear Music Cache",
-        "music_cache_size": "{{size}} cached",
-        "music_cache_cleared": "Music cache cleared",
-        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
-        "downloaded_songs_size": "{{size}} downloaded",
-        "downloaded_songs_deleted": "Downloaded songs deleted"
+        "music_cache_title": "Mise en cache de la musique",
+        "music_cache_description": "Mettez automatiquement en cache les chansons au fur et à mesure que vous écoutez pour une lecture plus fluide et une prise en charge hors ligne",
+        "enable_music_cache": "Activer le cache sur la musique",
+        "clear_music_cache": "Vider le cache de la musique",
+        "music_cache_size": "{{size}} mis en cache",
+        "music_cache_cleared": "Cache de musique effacé",
+        "delete_all_downloaded_songs": "Supprimer toutes les musiques téléchargées",
+        "downloaded_songs_size": "{{size}} téléchargé",
+        "downloaded_songs_deleted": "Chansons téléchargées supprimées"
       },
       "intro": {
         "title": "Introduction",
@@ -471,14 +500,14 @@
     "play": "Lecture",
     "none": "Aucun",
     "track": "Suivre",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "ok": "OK",
-    "remove": "Remove",
-    "next": "Next",
-    "back": "Back",
-    "continue": "Continue",
-    "verifying": "Verifying..."
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "ok": "Ok",
+    "remove": "Retirer",
+    "next": "Suivant",
+    "back": "Précédent",
+    "continue": "Continuer",
+    "verifying": "Vérification..."
   },
   "search": {
     "search": "Rechercher...",
@@ -492,9 +521,9 @@
     "episodes": "Épisodes",
     "collections": "Collections",
     "actors": "Acteurs",
-    "artists": "Artists",
+    "artists": "Artistes",
     "albums": "Albums",
-    "songs": "Songs",
+    "songs": "Chansons",
     "playlists": "Playlists",
     "request_movies": "Demander un film",
     "request_series": "Demander une série",

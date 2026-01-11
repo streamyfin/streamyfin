@@ -26,6 +26,7 @@ import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { AddToFavorites } from "./AddToFavorites";
@@ -45,13 +46,13 @@ export type SelectedOptions = {
 
 interface ItemContentProps {
   item: BaseItemDto;
-  isOffline: boolean;
   itemWithSources?: BaseItemDto | null;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, isOffline, itemWithSources }) => {
+  ({ item, itemWithSources }) => {
     const [api] = useAtom(apiAtom);
+    const isOffline = useOfflineMode();
     const { settings } = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
@@ -228,7 +229,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                 <PlayButton
                   selectedOptions={selectedOptions}
                   item={item}
-                  isOffline={isOffline}
                   colors={itemColors}
                 />
                 <View className='w-1' />
@@ -243,11 +243,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
               </View>
             </View>
             {item.Type === "Episode" && (
-              <SeasonEpisodesCarousel
-                item={item}
-                loading={loading}
-                isOffline={isOffline}
-              />
+              <SeasonEpisodesCarousel item={item} loading={loading} />
             )}
 
             {!isOffline &&
@@ -264,7 +260,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                   <CurrentSeries item={item} className='mb-2' />
                 )}
 
-                <ItemPeopleSections item={item} isOffline={isOffline} />
+                <ItemPeopleSections item={item} />
 
                 {!isOffline && <SimilarItems itemId={item.Id} />}
               </>
