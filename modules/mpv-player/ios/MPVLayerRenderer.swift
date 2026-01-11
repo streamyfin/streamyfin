@@ -377,8 +377,10 @@ final class MPVLayerRenderer {
             // Add external subtitles now that the file is loaded
             let hadExternalSubs = !pendingExternalSubtitles.isEmpty
             if hadExternalSubs, let handle = mpv {
-                for subUrl in pendingExternalSubtitles {
-                    command(handle, ["sub-add", subUrl])
+                for (index, subUrl) in pendingExternalSubtitles.enumerated() {
+                    print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
+                    // Use commandSync to ensure subs are added in exact order (not async)
+                    commandSync(handle, ["sub-add", subUrl])
                 }
                 pendingExternalSubtitles = []
                 // Set subtitle after external subs are added
