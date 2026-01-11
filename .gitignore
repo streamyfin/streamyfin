@@ -19,7 +19,7 @@ web-build/
 /androidtv
 
 # Module-specific Builds
-modules/vlc-player/android/build
+modules/mpv-player/android/build
 modules/player/android
 modules/hls-downloader/android/build
 

@@ -82,10 +82,46 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
-  if (item.Type === "CollectionFolder" || item.Type === "Playlist") {
+  if (item.Type === "CollectionFolder") {
     return {
       pathname: "/[libraryId]" as const,
       params: { libraryId: item.Id! },
+    };
+  }
+
+  // Music types - use shared routes for proper back navigation
+  if (item.Type === "MusicArtist") {
+    return {
+      pathname: "/music/artist/[artistId]" as const,
+      params: { artistId: item.Id! },
+    };
+  }
+
+  if (item.Type === "MusicAlbum") {
+    return {
+      pathname: "/music/album/[albumId]" as const,
+      params: { albumId: item.Id! },
+    };
+  }
+
+  if (item.Type === "Audio") {
+    // Navigate to the album if available, otherwise to the item page
+    if (item.AlbumId) {
+      return {
+        pathname: "/music/album/[albumId]" as const,
+        params: { albumId: item.AlbumId },
+      };
+    }
+    return {
+      pathname: "/items/page" as const,
+      params: { id: item.Id! },
+    };
+  }
+
+  if (item.Type === "Playlist") {
+    return {
+      pathname: "/music/playlist/[playlistId]" as const,
+      params: { playlistId: item.Id! },
     };
   }
 

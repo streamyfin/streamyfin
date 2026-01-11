@@ -4,8 +4,10 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getSystemApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ScrollView, View, type ViewProps } from "react-native";
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
@@ -33,6 +35,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
+  const router = useRouter();
+  const { t } = useTranslation();
 
   const { data: items, isLoading } = useQuery({
     queryKey: [
@@ -84,11 +88,23 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
     return items?.map((_, index) => index * ITEM_WIDTH) ?? [];
   }, [items]);
 
+  const handleSeeAll = () => {
+    router.push({
+      pathname: "/(auth)/(tabs)/(watchlists)/[watchlistId]",
+      params: { watchlistId: watchlist.id.toString() },
+    } as any);
+  };
+
   if (!isLoading && (!items || items.length === 0)) return null;
 
   return (
     <View {...props}>
-      <SectionHeader title={watchlist.name} />
+      <SectionHeader
+        title={watchlist.name}
+        actionLabel={t("common.seeAll", { defaultValue: "See all" })}
+        actionDisabled={isLoading}
+        onPressAction={handleSeeAll}
+      />
       {isLoading ? (
         <View className='flex flex-row gap-2 px-4'>
           {[1, 2, 3].map((i) => (

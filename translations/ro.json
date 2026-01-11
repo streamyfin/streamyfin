@@ -20,7 +20,9 @@
     "server_is_taking_too_long_to_respond_try_again_later": "Serverul răspunde prea greu, încearcă din nou mai târziu.",
     "server_received_too_many_requests_try_again_later": "Serverul a primit prea multe solicitări, încercați din nou mai târziu.",
     "there_is_a_server_error": "Eroare de server",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "A apărut o eroare neașteptată. Ați introdus corect adresa URL a serverului?"
+    "an_unexpected_error_occured_did_you_enter_the_correct_url": "A apărut o eroare neașteptată. Ați introdus corect adresa URL a serverului?",
+    "too_old_server_text": "Serverul Jellyfin Neacceptat Descoperit",
+    "too_old_server_description": "Vă rugăm să actualizați Jellyfin la cea mai recentă versiune"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Introduceți adresa URL a serverul dvs. Jellyfin",
@@ -28,19 +30,64 @@
     "connect_button": "Conectare",
     "previous_servers": "Servere anterioare",
     "clear_button": "Șterge",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Caută",
     "searching": "Căutare în curs...",
-    "servers": "Servere"
+    "servers": "Servere",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
+    "checking_server_connection": "Se verifică conexiunea la server...",
     "no_internet": "Fără conexiune",
     "no_items": "Niciun articol",
     "no_internet_message": "Nicio grijă, poți viziona în continuare conținutul descărcat.",
+    "checking_server_connection_message": "Se verifică conexiunea la server",
     "go_to_downloads": "Accesați descărcările",
-    "oops": "Oops!",
+    "retry": "Reîncercați",
+    "server_unreachable": "Server inaccesibil",
+    "server_unreachable_message": "Serverul nu a putut fi accesat.\nVă rugăm să verificați conexiunea la rețea.",
+    "oops": "Ups!",
     "error_message": "Ceva nu e bine.\nAutentificați-vă din nou.",
     "continue_watching": "Continuă vizionarea",
     "next_up": "Urmează",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Adăugat recent în {{libraryName}}",
     "suggested_movies": "Filme sugerate",
     "suggested_episodes": "Episoade sugerate",
@@ -62,6 +109,20 @@
     "settings": {
       "settings_title": "Setări",
       "log_out_button": "Deconectare",
+      "categories": {
+        "title": "Categorii"
+      },
+      "playback_controls": {
+        "title": "Redare și controale"
+      },
+      "audio_subtitles": {
+        "title": "Audio și subtitrări"
+      },
+      "appearance": {
+        "title": "Aspect",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Informații utilizator",
         "user": "Utilizator",
@@ -83,7 +144,20 @@
         "media_controls_title": "Controale media",
         "forward_skip_length": "Durata saltului înainte",
         "rewind_length": "Durata saltului înapoi",
-        "seconds_unit": "s"
+        "seconds_unit": "S"
+      },
+      "gesture_controls": {
+        "gesture_controls_title": "Controale gesturi",
+        "horizontal_swipe_skip": "Glisați orizontal pentru a sări",
+        "horizontal_swipe_skip_description": "Glisați stânga/dreapta când controalele sunt ascunse pentru a sări peste",
+        "left_side_brightness": "Control luminozitate parte stângă",
+        "left_side_brightness_description": "Glisați sus/în jos pe partea stângă pentru a ajusta luminozitatea",
+        "right_side_volume": "Control volum pe partea dreaptă",
+        "right_side_volume_description": "Glisați în sus/în jos pe partea dreaptă pentru a ajusta volumul",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
       },
       "audio": {
         "audio_title": "Audio",
@@ -91,25 +165,89 @@
         "audio_language": "Limba audio",
         "audio_hint": "Alege o limbă audio implicită.",
         "none": "Niciuna",
-        "language": "Limba"
+        "language": "Limba",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Subtitrări",
+        "subtitle_hint": "Configurați preferințele pentru subtitrări.",
         "subtitle_language": "Limbă subtitrări",
         "subtitle_mode": "Modalitate subtitrare",
         "set_subtitle_track": "Aplică subtitrarea folosită anterior.",
         "subtitle_size": "Mărime subtitrare",
-        "subtitle_hint": "Configurați preferințele pentru subtitrări.",
         "none": "Niciuna",
         "language": "Limba",
         "loading": "Încărcare",
         "modes": {
           "Default": "Implicit",
-          "Smart": "Smart",
+          "Smart": "Inteligent",
           "Always": "Întotdeauna",
           "None": "Niciuna",
           "OnlyForced": "OnlyForced"
-        }
+        },
+        "text_color": "Culoare text",
+        "background_color": "Culoare fundal",
+        "outline_color": "Culoare contur",
+        "outline_thickness": "Grosime contur",
+        "background_opacity": "Opacitatea fundalului",
+        "outline_opacity": "Opacitatea conturului",
+        "bold_text": "Bold Text",
+        "colors": {
+          "Black": "Negru",
+          "Gray": "Gri",
+          "Silver": "Argint",
+          "White": "Alb",
+          "Maroon": "Maro",
+          "Red": "Roșu",
+          "Fuchsia": "Fuchsia",
+          "Yellow": "Galben",
+          "Olive": "Oliv",
+          "Green": "Verde",
+          "Teal": "Turcoaz",
+          "Lime": "Verde-Deschis",
+          "Purple": "Violet",
+          "Navy": "Marină",
+          "Blue": "Albastru",
+          "Aqua": "Aqua"
+        },
+        "thickness": {
+          "None": "Nimic",
+          "Thin": "Subțire",
+          "Normal": "Normală",
+          "Thick": "Grozav"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Altele",
@@ -121,7 +259,7 @@
           "PORTRAIT": "Portret",
           "PORTRAIT_UP": "Portret sus",
           "PORTRAIT_DOWN": "Portret jos",
-          "LANDSCAPE": "Landscape",
+          "LANDSCAPE": "Peisaj",
           "LANDSCAPE_LEFT": "Landscape stânga",
           "LANDSCAPE_RIGHT": "Landscape dreapta",
           "OTHER": "Altele",
@@ -134,37 +272,39 @@
           "VLC_4": "VLC 4 (Experimental + PiP)"
         },
         "show_custom_menu_links": "Afișează link-uri personalizate în meniu",
+        "show_large_home_carousel": "Arată Caruselul Media Mare (beta)",
         "hide_libraries": "Ascunde bibliotecile",
         "select_liraries_you_want_to_hide": "Selectează bibliotecile pe care dorești să le ascunzi din fila Bibliotecă și din secțiunile paginii principale.",
         "disable_haptic_feedback": "Dezactivează vibrațiile tactile",
         "default_quality": "Calitate implicită",
+        "default_playback_speed": "Default Playback Speed",
         "max_auto_play_episode_count": "Maxim episoade redare automată",
         "disabled": "Dezactivat"
       },
       "downloads": {
-        "downloads_title": "Descărcări",
-        "optimized_versions_server": "Optimized versions server",
-        "save_button": "Salvează",
-        "optimized_server": "Server optimizat",
-        "optimized": "Optimizat",
-        "default": "Implicit",
-        "optimized_version_hint": "Introduceți adresa URL pentru serverul de optimizare. Adresa URL trebuie să includă http sau https și, opțional, portul.",
-        "read_more_about_optimized_server": "Citește mai multe despre optimizarea serverului.",
-        "url": "URL",
-        "server_url_placeholder": "http(s)://domeniu.org:port"
+        "downloads_title": "Descărcări"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Plugin-uri",
         "jellyseerr": {
           "jellyseerr_warning": "Această integrare este în stadii incipiente. Așteptați-vă ca lucrurile să se schimbe.",
-          "server_url": "Server URL",
+          "server_url": "URL Server",
           "server_url_hint": "Exemplu: http(s)://your-host.url\n(adăugați portul dacă este necesar)",
           "server_url_placeholder": "Jellyseerr URL...",
           "password": "Parolă",
           "password_placeholder": "Introduceți parola pentru utilizatorul Jellyfin {{username}}",
-          "save_button": "Salvează",
-          "clear_button": "Șterge",
-          "login_button": "Login",
+          "login_button": "Autentificare",
           "total_media_requests": "Total solicitări media",
           "movie_quota_limit": "Limită solicitări filme",
           "movie_quota_days": "Limită solicitări zile",
@@ -187,8 +327,40 @@
           "read_more_about_marlin": "Citește mai multe despre Marlin.",
           "save_button": "Salvează",
           "toasts": {
-            "saved": "Salvat"
-          }
+            "saved": "Salvat",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -196,9 +368,19 @@
         "app_usage": "App {{usedSpace}}%",
         "device_usage": "Dispozitiv {{availableSpace}}%",
         "size_used": "{{used}} din {{total}} folosit",
-        "delete_all_downloaded_files": "Ștergeți toate fișierele descărcate"
+        "delete_all_downloaded_files": "Ștergeți toate fișierele descărcate",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Introducere",
         "show_intro": "Afișează intro",
         "reset_intro": "Resetează intro"
       },
@@ -213,16 +395,12 @@
       "languages": {
         "title": "Limbi",
         "app_language": "Limbă aplicație",
-        "app_language_description": "Selectează limba pt aplicație.",
         "system": "Sistem"
       },
       "toasts": {
         "error_deleting_files": "Eroare la ștergerea fișierelor",
         "background_downloads_enabled": "Descărcări în fundal activate",
-        "background_downloads_disabled": "Descărcări în fundal dezactivate",
-        "connected": "Conectat",
-        "could_not_connect": "Nu se poate conecta",
-        "invalid_url": "URL invalid"
+        "background_downloads_disabled": "Descărcări în fundal dezactivate"
       }
     },
     "sessions": {
@@ -234,12 +412,14 @@
       "tvseries": "Seriale",
       "movies": "Filme",
       "queue": "Coadă",
+      "other_media": "Alte suporturi",
       "queue_hint": "Descărcările se vor pierde la repornirea aplicației",
       "no_items_in_queue": "Niciun articol în coadă",
       "no_downloaded_items": "Niciun element descărcat",
       "delete_all_movies_button": "Șterge toate filmele",
       "delete_all_tvseries_button": "Șterge toate serialele",
       "delete_all_button": "Șterge tot",
+      "delete_all_other_media_button": "Șterge alte fișiere media",
       "active_download": "Descărcare activă",
       "no_active_downloads": "Nicio descărcare activă",
       "active_downloads": "Descărcări active",
@@ -250,35 +430,57 @@
       "something_went_wrong": "Ceva nu a mers bine.",
       "could_not_get_stream_url_from_jellyfin": "Nu s-a putut obține adresa URL a fluxului de la Jellyfin",
       "eta": "Estimat {{eta}}",
-      "methods": "Metode",
       "toasts": {
         "you_are_not_allowed_to_download_files": "Nu aveți voie să descărcați fișiere.",
         "deleted_all_movies_successfully": "Toate filmele au fost șterse cu succes!",
         "failed_to_delete_all_movies": "Nu s-au putut șterge toate filmele",
         "deleted_all_tvseries_successfully": "Toate serialele au fost șterse cu succes!",
         "failed_to_delete_all_tvseries": "Nu s-au putut șterge toate serialele",
+        "deleted_media_successfully": "Alte fișiere șterse cu succes!",
+        "failed_to_delete_media": "Ștergerea altor fișiere media a eșuat",
+        "download_deleted": "Descărcare ştearsă",
         "download_cancelled": "Descărcare anulată",
-        "could_not_cancel_download": "Nu s-a putut anula descărcarea.",
+        "could_not_delete_download": "Nu s-a putut șterge descărcarea",
+        "download_paused": "Descărcare întreruptă",
+        "could_not_pause_download": "Nu s-a putut întrerupe descărcarea",
+        "download_resumed": "Descărcare din nou",
+        "could_not_resume_download": "Nu s-a putut relua descărcarea",
         "download_completed": "Descărcare completă",
-        "download_started_for": "Descărcarea a început pt {{item}}",
-        "item_is_ready_to_be_downloaded": "{{item}} este gata de descărcat",
-        "download_stated_for_item": "Descărcarea a început pt {{item}}",
+        "download_failed": "Descărcare eșuată",
         "download_failed_for_item": "Descărcarea a eșuat {{item}} - {{error}}",
         "download_completed_for_item": "Descărcare completă pt {{item}}",
-        "queued_item_for_optimization": "Adăugat {{item}} pt optimizare",
-        "failed_to_start_download_for_item": "Nu s-a putut începe descărcarea pt {{item}}: {{message}}",
-        "server_responded_with_status_code": "Serverul a răspuns cu statusul {{statusCode}}",
-        "no_response_received_from_server": "Niciun răspuns primit de la server",
-        "error_setting_up_the_request": "Eroare la configurarea solicitării",
-        "failed_to_start_download_for_item_unexpected_error": "Nu s-a putut începe descărcarea pt {{item}}: Eroare neașteptată",
+        "download_started_for_item": "Descărcare începută pentru {{item}}",
+        "failed_to_start_download": "Deschiderea descărcării a eșuat",
+        "item_already_downloading": "{{item}} se descarcă deja",
+        "all_files_deleted": "Toate descărcările au fost șterse cu succes",
+        "files_deleted_by_type": "{{count}} {{type}} au fost șterse",
         "all_files_folders_and_jobs_deleted_successfully": "Toate fișierele, folderele și lucrările au fost șterse cu succes",
-        "an_error_occured_while_deleting_files_and_jobs": "A apărut o eroare la ștergerea fișierelor și a lucrărilor",
-        "go_to_downloads": "Accesați descărcările"
+        "failed_to_clean_cache_directory": "Curățarea directorului cache a eșuat",
+        "could_not_get_download_url_for_item": "Nu s-a putut obține URL-ul de descărcare pentru {{itemName}}",
+        "go_to_downloads": "Accesați descărcările",
+        "file_deleted": "{{item}} șters"
       }
     }
   },
+  "common": {
+    "select": "Selectare",
+    "no_trailer_available": "Nicio remorcă disponibilă",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitle": "Subtitrare",
+    "play": "Redare",
+    "none": "Nimic",
+    "track": "Limbă audio",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
+  },
   "search": {
-    "search_here": "Caută aici...",
     "search": "Caută...",
     "x_items": "{{count}} elemente",
     "library": "Bibliotecă",
@@ -290,11 +492,15 @@
     "episodes": "Episoade",
     "collections": "Collecții",
     "actors": "Actori",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Cereri Filme",
     "request_series": "Cereri seriale",
     "recently_added": "Adăugat recent",
     "recent_requests": "Cereri recente",
-    "plex_watchlist": "Plex Watchlist",
+    "plex_watchlist": "Listă Plex",
     "trending": "Tendințe",
     "popular_movies": "Filme populare",
     "movie_genres": "Genuri de filme",
@@ -309,13 +515,12 @@
     "tmdb_tv_keyword": "Cuvinte cheie TMDB seriale",
     "tmdb_tv_genre": "Genul TV TMDB",
     "tmdb_search": "Căutare TMDB",
-    "tmdb_studio": "TMDB Studio",
+    "tmdb_studio": "Studio TMDB",
     "tmdb_network": "Rețeaua TMDB",
     "tmdb_movie_streaming_services": "Servicii de streaming de filme TMDB",
     "tmdb_tv_streaming_services": "Servicii de streaming TV TMDB"
   },
   "library": {
-    "no_items_found": "Nu s-au găsit articole",
     "no_results": "Niciun rezultat",
     "no_libraries_found": "Nu au fost găsite biblioteci",
     "item_types": {
@@ -330,7 +535,7 @@
       "list": "Listă",
       "image_style": "Stilul imaginii",
       "poster": "Poster",
-      "cover": "Cover",
+      "cover": "Copertă",
       "show_titles": "Afișează titlurile",
       "show_stats": "Afișează statisticile"
     },
@@ -338,9 +543,8 @@
       "genres": "Genuri",
       "years": "Ani",
       "sort_by": "Sortează după",
+      "filter_by": "Filter By",
       "sort_order": "Ordine de sortare",
-      "asc": "Crescător",
-      "desc": "Descrescător",
       "tags": "Taguri"
     }
   },
@@ -364,17 +568,18 @@
     "client_error": "Eroare client",
     "could_not_create_stream_for_chromecast": "Nu s-a putut crea un flux pentru Chromecast",
     "message_from_server": "Mesaj de la server: {{message}}",
-    "video_has_finished_playing": "Redarea videoului s-a terminat!",
-    "no_video_source": "Nicio sursă video...",
     "next_episode": "Episodul următor",
-    "refresh_tracks": "Refresh Tracks",
-    "subtitle_tracks": "Subtitrări:",
+    "refresh_tracks": "Reîmprospătare piese",
     "audio_tracks": "Audio:",
     "playback_state": "Stare de redare:",
-    "no_data_available": "Nu sunt disponibile date",
-    "index": "Index:",
+    "index": "Indice:",
     "continue_watching": "Continuă să vizionezi",
-    "go_back": "Înapoi"
+    "go_back": "Înapoi",
+    "downloaded_file_title": "Aveţi acest fişier descărcat",
+    "downloaded_file_message": "Doriți să redați fișierul descărcat?",
+    "downloaded_file_yes": "Da",
+    "downloaded_file_no": "Nu",
+    "downloaded_file_cancel": "Anulează"
   },
   "item_card": {
     "next_up": "Urmează",
@@ -390,6 +595,7 @@
     "no_similar_items_found": "Nu s-au găsit articole similare",
     "video": "Video",
     "more_details": "Mai multe detalii",
+    "media_options": "Opțiuni Media",
     "quality": "Calitate",
     "audio": "Audio",
     "subtitles": "Subtitrare",
@@ -404,15 +610,13 @@
       "download_episode": "Descărcați episodul",
       "download_movie": "Descărcați filmul",
       "download_x_item": "Descărcați {{item_count}} articole",
-      "download_button": "Descarcă",
-      "using_optimized_server": "Utilizeză server optimizat",
-      "using_default_method": "Utilizeză metoda implicită"
+      "download_unwatched_only": "Numai nevizionate",
+      "download_button": "Descarcă"
     }
   },
   "live_tv": {
     "next": "Următorul",
     "previous": "Anterior",
-    "live_tv": "Live TV",
     "coming_soon": "În curând",
     "on_now": "Acum",
     "shows": "Emisiuni",
@@ -460,6 +664,10 @@
     "number_episodes": "{{episode_number}} Episoade",
     "born": "Născut",
     "appearances": "Apariții",
+    "approve": "Aprobă",
+    "decline": "Respinge",
+    "requested_by": "Solicitat de {{user}}",
+    "unknown_user": "Utilizator necunoscut",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Serverul Jellyseerr nu îndeplinește cerințele minime de versiune! Vă rugăm să actualizați cel puțin la versiunea 2.0.0",
       "jellyseerr_test_failed": "Testul Jellyseerr a eșuat. Vă rugăm să încercați din nou.",
@@ -467,7 +675,11 @@
       "issue_submitted": "Problemă trimisă!",
       "requested_item": "Cerere {{item}}!",
       "you_dont_have_permission_to_request": "Nu aveți permisiunea de a face cereri!",
-      "something_went_wrong_requesting_media": "Ceva nu a mers bine la cererea fișierelor media!"
+      "something_went_wrong_requesting_media": "Ceva nu a mers bine la cererea fișierelor media!",
+      "request_approved": "Cerere a fost aprobată!",
+      "request_declined": "Cerere refuzată!",
+      "failed_to_approve_request": "Aprobare solicitare nereușită",
+      "failed_to_decline_request": "Refuzarea cererii a eșuat"
     }
   },
   "tabs": {
@@ -476,5 +688,129 @@
     "library": "Bibiliotecă",
     "custom_links": "Linkuri personalizate",
     "favorites": "Favorite"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

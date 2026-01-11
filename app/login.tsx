@@ -10,6 +10,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Switch,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,8 +21,13 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { PreviousServersList } from "@/components/PreviousServersList";
+import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+import type {
+  AccountSecurityType,
+  SavedServer,
+} from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
@@ -31,8 +37,14 @@ const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const { setServer, login, removeServer, initiateQuickConnect } =
-    useJellyfin();
+  const {
+    setServer,
+    login,
+    removeServer,
+    initiateQuickConnect,
+    loginWithSavedCredential,
+    loginWithPassword,
+  } = useJellyfin();
 
   const {
     apiUrl: _apiUrl,
@@ -51,6 +63,14 @@ const Login: React.FC = () => {
     username: _username || "",
     password: _password || "",
   });
+
+  // Save account state
+  const [saveAccount, setSaveAccount] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [pendingLogin, setPendingLogin] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
 
   /**
    * A way to auto login based on a link
@@ -96,12 +116,34 @@ const Login: React.FC = () => {
   const handleLogin = async () => {
     Keyboard.dismiss();
 
+    const result = CredentialsSchema.safeParse(credentials);
+    if (!result.success) return;
+
+    if (saveAccount) {
+      // Show save account modal to choose security type
+      setPendingLogin({
+        username: credentials.username,
+        password: credentials.password,
+      });
+      setShowSaveModal(true);
+    } else {
+      // Login without saving
+      await performLogin(credentials.username, credentials.password);
+    }
+  };
+
+  const performLogin = async (
+    username: string,
+    password: string,
+    options?: {
+      saveAccount?: boolean;
+      securityType?: AccountSecurityType;
+      pinCode?: string;
+    },
+  ) => {
     setLoading(true);
     try {
-      const result = CredentialsSchema.safeParse(credentials);
-      if (result.success) {
-        await login(credentials.username, credentials.password);
-      }
+      await login(username, password, serverName, options);
     } catch (error) {
       if (error instanceof Error) {
         Alert.alert(t("login.connection_failed"), error.message);
@@ -113,6 +155,44 @@ const Login: React.FC = () => {
       }
     } finally {
       setLoading(false);
+      setPendingLogin(null);
+    }
+  };
+
+  const handleSaveAccountConfirm = async (
+    securityType: AccountSecurityType,
+    pinCode?: string,
+  ) => {
+    setShowSaveModal(false);
+    if (pendingLogin) {
+      await performLogin(pendingLogin.username, pendingLogin.password, {
+        saveAccount: true,
+        securityType,
+        pinCode,
+      });
+    }
+  };
+
+  const handleQuickLoginWithSavedCredential = async (
+    serverUrl: string,
+    userId: string,
+  ) => {
+    await loginWithSavedCredential(serverUrl, userId);
+  };
+
+  const handlePasswordLogin = async (
+    serverUrl: string,
+    username: string,
+    password: string,
+  ) => {
+    await loginWithPassword(serverUrl, username, password);
+  };
+
+  const handleAddAccount = (server: SavedServer) => {
+    // Server is already selected, go to credential entry
+    setServer({ address: server.address });
+    if (server.name) {
+      setServerName(server.name);
     }
   };
 
@@ -274,7 +354,8 @@ const Login: React.FC = () => {
                 keyboardType='default'
                 returnKeyType='done'
                 autoCapitalize='none'
-                textContentType='oneTimeCode'
+                autoCorrect={false}
+                textContentType='username'
                 clearButtonMode='while-editing'
                 maxLength={500}
                 extraClassName='mb-4'
@@ -380,9 +461,12 @@ const Login: React.FC = () => {
                   }}
                 />
                 <PreviousServersList
-                  onServerSelect={async (s: any) => {
+                  onServerSelect={async (s) => {
                     await handleConnect(s.address);
                   }}
+                  onQuickLogin={handleQuickLoginWithSavedCredential}
+                  onPasswordLogin={handlePasswordLogin}
+                  onAddAccount={handleAddAccount}
                 />
               </View>
             </View>
@@ -430,9 +514,8 @@ const Login: React.FC = () => {
                   keyboardType='default'
                   returnKeyType='done'
                   autoCapitalize='none'
-                  // Changed from username to oneTimeCode because it is a known issue in RN
-                  // https://github.com/facebook/react-native/issues/47106#issuecomment-2521270037
-                  textContentType='oneTimeCode'
+                  autoCorrect={false}
+                  textContentType='username'
                   clearButtonMode='while-editing'
                   maxLength={500}
                 />
@@ -460,6 +543,21 @@ const Login: React.FC = () => {
                   clearButtonMode='while-editing'
                   maxLength={500}
                 />
+                <TouchableOpacity
+                  onPress={() => setSaveAccount(!saveAccount)}
+                  className='flex flex-row items-center py-2'
+                  activeOpacity={0.7}
+                >
+                  <Switch
+                    value={saveAccount}
+                    onValueChange={setSaveAccount}
+                    trackColor={{ false: "#3f3f46", true: Colors.primary }}
+                    thumbColor='white'
+                  />
+                  <Text className='ml-3 text-neutral-300'>
+                    {t("save_account.save_for_later")}
+                  </Text>
+                </TouchableOpacity>
                 <View className='flex flex-row items-center justify-between'>
                   <Button
                     onPress={handleLogin}
@@ -535,11 +633,25 @@ const Login: React.FC = () => {
                 onServerSelect={async (s) => {
                   await handleConnect(s.address);
                 }}
+                onQuickLogin={handleQuickLoginWithSavedCredential}
+                onPasswordLogin={handlePasswordLogin}
+                onAddAccount={handleAddAccount}
               />
             </View>
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* Save Account Modal */}
+      <SaveAccountModal
+        visible={showSaveModal}
+        onClose={() => {
+          setShowSaveModal(false);
+          setPendingLogin(null);
+        }}
+        onSave={handleSaveAccountConfirm}
+        username={pendingLogin?.username || credentials.username}
+      />
     </SafeAreaView>
   );
 };

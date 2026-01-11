@@ -134,10 +134,16 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
-// iOS video player selection
-export enum VideoPlayerIOS {
-  KSPlayer = "ksplayer",
-  VLC = "vlc",
+// Audio transcoding mode - controls how surround audio is handled
+// This controls server-side transcoding behavior for audio streams.
+// MPV decodes via FFmpeg and supports most formats, but mobile devices
+// can't passthrough to external receivers, so this primarily affects
+// bandwidth usage and server load.
+export enum AudioTranscodeMode {
+  Auto = "auto", // Platform defaults (recommended)
+  ForceStereo = "stereo", // Always transcode to stereo
+  Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
+  AllowAll = "passthrough", // Direct play all audio formats
 }
 
 export type Settings = {
@@ -174,6 +180,7 @@ export type Settings = {
   enableH265ForChromecast: boolean;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  autoPlayNextEpisode: boolean;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -184,11 +191,6 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
-  // KSPlayer settings
-  ksHardwareDecode: boolean;
-  ksSubtitleColor: string;
-  ksSubtitleBackgroundColor: string;
-  ksSubtitleFontName: string;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -198,10 +200,17 @@ export type Settings = {
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
-  // iOS video player selection
-  videoPlayerIOS: VideoPlayerIOS;
   // Appearance
   hideRemoteSessionButton: boolean;
+  hideWatchlistsTab: boolean;
+  // Audio look-ahead caching
+  audioLookaheadEnabled: boolean;
+  audioLookaheadCount: number;
+  audioMaxCacheSizeMB: number;
+  // Music playback
+  preferLocalAudio: boolean;
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode;
 };
 
 export interface Lockable<T> {
@@ -256,6 +265,7 @@ export const defaultValues: Settings = {
   enableH265ForChromecast: false,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  autoPlayNextEpisode: true,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
@@ -266,11 +276,6 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
-  // KSPlayer defaults
-  ksHardwareDecode: true,
-  ksSubtitleColor: "#FFFFFF",
-  ksSubtitleBackgroundColor: "#00000080",
-  ksSubtitleFontName: "System",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
@@ -280,10 +285,17 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
-  // iOS video player selection - default to VLC
-  videoPlayerIOS: VideoPlayerIOS.VLC,
   // Appearance
   hideRemoteSessionButton: false,
+  hideWatchlistsTab: false,
+  // Audio look-ahead caching defaults
+  audioLookaheadEnabled: true,
+  audioLookaheadCount: 1,
+  audioMaxCacheSizeMB: 500,
+  // Music playback
+  preferLocalAudio: true,
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode.Auto,
 };
 
 const loadSettings = (): Partial<Settings> => {

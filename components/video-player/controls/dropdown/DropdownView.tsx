@@ -7,9 +7,11 @@ import {
   type OptionGroup,
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
+import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import { useSettings } from "@/utils/atoms/settings";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
+import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
 // Subtitle size presets (stored as scale * 100, so 1.0 = 100)
 const SUBTITLE_SIZE_PRESETS = [
@@ -23,7 +25,15 @@ const SUBTITLE_SIZE_PRESETS = [
   { label: "1.2", value: 120 },
 ] as const;
 
-const DropdownView = () => {
+interface DropdownViewProps {
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+}
+
+const DropdownView = ({
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
+}: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
   const { settings, updateSettings } = useSettings();
@@ -137,6 +147,20 @@ const DropdownView = () => {
       });
     }
 
+    // Speed Section
+    if (setPlaybackSpeed) {
+      groups.push({
+        title: "Speed",
+        options: PLAYBACK_SPEEDS.map((speed) => ({
+          type: "radio" as const,
+          label: speed.label,
+          value: speed.value.toString(),
+          selected: playbackSpeed === speed.value,
+          onPress: () => setPlaybackSpeed(speed.value, PlaybackSpeedScope.All),
+        })),
+      });
+    }
+
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -149,6 +173,8 @@ const DropdownView = () => {
     audioIndex,
     settings.subtitleSize,
     updateSettings,
+    playbackSpeed,
+    setPlaybackSpeed,
     // Note: subtitleTracks and audioTracks are intentionally excluded
     // because we use subtitleTracksKey and audioTracksKey for stability
   ]);

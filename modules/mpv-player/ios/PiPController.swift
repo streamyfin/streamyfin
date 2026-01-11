@@ -12,6 +12,7 @@ protocol PiPControllerDelegate: AnyObject {
     func pipController(_ controller: PiPController, skipByInterval interval: CMTime)
     func pipControllerIsPlaying(_ controller: PiPController) -> Bool
     func pipControllerDuration(_ controller: PiPController) -> Double
+    func pipControllerCurrentPosition(_ controller: PiPController) -> Double
 }
 
 final class PiPController: NSObject {
@@ -19,6 +20,13 @@ final class PiPController: NSObject {
     private weak var sampleBufferDisplayLayer: AVSampleBufferDisplayLayer?
     
     weak var delegate: PiPControllerDelegate?
+    
+    // Timebase for PiP progress tracking
+    private var timebase: CMTimebase?
+    
+    // Track current time for PiP progress
+    private var currentTime: CMTime = .zero
+    private var currentDuration: Double = 0
     
     var isPictureInPictureSupported: Bool {
         return AVPictureInPictureController.isPictureInPictureSupported()
@@ -35,7 +43,27 @@ final class PiPController: NSObject {
     init(sampleBufferDisplayLayer: AVSampleBufferDisplayLayer) {
         self.sampleBufferDisplayLayer = sampleBufferDisplayLayer
         super.init()
+        setupTimebase()
         setupPictureInPicture()
+    }
+    
+    private func setupTimebase() {
+        // Create a timebase for tracking playback time
+        var newTimebase: CMTimebase?
+        let status = CMTimebaseCreateWithSourceClock(
+            allocator: kCFAllocatorDefault,
+            sourceClock: CMClockGetHostTimeClock(),
+            timebaseOut: &newTimebase
+        )
+        
+        if status == noErr, let tb = newTimebase {
+            timebase = tb
+            CMTimebaseSetTime(tb, time: .zero)
+            CMTimebaseSetRate(tb, rate: 0) // Start paused
+            
+            // Set the control timebase on the display layer
+            sampleBufferDisplayLayer?.controlTimebase = tb
+        }
     }
     
     private func setupPictureInPicture() {
@@ -81,12 +109,45 @@ final class PiPController: NSObject {
     }
     
     func updatePlaybackState() {
+        // Only invalidate when PiP is active to avoid "no context menu visible" warnings
+        guard isPictureInPictureActive else { return }
+        
         if Thread.isMainThread {
             pipController?.invalidatePlaybackState()
         } else {
             DispatchQueue.main.async { [weak self] in
                 self?.pipController?.invalidatePlaybackState()
             }
+        }
+    }
+    
+    /// Updates the current playback time for PiP progress display
+    func setCurrentTime(_ time: CMTime) {
+        currentTime = time
+        
+        // Update the timebase to reflect current position
+        if let tb = timebase {
+            CMTimebaseSetTime(tb, time: time)
+        }
+        
+        // Only invalidate when PiP is active to avoid unnecessary updates
+        if isPictureInPictureActive {
+            updatePlaybackState()
+        }
+    }
+    
+    /// Updates the current playback time from seconds
+    func setCurrentTimeFromSeconds(_ seconds: Double, duration: Double) {
+        guard seconds >= 0 else { return }
+        currentDuration = duration
+        let time = CMTime(seconds: seconds, preferredTimescale: 1000)
+        setCurrentTime(time)
+    }
+    
+    /// Updates the playback rate on the timebase (1.0 = playing, 0.0 = paused)
+    func setPlaybackRate(_ rate: Float) {
+        if let tb = timebase {
+            CMTimebaseSetRate(tb, rate: Float64(rate))
         }
     }
 }

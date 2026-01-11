@@ -1,16 +1,23 @@
+import { Ionicons } from "@expo/vector-icons";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
-import { useCallback, useMemo } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, RefreshControl, View } from "react-native";
+import { RefreshControl, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { MusicPlaylistCard } from "@/components/music/MusicPlaylistCard";
+import {
+  type PlaylistSortOption,
+  type PlaylistSortOrder,
+  PlaylistSortSheet,
+} from "@/components/music/PlaylistSortSheet";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const ITEMS_PER_PAGE = 40;
@@ -18,6 +25,7 @@ const ITEMS_PER_PAGE = 40;
 export default function PlaylistsScreen() {
   const localParams = useLocalSearchParams<{ libraryId?: string | string[] }>();
   const route = useRoute<any>();
+  const navigation = useNavigation();
   const libraryId =
     (Array.isArray(localParams.libraryId)
       ? localParams.libraryId[0]
@@ -27,7 +35,34 @@ export default function PlaylistsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<PlaylistSortOption>("SortName");
+  const [sortOrder, setSortOrder] = useState<PlaylistSortOrder>("Ascending");
+
   const isReady = Boolean(api && user?.Id && libraryId);
+
+  const handleSortChange = useCallback(
+    (newSortBy: PlaylistSortOption, newSortOrder: PlaylistSortOrder) => {
+      setSortBy(newSortBy);
+      setSortOrder(newSortOrder);
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setCreateModalOpen(true)}
+          className='mr-4'
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name='add' size={28} color='white' />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   const {
     data,
@@ -39,14 +74,13 @@ export default function PlaylistsScreen() {
     isFetchingNextPage,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ["music-playlists", libraryId, user?.Id],
+    queryKey: ["music-playlists", libraryId, user?.Id, sortBy, sortOrder],
     queryFn: async ({ pageParam = 0 }) => {
       const response = await getItemsApi(api!).getItems({
         userId: user?.Id,
-        parentId: libraryId,
         includeItemTypes: ["Playlist"],
-        sortBy: ["SortName"],
-        sortOrder: ["Ascending"],
+        sortBy: [sortBy],
+        sortOrder: [sortOrder],
         limit: ITEMS_PER_PAGE,
         startIndex: pageParam,
         recursive: true,
@@ -69,13 +103,6 @@ export default function PlaylistsScreen() {
   const playlists = useMemo(() => {
     return data?.pages.flatMap((page) => page.items) || [];
   }, [data]);
-
-  const numColumns = 2;
-  const screenWidth = Dimensions.get("window").width;
-  const gap = 12;
-  const padding = 16;
-  const itemWidth =
-    (screenWidth - padding * 2 - gap * (numColumns - 1)) / numColumns;
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -101,7 +128,8 @@ export default function PlaylistsScreen() {
     );
   }
 
-  if (isLoading) {
+  // Only show loading if we have no cached data to display
+  if (isLoading && playlists.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
         <Loader />
@@ -109,7 +137,9 @@ export default function PlaylistsScreen() {
     );
   }
 
-  if (isError) {
+  // Only show error if we have no cached data to display
+  // This allows offline access to previously cached playlists
+  if (isError && playlists.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black px-6'>
         <Text className='text-neutral-500 text-center'>
@@ -123,7 +153,20 @@ export default function PlaylistsScreen() {
   if (playlists.length === 0) {
     return (
       <View className='flex-1 justify-center items-center bg-black'>
-        <Text className='text-neutral-500'>{t("music.no_playlists")}</Text>
+        <Text className='text-neutral-500 mb-4'>{t("music.no_playlists")}</Text>
+        <TouchableOpacity
+          onPress={() => setCreateModalOpen(true)}
+          className='flex-row items-center bg-purple-600 px-6 py-3 rounded-full'
+        >
+          <Ionicons name='add' size={20} color='white' />
+          <Text className='text-white font-semibold ml-2'>
+            {t("music.playlists.create_playlist")}
+          </Text>
+        </TouchableOpacity>
+        <CreatePlaylistModal
+          open={createModalOpen}
+          setOpen={setCreateModalOpen}
+        />
       </View>
     );
   }
@@ -132,11 +175,10 @@ export default function PlaylistsScreen() {
     <View className='flex-1 bg-black'>
       <FlashList
         data={playlists}
-        numColumns={numColumns}
         contentContainerStyle={{
           paddingBottom: insets.bottom + 100,
-          paddingTop: 16,
-          paddingHorizontal: padding,
+          paddingTop: 8,
+          paddingHorizontal: 16,
         }}
         refreshControl={
           <RefreshControl
@@ -147,17 +189,26 @@ export default function PlaylistsScreen() {
         }
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-        renderItem={({ item, index }) => (
-          <View
-            style={{
-              width: itemWidth,
-              marginRight: index % numColumns === 0 ? gap : 0,
-              marginBottom: gap,
-            }}
+        ListHeaderComponent={
+          <TouchableOpacity
+            onPress={() => setSortSheetOpen(true)}
+            className='flex-row items-center mb-2 py-1'
           >
-            <MusicPlaylistCard playlist={item} width={itemWidth} />
-          </View>
-        )}
+            <Ionicons name='swap-vertical' size={18} color='#9334E9' />
+            <Text className='text-purple-500 text-sm ml-1.5'>
+              {t(
+                `music.sort.${sortBy === "SortName" ? "alphabetical" : "date_created"}`,
+              )}
+            </Text>
+            <Ionicons
+              name={sortOrder === "Ascending" ? "arrow-up" : "arrow-down"}
+              size={14}
+              color='#9334E9'
+              style={{ marginLeft: 4 }}
+            />
+          </TouchableOpacity>
+        }
+        renderItem={({ item }) => <MusicPlaylistCard playlist={item} />}
         keyExtractor={(item) => item.Id!}
         ListFooterComponent={
           isFetchingNextPage ? (
@@ -166,6 +217,17 @@ export default function PlaylistsScreen() {
             </View>
           ) : null
         }
+      />
+      <CreatePlaylistModal
+        open={createModalOpen}
+        setOpen={setCreateModalOpen}
+      />
+      <PlaylistSortSheet
+        open={sortSheetOpen}
+        setOpen={setSortSheetOpen}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
     </View>
   );

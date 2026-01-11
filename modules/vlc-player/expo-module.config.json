@@ -1,9 +1,0 @@
-{
-  "platforms": ["ios", "tvos", "android", "web"],
-  "ios": {
-    "modules": ["VlcPlayerModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.vlcplayer.VlcPlayerModule"]
-  }
-}

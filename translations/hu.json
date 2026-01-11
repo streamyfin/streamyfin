@@ -30,9 +30,48 @@
     "connect_button": "Csatlakozás",
     "previous_servers": "Előző Szerverek",
     "clear_button": "Törlés",
+    "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Helyi Szerverek Keresése",
     "searching": "Keresés...",
-    "servers": "Szerverek"
+    "servers": "Szerverek",
+    "saved": "Saved",
+    "session_expired": "Session Expired",
+    "please_login_again": "Your saved session has expired. Please log in again.",
+    "remove_saved_login": "Remove Saved Login",
+    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
+    "accounts_count": "{{count}} accounts",
+    "select_account": "Select Account",
+    "add_account": "Add Account",
+    "remove_account_description": "This will remove the saved credentials for {{username}}."
+  },
+  "save_account": {
+    "title": "Save Account",
+    "save_for_later": "Save this account",
+    "security_option": "Security Option",
+    "no_protection": "No protection",
+    "no_protection_desc": "Quick login without authentication",
+    "pin_code": "PIN code",
+    "pin_code_desc": "4-digit PIN required when switching",
+    "password": "Re-enter password",
+    "password_desc": "Password required when switching",
+    "save_button": "Save",
+    "cancel_button": "Cancel"
+  },
+  "pin": {
+    "enter_pin": "Enter PIN",
+    "enter_pin_for": "Enter PIN for {{username}}",
+    "enter_4_digits": "Enter 4 digits",
+    "invalid_pin": "Invalid PIN",
+    "setup_pin": "Set Up PIN",
+    "confirm_pin": "Confirm PIN",
+    "pins_dont_match": "PINs don't match",
+    "forgot_pin": "Forgot PIN?",
+    "forgot_pin_desc": "Your saved credentials will be removed"
+  },
+  "password": {
+    "enter_password": "Enter Password",
+    "enter_password_for": "Enter password for {{username}}",
+    "invalid_password": "Invalid password"
   },
   "home": {
     "checking_server_connection": "Szerverkapcsolat ellenőrzése...",
@@ -48,6 +87,7 @@
     "error_message": "Valami nem stimmel.\nKérjük, jelentkezz ki, majd újra be.",
     "continue_watching": "Nézd Tovább",
     "next_up": "Következő",
+    "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Új a(z) {{libraryName}} könyvtárban",
     "suggested_movies": "Javasolt Filmek",
     "suggested_episodes": "Javasolt Epizódok",
@@ -69,6 +109,20 @@
     "settings": {
       "settings_title": "Beállítások",
       "log_out_button": "Kijelentkezés",
+      "categories": {
+        "title": "Categories"
+      },
+      "playback_controls": {
+        "title": "Playback & Controls"
+      },
+      "audio_subtitles": {
+        "title": "Audio & Subtitles"
+      },
+      "appearance": {
+        "title": "Appearance",
+        "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "hide_remote_session_button": "Hide Remote Session Button"
+      },
       "user_info": {
         "user_info_title": "Felhasználói Információk",
         "user": "Felhasználó",
@@ -99,7 +153,11 @@
         "left_side_brightness": "Fényerő a Bal Oldalon",
         "left_side_brightness_description": "Húzd felfelé vagy lefelé a bal oldalon a fényerő állításához",
         "right_side_volume": "Fényerő a Jobb Oldalon",
-        "right_side_volume_description": "Húzd felfelé vagy lefelé a jobb oldalon a hangerő állításához"
+        "right_side_volume_description": "Húzd felfelé vagy lefelé a jobb oldalon a hangerő állításához",
+        "hide_volume_slider": "Hide Volume Slider",
+        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_brightness_slider": "Hide Brightness Slider",
+        "hide_brightness_slider_description": "Hide the brightness slider in the video player"
       },
       "audio": {
         "audio_title": "Hang",
@@ -107,15 +165,23 @@
         "audio_language": "Hangsáv Nyelve",
         "audio_hint": "Válassz Alapértelmezett Hangsávnyelvet.",
         "none": "Nincs",
-        "language": "Nyelv"
+        "language": "Nyelv",
+        "transcode_mode": {
+          "title": "Audio Transcoding",
+          "description": "Controls how surround audio (7.1, TrueHD, DTS-HD) is handled",
+          "auto": "Auto",
+          "stereo": "Force Stereo",
+          "5_1": "Allow 5.1",
+          "passthrough": "Passthrough"
+        }
       },
       "subtitles": {
         "subtitle_title": "Feliratok",
+        "subtitle_hint": "Feliratbeállítások Megadása",
         "subtitle_language": "Felirat Nyelve",
         "subtitle_mode": "Felirat Módja",
         "set_subtitle_track": "Feliratsáv Beállítása az Előző Elemből",
         "subtitle_size": "Felirat Mérete",
-        "subtitle_hint": "Feliratbeállítások Megadása",
         "none": "Nincs",
         "language": "Nyelv",
         "loading": "Betöltés",
@@ -125,7 +191,63 @@
           "Always": "Mindig",
           "None": "Nincs",
           "OnlyForced": "Csak Kényszerített"
-        }
+        },
+        "text_color": "Szövegszín",
+        "background_color": "Háttérszín",
+        "outline_color": "Körvonal színe",
+        "outline_thickness": "Körvonal Vastagsága",
+        "background_opacity": "Háttér Áttetszőség",
+        "outline_opacity": "Körvonal Áttetszőség",
+        "bold_text": "Félkövér Szöveg",
+        "colors": {
+          "Black": "Fekete",
+          "Gray": "Szürke",
+          "Silver": "Ezüst",
+          "White": "Fehér",
+          "Maroon": "Sötétvörös",
+          "Red": "Piros",
+          "Fuchsia": "Fukszia",
+          "Yellow": "Sárga",
+          "Olive": "Oliva",
+          "Green": "Zöld",
+          "Teal": "Türkiz",
+          "Lime": "Lime",
+          "Purple": "Lila",
+          "Navy": "Sötétkék",
+          "Blue": "Kék",
+          "Aqua": "Türkizkék"
+        },
+        "thickness": {
+          "None": "Nincs",
+          "Thin": "Vékony",
+          "Normal": "Normál",
+          "Thick": "Vastag"
+        },
+        "subtitle_color": "Subtitle Color",
+        "subtitle_background_color": "Background Color",
+        "subtitle_font": "Subtitle Font",
+        "ksplayer_title": "KSPlayer Settings",
+        "hardware_decode": "Hardware Decoding",
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+      },
+      "vlc_subtitles": {
+        "title": "VLC Subtitle Settings",
+        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
+        "text_color": "Text Color",
+        "background_color": "Background Color",
+        "background_opacity": "Background Opacity",
+        "outline_color": "Outline Color",
+        "outline_opacity": "Outline Opacity",
+        "outline_thickness": "Outline Thickness",
+        "bold": "Bold Text",
+        "margin": "Bottom Margin"
+      },
+      "video_player": {
+        "title": "Video Player",
+        "video_player": "Video Player",
+        "video_player_description": "Choose which video player to use on iOS.",
+        "ksplayer": "KSPlayer",
+        "vlc": "VLC"
       },
       "other": {
         "other_title": "Egyéb",
@@ -150,15 +272,28 @@
           "VLC_4": "VLC 4 (Kísérleti + PiP)"
         },
         "show_custom_menu_links": "Egyéni Menülinkek Megjelenítése",
+        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Könyvtárak Elrejtése",
         "select_liraries_you_want_to_hide": "Válaszd ki azokat a könyvtárakat, amelyeket el szeretnél rejteni a Könyvtár fülön és a kezdőlapon.",
         "disable_haptic_feedback": "Haptikus Visszajelzés Letiltása",
         "default_quality": "Alapértelmezett Minőség",
+        "default_playback_speed": "Default Playback Speed",
         "max_auto_play_episode_count": "Max. Auto. Epizódlejátszás",
         "disabled": "Letiltva"
       },
       "downloads": {
         "downloads_title": "Letöltések"
+      },
+      "music": {
+        "title": "Music",
+        "playback_title": "Playback",
+        "playback_description": "Configure how music is played.",
+        "prefer_downloaded": "Prefer Downloaded Songs",
+        "caching_title": "Caching",
+        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "lookahead_enabled": "Enable Look-Ahead Caching",
+        "lookahead_count": "Tracks to Pre-cache",
+        "max_cache_size": "Max Cache Size"
       },
       "plugins": {
         "plugins_title": "Bővítmények",
@@ -187,13 +322,45 @@
         "marlin_search": {
           "enable_marlin_search": "Marlin Keresés Engedélyezése",
           "url": "URL",
-          "server_url_placeholder": "http(s)://domain.org:port",
+          "server_url_placeholder": "http(s)://tartomány.org:port",
           "marlin_search_hint": "Add meg a Marlin szerver URL-jét. Az URL-nek tartalmaznia kell a http vagy https-t, és opcionálisan a portot.",
           "read_more_about_marlin": "Tudj Meg Többet a Marlinról",
           "save_button": "Mentés",
           "toasts": {
-            "saved": "Mentve"
-          }
+            "saved": "Mentve",
+            "refreshed": "Settings refreshed from server"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "streamystats": {
+          "enable_streamystats": "Enable Streamystats",
+          "disable_streamystats": "Disable Streamystats",
+          "enable_search": "Use for Search",
+          "url": "URL",
+          "server_url_placeholder": "http(s)://streamystats.example.com",
+          "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
+          "read_more_about_streamystats": "Read More About Streamystats.",
+          "save_button": "Save",
+          "save": "Save",
+          "features_title": "Features",
+          "home_sections_title": "Home Sections",
+          "enable_movie_recommendations": "Movie Recommendations",
+          "enable_series_recommendations": "Series Recommendations",
+          "enable_promoted_watchlists": "Promoted Watchlists",
+          "hide_watchlists_tab": "Hide Watchlists Tab",
+          "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
+          "recommended_movies": "Recommended Movies",
+          "recommended_series": "Recommended Series",
+          "toasts": {
+            "saved": "Saved",
+            "refreshed": "Settings refreshed from server",
+            "disabled": "Streamystats disabled"
+          },
+          "refresh_from_server": "Refresh Settings from Server"
+        },
+        "kefinTweaks": {
+          "watchlist_enabler": "Enable our Watchlist integration",
+          "watchlist_button": "Toggle Watchlist integration"
         }
       },
       "storage": {
@@ -201,9 +368,19 @@
         "app_usage": "Alkalmazás {{usedSpace}}%",
         "device_usage": "Eszköz {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} Használatban",
-        "delete_all_downloaded_files": "Minden Letöltött Fájl Törlése"
+        "delete_all_downloaded_files": "Minden Letöltött Fájl Törlése",
+        "music_cache_title": "Music Cache",
+        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "enable_music_cache": "Enable Music Cache",
+        "clear_music_cache": "Clear Music Cache",
+        "music_cache_size": "{{size}} cached",
+        "music_cache_cleared": "Music cache cleared",
+        "delete_all_downloaded_songs": "Delete All Downloaded Songs",
+        "downloaded_songs_size": "{{size}} downloaded",
+        "downloaded_songs_deleted": "Downloaded songs deleted"
       },
       "intro": {
+        "title": "Intro",
         "show_intro": "Bemutató Megjelenítése",
         "reset_intro": "Bemutató Visszaállítása"
       },
@@ -221,7 +398,9 @@
         "system": "Rendszer"
       },
       "toasts": {
-        "error_deleting_files": "Hiba a Fájlok Törlésekor"
+        "error_deleting_files": "Hiba a Fájlok Törlésekor",
+        "background_downloads_enabled": "Background downloads enabled",
+        "background_downloads_disabled": "Background downloads disabled"
       }
     },
     "sessions": {
@@ -233,12 +412,14 @@
       "tvseries": "Sorozatok",
       "movies": "Filmek",
       "queue": "Sor",
+      "other_media": "Other media",
       "queue_hint": "A sor és a letöltések az alkalmazás újraindításakor elvesznek",
       "no_items_in_queue": "Nincs Elem a Sorban",
       "no_downloaded_items": "Nincsenek Letöltött Elemek",
       "delete_all_movies_button": "Összes Film Törlése",
       "delete_all_tvseries_button": "Összes Sorozat Törlése",
       "delete_all_button": "Összes Törlése",
+      "delete_all_other_media_button": "Delete other media",
       "active_download": "Aktív Letöltés",
       "no_active_downloads": "Nincs Aktív Letöltés",
       "active_downloads": "Aktív Letöltések",
@@ -255,19 +436,49 @@
         "failed_to_delete_all_movies": "Nem Sikerült Törölni Az Összes Filmet",
         "deleted_all_tvseries_successfully": "Az Összes Sorozat Sikeresen Törölve!",
         "failed_to_delete_all_tvseries": "Nem Sikerült Törölni Az Összes Sorozatot",
+        "deleted_media_successfully": "Deleted other media Successfully!",
+        "failed_to_delete_media": "Failed to Delete other media",
         "download_deleted": "Letöltés Törölve",
+        "download_cancelled": "Download Cancelled",
         "could_not_delete_download": "Nem Sikerült Törölni a Letöltést",
         "download_paused": "Letöltés Szüneteltetve",
         "could_not_pause_download": "Nem Sikerült Szüneteltetni a Letöltést",
         "download_resumed": "Letöltés Folytatva",
         "could_not_resume_download": "Nem Sikerült Folytatni a Letöltést",
         "download_completed": "Letöltés Befejezve",
+        "download_failed": "Download Failed",
         "download_failed_for_item": "A(z) {{item}} letöltése sikertelen - {{error}}",
         "download_completed_for_item": "A(z) {{item}} letöltése befejezve",
+        "download_started_for_item": "Download Started for {{item}}",
+        "failed_to_start_download": "Failed to start download",
+        "item_already_downloading": "{{item}} is already downloading",
+        "all_files_deleted": "All Downloads Deleted Successfully",
+        "files_deleted_by_type": "{{count}} {{type}} deleted",
         "all_files_folders_and_jobs_deleted_successfully": "Minden fájl, mappa és feladat sikeresen törölve",
-        "go_to_downloads": "Ugrás a Letöltésekhez"
+        "failed_to_clean_cache_directory": "Failed to clean cache directory",
+        "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
+        "go_to_downloads": "Ugrás a Letöltésekhez",
+        "file_deleted": "{{item}} deleted"
       }
     }
+  },
+  "common": {
+    "select": "Select",
+    "no_trailer_available": "No trailer available",
+    "video": "Videó",
+    "audio": "Hang",
+    "subtitle": "Felirat",
+    "play": "Play",
+    "none": "None",
+    "track": "Track",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "ok": "OK",
+    "remove": "Remove",
+    "next": "Next",
+    "back": "Back",
+    "continue": "Continue",
+    "verifying": "Verifying..."
   },
   "search": {
     "search": "Keresés...",
@@ -281,6 +492,10 @@
     "episodes": "Epizódok",
     "collections": "Gyűjtemények",
     "actors": "Színészek",
+    "artists": "Artists",
+    "albums": "Albums",
+    "songs": "Songs",
+    "playlists": "Playlists",
     "request_movies": "Filmek Kérése",
     "request_series": "Sorozatok Kérése",
     "recently_added": "Legutóbb Hozzáadva",
@@ -328,6 +543,7 @@
       "genres": "Műfajok",
       "years": "Évek",
       "sort_by": "Rendezés",
+      "filter_by": "Filter By",
       "sort_order": "Rendezés Iránya",
       "tags": "Címkék"
     }
@@ -358,7 +574,12 @@
     "playback_state": "Lejátszás Állapota:",
     "index": "Index:",
     "continue_watching": "Folytatás",
-    "go_back": "Vissza"
+    "go_back": "Vissza",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Következő",
@@ -374,6 +595,7 @@
     "no_similar_items_found": "Nincs Hasonló Elem",
     "video": "Videó",
     "more_details": "További Részletek",
+    "media_options": "Media Options",
     "quality": "Minőség",
     "audio": "Hang",
     "subtitles": "Felirat",
@@ -442,6 +664,10 @@
     "number_episodes": "{{episode_number}} Epizód",
     "born": "Született",
     "appearances": "Megjelenések",
+    "approve": "Approve",
+    "decline": "Decline",
+    "requested_by": "Requested by {{user}}",
+    "unknown_user": "Unknown User",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "A Jellyseerr szerver nem felel meg a minimum verziókövetelményeknek! Kérlek frissítsd legalább 2.0.0-ra.",
       "jellyseerr_test_failed": "A Jellyseerr teszt sikertelen. Próbáld újra.",
@@ -449,7 +675,11 @@
       "issue_submitted": "Probléma Beküldve!",
       "requested_item": "{{item}} Kérése Sikeres!",
       "you_dont_have_permission_to_request": "Nincs jogosultságod a kéréshez!",
-      "something_went_wrong_requesting_media": "Hiba történt a média kérés közben!"
+      "something_went_wrong_requesting_media": "Hiba történt a média kérés közben!",
+      "request_approved": "Request Approved!",
+      "request_declined": "Request Declined!",
+      "failed_to_approve_request": "Failed to Approve Request",
+      "failed_to_decline_request": "Failed to Decline Request"
     }
   },
   "tabs": {
@@ -458,5 +688,129 @@
     "library": "Könyvtár",
     "custom_links": "Egyéni Linkek",
     "favorites": "Kedvencek"
+  },
+  "music": {
+    "title": "Music",
+    "tabs": {
+      "suggestions": "Suggestions",
+      "albums": "Albums",
+      "artists": "Artists",
+      "playlists": "Playlists",
+      "tracks": "tracks"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "recently_added": "Recently Added",
+    "recently_played": "Recently Played",
+    "frequently_played": "Frequently Played",
+    "explore": "Explore",
+    "top_tracks": "Top Tracks",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "play_top_tracks": "Play Top Tracks",
+    "no_suggestions": "No suggestions available",
+    "no_albums": "No albums found",
+    "no_artists": "No artists found",
+    "no_playlists": "No playlists found",
+    "album_not_found": "Album not found",
+    "artist_not_found": "Artist not found",
+    "playlist_not_found": "Playlist not found",
+    "track_options": {
+      "play_next": "Play Next",
+      "add_to_queue": "Add to Queue",
+      "add_to_playlist": "Add to Playlist",
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading...",
+      "cached": "Cached",
+      "delete_download": "Delete Download",
+      "delete_cache": "Remove from Cache",
+      "go_to_artist": "Go to Artist",
+      "go_to_album": "Go to Album",
+      "add_to_favorites": "Add to Favorites",
+      "remove_from_favorites": "Remove from Favorites",
+      "remove_from_playlist": "Remove from Playlist"
+    },
+    "playlists": {
+      "create_playlist": "Create Playlist",
+      "playlist_name": "Playlist Name",
+      "enter_name": "Enter playlist name",
+      "create": "Create",
+      "search_playlists": "Search playlists...",
+      "added_to": "Added to {{name}}",
+      "added": "Added to playlist",
+      "removed_from": "Removed from {{name}}",
+      "removed": "Removed from playlist",
+      "created": "Playlist created",
+      "create_new": "Create New Playlist",
+      "failed_to_add": "Failed to add to playlist",
+      "failed_to_remove": "Failed to remove from playlist",
+      "failed_to_create": "Failed to create playlist",
+      "delete_playlist": "Delete Playlist",
+      "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+      "deleted": "Playlist deleted",
+      "failed_to_delete": "Failed to delete playlist"
+    },
+    "sort": {
+      "title": "Sort By",
+      "alphabetical": "Alphabetical",
+      "date_created": "Date Created"
+    }
+  },
+  "watchlists": {
+    "title": "Watchlists",
+    "my_watchlists": "My Watchlists",
+    "public_watchlists": "Public Watchlists",
+    "create_title": "Create Watchlist",
+    "edit_title": "Edit Watchlist",
+    "create_button": "Create Watchlist",
+    "save_button": "Save Changes",
+    "delete_button": "Delete",
+    "remove_button": "Remove",
+    "cancel_button": "Cancel",
+    "name_label": "Name",
+    "name_placeholder": "Enter watchlist name",
+    "description_label": "Description",
+    "description_placeholder": "Enter description (optional)",
+    "is_public_label": "Public Watchlist",
+    "is_public_description": "Allow others to view this watchlist",
+    "allowed_type_label": "Content Type",
+    "sort_order_label": "Default Sort Order",
+    "empty_title": "No Watchlists",
+    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_watchlist": "This watchlist is empty",
+    "empty_watchlist_hint": "Add items from your library to this watchlist",
+    "not_configured_title": "Streamystats Not Configured",
+    "not_configured_description": "Configure Streamystats in settings to use watchlists",
+    "go_to_settings": "Go to Settings",
+    "add_to_watchlist": "Add to Watchlist",
+    "remove_from_watchlist": "Remove from Watchlist",
+    "select_watchlist": "Select Watchlist",
+    "create_new": "Create New Watchlist",
+    "item": "item",
+    "items": "items",
+    "public": "Public",
+    "private": "Private",
+    "you": "You",
+    "by_owner": "By another user",
+    "not_found": "Watchlist not found",
+    "delete_confirm_title": "Delete Watchlist",
+    "delete_confirm_message": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "remove_item_title": "Remove from Watchlist",
+    "remove_item_message": "Remove \"{{name}}\" from this watchlist?",
+    "loading": "Loading watchlists...",
+    "no_compatible_watchlists": "No compatible watchlists",
+    "create_one_first": "Create a watchlist that accepts this content type"
+  },
+  "playback_speed": {
+    "title": "Playback Speed",
+    "apply_to": "Apply To",
+    "speed": "Speed",
+    "scope": {
+      "media": "This media only",
+      "show": "This show",
+      "all": "All media (default)"
+    }
   }
 }

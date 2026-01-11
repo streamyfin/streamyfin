@@ -54,6 +54,11 @@ The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that ho
 
 Chromecast support is currently under development. Video casting is already available, and we're actively working on adding subtitle support and additional features.
 
+### 🎬 MPV Player
+
+Streamyfin uses [MPV](https://mpv.io/) as its primary video player on all platforms, powered by [MPVKit](https://github.com/mpvkit/MPVKit). MPV is a powerful, open-source media player known for its wide format support and high-quality playback.
+Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building the native MPV module in Streamyfin.
+
 ### 🔍 Jellysearch
 
 [Jellysearch](https://gitlab.com/DomiStyle/jellysearch) works with Streamyfin
@@ -230,6 +235,7 @@ We also thank all other developers who have contributed to Streamyfin, your effo
 
 A special mention to the following people and projects for their contributions:
 
+- [@Alexk2309](https://github.com/Alexk2309) for building the native MPV module that integrates [MPVKit](https://github.com/mpvkit/MPVKit) with React Native
 - [Reiverr](https://github.com/aleksilassila/reiverr) for invaluable help with understanding the Jellyfin API
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for providing the TypeScript SDK
 - [Seerr](https://github.com/seerr-team/seerr) for enabling API integration with their project

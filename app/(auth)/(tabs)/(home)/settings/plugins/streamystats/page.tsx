@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +14,7 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
@@ -28,7 +28,7 @@ export default function page() {
     pluginSettings,
     refreshStreamyfinPluginSettings,
   } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   // Local state for all editable fields
   const [url, setUrl] = useState<string>(settings?.streamyStatsServerUrl || "");
@@ -44,6 +44,9 @@ export default function page() {
   const [promotedWatchlists, setPromotedWatchlists] = useState<boolean>(
     settings?.streamyStatsPromotedWatchlists ?? false,
   );
+  const [hideWatchlistsTab, setHideWatchlistsTab] = useState<boolean>(
+    settings?.hideWatchlistsTab ?? false,
+  );
 
   const isUrlLocked = pluginSettings?.streamyStatsServerUrl?.locked === true;
   const isStreamystatsEnabled = !!url;
@@ -56,6 +59,7 @@ export default function page() {
       streamyStatsMovieRecommendations: movieRecs,
       streamyStatsSeriesRecommendations: seriesRecs,
       streamyStatsPromotedWatchlists: promotedWatchlists,
+      hideWatchlistsTab: hideWatchlistsTab,
     });
     queryClient.invalidateQueries({ queryKey: ["search"] });
     queryClient.invalidateQueries({ queryKey: ["streamystats"] });
@@ -66,6 +70,7 @@ export default function page() {
     movieRecs,
     seriesRecs,
     promotedWatchlists,
+    hideWatchlistsTab,
     updateSettings,
     queryClient,
     t,
@@ -90,12 +95,14 @@ export default function page() {
     setMovieRecs(false);
     setSeriesRecs(false);
     setPromotedWatchlists(false);
+    setHideWatchlistsTab(false);
     updateSettings({
       streamyStatsServerUrl: "",
       searchEngine: "Jellyfin",
       streamyStatsMovieRecommendations: false,
       streamyStatsSeriesRecommendations: false,
       streamyStatsPromotedWatchlists: false,
+      hideWatchlistsTab: false,
     });
     queryClient.invalidateQueries({ queryKey: ["streamystats"] });
     queryClient.invalidateQueries({ queryKey: ["search"] });
@@ -211,6 +218,16 @@ export default function page() {
             <Switch
               value={promotedWatchlists}
               onValueChange={setPromotedWatchlists}
+              disabled={!isStreamystatsEnabled}
+            />
+          </ListItem>
+          <ListItem
+            title={t("home.settings.plugins.streamystats.hide_watchlists_tab")}
+            disabledByAdmin={pluginSettings?.hideWatchlistsTab?.locked === true}
+          >
+            <Switch
+              value={hideWatchlistsTab}
+              onValueChange={setHideWatchlistsTab}
               disabled={!isStreamystatsEnabled}
             />
           </ListItem>

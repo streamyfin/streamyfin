@@ -50,8 +50,13 @@ import {
 import { useSettings } from "@/utils/atoms/settings";
 
 const Page = () => {
-  const searchParams = useLocalSearchParams();
-  const { libraryId } = searchParams as { libraryId: string };
+  const searchParams = useLocalSearchParams() as {
+    libraryId: string;
+    sortBy?: string;
+    sortOrder?: string;
+    filterBy?: string;
+  };
+  const { libraryId } = searchParams;
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -76,23 +81,33 @@ const Page = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    const sop = getSortOrderPreference(libraryId, sortOrderPreference);
-    if (sop) {
-      _setSortOrder([sop]);
+    // Check for URL params first (from "See All" navigation)
+    const urlSortBy = searchParams.sortBy as SortByOption | undefined;
+    const urlSortOrder = searchParams.sortOrder as SortOrderOption | undefined;
+    const urlFilterBy = searchParams.filterBy as FilterByOption | undefined;
+
+    // Apply sortOrder: URL param > saved preference > default
+    if (urlSortOrder && Object.values(SortOrderOption).includes(urlSortOrder)) {
+      _setSortOrder([urlSortOrder]);
     } else {
-      _setSortOrder([SortOrderOption.Ascending]);
+      const sop = getSortOrderPreference(libraryId, sortOrderPreference);
+      _setSortOrder([sop || SortOrderOption.Ascending]);
     }
-    const obp = getSortByPreference(libraryId, sortByPreference);
-    if (obp) {
-      _setSortBy([obp]);
+
+    // Apply sortBy: URL param > saved preference > default
+    if (urlSortBy && Object.values(SortByOption).includes(urlSortBy)) {
+      _setSortBy([urlSortBy]);
     } else {
-      _setSortBy([SortByOption.SortName]);
+      const obp = getSortByPreference(libraryId, sortByPreference);
+      _setSortBy([obp || SortByOption.SortName]);
     }
-    const fp = getFilterByPreference(libraryId, filterByPreference);
-    if (fp) {
-      _setFilterBy([fp]);
+
+    // Apply filterBy: URL param > saved preference > default
+    if (urlFilterBy && Object.values(FilterByOption).includes(urlFilterBy)) {
+      _setFilterBy([urlFilterBy]);
     } else {
-      _setFilterBy([]);
+      const fp = getFilterByPreference(libraryId, filterByPreference);
+      _setFilterBy(fp ? [fp] : []);
     }
   }, [
     libraryId,
@@ -102,6 +117,9 @@ const Page = () => {
     _setSortBy,
     filterByPreference,
     _setFilterBy,
+    searchParams.sortBy,
+    searchParams.sortOrder,
+    searchParams.filterBy,
   ]);
 
   const setSortBy = useCallback(

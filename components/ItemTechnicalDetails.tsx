@@ -183,6 +183,12 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
 
   if (!source || !videoStream) return null;
 
+  // Dolby Vision video check
+  const isDolbyVision =
+    videoStream.VideoRangeType === "DOVI" ||
+    videoStream.DvVersionMajor != null ||
+    videoStream.DvVersionMinor != null;
+
   return (
     <View className='flex-row flex-wrap gap-2'>
       <Badge
@@ -195,6 +201,15 @@ const VideoStreamInfo = ({ source }: { source?: MediaSourceInfo }) => {
         iconLeft={<Ionicons name='film-outline' size={16} color='white' />}
         text={`${videoStream.Width}x${videoStream.Height}`}
       />
+      {isDolbyVision && (
+        <Badge
+          variant='gray'
+          iconLeft={
+            <Ionicons name='sparkles-outline' size={16} color='white' />
+          }
+          text={"DV"}
+        />
+      )}
       <Badge
         variant='gray'
         iconLeft={

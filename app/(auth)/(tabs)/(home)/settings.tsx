@@ -71,6 +71,11 @@ export default function settings() {
               title={t("home.settings.audio_subtitles.title")}
             />
             <ListItem
+              onPress={() => router.push("/settings/music/page")}
+              showArrow
+              title={t("home.settings.music.title")}
+            />
+            <ListItem
               onPress={() => router.push("/settings/appearance/page")}
               showArrow
               title={t("home.settings.appearance.title")}
@@ -84,6 +89,11 @@ export default function settings() {
               onPress={() => router.push("/settings/intro/page")}
               showArrow
               title={t("home.settings.intro.title")}
+            />
+            <ListItem
+              onPress={() => router.push("/settings/network/page")}
+              showArrow
+              title={t("home.settings.network.title")}
             />
             <ListItem
               onPress={() => router.push("/settings/logs/page")}

@@ -1,13 +1,13 @@
-import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { storage } from "@/utils/mmkv";
 
 export default function IntroPage() {
-  const router = useRouter();
+  const { showIntro } = useIntroSheet();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
@@ -26,7 +26,7 @@ export default function IntroPage() {
         <ListGroup title={t("home.settings.intro.title")}>
           <ListItem
             onPress={() => {
-              router.push("/intro/page");
+              showIntro();
             }}
             title={t("home.settings.intro.show_intro")}
           />
