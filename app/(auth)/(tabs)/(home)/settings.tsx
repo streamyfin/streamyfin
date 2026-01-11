@@ -92,6 +92,11 @@ export default function settings() {
               title={t("home.settings.intro.title")}
             />
             <ListItem
+              onPress={() => router.push("/settings/network/page")}
+              showArrow
+              title={t("home.settings.network.title")}
+            />
+            <ListItem
               onPress={() => router.push("/settings/logs/page")}
               showArrow
               title={t("home.settings.logs.logs_title")}

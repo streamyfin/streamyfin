@@ -1,0 +1,8 @@
+{
+  "name": "wifi-ssid",
+  "version": "1.0.0",
+  "platforms": ["ios"],
+  "ios": {
+    "modules": ["WifiSsidModule"]
+  }
+}

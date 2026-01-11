@@ -148,21 +148,22 @@ export const BottomControls: FC<BottomControlsProps> = ({
             onPress={skipCredit}
             buttonText='Skip Credits'
           />
-          {(settings.maxAutoPlayEpisodeCount.value === -1 ||
-            settings.autoPlayEpisodeCount <
-              settings.maxAutoPlayEpisodeCount.value) && (
-            <NextEpisodeCountDownButton
-              show={
-                !nextItem
-                  ? false
-                  : // Show during credits if no content after, OR near end of video
-                    (showSkipCreditButton && !hasContentAfterCredits) ||
-                    remainingTime < 10000
-              }
-              onFinish={handleNextEpisodeAutoPlay}
-              onPress={handleNextEpisodeManual}
-            />
-          )}
+          {settings.autoPlayNextEpisode !== false &&
+            (settings.maxAutoPlayEpisodeCount.value === -1 ||
+              settings.autoPlayEpisodeCount <
+                settings.maxAutoPlayEpisodeCount.value) && (
+              <NextEpisodeCountDownButton
+                show={
+                  !nextItem
+                    ? false
+                    : // Show during credits if no content after, OR near end of video
+                      (showSkipCreditButton && !hasContentAfterCredits) ||
+                      remainingTime < 10000
+                }
+                onFinish={handleNextEpisodeAutoPlay}
+                onPress={handleNextEpisodeManual}
+              />
+            )}
         </View>
       </View>
       <View
