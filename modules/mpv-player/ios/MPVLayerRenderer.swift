@@ -531,7 +531,31 @@ final class MPVLayerRenderer {
         cachedPosition = clamped
         commandSync(handle, ["seek", String(clamped), "absolute"])
     }
-    
+
+    /// Reinitializes hardware decode pipeline without seeking.
+    /// 
+    /// IMPORTANT: This is critical for PiP and background recovery.
+    /// When iOS backgrounds the app or locks the screen, it invalidates the
+    /// VideoToolbox decoder session, causing the video to go black.
+    /// This function detects when the display layer is in a bad state and
+    /// resets the decoder to restore video visibility.
+    ///
+    /// Only resets if display layer is in a failed/stuck state to avoid
+    /// unnecessary buffering/network impact.
+    func resetVideoDecoder() {
+        // Only reset if actually needed
+        guard displayLayer.status == .failed || displayLayer.requiresFlushToResumeDecoding else {
+            print("🔧 Display layer OK, skipping reset")
+            return
+        }
+        
+        print("🔧 Display layer needs reset: status=\(displayLayer.status.rawValue), requiresFlush=\(displayLayer.requiresFlushToResumeDecoding)")
+        guard let handle = mpv else { return }
+        // Toggle hardware decoding off/on to reinitialize the decoder pipeline
+        commandSync(handle, ["set", "hwdec", "no"])
+        commandSync(handle, ["set", "hwdec", "auto"])
+    }
+
     func seek(by seconds: Double) {
         guard let handle = mpv else { return }
         let newPosition = max(0, cachedPosition + seconds)

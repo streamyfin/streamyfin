@@ -51,12 +51,30 @@ class MpvPlayerView: ExpoView {
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
-	private var intendedPlayState: Bool = false  // For PiP - ignores transient states during seek
+	private var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
+	private var lifecycleObservers: [NSObjectProtocol] = []
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
 		setupView()
+		observeAppLifecycle()
+	}
+	
+	// MARK: - App Lifecycle
+	
+	private func observeAppLifecycle() {
+		let nc = NotificationCenter.default
+		
+		// Restore frame when returning from background (if paused)
+		lifecycleObservers.append(nc.addObserver(
+			forName: UIApplication.willEnterForegroundNotification,
+			object: nil, queue: .main
+		) { [weak self] _ in
+			guard let self else { return }
+			self.renderer?.resetVideoDecoder()
+			if self.intendedPlayState { self.renderer?.play() }
+		})
 	}
 
 	private func setupView() {
@@ -282,6 +300,7 @@ class MpvPlayerView: ExpoView {
 	}
 
 	deinit {
+		lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
 		pipController?.stopPictureInPicture()
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
@@ -400,6 +419,7 @@ extension MpvPlayerView: PiPControllerDelegate {
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
 		intendedPlayState = true
+		renderer?.resetVideoDecoder()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
 	}

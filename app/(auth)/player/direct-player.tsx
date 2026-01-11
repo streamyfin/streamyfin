@@ -680,8 +680,8 @@ export default function page() {
         return;
       }
 
-      if (isLoading) {
-        setIsBuffering(true);
+      if (isLoading !== undefined) {
+        setIsBuffering(isLoading);
       }
     },
     [playbackManager, item?.Id, progress],
