@@ -74,6 +74,7 @@ interface JellyfinContextValue {
     password: string,
   ) => Promise<void>;
   removeSavedCredential: (serverUrl: string, userId: string) => Promise<void>;
+  switchServerUrl: (newUrl: string) => void;
 }
 
 const JellyfinContext = createContext<JellyfinContextValue | undefined>(
@@ -466,6 +467,18 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  const switchServerUrl = useCallback(
+    (newUrl: string) => {
+      if (!jellyfin || !api?.accessToken) return;
+
+      const newApi = jellyfin.createApi(newUrl, api.accessToken);
+      setApi(newApi);
+      // Note: We don't update storage.set("serverUrl") here
+      // because we want to keep the original remote URL as the "primary" URL
+    },
+    [jellyfin, api?.accessToken],
+  );
+
   const [loaded, setLoaded] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
@@ -541,6 +554,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       loginWithPasswordMutation.mutateAsync({ serverUrl, username, password }),
     removeSavedCredential: (serverUrl, userId) =>
       removeSavedCredentialMutation.mutateAsync({ serverUrl, userId }),
+    switchServerUrl,
   };
 
   useEffect(() => {
