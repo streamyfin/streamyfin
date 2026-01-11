@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router";
 import { t } from "i18next";
 import React from "react";
 import { View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 
 export interface ContinueWatchingOverlayProps {
@@ -23,7 +23,7 @@ const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
     settings.maxAutoPlayEpisodeCount.value ? (
     <View
       className={
-        "absolute top-0 bottom-0 left-0 right-0 flex flex-col px-4 items-center justify-center bg-[#000000B3]"
+        "absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-col px-4 items-center justify-center bg-[#000000B3]"
       }
     >
       <Text className='text-2xl font-bold text-white py-4 '>

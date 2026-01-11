@@ -7,7 +7,6 @@ import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
   items: BaseItemDto[];
-  isOffline?: boolean;
   size?: "default" | "large";
 }
 

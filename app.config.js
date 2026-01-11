@@ -6,9 +6,6 @@ module.exports = ({ config }) => {
       "react-native-google-cast",
       { useDefaultExpandedMediaControls: true },
     ]);
-
-    // KSPlayer for iOS (GPU acceleration + native PiP)
-    config.plugins.push("./plugins/withKSPlayer.js");
   }
 
   // Only override googleServicesFile if env var is set

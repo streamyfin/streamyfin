@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";

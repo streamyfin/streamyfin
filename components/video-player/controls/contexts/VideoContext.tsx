@@ -8,7 +8,7 @@
  * ============================================================================
  *
  * - Jellyfin is source of truth for subtitle list (embedded + external)
- * - KSPlayer only knows about:
+ * - MPV only knows about:
  *   - Embedded subs it finds in the video stream
  *   - External subs we explicitly add via addSubtitleFile()
  * - UI shows Jellyfin's complete list
@@ -24,8 +24,8 @@
  *    - Value of -1 means disabled/none
  *
  * 2. MPV INDEX (track.mpvIndex)
- *    - KSPlayer's internal track ID
- *    - KSPlayer orders tracks as: [all embedded, then all external]
+ *    - MPV's internal track ID
+ *    - MPV orders tracks as: [all embedded, then all external]
  *    - IDs: 1..embeddedCount for embedded, embeddedCount+1.. for external
  *    - Value of -1 means track needs replacePlayer() (e.g., burned-in sub)
  *
@@ -34,20 +34,20 @@
  * ============================================================================
  *
  * Embedded (DeliveryMethod.Embed):
- *   - Already in KSPlayer's track list
+ *   - Already in MPV's track list
  *   - Select via setSubtitleTrack(mpvId)
  *
  * External (DeliveryMethod.External):
- *   - Loaded into KSPlayer's srtControl on video start
+ *   - Loaded into MPV on video start
  *   - Select via setSubtitleTrack(embeddedCount + externalPosition + 1)
  *
  * Image-based during transcoding:
- *   - Burned into video by Jellyfin, not in KSPlayer
+ *   - Burned into video by Jellyfin, not in MPV
  *   - Requires replacePlayer() to change
  */
 
 import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
   createContext,
@@ -57,7 +57,9 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { SfAudioTrack, TrackInfo } from "@/modules";
+import useRouter from "@/hooks/useAppRouter";
+import type { MpvAudioTrack } from "@/modules";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
@@ -75,8 +77,10 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, useVlcPlayer } = usePlayerContext();
+  const { tracksReady, mediaSource, downloadedItem } = usePlayerContext();
   const playerControls = usePlayerControls();
+  const offline = useOfflineMode();
+  const router = useRouter();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
@@ -131,59 +135,45 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     if (!tracksReady) return;
 
     const fetchTracks = async () => {
-      // For VLC player, use simpler track handling with server indices
-      if (useVlcPlayer) {
-        // Get VLC track info (VLC returns TrackInfo[] with 'index' property)
-        const vlcSubtitleData = (await playerControls
-          .getSubtitleTracks()
-          .catch(() => null)) as TrackInfo[] | null;
-        const vlcAudioData = (await playerControls
-          .getAudioTracks()
-          .catch(() => null)) as TrackInfo[] | null;
+      // Check if this is offline transcoded content
+      // For transcoded offline content, only ONE audio track exists in the file
+      const isOfflineTranscoded =
+        offline && downloadedItem?.userData?.isTranscoded === true;
 
-        // VLC reverses HLS subtitles during transcoding
-        let vlcSubs: TrackInfo[] = vlcSubtitleData ? [...vlcSubtitleData] : [];
-        if (isTranscoding && vlcSubs.length > 1) {
-          vlcSubs = [vlcSubs[0], ...vlcSubs.slice(1).reverse()];
-        }
+      if (isOfflineTranscoded) {
+        // Build single audio track entry - only the downloaded track exists
+        const downloadedAudioIndex = downloadedItem.userData.audioStreamIndex;
+        const downloadedTrack = allAudio.find(
+          (a) => a.Index === downloadedAudioIndex,
+        );
 
-        // Build subtitle tracks for VLC
-        const subs: Track[] = [];
-        let vlcSubIndex = 1; // VLC track indices start at 1 (0 is usually "Disable")
-
-        for (const sub of allSubs) {
-          const isTextBased =
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Embed ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.Hls ||
-            sub.DeliveryMethod === SubtitleDeliveryMethod.External;
-
-          // Get VLC's internal index for this track
-          const vlcTrackIndex = vlcSubs[vlcSubIndex]?.index ?? -1;
-          if (isTextBased) vlcSubIndex++;
-
-          // For image-based subs during transcoding, or non-text subs, use replacePlayer
-          const needsPlayerRefresh =
-            (isTranscoding && isImageBasedSubtitle(sub)) || !isTextBased;
-
-          subs.push({
-            name: sub.DisplayTitle || "Unknown",
-            index: sub.Index ?? -1,
-            mpvIndex: vlcTrackIndex,
-            setTrack: () => {
-              if (needsPlayerRefresh) {
-                replacePlayer({ subtitleIndex: String(sub.Index) });
-              } else if (vlcTrackIndex !== -1) {
-                playerControls.setSubtitleTrack(vlcTrackIndex);
-                router.setParams({ subtitleIndex: String(sub.Index) });
-              } else {
-                replacePlayer({ subtitleIndex: String(sub.Index) });
-              }
+        if (downloadedTrack) {
+          const audio: Track[] = [
+            {
+              name: downloadedTrack.DisplayTitle || "Audio",
+              index: downloadedTrack.Index ?? 0,
+              mpvIndex: 1, // Only track in file (MPV uses 1-based indexing)
+              setTrack: () => {
+                // Track is already selected (only one available)
+                router.setParams({ audioIndex: String(downloadedTrack.Index) });
+              },
             },
-          });
+          ];
+          setAudioTracks(audio);
+        } else {
+          // Fallback: show no audio tracks if the stored track wasn't found
+          setAudioTracks([]);
         }
+
+        // For subtitles in transcoded offline content:
+        // - Text-based subs may still be embedded
+        // - Image-based subs were burned in during transcoding
+        const downloadedSubtitleIndex =
+          downloadedItem.userData.subtitleStreamIndex;
+        const subs: Track[] = [];
 
         // Add "Disable" option
-        subs.unshift({
+        subs.push({
           name: "Disable",
           index: -1,
           mpvIndex: -1,
@@ -193,37 +183,44 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           },
         });
 
-        // Build audio tracks for VLC
-        const vlcAudio: TrackInfo[] = vlcAudioData ? [...vlcAudioData] : [];
-        const audio: Track[] = allAudio.map((a, idx) => {
-          const vlcTrackIndex = vlcAudio[idx + 1]?.index ?? idx;
-
-          return {
-            name: a.DisplayTitle || "Unknown",
-            index: a.Index ?? -1,
-            mpvIndex: vlcTrackIndex,
-            setTrack: () => {
-              if (isTranscoding) {
-                replacePlayer({ audioIndex: String(a.Index) });
-              } else {
-                playerControls.setAudioTrack(vlcTrackIndex);
-                router.setParams({ audioIndex: String(a.Index) });
-              }
-            },
-          };
-        });
+        // For text-based subs, they should still be available in the file
+        let subIdx = 1;
+        for (const sub of allSubs) {
+          if (sub.IsTextSubtitleStream) {
+            subs.push({
+              name: sub.DisplayTitle || "Unknown",
+              index: sub.Index ?? -1,
+              mpvIndex: subIdx,
+              setTrack: () => {
+                playerControls.setSubtitleTrack(subIdx);
+                router.setParams({ subtitleIndex: String(sub.Index) });
+              },
+            });
+            subIdx++;
+          } else if (sub.Index === downloadedSubtitleIndex) {
+            // This image-based sub was burned in - show it but indicate it's active
+            subs.push({
+              name: `${sub.DisplayTitle || "Unknown"} (burned in)`,
+              index: sub.Index ?? -1,
+              mpvIndex: -1, // Can't be changed
+              setTrack: () => {
+                // Already burned in, just update params
+                router.setParams({ subtitleIndex: String(sub.Index) });
+              },
+            });
+          }
+        }
 
         setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
-        setAudioTracks(audio);
         return;
       }
 
-      // KSPlayer track handling (original logic)
+      // MPV track handling
       const audioData = await playerControls.getAudioTracks().catch(() => null);
-      const playerAudio = (audioData as SfAudioTrack[]) ?? [];
+      const playerAudio = (audioData as MpvAudioTrack[]) ?? [];
 
       // Separate embedded vs external subtitles from Jellyfin's list
-      // KSPlayer orders tracks as: [all embedded, then all external]
+      // MPV orders tracks as: [all embedded, then all external]
       const embeddedSubs = allSubs.filter(
         (s) => s.DeliveryMethod === SubtitleDeliveryMethod.Embed,
       );
@@ -231,7 +228,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         (s) => s.DeliveryMethod === SubtitleDeliveryMethod.External,
       );
 
-      // Count embedded subs that will be in KSPlayer
+      // Count embedded subs that will be in MPV
       // (excludes image-based subs during transcoding as they're burned in)
       const embeddedInPlayer = embeddedSubs.filter(
         (s) => !isTranscoding || !isImageBasedSubtitle(s),
@@ -258,8 +255,8 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           continue;
         }
 
-        // Calculate KSPlayer track ID based on type
-        // KSPlayer IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
+        // Calculate MPV track ID based on type
+        // MPV IDs: [1..embeddedCount] for embedded, [embeddedCount+1..] for external
         let mpvId = -1;
 
         if (isEmbedded) {
@@ -347,7 +344,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-  }, [tracksReady, mediaSource, useVlcPlayer]);
+  }, [tracksReady, mediaSource, offline, downloadedItem]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>

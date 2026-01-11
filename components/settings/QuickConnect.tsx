@@ -7,7 +7,7 @@ import {
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, View, type ViewProps } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -28,6 +28,11 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
+  const snapPoints = useMemo(
+    () => (Platform.OS === "android" ? ["100%"] : ["40%"]),
+    [],
+  );
+  const isAndroid = Platform.OS === "android";
 
   const { t } = useTranslation();
 
@@ -92,7 +97,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
 
       <BottomSheetModal
         ref={bottomSheetModalRef}
-        enableDynamicSizing
+        snapPoints={snapPoints}
         handleIndicatorStyle={{
           backgroundColor: "white",
         }}
@@ -100,9 +105,10 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           backgroundColor: "#171717",
         }}
         backdropComponent={renderBackdrop}
-        keyboardBehavior='interactive'
+        keyboardBehavior={isAndroid ? "fillParent" : "interactive"}
         keyboardBlurBehavior='restore'
         android_keyboardInputMode='adjustResize'
+        topInset={isAndroid ? 0 : undefined}
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>

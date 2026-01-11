@@ -13,7 +13,6 @@ import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
-import { VideoPlayerSettings } from "./VideoPlayerSettings";
 
 export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -30,6 +29,7 @@ export const PlaybackControlsSettings: React.FC = () => {
   const orientations = [
     ScreenOrientation.OrientationLock.DEFAULT,
     ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    ScreenOrientation.OrientationLock.LANDSCAPE,
     ScreenOrientation.OrientationLock.LANDSCAPE_LEFT,
     ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT,
   ];
@@ -40,6 +40,8 @@ export const PlaybackControlsSettings: React.FC = () => {
         "home.settings.other.orientations.DEFAULT",
       [ScreenOrientation.OrientationLock.PORTRAIT_UP]:
         "home.settings.other.orientations.PORTRAIT_UP",
+      [ScreenOrientation.OrientationLock.LANDSCAPE]:
+        "home.settings.other.orientations.LANDSCAPE",
       [ScreenOrientation.OrientationLock.LANDSCAPE_LEFT]:
         "home.settings.other.orientations.LANDSCAPE_LEFT",
       [ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT]:
@@ -212,7 +214,23 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
 
-        <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
+        <ListItem
+          title={t("home.settings.other.auto_play_next_episode")}
+          disabled={pluginSettings?.autoPlayNextEpisode?.locked}
+        >
+          <Switch
+            value={settings.autoPlayNextEpisode}
+            disabled={pluginSettings?.autoPlayNextEpisode?.locked}
+            onValueChange={(autoPlayNextEpisode) =>
+              updateSettings({ autoPlayNextEpisode })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.other.max_auto_play_episode_count")}
+          disabled={!settings.autoPlayNextEpisode}
+        >
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}
             trigger={
@@ -231,8 +249,6 @@ export const PlaybackControlsSettings: React.FC = () => {
           />
         </ListItem>
       </ListGroup>
-
-      <VideoPlayerSettings />
     </DisabledSetting>
   );
 };

@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -14,6 +13,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";

@@ -5,7 +5,8 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import download from "@/utils/profiles/download";
+import { generateDownloadProfile } from "@/utils/profiles/download";
+import type { AudioTranscodeModeType } from "@/utils/profiles/native";
 
 interface StreamResult {
   url: string;
@@ -265,6 +266,7 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex = undefined,
   mediaSourceId,
   deviceId,
+  audioMode = "auto",
 }: {
   api: Api | null | undefined;
   item: BaseItemDto | null | undefined;
@@ -274,6 +276,7 @@ export const getDownloadStreamUrl = async ({
   subtitleStreamIndex?: number;
   mediaSourceId?: string | null;
   deviceId?: string | null;
+  audioMode?: AudioTranscodeModeType;
 }): Promise<{
   url: string | null;
   sessionId: string | null;
@@ -292,7 +295,7 @@ export const getDownloadStreamUrl = async ({
       method: "POST",
       data: {
         userId,
-        deviceProfile: download,
+        deviceProfile: generateDownloadProfile(audioMode),
         subtitleStreamIndex,
         startTimeTicks: 0,
         isPlayback: true,

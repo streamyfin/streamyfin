@@ -2,13 +2,13 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
+  MediaStreamType,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -23,11 +23,13 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
@@ -43,7 +45,6 @@ import type { SelectedOptions } from "./ItemContent";
 interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
-  isOffline?: boolean;
   colors?: ThemeColors;
 }
 
@@ -53,9 +54,9 @@ const MIN_PLAYBACK_WIDTH = 15;
 export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
-  isOffline,
   colors,
 }: Props) => {
+  const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
   const mediaStatus = useMediaStatus();
@@ -185,11 +186,23 @@ export const PlayButton: React.FC<Props> = ({
                     return;
                   }
 
+                  // Calculate start time in seconds from playback position
+                  const startTimeSeconds =
+                    (item?.UserData?.PlaybackPositionTicks ?? 0) / 10000000;
+
+                  // Calculate stream duration in seconds from runtime
+                  const streamDurationSeconds = item.RunTimeTicks
+                    ? item.RunTimeTicks / 10000000
+                    : undefined;
+
                   client
                     .loadMedia({
                       mediaInfo: {
+                        contentId: item.Id,
                         contentUrl: data?.url,
                         contentType: "video/mp4",
+                        streamType: MediaStreamType.BUFFERED,
+                        streamDuration: streamDurationSeconds,
                         metadata:
                           item.Type === "Episode"
                             ? {
@@ -241,7 +254,7 @@ export const PlayButton: React.FC<Props> = ({
                                   ],
                                 },
                       },
-                      startTime: 0,
+                      startTime: startTimeSeconds,
                     })
                     .then(() => {
                       // state is already set when reopening current media, so skip it here.
@@ -287,6 +300,19 @@ export const PlayButton: React.FC<Props> = ({
     // Check if item is downloaded
     const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
 
+    // If already in offline mode, play downloaded file directly
+    if (isOffline && downloadedItem) {
+      const queryParams = new URLSearchParams({
+        itemId: item.Id!,
+        offline: "true",
+        playbackPosition:
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      });
+      goToPlayer(queryParams.toString());
+      return;
+    }
+
+    // If online but file is downloaded, ask user which version to play
     if (downloadedItem) {
       if (Platform.OS === "android") {
         // Show bottom sheet for Android
