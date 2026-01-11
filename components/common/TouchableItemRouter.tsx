@@ -6,6 +6,8 @@ import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { useDownload } from "@/providers/DownloadProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -142,6 +144,8 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
   const router = useRouter();
+  const isOffline = useOfflineMode();
+  const { deleteFile } = useDownload();
 
   const from = (segments as string[])[2] || "(home)";
 
@@ -171,14 +175,19 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       "Mark as Played",
       "Mark as Not Played",
       isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
+      ...(isOffline ? ["Delete Download"] : []),
       "Cancel",
     ];
     const cancelButtonIndex = options.length - 1;
+    const destructiveButtonIndex = isOffline
+      ? cancelButtonIndex - 1
+      : undefined;
 
     showActionSheetWithOptions(
       {
         options,
         cancelButtonIndex,
+        destructiveButtonIndex,
       },
       async (selectedIndex) => {
         if (selectedIndex === 0) {
@@ -187,6 +196,8 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           await markAsPlayedStatus(false);
         } else if (selectedIndex === 2) {
           toggleFavorite();
+        } else if (isOffline && selectedIndex === 3 && item.Id) {
+          deleteFile(item.Id);
         }
       },
     );
@@ -195,6 +206,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     isFavorite,
     markAsPlayedStatus,
     toggleFavorite,
+    isOffline,
+    deleteFile,
+    item.Id,
   ]);
 
   if (

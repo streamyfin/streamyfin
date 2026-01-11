@@ -44,11 +44,12 @@ const page: React.FC = () => {
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { getDownloadedItems } = useDownload();
+  const { getDownloadedItems, downloadedItems } = useDownload();
 
   // For offline mode, construct series data from downloaded episodes
+  // Include downloadedItems.length so query refetches when items are deleted
   const { data: item } = useQuery({
-    queryKey: ["series", seriesId, isOffline],
+    queryKey: ["series", seriesId, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
         return buildOfflineSeriesFromEpisodes(getDownloadedItems(), seriesId);
@@ -94,7 +95,7 @@ const page: React.FC = () => {
   }, [isOffline, api, item]);
 
   const { data: allEpisodes, isLoading } = useQuery({
-    queryKey: ["AllEpisodes", seriesId, isOffline],
+    queryKey: ["AllEpisodes", seriesId, isOffline, downloadedItems.length],
     queryFn: async () => {
       if (isOffline) {
         return getDownloadedEpisodesForSeries(getDownloadedItems(), seriesId);
