@@ -180,6 +180,7 @@ export type Settings = {
   enableH265ForChromecast: boolean;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
+  autoPlayNextEpisode: boolean;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -264,6 +265,7 @@ export const defaultValues: Settings = {
   enableH265ForChromecast: false,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
+  autoPlayNextEpisode: true,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
