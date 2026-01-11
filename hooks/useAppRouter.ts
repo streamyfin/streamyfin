@@ -24,11 +24,14 @@ export function useAppRouter() {
       if (typeof href === "string") {
         router.push(href as any);
       } else {
+        const callerParams = (href.params ?? {}) as Record<string, unknown>;
+        const hasExplicitOffline = "offline" in callerParams;
         router.push({
           ...href,
           params: {
-            ...(isOffline && { offline: "true" }),
-            ...href.params, // Caller's params take priority
+            // Only add offline if caller hasn't explicitly set it
+            ...(isOffline && !hasExplicitOffline && { offline: "true" }),
+            ...callerParams,
           },
         } as any);
       }
@@ -41,11 +44,14 @@ export function useAppRouter() {
       if (typeof href === "string") {
         router.replace(href as any);
       } else {
+        const callerParams = (href.params ?? {}) as Record<string, unknown>;
+        const hasExplicitOffline = "offline" in callerParams;
         router.replace({
           ...href,
           params: {
-            ...(isOffline && { offline: "true" }),
-            ...href.params, // Caller's params take priority
+            // Only add offline if caller hasn't explicitly set it
+            ...(isOffline && !hasExplicitOffline && { offline: "true" }),
+            ...callerParams,
           },
         } as any);
       }
@@ -55,9 +61,12 @@ export function useAppRouter() {
 
   const setParams = useCallback(
     (params: Parameters<typeof router.setParams>[0]) => {
+      const callerParams = (params ?? {}) as Record<string, unknown>;
+      const hasExplicitOffline = "offline" in callerParams;
       router.setParams({
-        ...(isOffline && { offline: "true" }),
-        ...params, // Caller's params take priority
+        // Only add offline if caller hasn't explicitly set it
+        ...(isOffline && !hasExplicitOffline && { offline: "true" }),
+        ...callerParams,
       });
     },
     [router, isOffline],
