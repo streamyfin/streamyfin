@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -18,6 +17,10 @@ import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import {
+  buildOfflineSeriesFromEpisodes,
+  getDownloadedEpisodesForSeries,
+} from "@/utils/downloads/offline-series";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
@@ -48,22 +51,7 @@ const page: React.FC = () => {
     queryKey: ["series", seriesId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        const downloadedFiles = getDownloadedItems();
-        const episodes = downloadedFiles?.filter(
-          (f) => f.item.SeriesId === seriesId,
-        );
-        if (episodes && episodes.length > 0) {
-          const firstEpisode = episodes[0].item;
-          // Construct a series-like object from episode data
-          return {
-            Id: seriesId,
-            Name: firstEpisode.SeriesName,
-            Type: "Series",
-            ProductionYear: firstEpisode.ProductionYear,
-            Overview: firstEpisode.SeriesName, // Limited info in offline mode
-          } as BaseItemDto;
-        }
-        return null;
+        return buildOfflineSeriesFromEpisodes(getDownloadedItems(), seriesId);
       }
       return await getUserItemData({
         api,
@@ -109,17 +97,7 @@ const page: React.FC = () => {
     queryKey: ["AllEpisodes", seriesId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        const downloadedFiles = getDownloadedItems();
-        return (
-          downloadedFiles
-            ?.filter((f) => f.item.SeriesId === seriesId)
-            .map((f) => f.item)
-            .sort(
-              (a, b) =>
-                (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
-                (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
-            ) || []
-        );
+        return getDownloadedEpisodesForSeries(getDownloadedItems(), seriesId);
       }
       if (!api || !user?.Id) return [];
 

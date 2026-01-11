@@ -18,10 +18,13 @@ import {
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
 import { useDownload } from "@/providers/DownloadProvider";
-import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  getDownloadedEpisodesForSeason,
+  getDownloadedSeasonNumbers,
+} from "@/utils/downloads/offline-series";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
@@ -57,10 +60,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   }, []);
 
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
 
@@ -69,15 +68,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     queryFn: async () => {
       if (isOffline) {
         if (!item.SeriesId) return [];
-        const seriesEpisodes = downloadedFiles?.filter(
-          (f: DownloadedItem) => f.item.SeriesId === item.SeriesId,
-        );
-        const seasonNumbers = Array.from(
-          new Set(
-            seriesEpisodes
-              ?.map((f: DownloadedItem) => f.item.ParentIndexNumber)
-              .filter(Boolean),
-          ),
+        const seasonNumbers = getDownloadedSeasonNumbers(
+          getDownloadedItems(),
+          item.SeriesId,
         );
         // Create fake season objects
         return seasonNumbers.map((seasonNumber) => ({
@@ -117,16 +110,13 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const { data: episodes, isLoading: episodesLoading } = useQuery({
     queryKey: ["episodes", item.SeriesId, selectedSeasonId],
     queryFn: async () => {
-      console.log("isOffline", isOffline);
       if (isOffline) {
-        if (!item.SeriesId) return [];
-        return downloadedFiles
-          ?.filter(
-            (f: DownloadedItem) =>
-              f.item.SeriesId === item.SeriesId &&
-              f.item.ParentIndexNumber === seasonIndex,
-          )
-          .map((f: DownloadedItem) => f.item);
+        if (!item.SeriesId || typeof seasonIndex !== "number") return [];
+        return getDownloadedEpisodesForSeason(
+          getDownloadedItems(),
+          item.SeriesId,
+          seasonIndex,
+        );
       }
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
       const res = await getTvShowsApi(api).getEpisodes({

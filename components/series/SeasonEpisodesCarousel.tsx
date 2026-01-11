@@ -8,6 +8,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { getDownloadedEpisodesBySeasonId } from "@/utils/downloads/offline-series";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -48,15 +49,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     queryKey: ["episodes", seasonId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        // Read from database (will have fresh data after invalidation)
-        const downloadedFiles = getDownloadedItems();
-        return (
-          downloadedFiles
-            ?.filter(
-              (f) => f.item.Type === "Episode" && f.item.SeasonId === seasonId,
-            )
-            .map((f) => f.item) ?? []
-        );
+        return getDownloadedEpisodesBySeasonId(getDownloadedItems(), seasonId!);
       }
       if (!api || !user?.Id || !item?.SeriesId) return [];
       const response = await getTvShowsApi(api).getEpisodes({

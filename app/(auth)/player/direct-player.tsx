@@ -91,10 +91,9 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
-  const downloadedFiles = useMemo(
-    () => downloadUtils.getDownloadedItems(),
-    [downloadUtils.getDownloadedItems],
-  );
+  // Call directly instead of useMemo - the function reference doesn't change
+  // when data updates, only when the provider initializes
+  const downloadedFiles = downloadUtils.getDownloadedItems();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 

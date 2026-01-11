@@ -23,3 +23,5 @@ This file is auto-imported into CLAUDE.md and loaded at the start of each sessio
 - **useNetworkAwareQueryClient limitations**: The `useNetworkAwareQueryClient` hook uses `Object.create(queryClient)` which breaks QueryClient methods that use JavaScript private fields (like `getQueriesData`, `setQueriesData`, `setQueryData`). Only use it when you ONLY need `invalidateQueries`. For cache manipulation, use standard `useQueryClient` from `@tanstack/react-query`. _(2026-01-10)_
 
 - **Mark as played flow**: The "mark as played" button uses `PlayedStatus` component → `useMarkAsPlayed` hook → `usePlaybackManager.markItemPlayed()`. The hook does optimistic updates via `setQueriesData` before calling the API. Located in `components/PlayedStatus.tsx` and `hooks/useMarkAsPlayed.ts`. _(2026-01-10)_
+
+- **Stack screen header configuration**: Sub-pages under `(home)` need explicit `Stack.Screen` entries in `app/(auth)/(tabs)/(home)/_layout.tsx` with `headerTransparent: Platform.OS === "ios"`, `headerBlurEffect: "none"`, and a back button. Without this, pages show with wrong header styling. _(2026-01-10)_

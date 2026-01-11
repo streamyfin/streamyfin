@@ -13,6 +13,10 @@ import {
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import {
+  buildOfflineSeasons,
+  getDownloadedEpisodesForSeason,
+} from "@/utils/downloads/offline-series";
 import { runtimeTicksToSeconds } from "@/utils/time";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { Text } from "../common/Text";
@@ -45,31 +49,7 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     queryKey: ["seasons", item.Id, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        // Get unique seasons from downloaded episodes
-        const downloadedFiles = getDownloadedItems();
-        const episodes = downloadedFiles?.filter(
-          (f) => f.item.SeriesId === item.Id,
-        );
-        const seasonNumbers = Array.from(
-          new Set(
-            episodes
-              ?.map((f) => f.item.ParentIndexNumber)
-              .filter((n) => n !== undefined && n !== null),
-          ),
-        ).sort((a, b) => (a ?? 0) - (b ?? 0));
-
-        // Create season-like objects from episode data
-        return seasonNumbers.map((seasonNum) => {
-          const firstEpisode = episodes?.find(
-            (e) => e.item.ParentIndexNumber === seasonNum,
-          )?.item;
-          return {
-            Id: `offline-season-${seasonNum}`,
-            IndexNumber: seasonNum,
-            Name: firstEpisode?.SeasonName || `Season ${seasonNum}`,
-            SeriesId: item.Id,
-          } as BaseItemDto;
-        });
+        return buildOfflineSeasons(getDownloadedItems(), item.Id!);
       }
 
       if (!api || !user?.Id || !item.Id) return [];
@@ -124,16 +104,10 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
     ],
     queryFn: async () => {
       if (isOffline) {
-        const downloadedFiles = getDownloadedItems();
-        return (
-          downloadedFiles
-            ?.filter(
-              (f) =>
-                f.item.SeriesId === item.Id &&
-                f.item.ParentIndexNumber === selectedSeasonNumber,
-            )
-            .map((f) => f.item)
-            .sort((a, b) => (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0)) || []
+        return getDownloadedEpisodesForSeason(
+          getDownloadedItems(),
+          item.Id!,
+          selectedSeasonNumber!,
         );
       }
 
