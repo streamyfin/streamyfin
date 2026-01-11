@@ -20,22 +20,22 @@ export const PluginSettings = () => {
     >
       <ListItem
         onPress={() => router.push("/settings/plugins/jellyseerr/page")}
-        title={"Jellyseerr"}
-        showArrow
-      />
-      <ListItem
-        onPress={() => router.push("/settings/plugins/marlin-search/page")}
-        title='Marlin Search'
+        title={"Seerr"}
         showArrow
       />
       <ListItem
         onPress={() => router.push("/settings/plugins/streamystats/page")}
-        title='Streamystats'
+        title={"Streamystats"}
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/marlin-search/page")}
+        title={"Marlin Search"}
         showArrow
       />
       <ListItem
         onPress={() => router.push("/settings/plugins/kefinTweaks/page")}
-        title='KefinTweaks'
+        title={"KefinTweaks"}
         showArrow
       />
     </ListGroup>

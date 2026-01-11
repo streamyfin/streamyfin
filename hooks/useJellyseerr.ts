@@ -160,7 +160,7 @@ export class JellyseerrApi {
         }
         toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
         writeErrorLog(
-          `Jellyseerr returned a ${status} for url:\n${response.config.url}`,
+          `Seerr returned a ${status} for url:\n${response.config.url}`,
           response.data,
         );
         return {
@@ -400,7 +400,7 @@ export class JellyseerrApi {
       },
       (error: AxiosError) => {
         writeErrorLog(
-          `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
+          `Seerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
         if (error.response?.status === 403) {
@@ -425,7 +425,7 @@ export class JellyseerrApi {
         return config;
       },
       (error) => {
-        console.error("Jellyseerr request error", error);
+        console.error("Seerr request error", error);
       },
     );
   }
