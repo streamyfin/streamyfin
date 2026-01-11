@@ -3,15 +3,15 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { useRouter } from "expo-router";
 import { type FC, useCallback, useState } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useSettings } from "@/utils/atoms/settings";
-import { ICON_SIZES } from "./constants";
+import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
@@ -98,12 +98,13 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
           left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
           right:
             (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+          padding: HEADER_LAYOUT.CONTAINER_PADDING,
         },
       ]}
       pointerEvents={showControls ? "auto" : "none"}
       className='flex flex-row justify-between'
     >
-      <View className='mr-auto p-2' pointerEvents='box-none'>
+      <View className='mr-auto' pointerEvents='box-none'>
         {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
           <View pointerEvents='auto'>
             <DropdownView

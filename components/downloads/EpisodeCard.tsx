@@ -61,7 +61,6 @@ export const EpisodeCard: React.FC<EpisodeCardProps> = ({ item }) => {
   return (
     <TouchableItemRouter
       item={item}
-      isOffline={true}
       onLongPress={showActionSheet}
       className='flex flex-col mb-4'
     >

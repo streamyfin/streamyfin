@@ -1,9 +1,10 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
@@ -46,25 +47,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
-          headerLeft: () => (
-            <Pressable
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </Pressable>
-          ),
-        }}
-      />
-      <Stack.Screen
-        name='downloads/[seriesId]'
-        options={{
-          headerShown: true,
-          headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
-          headerShadowVisible: false,
-          title: t("home.downloads.tvseries"),
           headerLeft: () => (
             <Pressable
               onPress={() => _router.back()}

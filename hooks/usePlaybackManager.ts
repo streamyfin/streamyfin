@@ -3,7 +3,7 @@ import type {
   PlaybackProgressInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -69,6 +69,7 @@ export const usePlaybackManager = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { isConnected } = useNetworkStatus();
+  const queryClient = useQueryClient();
   const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
     useDownload();
 
@@ -186,6 +187,9 @@ export const usePlaybackManager = ({
           },
         },
       });
+      // Force invalidate queries so they refetch from updated local database
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["episodes"] });
     }
 
     // Handle remote state update if online
@@ -226,6 +230,9 @@ export const usePlaybackManager = ({
           },
         },
       });
+      // Force invalidate queries so they refetch from updated local database
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["episodes"] });
     }
 
     // Handle remote state update if online
@@ -268,6 +275,9 @@ export const usePlaybackManager = ({
           },
         },
       });
+      // Force invalidate queries so they refetch from updated local database
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["episodes"] });
     }
 
     // Handle remote state update if online

@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from "expo-router";
+import { useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
@@ -11,6 +11,7 @@ import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
+import useRouter from "@/hooks/useAppRouter";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 
 export default function settings() {

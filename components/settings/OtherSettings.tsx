@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
@@ -8,6 +7,7 @@ import { Linking, Switch, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import useRouter from "@/hooks/useAppRouter";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";

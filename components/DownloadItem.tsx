@@ -9,13 +9,14 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { type Href, router } from "expo-router";
+import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -62,6 +63,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [user] = useAtom(userAtom);
   const [queue, _setQueue] = useAtom(queueAtom);
   const { settings } = useSettings();
+  const router = useRouter();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
   const { processes, startBackgroundDownload, downloadedItems } = useDownload();
@@ -170,9 +172,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       firstItem.Type !== "Episode"
         ? "/downloads"
         : ({
-            pathname: `/downloads/${firstItem.SeriesId}`,
+            pathname: "/series/[id]",
             params: {
-              episodeSeasonIndex: firstItem.ParentIndexNumber,
+              id: firstItem.SeriesId!,
+              seasonIndex: firstItem.ParentIndexNumber?.toString(),
+              offline: "true",
             },
           } as Href),
     );

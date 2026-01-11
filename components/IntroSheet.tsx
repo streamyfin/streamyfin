@@ -6,13 +6,13 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
-import { router } from "expo-router";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking, Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { storage } from "@/utils/mmkv";
 
 export interface IntroSheetRef {
@@ -24,6 +24,7 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   useImperativeHandle(ref, () => ({
     present: () => {

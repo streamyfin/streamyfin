@@ -47,7 +47,7 @@
  */
 
 import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
   createContext,
@@ -57,7 +57,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import useRouter from "@/hooks/useAppRouter";
 import type { MpvAudioTrack } from "@/modules";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
@@ -75,9 +77,10 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, offline, downloadedItem } =
-    usePlayerContext();
+  const { tracksReady, mediaSource, downloadedItem } = usePlayerContext();
   const playerControls = usePlayerControls();
+  const offline = useOfflineMode();
+  const router = useRouter();
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
