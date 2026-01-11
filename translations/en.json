@@ -278,6 +278,7 @@
         "disable_haptic_feedback": "Disable Haptic Feedback",
         "default_quality": "Default Quality",
         "default_playback_speed": "Default Playback Speed",
+        "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Max Auto Play Episode Count",
         "disabled": "Disabled"
       },
