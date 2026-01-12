@@ -14,7 +14,6 @@ import { useSettings } from "@/utils/atoms/settings";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
-import { type AspectRatio } from "./VideoScalingModeSelector";
 import { ZoomToggle } from "./ZoomToggle";
 
 interface HeaderControlsProps {
@@ -28,7 +27,6 @@ interface HeaderControlsProps {
   goToNextItem: (options: { isAutoPlay?: boolean }) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
-  aspectRatio?: AspectRatio;
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
   // Playback speed props
@@ -47,7 +45,6 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   goToNextItem,
   previousItem,
   nextItem,
-  aspectRatio: _aspectRatio = "default",
   isZoomedToFill = false,
   onZoomToggle,
   playbackSpeed = 1.0,

@@ -71,9 +71,6 @@ export default function page() {
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
-  const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
-    "default",
-  );
   const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -917,7 +914,6 @@ export default function page() {
                 pause={pause}
                 seek={seek}
                 enableTrickplay={true}
-                aspectRatio={aspectRatio}
                 isZoomedToFill={isZoomedToFill}
                 onZoomToggle={handleZoomToggle}
                 api={api}

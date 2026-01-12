@@ -76,9 +76,9 @@ interface LegacyServerCredential {
 }
 
 /**
- * Encode server URL to valid secure store key (legacy, for migration).
+ * Generate a unique key for a server URL (for secure storage).
  */
-export function serverUrlToKey(serverUrl: string): string {
+function serverUrlToKey(serverUrl: string): string {
   const encoded = btoa(serverUrl).replace(/[^a-zA-Z0-9]/g, "_");
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
 }
@@ -86,7 +86,7 @@ export function serverUrlToKey(serverUrl: string): string {
 /**
  * Generate credential key for a specific account (serverUrl + userId).
  */
-export function credentialKey(serverUrl: string, userId: string): string {
+function credentialKey(serverUrl: string, userId: string): string {
   const combined = `${serverUrl}:${userId}`;
   const encoded = btoa(combined).replace(/[^a-zA-Z0-9]/g, "_");
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
@@ -200,10 +200,7 @@ export async function hasAccountCredential(
   return stored !== null;
 }
 
-/**
- * Delete all credentials for all accounts on all servers.
- */
-export async function clearAllCredentials(): Promise<void> {
+async function _clearAllCredentials(): Promise<void> {
   const previousServers = getPreviousServers();
 
   for (const server of previousServers) {

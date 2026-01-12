@@ -38,7 +38,6 @@ import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
-import { type AspectRatio } from "./VideoScalingModeSelector";
 
 interface Props {
   item: BaseItemDto;
@@ -56,7 +55,6 @@ interface Props {
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
-  aspectRatio?: AspectRatio;
   isZoomedToFill?: boolean;
   onZoomToggle?: () => void;
   api?: Api | null;
@@ -81,7 +79,6 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
-  aspectRatio = "default",
   isZoomedToFill = false,
   onZoomToggle,
   api = null,
@@ -475,7 +472,6 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
-              aspectRatio={aspectRatio}
               isZoomedToFill={isZoomedToFill}
               onZoomToggle={onZoomToggle}
               playbackSpeed={playbackSpeed}

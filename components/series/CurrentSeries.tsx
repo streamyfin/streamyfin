@@ -3,8 +3,11 @@ import { useAtom } from "jotai";
 import type React from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
-import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
+
+// Matches `w-28` poster cards (approx 112px wide, 10/15 aspect ratio) + 2 lines of text.
+const POSTER_CAROUSEL_HEIGHT = 220;
+
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { HorizontalScroll } from "../common/HorizontalScroll";

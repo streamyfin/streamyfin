@@ -11,8 +11,10 @@ import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import MoviePoster from "@/components/posters/MoviePoster";
-import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+
+// Matches `w-28` poster cards (approx 112px wide, 10/15 aspect ratio) + 2 lines of text.
+const POSTER_CAROUSEL_HEIGHT = 220;
 
 interface Props extends ViewProps {
   actorId: string;
