@@ -15,7 +15,7 @@ export default function PersonPage() {
   const local = useLocalSearchParams();
   const { t } = useTranslation();
 
-  const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
+  const { seerrApi, seerrLocale: locale } = useSeerr();
 
   const { personId } = local as { personId: string };
 
