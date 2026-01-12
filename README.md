@@ -45,11 +45,9 @@
 - 🎨 **Customizable**: Personalize your home screen and settings
 - 🔌 **Plugin System**: Centralized settings sync across all devices via Jellyfin plugin
 
-## 🧪 Experimental Features
+## 🧩 How It Works
 
-Streamyfin offers exciting experimental features such as media downloading and Chromecast support. These features are under active development, and your feedback and patience help us make them even better.
-
-### 📥 Downloading
+### 📥 Downloads
 
 Downloading works by using FFmpeg to convert an HLS stream into a video file on your device. This lets you download and watch any content that you can stream. The conversion is handled in real time by Jellyfin on the server during the download. While this may take a bit longer, it ensures compatibility with any file your server can transcode.
 
@@ -66,27 +64,17 @@ The Jellyfin Plugin for Streamyfin synchronizes settings across all your devices
 
 [Streamyfin Plugin](https://github.com/streamyfin/jellyfin-plugin-streamyfin)
 
-### 📡 Chromecast
-
-Chromecast support is currently under development. Video casting is already available, and we're actively working on adding subtitle support and additional features.
-
 ### 🎬 MPV Player
 
 Streamyfin uses [MPV](https://mpv.io/) as its primary video player on all platforms, powered by [MPVKit](https://github.com/mpvkit/MPVKit). MPV is a powerful, open-source media player known for its wide format support and high-quality playback.
+
 Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building the native MPV module in Streamyfin.
 
 ### 🎵 Music Library
 
-Streamyfin now includes full music library support with features like:
+Full music library support with playlists, queue management, background playback, and offline downloads.
 
-- Browse your music collection by artists, albums, and playlists
-- Create and manage custom playlists
-- Queue management with shuffle and repeat
-- Background playback
-- Now playing screen with album artwork
-- Download songs for offline listening
-
-### 🔍 Advanced Search
+### 🔍 Search Providers
 
 Streamyfin supports multiple search providers:
 
@@ -96,7 +84,7 @@ Streamyfin supports multiple search providers:
 
 ## 🛣️ Roadmap
 
-Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
+Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) to see what we're working on next. We are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
 
 ## 📥 Download Streamyfin
 
@@ -136,13 +124,13 @@ You can contribute translations directly on our [Crowdin project page](https://c
 
 ### 👨‍💻 Development Info
 
-1. Use node `>20`
-2. Install dependencies `bun i && bun run submodule-reload`
-3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
+1. Use Node.js `>20`
+2. Install dependencies: `bun i && bun run submodule-reload`
+3. Make sure you have Xcode and/or Android Studio installed ([Expo setup guide](https://docs.expo.dev/workflow/android-studio-emulator/))
    - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `npm run ios:install-metal-toolchain` once
-4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)
-4. run `npm run prebuild`
-5. Create an expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app
+4. Install the [BiomeJS extension](https://biomejs.dev/) in your IDE
+5. Run `npm run prebuild`
+6. Create an Expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app
 
 For the TV version suffix the npm commands with `:tv`.
 
@@ -287,7 +275,9 @@ A special mention to the following people and projects for their contributions:
 ## 📄 License
 
 Streamyfin is licensed under the Mozilla Public License 2.0 (MPL-2.0).
+
 This means you are free to use, modify, and distribute this software. The MPL-2.0 is a copyleft license that allows for more flexibility in combining the software with proprietary code.
+
 Key points of the MPL-2.0:
 
 - You can use the software for any purpose
@@ -296,10 +286,13 @@ Key points of the MPL-2.0:
 - You must disclose your source code for any modifications to the covered files
 - Larger works may combine MPL code with code under other licenses
 - MPL-licensed components must remain under the MPL, but the larger work can be under a different license
-- For the full text of the license, please see the LICENSE file in this repository
+
+For the full text of the license, please see the LICENSE file in this repository.
 
 ## ⚠️ Disclaimer
+
 Streamyfin does not promote, support, or condone piracy in any form. The app is intended solely for streaming media that you personally own and control. It does not provide or include any media content. Any discussions, support requests, or references to piracy, as well as any tools, software, or websites related to piracy, are strictly prohibited across all our channels.
 
 ## 🤝 Sponsorship
-VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur) and [SweHosting](https://swehosting.se/en/#tj%C3%A4nster)
+
+VPS hosting generously provided by [Hexabyte](https://hexabyte.se/en/vps/?currency=eur) and [SweHosting](https://swehosting.se/en/#tj%C3%A4nster).
