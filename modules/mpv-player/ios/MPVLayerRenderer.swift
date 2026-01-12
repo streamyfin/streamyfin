@@ -380,7 +380,8 @@ final class MPVLayerRenderer {
                 for (index, subUrl) in pendingExternalSubtitles.enumerated() {
                     print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
                     // Use commandSync to ensure subs are added in exact order (not async)
-                    commandSync(handle, ["sub-add", subUrl])
+                    // "auto" flag = add without auto-selecting
+                    commandSync(handle, ["sub-add", subUrl, "auto"])
                 }
                 pendingExternalSubtitles = []
                 // Set subtitle after external subs are added
