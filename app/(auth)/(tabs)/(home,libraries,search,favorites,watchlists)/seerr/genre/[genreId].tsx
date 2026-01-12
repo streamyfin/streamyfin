@@ -3,15 +3,15 @@ import { useLocalSearchParams } from "expo-router";
 import { uniqBy } from "lodash";
 import { useMemo } from "react";
 import { Text } from "@/components/common/Text";
-import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
-import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
-import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
+import SeerrPoster from "@/components/posters/SeerrPoster";
+import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
+import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
+import { Endpoints, useSeerr } from "@/hooks/useSeerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 
-export default function page() {
+export default function GenrePage() {
   const local = useLocalSearchParams();
-  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
+  const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
 
   const { genreId, name, type } = local as unknown as {
     genreId: string;
@@ -20,21 +20,21 @@ export default function page() {
   };
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["jellyseerr", "company", type, genreId],
+    queryKey: ["seerr", "company", type, genreId],
     queryFn: async ({ pageParam }) => {
       const params: any = {
         page: Number(pageParam),
         genre: genreId,
       };
 
-      return jellyseerrApi?.discover(
+      return seerrApi?.discover(
         type === DiscoverSliderType.MOVIE_GENRES
           ? Endpoints.DISCOVER_MOVIES
           : Endpoints.DISCOVER_TV,
         params,
       );
     },
-    enabled: !!jellyseerrApi && !!genreId,
+    enabled: !!seerrApi && !!genreId,
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) =>
       (lastPage?.page || pages?.findLast((p) => p?.results.length)?.page || 1) +
@@ -48,8 +48,7 @@ export default function page() {
         data?.pages
           ?.filter((p) => p?.results.length)
           .flatMap(
-            (p) =>
-              p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)) ?? [],
+            (p) => p?.results.filter((r) => isSeerrMovieOrTvResult(r)) ?? [],
           ),
         "id",
       ) ?? [],
@@ -58,15 +57,12 @@ export default function page() {
 
   const backdrops = useMemo(
     () =>
-      jellyseerrApi
+      seerrApi
         ? flatData.map((r) =>
-            jellyseerrApi.imageProxy(
-              r.backdropPath,
-              "w1920_and_h800_multi_faces",
-            ),
+            seerrApi.imageProxy(r.backdropPath, "w1920_and_h800_multi_faces"),
           )
         : [],
-    [jellyseerrApi, flatData],
+    [seerrApi, flatData],
   );
 
   return (
@@ -91,7 +87,7 @@ export default function page() {
           {name}
         </Text>
       }
-      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
+      renderItem={(item, _index) => <SeerrPoster item={item} />}
     />
   );
 }

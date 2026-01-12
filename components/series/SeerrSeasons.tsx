@@ -14,11 +14,11 @@ import { Alert, TouchableOpacity, View } from "react-native";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
 import { Text } from "@/components/common/Text";
 import { Tags } from "@/components/GenreTags";
-import { dateOpts } from "@/components/jellyseerr/DetailFacts";
-import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
-import JellyseerrStatusIcon from "@/components/jellyseerr/JellyseerrStatusIcon";
 import { RoundButton } from "@/components/RoundButton";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { dateOpts } from "@/components/seerr/DetailFacts";
+import { textShadowStyle } from "@/components/seerr/discover/GenericSlideCard";
+import SeerrStatusIcon from "@/components/seerr/SeerrStatusIcon";
+import { useSeerr } from "@/hooks/useSeerr";
 import {
   MediaStatus,
   MediaType,
@@ -30,15 +30,15 @@ import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 import { Loader } from "../Loader";
 
-const JellyseerrSeasonEpisodes: React.FC<{
+const SeerrSeasonEpisodes: React.FC<{
   details: TvDetails;
   seasonNumber: number;
 }> = ({ details, seasonNumber }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
 
   const { data: seasonWithEpisodes, isLoading } = useQuery({
-    queryKey: ["jellyseerr", details.id, "season", seasonNumber],
-    queryFn: async () => jellyseerrApi?.tvSeason(details.id, seasonNumber),
+    queryKey: ["seerr", details.id, "season", seasonNumber],
+    queryFn: async () => seerrApi?.tvSeason(details.id, seasonNumber),
     enabled: details.seasons.filter((s) => s.seasonNumber !== 0).length > 0,
   });
 
@@ -57,11 +57,7 @@ const JellyseerrSeasonEpisodes: React.FC<{
 };
 
 const RenderItem = ({ item }: any) => {
-  const {
-    jellyseerrApi,
-    jellyseerrRegion: region,
-    jellyseerrLocale: locale,
-  } = useJellyseerr();
+  const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
   const [imageError, setImageError] = useState(false);
 
   const upcomingAirDate = useMemo(() => {
@@ -83,7 +79,7 @@ const RenderItem = ({ item }: any) => {
               key={item.id}
               id={item.id}
               source={{
-                uri: jellyseerrApi?.imageProxy(item.stillPath),
+                uri: seerrApi?.imageProxy(item.stillPath),
               }}
               cachePolicy={"memory-disk"}
               contentFit='cover'
@@ -131,7 +127,7 @@ const RenderItem = ({ item }: any) => {
   );
 };
 
-const JellyseerrSeasons: React.FC<{
+const SeerrSeasons: React.FC<{
   isLoading: boolean;
   details?: TvDetails;
   hasAdvancedRequest?: boolean;
@@ -148,7 +144,7 @@ const JellyseerrSeasons: React.FC<{
   hasAdvancedRequest,
   onAdvancedRequest,
 }) => {
-  const { jellyseerrApi, requestMedia } = useJellyseerr();
+  const { seerrApi, requestMedia } = useSeerr();
   const [seasonStates, setSeasonStates] = useState<{ [key: number]: boolean }>(
     {},
   );
@@ -181,7 +177,7 @@ const JellyseerrSeasons: React.FC<{
   );
 
   const requestAll = useCallback(() => {
-    if (details && jellyseerrApi) {
+    if (details && seerrApi) {
       const body: MediaRequestBody = {
         mediaId: details.id,
         mediaType: MediaType.TV,
@@ -198,7 +194,7 @@ const JellyseerrSeasons: React.FC<{
       requestMedia(details.name, body, refetch);
     }
   }, [
-    jellyseerrApi,
+    seerrApi,
     seasons,
     details,
     hasAdvancedRequest,
@@ -210,15 +206,15 @@ const JellyseerrSeasons: React.FC<{
   const promptRequestAll = useCallback(
     () =>
       Alert.alert(
-        t("jellyseerr.confirm"),
-        t("jellyseerr.are_you_sure_you_want_to_request_all_seasons"),
+        t("seerr.confirm"),
+        t("seerr.are_you_sure_you_want_to_request_all_seasons"),
         [
           {
-            text: t("jellyseerr.cancel"),
+            text: t("seerr.cancel"),
             style: "cancel",
           },
           {
-            text: t("jellyseerr.yes"),
+            text: t("seerr.yes"),
             onPress: requestAll,
           },
         ],
@@ -301,10 +297,10 @@ const JellyseerrSeasons: React.FC<{
               <Tags
                 textClass=''
                 tags={[
-                  t("jellyseerr.season_number", {
+                  t("seerr.season_number", {
                     season_number: season.seasonNumber,
                   }),
-                  t("jellyseerr.number_episodes", {
+                  t("seerr.number_episodes", {
                     episode_number: season.episodeCount,
                   }),
                 ]}
@@ -312,7 +308,7 @@ const JellyseerrSeasons: React.FC<{
               {[0].map(() => {
                 const canRequest = season.status === MediaStatus.UNKNOWN;
                 return (
-                  <JellyseerrStatusIcon
+                  <SeerrStatusIcon
                     key={0}
                     onPress={() =>
                       requestSeason(canRequest, season.seasonNumber)
@@ -326,7 +322,7 @@ const JellyseerrSeasons: React.FC<{
             </View>
           </TouchableOpacity>
           {seasonStates?.[season.seasonNumber] && (
-            <JellyseerrSeasonEpisodes
+            <SeerrSeasonEpisodes
               key={season.seasonNumber}
               details={details}
               seasonNumber={season.seasonNumber}
@@ -338,4 +334,4 @@ const JellyseerrSeasons: React.FC<{
   );
 };
 
-export default JellyseerrSeasons;
+export default SeerrSeasons;

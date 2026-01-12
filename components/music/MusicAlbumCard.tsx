@@ -23,10 +23,7 @@ export const MusicAlbumCard: React.FC<Props> = ({ album, width = 130 }) => {
   );
 
   const handlePress = useCallback(() => {
-    router.push({
-      pathname: "/music/album/[albumId]",
-      params: { albumId: album.Id! },
-    });
+    router.push(`/music/album/${album.Id}`);
   }, [router, album.Id]);
 
   return (

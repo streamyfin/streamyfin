@@ -25,10 +25,7 @@ export const MusicArtistCard: React.FC<Props> = ({ artist }) => {
   );
 
   const handlePress = useCallback(() => {
-    router.push({
-      pathname: "/music/artist/[artistId]",
-      params: { artistId: artist.Id! },
-    });
+    router.push(`/music/artist/${artist.Id}`);
   }, [router, artist.Id]);
 
   return (

@@ -61,10 +61,7 @@ export const MusicPlaylistCard: React.FC<Props> = ({ playlist }) => {
   const hasDownloads = downloadStatus.downloaded > 0;
 
   const handlePress = useCallback(() => {
-    router.push({
-      pathname: "/music/playlist/[playlistId]",
-      params: { playlistId: playlist.Id! },
-    });
+    router.push(`/music/playlist/${playlist.Id}`);
   }, [router, playlist.Id]);
 
   return (

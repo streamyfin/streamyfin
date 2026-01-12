@@ -174,7 +174,7 @@ export type Settings = {
   disableHapticFeedback: boolean;
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
-  jellyseerrServerUrl?: string;
+  seerrServerUrl?: string;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -259,7 +259,7 @@ export const defaultValues: Settings = {
   disableHapticFeedback: false,
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
-  jellyseerrServerUrl: undefined,
+  seerrServerUrl: undefined,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,

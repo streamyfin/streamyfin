@@ -18,18 +18,18 @@ import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
-import Cast from "@/components/jellyseerr/Cast";
-import DetailFacts from "@/components/jellyseerr/DetailFacts";
-import RequestModal from "@/components/jellyseerr/RequestModal";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { JellyserrRatings } from "@/components/Ratings";
-import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
+import { SeerrRatings } from "@/components/Ratings";
+import Cast from "@/components/seerr/Cast";
+import DetailFacts from "@/components/seerr/DetailFacts";
+import RequestModal from "@/components/seerr/RequestModal";
+import SeerrSeasons from "@/components/series/SeerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import { useSeerr } from "@/hooks/useSeerr";
+import { useSeerrCanRequest } from "@/utils/_seerr/useSeerrCanRequest";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import {
   type IssueType,
@@ -68,7 +68,7 @@ const Page: React.FC = () => {
     } & Partial<MovieResult | TvResult | MovieDetails | TvDetails>;
 
   const navigation = useNavigation();
-  const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
+  const { seerrApi, seerrUser, requestMedia } = useSeerr();
 
   const [issueType, setIssueType] = useState<IssueType>();
   const [issueMessage, setIssueMessage] = useState<string>();
@@ -83,8 +83,8 @@ const Page: React.FC = () => {
     isLoading,
     refetch,
   } = useQuery({
-    enabled: !!jellyseerrApi && !!result && !!result.id,
-    queryKey: ["jellyseerr", "detail", mediaType, result.id],
+    enabled: !!seerrApi && !!result && !!result.id,
+    queryKey: ["seerr", "detail", mediaType, result.id],
     staleTime: 0,
     refetchOnMount: true,
     refetchOnReconnect: true,
@@ -93,21 +93,18 @@ const Page: React.FC = () => {
     refetchInterval: 0,
     queryFn: async () => {
       return mediaType === MediaType.MOVIE
-        ? jellyseerrApi?.movieDetails(result.id!)
-        : jellyseerrApi?.tvDetails(result.id!);
+        ? seerrApi?.movieDetails(result.id!)
+        : seerrApi?.tvDetails(result.id!);
     },
   });
 
   const [canRequest, hasAdvancedRequestPermission] =
-    useJellyseerrCanRequest(details);
+    useSeerrCanRequest(details);
 
   const canManageRequests = useMemo(() => {
-    if (!jellyseerrUser) return false;
-    return hasPermission(
-      Permission.MANAGE_REQUESTS,
-      jellyseerrUser.permissions,
-    );
-  }, [jellyseerrUser]);
+    if (!seerrUser) return false;
+    return hasPermission(Permission.MANAGE_REQUESTS, seerrUser.permissions);
+  }, [seerrUser]);
 
   const pendingRequest = useMemo(() => {
     return details?.mediaInfo?.requests?.find(
@@ -119,27 +116,27 @@ const Page: React.FC = () => {
     if (!pendingRequest?.id) return;
 
     try {
-      await jellyseerrApi?.approveRequest(pendingRequest.id);
-      toast.success(t("jellyseerr.toasts.request_approved"));
+      await seerrApi?.approveRequest(pendingRequest.id);
+      toast.success(t("seerr.toasts.request_approved"));
       refetch();
     } catch (error) {
-      toast.error(t("jellyseerr.toasts.failed_to_approve_request"));
+      toast.error(t("seerr.toasts.failed_to_approve_request"));
       console.error("Failed to approve request:", error);
     }
-  }, [jellyseerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, t]);
 
   const handleDeclineRequest = useCallback(async () => {
     if (!pendingRequest?.id) return;
 
     try {
-      await jellyseerrApi?.declineRequest(pendingRequest.id);
-      toast.success(t("jellyseerr.toasts.request_declined"));
+      await seerrApi?.declineRequest(pendingRequest.id);
+      toast.success(t("seerr.toasts.request_declined"));
       refetch();
     } catch (error) {
-      toast.error(t("jellyseerr.toasts.failed_to_decline_request"));
+      toast.error(t("seerr.toasts.failed_to_decline_request"));
       console.error("Failed to decline request:", error);
     }
-  }, [jellyseerrApi, pendingRequest, refetch, t]);
+  }, [seerrApi, pendingRequest, refetch, t]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -154,7 +151,7 @@ const Page: React.FC = () => {
 
   const submitIssue = useCallback(() => {
     if (result.id && issueType && issueMessage && details) {
-      jellyseerrApi
+      seerrApi
         ?.submitIssue(details.mediaInfo.id, Number(issueType), issueMessage)
         .then(() => {
           setIssueType(undefined);
@@ -162,7 +159,7 @@ const Page: React.FC = () => {
           bottomSheetModalRef?.current?.close();
         });
     }
-  }, [jellyseerrApi, details, result, issueType, issueMessage]);
+  }, [seerrApi, details, result, issueType, issueMessage]);
 
   const handleIssueModalDismiss = useCallback(() => {
     setIssueTypeDropdownOpen(false);
@@ -214,7 +211,7 @@ const Page: React.FC = () => {
   const issueTypeOptionGroups = useMemo(
     () => [
       {
-        title: t("jellyseerr.types"),
+        title: t("seerr.types"),
         options: Object.entries(IssueTypeName)
           .reverse()
           .map(([key, value]) => ({
@@ -265,7 +262,7 @@ const Page: React.FC = () => {
                   height: "100%",
                 }}
                 source={{
-                  uri: jellyseerrApi?.imageProxy(
+                  uri: seerrApi?.imageProxy(
                     result.backdropPath,
                     "w1920_and_h800_multi_faces",
                   ),
@@ -295,7 +292,7 @@ const Page: React.FC = () => {
             <View className='px-4'>
               <View className='flex flex-row justify-between w-full'>
                 <View className='flex flex-col w-56'>
-                  <JellyserrRatings
+                  <SeerrRatings
                     result={
                       result as
                         | MovieResult
@@ -330,7 +327,7 @@ const Page: React.FC = () => {
                 />
               ) : canRequest ? (
                 <Button color='purple' onPress={request} className='mt-4'>
-                  {t("jellyseerr.request_button")}
+                  {t("seerr.request_button")}
                 </Button>
               ) : (
                 details?.mediaInfo?.jellyfinMediaId && (
@@ -353,7 +350,7 @@ const Page: React.FC = () => {
                         }}
                       >
                         <Text className='text-sm'>
-                          {t("jellyseerr.report_issue_button")}
+                          {t("seerr.report_issue_button")}
                         </Text>
                       </Button>
                     )}
@@ -389,12 +386,12 @@ const Page: React.FC = () => {
                   <View className='flex flex-row items-center space-x-2'>
                     <Ionicons name='person-outline' size={16} color='#9CA3AF' />
                     <Text className='text-sm text-neutral-400'>
-                      {t("jellyseerr.requested_by", {
+                      {t("seerr.requested_by", {
                         user:
                           pendingRequest.requestedBy?.displayName ||
                           pendingRequest.requestedBy?.username ||
                           pendingRequest.requestedBy?.jellyfinUsername ||
-                          t("jellyseerr.unknown_user"),
+                          t("seerr.unknown_user"),
                       })}
                     </Text>
                   </View>
@@ -415,7 +412,7 @@ const Page: React.FC = () => {
                         borderStyle: "solid",
                       }}
                     >
-                      <Text className='text-sm'>{t("jellyseerr.approve")}</Text>
+                      <Text className='text-sm'>{t("seerr.approve")}</Text>
                     </Button>
                     <Button
                       className='flex-1 bg-red-600/50 border-red-400 ring-red-400 text-red-100'
@@ -433,7 +430,7 @@ const Page: React.FC = () => {
                         borderStyle: "solid",
                       }}
                     >
-                      <Text className='text-sm'>{t("jellyseerr.decline")}</Text>
+                      <Text className='text-sm'>{t("seerr.decline")}</Text>
                     </Button>
                   </View>
                 </View>
@@ -442,7 +439,7 @@ const Page: React.FC = () => {
             </View>
 
             {mediaType === MediaType.TV && (
-              <JellyseerrSeasons
+              <SeerrSeasons
                 isLoading={isLoading || isFetching}
                 details={details as TvDetails}
                 refetch={refetch}
@@ -491,13 +488,13 @@ const Page: React.FC = () => {
             <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
               <View>
                 <Text className='font-bold text-2xl text-neutral-100'>
-                  {t("jellyseerr.whats_wrong")}
+                  {t("seerr.whats_wrong")}
                 </Text>
               </View>
               <View className='flex flex-col space-y-2 items-start'>
                 <View className='flex flex-col w-full'>
                   <Text className='opacity-50 mb-1 text-xs'>
-                    {t("jellyseerr.issue_type")}
+                    {t("seerr.issue_type")}
                   </Text>
                   <PlatformDropdown
                     groups={issueTypeOptionGroups}
@@ -506,11 +503,11 @@ const Page: React.FC = () => {
                         <Text numberOfLines={1}>
                           {issueType
                             ? IssueTypeName[issueType]
-                            : t("jellyseerr.select_an_issue")}
+                            : t("seerr.select_an_issue")}
                         </Text>
                       </View>
                     }
-                    title={t("jellyseerr.types")}
+                    title={t("seerr.types")}
                     open={issueTypeDropdownOpen}
                     onOpenChange={setIssueTypeDropdownOpen}
                   />
@@ -522,7 +519,7 @@ const Page: React.FC = () => {
                     maxLength={254}
                     style={{ color: "white" }}
                     clearButtonMode='always'
-                    placeholder={t("jellyseerr.describe_the_issue")}
+                    placeholder={t("seerr.describe_the_issue")}
                     placeholderTextColor='#9CA3AF'
                     // Issue with multiline + Textinput inside a portal
                     // https://github.com/callstack/react-native-paper/issues/1668
@@ -532,7 +529,7 @@ const Page: React.FC = () => {
                 </View>
               </View>
               <Button className='mt-auto' onPress={submitIssue} color='purple'>
-                {t("jellyseerr.submit_button")}
+                {t("seerr.submit_button")}
               </Button>
             </View>
           </BottomSheetView>

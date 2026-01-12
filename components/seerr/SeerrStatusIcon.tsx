@@ -9,7 +9,7 @@ interface Props {
   onPress?: () => void;
 }
 
-const JellyseerrStatusIcon: React.FC<Props & ViewProps> = ({
+const SeerrStatusIcon: React.FC<Props & ViewProps> = ({
   mediaStatus,
   showRequestIcon,
   onPress,
@@ -74,4 +74,4 @@ const JellyseerrStatusIcon: React.FC<Props & ViewProps> = ({
   );
 };
 
-export default JellyseerrStatusIcon;
+export default SeerrStatusIcon;

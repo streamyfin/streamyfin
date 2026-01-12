@@ -197,10 +197,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     const artistId = track?.ArtistItems?.[0]?.Id;
     if (artistId) {
       setOpen(false);
-      router.push({
-        pathname: "/music/artist/[artistId]",
-        params: { artistId },
-      });
+      router.push(`/music/artist/${artistId}`);
     }
   }, [track?.ArtistItems, router, setOpen]);
 
@@ -208,10 +205,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
     const albumId = track?.AlbumId || track?.ParentId;
     if (albumId) {
       setOpen(false);
-      router.push({
-        pathname: "/music/album/[albumId]",
-        params: { albumId },
-      });
+      router.push(`/music/album/${albumId}`);
     }
   }, [track?.AlbumId, track?.ParentId, router, setOpen]);
 

@@ -21,7 +21,7 @@ interface Props extends TouchableOpacityProps {
   mediaType: MediaType;
 }
 
-export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
+export const TouchableSeerrRouter: React.FC<PropsWithChildren<Props>> = ({
   result,
   mediaTitle,
   releaseYear,
@@ -43,7 +43,7 @@ export const TouchableJellyseerrRouter: React.FC<PropsWithChildren<Props>> = ({
           if (!result) return;
 
           router.push({
-            pathname: `/(auth)/(tabs)/${from}/jellyseerr/page`,
+            pathname: `/(auth)/(tabs)/${from}/seerr/page`,
             // @ts-expect-error
             params: {
               ...result,

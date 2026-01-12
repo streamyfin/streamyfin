@@ -3,23 +3,19 @@ import { uniqBy } from "lodash";
 import type React from "react";
 import { useMemo } from "react";
 import type { ViewProps } from "react-native";
-import Slide, { type SlideProps } from "@/components/jellyseerr/discover/Slide";
-import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import {
-  type DiscoverEndpoint,
-  Endpoints,
-  useJellyseerr,
-} from "@/hooks/useJellyseerr";
+import SeerrPoster from "@/components/posters/SeerrPoster";
+import Slide, { type SlideProps } from "@/components/seerr/discover/Slide";
+import { type DiscoverEndpoint, Endpoints, useSeerr } from "@/hooks/useSeerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 
 const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
   slide,
   ...props
 }) => {
-  const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
+  const { seerrApi, isSeerrMovieOrTvResult } = useSeerr();
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["jellyseerr", "discover", slide.id],
+    queryKey: ["seerr", "discover", slide.id],
     queryFn: async ({ pageParam }) => {
       let endpoint: DiscoverEndpoint | undefined;
       let params: any = {
@@ -50,13 +46,13 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
           break;
       }
 
-      return endpoint ? jellyseerrApi?.discover(endpoint, params) : null;
+      return endpoint ? seerrApi?.discover(endpoint, params) : null;
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) =>
       (lastPage?.page || pages?.findLast((p) => p?.results.length)?.page || 1) +
       1,
-    enabled: !!jellyseerrApi,
+    enabled: !!seerrApi,
     staleTime: 0,
   });
 
@@ -65,9 +61,7 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
       uniqBy(
         data?.pages
           ?.filter((p) => p?.results.length)
-          .flatMap((p) =>
-            p?.results.filter((r) => isJellyseerrMovieOrTvResult(r)),
-          ),
+          .flatMap((p) => p?.results.filter((r) => isSeerrMovieOrTvResult(r))),
         "id",
       ),
     [data],
@@ -84,7 +78,7 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
         onEndReached={() => {
           if (hasNextPage) fetchNextPage();
         }}
-        renderItem={(item) => <JellyseerrPoster item={item} key={item?.id} />}
+        renderItem={(item) => <SeerrPoster item={item} key={item?.id} />}
       />
     )
   );

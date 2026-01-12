@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import {
   MediaRequestStatus,
   MediaStatus,
@@ -18,13 +18,13 @@ import type MediaRequest from "../jellyseerr/server/entity/MediaRequest";
 import type { MovieDetails } from "../jellyseerr/server/models/Movie";
 import type { TvDetails } from "../jellyseerr/server/models/Tv";
 
-export const useJellyseerrCanRequest = (
+export const useSeerrCanRequest = (
   item?: MovieResult | TvResult | MovieDetails | TvDetails | PersonCreditCast,
 ) => {
-  const { jellyseerrUser } = useJellyseerr();
+  const { seerrUser } = useSeerr();
 
   const canRequest = useMemo(() => {
-    if (!jellyseerrUser || !item) return false;
+    if (!seerrUser || !item) return false;
 
     const canNotRequest =
       item?.mediaInfo?.requests?.some(
@@ -46,22 +46,22 @@ export const useJellyseerrCanRequest = (
           ? Permission.REQUEST_MOVIE
           : Permission.REQUEST_TV,
       ],
-      jellyseerrUser.permissions,
+      seerrUser.permissions,
       { type: "or" },
     );
 
     return userHasPermission && !canNotRequest;
-  }, [item, jellyseerrUser]);
+  }, [item, seerrUser]);
 
   const hasAdvancedRequestPermission = useMemo(() => {
-    if (!jellyseerrUser) return false;
+    if (!seerrUser) return false;
 
     return hasPermission(
       [Permission.REQUEST_ADVANCED, Permission.MANAGE_REQUESTS],
-      jellyseerrUser.permissions,
+      seerrUser.permissions,
       { type: "or" },
     );
-  }, [jellyseerrUser]);
+  }, [seerrUser]);
 
   return [canRequest, hasAdvancedRequestPermission];
 };
