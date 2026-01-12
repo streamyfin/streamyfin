@@ -1,0 +1,27 @@
+import { ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DisabledSetting from "@/components/settings/DisabledSetting";
+import { SeerrSettings } from "@/components/settings/Seerr";
+import { useSettings } from "@/utils/atoms/settings";
+
+export default function Page() {
+  const { pluginSettings } = useSettings();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <ScrollView
+      contentInsetAdjustmentBehavior='automatic'
+      contentContainerStyle={{
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+    >
+      <DisabledSetting
+        disabled={pluginSettings?.seerrServerUrl?.locked === true}
+        className='px-4'
+      >
+        <SeerrSettings />
+      </DisabledSetting>
+    </ScrollView>
+  );
+}

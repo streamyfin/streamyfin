@@ -227,7 +227,7 @@ function runTypeCheck() {
     }
 
     log(
-      `✅ ${colors.bold}TypeScript check passed${colors.reset} ${colors.gray}(jellyseerr utils errors ignored)${colors.reset}`,
+      `✅ ${colors.bold}TypeScript check passed${colors.reset} ${colors.gray}(seerr utils errors ignored)${colors.reset}`,
       colors.green,
     );
     return { ok: true };

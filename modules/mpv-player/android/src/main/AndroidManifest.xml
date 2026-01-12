@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for network streaming -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Picture-in-Picture feature -->
+    <uses-feature
+        android:name="android.software.picture_in_picture"
+        android:required="false" />
+</manifest>

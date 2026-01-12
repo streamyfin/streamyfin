@@ -3,7 +3,6 @@ import {
   type MediaSourceInfo,
   PlaybackOrder,
   PlaybackProgressInfo,
-  PlaybackStartInfo,
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
@@ -11,64 +10,75 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { router, useGlobalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, View } from "react-native";
+import { Alert, Platform, useWindowDimensions, View } from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
-
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
+import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
+import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import {
-  OUTLINE_THICKNESS,
-  OutlineThickness,
-  VLC_COLORS,
-  VLCColor,
-} from "@/constants/SubtitleConstants";
+  PlaybackSpeedScope,
+  updatePlaybackSpeedSettings,
+} from "@/components/video-player/controls/utils/playback-speed-settings";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
-import { VlcPlayerView } from "@/modules";
-import type {
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  VlcPlayerViewRef,
-} from "@/modules/VlcPlayer.types";
+import {
+  type MpvOnErrorEventPayload,
+  type MpvOnPlaybackStateChangePayload,
+  type MpvOnProgressEventPayload,
+  MpvPlayerView,
+  type MpvPlayerViewRef,
+  type MpvVideoSource,
+} from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+
+import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+
 import { useSettings } from "@/utils/atoms/settings";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import {
+  getMpvAudioId,
+  getMpvSubtitleId,
+} from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function page() {
-  const videoRef = useRef<VlcPlayerViewRef>(null);
+  const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const router = useRouter();
+  const { settings, updateSettings } = useSettings();
+
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<
-    "default" | "16:9" | "4:3" | "1:1" | "21:9"
-  >("default");
-  const [scaleFactor, setScaleFactor] = useState<
-    1.0 | 1.1 | 1.2 | 1.3 | 1.4 | 1.5 | 1.6 | 1.7 | 1.8 | 1.9 | 2.0
-  >(1.0);
+  const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [tracksReady, setTracksReady] = useState(false);
+  const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
+  const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -78,10 +88,9 @@ export default function page() {
     : require("react-native-volume-manager");
 
   const downloadUtils = useDownload();
-  const downloadedFiles = useMemo(
-    () => downloadUtils.getDownloadedItems(),
-    [downloadUtils.getDownloadedItems],
-  );
+  // Call directly instead of useMemo - the function reference doesn't change
+  // when data updates, only when the provider initializes
+  const downloadedFiles = downloadUtils.getDownloadedItems();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -100,7 +109,7 @@ export default function page() {
     bitrateValue: bitrateValueStr,
     offline: offlineStr,
     playbackPosition: playbackPositionFromUrl,
-  } = useGlobalSearchParams<{
+  } = useLocalSearchParams<{
     itemId: string;
     audioIndex: string;
     subtitleIndex: string;
@@ -110,13 +119,14 @@ export default function page() {
     /** Playback position in ticks. */
     playbackPosition?: string;
   }>();
-  const { settings } = useSettings();
   const { lockOrientation, unlockOrientation } = useOrientation();
 
   const offline = offlineStr === "true";
-  const playbackManager = usePlaybackManager();
+  const playbackManager = usePlaybackManager({ isOffline: offline });
 
-  const audioIndex = audioIndexStr
+  // Audio index: use URL param if provided, otherwise use stored index for offline playback
+  // This is computed after downloadedItem is available, see audioIndexResolved below
+  const audioIndexFromUrl = audioIndexStr
     ? Number.parseInt(audioIndexStr, 10)
     : undefined;
   const subtitleIndex = subtitleIndexStr
@@ -135,13 +145,49 @@ export default function page() {
     isError: false,
   });
 
+  // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
+  const audioIndex = useMemo(() => {
+    if (audioIndexFromUrl !== undefined) {
+      return audioIndexFromUrl;
+    }
+    if (offline && downloadedItem?.userData?.audioStreamIndex !== undefined) {
+      return downloadedItem.userData.audioStreamIndex;
+    }
+    return undefined;
+  }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+
+  // Get the playback speed for this item based on settings
+  const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
+    item,
+    settings,
+  );
+
+  // Handler for changing playback speed
+  const handleSetPlaybackSpeed = useCallback(
+    async (speed: number, scope: PlaybackSpeedScope) => {
+      // Update settings based on scope
+      updatePlaybackSpeedSettings(
+        speed,
+        scope,
+        item ?? undefined,
+        settings,
+        updateSettings,
+      );
+
+      // Apply speed to the current player (MPV)
+      setCurrentPlaybackSpeed(speed);
+      await videoRef.current?.setSpeed?.(speed);
+    },
+    [item, settings, updateSettings],
+  );
+
   /** Gets the initial playback position from the URL. */
   const getInitialPlaybackTicks = useCallback((): number => {
     if (playbackPositionFromUrl) {
       return Number.parseInt(playbackPositionFromUrl, 10);
     }
     return item?.UserData?.PlaybackPositionTicks ?? 0;
-  }, [playbackPositionFromUrl]);
+  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   useEffect(() => {
     const fetchItemData = async () => {
@@ -174,6 +220,7 @@ export default function page() {
     }
   }, [itemId, offline, api, user?.Id]);
 
+  // Lock orientation based on user settings
   useEffect(() => {
     if (settings?.defaultVideoOrientation) {
       lockOrientation(settings.defaultVideoOrientation);
@@ -182,7 +229,7 @@ export default function page() {
     return () => {
       unlockOrientation();
     };
-  }, [settings?.defaultVideoOrientation]);
+  }, [settings?.defaultVideoOrientation, lockOrientation, unlockOrientation]);
 
   interface Stream {
     mediaSource: MediaSourceInfo;
@@ -230,21 +277,25 @@ export default function page() {
             return;
           }
 
-          const native = generateDeviceProfile();
-          const transcoding = generateDeviceProfile({ transcode: true });
+          // Calculate start ticks directly from item to avoid stale closure
+          const startTicks = playbackPositionFromUrl
+            ? Number.parseInt(playbackPositionFromUrl, 10)
+            : (item?.UserData?.PlaybackPositionTicks ?? 0);
+
           const res = await getStreamUrl({
             api,
             item,
-            startTimeTicks: getInitialPlaybackTicks(),
+            startTimeTicks: startTicks,
             userId: user.Id,
             audioStreamIndex: audioIndex,
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: bitrateValue ? transcoding : native,
+            deviceProfile: generateDeviceProfile(),
           });
           if (!res) return;
           const { mediaSource, sessionId, url } = res;
+
           if (!sessionId || !mediaSource || !url) {
             Alert.alert(
               t("player.error"),
@@ -273,36 +324,43 @@ export default function page() {
   ]);
 
   useEffect(() => {
-    if (!stream || !api) return;
+    if (!stream || !api || offline) return;
     const reportPlaybackStart = async () => {
-      await getPlaystateApi(api).reportPlaybackStart({
-        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
-      });
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        await getPlaystateApi(api).reportPlaybackStart({
+          playbackStartInfo: progressInfo,
+        });
+      }
     };
     reportPlaybackStart();
-  }, [stream, api]);
+  }, [stream, api, offline]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
-      playbackManager.reportPlaybackProgress(
-        currentPlayStateInfo() as PlaybackProgressInfo,
-      );
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        playbackManager.reportPlaybackProgress(progressInfo);
+      }
     } else {
       videoRef.current?.play();
-      await getPlaystateApi(api!).reportPlaybackStart({
-        playbackStartInfo: currentPlayStateInfo() as PlaybackStartInfo,
-      });
+      const progressInfo = currentPlayStateInfo();
+      if (!offline && api) {
+        await getPlaystateApi(api).reportPlaybackStart({
+          playbackStartInfo: progressInfo,
+        });
+      }
     }
   };
 
   const reportPlaybackStopped = useCallback(async () => {
-    if (!item?.Id || !stream?.sessionId) return;
+    if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
     const currentTimeInTicks = msToTicks(progress.get());
-    await getPlaystateApi(api!).onPlaybackStopped({
+    await getPlaystateApi(api).onPlaybackStopped({
       itemId: item.Id,
       mediaSourceId: mediaSourceId,
       positionTicks: currentTimeInTicks,
@@ -325,7 +383,7 @@ export default function page() {
     });
     reportPlaybackStopped();
     setIsPlaybackStopped(true);
-    videoRef.current?.stop();
+    videoRef.current?.pause();
     revalidateProgressCache();
   }, [videoRef, reportPlaybackStopped, progress]);
 
@@ -336,21 +394,24 @@ export default function page() {
     };
   }, [navigation, stop]);
 
-  const currentPlayStateInfo = useCallback(() => {
+  const currentPlayStateInfo = useCallback(():
+    | PlaybackProgressInfo
+    | undefined => {
     if (!stream || !item?.Id) return;
+
     return {
-      itemId: item.Id,
-      audioStreamIndex: audioIndex ? audioIndex : undefined,
-      subtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
-      mediaSourceId: mediaSourceId,
-      positionTicks: msToTicks(progress.get()),
-      isPaused: !isPlaying,
-      playMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
-      playSessionId: stream.sessionId,
-      isMuted: isMuted,
-      canSeek: true,
-      repeatMode: RepeatMode.RepeatNone,
-      playbackOrder: PlaybackOrder.Default,
+      ItemId: item.Id,
+      AudioStreamIndex: audioIndex ? audioIndex : undefined,
+      SubtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      MediaSourceId: mediaSourceId,
+      PositionTicks: msToTicks(progress.get()),
+      IsPaused: !isPlaying,
+      PlayMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+      PlaySessionId: stream.sessionId,
+      IsMuted: isMuted,
+      CanSeek: true,
+      RepeatMode: RepeatMode.RepeatNone,
+      PlaybackOrder: PlaybackOrder.Default,
     };
   }, [
     stream,
@@ -379,11 +440,15 @@ export default function page() {
     [],
   );
 
+  /** Progress handler for MPV - position in seconds */
   const onProgress = useCallback(
-    async (data: ProgressUpdatePayload) => {
+    async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
-      const { currentTime } = data.nativeEvent;
+      const { position } = data.nativeEvent;
+      // MPV reports position in seconds, convert to ms
+      const currentTime = position * 1000;
+
       if (isBuffering) {
         setIsBuffering(false);
       }
@@ -425,9 +490,84 @@ export default function page() {
   );
 
   /** Gets the initial playback position in seconds. */
-  const startPosition = useMemo(() => {
+  const _startPosition = useMemo(() => {
     return ticksToSeconds(getInitialPlaybackTicks());
   }, [getInitialPlaybackTicks]);
+
+  /** Build video source config for MPV */
+  const videoSource = useMemo<MpvVideoSource | undefined>(() => {
+    if (!stream?.url) return undefined;
+
+    const mediaSource = stream.mediaSource;
+    const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
+
+    // Get external subtitle URLs
+    // - Online: prepend API base path to server URLs
+    // - Offline: use local file paths (stored in DeliveryUrl during download)
+    let externalSubs: string[] | undefined;
+    if (!offline && api?.basePath) {
+      externalSubs = mediaSource?.MediaStreams?.filter(
+        (s) =>
+          s.Type === "Subtitle" &&
+          s.DeliveryMethod === "External" &&
+          s.DeliveryUrl,
+      ).map((s) => `${api.basePath}${s.DeliveryUrl}`);
+    } else if (offline) {
+      externalSubs = mediaSource?.MediaStreams?.filter(
+        (s) =>
+          s.Type === "Subtitle" &&
+          s.DeliveryMethod === "External" &&
+          s.DeliveryUrl,
+      ).map((s) => s.DeliveryUrl!);
+    }
+
+    // Calculate track IDs for initial selection
+    const initialSubtitleId = getMpvSubtitleId(
+      mediaSource,
+      subtitleIndex,
+      isTranscoding,
+    );
+    const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
+
+    // Calculate start position directly here to avoid timing issues
+    const startTicks = playbackPositionFromUrl
+      ? Number.parseInt(playbackPositionFromUrl, 10)
+      : (item?.UserData?.PlaybackPositionTicks ?? 0);
+    const startPos = ticksToSeconds(startTicks);
+
+    // Build source config - headers only needed for online streaming
+    const source: MpvVideoSource = {
+      url: stream.url,
+      startPosition: startPos,
+      autoplay: true,
+      initialSubtitleId,
+      initialAudioId,
+    };
+
+    // Add external subtitles only for online playback
+    if (externalSubs && externalSubs.length > 0) {
+      source.externalSubtitles = externalSubs;
+    }
+
+    // Add auth headers only for online streaming (not for local file:// URLs)
+    if (!offline && api?.accessToken) {
+      source.headers = {
+        Authorization: `MediaBrowser Token="${api.accessToken}"`,
+      };
+    }
+
+    return source;
+  }, [
+    stream?.url,
+    stream?.mediaSource,
+    item?.UserData?.PlaybackPositionTicks,
+    playbackPositionFromUrl,
+    api?.basePath,
+    api?.accessToken,
+    subtitleIndex,
+    audioIndex,
+    offline,
+  ]);
 
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
@@ -508,11 +648,15 @@ export default function page() {
     setVolume: setVolumeCb,
   });
 
+  /** Playback state handler for MPV */
   const onPlaybackStateChanged = useCallback(
-    async (e: PlaybackStatePayload) => {
-      const { state, isBuffering, isPlaying } = e.nativeEvent;
-      if (state === "Playing") {
+    async (e: { nativeEvent: MpvOnPlaybackStateChangePayload }) => {
+      const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
+
+      if (playing) {
         setIsPlaying(true);
+        setIsBuffering(false);
+        setHasPlaybackStarted(true);
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -522,7 +666,7 @@ export default function page() {
         return;
       }
 
-      if (state === "Paused") {
+      if (isPaused) {
         setIsPlaying(false);
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
@@ -533,86 +677,25 @@ export default function page() {
         return;
       }
 
-      if (isPlaying) {
-        setIsPlaying(true);
-        setIsBuffering(false);
-      } else if (isBuffering) {
-        setIsBuffering(true);
+      if (isLoading !== undefined) {
+        setIsBuffering(isLoading);
       }
     },
     [playbackManager, item?.Id, progress],
   );
 
-  const allAudio =
-    stream?.mediaSource.MediaStreams?.filter(
-      (audio) => audio.Type === "Audio",
-    ) || [];
-
-  // Move all the external subtitles last, because vlc places them last.
-  const allSubs =
-    stream?.mediaSource.MediaStreams?.filter(
-      (sub) => sub.Type === "Subtitle",
-    ).sort((a, b) => Number(a.IsExternal) - Number(b.IsExternal)) || [];
-
-  const externalSubtitles = allSubs
-    .filter((sub: any) => sub.DeliveryMethod === "External")
-    .map((sub: any) => ({
-      name: sub.DisplayTitle,
-      DeliveryUrl: offline ? sub.DeliveryUrl : api?.basePath + sub.DeliveryUrl,
-    }));
-  /** The text based subtitle tracks */
-  const textSubs = allSubs.filter((sub) => sub.IsTextSubtitleStream);
-  /** The user chosen subtitle track from the server */
-  const chosenSubtitleTrack = allSubs.find(
-    (sub) => sub.Index === subtitleIndex,
+  /** PiP handler for MPV */
+  const _onPictureInPictureChange = useCallback(
+    (e: { nativeEvent: { isActive: boolean } }) => {
+      const { isActive } = e.nativeEvent;
+      setIsPipMode(isActive);
+      // Hide controls when entering PiP
+      if (isActive) {
+        _setShowControls(false);
+      }
+    },
+    [],
   );
-  /** The user chosen audio track from the server */
-  const chosenAudioTrack = allAudio.find((audio) => audio.Index === audioIndex);
-  /** Whether the stream we're playing is not transcoding*/
-  const notTranscoding = !stream?.mediaSource.TranscodingUrl;
-  /** The initial options to pass to the VLC Player */
-  const initOptions = [``];
-  if (
-    chosenSubtitleTrack &&
-    (notTranscoding || chosenSubtitleTrack.IsTextSubtitleStream)
-  ) {
-    // If not transcoding, we can the index as normal.
-    // If transcoding, we need to reverse the text based subtitles, because VLC reverses the HLS subtitles.
-    const finalIndex = notTranscoding
-      ? allSubs.indexOf(chosenSubtitleTrack)
-      : [...textSubs].reverse().indexOf(chosenSubtitleTrack);
-    initOptions.push(`--sub-track=${finalIndex}`);
-
-    // Add VLC subtitle styling options from settings
-    const textColor = (settings.vlcTextColor ?? "White") as VLCColor;
-    const backgroundColor = (settings.vlcBackgroundColor ??
-      "Black") as VLCColor;
-    const outlineColor = (settings.vlcOutlineColor ?? "Black") as VLCColor;
-    const outlineThickness = (settings.vlcOutlineThickness ??
-      "Normal") as OutlineThickness;
-    const backgroundOpacity = settings.vlcBackgroundOpacity ?? 128;
-    const outlineOpacity = settings.vlcOutlineOpacity ?? 255;
-    const isBold = settings.vlcIsBold ?? false;
-    // Add subtitle styling options
-    initOptions.push(`--freetype-color=${VLC_COLORS[textColor]}`);
-    initOptions.push(`--freetype-background-opacity=${backgroundOpacity}`);
-    initOptions.push(
-      `--freetype-background-color=${VLC_COLORS[backgroundColor]}`,
-    );
-    initOptions.push(`--freetype-outline-opacity=${outlineOpacity}`);
-    initOptions.push(`--freetype-outline-color=${VLC_COLORS[outlineColor]}`);
-    initOptions.push(
-      `--freetype-outline-thickness=${OUTLINE_THICKNESS[outlineThickness]}`,
-    );
-    initOptions.push(`--sub-text-scale=${settings.subtitleSize}`);
-    initOptions.push("--sub-margin=40");
-    if (isBold) {
-      initOptions.push("--freetype-bold");
-    }
-  }
-  if (notTranscoding && chosenAudioTrack) {
-    initOptions.push(`--audio-track=${allAudio.indexOf(chosenAudioTrack)}`);
-  }
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -626,6 +709,7 @@ export default function page() {
   const startPictureInPicture = useCallback(async () => {
     return videoRef.current?.startPictureInPicture?.();
   }, []);
+
   const play = useCallback(() => {
     videoRef.current?.play?.();
   }, []);
@@ -635,69 +719,92 @@ export default function page() {
   }, []);
 
   const seek = useCallback((position: number) => {
-    videoRef.current?.seekTo?.(position);
-  }, []);
-  const getAudioTracks = useCallback(async () => {
-    return videoRef.current?.getAudioTracks?.() || null;
+    // MPV expects seconds, convert from ms
+    videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
-  const getSubtitleTracks = useCallback(async () => {
-    return videoRef.current?.getSubtitleTracks?.() || null;
-  }, []);
+  const handleZoomToggle = useCallback(async () => {
+    const newZoomState = !isZoomedToFill;
+    await videoRef.current?.setZoomedToFill?.(newZoomState);
+    setIsZoomedToFill(newZoomState);
 
-  const setSubtitleTrack = useCallback((index: number) => {
-    videoRef.current?.setSubtitleTrack?.(index);
-  }, []);
-
-  const setSubtitleURL = useCallback((url: string, _customName?: string) => {
-    // Note: VlcPlayer type only expects url parameter
-    videoRef.current?.setSubtitleURL?.(url);
-  }, []);
-
-  const setAudioTrack = useCallback((index: number) => {
-    videoRef.current?.setAudioTrack?.(index);
-  }, []);
-
-  const setVideoAspectRatio = useCallback(
-    async (aspectRatio: string | null) => {
-      return (
-        videoRef.current?.setVideoAspectRatio?.(aspectRatio) ||
-        Promise.resolve()
+    // Adjust subtitle position to compensate for video cropping when zoomed
+    if (newZoomState) {
+      // Get video dimensions from mediaSource
+      const videoStream = stream?.mediaSource?.MediaStreams?.find(
+        (s) => s.Type === "Video",
       );
-    },
-    [],
-  );
+      const videoWidth = videoStream?.Width ?? 1920;
+      const videoHeight = videoStream?.Height ?? 1080;
 
-  const setVideoScaleFactor = useCallback(async (scaleFactor: number) => {
-    return (
-      videoRef.current?.setVideoScaleFactor?.(scaleFactor) || Promise.resolve()
-    );
-  }, []);
+      const videoAR = videoWidth / videoHeight;
+      const screenAR = screenWidth / screenHeight;
 
-  // Prepare metadata for iOS native media controls
-  const nowPlayingMetadata = useMemo(() => {
-    if (!item || !api) return undefined;
+      if (screenAR > videoAR) {
+        // Screen is wider than video - video height extends beyond screen
+        // Calculate how much of the video is cropped at the bottom (as % of video height)
+        const bottomCropPercent = 50 * (1 - videoAR / screenAR);
+        // Only adjust by 70% of the crop to keep a comfortable margin from the edge
+        // (subtitles already have some built-in padding from the bottom)
+        const adjustmentFactor = 0.7;
+        const newSubPos = Math.round(
+          100 - bottomCropPercent * adjustmentFactor,
+        );
+        await videoRef.current?.setSubtitlePosition?.(newSubPos);
+      }
+      // If videoAR >= screenAR, sides are cropped but bottom is visible, no adjustment needed
+    } else {
+      // Restore to default position (bottom of video frame)
+      await videoRef.current?.setSubtitlePosition?.(100);
+    }
+  }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
 
-    const artworkUri = getPrimaryImageUrl({
-      api,
-      item,
-      quality: 90,
-      width: 500,
-    });
+  // Apply subtitle settings when video loads
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current) return;
 
-    return {
-      title: item.Name || "",
-      artist:
-        item.Type === "Episode"
-          ? item.SeriesName || ""
-          : item.AlbumArtist || "",
-      albumTitle:
-        item.Type === "Episode" && item.SeasonName
-          ? item.SeasonName
-          : undefined,
-      artworkUri: artworkUri || undefined,
+    const applySubtitleSettings = async () => {
+      if (settings.mpvSubtitleScale !== undefined) {
+        await videoRef.current?.setSubtitleScale?.(settings.mpvSubtitleScale);
+      }
+      if (settings.mpvSubtitleMarginY !== undefined) {
+        await videoRef.current?.setSubtitleMarginY?.(
+          settings.mpvSubtitleMarginY,
+        );
+      }
+      if (settings.mpvSubtitleAlignX !== undefined) {
+        await videoRef.current?.setSubtitleAlignX?.(settings.mpvSubtitleAlignX);
+      }
+      if (settings.mpvSubtitleAlignY !== undefined) {
+        await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
+      }
+      if (settings.mpvSubtitleFontSize !== undefined) {
+        await videoRef.current?.setSubtitleFontSize?.(
+          settings.mpvSubtitleFontSize,
+        );
+      }
+      // Apply subtitle size from general settings
+      if (settings.subtitleSize) {
+        await videoRef.current?.setSubtitleFontSize?.(settings.subtitleSize);
+      }
     };
-  }, [item, api]);
+
+    applySubtitleSettings();
+  }, [isVideoLoaded, settings]);
+
+  // Apply initial playback speed when video loads
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current) return;
+
+    const applyInitialPlaybackSpeed = async () => {
+      if (initialPlaybackSpeed !== 1.0) {
+        setCurrentPlaybackSpeed(initialPlaybackSpeed);
+        await videoRef.current?.setSpeed?.(initialPlaybackSpeed);
+      }
+    };
+
+    applyInitialPlaybackSpeed();
+  }, [isVideoLoaded, initialPlaybackSpeed]);
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
@@ -708,7 +815,7 @@ export default function page() {
     );
   }
 
-  // Then show loader while either side is still fetching or data isn’t present
+  // Then show loader while either side is still fetching or data isn't present
   if (itemStatus.isLoading || streamStatus.isLoading || !item || !stream) {
     // …loader UI…
     return (
@@ -726,91 +833,98 @@ export default function page() {
     );
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "black",
-        height: "100%",
-        width: "100%",
-      }}
-    >
-      <View
-        style={{
-          display: "flex",
-          width: "100%",
-          height: "100%",
-          position: "relative",
-          flexDirection: "column",
-          justifyContent: "center",
-        }}
+    <OfflineModeProvider isOffline={offline}>
+      <PlayerProvider
+        playerRef={videoRef}
+        item={item}
+        mediaSource={stream?.mediaSource}
+        isVideoLoaded={isVideoLoaded}
+        tracksReady={tracksReady}
+        downloadedItem={downloadedItem}
       >
-        <VlcPlayerView
-          ref={videoRef}
-          source={{
-            uri: stream?.url || "",
-            autoplay: true,
-            isNetwork: !offline,
-            startPosition,
-            externalSubtitles,
-            initOptions,
-          }}
-          style={{ width: "100%", height: "100%" }}
-          nowPlayingMetadata={nowPlayingMetadata}
-          onVideoProgress={onProgress}
-          progressUpdateInterval={1000}
-          onVideoStateChange={onPlaybackStateChanged}
-          onVideoLoadEnd={() => {
-            setIsVideoLoaded(true);
-          }}
-          onVideoError={(e) => {
-            console.error("Video Error:", e.nativeEvent);
-            Alert.alert(
-              t("player.error"),
-              t("player.an_error_occured_while_playing_the_video"),
-            );
-            writeToLog("ERROR", "Video Error", e.nativeEvent);
-          }}
-          onPipStarted={(e) => {
-            setIsPipMode(e.nativeEvent.pipStarted);
-          }}
-        />
-      </View>
-      {isMounted === true && item && !isPipMode && (
-        <Controls
-          mediaSource={stream?.mediaSource}
-          item={item}
-          videoRef={videoRef}
-          togglePlay={togglePlay}
-          isPlaying={isPlaying}
-          isSeeking={isSeeking}
-          progress={progress}
-          cacheProgress={cacheProgress}
-          isBuffering={isBuffering}
-          showControls={showControls}
-          setShowControls={setShowControls}
-          isVideoLoaded={isVideoLoaded}
-          startPictureInPicture={startPictureInPicture}
-          play={play}
-          pause={pause}
-          seek={seek}
-          enableTrickplay={true}
-          getAudioTracks={getAudioTracks}
-          getSubtitleTracks={getSubtitleTracks}
-          offline={offline}
-          setSubtitleTrack={setSubtitleTrack}
-          setSubtitleURL={setSubtitleURL}
-          setAudioTrack={setAudioTrack}
-          setVideoAspectRatio={setVideoAspectRatio}
-          setVideoScaleFactor={setVideoScaleFactor}
-          aspectRatio={aspectRatio}
-          scaleFactor={scaleFactor}
-          setAspectRatio={setAspectRatio}
-          setScaleFactor={setScaleFactor}
-          isVlc
-          api={api}
-          downloadedFiles={downloadedFiles}
-        />
-      )}
-    </View>
+        <VideoProvider>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "black",
+              height: "100%",
+              width: "100%",
+            }}
+          >
+            <View
+              style={{
+                display: "flex",
+                width: "100%",
+                height: "100%",
+                position: "relative",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
+              <MpvPlayerView
+                ref={videoRef}
+                source={videoSource}
+                style={{ width: "100%", height: "100%" }}
+                onProgress={onProgress}
+                onPlaybackStateChange={onPlaybackStateChanged}
+                onLoad={() => setIsVideoLoaded(true)}
+                onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
+                  console.error("Video Error:", e.nativeEvent);
+                  Alert.alert(
+                    t("player.error"),
+                    t("player.an_error_occured_while_playing_the_video"),
+                  );
+                  writeToLog("ERROR", "Video Error", e.nativeEvent);
+                }}
+                onTracksReady={() => {
+                  setTracksReady(true);
+                }}
+              />
+              {!hasPlaybackStarted && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "black",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Loader />
+                </View>
+              )}
+            </View>
+            {isMounted === true && item && !isPipMode && (
+              <Controls
+                mediaSource={stream?.mediaSource}
+                item={item}
+                togglePlay={togglePlay}
+                isPlaying={isPlaying}
+                isSeeking={isSeeking}
+                progress={progress}
+                cacheProgress={cacheProgress}
+                isBuffering={isBuffering}
+                showControls={showControls}
+                setShowControls={setShowControls}
+                startPictureInPicture={startPictureInPicture}
+                play={play}
+                pause={pause}
+                seek={seek}
+                enableTrickplay={true}
+                isZoomedToFill={isZoomedToFill}
+                onZoomToggle={handleZoomToggle}
+                api={api}
+                downloadedFiles={downloadedFiles}
+                playbackSpeed={currentPlaybackSpeed}
+                setPlaybackSpeed={handleSetPlaybackSpeed}
+              />
+            )}
+          </View>
+        </VideoProvider>
+      </PlayerProvider>
+    </OfflineModeProvider>
   );
 }

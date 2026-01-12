@@ -2,6 +2,7 @@ import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
   BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getFilterApi,
@@ -27,7 +28,11 @@ import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
+  FilterByOption,
+  FilterByPreferenceAtom,
+  filterByAtom,
   genreFilterAtom,
+  getFilterByPreference,
   getSortByPreference,
   getSortOrderPreference,
   SortByOption,
@@ -39,12 +44,19 @@ import {
   sortOrderOptions,
   sortOrderPreferenceAtom,
   tagsFilterAtom,
+  useFilterOptions,
   yearFilterAtom,
 } from "@/utils/atoms/filters";
+import { useSettings } from "@/utils/atoms/settings";
 
 const Page = () => {
-  const searchParams = useLocalSearchParams();
-  const { libraryId } = searchParams as { libraryId: string };
+  const searchParams = useLocalSearchParams() as {
+    libraryId: string;
+    sortBy?: string;
+    sortOrder?: string;
+    filterBy?: string;
+  };
+  const { libraryId } = searchParams;
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -54,9 +66,13 @@ const Page = () => {
   const [selectedYears, setSelectedYears] = useAtom(yearFilterAtom);
   const [selectedTags, setSelectedTags] = useAtom(tagsFilterAtom);
   const [sortBy, _setSortBy] = useAtom(sortByAtom);
+  const [filterBy, _setFilterBy] = useAtom(filterByAtom);
   const [sortOrder, _setSortOrder] = useAtom(sortOrderAtom);
   const [sortByPreference, setSortByPreference] = useAtom(sortByPreferenceAtom);
-  const [sortOrderPreference, setOderByPreference] = useAtom(
+  const [filterByPreference, setFilterByPreference] = useAtom(
+    FilterByPreferenceAtom,
+  );
+  const [sortOrderPreference, setOrderByPreference] = useAtom(
     sortOrderPreferenceAtom,
   );
 
@@ -65,17 +81,33 @@ const Page = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    const sop = getSortOrderPreference(libraryId, sortOrderPreference);
-    if (sop) {
-      _setSortOrder([sop]);
+    // Check for URL params first (from "See All" navigation)
+    const urlSortBy = searchParams.sortBy as SortByOption | undefined;
+    const urlSortOrder = searchParams.sortOrder as SortOrderOption | undefined;
+    const urlFilterBy = searchParams.filterBy as FilterByOption | undefined;
+
+    // Apply sortOrder: URL param > saved preference > default
+    if (urlSortOrder && Object.values(SortOrderOption).includes(urlSortOrder)) {
+      _setSortOrder([urlSortOrder]);
     } else {
-      _setSortOrder([SortOrderOption.Ascending]);
+      const sop = getSortOrderPreference(libraryId, sortOrderPreference);
+      _setSortOrder([sop || SortOrderOption.Ascending]);
     }
-    const obp = getSortByPreference(libraryId, sortByPreference);
-    if (obp) {
-      _setSortBy([obp]);
+
+    // Apply sortBy: URL param > saved preference > default
+    if (urlSortBy && Object.values(SortByOption).includes(urlSortBy)) {
+      _setSortBy([urlSortBy]);
     } else {
-      _setSortBy([SortByOption.SortName]);
+      const obp = getSortByPreference(libraryId, sortByPreference);
+      _setSortBy([obp || SortByOption.SortName]);
+    }
+
+    // Apply filterBy: URL param > saved preference > default
+    if (urlFilterBy && Object.values(FilterByOption).includes(urlFilterBy)) {
+      _setFilterBy([urlFilterBy]);
+    } else {
+      const fp = getFilterByPreference(libraryId, filterByPreference);
+      _setFilterBy(fp ? [fp] : []);
     }
   }, [
     libraryId,
@@ -83,6 +115,11 @@ const Page = () => {
     sortByPreference,
     _setSortOrder,
     _setSortBy,
+    filterByPreference,
+    _setFilterBy,
+    searchParams.sortBy,
+    searchParams.sortOrder,
+    searchParams.filterBy,
   ]);
 
   const setSortBy = useCallback(
@@ -100,14 +137,28 @@ const Page = () => {
     (sortOrder: SortOrderOption[]) => {
       const sop = getSortOrderPreference(libraryId, sortOrderPreference);
       if (sortOrder[0] !== sop) {
-        setOderByPreference({
+        setOrderByPreference({
           ...sortOrderPreference,
           [libraryId]: sortOrder[0],
         });
       }
       _setSortOrder(sortOrder);
     },
-    [libraryId, sortOrderPreference, setOderByPreference, _setSortOrder],
+    [libraryId, sortOrderPreference, setOrderByPreference, _setSortOrder],
+  );
+
+  const setFilter = useCallback(
+    (filterBy: FilterByOption[]) => {
+      const fp = getFilterByPreference(libraryId, filterByPreference);
+      if (filterBy[0] !== fp) {
+        setFilterByPreference({
+          ...filterByPreference,
+          [libraryId]: filterBy[0],
+        });
+      }
+      _setFilterBy(filterBy);
+    },
+    [libraryId, filterByPreference, setFilterByPreference, _setFilterBy],
   );
 
   const nrOfCols = useMemo(() => {
@@ -158,6 +209,10 @@ const Page = () => {
         itemType = "Series";
       } else if (library.CollectionType === "boxsets") {
         itemType = "BoxSet";
+      } else if (library.CollectionType === "homevideos") {
+        itemType = "Video";
+      } else if (library.CollectionType === "musicvideos") {
+        itemType = "MusicVideo";
       }
 
       const response = await getItemsApi(api).getItems({
@@ -168,6 +223,7 @@ const Page = () => {
         sortBy: [sortBy[0], "SortName", "ProductionYear"],
         sortOrder: [sortOrder[0]],
         enableImageTypes: ["Primary", "Backdrop", "Banner", "Thumb"],
+        filters: filterBy as ItemFilter[],
         // true is needed for merged versions
         recursive: true,
         imageTypeLimit: 1,
@@ -190,6 +246,7 @@ const Page = () => {
       selectedTags,
       sortBy,
       sortOrder,
+      filterBy,
     ],
   );
 
@@ -203,6 +260,7 @@ const Page = () => {
         selectedTags,
         sortBy,
         sortOrder,
+        filterBy,
       ],
       queryFn: fetchItems,
       getNextPageParam: (lastPage, pages) => {
@@ -268,7 +326,8 @@ const Page = () => {
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
-
+  const generalFilters = useFilterOptions();
+  const settings = useSettings();
   const ListHeaderComponent = useCallback(
     () => (
       <FlatList
@@ -404,6 +463,26 @@ const Page = () => {
               />
             ),
           },
+          {
+            key: "filterOptions",
+            component: (
+              <FilterButton
+                className='mr-1'
+                id={libraryId}
+                queryKey='filters'
+                queryFn={async () => generalFilters.map((s) => s.key)}
+                set={setFilter}
+                values={filterBy}
+                title={t("library.filters.filter_by")}
+                renderItemLabel={(item) =>
+                  generalFilters.find((i) => i.key === item)?.value || ""
+                }
+                searchFilter={(item, search) =>
+                  item.toLowerCase().includes(search.toLowerCase())
+                }
+              />
+            ),
+          },
         ]}
         renderItem={({ item }) => item.component}
         keyExtractor={(item) => item.key}
@@ -424,6 +503,9 @@ const Page = () => {
       sortOrder,
       setSortOrder,
       isFetching,
+      filterBy,
+      setFilter,
+      settings,
     ],
   );
 

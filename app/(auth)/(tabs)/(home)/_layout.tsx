@@ -1,8 +1,10 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { Platform, View } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
@@ -46,32 +48,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <Stack.Screen
-        name='downloads/[seriesId]'
-        options={{
-          headerShown: true,
-          headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
-          headerShadowVisible: false,
-          title: t("home.downloads.tvseries"),
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -84,13 +67,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -102,13 +85,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -120,13 +103,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -138,13 +121,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -156,13 +139,31 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/music/page'
+        options={{
+          title: t("home.settings.music.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </Pressable>
           ),
         }}
       />
@@ -174,13 +175,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -192,13 +193,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -210,31 +211,67 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
       <Stack.Screen
-        name='settings/plugins/jellyseerr/page'
+        name='settings/plugins/seerr/page'
         options={{
-          title: "Jellyseerr",
+          title: "Seerr",
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/streamystats/page'
+        options={{
+          title: "Streamystats",
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </Pressable>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/kefinTweaks/page'
+        options={{
+          title: "KefinTweaks",
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </Pressable>
           ),
         }}
       />
@@ -246,13 +283,13 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -264,27 +301,32 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
       <Stack.Screen
-        name='intro/page'
+        name='settings/network/page'
         options={{
-          headerShown: false,
-          title: "",
+          title: t("home.settings.network.title"),
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <Pressable
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
-          presentation: "modal",
         }}
       />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
@@ -295,9 +337,9 @@ export default function IndexLayout() {
         options={{
           title: "",
           headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
+            <Pressable onPress={() => _router.back()} className='pl-0.5'>
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
           headerShown: true,
           headerBlurEffect: "prominent",
@@ -313,13 +355,13 @@ const SettingsButton = () => {
   const router = useRouter();
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => {
         router.push("/(auth)/settings");
       }}
     >
       <Feather name='settings' color={"white"} size={22} />
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -328,7 +370,7 @@ const SessionsButton = () => {
   const { sessions = [] } = useSessions({} as useSessionsProps);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => {
         router.push("/(auth)/sessions");
       }}
@@ -339,6 +381,6 @@ const SessionsButton = () => {
         color={sessions.length === 0 ? "white" : "#9333ea"}
         size={28}
       />
-    </TouchableOpacity>
+    </Pressable>
   );
 };

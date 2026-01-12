@@ -4,7 +4,10 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Bitrate } from "@/components/BitrateSelector";
-import { generateDeviceProfile } from "@/utils/profiles/native";
+import {
+  type AudioTranscodeModeType,
+  generateDeviceProfile,
+} from "@/utils/profiles/native";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
 export const getDownloadUrl = async ({
@@ -16,6 +19,7 @@ export const getDownloadUrl = async ({
   audioStreamIndex,
   subtitleStreamIndex,
   deviceId,
+  audioMode = "auto",
 }: {
   api: Api;
   item: BaseItemDto;
@@ -25,6 +29,7 @@ export const getDownloadUrl = async ({
   audioStreamIndex: number;
   subtitleStreamIndex: number;
   deviceId: string;
+  audioMode?: AudioTranscodeModeType;
 }): Promise<{
   url: string | null;
   mediaSource: MediaSourceInfo | null;
@@ -39,7 +44,7 @@ export const getDownloadUrl = async ({
     audioStreamIndex,
     subtitleStreamIndex,
     deviceId,
-    deviceProfile: generateDeviceProfile(),
+    deviceProfile: generateDeviceProfile({ audioMode }),
   });
 
   if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {
@@ -59,6 +64,7 @@ export const getDownloadUrl = async ({
     maxStreamingBitrate: maxBitrate.value,
     audioStreamIndex,
     subtitleStreamIndex,
+    audioMode,
   });
 
   return {

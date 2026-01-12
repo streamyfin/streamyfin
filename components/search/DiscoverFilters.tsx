@@ -1,19 +1,19 @@
 import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
-import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
+import { SeerrSearchSort } from "@/components/seerr/SeerrIndexPage";
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
   orderFilterId: string;
-  jellyseerrOrderBy: JellyseerrSearchSort;
-  setJellyseerrOrderBy: (value: JellyseerrSearchSort) => void;
-  jellyseerrSortOrder: "asc" | "desc";
-  setJellyseerrSortOrder: (value: "asc" | "desc") => void;
+  seerrOrderBy: SeerrSearchSort;
+  setSeerrOrderBy: (value: SeerrSearchSort) => void;
+  seerrSortOrder: "asc" | "desc";
+  setSeerrSortOrder: (value: "asc" | "desc") => void;
   t: (key: string) => string;
 }
 
-const sortOptions = Object.keys(JellyseerrSearchSort).filter((v) =>
+const sortOptions = Object.keys(SeerrSearchSort).filter((v) =>
   Number.isNaN(Number(v)),
 );
 
@@ -22,10 +22,10 @@ const orderOptions = ["asc", "desc"] as const;
 export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   searchFilterId,
   orderFilterId,
-  jellyseerrOrderBy,
-  setJellyseerrOrderBy,
-  jellyseerrSortOrder,
-  setJellyseerrSortOrder,
+  seerrOrderBy,
+  setSeerrOrderBy,
+  seerrSortOrder,
+  setSeerrSortOrder,
   t,
 }) => {
   if (Platform.OS === "ios") {
@@ -52,16 +52,16 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
             <Picker
               label={t("library.filters.sort_by")}
               options={sortOptions.map((item) =>
-                t(`home.settings.plugins.jellyseerr.order_by.${item}`),
+                t(`home.settings.plugins.seerr.order_by.${item}`),
               )}
               variant='menu'
               selectedIndex={sortOptions.indexOf(
-                jellyseerrOrderBy as unknown as string,
+                seerrOrderBy as unknown as string,
               )}
               onOptionSelected={(event: any) => {
                 const index = event.nativeEvent.index;
-                setJellyseerrOrderBy(
-                  sortOptions[index] as unknown as JellyseerrSearchSort,
+                setSeerrOrderBy(
+                  sortOptions[index] as unknown as SeerrSearchSort,
                 );
               }}
             />
@@ -69,10 +69,10 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
               label={t("library.filters.sort_order")}
               options={orderOptions.map((item) => t(`library.filters.${item}`))}
               variant='menu'
-              selectedIndex={orderOptions.indexOf(jellyseerrSortOrder)}
+              selectedIndex={orderOptions.indexOf(seerrSortOrder)}
               onOptionSelected={(event: any) => {
                 const index = event.nativeEvent.index;
-                setJellyseerrSortOrder(orderOptions[index]);
+                setSeerrSortOrder(orderOptions[index]);
               }}
             />
           </ContextMenu.Items>
@@ -86,17 +86,15 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
     <View className='flex flex-row justify-end items-center space-x-1'>
       <FilterButton
         id={searchFilterId}
-        queryKey='jellyseerr_search'
+        queryKey='seerr_search'
         queryFn={async () =>
-          Object.keys(JellyseerrSearchSort).filter((v) =>
-            Number.isNaN(Number(v)),
-          )
+          Object.keys(SeerrSearchSort).filter((v) => Number.isNaN(Number(v)))
         }
-        set={(value) => setJellyseerrOrderBy(value[0])}
-        values={[jellyseerrOrderBy]}
+        set={(value) => setSeerrOrderBy(value[0])}
+        values={[seerrOrderBy]}
         title={t("library.filters.sort_by")}
         renderItemLabel={(item) =>
-          t(`home.settings.plugins.jellyseerr.order_by.${item}`)
+          t(`home.settings.plugins.seerr.order_by.${item}`)
         }
         disableSearch={true}
       />
@@ -104,8 +102,8 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         id={orderFilterId}
         queryKey='jellysearr_search'
         queryFn={async () => ["asc", "desc"]}
-        set={(value) => setJellyseerrSortOrder(value[0])}
-        values={[jellyseerrSortOrder]}
+        set={(value) => setSeerrSortOrder(value[0])}
+        values={[seerrSortOrder]}
         title={t("library.filters.sort_order")}
         renderItemLabel={(item) => t(`library.filters.${item}`)}
         disableSearch={true}

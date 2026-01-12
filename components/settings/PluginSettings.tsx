@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -19,13 +19,23 @@ export const PluginSettings = () => {
       className='mb-4'
     >
       <ListItem
-        onPress={() => router.push("/settings/plugins/jellyseerr/page")}
-        title={"Jellyseerr"}
+        onPress={() => router.push("/settings/plugins/seerr/page")}
+        title={"Seerr"}
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/streamystats/page")}
+        title={"Streamystats"}
         showArrow
       />
       <ListItem
         onPress={() => router.push("/settings/plugins/marlin-search/page")}
-        title='Marlin Search'
+        title={"Marlin Search"}
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/kefinTweaks/page")}
+        title={"KefinTweaks"}
         showArrow
       />
     </ListGroup>

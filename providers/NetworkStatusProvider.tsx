@@ -1,4 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import {
   createContext,
@@ -6,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -24,7 +26,8 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(
 async function checkApiReachable(basePath?: string): Promise<boolean> {
   if (!basePath) return false;
   try {
-    const response = await fetch(basePath, { method: "HEAD" });
+    const url = basePath.endsWith("/") ? basePath : `${basePath}/`;
+    const response = await fetch(url, { method: "HEAD" });
     return response.ok;
   } catch {
     return false;
@@ -36,6 +39,8 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const [serverConnected, setServerConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [api] = useAtom(apiAtom);
+  const queryClient = useQueryClient();
+  const wasServerConnected = useRef<boolean | null>(null);
 
   const validateConnection = useCallback(async () => {
     if (!api?.basePath) return false;
@@ -71,6 +76,14 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
 
     return () => unsubscribe();
   }, [validateConnection]);
+
+  // Refetch active queries when server becomes reachable
+  useEffect(() => {
+    if (serverConnected && wasServerConnected.current === false) {
+      queryClient.refetchQueries({ type: "active" });
+    }
+    wasServerConnected.current = serverConnected;
+  }, [serverConnected, queryClient]);
 
   return (
     <NetworkStatusContext.Provider

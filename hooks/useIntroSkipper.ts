@@ -7,31 +7,26 @@ import { useHaptic } from "./useHaptic";
 
 /**
  * Custom hook to handle skipping intros in a media player.
+ * MPV player uses milliseconds for time.
  *
- * @param {number} currentTime - The current playback time in seconds.
+ * @param {number} currentTime - The current playback time in milliseconds.
  */
 export const useIntroSkipper = (
   itemId: string,
   currentTime: number,
-  seek: (ticks: number) => void,
+  seek: (ms: number) => void,
   play: () => void,
-  isVlc = false,
   isOffline = false,
   api: Api | null = null,
   downloadedFiles: DownloadedItem[] | undefined = undefined,
 ) => {
   const [showSkipButton, setShowSkipButton] = useState(false);
-  if (isVlc) {
-    currentTime = msToSeconds(currentTime);
-  }
+  // Convert ms to seconds for comparison with timestamps
+  const currentTimeSeconds = msToSeconds(currentTime);
   const lightHapticFeedback = useHaptic("light");
 
   const wrappedSeek = (seconds: number) => {
-    if (isVlc) {
-      seek(secondsToMs(seconds));
-      return;
-    }
-    seek(seconds);
+    seek(secondsToMs(seconds));
   };
 
   const { data: segments } = useSegments(
@@ -45,8 +40,8 @@ export const useIntroSkipper = (
   useEffect(() => {
     if (introTimestamps) {
       const shouldShow =
-        currentTime > introTimestamps.startTime &&
-        currentTime < introTimestamps.endTime;
+        currentTimeSeconds > introTimestamps.startTime &&
+        currentTimeSeconds < introTimestamps.endTime;
 
       setShowSkipButton(shouldShow);
     } else {
@@ -54,7 +49,7 @@ export const useIntroSkipper = (
         setShowSkipButton(false);
       }
     }
-  }, [introTimestamps, currentTime, showSkipButton]);
+  }, [introTimestamps, currentTimeSeconds, showSkipButton]);
 
   const skipIntro = useCallback(() => {
     if (!introTimestamps) return;

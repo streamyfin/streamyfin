@@ -7,7 +7,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -26,6 +25,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
@@ -282,7 +282,7 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
     if (currentItem) {
       setSelectedOptions({
         bitrate: defaultBitrate,
-        mediaSource: defaultMediaSource,
+        mediaSource: defaultMediaSource ?? undefined,
         subtitleIndex: defaultSubtitleIndex ?? -1,
         audioIndex: defaultAudioIndex,
       });

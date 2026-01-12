@@ -3,17 +3,9 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  type Dispatch,
-  type FC,
-  type MutableRefObject,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
-import { useWindowDimensions } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { type FC, useCallback, useEffect, useState } from "react";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -23,20 +15,20 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
+import useRouter from "@/hooks/useAppRouter";
 import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import type { TrackInfo, VlcPlayerViewRef } from "@/modules/VlcPlayer.types";
 import { DownloadedItem } from "@/providers/Downloads/types";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
-import { ControlProvider } from "./contexts/ControlContext";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -44,44 +36,32 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
-import { type ScaleFactor } from "./ScaleFactorSelector";
 import { useControlsTimeout } from "./useControlsTimeout";
-import { type AspectRatio } from "./VideoScalingModeSelector";
+import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 
 interface Props {
   item: BaseItemDto;
-  videoRef: MutableRefObject<VlcPlayerViewRef | null>;
   isPlaying: boolean;
   isSeeking: SharedValue<boolean>;
   cacheProgress: SharedValue<number>;
   progress: SharedValue<number>;
   isBuffering: boolean;
   showControls: boolean;
-
   enableTrickplay?: boolean;
   togglePlay: () => void;
   setShowControls: (shown: boolean) => void;
-  offline?: boolean;
-  isVideoLoaded?: boolean;
   mediaSource?: MediaSourceInfo | null;
   seek: (ticks: number) => void;
   startPictureInPicture?: () => Promise<void>;
   play: () => void;
   pause: () => void;
-  getAudioTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
-  getSubtitleTracks?: (() => Promise<TrackInfo[] | null>) | (() => TrackInfo[]);
-  setSubtitleURL?: (url: string, customName: string) => void;
-  setSubtitleTrack?: (index: number) => void;
-  setAudioTrack?: (index: number) => void;
-  setVideoAspectRatio?: (aspectRatio: string | null) => Promise<void>;
-  setVideoScaleFactor?: (scaleFactor: number) => Promise<void>;
-  aspectRatio?: AspectRatio;
-  scaleFactor?: ScaleFactor;
-  setAspectRatio?: Dispatch<SetStateAction<AspectRatio>>;
-  setScaleFactor?: Dispatch<SetStateAction<ScaleFactor>>;
-  isVlc?: boolean;
+  isZoomedToFill?: boolean;
+  onZoomToggle?: () => void;
   api?: Api | null;
   downloadedFiles?: DownloadedItem[];
+  // Playback speed props
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
 }
 
 export const Controls: FC<Props> = ({
@@ -99,23 +79,14 @@ export const Controls: FC<Props> = ({
   showControls,
   setShowControls,
   mediaSource,
-  isVideoLoaded,
-  getAudioTracks,
-  getSubtitleTracks,
-  setSubtitleURL,
-  setSubtitleTrack,
-  setAudioTrack,
-  setVideoAspectRatio,
-  setVideoScaleFactor,
-  aspectRatio = "default",
-  scaleFactor = 1.0,
-  setAspectRatio,
-  setScaleFactor,
-  offline = false,
-  isVlc = false,
+  isZoomedToFill = false,
+  onZoomToggle,
   api = null,
   downloadedFiles = undefined,
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
 }) => {
+  const offline = useOfflineMode();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const lightHapticFeedback = useHaptic("light");
@@ -137,7 +108,9 @@ export const Controls: FC<Props> = ({
   } = useTrickplay(item);
 
   const min = useSharedValue(0);
-  const max = useSharedValue(item.RunTimeTicks || 0);
+  // Regular value for use during render (avoids Reanimated warning)
+  const maxMs = ticksToMs(item.RunTimeTicks || 0);
+  const max = useSharedValue(maxMs);
 
   // Animation values for controls
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
@@ -194,17 +167,13 @@ export const Controls: FC<Props> = ({
     zIndex: 10,
   }));
 
-  // Initialize progress values
+  // Initialize progress values - MPV uses milliseconds
   useEffect(() => {
     if (item) {
-      progress.value = isVlc
-        ? ticksToMs(item?.UserData?.PlaybackPositionTicks)
-        : item?.UserData?.PlaybackPositionTicks || 0;
-      max.value = isVlc
-        ? ticksToMs(item.RunTimeTicks || 0)
-        : item.RunTimeTicks || 0;
+      progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
+      max.value = ticksToMs(item.RunTimeTicks || 0);
     }
-  }, [item, isVlc, progress, max]);
+  }, [item, progress, max]);
 
   // Navigation hooks
   const {
@@ -215,7 +184,6 @@ export const Controls: FC<Props> = ({
   } = useVideoNavigation({
     progress,
     isPlaying,
-    isVlc,
     seek,
     play,
   });
@@ -225,7 +193,6 @@ export const Controls: FC<Props> = ({
     progress,
     max,
     isSeeking,
-    isVlc,
   });
 
   const toggleControls = useCallback(() => {
@@ -248,7 +215,6 @@ export const Controls: FC<Props> = ({
     progress,
     min,
     max,
-    isVlc,
     showControls,
     isPlaying,
     seek,
@@ -273,7 +239,6 @@ export const Controls: FC<Props> = ({
     progress,
     isSeeking,
     isPlaying,
-    isVlc,
     seek,
     play,
     pause,
@@ -302,9 +267,8 @@ export const Controls: FC<Props> = ({
             : current.actual;
       } else {
         // When not scrubbing, only update if progress changed significantly (1 second)
-        const progressUnit = isVlc
-          ? CONTROLS_CONSTANTS.PROGRESS_UNIT_MS
-          : CONTROLS_CONSTANTS.PROGRESS_UNIT_TICKS;
+        // MPV uses milliseconds
+        const progressUnit = CONTROLS_CONSTANTS.PROGRESS_UNIT_MS;
         const progressDiff = Math.abs(current.actual - effectiveProgress.value);
         if (progressDiff >= progressUnit) {
           effectiveProgress.value = current.actual;
@@ -325,22 +289,22 @@ export const Controls: FC<Props> = ({
     currentTime,
     seek,
     play,
-    isVlc,
     offline,
     api,
     downloadedFiles,
   );
 
-  const { showSkipCreditButton, skipCredit } = useCreditSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    play,
-    isVlc,
-    offline,
-    api,
-    downloadedFiles,
-  );
+  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
+    useCreditSkipper(
+      item.Id!,
+      currentTime,
+      seek,
+      play,
+      offline,
+      api,
+      downloadedFiles,
+      maxMs,
+    );
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -359,12 +323,10 @@ export const Controls: FC<Props> = ({
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(
-        item,
-        settings,
-        previousIndexes,
-        mediaSource ?? undefined,
-      );
+      } = getDefaultPlaySettings(item, settings, {
+        indexes: previousIndexes,
+        source: mediaSource ?? undefined,
+      });
 
       const queryParams = new URLSearchParams({
         ...(offline && { offline: "true" }),
@@ -376,8 +338,6 @@ export const Controls: FC<Props> = ({
         playbackPosition:
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
       }).toString();
-
-      console.log("queryParams", queryParams);
 
       router.replace(`player/direct-player?${queryParams}` as any);
     },
@@ -469,6 +429,7 @@ export const Controls: FC<Props> = ({
     episodeView,
     onHideControls: hideControls,
     timeout: CONTROLS_CONSTANTS.TIMEOUT,
+    disabled: true,
   });
 
   const switchOnEpisodeMode = useCallback(() => {
@@ -479,11 +440,7 @@ export const Controls: FC<Props> = ({
   }, [isPlaying, togglePlay]);
 
   return (
-    <ControlProvider
-      item={item}
-      mediaSource={mediaSource}
-      isVideoLoaded={isVideoLoaded}
-    >
+    <View style={styles.controlsContainer} pointerEvents='box-none'>
       {episodeView ? (
         <EpisodeList
           item={item}
@@ -515,17 +472,10 @@ export const Controls: FC<Props> = ({
               goToNextItem={goToNextItem}
               previousItem={previousItem}
               nextItem={nextItem}
-              getAudioTracks={getAudioTracks}
-              getSubtitleTracks={getSubtitleTracks}
-              setAudioTrack={setAudioTrack}
-              setSubtitleTrack={setSubtitleTrack}
-              setSubtitleURL={setSubtitleURL}
-              aspectRatio={aspectRatio}
-              scaleFactor={scaleFactor}
-              setAspectRatio={setAspectRatio}
-              setScaleFactor={setScaleFactor}
-              setVideoAspectRatio={setVideoAspectRatio}
-              setVideoScaleFactor={setVideoScaleFactor}
+              isZoomedToFill={isZoomedToFill}
+              onZoomToggle={onZoomToggle}
+              playbackSpeed={playbackSpeed}
+              setPlaybackSpeed={setPlaybackSpeed}
             />
           </Animated.View>
           <Animated.View
@@ -554,9 +504,9 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              isVlc={isVlc}
               showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
+              hasContentAfterCredits={hasContentAfterCredits}
               skipIntro={skipIntro}
               skipCredit={skipCredit}
               nextItem={nextItem}
@@ -582,6 +532,16 @@ export const Controls: FC<Props> = ({
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (
         <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
       )}
-    </ControlProvider>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  controlsContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+});

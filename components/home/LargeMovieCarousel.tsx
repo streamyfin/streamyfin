@@ -2,7 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useRouter, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import { Dimensions, View, type ViewProps } from "react-native";
@@ -16,6 +16,7 @@ import Carousel, {
   type ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
