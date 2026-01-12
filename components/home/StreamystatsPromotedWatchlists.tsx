@@ -247,15 +247,14 @@ export const StreamystatsPromotedWatchlists: React.FC<
   }
 
   return (
-    <>
+    <View {...props}>
       {watchlists?.map((watchlist) => (
         <WatchlistSection
           key={watchlist.id}
           watchlist={watchlist}
           jellyfinServerId={jellyfinServerId!}
-          {...props}
         />
       ))}
-    </>
+    </View>
   );
 };

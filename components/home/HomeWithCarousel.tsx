@@ -569,29 +569,31 @@ export const HomeWithCarousel = () => {
               settings.streamyStatsSeriesRecommendations ||
               settings.streamyStatsPromotedWatchlists;
             const streamystatsSections =
-              index === streamystatsIndex && hasStreamystatsContent ? (
-                <>
-                  {settings.streamyStatsMovieRecommendations && (
-                    <StreamystatsRecommendations
-                      title={t(
-                        "home.settings.plugins.streamystats.recommended_movies",
-                      )}
-                      type='Movie'
-                    />
-                  )}
-                  {settings.streamyStatsSeriesRecommendations && (
-                    <StreamystatsRecommendations
-                      title={t(
-                        "home.settings.plugins.streamystats.recommended_series",
-                      )}
-                      type='Series'
-                    />
-                  )}
-                  {settings.streamyStatsPromotedWatchlists && (
-                    <StreamystatsPromotedWatchlists />
-                  )}
-                </>
-              ) : null;
+              index === streamystatsIndex && hasStreamystatsContent
+                ? [
+                    settings.streamyStatsMovieRecommendations && (
+                      <StreamystatsRecommendations
+                        key='movie-recommendations'
+                        title={t(
+                          "home.settings.plugins.streamystats.recommended_movies",
+                        )}
+                        type='Movie'
+                      />
+                    ),
+                    settings.streamyStatsSeriesRecommendations && (
+                      <StreamystatsRecommendations
+                        key='series-recommendations'
+                        title={t(
+                          "home.settings.plugins.streamystats.recommended_series",
+                        )}
+                        type='Series'
+                      />
+                    ),
+                    settings.streamyStatsPromotedWatchlists && (
+                      <StreamystatsPromotedWatchlists key='promoted-watchlists' />
+                    ),
+                  ].filter(Boolean)
+                : null;
 
             if (section.type === "InfiniteScrollingCollectionList") {
               return (
