@@ -21,6 +21,8 @@ const orientationToOrientationLock = (
       return OrientationLock.LANDSCAPE_RIGHT;
     case Orientation.PORTRAIT_UP:
       return OrientationLock.PORTRAIT_UP;
+    case Orientation.UNKNOWN:
+      return OrientationLock.LANDSCAPE;
     default:
       return OrientationLock.PORTRAIT_UP;
   }
