@@ -23,7 +23,7 @@ import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import { SeerrApi, useSeerr } from "@/hooks/useSeerr";
 import { useSettings } from "@/utils/atoms/settings";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -113,7 +113,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
   const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
-  const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
+  const { clearAllSeerrData, setSeerrUser } = useSeerr();
 
   const headers = useMemo(() => {
     if (!deviceId) return {};
@@ -290,13 +290,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
-          if (recentPluginSettings?.jellyseerrServerUrl?.value) {
-            const jellyseerrApi = new JellyseerrApi(
-              recentPluginSettings.jellyseerrServerUrl.value,
+          if (recentPluginSettings?.seerrServerUrl?.value) {
+            const seerrApi = new SeerrApi(
+              recentPluginSettings.seerrServerUrl.value,
             );
-            await jellyseerrApi.test().then((result) => {
+            await seerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                seerrApi.login(username, password).then(setSeerrUser);
               }
             });
           }
@@ -349,7 +349,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setUser(null);
       setApi(null);
       setPluginSettings(undefined);
-      await clearAllJellyseerData();
+      await clearAllSeerrData();
       // Note: We keep saved credentials for quick switching back
     },
     onError: (error) => {

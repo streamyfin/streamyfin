@@ -2,7 +2,7 @@ import axios, { type AxiosError, type AxiosInstance } from "axios";
 import { atom } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
-import type { User as JellyseerrUser } from "@/utils/jellyseerr/server/entity/User";
+import type { User as SeerrUser } from "@/utils/jellyseerr/server/entity/User";
 import type {
   MovieResult,
   Results,
@@ -62,12 +62,12 @@ interface SearchResults {
   results: Results[];
 }
 
-const JELLYSEERR_USER = "JELLYSEERR_USER";
-const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
+const SEERR_USER = "SEERR_USER";
+const SEERR_COOKIES = "SEERR_COOKIES";
 
-export const clearJellyseerrStorageData = () => {
-  storage.remove(JELLYSEERR_USER);
-  storage.remove(JELLYSEERR_COOKIES);
+export const clearSeerrStorageData = () => {
+  storage.remove(SEERR_USER);
+  storage.remove(SEERR_COOKIES);
 };
 
 export enum Endpoints {
@@ -111,7 +111,7 @@ export type TestResult =
       isValid: false;
     };
 
-export class JellyseerrApi {
+export class SeerrApi {
   axios: AxiosInstance;
 
   constructor(baseUrl: string) {
@@ -126,8 +126,8 @@ export class JellyseerrApi {
   }
 
   async test(): Promise<TestResult> {
-    const user = storage.get<JellyseerrUser>(JELLYSEERR_USER);
-    const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
+    const user = storage.get<SeerrUser>(SEERR_USER);
+    const cookies = storage.get<string[]>(SEERR_COOKIES);
 
     if (user && cookies) {
       return Promise.resolve({
@@ -142,15 +142,13 @@ export class JellyseerrApi {
         const { status, headers, data } = response;
         if (inRange(status, 200, 299)) {
           if (data.version < "2.0.0") {
-            const error = t(
-              "jellyseerr.toasts.jellyseer_does_not_meet_requirements",
-            );
+            const error = t("seerr.toasts.seer_does_not_meet_requirements");
             toast.error(error);
             throw Error(error);
           }
 
           storage.setAny(
-            JELLYSEERR_COOKIES,
+            SEERR_COOKIES,
             headers["set-cookie"]?.flatMap((c) => c.split("; ")) ?? [],
           );
           return {
@@ -158,7 +156,7 @@ export class JellyseerrApi {
             requiresPass: true,
           };
         }
-        toast.error(t("jellyseerr.toasts.jellyseerr_test_failed"));
+        toast.error(t("seerr.toasts.seerr_test_failed"));
         writeErrorLog(
           `Seerr returned a ${status} for url:\n${response.config.url}`,
           response.data,
@@ -169,7 +167,7 @@ export class JellyseerrApi {
         };
       })
       .catch((e) => {
-        const msg = t("jellyseerr.toasts.failed_to_test_jellyseerr_server_url");
+        const msg = t("seerr.toasts.failed_to_test_seerr_server_url");
         toast.error(msg);
         console.error(msg, e);
         return {
@@ -179,9 +177,9 @@ export class JellyseerrApi {
       });
   }
 
-  async login(username: string, password: string): Promise<JellyseerrUser> {
+  async login(username: string, password: string): Promise<SeerrUser> {
     return this.axios
-      ?.post<JellyseerrUser>(Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN, {
+      ?.post<SeerrUser>(Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN, {
         username,
         password,
         email: username,
@@ -189,7 +187,7 @@ export class JellyseerrApi {
       .then((response) => {
         const user = response?.data;
         if (!user) throw Error("Login failed");
-        storage.setAny(JELLYSEERR_USER, user);
+        storage.setAny(SEERR_USER, user);
         return user;
       });
   }
@@ -364,7 +362,7 @@ export class JellyseerrApi {
         const issue = response.data;
 
         if (issue.status === IssueStatus.OPEN) {
-          toast.success(t("jellyseerr.toasts.issue_submitted"));
+          toast.success(t("seerr.toasts.issue_submitted"));
         }
         return issue;
       });
@@ -392,7 +390,7 @@ export class JellyseerrApi {
         const cookies = response.headers["set-cookie"];
         if (cookies) {
           storage.setAny(
-            JELLYSEERR_COOKIES,
+            SEERR_COOKIES,
             response.headers["set-cookie"]?.flatMap((c) => c.split("; ")),
           );
         }
@@ -404,7 +402,7 @@ export class JellyseerrApi {
           error.response?.data,
         );
         if (error.response?.status === 403) {
-          clearJellyseerrStorageData();
+          clearSeerrStorageData();
         }
         return Promise.reject(error);
       },
@@ -412,7 +410,7 @@ export class JellyseerrApi {
 
     this.axios.interceptors.request.use(
       async (config) => {
-        const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
+        const cookies = storage.get<string[]>(SEERR_COOKIES);
         if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!;
           const xsrfToken = cookies
@@ -431,59 +429,55 @@ export class JellyseerrApi {
   }
 }
 
-const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
+const seerrUserAtom = atom(storage.get<SeerrUser>(SEERR_USER));
 
-export const useJellyseerr = () => {
+export const useSeerr = () => {
   const { settings, updateSettings } = useSettings();
-  const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
+  const [seerrUser, setSeerrUser] = useAtom(seerrUserAtom);
   const queryClient = useNetworkAwareQueryClient();
 
-  const jellyseerrApi = useMemo(() => {
-    const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
-    if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
-      return new JellyseerrApi(settings?.jellyseerrServerUrl);
+  const seerrApi = useMemo(() => {
+    const cookies = storage.get<string[]>(SEERR_COOKIES);
+    if (settings?.seerrServerUrl && cookies && seerrUser) {
+      return new SeerrApi(settings?.seerrServerUrl);
     }
     return undefined;
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser]);
+  }, [settings?.seerrServerUrl, seerrUser]);
 
-  const clearAllJellyseerData = useCallback(async () => {
-    clearJellyseerrStorageData();
-    setJellyseerrUser(undefined);
-    updateSettings({ jellyseerrServerUrl: undefined });
+  const clearAllSeerrData = useCallback(async () => {
+    clearSeerrStorageData();
+    setSeerrUser(undefined);
+    updateSettings({ seerrServerUrl: undefined });
   }, []);
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
-      jellyseerrApi?.request?.(request)?.then(async (mediaRequest) => {
+      seerrApi?.request?.(request)?.then(async (mediaRequest) => {
         await queryClient.invalidateQueries({
-          queryKey: ["search", "jellyseerr"],
+          queryKey: ["search", "seerr"],
         });
 
         switch (mediaRequest.status) {
           case MediaRequestStatus.PENDING:
           case MediaRequestStatus.APPROVED:
-            toast.success(
-              t("jellyseerr.toasts.requested_item", { item: title }),
-            );
+            toast.success(t("seerr.toasts.requested_item", { item: title }));
             onSuccess?.();
             break;
           case MediaRequestStatus.DECLINED:
-            toast.error(
-              t("jellyseerr.toasts.you_dont_have_permission_to_request"),
-            );
+            toast.error(t("seerr.toasts.you_dont_have_permission_to_request"));
             break;
           case MediaRequestStatus.FAILED:
             toast.error(
-              t("jellyseerr.toasts.something_went_wrong_requesting_media"),
+              t("seerr.toasts.something_went_wrong_requesting_media"),
             );
             break;
         }
       });
     },
-    [jellyseerrApi],
+    [seerrApi],
   );
 
-  const isJellyseerrMovieOrTvResult = (
+  const isSeerrMovieOrTvResult = (
     items: any | null | undefined,
   ): items is MovieResult | TvResult => {
     return (
@@ -496,7 +490,7 @@ export const useJellyseerr = () => {
   const getTitle = (
     item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
-    return isJellyseerrMovieOrTvResult(item)
+    return isSeerrMovieOrTvResult(item)
       ? item.mediaType === MediaType.MOVIE
         ? item?.title
         : item?.name
@@ -509,7 +503,7 @@ export const useJellyseerr = () => {
     item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ) => {
     return new Date(
-      (isJellyseerrMovieOrTvResult(item)
+      (isSeerrMovieOrTvResult(item)
         ? item.mediaType === MediaType.MOVIE
           ? item?.releaseDate
           : item?.firstAirDate
@@ -522,32 +516,32 @@ export const useJellyseerr = () => {
   const getMediaType = (
     item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,
   ): MediaType => {
-    return isJellyseerrMovieOrTvResult(item)
+    return isSeerrMovieOrTvResult(item)
       ? (item.mediaType as MediaType)
       : item?.mediaInfo?.mediaType;
   };
 
-  const jellyseerrRegion = useMemo(
+  const seerrRegion = useMemo(
     // streamingRegion and discoverRegion exists. region doesn't
-    () => jellyseerrUser?.settings?.discoverRegion || "US",
-    [jellyseerrUser],
+    () => seerrUser?.settings?.discoverRegion || "US",
+    [seerrUser],
   );
 
-  const jellyseerrLocale = useMemo(() => {
-    return jellyseerrUser?.settings?.locale || "en";
-  }, [jellyseerrUser]);
+  const seerrLocale = useMemo(() => {
+    return seerrUser?.settings?.locale || "en";
+  }, [seerrUser]);
 
   return {
-    jellyseerrApi,
-    jellyseerrUser,
-    setJellyseerrUser,
-    clearAllJellyseerData,
-    isJellyseerrMovieOrTvResult,
+    seerrApi,
+    seerrUser,
+    setSeerrUser,
+    clearAllSeerrData,
+    isSeerrMovieOrTvResult,
     getTitle,
     getYear,
     getMediaType,
-    jellyseerrRegion,
-    jellyseerrLocale,
+    seerrRegion,
+    seerrLocale,
     requestMedia,
   };
 };

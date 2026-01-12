@@ -96,7 +96,7 @@
       "a_free_and_open_source_client_for_jellyfin": "A Free and Open-Source Client for Jellyfin",
       "features_title": "Features",
       "features_description": "Streamyfin offers many features and integrates with a wide array of software which you can find in the settings menu, including:",
-      "jellyseerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
+      "seerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download movies and TV shows to view offline.",
       "chromecast_feature_description": "Cast movies and TV shows to your Chromecast devices.",
@@ -326,8 +326,8 @@
       },
       "plugins": {
         "plugins_title": "Plugins",
-        "jellyseerr": {
-          "jellyseerr_warning": "This integration is in early development. Features may change.",
+        "seerr": {
+          "seerr_warning": "This integration is in early development. Features may change.",
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
           "server_url_placeholder": "Seerr URL",
@@ -339,7 +339,7 @@
           "movie_quota_days": "Movie Quota Days",
           "tv_quota_limit": "TV Quota Limit",
           "tv_quota_days": "TV Quota Days",
-          "reset_jellyseerr_config_button": "Reset Seerr Config",
+          "reset_seerr_config_button": "Reset Seerr Config",
           "unlimited": "Unlimited",
           "plus_n_more": "+{{n}} more",
           "order_by": {
@@ -675,7 +675,7 @@
     "for_kids": "For Kids",
     "news": "News"
   },
-  "jellyseerr": {
+  "seerr": {
     "confirm": "Confirm",
     "cancel": "Cancel",
     "yes": "Yes",
@@ -719,9 +719,9 @@
     "requested_by": "Requested by {{user}}",
     "unknown_user": "Unknown User",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
-      "jellyseerr_test_failed": "Seerr test failed. Please try again.",
-      "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server URL",
+      "seer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "seerr_test_failed": "Seerr test failed. Please try again.",
+      "failed_to_test_seerr_server_url": "Failed to test Seerr server URL",
       "issue_submitted": "Issue Submitted!",
       "requested_item": "Requested {{item}}!",
       "you_dont_have_permission_to_request": "You don't have permission to request!",

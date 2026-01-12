@@ -24,10 +24,7 @@ export const MusicAlbumRowCard: React.FC<Props> = ({ album }) => {
   );
 
   const handlePress = useCallback(() => {
-    router.push({
-      pathname: "/music/album/[albumId]",
-      params: { albumId: album.Id! },
-    });
+    router.push(`/music/album/${album.Id}`);
   }, [router, album.Id]);
 
   return (

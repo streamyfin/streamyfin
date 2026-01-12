@@ -26,18 +26,18 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
-import {
-  JellyseerrSearchSort,
-  JellyserrIndexPage,
-} from "@/components/jellyseerr/JellyseerrIndexPage";
 import MoviePoster from "@/components/posters/MoviePoster";
 import SeriesPoster from "@/components/posters/SeriesPoster";
 import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
+import {
+  SeerrIndexPage,
+  SeerrSearchSort,
+} from "@/components/seerr/SeerrIndexPage";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
@@ -55,7 +55,7 @@ const exampleSearches = [
   "The Mandalorian",
 ];
 
-export default function search() {
+export default function SearchPage() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -93,16 +93,11 @@ export default function search() {
   const [api] = useAtom(apiAtom);
 
   const { settings } = useSettings();
-  const { jellyseerrApi } = useJellyseerr();
-  const [jellyseerrOrderBy, setJellyseerrOrderBy] =
-    useState<JellyseerrSearchSort>(
-      JellyseerrSearchSort[
-        JellyseerrSearchSort.DEFAULT
-      ] as unknown as JellyseerrSearchSort,
-    );
-  const [jellyseerrSortOrder, setJellyseerrSortOrder] = useState<
-    "asc" | "desc"
-  >("desc");
+  const { seerrApi } = useSeerr();
+  const [seerrOrderBy, setSeerrOrderBy] = useState<SeerrSearchSort>(
+    SeerrSearchSort[SeerrSearchSort.DEFAULT] as unknown as SeerrSearchSort,
+  );
+  const [seerrSortOrder, setSeerrSortOrder] = useState<"asc" | "desc">("desc");
 
   const searchEngine = useMemo(() => {
     return settings?.searchEngine || "Jellyfin";
@@ -474,7 +469,7 @@ export default function search() {
         className='flex flex-col'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        {jellyseerrApi && (
+        {seerrApi && (
           <View className='pl-4 pr-4 flex flex-row'>
             <SearchTabButtons
               searchType={searchType}
@@ -488,10 +483,10 @@ export default function search() {
                 <DiscoverFilters
                   searchFilterId={searchFilterId}
                   orderFilterId={orderFilterId}
-                  jellyseerrOrderBy={jellyseerrOrderBy}
-                  setJellyseerrOrderBy={setJellyseerrOrderBy}
-                  jellyseerrSortOrder={jellyseerrSortOrder}
-                  setJellyseerrSortOrder={setJellyseerrSortOrder}
+                  seerrOrderBy={seerrOrderBy}
+                  setSeerrOrderBy={setSeerrOrderBy}
+                  seerrSortOrder={seerrSortOrder}
+                  setSeerrSortOrder={setSeerrSortOrder}
                   t={t}
                 />
               )}
@@ -754,10 +749,10 @@ export default function search() {
             />
           </View>
         ) : (
-          <JellyserrIndexPage
+          <SeerrIndexPage
             searchQuery={debouncedSearch}
-            sortType={jellyseerrOrderBy}
-            order={jellyseerrSortOrder}
+            sortType={seerrOrderBy}
+            order={seerrSortOrder}
           />
         )}
 

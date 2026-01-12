@@ -4,7 +4,7 @@ import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import Poster from "@/components/posters/Poster";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSeerr } from "@/hooks/useSeerr";
 
 interface Props {
   id: string;
@@ -20,7 +20,7 @@ const PersonPoster: React.FC<Props & ViewProps> = ({
   subName,
   ...props
 }) => {
-  const { jellyseerrApi } = useJellyseerr();
+  const { seerrApi } = useSeerr();
   const router = useRouter();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
@@ -28,14 +28,12 @@ const PersonPoster: React.FC<Props & ViewProps> = ({
   if (from === "(home)" || from === "(search)" || from === "(libraries)")
     return (
       <TouchableOpacity
-        onPress={() =>
-          router.push(`/(auth)/(tabs)/${from}/jellyseerr/person/${id}`)
-        }
+        onPress={() => router.push(`/(auth)/(tabs)/${from}/seerr/person/${id}`)}
       >
         <View className='flex flex-col w-28' {...props}>
           <Poster
             id={id}
-            url={jellyseerrApi?.imageProxy(posterPath, "w600_and_h900_bestv2")}
+            url={seerrApi?.imageProxy(posterPath, "w600_and_h900_bestv2")}
           />
           <Text className='mt-2'>{name}</Text>
           {subName && <Text className='text-xs opacity-50'>{subName}</Text>}

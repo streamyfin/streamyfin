@@ -5,31 +5,27 @@ import { orderBy, uniqBy } from "lodash";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Text } from "@/components/common/Text";
-import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { OverviewText } from "@/components/OverviewText";
-import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import SeerrPoster from "@/components/posters/SeerrPoster";
+import ParallaxSlideShow from "@/components/seerr/ParallaxSlideShow";
+import { useSeerr } from "@/hooks/useSeerr";
 import type { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 
-export default function page() {
+export default function PersonPage() {
   const local = useLocalSearchParams();
   const { t } = useTranslation();
 
-  const {
-    jellyseerrApi,
-    jellyseerrRegion: region,
-    jellyseerrLocale: locale,
-  } = useJellyseerr();
+  const { seerrApi, seerrRegion: region, seerrLocale: locale } = useSeerr();
 
   const { personId } = local as { personId: string };
 
   const { data } = useQuery({
-    queryKey: ["jellyseerr", "person", personId],
+    queryKey: ["seerr", "person", personId],
     queryFn: async () => ({
-      details: await jellyseerrApi?.personDetails(personId),
-      combinedCredits: await jellyseerrApi?.personCombinedCredits(personId),
+      details: await seerrApi?.personDetails(personId),
+      combinedCredits: await seerrApi?.personCombinedCredits(personId),
     }),
-    enabled: !!jellyseerrApi && !!personId,
+    enabled: !!seerrApi && !!personId,
   });
 
   const castedRoles: PersonCreditCast[] = useMemo(
@@ -46,22 +42,19 @@ export default function page() {
   );
   const backdrops = useMemo(
     () =>
-      jellyseerrApi
+      seerrApi
         ? castedRoles.map((c) =>
-            jellyseerrApi.imageProxy(
-              c.backdropPath,
-              "w1920_and_h800_multi_faces",
-            ),
+            seerrApi.imageProxy(c.backdropPath, "w1920_and_h800_multi_faces"),
           )
         : [],
-    [jellyseerrApi, data?.combinedCredits],
+    [seerrApi, data?.combinedCredits],
   );
 
   return (
     <ParallaxSlideShow
       data={castedRoles}
       images={backdrops}
-      listHeader={t("jellyseerr.appearances")}
+      listHeader={t("seerr.appearances")}
       keyExtractor={(item) => item.id.toString()}
       logo={
         <Image
@@ -69,7 +62,7 @@ export default function page() {
           id={data?.details?.id.toString()}
           className='rounded-full bottom-1'
           source={{
-            uri: jellyseerrApi?.imageProxy(
+            uri: seerrApi?.imageProxy(
               data?.details?.profilePath,
               "w600_and_h600_bestv2",
             ),
@@ -86,7 +79,7 @@ export default function page() {
         <>
           <Text className='font-bold text-2xl mb-1'>{data?.details?.name}</Text>
           <Text className='opacity-50'>
-            {t("jellyseerr.born")}{" "}
+            {t("seerr.born")}{" "}
             {data?.details?.birthday &&
               new Date(data.details.birthday).toLocaleDateString(
                 `${locale}-${region}`,
@@ -103,7 +96,7 @@ export default function page() {
       MainContent={() => (
         <OverviewText text={data?.details?.biography} className='mt-4' />
       )}
-      renderItem={(item, _index) => <JellyseerrPoster item={item} />}
+      renderItem={(item, _index) => <SeerrPoster item={item} />}
     />
   );
 }

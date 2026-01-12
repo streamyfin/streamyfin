@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import CountryFlag from "react-native-country-flag";
 import { Text } from "@/components/common/Text";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useSeerr } from "@/hooks/useSeerr";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import type { TmdbRelease } from "@/utils/jellyseerr/server/api/themoviedb/interfaces";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
@@ -50,8 +50,7 @@ const Fact: React.FC<{ title: string; fact?: string | null } & ViewProps> = ({
 const DetailFacts: React.FC<
   { details?: MovieDetails | TvDetails } & ViewProps
 > = ({ details, className, ...props }) => {
-  const { jellyseerrRegion: region, jellyseerrLocale: locale } =
-    useJellyseerr();
+  const { seerrRegion: region, seerrLocale: locale } = useSeerr();
   const { t } = useTranslation();
 
   const releases = useMemo(
@@ -138,21 +137,21 @@ const DetailFacts: React.FC<
   return (
     details && (
       <View className='p-4'>
-        <Text className='text-lg font-bold'>{t("jellyseerr.details")}</Text>
+        <Text className='text-lg font-bold'>{t("seerr.details")}</Text>
         <View
           className={`${className} flex flex-col justify-center divide-y-2 divide-neutral-800`}
           {...props}
         >
-          <Fact title={t("jellyseerr.status")} fact={details?.status} />
+          <Fact title={t("seerr.status")} fact={details?.status} />
           <Fact
-            title={t("jellyseerr.original_title")}
+            title={t("seerr.original_title")}
             fact={(details as TvDetails)?.originalName}
           />
           {details.keywords.some(
             (keyword) => keyword.id === ANIME_KEYWORD_ID,
-          ) && <Fact title={t("jellyseerr.series_type")} fact='Anime' />}
+          ) && <Fact title={t("seerr.series_type")} fact='Anime' />}
           <Facts
-            title={t("jellyseerr.release_dates")}
+            title={t("seerr.release_dates")}
             facts={filteredReleases?.map?.((r: Release, idx) => (
               <View key={idx} className='flex flex-row space-x-2 items-center'>
                 {r.type === 3 ? (
@@ -178,16 +177,13 @@ const DetailFacts: React.FC<
               </View>
             ))}
           />
-          <Fact title={t("jellyseerr.first_air_date")} fact={firstAirDate} />
-          <Fact title={t("jellyseerr.next_air_date")} fact={nextAirDate} />
-          <Fact title={t("jellyseerr.revenue")} fact={revenue} />
-          <Fact title={t("jellyseerr.budget")} fact={budget} />
-          <Fact
-            title={t("jellyseerr.original_language")}
-            fact={spokenLanguage}
-          />
+          <Fact title={t("seerr.first_air_date")} fact={firstAirDate} />
+          <Fact title={t("seerr.next_air_date")} fact={nextAirDate} />
+          <Fact title={t("seerr.revenue")} fact={revenue} />
+          <Fact title={t("seerr.budget")} fact={budget} />
+          <Fact title={t("seerr.original_language")} fact={spokenLanguage} />
           <Facts
-            title={t("jellyseerr.production_country")}
+            title={t("seerr.production_country")}
             facts={details?.productionCountries?.map((n, idx) => (
               <View key={idx} className='flex flex-row items-center space-x-2'>
                 <CountryFlag isoCode={n.iso_3166_1} size={10} />
@@ -196,17 +192,17 @@ const DetailFacts: React.FC<
             ))}
           />
           <Facts
-            title={t("jellyseerr.studios")}
+            title={t("seerr.studios")}
             facts={uniqBy(details?.productionCompanies, "name")?.map(
               (n) => n.name,
             )}
           />
           <Facts
-            title={t("jellyseerr.network")}
+            title={t("seerr.network")}
             facts={networks?.map((n) => n.name)}
           />
           <Facts
-            title={t("jellyseerr.currently_streaming_on")}
+            title={t("seerr.currently_streaming_on")}
             facts={streamingProviders?.map((s) => s.name)}
           />
         </View>

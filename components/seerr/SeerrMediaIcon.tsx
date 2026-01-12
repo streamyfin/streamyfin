@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import { View, type ViewProps } from "react-native";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 
-const JellyseerrMediaIcon: React.FC<
-  { mediaType: "tv" | "movie" } & ViewProps
-> = ({ mediaType, className, ...props }) => {
+const SeerrMediaIcon: React.FC<{ mediaType: "tv" | "movie" } & ViewProps> = ({
+  mediaType,
+  className,
+  ...props
+}) => {
   const style = useMemo(
     () =>
       mediaType === MediaType.MOVIE
@@ -29,4 +31,4 @@ const JellyseerrMediaIcon: React.FC<
   );
 };
 
-export default JellyseerrMediaIcon;
+export default SeerrMediaIcon;

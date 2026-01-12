@@ -3,7 +3,7 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
-import PersonPoster from "@/components/jellyseerr/PersonPoster";
+import PersonPoster from "@/components/seerr/PersonPoster";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
@@ -15,9 +15,7 @@ const CastSlide: React.FC<
     details?.credits?.cast &&
     details?.credits?.cast?.length > 0 && (
       <View {...props}>
-        <Text className='text-lg font-bold mb-2 px-4'>
-          {t("jellyseerr.cast")}
-        </Text>
+        <Text className='text-lg font-bold mb-2 px-4'>{t("seerr.cast")}</Text>
         <FlashList
           horizontal
           showsHorizontalScrollIndicator={false}

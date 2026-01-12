@@ -33,17 +33,17 @@ export default function SearchLayout() {
           headerShadowVisible: false,
         }}
       />
-      <Stack.Screen name='jellyseerr/page' options={commonScreenOptions} />
+      <Stack.Screen name='seerr/page' options={commonScreenOptions} />
       <Stack.Screen
-        name='jellyseerr/person/[personId]'
+        name='seerr/person/[personId]'
         options={commonScreenOptions}
       />
       <Stack.Screen
-        name='jellyseerr/company/[companyId]'
+        name='seerr/company/[companyId]'
         options={commonScreenOptions}
       />
       <Stack.Screen
-        name='jellyseerr/genre/[genreId]'
+        name='seerr/genre/[genreId]'
         options={commonScreenOptions}
       />
     </Stack>
