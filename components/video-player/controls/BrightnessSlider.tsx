@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
@@ -16,10 +16,19 @@ const BrightnessSlider = () => {
   const max = useSharedValue(100);
   const isUserInteracting = useRef(false);
   const lastKnownBrightness = useRef<number>(50);
+  const brightnessSupportedRef = useRef(true);
+  const [brightnessSupported, setBrightnessSupported] = useState(true);
 
   // Update brightness from device
   const updateBrightnessFromDevice = async () => {
-    if (isTv || !Brightness || isUserInteracting.current) return;
+    // Check ref (not state) to avoid stale closure in setInterval
+    if (
+      isTv ||
+      !Brightness ||
+      isUserInteracting.current ||
+      !brightnessSupportedRef.current
+    )
+      return;
 
     try {
       const currentBrightness = await Brightness.getBrightnessAsync();
@@ -31,7 +40,10 @@ const BrightnessSlider = () => {
         lastKnownBrightness.current = brightnessPercent;
       }
     } catch (error) {
-      console.error("Error fetching brightness:", error);
+      console.warn("Brightness not supported on this device:", error);
+      // Update both ref (stops interval) and state (triggers re-render to hide)
+      brightnessSupportedRef.current = false;
+      setBrightnessSupported(false);
     }
   };
 
@@ -66,7 +78,7 @@ const BrightnessSlider = () => {
     }, 100);
   };
 
-  if (isTv) return null;
+  if (isTv || !brightnessSupported) return null;
 
   return (
     <View style={styles.sliderContainer}>

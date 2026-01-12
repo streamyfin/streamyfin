@@ -21,6 +21,8 @@ interface UserData {
   subtitleStreamIndex: number;
   /** The last known audio stream index. */
   audioStreamIndex: number;
+  /** Whether the downloaded file was transcoded (has only one audio track). */
+  isTranscoded: boolean;
 }
 
 /** Represents a segment of time in a media item, used for intro/credit skipping. */
@@ -142,4 +144,8 @@ export type JobStatus = {
   introSegments?: MediaTimeSegment[];
   /** Pre-downloaded credit segments (optional) - downloaded before video starts */
   creditSegments?: MediaTimeSegment[];
+  /** The audio stream index selected for this download */
+  audioStreamIndex?: number;
+  /** The subtitle stream index selected for this download */
+  subtitleStreamIndex?: number;
 };

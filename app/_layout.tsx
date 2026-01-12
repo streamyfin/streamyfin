@@ -13,6 +13,7 @@ import { GlobalModal } from "@/components/GlobalModal";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
+import { IntroSheetProvider } from "@/providers/IntroSheetProvider";
 import {
   apiAtom,
   getOrSetDeviceId,
@@ -21,6 +22,7 @@ import {
 import { MusicPlayerProvider } from "@/providers/MusicPlayerProvider";
 import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
+import { ServerUrlProvider } from "@/providers/ServerUrlProvider";
 import { WebSocketProvider } from "@/providers/WebSocketProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import {
@@ -46,7 +48,7 @@ import type {
   NotificationResponse,
 } from "expo-notifications/build/Notifications.types";
 import type { ExpoPushToken } from "expo-notifications/build/Tokens.types";
-import { router, Stack, useSegments } from "expo-router";
+import { Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
@@ -55,6 +57,7 @@ import { I18nextProvider } from "react-i18next";
 import { Appearance } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store } from "@/utils/store";
 import "react-native-reanimated";
@@ -79,14 +82,9 @@ SplashScreen.setOptions({
   fade: true,
 });
 
-function redirect(notification: typeof Notifications.Notification) {
-  const url = notification.request.content.data?.url;
-  if (url) {
-    router.push(url);
-  }
-}
-
 function useNotificationObserver() {
+  const router = useRouter();
+
   useEffect(() => {
     if (Platform.isTV) return;
 
@@ -97,14 +95,17 @@ function useNotificationObserver() {
         if (!isMounted || !response?.notification) {
           return;
         }
-        redirect(response?.notification);
+        const url = response?.notification.request.content.data?.url;
+        if (url) {
+          router.push(url);
+        }
       },
     );
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [router]);
 }
 
 if (!Platform.isTV) {
@@ -229,6 +230,7 @@ function Layout() {
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const _segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     i18n.changeLanguage(
@@ -321,9 +323,6 @@ function Layout() {
       responseListener.current =
         Notifications?.addNotificationResponseReceivedListener(
           (response: NotificationResponse) => {
-            // redirect if internal notification
-            redirect(response?.notification);
-
             // Currently the notifications supported by the plugin will send data for deep links.
             const { title, data } = response.notification.request.content;
             writeInfoLog(`Notification ${title} opened`, data);
@@ -383,75 +382,79 @@ function Layout() {
       }}
     >
       <JellyfinProvider>
-        <NetworkStatusProvider>
-          <PlaySettingsProvider>
-            <LogProvider>
-              <WebSocketProvider>
-                <DownloadProvider>
-                  <MusicPlayerProvider>
-                    <GlobalModalProvider>
-                      <BottomSheetModalProvider>
-                        <ThemeProvider value={DarkTheme}>
-                          <SystemBars style='light' hidden={false} />
-                          <Stack initialRouteName='(auth)/(tabs)'>
-                            <Stack.Screen
-                              name='(auth)/(tabs)'
-                              options={{
-                                headerShown: false,
-                                title: "",
-                                header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name='(auth)/player'
-                              options={{
-                                headerShown: false,
-                                title: "",
-                                header: () => null,
-                              }}
-                            />
-                            <Stack.Screen
-                              name='(auth)/now-playing'
-                              options={{
-                                headerShown: false,
-                                presentation: "modal",
-                                gestureEnabled: true,
-                              }}
-                            />
-                            <Stack.Screen
-                              name='login'
-                              options={{
-                                headerShown: true,
-                                title: "",
-                                headerTransparent: Platform.OS === "ios",
-                              }}
-                            />
-                            <Stack.Screen name='+not-found' />
-                          </Stack>
-                          <Toaster
-                            duration={4000}
-                            toastOptions={{
-                              style: {
-                                backgroundColor: "#262626",
-                                borderColor: "#363639",
-                                borderWidth: 1,
-                              },
-                              titleStyle: {
-                                color: "white",
-                              },
-                            }}
-                            closeButton
-                          />
-                          <GlobalModal />
-                        </ThemeProvider>
-                      </BottomSheetModalProvider>
-                    </GlobalModalProvider>
-                  </MusicPlayerProvider>
-                </DownloadProvider>
-              </WebSocketProvider>
-            </LogProvider>
-          </PlaySettingsProvider>
-        </NetworkStatusProvider>
+        <ServerUrlProvider>
+          <NetworkStatusProvider>
+            <PlaySettingsProvider>
+              <LogProvider>
+                <WebSocketProvider>
+                  <DownloadProvider>
+                    <MusicPlayerProvider>
+                      <GlobalModalProvider>
+                        <BottomSheetModalProvider>
+                          <IntroSheetProvider>
+                            <ThemeProvider value={DarkTheme}>
+                              <SystemBars style='light' hidden={false} />
+                              <Stack initialRouteName='(auth)/(tabs)'>
+                                <Stack.Screen
+                                  name='(auth)/(tabs)'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/player'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/now-playing'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "modal",
+                                    gestureEnabled: true,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='login'
+                                  options={{
+                                    headerShown: true,
+                                    title: "",
+                                    headerTransparent: Platform.OS === "ios",
+                                  }}
+                                />
+                                <Stack.Screen name='+not-found' />
+                              </Stack>
+                              <Toaster
+                                duration={4000}
+                                toastOptions={{
+                                  style: {
+                                    backgroundColor: "#262626",
+                                    borderColor: "#363639",
+                                    borderWidth: 1,
+                                  },
+                                  titleStyle: {
+                                    color: "white",
+                                  },
+                                }}
+                                closeButton
+                              />
+                              <GlobalModal />
+                            </ThemeProvider>
+                          </IntroSheetProvider>
+                        </BottomSheetModalProvider>
+                      </GlobalModalProvider>
+                    </MusicPlayerProvider>
+                  </DownloadProvider>
+                </WebSocketProvider>
+              </LogProvider>
+            </PlaySettingsProvider>
+          </NetworkStatusProvider>
+        </ServerUrlProvider>
       </JellyfinProvider>
     </PersistQueryClientProvider>
   );

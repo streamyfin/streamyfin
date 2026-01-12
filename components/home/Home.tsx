@@ -12,7 +12,7 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import { useNavigation, useRouter, useSegments } from "expo-router";
+import { useNavigation, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,9 +21,9 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -33,12 +33,16 @@ import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecom
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
+import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
+import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { storage } from "@/utils/mmkv";
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -48,6 +52,7 @@ type InfiniteScrollingCollectionListSection = {
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
   priority?: 1 | 2; // 1 = high priority (loads first), 2 = low priority
+  parentId?: string; // Library ID for "See All" navigation
 };
 
 type MediaListSectionType = {
@@ -79,6 +84,21 @@ export const Home = () => {
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
+  const { showIntro } = useIntroSheet();
+
+  // Show intro modal on first launch
+  useEffect(() => {
+    const hasShownIntro = storage.getBoolean("hasShownIntro");
+    if (!hasShownIntro) {
+      const timer = setTimeout(() => {
+        showIntro();
+      }, 1000);
+
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [showIntro]);
 
   useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
@@ -101,7 +121,7 @@ export const Home = () => {
     }
     navigation.setOptions({
       headerLeft: () => (
-        <TouchableOpacity
+        <Pressable
           onPress={() => {
             router.push("/(auth)/downloads");
           }}
@@ -113,7 +133,7 @@ export const Home = () => {
             color={hasDownloads ? Colors.primary : "white"}
             size={24}
           />
-        </TouchableOpacity>
+        </Pressable>
       ),
     });
   }, [navigation, router, hasDownloads]);
@@ -213,6 +233,7 @@ export const Home = () => {
       },
       type: "InfiniteScrollingCollectionList",
       pageSize,
+      parentId,
     }),
     [api, user?.Id],
   );
@@ -616,6 +637,18 @@ export const Home = () => {
             ) : null;
           if (section.type === "InfiniteScrollingCollectionList") {
             const isHighPriority = section.priority === 1;
+            const handleSeeAll = section.parentId
+              ? () => {
+                  router.push({
+                    pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+                    params: {
+                      libraryId: section.parentId!,
+                      sortBy: SortByOption.DateCreated,
+                      sortOrder: SortOrderOption.Descending,
+                    },
+                  } as any);
+                }
+              : undefined;
             return (
               <View key={index} className='flex flex-col space-y-4'>
                 <InfiniteScrollingCollectionList
@@ -631,6 +664,7 @@ export const Home = () => {
                       ? () => markSectionLoaded(section.queryKey)
                       : undefined
                   }
+                  onPressSeeAll={handleSeeAll}
                 />
                 {streamystatsSections}
               </View>

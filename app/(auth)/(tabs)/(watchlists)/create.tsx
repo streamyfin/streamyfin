@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -15,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { useCreateWatchlist } from "@/hooks/useWatchlistMutations";
 import type {
   StreamystatsWatchlistAllowedItemType,

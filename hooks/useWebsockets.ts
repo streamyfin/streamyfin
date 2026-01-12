@@ -1,7 +1,7 @@
-import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 
 interface UseWebSocketProps {

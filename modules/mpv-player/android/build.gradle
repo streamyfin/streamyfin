@@ -25,7 +25,7 @@ if (useManagedAndroidSdkVersions) {
   project.android {
     compileSdkVersion safeExtGet("compileSdkVersion", 36)
     defaultConfig {
-      minSdkVersion safeExtGet("minSdkVersion", 24)
+      minSdkVersion safeExtGet("minSdkVersion", 26)
       targetSdkVersion safeExtGet("targetSdkVersion", 36)
     }
   }
@@ -36,8 +36,22 @@ android {
   defaultConfig {
     versionCode 1
     versionName "0.7.6"
+    ndk {
+      // Architectures supported by mpv-android
+      abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+    }
   }
   lintOptions {
     abortOnError false
   }
+  sourceSets {
+    main {
+      jniLibs.srcDirs = ['libs']
+    }
+  }
+}
+
+dependencies {
+  // libmpv from Maven Central
+  implementation 'dev.jdtech.mpv:libmpv:0.5.1'
 }

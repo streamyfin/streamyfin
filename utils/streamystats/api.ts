@@ -38,6 +38,7 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
 
   const search = async (
     params: StreamystatsSearchParams,
+    signal?: AbortSignal,
   ): Promise<
     StreamystatsSearchIdsResponse | StreamystatsSearchFullResponse
   > => {
@@ -55,7 +56,7 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     }
 
     const url = `${baseUrl}/api/search?${queryParams.toString()}`;
-    const response = await axios.get(url, { headers });
+    const response = await axios.get(url, { headers, signal });
 
     return response.data;
   };
@@ -64,13 +65,17 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
     query: string,
     type?: StreamystatsSearchParams["type"],
     limit?: number,
+    signal?: AbortSignal,
   ): Promise<StreamystatsSearchIdsResponse> => {
-    return search({
-      q: query,
-      format: "ids",
-      type,
-      limit,
-    }) as Promise<StreamystatsSearchIdsResponse>;
+    return search(
+      {
+        q: query,
+        format: "ids",
+        type,
+        limit,
+      },
+      signal,
+    ) as Promise<StreamystatsSearchIdsResponse>;
   };
 
   const searchFull = async (

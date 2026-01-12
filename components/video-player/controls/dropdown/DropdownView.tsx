@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
@@ -7,9 +7,13 @@ import {
   type OptionGroup,
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
+import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
+import useRouter from "@/hooks/useAppRouter";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
+import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
 // Subtitle size presets (stored as scale * 100, so 1.0 = 100)
 const SUBTITLE_SIZE_PRESETS = [
@@ -23,13 +27,22 @@ const SUBTITLE_SIZE_PRESETS = [
   { label: "1.2", value: 120 },
 ] as const;
 
-const DropdownView = () => {
+interface DropdownViewProps {
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+}
+
+const DropdownView = ({
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
+}: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
-  const { item, mediaSource, useVlcPlayer } = usePlayerContext();
+  const { item, mediaSource } = usePlayerContext();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
+  const isOffline = useOfflineMode();
 
-  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
@@ -37,14 +50,11 @@ const DropdownView = () => {
       mediaSourceId: string;
       bitrateValue: string;
       playbackPosition: string;
-      offline: string;
     }>();
 
   // Use ref to track playbackPosition without causing re-renders
   const playbackPositionRef = useRef(playbackPosition);
   playbackPositionRef.current = playbackPosition;
-
-  const isOffline = offline === "true";
 
   // Stabilize IDs to prevent unnecessary recalculations
   const itemIdRef = useRef(item.Id);
@@ -110,19 +120,17 @@ const DropdownView = () => {
         })),
       });
 
-      // Subtitle Size Section (KSPlayer only - VLC uses settings)
-      if (!useVlcPlayer) {
-        groups.push({
-          title: "Subtitle Size",
-          options: SUBTITLE_SIZE_PRESETS.map((preset) => ({
-            type: "radio" as const,
-            label: preset.label,
-            value: preset.value.toString(),
-            selected: settings.subtitleSize === preset.value,
-            onPress: () => updateSettings({ subtitleSize: preset.value }),
-          })),
-        });
-      }
+      // Subtitle Size Section
+      groups.push({
+        title: "Subtitle Size",
+        options: SUBTITLE_SIZE_PRESETS.map((preset) => ({
+          type: "radio" as const,
+          label: preset.label,
+          value: preset.value.toString(),
+          selected: settings.subtitleSize === preset.value,
+          onPress: () => updateSettings({ subtitleSize: preset.value }),
+        })),
+      });
     }
 
     // Audio Section
@@ -139,6 +147,20 @@ const DropdownView = () => {
       });
     }
 
+    // Speed Section
+    if (setPlaybackSpeed) {
+      groups.push({
+        title: "Speed",
+        options: PLAYBACK_SPEEDS.map((speed) => ({
+          type: "radio" as const,
+          label: speed.label,
+          value: speed.value.toString(),
+          selected: playbackSpeed === speed.value,
+          onPress: () => setPlaybackSpeed(speed.value, PlaybackSpeedScope.All),
+        })),
+      });
+    }
+
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -151,7 +173,8 @@ const DropdownView = () => {
     audioIndex,
     settings.subtitleSize,
     updateSettings,
-    useVlcPlayer,
+    playbackSpeed,
+    setPlaybackSpeed,
     // Note: subtitleTracks and audioTracks are intentionally excluded
     // because we use subtitleTracksKey and audioTracksKey for stability
   ]);

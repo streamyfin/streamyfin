@@ -67,7 +67,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   }, [showActionSheetWithOptions, handleDeleteFile]);
 
   return (
-    <TouchableItemRouter onLongPress={showActionSheet} item={item} isOffline>
+    <TouchableItemRouter onLongPress={showActionSheet} item={item}>
       {base64Image ? (
         <View className='relative w-28 aspect-[10/15] rounded-lg overflow-hidden mr-2 border border-neutral-900'>
           <Image

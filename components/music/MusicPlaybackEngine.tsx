@@ -7,7 +7,11 @@ import TrackPlayer, {
   usePlaybackState,
   useProgress,
 } from "react-native-track-player";
-import { audioStorageEvents, getLocalPath } from "@/providers/AudioStorage";
+import {
+  audioStorageEvents,
+  deleteTrack,
+  getLocalPath,
+} from "@/providers/AudioStorage";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
 export const MusicPlaybackEngine: React.FC = () => {
@@ -166,6 +170,51 @@ export const MusicPlaybackEngine: React.FC = () => {
     return () => {
       audioStorageEvents.off("complete", onComplete);
     };
+  }, []);
+
+  // Listen for playback errors (corrupted cache files)
+  useEffect(() => {
+    const subscription = TrackPlayer.addEventListener(
+      Event.PlaybackError,
+      async (event) => {
+        const activeTrack = await TrackPlayer.getActiveTrack();
+        if (!activeTrack?.url) return;
+
+        // Only handle local file errors
+        const url = activeTrack.url as string;
+        if (!url.startsWith("file://")) return;
+
+        console.warn(
+          `[MusicPlayer] Playback error for cached file: ${activeTrack.id}`,
+          event,
+        );
+
+        // Delete corrupted cache file
+        if (activeTrack.id) {
+          try {
+            await deleteTrack(activeTrack.id);
+            console.log(
+              `[MusicPlayer] Deleted corrupted cache file: ${activeTrack.id}`,
+            );
+          } catch (error) {
+            console.warn(
+              "[MusicPlayer] Failed to delete corrupted file:",
+              error,
+            );
+          }
+        }
+
+        // Skip to next track
+        try {
+          await TrackPlayer.skipToNext();
+        } catch {
+          // No next track available, stop playback
+          await TrackPlayer.stop();
+        }
+      },
+    );
+
+    return () => subscription.remove();
   }, []);
 
   // No visual component needed - TrackPlayer is headless

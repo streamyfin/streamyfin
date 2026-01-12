@@ -6,7 +6,6 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useRouter } from "expo-router";
 import React, {
   forwardRef,
   useCallback,
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import {
   useAddToWatchlist,
   useRemoveFromWatchlist,

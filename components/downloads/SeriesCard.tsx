@@ -2,11 +2,11 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { router } from "expo-router";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
+import useRouter from "@/hooks/useAppRouter";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { Text } from "../common/Text";
@@ -14,6 +14,7 @@ import { Text } from "../common/Text";
 export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
   const { deleteItems } = useDownload();
   const { showActionSheetWithOptions } = useActionSheet();
+  const router = useRouter();
 
   const base64Image = useMemo(() => {
     return storage.getString(items[0].SeriesId!);
@@ -46,7 +47,12 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
 
   return (
     <TouchableOpacity
-      onPress={() => router.push(`/downloads/${items[0].SeriesId}`)}
+      onPress={() =>
+        router.push({
+          pathname: "/series/[id]",
+          params: { id: items[0].SeriesId!, offline: "true" },
+        })
+      }
       onLongPress={showActionSheet}
     >
       {base64Image ? (

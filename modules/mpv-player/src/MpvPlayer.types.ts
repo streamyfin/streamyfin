@@ -86,6 +86,9 @@ export interface MpvPlayerViewRef {
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;
   getCurrentAudioTrack: () => Promise<number>;
+  // Video scaling
+  setZoomedToFill: (zoomed: boolean) => Promise<void>;
+  isZoomedToFill: () => Promise<boolean>;
 }
 
 export type SubtitleTrack = {
