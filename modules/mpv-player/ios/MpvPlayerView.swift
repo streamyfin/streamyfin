@@ -282,6 +282,12 @@ class MpvPlayerView: ExpoView {
 		return _isZoomedToFill
 	}
 
+	// MARK: - Technical Info
+
+	func getTechnicalInfo() -> [String: Any] {
+		return renderer?.getTechnicalInfo() ?? [:]
+	}
+
 	deinit {
 		pipController?.stopPictureInPicture()
 		renderer?.stop()
