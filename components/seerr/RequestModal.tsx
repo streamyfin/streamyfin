@@ -372,32 +372,35 @@ const RequestModal = forwardRef<
                     />
                   </View>
 
-                  <View className='flex flex-col'>
-                    <Text className='opacity-50 mb-1 text-xs'>
-                      {t("seerr.tags")}
-                    </Text>
-                    <PlatformDropdown
-                      groups={tagsOptions}
-                      trigger={
-                        <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
-                          <Text numberOfLines={1}>
-                            {requestOverrides.tags
-                              ? defaultServiceDetails.tags
-                                  .filter((t) =>
-                                    requestOverrides.tags!.includes(t.id),
-                                  )
-                                  .map((t) => t.label)
-                                  .join(", ") ||
-                                defaultTags.map((t) => t.label).join(", ")
-                              : defaultTags.map((t) => t.label).join(", ")}
-                          </Text>
-                        </View>
-                      }
-                      title={t("seerr.tags")}
-                      open={tagsOpen}
-                      onOpenChange={setTagsOpen}
-                    />
-                  </View>
+                  {defaultServiceDetails?.tags &&
+                    defaultServiceDetails.tags.length > 0 && (
+                      <View className='flex flex-col'>
+                        <Text className='opacity-50 mb-1 text-xs'>
+                          {t("seerr.tags")}
+                        </Text>
+                        <PlatformDropdown
+                          groups={tagsOptions}
+                          trigger={
+                            <View className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'>
+                              <Text numberOfLines={1}>
+                                {requestOverrides.tags
+                                  ? defaultServiceDetails.tags
+                                      .filter((t) =>
+                                        requestOverrides.tags!.includes(t.id),
+                                      )
+                                      .map((t) => t.label)
+                                      .join(", ") ||
+                                    defaultTags.map((t) => t.label).join(", ")
+                                  : defaultTags.map((t) => t.label).join(", ")}
+                              </Text>
+                            </View>
+                          }
+                          title={t("seerr.tags")}
+                          open={tagsOpen}
+                          onOpenChange={setTagsOpen}
+                        />
+                      </View>
+                    )}
 
                   <View className='flex flex-col'>
                     <Text className='opacity-50 mb-1 text-xs'>
