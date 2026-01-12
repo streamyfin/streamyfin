@@ -77,7 +77,7 @@
     "checking_server_connection": "Checking server connection...",
     "no_internet": "No Internet",
     "no_items": "No Items",
-    "no_internet_message": "No worries, you can still watch\nDownloaded content.",
+    "no_internet_message": "No worries, you can still watch\ndownloaded content.",
     "checking_server_connection_message": "Checking connection to server",
     "go_to_downloads": "Go to Downloads",
     "retry": "Retry",
@@ -493,7 +493,7 @@
   },
   "common": {
     "select": "Select",
-    "no_trailer_available": "No Trailer Available",
+    "no_trailer_available": "No trailer available",
     "video": "Video",
     "audio": "Audio",
     "subtitle": "Subtitle",
