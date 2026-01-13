@@ -173,6 +173,11 @@ public class MpvPlayerModule: Module {
         return view.isZoomedToFill()
       }
 
+      // Technical info function
+      AsyncFunction("getTechnicalInfo") { (view: MpvPlayerView) -> [String: Any] in
+        return view.getTechnicalInfo()
+      }
+
       // Defines events that the view can send to JavaScript
       Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
     }
