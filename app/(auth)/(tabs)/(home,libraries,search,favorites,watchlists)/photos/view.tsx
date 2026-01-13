@@ -154,11 +154,7 @@ const PhotoViewPage: React.FC = () => {
       // Create a wrapper for the delayed opacity reset
       const resetOpacity = () => {
         setTimeout(() => {
-          const updateOpacity = () => {
-            "worklet";
-            imageOpacity.value = withTiming(1, { duration: 300 });
-          };
-          updateOpacity();
+          imageOpacity.value = withTiming(1, { duration: 300 });
         }, 50);
       };
 
