@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: 🗑️ Free Disk Space
-        uses: BRAINSia/free-disk-space@7ef2f7e6e6aa89dfdaad451010369aee8e636094 # v2.0.0
+        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
         with:
           tool-cache: false
           mandb: true
@@ -104,7 +104,7 @@ jobs:
 
     steps:
       - name: 🗑️ Free Disk Space
-        uses: BRAINSia/free-disk-space@7ef2f7e6e6aa89dfdaad451010369aee8e636094 # v2.0.0
+        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
         with:
           tool-cache: false
           mandb: true
