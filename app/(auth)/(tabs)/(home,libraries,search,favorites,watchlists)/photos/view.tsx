@@ -357,8 +357,6 @@ const PhotoViewPage: React.FC = () => {
                 contentFit='contain'
                 contentPosition='center'
                 transition={300}
-                //onLoad={() => console.log("Image loaded successfully")}
-                //onError={(error) => console.log("Image loading error:", error)}
                 cachePolicy='disk' // Use disk caching for better performance
                 recyclingKey={id} // Use id to force reload when image changes
               />
