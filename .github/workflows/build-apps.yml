@@ -20,6 +20,18 @@ jobs:
       contents: read
 
     steps:
+      - name: 🗑️ Free Disk Space
+        uses: BRAINSia/free-disk-space@f9f59b0ef974ff4b873aa243ce5278ab644eedc6 # v2.0.0
+        with:
+          tool-cache: false
+          mandb: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
       - name: 📥 Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -91,6 +103,18 @@ jobs:
       contents: read
 
     steps:
+      - name: 🗑️ Free Disk Space
+        uses: BRAINSia/free-disk-space@f9f59b0ef974ff4b873aa243ce5278ab644eedc6 # v2.0.0
+        with:
+          tool-cache: false
+          mandb: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
       - name: 📥 Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -194,7 +218,7 @@ jobs:
       - name: 🔧 Setup Xcode
         uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
         with:
-          xcode-version: "26.0.1"
+          xcode-version: "26.2"
 
       - name: 🏗️ Setup EAS
         uses: expo/expo-github-action@main
@@ -202,9 +226,6 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           eas-cache: true
-
-      - name: ⚙️ Ensure iOS SDKs installed
-        run: xcodebuild -downloadPlatform iOS
 
       - name: 🚀 Build iOS app
         env:
@@ -219,6 +240,63 @@ jobs:
         with:
           name: streamyfin-ios-phone-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
+          retention-days: 7
+
+  build-ios-phone-unsigned:
+    if: (!contains(github.event.head_commit.message, '[skip ci]'))
+    runs-on: macos-26
+    name: 🍎 Build iOS IPA (Phone - Unsigned)
+    permissions:
+      contents: read
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version: latest
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-cache
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild
+
+      - name: 🔧 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
+        with:
+          xcode-version: "26.2"
+
+      - name: 🚀 Build iOS app
+        env:
+          EXPO_TV: 0
+        run: bun run ios:unsigned-build ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: streamyfin-ios-phone-unsigned-ipa-${{ env.DATE_TAG }}
+          path: build/*.ipa
           retention-days: 7
 
   # Disabled for now - uncomment when ready to build iOS TV
@@ -270,9 +348,6 @@ jobs:
   #         eas-version: latest
   #         token: ${{ secrets.EXPO_TOKEN }}
   #         eas-cache: true
-  #
-  #     - name: ⚙️ Ensure tvOS SDKs installed
-  #       run: xcodebuild -downloadPlatform tvOS
   #
   #     - name: 🚀 Build iOS app
   #       env:
