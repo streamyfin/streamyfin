@@ -5,6 +5,13 @@ import { View, type ViewProps } from "react-native";
 import { ItemImage } from "../common/ItemImage";
 import { WatchedIndicator } from "../WatchedIndicator";
 
+// Icon configuration for item types with badge overlays
+const ITEM_TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Folder: "folder",
+  PhotoAlbum: "images",
+  Photo: "image",
+};
+
 interface Props extends ViewProps {
   item: BaseItemDto;
   showProgress?: boolean;
@@ -39,7 +46,9 @@ export const ItemPoster: React.FC<Props> = ({
       </View>
     );
 
-  if (item.Type === "Folder") {
+  // Handle Folder, PhotoAlbum, and Photo types with icon badge
+  const iconName = item.Type ? ITEM_TYPE_ICONS[item.Type] : undefined;
+  if (iconName) {
     return (
       <View
         className='relative rounded-lg overflow-hidden border border-neutral-900'
@@ -47,35 +56,7 @@ export const ItemPoster: React.FC<Props> = ({
       >
         <ItemImage className='w-full aspect-square' item={item} />
         <View className='absolute top-2 right-2 bg-neutral-800/80 rounded-full p-1'>
-          <Ionicons name='folder' size={20} color='white' />
-        </View>
-      </View>
-    );
-  }
-
-  if (item.Type === "PhotoAlbum") {
-    return (
-      <View
-        className='relative rounded-lg overflow-hidden border border-neutral-900'
-        {...props}
-      >
-        <ItemImage className='w-full aspect-square' item={item} />
-        <View className='absolute top-2 right-2 bg-neutral-800/80 rounded-full p-1'>
-          <Ionicons name='images' size={20} color='white' />
-        </View>
-      </View>
-    );
-  }
-
-  if (item.Type === "Photo") {
-    return (
-      <View
-        className='relative rounded-lg overflow-hidden border border-neutral-900'
-        {...props}
-      >
-        <ItemImage className='w-full aspect-square' item={item} />
-        <View className='absolute top-2 right-2 bg-neutral-800/80 rounded-full p-1'>
-          <Ionicons name='image' size={20} color='white' />
+          <Ionicons name={iconName} size={20} color='white' />
         </View>
       </View>
     );
