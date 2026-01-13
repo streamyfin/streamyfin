@@ -330,6 +330,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         return _isZoomedToFill
     }
 
+    // MARK: - Technical Info
+
+    fun getTechnicalInfo(): Map<String, Any> {
+        return renderer?.getTechnicalInfo() ?: emptyMap()
+    }
+
     // MARK: - MPVLayerRenderer.Delegate
     
     override fun onPositionChanged(position: Double, duration: Double) {

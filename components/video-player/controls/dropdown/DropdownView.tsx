@@ -30,11 +30,15 @@ const SUBTITLE_SIZE_PRESETS = [
 interface DropdownViewProps {
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  showTechnicalInfo?: boolean;
+  onToggleTechnicalInfo?: () => void;
 }
 
 const DropdownView = ({
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  showTechnicalInfo = false,
+  onToggleTechnicalInfo,
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
@@ -161,6 +165,21 @@ const DropdownView = ({
       });
     }
 
+    // Technical Info (at bottom)
+    if (onToggleTechnicalInfo) {
+      groups.push({
+        options: [
+          {
+            type: "action" as const,
+            label: showTechnicalInfo
+              ? "Hide Technical Info"
+              : "Show Technical Info",
+            onPress: onToggleTechnicalInfo,
+          },
+        ],
+      });
+    }
+
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -175,6 +194,8 @@ const DropdownView = ({
     updateSettings,
     playbackSpeed,
     setPlaybackSpeed,
+    showTechnicalInfo,
+    onToggleTechnicalInfo,
     // Note: subtitleTracks and audioTracks are intentionally excluded
     // because we use subtitleTracksKey and audioTracksKey for stability
   ]);
