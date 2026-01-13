@@ -199,7 +199,6 @@ const Page = () => {
     }): Promise<BaseItemDtoQueryResult | null> => {
       if (!api || !library) return null;
 
-      let _itemType: BaseItemKind | undefined;
       let itemTypes = [] as BaseItemKind[];
       let recursive = true;
       let customSortBy = [] as SortByOption[];
