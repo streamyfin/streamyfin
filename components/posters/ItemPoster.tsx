@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useState } from "react";
 import { View, type ViewProps } from "react-native";
@@ -37,6 +38,48 @@ export const ItemPoster: React.FC<Props> = ({
         )}
       </View>
     );
+
+  if (item.Type === "Folder") {
+    return (
+      <View
+        className='relative rounded-lg overflow-hidden border border-neutral-900'
+        {...props}
+      >
+        <ItemImage className='w-full aspect-square' item={item} />
+        <View className='absolute top-2 right-2 bg-neutral-800/80 rounded-full p-1'>
+          <Ionicons name='folder' size={20} color='white' />
+        </View>
+      </View>
+    );
+  }
+
+  if (item.Type === "PhotoAlbum") {
+    return (
+      <View
+        className='relative rounded-lg overflow-hidden border border-neutral-900'
+        {...props}
+      >
+        <ItemImage className='w-full aspect-square' item={item} />
+        <View className='absolute top-2 right-2 bg-neutral-800/80 rounded-full p-1'>
+          <Ionicons name='images' size={20} color='white' />
+        </View>
+      </View>
+    );
+  }
+
+  if (item.Type === "Photo") {
+    return (
+      <View
+        className='relative rounded-lg overflow-hidden border border-neutral-900'
+        {...props}
+      >
+        <ItemImage className='w-full aspect-square' item={item} />
+        <View className='absolute top-2 right-2 bg-neutral-800/80 rounded-full p-1'>
+          <Ionicons name='image' size={20} color='white' />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View

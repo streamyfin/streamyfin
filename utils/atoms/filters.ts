@@ -19,6 +19,7 @@ export enum SortByOption {
   AirTime = "AirTime",
   Studio = "Studio",
   Random = "Random",
+  IsFolder = "IsFolder",
 }
 export enum FilterByOption {
   IsFavoriteOrLiked = "IsFavoriteOrLiked",
