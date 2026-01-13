@@ -363,7 +363,13 @@ const PhotoViewPage: React.FC = () => {
         </Animated.View>
       </GestureDetector>
 
-      <Animated.View style={[styles.infoContainer, infoContainerStyle]}>
+      <Animated.View
+        style={[
+          styles.infoContainer,
+          { paddingBottom: 75 + insets.bottom },
+          infoContainerStyle,
+        ]}
+      >
         <Text style={styles.title}>{item.Name}</Text>
 
         {item.PremiereDate && (
