@@ -49,13 +49,6 @@ export const getPhotoImageUrl = ({
     params.append("tag", imageTag);
   }
 
-  // For photos, use the secure Images endpoint
-  if (item.Type === "Photo") {
-    // Use the Images/Primary endpoint which supports session-based authentication
-    // This avoids exposing the API key in the URL
-    return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Images/Primary?${params.toString()}`;
-  }
-
-  // Fallback to standard Images/Primary endpoint
+  // Return Images/Primary endpoint for the item
   return `${api.basePath}/Items/${encodeURIComponent(item.Id ?? "")}/Images/Primary?${params.toString()}`;
 };
