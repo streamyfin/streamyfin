@@ -24,6 +24,19 @@ import { Text } from "@/components/common/Text";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getPhotoImageUrl } from "@/utils/jellyfin/image/getPhotoImageUrl";
 
+/**
+ * Full-screen photo viewer for a Jellyfin library item.
+ *
+ * This screen:
+ * - Fetches a `BaseItemDto` by route parameter `id` and renders its image.
+ * - Supports pinch-to-zoom and panning via `react-native-gesture-handler`.
+ * - Uses `react-native-reanimated` shared values for smooth, UI-thread gestures.
+ * - Animates image transitions and toggles UI chrome (header / controls) visibility.
+ * - Integrates with Expo Router to update the navigation title from the item name.
+ *
+ * Route params:
+ * - `id`: Jellyfin item identifier whose primary photo is displayed.
+ */
 const PhotoViewPage: React.FC = () => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
