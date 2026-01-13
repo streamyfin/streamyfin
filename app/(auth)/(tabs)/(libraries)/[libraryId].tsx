@@ -242,7 +242,7 @@ const Page = () => {
         genres: selectedGenres,
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year, 10)),
-        includeItemTypes: itemTypes ? itemTypes : undefined,
+        includeItemTypes: itemTypes.length > 0 ? itemTypes : undefined,
       });
 
       return response.data || null;
