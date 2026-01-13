@@ -21,6 +21,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
+import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -36,6 +37,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
@@ -64,6 +66,12 @@ interface Props {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  // Technical info props
+  showTechnicalInfo?: boolean;
+  onToggleTechnicalInfo?: () => void;
+  getTechnicalInfo?: () => Promise<TechnicalInfo>;
+  playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
+  transcodeReasons?: string[];
 }
 
 export const Controls: FC<Props> = ({
@@ -88,6 +96,11 @@ export const Controls: FC<Props> = ({
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  showTechnicalInfo = false,
+  onToggleTechnicalInfo,
+  getTechnicalInfo,
+  playMethod,
+  transcodeReasons,
 }) => {
   const offline = useOfflineMode();
   const { settings, updateSettings } = useSettings();
@@ -460,6 +473,16 @@ export const Controls: FC<Props> = ({
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
           />
+          {/* Technical Info Overlay - rendered outside animated views to stay visible */}
+          {getTechnicalInfo && (
+            <TechnicalInfoOverlay
+              showControls={showControls}
+              visible={showTechnicalInfo}
+              getTechnicalInfo={getTechnicalInfo}
+              playMethod={playMethod}
+              transcodeReasons={transcodeReasons}
+            />
+          )}
           <Animated.View
             style={headerAnimatedStyle}
             pointerEvents={showControls ? "auto" : "none"}
@@ -480,6 +503,8 @@ export const Controls: FC<Props> = ({
               onZoomToggle={onZoomToggle}
               playbackSpeed={playbackSpeed}
               setPlaybackSpeed={setPlaybackSpeed}
+              showTechnicalInfo={showTechnicalInfo}
+              onToggleTechnicalInfo={onToggleTechnicalInfo}
             />
           </Animated.View>
           <Animated.View

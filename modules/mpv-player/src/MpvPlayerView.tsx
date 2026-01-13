@@ -101,6 +101,10 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       isZoomedToFill: async () => {
         return await nativeRef.current?.isZoomedToFill();
       },
+      // Technical info
+      getTechnicalInfo: async () => {
+        return await nativeRef.current?.getTechnicalInfo();
+      },
     }));
 
     return <NativeView ref={nativeRef} {...props} />;
