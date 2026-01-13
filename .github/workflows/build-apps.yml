@@ -203,9 +203,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
           eas-cache: true
 
-      - name: ⚙️ Ensure iOS SDKs installed
-        run: xcodebuild -downloadPlatform iOS
-
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
@@ -271,8 +268,6 @@ jobs:
   #         token: ${{ secrets.EXPO_TOKEN }}
   #         eas-cache: true
   #
-  #     - name: ⚙️ Ensure tvOS SDKs installed
-  #       run: xcodebuild -downloadPlatform tvOS
   #
   #     - name: 🚀 Build iOS app
   #       env:
