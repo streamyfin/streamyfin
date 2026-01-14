@@ -11,6 +11,37 @@ import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
 
+/**
+ * Factory function to create skip options for a specific segment type
+ * Reduces code duplication across all 5 segment types
+ */
+const useSkipOptions = (
+  settingKey:
+    | "skipIntro"
+    | "skipOutro"
+    | "skipRecap"
+    | "skipCommercial"
+    | "skipPreview",
+  settings: ReturnType<typeof useSettings>["settings"],
+  updateSettings: ReturnType<typeof useSettings>["updateSettings"],
+  t: TFunction<"translation", undefined>,
+) => {
+  return useMemo(
+    () => [
+      {
+        options: SEGMENT_SKIP_OPTIONS(t).map((option) => ({
+          type: "radio" as const,
+          label: option.label,
+          value: option.value,
+          selected: option.value === settings[settingKey],
+          onPress: () => updateSettings({ [settingKey]: option.value }),
+        })),
+      },
+    ],
+    [settings[settingKey], updateSettings, t, settingKey],
+  );
+};
+
 export default function SegmentSkipPage() {
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { t } = useTranslation();
@@ -22,79 +53,35 @@ export default function SegmentSkipPage() {
     });
   }, [navigation, t]);
 
-  const skipIntroOptions = useMemo(
-    () => [
-      {
-        options: SEGMENT_SKIP_OPTIONS(t).map((option) => ({
-          type: "radio" as const,
-          label: option.label,
-          value: option.value,
-          selected: option.value === settings.skipIntro,
-          onPress: () => updateSettings({ skipIntro: option.value }),
-        })),
-      },
-    ],
-    [settings.skipIntro, updateSettings, t],
+  const skipIntroOptions = useSkipOptions(
+    "skipIntro",
+    settings,
+    updateSettings,
+    t,
   );
-
-  const skipOutroOptions = useMemo(
-    () => [
-      {
-        options: SEGMENT_SKIP_OPTIONS(t).map((option) => ({
-          type: "radio" as const,
-          label: option.label,
-          value: option.value,
-          selected: option.value === settings.skipOutro,
-          onPress: () => updateSettings({ skipOutro: option.value }),
-        })),
-      },
-    ],
-    [settings.skipOutro, updateSettings, t],
+  const skipOutroOptions = useSkipOptions(
+    "skipOutro",
+    settings,
+    updateSettings,
+    t,
   );
-
-  const skipRecapOptions = useMemo(
-    () => [
-      {
-        options: SEGMENT_SKIP_OPTIONS(t).map((option) => ({
-          type: "radio" as const,
-          label: option.label,
-          value: option.value,
-          selected: option.value === settings.skipRecap,
-          onPress: () => updateSettings({ skipRecap: option.value }),
-        })),
-      },
-    ],
-    [settings.skipRecap, updateSettings, t],
+  const skipRecapOptions = useSkipOptions(
+    "skipRecap",
+    settings,
+    updateSettings,
+    t,
   );
-
-  const skipCommercialOptions = useMemo(
-    () => [
-      {
-        options: SEGMENT_SKIP_OPTIONS(t).map((option) => ({
-          type: "radio" as const,
-          label: option.label,
-          value: option.value,
-          selected: option.value === settings.skipCommercial,
-          onPress: () => updateSettings({ skipCommercial: option.value }),
-        })),
-      },
-    ],
-    [settings.skipCommercial, updateSettings, t],
+  const skipCommercialOptions = useSkipOptions(
+    "skipCommercial",
+    settings,
+    updateSettings,
+    t,
   );
-
-  const skipPreviewOptions = useMemo(
-    () => [
-      {
-        options: SEGMENT_SKIP_OPTIONS(t).map((option) => ({
-          type: "radio" as const,
-          label: option.label,
-          value: option.value,
-          selected: option.value === settings.skipPreview,
-          onPress: () => updateSettings({ skipPreview: option.value }),
-        })),
-      },
-    ],
-    [settings.skipPreview, updateSettings, t],
+  const skipPreviewOptions = useSkipOptions(
+    "skipPreview",
+    settings,
+    updateSettings,
+    t,
   );
 
   if (!settings) return null;
