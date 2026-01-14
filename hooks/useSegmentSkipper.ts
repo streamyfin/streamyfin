@@ -53,14 +53,6 @@ export const useSegmentSkipper = ({
     }
   })();
 
-  // Memoize the seek wrapper to prevent cascading useEffect triggers
-  const wrappedSeek = useCallback(
-    (time: number) => {
-      seek(time);
-    },
-    [seek],
-  );
-
   // Find current segment
   const currentSegment =
     segments.find(
@@ -76,9 +68,9 @@ export const useSegmentSkipper = ({
       // For Outro segments, prevent seeking past the end
       if (segmentType === "Outro" && totalDuration) {
         const seekTime = Math.min(currentSegment.endTime, totalDuration);
-        wrappedSeek(seekTime);
+        seek(seekTime);
       } else {
-        wrappedSeek(currentSegment.endTime);
+        seek(currentSegment.endTime);
       }
 
       // Only trigger haptic feedback if explicitly requested (manual skip)
@@ -86,7 +78,7 @@ export const useSegmentSkipper = ({
         haptic();
       }
     },
-    [currentSegment, segmentType, totalDuration, wrappedSeek, haptic],
+    [segmentType, totalDuration, seek, haptic],
   );
 
   // Auto-skip logic when mode is 'auto'
