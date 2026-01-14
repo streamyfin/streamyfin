@@ -111,12 +111,27 @@ export type TestResult =
       isValid: false;
     };
 
+/**
+ * Normalizes a URL by ensuring it has a protocol prefix (https:// or http://)
+ * @param url - The URL to normalize
+ * @returns The normalized URL with protocol prefix
+ */
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, ""); // Remove trailing slashes
+  if (trimmed.match(/^https?:\/\//i)) {
+    return trimmed;
+  }
+  // Default to https if no protocol is specified
+  return `https://${trimmed}`;
+}
+
 export class SeerrApi {
   axios: AxiosInstance;
 
   constructor(baseUrl: string) {
+    const normalizedUrl = normalizeUrl(baseUrl);
     this.axios = axios.create({
-      baseURL: baseUrl,
+      baseURL: normalizedUrl,
       withCredentials: true,
       withXSRFToken: true,
       xsrfHeaderName: "XSRF-TOKEN",
