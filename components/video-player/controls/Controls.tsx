@@ -313,9 +313,12 @@ export const Controls: FC<Props> = ({
   const maxSeconds = maxMs ? msToSeconds(maxMs) : undefined;
 
   // Wrapper to convert segment skip from seconds to milliseconds
+  // Includes 200ms delay to allow seek operation to complete before resuming playback
   const seekMs = useCallback(
     (timeInSeconds: number) => {
       seek(timeInSeconds * 1000);
+      // Brief delay ensures the seek operation completes before resuming playback
+      // Without this, playback may resume from the old position
       setTimeout(() => {
         play();
       }, 200);
