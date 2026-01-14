@@ -417,6 +417,7 @@ export const Controls: FC<Props> = ({
   const skipButtonText = activeSegment
     ? t(`player.skip_${activeSegment.type.toLowerCase()}`)
     : t("player.skip_intro");
+  const skipCreditButtonText = t("player.skip_outro");
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -632,6 +633,7 @@ export const Controls: FC<Props> = ({
               showSkipButton={showSkipButton}
               skipButtonText={skipButtonText}
               showSkipCreditButton={showSkipCreditButton}
+              skipCreditButtonText={skipCreditButtonText}
               hasContentAfterCredits={hasContentAfterCredits}
               skipIntro={skipIntro}
               skipCredit={skipCredit}
