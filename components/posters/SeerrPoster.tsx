@@ -170,7 +170,7 @@ const SeerrPoster: React.FC<Props> = ({
                 className='absolute right-1 top-1 text-right bg-black border border-neutral-800/50'
                 text={mediaRequest?.requestedBy.displayName}
               />
-              {requestedSeasons.length > 0 && (
+              {(requestedSeasons?.length ?? 0) > 0 && (
                 <Tags
                   className='absolute bottom-1 left-0.5 w-32'
                   tagProps={{

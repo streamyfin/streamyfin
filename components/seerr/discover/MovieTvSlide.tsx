@@ -64,7 +64,7 @@ const MovieTvSlide: React.FC<SlideProps & ViewProps> = ({
           .flatMap((p) => p?.results.filter((r) => isSeerrMovieOrTvResult(r))),
         "id",
       ),
-    [data],
+    [data, isSeerrMovieOrTvResult],
   );
 
   return (

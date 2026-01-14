@@ -23,7 +23,6 @@ const Discover: React.FC<Props> = ({ sliders }) => {
       sortBy(
         (sliders ?? []).filter((s) => s.enabled),
         "order",
-        "asc",
       ),
     [sliders],
   );

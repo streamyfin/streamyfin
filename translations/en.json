@@ -719,7 +719,7 @@
     "requested_by": "Requested by {{user}}",
     "unknown_user": "Unknown User",
     "toasts": {
-      "seer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "seerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "seerr_test_failed": "Seerr test failed. Please try again.",
       "failed_to_test_seerr_server_url": "Failed to test Seerr server URL",
       "issue_submitted": "Issue Submitted!",

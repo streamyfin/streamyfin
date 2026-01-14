@@ -20,7 +20,7 @@ export default function GenrePage() {
   };
 
   const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
-    queryKey: ["seerr", "company", type, genreId],
+    queryKey: ["seerr", "genre", type, genreId],
     queryFn: async ({ pageParam }) => {
       const params: any = {
         page: Number(pageParam),

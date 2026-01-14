@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Streamyfin is a cross-platform Jellyfin video streaming client built with Expo (React Native). It supports mobile (iOS/Android) and TV platforms, with features including offline downloads, Chromecast support, and Jellyseerr integration.
+Streamyfin is a cross-platform Jellyfin video streaming client built with Expo (React Native). It supports mobile (iOS/Android) and TV platforms, with features including offline downloads, Chromecast support, and Seerr integration.
 
 ## Development Commands
 

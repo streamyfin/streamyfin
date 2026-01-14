@@ -14,10 +14,7 @@ export interface SlideProps {
 
 interface Props<T> extends SlideProps {
   data: T[];
-  renderItem: (
-    item: T,
-    index: number,
-  ) => React.ComponentType<any> | React.ReactElement | null | undefined;
+  renderItem: (item: T, index: number) => React.ReactElement | null;
   keyExtractor: (item: T) => string;
   onEndReached?: (() => void) | null | undefined;
 }

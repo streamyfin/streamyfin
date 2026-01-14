@@ -40,6 +40,8 @@ const PersonPoster: React.FC<Props & ViewProps> = ({
         </View>
       </TouchableOpacity>
     );
+
+  return null;
 };
 
 export default PersonPoster;

@@ -23,9 +23,8 @@ const GenreSlide: React.FC<SlideProps & ViewProps> = ({ slide, ...props }) => {
         pathname: `/(auth)/(tabs)/${from}/seerr/genre/${genre.id}` as any,
         params: { type: slide.type, name: genre.name },
       }),
-    [slide],
+    [router, from, slide.type],
   );
-
   const { data } = useQuery({
     queryKey: ["seerr", "discover", slide.type, slide.id],
     queryFn: async () => {

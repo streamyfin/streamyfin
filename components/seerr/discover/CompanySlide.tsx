@@ -26,7 +26,7 @@ const CompanySlide: React.FC<
         pathname: `/(auth)/(tabs)/${from}/seerr/company/${id}` as any,
         params: { id, image, name, type: slide.type },
       }),
-    [slide],
+    [router, from, slide.type],
   );
 
   return (

@@ -20,12 +20,13 @@ const CastSlide: React.FC<
           horizontal
           showsHorizontalScrollIndicator={false}
           data={details?.credits.cast}
+          estimatedItemSize={112}
           ItemSeparatorComponent={() => <View className='w-2' />}
-          keyExtractor={(item) => item?.id?.toString()}
+          keyExtractor={(item) => item?.id?.toString() ?? ""}
           contentContainerStyle={{ paddingHorizontal: 16 }}
           renderItem={({ item }) => (
             <PersonPoster
-              id={item.id.toString()}
+              id={item?.id?.toString() ?? ""}
               posterPath={item.profilePath}
               name={item.name}
               subName={item.character}

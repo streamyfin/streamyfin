@@ -38,7 +38,16 @@ const RequestModal = forwardRef<
   Props & Omit<ViewProps, "id">
 >(
   (
-    { id, title, requestBody, type, isAnime = false, onRequested, onDismiss },
+    {
+      id,
+      title,
+      requestBody,
+      type,
+      isAnime = false,
+      is4k,
+      onRequested,
+      onDismiss,
+    },
     ref,
   ) => {
     const { seerrApi, seerrUser, requestMedia } = useSeerr();
@@ -258,7 +267,8 @@ const RequestModal = forwardRef<
 
     const request = useCallback(() => {
       const body = {
-        is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
+        is4k:
+          is4k ?? defaultService?.is4k ?? defaultServiceDetails?.server.is4k,
         profileId: defaultProfile?.id,
         rootFolder: defaultFolder?.path,
         tags: defaultTags.map((t) => t.id),
@@ -274,11 +284,18 @@ const RequestModal = forwardRef<
         onRequested,
       );
     }, [
+      is4k,
+      defaultService?.is4k,
+      defaultServiceDetails?.server.is4k,
       requestBody,
       requestOverrides,
       defaultProfile,
       defaultFolder,
       defaultTags,
+      requestMedia,
+      seasonTitle,
+      title,
+      onRequested,
     ]);
 
     return (

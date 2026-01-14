@@ -58,7 +58,7 @@ const DetailFacts: React.FC<
       (details as MovieDetails)?.releases?.results.find(
         (r: TmdbRelease) => r.iso_3166_1 === region,
       )?.release_dates as TmdbRelease["release_dates"],
-    [details],
+    [details, region],
   );
 
   // Release date types:
@@ -82,7 +82,7 @@ const DetailFacts: React.FC<
     if (firstAirDate) {
       return new Date(firstAirDate).toLocaleDateString(locale, dateOpts);
     }
-  }, [details]);
+  }, [details, locale]);
 
   const nextAirDate = useMemo(() => {
     const firstAirDate = (details as TvDetails)?.firstAirDate;
@@ -90,7 +90,7 @@ const DetailFacts: React.FC<
     if (nextAirDate && firstAirDate !== nextAirDate) {
       return new Date(nextAirDate).toLocaleDateString(locale, dateOpts);
     }
-  }, [details]);
+  }, [details, locale]);
 
   const revenue = useMemo(
     () =>
@@ -98,7 +98,7 @@ const DetailFacts: React.FC<
         style: "currency",
         currency: "USD",
       }),
-    [details],
+    [details, locale],
   );
 
   const budget = useMemo(
@@ -107,7 +107,7 @@ const DetailFacts: React.FC<
         style: "currency",
         currency: "USD",
       }),
-    [details],
+    [details, locale],
   );
 
   const streamingProviders = useMemo(
@@ -115,7 +115,7 @@ const DetailFacts: React.FC<
       details?.watchProviders?.find(
         (provider) => provider.iso_3166_1 === region,
       )?.flatrate,
-    [details],
+    [details, region],
   );
 
   const networks = useMemo(() => (details as TvDetails)?.networks, [details]);

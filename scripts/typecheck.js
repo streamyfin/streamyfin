@@ -176,7 +176,7 @@ function runTypeCheck() {
   } catch (error) {
     const errorOutput = (error && (error.stderr || error.stdout)) || "";
 
-    // Filter out jellyseerr utils errors - this is a third-party git submodule
+    // Filter out seerr utils errors - this is a third-party git submodule
     // that generates a large volume of known type errors
     const filteredLines = errorOutput.split("\n").filter((line) => {
       const trimmedLine = line.trim();

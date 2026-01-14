@@ -57,7 +57,7 @@ export default function CompanyPage() {
           ),
         "id",
       ) ?? [],
-    [data],
+    [data, isSeerrMovieOrTvResult],
   );
 
   const backdrops = useMemo(

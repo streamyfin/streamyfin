@@ -424,6 +424,7 @@ export class SeerrApi {
       },
       (error) => {
         console.error("Seerr request error", error);
+        return Promise.reject(error);
       },
     );
   }
@@ -448,7 +449,7 @@ export const useSeerr = () => {
     clearSeerrStorageData();
     setSeerrUser(undefined);
     updateSettings({ seerrServerUrl: undefined });
-  }, []);
+  }, [setSeerrUser, updateSettings]);
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
@@ -474,18 +475,20 @@ export const useSeerr = () => {
         }
       });
     },
-    [seerrApi],
+    [seerrApi, queryClient],
   );
 
-  const isSeerrMovieOrTvResult = (
-    items: any | null | undefined,
-  ): items is MovieResult | TvResult => {
-    return (
-      items &&
-      Object.hasOwn(items, "mediaType") &&
-      (items.mediaType === MediaType.MOVIE || items.mediaType === MediaType.TV)
-    );
-  };
+  const isSeerrMovieOrTvResult = useCallback(
+    (items: any | null | undefined): items is MovieResult | TvResult => {
+      return (
+        items &&
+        Object.hasOwn(items, "mediaType") &&
+        (items.mediaType === MediaType.MOVIE ||
+          items.mediaType === MediaType.TV)
+      );
+    },
+    [],
+  );
 
   const getTitle = (
     item?: TvResult | TvDetails | MovieResult | MovieDetails | PersonCreditCast,

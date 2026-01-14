@@ -113,7 +113,7 @@ export const SeerrIndexPage: React.FC<Props> = ({
         ],
         order || "desc",
       ),
-    [seerrResults, sortingType, order],
+    [seerrResults, sortingType, order, searchQuery],
   );
 
   const seerrTvResults = useMemo(
@@ -125,7 +125,7 @@ export const SeerrIndexPage: React.FC<Props> = ({
         ],
         order || "desc",
       ),
-    [seerrResults, sortingType, order],
+    [seerrResults, sortingType, order, searchQuery],
   );
 
   const seerrPersonResults = useMemo(
@@ -137,7 +137,7 @@ export const SeerrIndexPage: React.FC<Props> = ({
         ],
         order || "desc",
       ),
-    [seerrResults, sortingType, order],
+    [seerrResults, sortingType, order, searchQuery],
   );
 
   if (!searchQuery.length)
