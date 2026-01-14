@@ -78,9 +78,8 @@ export const useSegmentSkipper = ({
         haptic();
       }
     },
-    [segmentType, totalDuration, seek, haptic],
+    [currentSegment, segmentType, totalDuration, seek, haptic],
   );
-
   // Auto-skip logic when mode is 'auto'
   useEffect(() => {
     if (skipMode !== "auto" || isPaused) {
