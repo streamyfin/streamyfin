@@ -4,7 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
@@ -110,6 +110,18 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+
+  // Ref to track pending play timeout for cleanup and cancellation
+  const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -317,11 +329,16 @@ export const Controls: FC<Props> = ({
   // Includes 200ms delay to allow seek operation to complete before resuming playback
   const seekMs = useCallback(
     (timeInSeconds: number) => {
+      // Cancel any pending play call to avoid race conditions
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+      }
       seek(timeInSeconds * 1000);
       // Brief delay ensures the seek operation completes before resuming playback
       // Without this, playback may resume from the old position
-      setTimeout(() => {
+      playTimeoutRef.current = setTimeout(() => {
         play();
+        playTimeoutRef.current = null;
       }, 200);
     },
     [seek, play],
