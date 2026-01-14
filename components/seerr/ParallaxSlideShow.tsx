@@ -133,7 +133,7 @@ const ParallaxSlideShow = <T,>({
                 <View className='px-4'>
                   <View className='flex flex-row flex-wrap'>
                     {Array.from({ length: 9 }, (_, i) => (
-                      <GridSkeleton key={i} index={i} />
+                      <GridSkeleton key={i} />
                     ))}
                   </View>
                 </View>

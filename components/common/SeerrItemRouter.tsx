@@ -42,18 +42,24 @@ export const TouchableSeerrRouter: React.FC<PropsWithChildren<Props>> = ({
         onPress={() => {
           if (!result) return;
 
-          router.push({
-            pathname: `/(auth)/(tabs)/${from}/seerr/page`,
-            // @ts-expect-error
-            params: {
-              ...result,
-              mediaTitle,
-              releaseYear,
-              canRequest: canRequest.toString(),
-              posterSrc,
-              mediaType,
-            },
+          // Build URL with query params - avoids Expo Router's strict type checking
+          const params = new URLSearchParams({
+            ...Object.fromEntries(
+              Object.entries(result).map(([key, value]) => [
+                key,
+                String(value ?? ""),
+              ]),
+            ),
+            mediaTitle,
+            releaseYear: releaseYear.toString(),
+            canRequest: canRequest.toString(),
+            posterSrc,
+            mediaType: mediaType.toString(),
           });
+
+          router.push(
+            `/(auth)/(tabs)/(home,libraries,search,favorites,watchlists)/seerr/page?${params.toString()}`,
+          );
         }}
         {...props}
       >

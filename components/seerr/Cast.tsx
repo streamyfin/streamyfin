@@ -20,7 +20,6 @@ const CastSlide: React.FC<
           horizontal
           showsHorizontalScrollIndicator={false}
           data={details?.credits.cast}
-          estimatedItemSize={112}
           ItemSeparatorComponent={() => <View className='w-2' />}
           keyExtractor={(item) => item?.id?.toString() ?? ""}
           contentContainerStyle={{ paddingHorizontal: 16 }}
