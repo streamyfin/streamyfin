@@ -4,7 +4,14 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
@@ -42,6 +49,9 @@ import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
+
+// No-op function to avoid creating new references on every render
+const noop = () => {};
 
 interface Props {
   item: BaseItemDto;
@@ -315,7 +325,7 @@ export const Controls: FC<Props> = ({
 
   // Fetch all segments for the current item
   const { data: segments } = useSegments(
-    item.Id!,
+    item.Id ?? "",
     offline,
     downloadedFiles,
     api,
@@ -388,7 +398,7 @@ export const Controls: FC<Props> = ({
 
   // Determine which segment button to show (priority order)
   // Commercial > Recap > Intro > Preview > Outro
-  const activeSegment = (() => {
+  const activeSegment = useMemo(() => {
     if (commercialSkipper.currentSegment)
       return { type: "Commercial", ...commercialSkipper };
     if (recapSkipper.currentSegment) return { type: "Recap", ...recapSkipper };
@@ -397,14 +407,25 @@ export const Controls: FC<Props> = ({
       return { type: "Preview", ...previewSkipper };
     if (outroSkipper.currentSegment) return { type: "Outro", ...outroSkipper };
     return null;
-  })();
+  }, [
+    commercialSkipper.currentSegment,
+    recapSkipper.currentSegment,
+    introSkipper.currentSegment,
+    previewSkipper.currentSegment,
+    outroSkipper.currentSegment,
+    commercialSkipper,
+    recapSkipper,
+    introSkipper,
+    previewSkipper,
+    outroSkipper,
+  ]);
 
   // Legacy compatibility: map to old variable names
   const showSkipButton = !!(
     activeSegment &&
     ["Intro", "Recap", "Commercial", "Preview"].includes(activeSegment.type)
   );
-  const skipIntro = activeSegment?.skipSegment || (() => {});
+  const skipIntro = activeSegment?.skipSegment || noop;
   const showSkipCreditButton = activeSegment?.type === "Outro";
   const skipCredit = outroSkipper.skipSegment;
   const hasContentAfterCredits =
