@@ -29,7 +29,25 @@
     "skip_outro": "Skip Outro",
     "skip_recap": "Skip Recap",
     "skip_commercial": "Skip Commercial",
-    "skip_preview": "Skip Preview"
+    "skip_preview": "Skip Preview",
+    "error": "Error",
+    "failed_to_get_stream_url": "Failed to get the stream URL",
+    "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
+    "client_error": "Client Error",
+    "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
+    "message_from_server": "Message from Server: {{message}}",
+    "next_episode": "Next Episode",
+    "refresh_tracks": "Refresh Tracks",
+    "audio_tracks": "Audio Tracks:",
+    "playback_state": "Playback State:",
+    "index": "Index:",
+    "continue_watching": "Continue Watching",
+    "go_back": "Go Back",
+    "downloaded_file_title": "You have this file downloaded",
+    "downloaded_file_message": "Do you want to play the downloaded file?",
+    "downloaded_file_yes": "Yes",
+    "downloaded_file_no": "No",
+    "downloaded_file_cancel": "Cancel"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -611,26 +629,6 @@
   },
   "custom_links": {
     "no_links": "No Links"
-  },
-  "player": {
-    "error": "Error",
-    "failed_to_get_stream_url": "Failed to get the stream URL",
-    "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
-    "client_error": "Client Error",
-    "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
-    "message_from_server": "Message from Server: {{message}}",
-    "next_episode": "Next Episode",
-    "refresh_tracks": "Refresh Tracks",
-    "audio_tracks": "Audio Tracks:",
-    "playback_state": "Playback State:",
-    "index": "Index:",
-    "continue_watching": "Continue Watching",
-    "go_back": "Go Back",
-    "downloaded_file_title": "You have this file downloaded",
-    "downloaded_file_message": "Do you want to play the downloaded file?",
-    "downloaded_file_yes": "Yes",
-    "downloaded_file_no": "No",
-    "downloaded_file_cancel": "Cancel"
   },
   "item_card": {
     "next_up": "Next Up",
