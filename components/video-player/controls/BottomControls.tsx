@@ -19,6 +19,7 @@ interface BottomControlsProps {
   currentTime: number;
   remainingTime: number;
   showSkipButton: boolean;
+  skipButtonText: string;
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
   skipIntro: () => void;
@@ -67,6 +68,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   currentTime,
   remainingTime,
   showSkipButton,
+  skipButtonText,
   showSkipCreditButton,
   hasContentAfterCredits,
   skipIntro,
@@ -136,7 +138,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
-            buttonText='Skip Intro'
+            buttonText={skipButtonText}
           />
           {/* Smart Skip Credits behavior:
               - Show "Skip Credits" if there's content after credits OR no next episode

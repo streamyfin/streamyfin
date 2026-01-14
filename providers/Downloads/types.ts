@@ -56,6 +56,12 @@ export interface DownloadedItem {
   introSegments?: MediaTimeSegment[];
   /** The credit segments for the item. */
   creditSegments?: MediaTimeSegment[];
+  /** The recap segments for the item. */
+  recapSegments?: MediaTimeSegment[];
+  /** The commercial segments for the item. */
+  commercialSegments?: MediaTimeSegment[];
+  /** The preview segments for the item. */
+  previewSegments?: MediaTimeSegment[];
   /** The user data for the item. */
   userData: UserData;
 }
