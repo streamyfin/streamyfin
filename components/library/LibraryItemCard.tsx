@@ -185,7 +185,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
   return (
     <TouchableItemRouter item={library} {...props}>
       <View className='flex flex-row items-center justify-between rounded-xl w-full relative border bg-neutral-900 border-neutral-900 h-20'>
-        <View className='flex flex-col'>
+        <View className='flex flex-col flex-1'>
           <Text className='font-bold text-lg text-start px-4'>
             {library.Name}
           </Text>
@@ -195,10 +195,11 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
             </Text>
           )}
         </View>
-        <View className='p-2'>
+        <View className='p-2 h-full w-24'>
           <Image
             source={{ uri: url }}
-            className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
+            className='w-full h-full rounded-lg'
+            contentFit='cover'
           />
         </View>
       </View>
