@@ -24,6 +24,13 @@
     "too_old_server_text": "Unsupported Jellyfin Server Discovered",
     "too_old_server_description": "Please update Jellyfin to the latest version"
   },
+  "player": {
+    "skip_intro": "Skip Intro",
+    "skip_outro": "Skip Outro",
+    "skip_recap": "Skip Recap",
+    "skip_commercial": "Skip Commercial",
+    "skip_preview": "Skip Preview"
+  },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
     "server_url_placeholder": "http(s)://your-server.com",
