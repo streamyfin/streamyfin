@@ -150,6 +150,12 @@ export type JobStatus = {
   introSegments?: MediaTimeSegment[];
   /** Pre-downloaded credit segments (optional) - downloaded before video starts */
   creditSegments?: MediaTimeSegment[];
+  /** Pre-downloaded recap segments (optional) - downloaded before video starts */
+  recapSegments?: MediaTimeSegment[];
+  /** Pre-downloaded commercial segments (optional) - downloaded before video starts */
+  commercialSegments?: MediaTimeSegment[];
+  /** Pre-downloaded preview segments (optional) - downloaded before video starts */
+  previewSegments?: MediaTimeSegment[];
   /** The audio stream index selected for this download */
   audioStreamIndex?: number;
   /** The subtitle stream index selected for this download */
