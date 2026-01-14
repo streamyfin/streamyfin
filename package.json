@@ -39,7 +39,7 @@
     "@shopify/flash-list": "2.0.2",
     "@tanstack/query-sync-storage-persister": "^5.90.18",
     "@tanstack/react-pacer": "^0.19.1",
-    "@tanstack/react-query": "5.90.16",
+    "@tanstack/react-query": "5.90.17",
     "@tanstack/react-query-persist-client": "^5.90.18",
     "axios": "^1.7.9",
     "expo": "~54.0.31",
@@ -115,7 +115,7 @@
     "zod": "4.1.13"
   },
   "devDependencies": {
-    "@babel/core": "7.28.5",
+    "@babel/core": "7.28.6",
     "@biomejs/biome": "2.3.11",
     "@react-native-community/cli": "20.1.0",
     "@react-native-tvos/config-tv": "0.1.4",
