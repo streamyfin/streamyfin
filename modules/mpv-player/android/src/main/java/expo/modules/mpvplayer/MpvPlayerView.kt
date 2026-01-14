@@ -33,23 +33,6 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     
     companion object {
         private const val TAG = "MpvPlayerView"
-
-        /**
-         * Detect if running on an Android emulator.
-         * MPV player has EGL/OpenGL compatibility issues on emulators.
-         */
-        private fun isEmulator(): Boolean {
-            return (Build.FINGERPRINT.startsWith("generic")
-                    || Build.FINGERPRINT.startsWith("unknown")
-                    || Build.MODEL.contains("google_sdk")
-                    || Build.MODEL.contains("Emulator")
-                    || Build.MODEL.contains("Android SDK built for x86")
-                    || Build.MANUFACTURER.contains("Genymotion")
-                    || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
-                    || "google_sdk" == Build.PRODUCT
-                    || Build.HARDWARE.contains("goldfish")
-                    || Build.HARDWARE.contains("ranchu"))
-        }
     }
     
     // Event dispatchers
@@ -104,21 +87,14 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
         }
         
-        // Start the renderer (skip on emulators to avoid EGL crashes)
-        if (isEmulator()) {
-            Log.w(TAG, "Running on emulator - MPV player disabled due to EGL/OpenGL compatibility issues")
-            // Don't start renderer on emulator, will show error when trying to play
-        } else {
-            try {
-                renderer?.start()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to start renderer: ${e.message}")
-                onError(mapOf("error" to "Failed to start renderer: ${e.message}"))
-            }
+        // Start the renderer
+        try {
+            renderer?.start()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start renderer: ${e.message}")
+            onError(mapOf("error" to "Failed to start renderer: ${e.message}"))
         }
     }
-
-    private var isOnEmulator: Boolean = isEmulator()
     
     // MARK: - SurfaceHolder.Callback
     
@@ -149,13 +125,6 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // MARK: - Video Loading
 
     fun loadVideo(config: VideoLoadConfig) {
-        // Block video loading on emulators
-        if (isOnEmulator) {
-            Log.w(TAG, "Cannot load video on emulator - MPV player not supported")
-            onError(mapOf("error" to "MPV player is not supported on emulators. Please test on a real device."))
-            return
-        }
-
         // Skip reload if same URL is already playing
         if (currentUrl == config.url) {
             return
