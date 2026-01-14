@@ -253,29 +253,7 @@
         },
         "subtitle_color": "Subtitle Color",
         "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
+        "subtitle_font": "Subtitle Font"
       },
       "other": {
         "other_title": "Other",
@@ -294,11 +272,6 @@
           "UNKNOWN": "Unknown"
         },
         "safe_area_in_controls": "Safe Area in Controls",
-        "video_player": "Video Player",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
-        },
         "show_custom_menu_links": "Show Custom Menu Links",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Hide Libraries",
@@ -599,10 +572,6 @@
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
     "message_from_server": "Message from Server: {{message}}",
     "next_episode": "Next Episode",
-    "refresh_tracks": "Refresh Tracks",
-    "audio_tracks": "Audio Tracks:",
-    "playback_state": "Playback State:",
-    "index": "Index:",
     "continue_watching": "Continue Watching",
     "go_back": "Go Back",
     "downloaded_file_title": "You have this file downloaded",
@@ -610,13 +579,6 @@
     "downloaded_file_yes": "Yes",
     "downloaded_file_no": "No",
     "downloaded_file_cancel": "Cancel",
-    "aspect_ratio_title": "Aspect Ratio",
-    "aspect_ratio_original": "Original",
-    "aspect_ratio_original_description": "Use video's original aspect ratio",
-    "aspect_ratio_16_9_description": "Widescreen (most common)",
-    "aspect_ratio_4_3_description": "Traditional TV format",
-    "aspect_ratio_1_1_description": "Square format",
-    "aspect_ratio_21_9_description": "Ultra-wide cinematic",
     "playback_options_title": "Playback Options",
     "mpv_subtitle_settings_title": "MPV Subtitle Settings",
     "mpv_subtitle_settings_description": "Advanced subtitle customization for MPV player",
