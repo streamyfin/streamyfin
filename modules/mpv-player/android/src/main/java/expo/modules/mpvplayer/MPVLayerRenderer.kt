@@ -430,6 +430,57 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         MPVLib.setPropertyDouble("panscan", panscanValue)
     }
 
+    // MARK: - Technical Info
+
+    fun getTechnicalInfo(): Map<String, Any> {
+        val info = mutableMapOf<String, Any>()
+
+        // Video dimensions
+        MPVLib.getPropertyInt("video-params/w")?.takeIf { it > 0 }?.let {
+            info["videoWidth"] = it
+        }
+        MPVLib.getPropertyInt("video-params/h")?.takeIf { it > 0 }?.let {
+            info["videoHeight"] = it
+        }
+
+        // Video codec
+        MPVLib.getPropertyString("video-format")?.let {
+            info["videoCodec"] = it
+        }
+
+        // Audio codec
+        MPVLib.getPropertyString("audio-codec-name")?.let {
+            info["audioCodec"] = it
+        }
+
+        // FPS (container fps)
+        MPVLib.getPropertyDouble("container-fps")?.takeIf { it > 0 }?.let {
+            info["fps"] = it
+        }
+
+        // Video bitrate (bits per second)
+        MPVLib.getPropertyInt("video-bitrate")?.takeIf { it > 0 }?.let {
+            info["videoBitrate"] = it
+        }
+
+        // Audio bitrate (bits per second)
+        MPVLib.getPropertyInt("audio-bitrate")?.takeIf { it > 0 }?.let {
+            info["audioBitrate"] = it
+        }
+
+        // Demuxer cache duration (seconds of video buffered)
+        MPVLib.getPropertyDouble("demuxer-cache-duration")?.let {
+            info["cacheSeconds"] = it
+        }
+
+        // Dropped frames
+        MPVLib.getPropertyInt("frame-drop-count")?.let {
+            info["droppedFrames"] = it
+        }
+
+        return info
+    }
+
     // MARK: - MPVLib.EventObserver
     
     override fun eventProperty(property: String) {
@@ -509,7 +560,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 if (pendingExternalSubtitles.isNotEmpty()) {
                     pendingExternalSubtitles.forEachIndexed { index, subUrl ->
                         android.util.Log.d("MPVRenderer", "Adding external subtitle [$index]: $subUrl")
-                        MPVLib.command(arrayOf("sub-add", subUrl))
+                        // "auto" flag = add without auto-selecting (order preserved, MPVLib.command is sync)
+                        MPVLib.command(arrayOf("sub-add", subUrl, "auto"))
                     }
                     pendingExternalSubtitles = emptyList()
                     

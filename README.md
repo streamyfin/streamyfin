@@ -5,6 +5,12 @@
   <img src="https://raw.githubusercontent.com/streamyfin/.github/refs/heads/main/streamyfin-github-banner.png" alt="Streamyfin" width="100%">
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/aJvAYeycyY">
+    <img alt="Streamyfin Discord" src="https://img.shields.io/badge/Discord-Streamyfin-blue?style=flat-square&logo=discord">
+  </a>
+</p>
+
 **Streamyfin is a user-friendly Jellyfin video streaming client built with Expo. Designed as an alternative to other Jellyfin clients, it aims to offer a smooth and reliable streaming experience. We hope you'll find it a valuable addition to your media streaming toolbox.**
 
 ---

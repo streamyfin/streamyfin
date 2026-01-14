@@ -79,6 +79,7 @@ export default function page() {
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
+  const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -723,6 +724,59 @@ export default function page() {
     videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
+  // Technical info toggle handler
+  const handleToggleTechnicalInfo = useCallback(() => {
+    setShowTechnicalInfo((prev) => !prev);
+  }, []);
+
+  // Get technical info from the player
+  const getTechnicalInfo = useCallback(async () => {
+    return (await videoRef.current?.getTechnicalInfo?.()) ?? {};
+  }, []);
+
+  // Determine play method based on stream URL and media source
+  const playMethod = useMemo<
+    "DirectPlay" | "DirectStream" | "Transcode" | undefined
+  >(() => {
+    if (!stream?.url) return undefined;
+
+    // Check if transcoding (m3u8 playlist or TranscodingUrl present)
+    if (stream.url.includes("m3u8") || stream.mediaSource?.TranscodingUrl) {
+      return "Transcode";
+    }
+
+    // Check if direct play (no container remuxing needed)
+    // Direct play means the file is being served as-is
+    if (stream.url.includes("/Videos/") && stream.url.includes("/stream")) {
+      return "DirectStream";
+    }
+
+    // Default to direct play if we're not transcoding
+    return "DirectPlay";
+  }, [stream?.url, stream?.mediaSource?.TranscodingUrl]);
+
+  // Extract transcode reasons from the TranscodingUrl
+  const transcodeReasons = useMemo<string[]>(() => {
+    const transcodingUrl = stream?.mediaSource?.TranscodingUrl;
+    if (!transcodingUrl) return [];
+
+    try {
+      // Parse the TranscodeReasons parameter from the URL
+      const url = new URL(transcodingUrl, "http://localhost");
+      const reasons = url.searchParams.get("TranscodeReasons");
+      if (reasons) {
+        return reasons.split(",").filter(Boolean);
+      }
+    } catch {
+      // If URL parsing fails, try regex fallback
+      const match = transcodingUrl.match(/TranscodeReasons=([^&]+)/);
+      if (match) {
+        return match[1].split(",").filter(Boolean);
+      }
+    }
+    return [];
+  }, [stream?.mediaSource?.TranscodingUrl]);
+
   const handleZoomToggle = useCallback(async () => {
     const newZoomState = !isZoomedToFill;
     await videoRef.current?.setZoomedToFill?.(newZoomState);
@@ -920,6 +974,11 @@ export default function page() {
                 downloadedFiles={downloadedFiles}
                 playbackSpeed={currentPlaybackSpeed}
                 setPlaybackSpeed={handleSetPlaybackSpeed}
+                showTechnicalInfo={showTechnicalInfo}
+                onToggleTechnicalInfo={handleToggleTechnicalInfo}
+                getTechnicalInfo={getTechnicalInfo}
+                playMethod={playMethod}
+                transcodeReasons={transcodeReasons}
               />
             )}
           </View>

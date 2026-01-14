@@ -380,7 +380,8 @@ final class MPVLayerRenderer {
                 for (index, subUrl) in pendingExternalSubtitles.enumerated() {
                     print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
                     // Use commandSync to ensure subs are added in exact order (not async)
-                    commandSync(handle, ["sub-add", subUrl])
+                    // "auto" flag = add without auto-selecting
+                    commandSync(handle, ["sub-add", subUrl, "auto"])
                 }
                 pendingExternalSubtitles = []
                 // Set subtitle after external subs are added
@@ -761,5 +762,65 @@ final class MPVLayerRenderer {
         var aid: Int64 = 0
         getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
         return Int(aid)
+    }
+
+    // MARK: - Technical Info
+
+    func getTechnicalInfo() -> [String: Any] {
+        guard let handle = mpv else { return [:] }
+
+        var info: [String: Any] = [:]
+
+        // Video dimensions
+        var videoWidth: Int64 = 0
+        var videoHeight: Int64 = 0
+        if getProperty(handle: handle, name: "video-params/w", format: MPV_FORMAT_INT64, value: &videoWidth) >= 0 {
+            info["videoWidth"] = Int(videoWidth)
+        }
+        if getProperty(handle: handle, name: "video-params/h", format: MPV_FORMAT_INT64, value: &videoHeight) >= 0 {
+            info["videoHeight"] = Int(videoHeight)
+        }
+
+        // Video codec
+        if let videoCodec = getStringProperty(handle: handle, name: "video-format") {
+            info["videoCodec"] = videoCodec
+        }
+
+        // Audio codec
+        if let audioCodec = getStringProperty(handle: handle, name: "audio-codec-name") {
+            info["audioCodec"] = audioCodec
+        }
+
+        // FPS (container fps)
+        var fps: Double = 0
+        if getProperty(handle: handle, name: "container-fps", format: MPV_FORMAT_DOUBLE, value: &fps) >= 0 && fps > 0 {
+            info["fps"] = fps
+        }
+
+        // Video bitrate (bits per second)
+        var videoBitrate: Int64 = 0
+        if getProperty(handle: handle, name: "video-bitrate", format: MPV_FORMAT_INT64, value: &videoBitrate) >= 0 && videoBitrate > 0 {
+            info["videoBitrate"] = Int(videoBitrate)
+        }
+
+        // Audio bitrate (bits per second)
+        var audioBitrate: Int64 = 0
+        if getProperty(handle: handle, name: "audio-bitrate", format: MPV_FORMAT_INT64, value: &audioBitrate) >= 0 && audioBitrate > 0 {
+            info["audioBitrate"] = Int(audioBitrate)
+        }
+
+        // Demuxer cache duration (seconds of video buffered)
+        var cacheSeconds: Double = 0
+        if getProperty(handle: handle, name: "demuxer-cache-duration", format: MPV_FORMAT_DOUBLE, value: &cacheSeconds) >= 0 {
+            info["cacheSeconds"] = cacheSeconds
+        }
+
+        // Dropped frames
+        var droppedFrames: Int64 = 0
+        if getProperty(handle: handle, name: "frame-drop-count", format: MPV_FORMAT_INT64, value: &droppedFrames) >= 0 {
+            info["droppedFrames"] = Int(droppedFrames)
+        }
+
+        return info
     }
 }
