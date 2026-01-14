@@ -85,6 +85,13 @@ Exemples:
 - `fix(auth): handle expired JWT tokens`
 - `chore(deps): update Jellyfin SDK`
 
+## Internationalization (i18n)
+
+- **ONLY edit `translations/en.json` for translation changes**
+- **NEVER modify other translation files** (ar.json, ca.json, cs.json, de.json, etc.)
+- Crowdin automatically handles translations for all other languages
+- All translation keys must be added to `en.json` first, then Crowdin syncs them
+
 ## Special Instructions
 
 - Prioritize cross-platform compatibility (mobile + TV)
