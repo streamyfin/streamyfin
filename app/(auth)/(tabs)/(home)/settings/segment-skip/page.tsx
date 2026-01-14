@@ -22,7 +22,7 @@ const useSkipOptions = (
     | "skipRecap"
     | "skipCommercial"
     | "skipPreview",
-  settings: ReturnType<typeof useSettings>["settings"],
+  settings: ReturnType<typeof useSettings>["settings"] | null,
   updateSettings: ReturnType<typeof useSettings>["updateSettings"],
   t: TFunction<"translation", undefined>,
 ) => {
@@ -33,12 +33,12 @@ const useSkipOptions = (
           type: "radio" as const,
           label: option.label,
           value: option.value,
-          selected: option.value === settings[settingKey],
+          selected: option.value === settings?.[settingKey],
           onPress: () => updateSettings({ [settingKey]: option.value }),
         })),
       },
     ],
-    [settings[settingKey], updateSettings, t, settingKey],
+    [settings?.[settingKey], updateSettings, t, settingKey],
   );
 };
 
