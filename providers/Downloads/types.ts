@@ -32,12 +32,6 @@ export interface MediaTimeSegment {
   text: string;
 }
 
-export interface Segment {
-  startTime: number;
-  endTime: number;
-  text: string;
-}
-
 /** Represents a single downloaded media item with all necessary metadata for offline playback. */
 export interface DownloadedItem {
   /** The Jellyfin item DTO. */
