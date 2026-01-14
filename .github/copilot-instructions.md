@@ -110,10 +110,15 @@ Exemples:
 
 ## Internationalization (i18n)
 
-- **ONLY edit `translations/en.json` for translation changes**
-- **NEVER modify other translation files** (ar.json, ca.json, cs.json, de.json, etc.)
-- Crowdin automatically handles translations for all other languages
-- All translation keys must be added to `en.json` first, then Crowdin syncs them
+- **Primary workflow**: Always edit `translations/en.json` for new translation keys or updates
+- **Translation files** (ar.json, ca.json, cs.json, de.json, etc.):
+  - **NEVER add or remove keys** - Crowdin manages the key structure
+  - **Editing translation values is safe** - Bidirectional sync handles merges
+  - Prefer letting Crowdin translators update values, but direct edits work if needed
+- **Crowdin workflow**:
+  - New keys added to `en.json` sync to Crowdin automatically
+  - Approved translations sync back to language files via GitHub integration
+  - The source of truth is `en.json` for structure, Crowdin for translations
 
 ## Special Instructions
 
