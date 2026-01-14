@@ -21,6 +21,7 @@ interface BottomControlsProps {
   showSkipButton: boolean;
   skipButtonText: string;
   showSkipCreditButton: boolean;
+  skipCreditButtonText: string;
   hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
@@ -70,6 +71,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showSkipButton,
   skipButtonText,
   showSkipCreditButton,
+  skipCreditButtonText,
   hasContentAfterCredits,
   skipIntro,
   skipCredit,
@@ -148,7 +150,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               showSkipCreditButton && (hasContentAfterCredits || !nextItem)
             }
             onPress={skipCredit}
-            buttonText='Skip Credits'
+            buttonText={skipCreditButtonText}
           />
           {settings.autoPlayNextEpisode !== false &&
             (settings.maxAutoPlayEpisodeCount.value === -1 ||
