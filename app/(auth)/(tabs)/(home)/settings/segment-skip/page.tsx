@@ -219,15 +219,15 @@ const SEGMENT_SKIP_OPTIONS = (
   value: "none" | "ask" | "auto";
 }> => [
   {
-    label: t("home.settings.other.segment_skip_none"),
-    value: "none",
+    label: t("home.settings.other.segment_skip_auto"),
+    value: "auto",
   },
   {
     label: t("home.settings.other.segment_skip_ask"),
     value: "ask",
   },
   {
-    label: t("home.settings.other.segment_skip_auto"),
-    value: "auto",
+    label: t("home.settings.other.segment_skip_none"),
+    value: "none",
   },
 ];
