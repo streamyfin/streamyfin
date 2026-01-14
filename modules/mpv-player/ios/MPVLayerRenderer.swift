@@ -36,6 +36,9 @@ final class MPVLayerRenderer {
     private var isRunning = false
     private var isStopping = false
     
+    // KVO observation for display layer status
+    private var statusObservation: NSKeyValueObservation?
+    
     weak var delegate: MPVLayerRendererDelegate?
     
     // Thread-safe state for playback
@@ -78,6 +81,37 @@ final class MPVLayerRenderer {
     
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
+        observeDisplayLayerStatus()
+    }
+    
+   
+    /// Watches for display layer failures and auto-recovers.
+    ///
+    /// iOS aggressively kills VideoToolbox decoder sessions when the app is
+    /// backgrounded, the screen is locked, or system resources are low.
+    /// This causes the video to go black - especially problematic for PiP.
+    ///
+    /// This KVO observer detects when the display layer status becomes `.failed`
+    /// and automatically reinitializes the hardware decoder to restore video.
+    private func observeDisplayLayerStatus() {
+        statusObservation = displayLayer.observe(\.status, options: [.new]) { [weak self] layer, _ in
+            guard let self else { return }
+            
+            if layer.status == .failed {
+                print("🔧 Display layer failed - auto-resetting decoder")
+                self.queue.async {
+                    self.performDecoderReset()
+                }
+            }
+        }
+    }
+    
+    /// Actually performs the decoder reset (called by observer or manually)
+    private func performDecoderReset() {
+        guard let handle = mpv else { return }
+        print("🔧 Resetting decoder: status=\(displayLayer.status.rawValue), requiresFlush=\(displayLayer.requiresFlushToResumeDecoding)")
+        commandSync(handle, ["set", "hwdec", "no"])
+        commandSync(handle, ["set", "hwdec", "auto"])
     }
     
     deinit {
@@ -149,6 +183,10 @@ final class MPVLayerRenderer {
         if !isRunning, mpv == nil { return }
         isRunning = false
         isStopping = true
+        
+        // Stop observing display layer status
+        statusObservation?.invalidate()
+        statusObservation = nil
         
         queue.sync { [weak self] in
             guard let self, let handle = self.mpv else { return }
@@ -339,8 +377,11 @@ final class MPVLayerRenderer {
             // Add external subtitles now that the file is loaded
             let hadExternalSubs = !pendingExternalSubtitles.isEmpty
             if hadExternalSubs, let handle = mpv {
-                for subUrl in pendingExternalSubtitles {
-                    command(handle, ["sub-add", subUrl])
+                for (index, subUrl) in pendingExternalSubtitles.enumerated() {
+                    print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
+                    // Use commandSync to ensure subs are added in exact order (not async)
+                    // "auto" flag = add without auto-selecting
+                    commandSync(handle, ["sub-add", subUrl, "auto"])
                 }
                 pendingExternalSubtitles = []
                 // Set subtitle after external subs are added
@@ -531,7 +572,9 @@ final class MPVLayerRenderer {
         cachedPosition = clamped
         commandSync(handle, ["seek", String(clamped), "absolute"])
     }
-    
+
+
+
     func seek(by seconds: Double) {
         guard let handle = mpv else { return }
         let newPosition = max(0, cachedPosition + seconds)
@@ -719,5 +762,65 @@ final class MPVLayerRenderer {
         var aid: Int64 = 0
         getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
         return Int(aid)
+    }
+
+    // MARK: - Technical Info
+
+    func getTechnicalInfo() -> [String: Any] {
+        guard let handle = mpv else { return [:] }
+
+        var info: [String: Any] = [:]
+
+        // Video dimensions
+        var videoWidth: Int64 = 0
+        var videoHeight: Int64 = 0
+        if getProperty(handle: handle, name: "video-params/w", format: MPV_FORMAT_INT64, value: &videoWidth) >= 0 {
+            info["videoWidth"] = Int(videoWidth)
+        }
+        if getProperty(handle: handle, name: "video-params/h", format: MPV_FORMAT_INT64, value: &videoHeight) >= 0 {
+            info["videoHeight"] = Int(videoHeight)
+        }
+
+        // Video codec
+        if let videoCodec = getStringProperty(handle: handle, name: "video-format") {
+            info["videoCodec"] = videoCodec
+        }
+
+        // Audio codec
+        if let audioCodec = getStringProperty(handle: handle, name: "audio-codec-name") {
+            info["audioCodec"] = audioCodec
+        }
+
+        // FPS (container fps)
+        var fps: Double = 0
+        if getProperty(handle: handle, name: "container-fps", format: MPV_FORMAT_DOUBLE, value: &fps) >= 0 && fps > 0 {
+            info["fps"] = fps
+        }
+
+        // Video bitrate (bits per second)
+        var videoBitrate: Int64 = 0
+        if getProperty(handle: handle, name: "video-bitrate", format: MPV_FORMAT_INT64, value: &videoBitrate) >= 0 && videoBitrate > 0 {
+            info["videoBitrate"] = Int(videoBitrate)
+        }
+
+        // Audio bitrate (bits per second)
+        var audioBitrate: Int64 = 0
+        if getProperty(handle: handle, name: "audio-bitrate", format: MPV_FORMAT_INT64, value: &audioBitrate) >= 0 && audioBitrate > 0 {
+            info["audioBitrate"] = Int(audioBitrate)
+        }
+
+        // Demuxer cache duration (seconds of video buffered)
+        var cacheSeconds: Double = 0
+        if getProperty(handle: handle, name: "demuxer-cache-duration", format: MPV_FORMAT_DOUBLE, value: &cacheSeconds) >= 0 {
+            info["cacheSeconds"] = cacheSeconds
+        }
+
+        // Dropped frames
+        var droppedFrames: Int64 = 0
+        if getProperty(handle: handle, name: "frame-drop-count", format: MPV_FORMAT_INT64, value: &droppedFrames) >= 0 {
+            info["droppedFrames"] = Int(droppedFrames)
+        }
+
+        return info
     }
 }
