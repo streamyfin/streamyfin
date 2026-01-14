@@ -34,6 +34,7 @@ export const useVolumeAndBrightness = ({
   const initialVolume = useRef<number | null>(null);
   const initialBrightness = useRef<number | null>(null);
   const dragStartY = useRef<number | null>(null);
+  const brightnessSupported = useRef(true);
 
   const startVolumeDrag = useCallback(async (startY: number) => {
     if (Platform.isTV || !VolumeManager) return;
@@ -88,20 +89,26 @@ export const useVolumeAndBrightness = ({
   }, []);
 
   const startBrightnessDrag = useCallback(async (startY: number) => {
-    if (Platform.isTV || !Brightness) return;
+    if (Platform.isTV || !Brightness || !brightnessSupported.current) return;
 
     try {
       const brightness = await Brightness.getBrightnessAsync();
       initialBrightness.current = brightness;
       dragStartY.current = startY;
     } catch (error) {
-      console.error("Error starting brightness drag:", error);
+      console.warn("Brightness not supported on this device:", error);
+      brightnessSupported.current = false;
     }
   }, []);
 
   const updateBrightnessDrag = useCallback(
     async (deltaY: number) => {
-      if (Platform.isTV || !Brightness || initialBrightness.current === null)
+      if (
+        Platform.isTV ||
+        !Brightness ||
+        initialBrightness.current === null ||
+        !brightnessSupported.current
+      )
         return;
 
       try {
@@ -118,7 +125,8 @@ export const useVolumeAndBrightness = ({
         const brightnessPercent = Math.round(newBrightness * 100);
         onBrightnessChange?.(brightnessPercent);
       } catch (error) {
-        console.error("Error updating brightness:", error);
+        console.warn("Brightness not supported on this device:", error);
+        brightnessSupported.current = false;
       }
     },
     [onBrightnessChange],

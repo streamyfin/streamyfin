@@ -1,7 +1,8 @@
-import { useRouter, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import type React from "react";
 import { type PropsWithChildren } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type { MovieDetails } from "@/utils/jellyseerr/server/models/Movie";
 import { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";

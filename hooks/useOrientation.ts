@@ -1,5 +1,5 @@
 import type { OrientationChangeEvent } from "expo-screen-orientation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import {
   addOrientationChangeListener,
@@ -21,6 +21,8 @@ const orientationToOrientationLock = (
       return OrientationLock.LANDSCAPE_RIGHT;
     case Orientation.PORTRAIT_UP:
       return OrientationLock.PORTRAIT_UP;
+    case Orientation.UNKNOWN:
+      return OrientationLock.LANDSCAPE;
     default:
       return OrientationLock.PORTRAIT_UP;
   }
@@ -53,27 +55,28 @@ export const useOrientation = () => {
     };
   }, []);
 
-  const lockOrientation = async (
-    lock: (typeof OrientationLock)[keyof typeof OrientationLock],
-  ) => {
-    if (Platform.isTV) return;
+  const lockOrientation = useCallback(
+    async (lock: (typeof OrientationLock)[keyof typeof OrientationLock]) => {
+      if (Platform.isTV) return;
 
-    if (lock === OrientationLock.DEFAULT) {
-      await unlockAsync();
-    } else {
-      await lockAsync(lock);
-    }
-  };
+      if (lock === OrientationLock.DEFAULT) {
+        await unlockAsync();
+      } else {
+        await lockAsync(lock);
+      }
+    },
+    [],
+  );
 
-  const unlockOrientationFn = async () => {
+  const unlockOrientation = useCallback(async () => {
     if (Platform.isTV) return;
     await unlockAsync();
-  };
+  }, []);
 
   return {
     orientation,
     setOrientation,
     lockOrientation,
-    unlockOrientation: unlockOrientationFn,
+    unlockOrientation,
   };
 };

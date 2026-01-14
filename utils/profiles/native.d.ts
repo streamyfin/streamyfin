@@ -4,8 +4,20 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-export interface DeviceProfileOptions {
-  transcode?: boolean;
+export type PlatformType = "ios" | "android";
+export type PlayerType = "mpv";
+export type AudioTranscodeModeType = "auto" | "stereo" | "5.1" | "passthrough";
+
+export interface ProfileOptions {
+  /** Target platform */
+  platform?: PlatformType;
+  /** Video player being used */
+  player?: PlayerType;
+  /** Audio transcoding mode */
+  audioMode?: AudioTranscodeModeType;
 }
 
-export function generateDeviceProfile(options?: DeviceProfileOptions): any;
+export function generateDeviceProfile(options?: ProfileOptions): any;
+
+declare const _default: any;
+export default _default;

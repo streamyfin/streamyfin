@@ -7,23 +7,13 @@ import { useHaptic } from "./useHaptic";
 
 /**
  * Custom hook to handle skipping credits in a media player.
- *
- * @param {string} itemId - The ID of the media item.
- * @param {number} currentTime - The current playback time (ms for VLC, seconds otherwise).
- * @param {function} seek - Function to seek to a position.
- * @param {function} play - Function to resume playback.
- * @param {boolean} isVlc - Whether using VLC player (uses milliseconds).
- * @param {boolean} isOffline - Whether in offline mode.
- * @param {Api|null} api - The Jellyfin API client.
- * @param {DownloadedItem[]|undefined} downloadedFiles - Downloaded files for offline mode.
- * @param {number|undefined} totalDuration - Total duration of the video (ms for VLC, seconds otherwise).
+ * The player reports time values in milliseconds.
  */
 export const useCreditSkipper = (
   itemId: string,
   currentTime: number,
-  seek: (time: number) => void,
+  seek: (ms: number) => void,
   play: () => void,
-  isVlc = false,
   isOffline = false,
   api: Api | null = null,
   downloadedFiles: DownloadedItem[] | undefined = undefined,
@@ -32,21 +22,15 @@ export const useCreditSkipper = (
   const [showSkipCreditButton, setShowSkipCreditButton] = useState(false);
   const lightHapticFeedback = useHaptic("light");
 
-  // Convert currentTime to seconds for consistent comparison (matching useIntroSkipper pattern)
-  if (isVlc) {
-    currentTime = msToSeconds(currentTime);
-  }
+  // Convert ms to seconds for comparison with timestamps
+  const currentTimeSeconds = msToSeconds(currentTime);
 
   const totalDurationInSeconds =
-    isVlc && totalDuration ? msToSeconds(totalDuration) : totalDuration;
+    totalDuration != null ? msToSeconds(totalDuration) : undefined;
 
   // Regular function (not useCallback) to match useIntroSkipper pattern
   const wrappedSeek = (seconds: number) => {
-    if (isVlc) {
-      seek(secondsToMs(seconds));
-      return;
-    }
-    seek(seconds);
+    seek(secondsToMs(seconds));
   };
 
   const { data: segments } = useSegments(
@@ -60,7 +44,13 @@ export const useCreditSkipper = (
   // Determine if there's content after credits (credits don't extend to video end)
   // Use a 5-second buffer to account for timing discrepancies
   const hasContentAfterCredits = (() => {
-    if (!creditTimestamps || !totalDurationInSeconds) return false;
+    if (
+      !creditTimestamps ||
+      totalDurationInSeconds == null ||
+      !Number.isFinite(totalDurationInSeconds)
+    ) {
+      return false;
+    }
     const creditsEndToVideoEnd =
       totalDurationInSeconds - creditTimestamps.endTime;
     // If credits end more than 5 seconds before video ends, there's content after
@@ -70,8 +60,8 @@ export const useCreditSkipper = (
   useEffect(() => {
     if (creditTimestamps) {
       const shouldShow =
-        currentTime > creditTimestamps.startTime &&
-        currentTime < creditTimestamps.endTime;
+        currentTimeSeconds > creditTimestamps.startTime &&
+        currentTimeSeconds < creditTimestamps.endTime;
 
       setShowSkipCreditButton(shouldShow);
     } else {
@@ -80,7 +70,7 @@ export const useCreditSkipper = (
         setShowSkipCreditButton(false);
       }
     }
-  }, [creditTimestamps, currentTime, showSkipCreditButton]);
+  }, [creditTimestamps, currentTimeSeconds, showSkipCreditButton]);
 
   const skipCredit = useCallback(() => {
     if (!creditTimestamps) return;

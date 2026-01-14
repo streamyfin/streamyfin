@@ -19,7 +19,7 @@ web-build/
 /androidtv
 
 # Module-specific Builds
-modules/vlc-player/android/build
+modules/mpv-player/android/build
 modules/player/android
 modules/hls-downloader/android/build
 
@@ -51,6 +51,7 @@ npm-debug.*
 .ruby-lsp
 .cursor/
 .claude/
+CLAUDE.md
 
 # Environment and Configuration
 expo-env.d.ts
@@ -65,4 +66,10 @@ streamyfin-4fec1-firebase-adminsdk.json
 
 # Version and Backup Files
 /version-backup-*
+/modules/sf-player/android/build
+/modules/music-controls/android/build
 modules/background-downloader/android/build/*
+/modules/mpv-player/android/build
+
+# ios:unsigned-build Artifacts
+build/

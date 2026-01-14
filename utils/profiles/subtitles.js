@@ -4,26 +4,19 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-const COMMON_SUBTITLE_PROFILES = [
-  // Official formats
-
-  { Format: "dvdsub", Method: "Embed" },
-  { Format: "dvdsub", Method: "Encode" },
-
-  { Format: "idx", Method: "Embed" },
-  { Format: "idx", Method: "Encode" },
-
-  { Format: "pgs", Method: "Embed" },
-  { Format: "pgs", Method: "Encode" },
-
-  { Format: "pgssub", Method: "Embed" },
-  { Format: "pgssub", Method: "Encode" },
-
-  { Format: "teletext", Method: "Embed" },
-  { Format: "teletext", Method: "Encode" },
+// Image-based formats - these need to be burned in by Jellyfin (Encode method)
+// because MPV cannot load them externally over HTTP
+const IMAGE_BASED_FORMATS = [
+  "dvdsub",
+  "idx",
+  "pgs",
+  "pgssub",
+  "teletext",
+  "vobsub",
 ];
 
-const VARYING_SUBTITLE_FORMATS = [
+// Text-based formats - these can be loaded externally by MPV
+const TEXT_BASED_FORMATS = [
   "webvtt",
   "vtt",
   "srt",
@@ -46,11 +39,23 @@ const VARYING_SUBTITLE_FORMATS = [
   "xsub",
 ];
 
-export const getSubtitleProfiles = (secondaryMethod) => {
-  const profiles = [...COMMON_SUBTITLE_PROFILES];
-  for (const format of VARYING_SUBTITLE_FORMATS) {
+export const getSubtitleProfiles = () => {
+  const profiles = [];
+
+  // Image-based formats: Embed or Encode (burn-in), NOT External
+  for (const format of IMAGE_BASED_FORMATS) {
     profiles.push({ Format: format, Method: "Embed" });
-    profiles.push({ Format: format, Method: secondaryMethod });
+    profiles.push({ Format: format, Method: "Encode" });
   }
+
+  // Text-based formats: Embed or External
+  for (const format of TEXT_BASED_FORMATS) {
+    profiles.push({ Format: format, Method: "Embed" });
+    profiles.push({ Format: format, Method: "External" });
+  }
+
   return profiles;
 };
+
+// Export for use in player filtering
+export const IMAGE_SUBTITLE_CODECS = IMAGE_BASED_FORMATS;

@@ -1,5 +1,4 @@
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
-import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -8,10 +7,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
+import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 
 interface WebSocketMessage {
   MessageType: string;
@@ -35,6 +37,7 @@ const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const api = useAtomValue(apiAtom);
+  const { isConnected: isNetworkConnected } = useNetworkStatus();
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
@@ -42,9 +45,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const deviceId = useMemo(() => {
     return getOrSetDeviceId();
   }, []);
+  const reconnectAttemptsRef = useRef(0);
 
   const connectWebSocket = useCallback(() => {
-    if (!deviceId || !api?.accessToken) {
+    if (!deviceId || !api?.accessToken || !isNetworkConnected) {
       return;
     }
 
@@ -58,9 +62,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const newWebSocket = new WebSocket(url);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
 
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 10000;
+
     newWebSocket.onopen = () => {
       console.log("WebSocket connection opened");
       setIsConnected(true);
+      reconnectAttemptsRef.current = 0;
       keepAliveInterval = setInterval(() => {
         if (newWebSocket.readyState === WebSocket.OPEN) {
           newWebSocket.send(JSON.stringify({ MessageType: "KeepAlive" }));
@@ -68,22 +76,15 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }, 30000);
     };
 
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    const reconnectDelay = 10000;
-
-    newWebSocket.onerror = (e) => {
-      console.error("WebSocket error:", e);
+    newWebSocket.onerror = () => {
+      // Don't log errors - this is expected when offline or server unreachable
       setIsConnected(false);
 
-      if (reconnectAttempts < maxReconnectAttempts) {
-        reconnectAttempts++;
+      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+        reconnectAttemptsRef.current++;
         setTimeout(() => {
-          console.log(`WebSocket reconnect attempt ${reconnectAttempts}`);
           connectWebSocket();
         }, reconnectDelay);
-      } else {
-        console.warn("Max WebSocket reconnect attempts reached.");
       }
     };
 
@@ -96,7 +97,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     newWebSocket.onmessage = (e) => {
       try {
         const message = JSON.parse(e.data);
-        console.log("[WS] Received message:", message);
         setLastMessage(message); // Store the last message in context
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -110,7 +110,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }
       newWebSocket.close();
     };
-  }, [api, deviceId]);
+  }, [api, deviceId, isNetworkConnected]);
 
   useEffect(() => {
     if (!lastMessage) {
@@ -124,12 +124,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const handlePlayCommand = useCallback(
     (data: any) => {
       if (!data || !data.ItemIds || !data.ItemIds.length) {
-        console.warn("[WS] Received Play command with no items");
         return;
       }
 
       const itemId = data.ItemIds[0];
-      console.log(`[WS] Handling Play command for item: ${itemId}`);
 
       router.push({
         pathname: "/(auth)/player/direct-player",
@@ -153,26 +151,31 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, [connectWebSocket]);
 
   useEffect(() => {
-    if (!deviceId || !api || !api?.accessToken) {
+    if (!deviceId || !api || !api?.accessToken || !isNetworkConnected) {
       return;
     }
 
     const init = async () => {
-      await getSessionApi(api).postFullCapabilities({
-        clientCapabilitiesDto: {
-          AppStoreUrl: "https://apps.apple.com/us/app/streamyfin/id6593660679",
-          IconUrl:
-            "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
-          PlayableMediaTypes: ["Audio", "Video"],
-          SupportedCommands: ["Play"],
-          SupportsMediaControl: true,
-          SupportsPersistentIdentifier: true,
-        },
-      });
+      try {
+        await getSessionApi(api).postFullCapabilities({
+          clientCapabilitiesDto: {
+            AppStoreUrl:
+              "https://apps.apple.com/us/app/streamyfin/id6593660679",
+            IconUrl:
+              "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
+            PlayableMediaTypes: ["Audio", "Video"],
+            SupportedCommands: ["Play"],
+            SupportsMediaControl: true,
+            SupportsPersistentIdentifier: true,
+          },
+        });
+      } catch {
+        // Silently fail - expected when offline or server unreachable
+      }
     };
 
     init();
-  }, [api, deviceId]);
+  }, [api, deviceId, isNetworkConnected]);
 
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
@@ -199,9 +202,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     (message: any) => {
       if (ws && isConnected) {
         ws.send(JSON.stringify(message));
-      } else {
-        console.warn("Cannot send message: WebSocket is not connected");
       }
+      // Silently fail when not connected - expected when offline
     },
     [ws, isConnected],
   );

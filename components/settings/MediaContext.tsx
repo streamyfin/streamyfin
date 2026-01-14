@@ -4,9 +4,10 @@ import type {
   UserDto,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { createContext, type ReactNode, useContext, useEffect } from "react";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
 
@@ -30,7 +31,7 @@ export const useMedia = () => {
 export const MediaProvider = ({ children }: { children: ReactNode }) => {
   const { settings, updateSettings } = useSettings();
   const api = useAtomValue(apiAtom);
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
     const updateUserConfiguration = async (

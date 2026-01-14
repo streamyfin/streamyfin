@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
@@ -7,20 +7,46 @@ import {
   type OptionGroup,
   PlatformDropdown,
 } from "@/components/PlatformDropdown";
-import { useControlContext } from "../contexts/ControlContext";
+import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
+import useRouter from "@/hooks/useAppRouter";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
+import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
-const DropdownView = () => {
-  const videoContext = useVideoContext();
-  const { subtitleTracks, audioTracks } = videoContext;
-  const ControlContext = useControlContext();
-  const [item, mediaSource] = [
-    ControlContext?.item,
-    ControlContext?.mediaSource,
-  ];
+// Subtitle size presets (stored as scale * 100, so 1.0 = 100)
+const SUBTITLE_SIZE_PRESETS = [
+  { label: "0.5", value: 50 },
+  { label: "0.6", value: 60 },
+  { label: "0.7", value: 70 },
+  { label: "0.8", value: 80 },
+  { label: "0.9", value: 90 },
+  { label: "1.0", value: 100 },
+  { label: "1.1", value: 110 },
+  { label: "1.2", value: 120 },
+] as const;
+
+interface DropdownViewProps {
+  playbackSpeed?: number;
+  setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  showTechnicalInfo?: boolean;
+  onToggleTechnicalInfo?: () => void;
+}
+
+const DropdownView = ({
+  playbackSpeed = 1.0,
+  setPlaybackSpeed,
+  showTechnicalInfo = false,
+  onToggleTechnicalInfo,
+}: DropdownViewProps) => {
+  const { subtitleTracks, audioTracks } = useVideoContext();
+  const { item, mediaSource } = usePlayerContext();
+  const { settings, updateSettings } = useSettings();
   const router = useRouter();
+  const isOffline = useOfflineMode();
 
-  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition, offline } =
+  const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
     useLocalSearchParams<{
       itemId: string;
       audioIndex: string;
@@ -28,14 +54,11 @@ const DropdownView = () => {
       mediaSourceId: string;
       bitrateValue: string;
       playbackPosition: string;
-      offline: string;
     }>();
 
   // Use ref to track playbackPosition without causing re-renders
   const playbackPositionRef = useRef(playbackPosition);
   playbackPositionRef.current = playbackPosition;
-
-  const isOffline = offline === "true";
 
   // Stabilize IDs to prevent unnecessary recalculations
   const itemIdRef = useRef(item.Id);
@@ -100,6 +123,18 @@ const DropdownView = () => {
           onPress: () => sub.setTrack(),
         })),
       });
+
+      // Subtitle Size Section
+      groups.push({
+        title: "Subtitle Size",
+        options: SUBTITLE_SIZE_PRESETS.map((preset) => ({
+          type: "radio" as const,
+          label: preset.label,
+          value: preset.value.toString(),
+          selected: settings.subtitleSize === preset.value,
+          onPress: () => updateSettings({ subtitleSize: preset.value }),
+        })),
+      });
     }
 
     // Audio Section
@@ -116,6 +151,35 @@ const DropdownView = () => {
       });
     }
 
+    // Speed Section
+    if (setPlaybackSpeed) {
+      groups.push({
+        title: "Speed",
+        options: PLAYBACK_SPEEDS.map((speed) => ({
+          type: "radio" as const,
+          label: speed.label,
+          value: speed.value.toString(),
+          selected: playbackSpeed === speed.value,
+          onPress: () => setPlaybackSpeed(speed.value, PlaybackSpeedScope.All),
+        })),
+      });
+    }
+
+    // Technical Info (at bottom)
+    if (onToggleTechnicalInfo) {
+      groups.push({
+        options: [
+          {
+            type: "action" as const,
+            label: showTechnicalInfo
+              ? "Hide Technical Info"
+              : "Show Technical Info",
+            onPress: onToggleTechnicalInfo,
+          },
+        ],
+      });
+    }
+
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -126,6 +190,12 @@ const DropdownView = () => {
     audioTracksKey,
     subtitleIndex,
     audioIndex,
+    settings.subtitleSize,
+    updateSettings,
+    playbackSpeed,
+    setPlaybackSpeed,
+    showTechnicalInfo,
+    onToggleTechnicalInfo,
     // Note: subtitleTracks and audioTracks are intentionally excluded
     // because we use subtitleTracksKey and audioTracksKey for stability
   ]);
@@ -148,6 +218,7 @@ const DropdownView = () => {
       title='Playback Options'
       groups={optionGroups}
       trigger={trigger}
+      expoUIConfig={{}}
       bottomSheetConfig={{
         enablePanDownToClose: true,
       }}

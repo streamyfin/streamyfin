@@ -1,19 +1,25 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { useRouter, useSegments } from "expo-router";
+import { useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
 import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { useDownload } from "@/providers/DownloadProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
-  isOffline?: boolean;
 }
 
 export const itemRouter = (item: BaseItemDto, from: string) => {
   if ("CollectionType" in item && item.CollectionType === "livetv") {
     return `/(auth)/(tabs)/${from}/livetv`;
+  }
+
+  if ("CollectionType" in item && item.CollectionType === "music") {
+    return `/(auth)/(tabs)/(libraries)/music/${item.Id}`;
   }
 
   if (item.Type === "Series") {
@@ -59,6 +65,13 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
+  if ("CollectionType" in item && item.CollectionType === "music") {
+    return {
+      pathname: "/music/[libraryId]" as const,
+      params: { libraryId: item.Id! },
+    };
+  }
+
   if (item.Type === "Series") {
     return {
       pathname: "/series/[id]" as const,
@@ -80,7 +93,7 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
-  if (item.Type === "CollectionFolder" || item.Type === "Playlist") {
+  if (item.Type === "CollectionFolder") {
     return {
       pathname: "/[libraryId]" as const,
       params: { libraryId: item.Id! },
@@ -102,6 +115,42 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
     };
   }
 
+  // Music types - use shared routes for proper back navigation
+  if (item.Type === "MusicArtist") {
+    return {
+      pathname: "/music/artist/[artistId]" as const,
+      params: { artistId: item.Id! },
+    };
+  }
+
+  if (item.Type === "MusicAlbum") {
+    return {
+      pathname: "/music/album/[albumId]" as const,
+      params: { albumId: item.Id! },
+    };
+  }
+
+  if (item.Type === "Audio") {
+    // Navigate to the album if available, otherwise to the item page
+    if (item.AlbumId) {
+      return {
+        pathname: "/music/album/[albumId]" as const,
+        params: { albumId: item.AlbumId },
+      };
+    }
+    return {
+      pathname: "/items/page" as const,
+      params: { id: item.Id! },
+    };
+  }
+
+  if (item.Type === "Playlist") {
+    return {
+      pathname: "/music/playlist/[playlistId]" as const,
+      params: { playlistId: item.Id! },
+    };
+  }
+
   // Default case - items page
   return {
     pathname: "/items/page" as const,
@@ -111,17 +160,30 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
 
 export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   item,
-  isOffline = false,
   children,
   ...props
 }) => {
-  const router = useRouter();
   const segments = useSegments();
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
+  const router = useRouter();
+  const isOffline = useOfflineMode();
+  const { deleteFile } = useDownload();
 
   const from = (segments as string[])[2] || "(home)";
+
+  const handlePress = useCallback(() => {
+    // Force music libraries to navigate via the explicit string route.
+    // This avoids losing the dynamic [libraryId] param when going through a nested navigator.
+    if ("CollectionType" in item && item.CollectionType === "music") {
+      router.push(itemRouter(item, from) as any);
+      return;
+    }
+
+    const navigation = getItemNavigation(item, from);
+    router.push(navigation as any);
+  }, [from, item, router]);
 
   const showActionSheet = useCallback(() => {
     if (
@@ -132,18 +194,24 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       )
     )
       return;
-    const options = [
+
+    const options: string[] = [
       "Mark as Played",
       "Mark as Not Played",
       isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
+      ...(isOffline ? ["Delete Download"] : []),
       "Cancel",
     ];
-    const cancelButtonIndex = 3;
+    const cancelButtonIndex = options.length - 1;
+    const destructiveButtonIndex = isOffline
+      ? cancelButtonIndex - 1
+      : undefined;
 
     showActionSheetWithOptions(
       {
         options,
         cancelButtonIndex,
+        destructiveButtonIndex,
       },
       async (selectedIndex) => {
         if (selectedIndex === 0) {
@@ -152,31 +220,32 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
           await markAsPlayedStatus(false);
         } else if (selectedIndex === 2) {
           toggleFavorite();
+        } else if (isOffline && selectedIndex === 3 && item.Id) {
+          deleteFile(item.Id);
         }
       },
     );
-  }, [showActionSheetWithOptions, isFavorite, markAsPlayedStatus]);
+  }, [
+    showActionSheetWithOptions,
+    isFavorite,
+    markAsPlayedStatus,
+    toggleFavorite,
+    isOffline,
+    deleteFile,
+    item.Id,
+  ]);
 
   if (
     from === "(home)" ||
     from === "(search)" ||
     from === "(libraries)" ||
-    from === "(favorites)"
+    from === "(favorites)" ||
+    from === "(watchlists)"
   )
     return (
       <TouchableOpacity
         onLongPress={showActionSheet}
-        onPress={() => {
-          if (isOffline) {
-            // For offline mode, we still need to use query params
-            const url = `${itemRouter(item, from)}&offline=true`;
-            router.push(url as any);
-            return;
-          }
-
-          const navigation = getItemNavigation(item, from);
-          router.push(navigation as any);
-        }}
+        onPress={handlePress}
         {...props}
       >
         {children}

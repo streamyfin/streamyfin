@@ -7,15 +7,15 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
-import { useFocusEffect, useRouter, withLayoutContext } from "expo-router";
-import { useCallback } from "react";
+import { withLayoutContext } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
+import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
-import { storage } from "@/utils/mmkv";
 
 const { Navigator } = createNativeBottomTabNavigator();
 
@@ -29,25 +29,9 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
-  const router = useRouter();
-
-  useFocusEffect(
-    useCallback(() => {
-      const hasShownIntro = storage.getBoolean("hasShownIntro");
-      if (!hasShownIntro) {
-        const timer = setTimeout(() => {
-          router.push("/intro/page");
-        }, 1000);
-
-        return () => {
-          clearTimeout(timer);
-        };
-      }
-    }, []),
-  );
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <SystemBars hidden={false} style='light' />
       <NativeTabs
         sidebarAdaptable={false}
@@ -101,6 +85,18 @@ export default function TabLayout() {
           }}
         />
         <NativeTabs.Screen
+          name='(watchlists)'
+          options={{
+            title: t("watchlists.title"),
+            tabBarItemHidden:
+              !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
+            tabBarIcon:
+              Platform.OS === "android"
+                ? (_e) => require("@/assets/icons/list.png")
+                : (_e) => ({ sfSymbol: "list.bullet.rectangle" }),
+          }}
+        />
+        <NativeTabs.Screen
           name='(libraries)'
           options={{
             title: t("tabs.library"),
@@ -122,6 +118,8 @@ export default function TabLayout() {
           }}
         />
       </NativeTabs>
-    </>
+      <MiniPlayerBar />
+      <MusicPlaybackEngine />
+    </View>
   );
 }

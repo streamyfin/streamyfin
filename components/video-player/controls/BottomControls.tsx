@@ -18,7 +18,6 @@ interface BottomControlsProps {
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  isVlc: boolean;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
@@ -67,7 +66,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showRemoteBubble,
   currentTime,
   remainingTime,
-  isVlc,
   showSkipButton,
   showSkipCreditButton,
   hasContentAfterCredits,
@@ -98,11 +96,13 @@ export const BottomControls: FC<BottomControlsProps> = ({
       style={[
         {
           position: "absolute",
-          right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-          left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-          bottom: settings?.safeAreaInControlsEnabled
-            ? Math.max(insets.bottom - 17, 0)
-            : 0,
+          right:
+            (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+          left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
+          bottom:
+            (settings?.safeAreaInControlsEnabled ?? true)
+              ? Math.max(insets.bottom - 17, 0)
+              : 0,
         },
       ]}
       className={"flex flex-col px-2"}
@@ -148,21 +148,22 @@ export const BottomControls: FC<BottomControlsProps> = ({
             onPress={skipCredit}
             buttonText='Skip Credits'
           />
-          {(settings.maxAutoPlayEpisodeCount.value === -1 ||
-            settings.autoPlayEpisodeCount <
-              settings.maxAutoPlayEpisodeCount.value) && (
-            <NextEpisodeCountDownButton
-              show={
-                !nextItem
-                  ? false
-                  : // Show during credits if no content after, OR near end of video
-                    (showSkipCreditButton && !hasContentAfterCredits) ||
-                    (isVlc ? remainingTime < 10000 : remainingTime < 10)
-              }
-              onFinish={handleNextEpisodeAutoPlay}
-              onPress={handleNextEpisodeManual}
-            />
-          )}
+          {settings.autoPlayNextEpisode !== false &&
+            (settings.maxAutoPlayEpisodeCount.value === -1 ||
+              settings.autoPlayEpisodeCount <
+                settings.maxAutoPlayEpisodeCount.value) && (
+              <NextEpisodeCountDownButton
+                show={
+                  !nextItem
+                    ? false
+                    : // Show during credits if no content after, OR near end of video
+                      (showSkipCreditButton && !hasContentAfterCredits) ||
+                      remainingTime < 10000
+                }
+                onFinish={handleNextEpisodeAutoPlay}
+                onPress={handleNextEpisodeManual}
+              />
+            )}
         </View>
       </View>
       <View
@@ -215,7 +216,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <TimeDisplay
             currentTime={currentTime}
             remainingTime={remainingTime}
-            isVlc={isVlc}
           />
         </View>
       </View>

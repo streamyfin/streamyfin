@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking, Switch } from "react-native";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -51,12 +51,32 @@ export const AppearanceSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
+          title={t("home.settings.appearance.merge_next_up_continue_watching")}
+        >
+          <Switch
+            value={settings.mergeNextUpAndContinueWatching}
+            onValueChange={(value) =>
+              updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+        </ListItem>
+        <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")
           }
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
+        <ListItem
+          title={t("home.settings.appearance.hide_remote_session_button")}
+        >
+          <Switch
+            value={settings.hideRemoteSessionButton}
+            onValueChange={(value) =>
+              updateSettings({ hideRemoteSessionButton: value })
+            }
+          />
+        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );

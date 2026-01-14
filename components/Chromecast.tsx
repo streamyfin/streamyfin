@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useCallback, useEffect } from "react";
-import { Platform, TouchableOpacity } from "react-native";
+import { Platform } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import GoogleCast, {
   CastButton,
   CastContext,
@@ -44,7 +45,7 @@ export function Chromecast({
 
   if (Platform.OS === "ios") {
     return (
-      <TouchableOpacity
+      <Pressable
         className='mr-4'
         onPress={() => {
           if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
@@ -54,7 +55,7 @@ export function Chromecast({
       >
         <AndroidCastButton />
         <Feather name='cast' size={22} color={"white"} />
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 

@@ -1,14 +1,14 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useRouter } from "expo-router";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
+  MediaStreamType,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -23,11 +23,13 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
@@ -43,7 +45,6 @@ import type { SelectedOptions } from "./ItemContent";
 interface Props extends React.ComponentProps<typeof TouchableOpacity> {
   item: BaseItemDto;
   selectedOptions: SelectedOptions;
-  isOffline?: boolean;
   colors?: ThemeColors;
 }
 
@@ -53,9 +54,9 @@ const MIN_PLAYBACK_WIDTH = 15;
 export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
-  isOffline,
   colors,
 }: Props) => {
+  const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
   const mediaStatus = useMediaStatus();
@@ -185,11 +186,23 @@ export const PlayButton: React.FC<Props> = ({
                     return;
                   }
 
+                  // Calculate start time in seconds from playback position
+                  const startTimeSeconds =
+                    (item?.UserData?.PlaybackPositionTicks ?? 0) / 10000000;
+
+                  // Calculate stream duration in seconds from runtime
+                  const streamDurationSeconds = item.RunTimeTicks
+                    ? item.RunTimeTicks / 10000000
+                    : undefined;
+
                   client
                     .loadMedia({
                       mediaInfo: {
+                        contentId: item.Id,
                         contentUrl: data?.url,
                         contentType: "video/mp4",
+                        streamType: MediaStreamType.BUFFERED,
+                        streamDuration: streamDurationSeconds,
                         metadata:
                           item.Type === "Episode"
                             ? {
@@ -241,7 +254,7 @@ export const PlayButton: React.FC<Props> = ({
                                   ],
                                 },
                       },
-                      startTime: 0,
+                      startTime: startTimeSeconds,
                     })
                     .then(() => {
                       // state is already set when reopening current media, so skip it here.
@@ -280,7 +293,6 @@ export const PlayButton: React.FC<Props> = ({
   ]);
 
   const onPress = useCallback(async () => {
-    console.log("onPress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -288,6 +300,19 @@ export const PlayButton: React.FC<Props> = ({
     // Check if item is downloaded
     const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
 
+    // If already in offline mode, play downloaded file directly
+    if (isOffline && downloadedItem) {
+      const queryParams = new URLSearchParams({
+        itemId: item.Id!,
+        offline: "true",
+        playbackPosition:
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      });
+      goToPlayer(queryParams.toString());
+      return;
+    }
+
+    // If online but file is downloaded, ask user which version to play
     if (downloadedItem) {
       if (Platform.OS === "android") {
         // Show bottom sheet for Android
@@ -474,52 +499,6 @@ export const PlayButton: React.FC<Props> = ({
     ),
   }));
 
-  // if (Platform.OS === "ios")
-  //   return (
-  //     <Host
-  //       style={{
-  //         height: 50,
-  //         flex: 1,
-  //         flexShrink: 0,
-  //       }}
-  //     >
-  //       <Button
-  //         variant='glassProminent'
-  //         onPress={onPress}
-  //         color={effectiveColors.primary}
-  //         modifiers={[fixedSize()]}
-  //       >
-  //         <View className='flex flex-row items-center space-x-2 h-full w-full justify-center -mb-3.5 '>
-  //           <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
-  //             {runtimeTicksToMinutes(
-  //               (item?.RunTimeTicks || 0) -
-  //                 (item?.UserData?.PlaybackPositionTicks || 0),
-  //             )}
-  //             {(item?.UserData?.PlaybackPositionTicks || 0) > 0 && " left"}
-  //           </Animated.Text>
-  //           <Animated.Text style={animatedTextStyle}>
-  //             <Ionicons name='play-circle' size={24} />
-  //           </Animated.Text>
-  //           {client && (
-  //             <Animated.Text style={animatedTextStyle}>
-  //               <Feather name='cast' size={22} />
-  //               <CastButton tintColor='transparent' />
-  //             </Animated.Text>
-  //           )}
-  //           {!client && settings?.openInVLC && (
-  //             <Animated.Text style={animatedTextStyle}>
-  //               <MaterialCommunityIcons
-  //                 name='vlc'
-  //                 size={18}
-  //                 color={animatedTextStyle.color}
-  //               />
-  //             </Animated.Text>
-  //           )}
-  //         </View>
-  //       </Button>
-  //     </Host>
-  //   );
-
   return (
     <TouchableOpacity
       disabled={!item}
@@ -567,15 +546,6 @@ export const PlayButton: React.FC<Props> = ({
             <Animated.Text style={animatedTextStyle}>
               <Feather name='cast' size={22} />
               <CastButton tintColor='transparent' />
-            </Animated.Text>
-          )}
-          {!client && settings?.openInVLC && (
-            <Animated.Text style={animatedTextStyle}>
-              <MaterialCommunityIcons
-                name='vlc'
-                size={18}
-                color={animatedTextStyle.color}
-              />
             </Animated.Text>
           )}
         </View>

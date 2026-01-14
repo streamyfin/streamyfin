@@ -44,7 +44,6 @@ export default function index() {
     const filteredLibraries =
       data
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
-        .filter((l) => l.CollectionType !== "music")
         .filter((l) => l.CollectionType !== "books") || [];
 
     // Merge libraries with channels

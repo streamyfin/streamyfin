@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useTwoWaySync } from "./useTwoWaySync";
 
@@ -6,7 +6,7 @@ import { useTwoWaySync } from "./useTwoWaySync";
  * useRevalidatePlaybackProgressCache invalidates queries related to playback progress.
  */
 export function useInvalidatePlaybackProgressCache() {
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
   const { getDownloadedItems } = useDownload();
   const { syncPlaybackState } = useTwoWaySync();
 

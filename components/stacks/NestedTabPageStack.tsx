@@ -25,6 +25,9 @@ const routes = [
   "series/[id]",
   "channels/[channelId]",
   "channels/[channelId]/folder/[folderId]",
+  "music/album/[albumId]",
+  "music/artist/[artistId]",
+  "music/playlist/[playlistId]",
 ];
 
 export const nestedTabPageScreenOptions: Record<string, ICommonScreenOptions> =

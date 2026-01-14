@@ -25,7 +25,14 @@ export type ToggleOption = {
   disabled?: boolean;
 };
 
-export type Option = RadioOption | ToggleOption;
+export type ActionOption = {
+  type: "action";
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+};
+
+export type Option = RadioOption | ToggleOption | ActionOption;
 
 // Option group structure
 export type OptionGroup = {
@@ -54,9 +61,7 @@ const ToggleSwitch: React.FC<{ value: boolean }> = ({ value }) => (
     className={`w-12 h-7 rounded-full ${value ? "bg-purple-600" : "bg-neutral-600"} flex-row items-center`}
   >
     <View
-      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-        value ? "translate-x-6" : "translate-x-1"
-      }`}
+      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${value ? "translate-x-6" : "translate-x-1"}`}
     />
   </View>
 );
@@ -66,21 +71,22 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
   isLast,
 }) => {
   const isToggle = option.type === "toggle";
-  const handlePress = isToggle ? option.onToggle : option.onPress;
+  const isAction = option.type === "action";
+  const handlePress = isToggle
+    ? option.onToggle
+    : (option as RadioOption | ActionOption).onPress;
 
   return (
     <>
       <TouchableOpacity
         onPress={handlePress}
         disabled={option.disabled}
-        className={`px-4 py-3 flex flex-row items-center justify-between ${
-          option.disabled ? "opacity-50" : ""
-        }`}
+        className={`px-4 py-3 flex flex-row items-center justify-between ${option.disabled ? "opacity-50" : ""}`}
       >
         <Text className='flex-1 text-white'>{option.label}</Text>
         {isToggle ? (
           <ToggleSwitch value={option.value} />
-        ) : option.selected ? (
+        ) : isAction ? null : (option as RadioOption).selected ? (
           <Ionicons name='checkmark-circle' size={24} color='#9333ea' />
         ) : (
           <Ionicons name='ellipse-outline' size={24} color='#6b7280' />
@@ -154,6 +160,15 @@ const BottomSheetContent: React.FC<{
           },
         };
       }
+      if (option.type === "action") {
+        return {
+          ...option,
+          onPress: () => {
+            option.onPress();
+            onClose?.();
+          },
+        };
+      }
       return option;
     }),
   }));
@@ -219,11 +234,7 @@ const PlatformDropdownComponent = ({
     return (
       <Host style={expoUIConfig?.hostStyle}>
         <ContextMenu>
-          <ContextMenu.Trigger>
-            <View className=''>
-              {trigger || <Button variant='bordered'>Show Menu</Button>}
-            </View>
-          </ContextMenu.Trigger>
+          <ContextMenu.Trigger>{trigger}</ContextMenu.Trigger>
           <ContextMenu.Items>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
@@ -233,6 +244,9 @@ const PlatformDropdownComponent = ({
               const toggleOptions = group.options.filter(
                 (opt) => opt.type === "toggle",
               ) as ToggleOption[];
+              const actionOptions = group.options.filter(
+                (opt) => opt.type === "action",
+              ) as ActionOption[];
 
               const items = [];
 
@@ -291,6 +305,21 @@ const PlatformDropdownComponent = ({
                     onPress={() => {
                       option.onToggle();
                       onOptionSelect?.(option.value);
+                    }}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </Button>,
+                );
+              });
+
+              // Add Buttons for action options (no icon)
+              actionOptions.forEach((option, optionIndex) => {
+                items.push(
+                  <Button
+                    key={`action-${groupIndex}-${optionIndex}`}
+                    onPress={() => {
+                      option.onPress();
                     }}
                     disabled={option.disabled}
                   >
