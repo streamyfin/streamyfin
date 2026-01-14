@@ -5,6 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams } from "expo-router";
 import { type FC, useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -394,10 +395,11 @@ export const Controls: FC<Props> = ({
       ? outroSkipper.currentSegment.endTime < maxSeconds
       : false;
 
-  // Get button text based on segment type
+  // Get button text based on segment type using i18n
+  const { t } = useTranslation();
   const skipButtonText = activeSegment
-    ? `Skip ${activeSegment.type}`
-    : "Skip Intro";
+    ? t(`player.skip_${activeSegment.type.toLowerCase()}`)
+    : t("player.skip_intro");
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
