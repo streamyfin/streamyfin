@@ -16,17 +16,17 @@ import Animated, {
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import useRouter from "@/hooks/useAppRouter";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useSegmentSkipper } from "@/hooks/useSegmentSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { ticksToMs } from "@/utils/time";
+import { useSegments } from "@/utils/segments";
+import { msToSeconds, ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
@@ -300,27 +300,101 @@ export const Controls: FC<Props> = ({
     subtitleIndex: string;
   }>();
 
-  const { showSkipButton, skipIntro } = useIntroSkipper(
+  // Fetch all segments for the current item
+  const { data: segments } = useSegments(
     item.Id!,
-    currentTime,
-    seek,
-    play,
     offline,
-    api,
     downloadedFiles,
+    api,
   );
 
-  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
-    useCreditSkipper(
-      item.Id!,
-      currentTime,
-      seek,
-      play,
-      offline,
-      api,
-      downloadedFiles,
-      maxMs,
-    );
+  // Convert milliseconds to seconds for segment comparison
+  const currentTimeSeconds = msToSeconds(currentTime);
+  const maxSeconds = maxMs ? msToSeconds(maxMs) : undefined;
+
+  // Wrapper to convert segment skip from seconds to milliseconds
+  const seekMs = useCallback(
+    (timeInSeconds: number) => {
+      seek(timeInSeconds * 1000);
+      setTimeout(() => {
+        play();
+      }, 200);
+    },
+    [seek, play],
+  );
+
+  // Use unified segment skipper for all segment types
+  const introSkipper = useSegmentSkipper({
+    segments: segments?.introSegments || [],
+    segmentType: "Intro",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const outroSkipper = useSegmentSkipper({
+    segments: segments?.creditSegments || [],
+    segmentType: "Outro",
+    currentTime: currentTimeSeconds,
+    totalDuration: maxSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const recapSkipper = useSegmentSkipper({
+    segments: segments?.recapSegments || [],
+    segmentType: "Recap",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const commercialSkipper = useSegmentSkipper({
+    segments: segments?.commercialSegments || [],
+    segmentType: "Commercial",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const previewSkipper = useSegmentSkipper({
+    segments: segments?.previewSegments || [],
+    segmentType: "Preview",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  // Determine which segment button to show (priority order)
+  // Commercial > Recap > Intro > Preview > Outro
+  const activeSegment = (() => {
+    if (commercialSkipper.currentSegment)
+      return { type: "Commercial", ...commercialSkipper };
+    if (recapSkipper.currentSegment) return { type: "Recap", ...recapSkipper };
+    if (introSkipper.currentSegment) return { type: "Intro", ...introSkipper };
+    if (previewSkipper.currentSegment)
+      return { type: "Preview", ...previewSkipper };
+    if (outroSkipper.currentSegment) return { type: "Outro", ...outroSkipper };
+    return null;
+  })();
+
+  // Legacy compatibility: map to old variable names
+  const showSkipButton = !!(
+    activeSegment &&
+    ["Intro", "Recap", "Commercial", "Preview"].includes(activeSegment.type)
+  );
+  const skipIntro = activeSegment?.skipSegment || (() => {});
+  const showSkipCreditButton = activeSegment?.type === "Outro";
+  const skipCredit = outroSkipper.skipSegment;
+  const hasContentAfterCredits =
+    outroSkipper.currentSegment && maxSeconds
+      ? outroSkipper.currentSegment.endTime < maxSeconds
+      : false;
+
+  // Get button text based on segment type
+  const skipButtonText = activeSegment
+    ? `Skip ${activeSegment.type}`
+    : "Skip Intro";
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -534,6 +608,7 @@ export const Controls: FC<Props> = ({
               currentTime={currentTime}
               remainingTime={remainingTime}
               showSkipButton={showSkipButton}
+              skipButtonText={skipButtonText}
               showSkipCreditButton={showSkipCreditButton}
               hasContentAfterCredits={hasContentAfterCredits}
               skipIntro={skipIntro}
