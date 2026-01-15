@@ -91,18 +91,29 @@ export const getMpvSubtitleId = (
 /**
  * Calculate the MPV track ID for a given Jellyfin audio index.
  *
- * Audio tracks are simpler - they're always in MPV (no burn-in like image subs).
+ * For direct play: Audio tracks map to their position in the file (1-based).
+ * For transcoding: Only ONE audio track exists in the HLS stream (the selected one),
+ * so we should return 1 or undefined to use the default track.
+ *
  * MPV track IDs are 1-based.
  *
  * @param mediaSource - The media source containing audio streams
  * @param jellyfinAudioIndex - The Jellyfin server-side audio index
+ * @param isTranscoding - Whether the stream is being transcoded
  * @returns MPV track ID (1-based), or undefined if not found
  */
 export const getMpvAudioId = (
   mediaSource: MediaSourceInfo | null | undefined,
   jellyfinAudioIndex: number | undefined,
+  isTranscoding: boolean,
 ): number | undefined => {
   if (jellyfinAudioIndex === undefined) {
+    return undefined;
+  }
+
+  // When transcoding, Jellyfin only includes the selected audio track in the HLS stream.
+  // So there's only 1 audio track - no need to specify an ID.
+  if (isTranscoding) {
     return undefined;
   }
 
