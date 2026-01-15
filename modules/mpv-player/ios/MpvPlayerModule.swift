@@ -164,6 +164,20 @@ public class MpvPlayerModule: Module {
         return view.getCurrentAudioTrack()
       }
 
+      // Video scaling functions
+      AsyncFunction("setZoomedToFill") { (view: MpvPlayerView, zoomed: Bool) in
+        view.setZoomedToFill(zoomed)
+      }
+
+      AsyncFunction("isZoomedToFill") { (view: MpvPlayerView) -> Bool in
+        return view.isZoomedToFill()
+      }
+
+      // Technical info function
+      AsyncFunction("getTechnicalInfo") { (view: MpvPlayerView) -> [String: Any] in
+        return view.getTechnicalInfo()
+      }
+
       // Defines events that the view can send to JavaScript
       Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
     }

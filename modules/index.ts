@@ -8,39 +8,17 @@ export type {
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
 
-// Streamyfin Player (KSPlayer-based) - GPU acceleration + native PiP (iOS)
+// MPV Player (iOS + Android)
 export type {
-  AudioTrack as SfAudioTrack,
-  OnErrorEventPayload as SfOnErrorEventPayload,
-  OnLoadEventPayload as SfOnLoadEventPayload,
-  OnPictureInPictureChangePayload as SfOnPictureInPictureChangePayload,
-  OnPlaybackStateChangePayload as SfOnPlaybackStateChangePayload,
-  OnProgressEventPayload as SfOnProgressEventPayload,
-  OnTracksReadyEventPayload as SfOnTracksReadyEventPayload,
-  SfPlayerViewProps,
-  SfPlayerViewRef,
-  SubtitleTrack as SfSubtitleTrack,
-  VideoSource as SfVideoSource,
-} from "./sf-player";
-export {
-  getHardwareDecode,
-  SfPlayerView,
-  setHardwareDecode,
-} from "./sf-player";
-
-// VLC Player (Android)
-export type {
-  ChapterInfo,
-  NowPlayingMetadata,
-  PipStartedPayload,
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  TrackInfo,
-  VideoLoadStartPayload,
-  VideoProgressPayload,
-  VideoStateChangePayload,
-  VlcPlayerSource,
-  VlcPlayerViewProps,
-  VlcPlayerViewRef,
-} from "./VlcPlayer.types";
-export { default as VlcPlayerView } from "./VlcPlayerView";
+  AudioTrack as MpvAudioTrack,
+  MpvPlayerViewProps,
+  MpvPlayerViewRef,
+  OnErrorEventPayload as MpvOnErrorEventPayload,
+  OnLoadEventPayload as MpvOnLoadEventPayload,
+  OnPlaybackStateChangePayload as MpvOnPlaybackStateChangePayload,
+  OnProgressEventPayload as MpvOnProgressEventPayload,
+  OnTracksReadyEventPayload as MpvOnTracksReadyEventPayload,
+  SubtitleTrack as MpvSubtitleTrack,
+  VideoSource as MpvVideoSource,
+} from "./mpv-player";
+export { MpvPlayerView } from "./mpv-player";

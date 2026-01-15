@@ -94,6 +94,17 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       getCurrentAudioTrack: async () => {
         return await nativeRef.current?.getCurrentAudioTrack();
       },
+      // Video scaling
+      setZoomedToFill: async (zoomed: boolean) => {
+        await nativeRef.current?.setZoomedToFill(zoomed);
+      },
+      isZoomedToFill: async () => {
+        return await nativeRef.current?.isZoomedToFill();
+      },
+      // Technical info
+      getTechnicalInfo: async () => {
+        return await nativeRef.current?.getTechnicalInfo();
+      },
     }));
 
     return <NativeView ref={nativeRef} {...props} />;

@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +14,7 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
@@ -28,7 +28,7 @@ export default function page() {
     pluginSettings,
     refreshStreamyfinPluginSettings,
   } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   // Local state for all editable fields
   const [url, setUrl] = useState<string>(settings?.streamyStatsServerUrl || "");

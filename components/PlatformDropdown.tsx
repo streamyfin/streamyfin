@@ -25,7 +25,14 @@ export type ToggleOption = {
   disabled?: boolean;
 };
 
-export type Option = RadioOption | ToggleOption;
+export type ActionOption = {
+  type: "action";
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+};
+
+export type Option = RadioOption | ToggleOption | ActionOption;
 
 // Option group structure
 export type OptionGroup = {
@@ -64,7 +71,10 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
   isLast,
 }) => {
   const isToggle = option.type === "toggle";
-  const handlePress = isToggle ? option.onToggle : option.onPress;
+  const isAction = option.type === "action";
+  const handlePress = isToggle
+    ? option.onToggle
+    : (option as RadioOption | ActionOption).onPress;
 
   // Split label by newline to handle title + description
   const labelParts = option.label.split("\n");
@@ -91,7 +101,7 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
         </View>
         {isToggle ? (
           <ToggleSwitch value={option.value} />
-        ) : option.selected ? (
+        ) : isAction ? null : (option as RadioOption).selected ? (
           <Ionicons name='checkmark-circle' size={24} color='#9333ea' />
         ) : (
           <Ionicons name='ellipse-outline' size={24} color='#6b7280' />
@@ -162,6 +172,15 @@ const BottomSheetContent: React.FC<{
           onToggle: () => {
             option.onToggle();
             onOptionSelect?.(option.value);
+          },
+        };
+      }
+      if (option.type === "action") {
+        return {
+          ...option,
+          onPress: () => {
+            option.onPress();
+            onClose?.();
           },
         };
       }
@@ -240,6 +259,9 @@ const PlatformDropdownComponent = ({
               const toggleOptions = group.options.filter(
                 (opt) => opt.type === "toggle",
               ) as ToggleOption[];
+              const actionOptions = group.options.filter(
+                (opt) => opt.type === "action",
+              ) as ActionOption[];
 
               const items = [];
 
@@ -298,6 +320,21 @@ const PlatformDropdownComponent = ({
                     onPress={() => {
                       option.onToggle();
                       onOptionSelect?.(option.value);
+                    }}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </Button>,
+                );
+              });
+
+              // Add Buttons for action options (no icon)
+              actionOptions.forEach((option, optionIndex) => {
+                items.push(
+                  <Button
+                    key={`action-${groupIndex}-${optionIndex}`}
+                    onPress={() => {
+                      option.onPress();
                     }}
                     disabled={option.disabled}
                   >

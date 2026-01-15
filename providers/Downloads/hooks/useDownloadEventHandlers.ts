@@ -235,6 +235,9 @@ export function useDownloadEventHandlers({
             trickPlayData,
             introSegments,
             creditSegments,
+            audioStreamIndex,
+            subtitleStreamIndex,
+            isTranscoding,
           } = process;
           const videoFile = new File(filePathToUri(event.filePath));
           const fileInfo = videoFile.info();
@@ -258,8 +261,9 @@ export function useDownloadEventHandlers({
             introSegments,
             creditSegments,
             userData: {
-              audioStreamIndex: 0,
-              subtitleStreamIndex: 0,
+              audioStreamIndex: audioStreamIndex ?? 0,
+              subtitleStreamIndex: subtitleStreamIndex ?? -1,
+              isTranscoded: isTranscoding ?? false,
             },
           };
 

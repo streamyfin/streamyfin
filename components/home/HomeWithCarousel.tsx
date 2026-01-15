@@ -12,7 +12,7 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import { useNavigation, useRouter, useSegments } from "expo-router";
+import { useNavigation, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -35,6 +35,7 @@ import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecom
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
+import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";

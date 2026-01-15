@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+@.claude/learned-facts.md
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -75,6 +77,21 @@ bun run ios:install-metal-toolchain  # Fix "missing Metal Toolchain" build error
 - File-based routing in `app/` directory
 - Tab navigation: `(home)`, `(search)`, `(favorites)`, `(libraries)`, `(watchlists)`
 - Shared routes use parenthesized groups like `(home,libraries,search,favorites,watchlists)`
+- **IMPORTANT**: Always use `useAppRouter` from `@/hooks/useAppRouter` instead of `useRouter` from `expo-router`. This custom hook automatically handles offline mode state preservation across navigation:
+  ```typescript
+  // ✅ Correct
+  import useRouter from "@/hooks/useAppRouter";
+  const router = useRouter();
+  
+  // ❌ Never use this
+  import { useRouter } from "expo-router";
+  import { router } from "expo-router";
+  ```
+
+**Offline Mode**:
+- Use `OfflineModeProvider` from `@/providers/OfflineModeProvider` to wrap pages that support offline content
+- Use `useOfflineMode()` hook to check if current context is offline
+- The `useAppRouter` hook automatically injects `offline=true` param when navigating within an offline context
 
 **Providers** (wrapping order in `app/_layout.tsx`):
 1. JotaiProvider

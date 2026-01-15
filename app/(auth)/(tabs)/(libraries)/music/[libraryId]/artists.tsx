@@ -6,7 +6,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
@@ -71,13 +71,6 @@ export default function ArtistsScreen() {
     return data?.pages.flatMap((page) => page.items) || [];
   }, [data]);
 
-  const numColumns = 3;
-  const screenWidth = Dimensions.get("window").width;
-  const gap = 12;
-  const padding = 16;
-  const itemWidth =
-    (screenWidth - padding * 2 - gap * (numColumns - 1)) / numColumns;
-
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
@@ -135,11 +128,10 @@ export default function ArtistsScreen() {
     <View className='flex-1 bg-black'>
       <FlashList
         data={artists}
-        numColumns={numColumns}
         contentContainerStyle={{
           paddingBottom: insets.bottom + 100,
-          paddingTop: 16,
-          paddingHorizontal: padding,
+          paddingTop: 8,
+          paddingHorizontal: 16,
         }}
         refreshControl={
           <RefreshControl
@@ -150,17 +142,7 @@ export default function ArtistsScreen() {
         }
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-        renderItem={({ item, index }) => (
-          <View
-            style={{
-              width: itemWidth,
-              marginRight: index % numColumns !== numColumns - 1 ? gap : 0,
-              marginBottom: gap,
-            }}
-          >
-            <MusicArtistCard artist={item} size={itemWidth} />
-          </View>
-        )}
+        renderItem={({ item }) => <MusicArtistCard artist={item} />}
         keyExtractor={(item) => item.Id!}
         ListFooterComponent={
           isFetchingNextPage ? (

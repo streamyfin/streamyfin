@@ -1,13 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, View } from "react-native";
 import { Switch } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { useHaptic } from "@/hooks/useHaptic";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import {
+  clearCache,
+  clearPermanentDownloads,
+  getStorageStats,
+} from "@/providers/AudioStorage";
 import { useSettings } from "@/utils/atoms/settings";
 
 const CACHE_SIZE_OPTIONS = [
@@ -29,6 +38,40 @@ export default function MusicSettingsPage() {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { t } = useTranslation();
+  const queryClient = useNetworkAwareQueryClient();
+  const successHapticFeedback = useHaptic("success");
+  const errorHapticFeedback = useHaptic("error");
+
+  const { data: musicCacheStats } = useQuery({
+    queryKey: ["musicCacheStats"],
+    queryFn: () => getStorageStats(),
+  });
+
+  const onClearMusicCacheClicked = useCallback(async () => {
+    try {
+      await clearCache();
+      queryClient.invalidateQueries({ queryKey: ["musicCacheStats"] });
+      queryClient.invalidateQueries({ queryKey: ["appSize"] });
+      successHapticFeedback();
+      toast.success(t("home.settings.storage.music_cache_cleared"));
+    } catch (_e) {
+      errorHapticFeedback();
+      toast.error(t("home.settings.toasts.error_deleting_files"));
+    }
+  }, [queryClient, successHapticFeedback, errorHapticFeedback, t]);
+
+  const onDeleteDownloadedSongsClicked = useCallback(async () => {
+    try {
+      await clearPermanentDownloads();
+      queryClient.invalidateQueries({ queryKey: ["musicCacheStats"] });
+      queryClient.invalidateQueries({ queryKey: ["appSize"] });
+      successHapticFeedback();
+      toast.success(t("home.settings.storage.downloaded_songs_deleted"));
+    } catch (_e) {
+      errorHapticFeedback();
+      toast.error(t("home.settings.toasts.error_deleting_files"));
+    }
+  }, [queryClient, successHapticFeedback, errorHapticFeedback, t]);
 
   const cacheSizeOptions = useMemo(
     () => [
@@ -171,6 +214,37 @@ export default function MusicSettingsPage() {
             </ListItem>
           </ListGroup>
         </View>
+
+        {!Platform.isTV && (
+          <View className='mt-4'>
+            <ListGroup
+              title={t("home.settings.storage.music_cache_title")}
+              description={
+                <Text className='text-[#8E8D91] text-xs'>
+                  {t("home.settings.storage.music_cache_description")}
+                </Text>
+              }
+            >
+              <ListItem
+                onPress={onClearMusicCacheClicked}
+                title={t("home.settings.storage.clear_music_cache")}
+                subtitle={t("home.settings.storage.music_cache_size", {
+                  size: (musicCacheStats?.cacheSize ?? 0).bytesToReadable(),
+                })}
+              />
+            </ListGroup>
+            <ListGroup>
+              <ListItem
+                textColor='red'
+                onPress={onDeleteDownloadedSongsClicked}
+                title={t("home.settings.storage.delete_all_downloaded_songs")}
+                subtitle={t("home.settings.storage.downloaded_songs_size", {
+                  size: (musicCacheStats?.permanentSize ?? 0).bytesToReadable(),
+                })}
+              />
+            </ListGroup>
+          </View>
+        )}
       </View>
     </ScrollView>
   );

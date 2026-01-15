@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo } from "react";
 import {
@@ -23,10 +22,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
-const HORIZONTAL_MARGIN = Platform.OS === "android" ? 8 : 16;
+const HORIZONTAL_MARGIN = Platform.OS === "android" ? 12 : 20;
 const BOTTOM_TAB_HEIGHT = Platform.OS === "android" ? 56 : 52;
 const BAR_HEIGHT = Platform.OS === "android" ? 58 : 50;
 
