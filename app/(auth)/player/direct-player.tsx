@@ -531,7 +531,11 @@ export default function page() {
       subtitleIndex,
       isTranscoding,
     );
-    const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
+    const initialAudioId = getMpvAudioId(
+      mediaSource,
+      audioIndex,
+      isTranscoding,
+    );
 
     // Calculate start position directly here to avoid timing issues
     const startTicks = playbackPositionFromUrl
