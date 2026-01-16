@@ -225,20 +225,20 @@ const TVSettingsPanel: FC<{
     <View style={selectorStyles.overlay}>
       <BlurView intensity={80} tint='dark' style={selectorStyles.blurContainer}>
         <View style={selectorStyles.content}>
-          {/* Tab buttons - no preferred focus, navigate here via up from options */}
+          {/* Tab buttons - switch automatically on focus */}
           <View style={selectorStyles.tabRow}>
             {audioOptions.length > 0 && (
               <TVSettingsTab
                 label={t("item_card.audio")}
                 active={activeTab === "audio"}
-                onPress={() => setActiveTab("audio")}
+                onSelect={() => setActiveTab("audio")}
               />
             )}
             {subtitleOptions.length > 0 && (
               <TVSettingsTab
                 label={t("item_card.subtitles")}
                 active={activeTab === "subtitle"}
-                onPress={() => setActiveTab("subtitle")}
+                onSelect={() => setActiveTab("subtitle")}
               />
             )}
           </View>
@@ -269,13 +269,13 @@ const TVSettingsPanel: FC<{
   );
 };
 
-// Tab button for settings panel
+// Tab button for settings panel - switches on focus, no click needed
 const TVSettingsTab: FC<{
   label: string;
   active: boolean;
-  onPress: () => void;
+  onSelect: () => void;
   hasTVPreferredFocus?: boolean;
-}> = ({ label, active, onPress, hasTVPreferredFocus }) => {
+}> = ({ label, active, onSelect, hasTVPreferredFocus }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new RNAnimated.Value(1)).current;
 
@@ -289,10 +289,11 @@ const TVSettingsTab: FC<{
 
   return (
     <Pressable
-      onPress={onPress}
       onFocus={() => {
         setFocused(true);
         animateTo(1.05);
+        // Switch tab automatically on focus
+        onSelect();
       }}
       onBlur={() => {
         setFocused(false);
@@ -506,8 +507,8 @@ export const Controls: FC<Props> = ({
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const isModalOpen = openModal !== null;
 
-  // Handle swipe up to open settings panel
-  const handleSwipeUp = useCallback(() => {
+  // Handle swipe down to open settings panel
+  const handleSwipeDown = useCallback(() => {
     if (!isModalOpen) {
       setOpenModal("settings");
     }
@@ -629,6 +630,16 @@ export const Controls: FC<Props> = ({
     isSeeking,
   });
 
+  const getFinishTime = () => {
+    const now = new Date();
+    const finishTime = new Date(now.getTime() + remainingTime);
+    return finishTime.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  };
+
   const toggleControls = useCallback(() => {
     setShowControls(!showControls);
   }, [showControls, setShowControls]);
@@ -672,7 +683,7 @@ export const Controls: FC<Props> = ({
     handleSeekForward,
     handleSeekBackward,
     disableSeeking: isModalOpen,
-    onSwipeUp: handleSwipeUp,
+    onSwipeDown: handleSwipeDown,
   });
 
   // Slider hook
@@ -748,9 +759,16 @@ export const Controls: FC<Props> = ({
       {/* Center Play Button - shown when paused */}
       {!isPlaying && showControls && (
         <View style={styles.centerContainer}>
-          <View style={styles.playButtonContainer}>
-            <Ionicons name='play' size={80} color='white' />
-          </View>
+          <BlurView intensity={40} tint='dark' style={styles.playButtonBlur}>
+            <View style={styles.playButtonInner}>
+              <Ionicons
+                name='play'
+                size={44}
+                color='white'
+                style={styles.playIcon}
+              />
+            </View>
+          </BlurView>
         </View>
       )}
 
@@ -771,14 +789,14 @@ export const Controls: FC<Props> = ({
             ]}
           >
             <View style={styles.settingsHint}>
+              <Text style={styles.settingsHintText}>
+                {t("player.swipe_down_settings")}
+              </Text>
               <Ionicons
-                name='chevron-up'
+                name='chevron-down'
                 size={16}
                 color='rgba(255,255,255,0.5)'
               />
-              <Text style={styles.settingsHintText}>
-                {t("player.swipe_up_settings")}
-              </Text>
             </View>
           </View>
         </Animated.View>
@@ -855,9 +873,14 @@ export const Controls: FC<Props> = ({
             <Text style={styles.timeText}>
               {formatTimeString(currentTime, "ms")}
             </Text>
-            <Text style={styles.timeText}>
-              -{formatTimeString(remainingTime, "ms")}
-            </Text>
+            <View style={styles.timeRight}>
+              <Text style={styles.timeText}>
+                -{formatTimeString(remainingTime, "ms")}
+              </Text>
+              <Text style={styles.endsAtText}>
+                {t("player.ends_at")} {getFinishTime()}
+              </Text>
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -910,14 +933,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  playButtonContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(0,0,0,0.5)",
+  playButtonBlur: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: "hidden",
+  },
+  playButtonInner: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingLeft: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    borderRadius: 40,
+  },
+  playIcon: {
+    marginLeft: 4,
   },
   topContainer: {
     position: "absolute",
@@ -928,7 +960,7 @@ const styles = StyleSheet.create({
   },
   topInner: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
   bottomContainer: {
     position: "absolute",
@@ -970,18 +1002,23 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.7)",
     fontSize: 22,
   },
+  timeRight: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+  },
+  endsAtText: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 16,
+    marginTop: 2,
+  },
   settingsRow: {
     flexDirection: "row",
     gap: 12,
   },
   settingsHint: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    gap: 4,
   },
   settingsHintText: {
     color: "rgba(255,255,255,0.5)",

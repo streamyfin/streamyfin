@@ -1,3 +1,5 @@
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { useRef, useState } from "react";
 import {
   Animated,
@@ -39,6 +41,49 @@ export function Input(props: InputProps) {
   };
 
   if (Platform.isTV) {
+    const containerStyle = {
+      height: 48,
+      borderRadius: 50,
+      borderWidth: isFocused ? 1.5 : 1,
+      borderColor: isFocused
+        ? "rgba(255, 255, 255, 0.3)"
+        : "rgba(255, 255, 255, 0.1)",
+      overflow: "hidden" as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      paddingLeft: 16,
+    };
+
+    const inputElement = (
+      <>
+        <Ionicons
+          name='search'
+          size={20}
+          color={isFocused ? "#999" : "#666"}
+          style={{ marginRight: 12 }}
+        />
+        <TextInput
+          ref={inputRef}
+          allowFontScaling={false}
+          placeholderTextColor='#666'
+          style={[
+            {
+              flex: 1,
+              height: 48,
+              fontSize: 18,
+              fontWeight: "400",
+              color: "#FFFFFF",
+              backgroundColor: "transparent",
+            },
+            style,
+          ]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          {...otherProps}
+        />
+      </>
+    );
+
     return (
       <Pressable
         onPress={() => inputRef.current?.focus()}
@@ -50,66 +95,28 @@ export function Input(props: InputProps) {
             transform: [{ scale }],
           }}
         >
-          {/* Outer glow when focused */}
-          {isFocused && (
+          {Platform.OS === "ios" ? (
+            <BlurView
+              intensity={isFocused ? 90 : 80}
+              tint='dark'
+              style={containerStyle}
+            >
+              {inputElement}
+            </BlurView>
+          ) : (
             <View
-              style={{
-                position: "absolute",
-                top: -4,
-                left: -4,
-                right: -4,
-                bottom: -4,
-                backgroundColor: "#9334E9",
-                borderRadius: 18,
-                opacity: 0.5,
-              }}
-            />
-          )}
-
-          <View
-            style={{
-              backgroundColor: isFocused ? "#2a2a2a" : "#1a1a1a",
-              borderWidth: 3,
-              borderColor: isFocused ? "#FFFFFF" : "#333333",
-              borderRadius: 14,
-              overflow: "hidden",
-            }}
-          >
-            {/* Purple accent bar at top when focused */}
-            {isFocused && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 3,
-                  backgroundColor: "#9334E9",
-                }}
-              />
-            )}
-
-            <TextInput
-              ref={inputRef}
-              allowFontScaling={false}
-              placeholderTextColor={isFocused ? "#AAAAAA" : "#666666"}
               style={[
+                containerStyle,
                 {
-                  height: 60,
-                  fontSize: 22,
-                  fontWeight: "500",
-                  paddingHorizontal: 20,
-                  paddingTop: isFocused ? 4 : 0,
-                  color: "#FFFFFF",
-                  backgroundColor: "transparent",
+                  backgroundColor: isFocused
+                    ? "rgba(255, 255, 255, 0.12)"
+                    : "rgba(255, 255, 255, 0.08)",
                 },
-                style,
               ]}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              {...otherProps}
-            />
-          </View>
+            >
+              {inputElement}
+            </View>
+          )}
         </Animated.View>
       </Pressable>
     );

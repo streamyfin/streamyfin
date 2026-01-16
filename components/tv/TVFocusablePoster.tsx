@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Pressable, type ViewStyle } from "react-native";
 
-interface TVFocusablePosterProps {
+export interface TVFocusablePosterProps {
   children: React.ReactNode;
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
@@ -10,6 +10,7 @@ interface TVFocusablePosterProps {
   style?: ViewStyle;
   onFocus?: () => void;
   onBlur?: () => void;
+  disabled?: boolean;
 }
 
 export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
@@ -21,6 +22,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   style,
   onFocus: onFocusProp,
   onBlur: onBlurProp,
+  disabled = false,
 }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -48,7 +50,9 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
         animateTo(1);
         onBlurProp?.();
       }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
+      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={[

@@ -612,7 +612,8 @@
     "downloaded_file_yes": "Yes",
     "downloaded_file_no": "No",
     "downloaded_file_cancel": "Cancel",
-    "swipe_up_settings": "Swipe up for settings"
+    "swipe_down_settings": "Swipe down for settings",
+    "ends_at": "ends at"
   },
   "item_card": {
     "next_up": "Next Up",
