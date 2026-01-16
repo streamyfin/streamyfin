@@ -57,84 +57,81 @@ interface ItemContentTVProps {
 }
 
 // Focusable button component for TV with Apple TV-style animations
-const TVFocusableButton = React.forwardRef<
-  View,
-  {
-    onPress: () => void;
-    children: React.ReactNode;
-    hasTVPreferredFocus?: boolean;
-    style?: any;
-    variant?: "primary" | "secondary";
-  }
->(
-  (
-    { onPress, children, hasTVPreferredFocus, style, variant = "primary" },
-    ref,
-  ) => {
-    const [focused, setFocused] = useState(false);
-    const scale = useRef(new Animated.Value(1)).current;
+const TVFocusableButton: React.FC<{
+  onPress: () => void;
+  children: React.ReactNode;
+  hasTVPreferredFocus?: boolean;
+  style?: any;
+  variant?: "primary" | "secondary";
+}> = ({
+  onPress,
+  children,
+  hasTVPreferredFocus,
+  style,
+  variant = "primary",
+}) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
 
-    const animateTo = (v: number) =>
-      Animated.timing(scale, {
-        toValue: v,
-        duration: 150,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start();
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
 
-    const isPrimary = variant === "primary";
+  const isPrimary = variant === "primary";
 
-    return (
-      <Pressable
-        ref={ref}
-        onPress={onPress}
-        onFocus={() => {
-          setFocused(true);
-          animateTo(1.05);
-        }}
-        onBlur={() => {
-          setFocused(false);
-          animateTo(1);
-        }}
-        hasTVPreferredFocus={hasTVPreferredFocus}
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={[
+          {
+            transform: [{ scale }],
+            shadowColor: isPrimary ? "#fff" : "#a855f7",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.6 : 0,
+            shadowRadius: focused ? 20 : 0,
+          },
+          style,
+        ]}
       >
-        <Animated.View
-          style={[
-            {
-              transform: [{ scale }],
-              shadowColor: isPrimary ? "#fff" : "#a855f7",
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: focused ? 0.6 : 0,
-              shadowRadius: focused ? 20 : 0,
-            },
-            style,
-          ]}
+        <View
+          style={{
+            backgroundColor: focused
+              ? isPrimary
+                ? "#ffffff"
+                : "#7c3aed"
+              : isPrimary
+                ? "rgba(255, 255, 255, 0.9)"
+                : "rgba(124, 58, 237, 0.8)",
+            borderRadius: 12,
+            paddingVertical: 18,
+            paddingHorizontal: 32,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: 180,
+          }}
         >
-          <View
-            style={{
-              backgroundColor: focused
-                ? isPrimary
-                  ? "#ffffff"
-                  : "#7c3aed"
-                : isPrimary
-                  ? "rgba(255, 255, 255, 0.9)"
-                  : "rgba(124, 58, 237, 0.8)",
-              borderRadius: 12,
-              paddingVertical: 18,
-              paddingHorizontal: 32,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 180,
-            }}
-          >
-            {children}
-          </View>
-        </Animated.View>
-      </Pressable>
-    );
-  },
-);
+          {children}
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+};
 
 // Info row component for metadata display
 const _InfoRow: React.FC<{ label: string; value: string }> = ({
@@ -633,9 +630,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
-    // Ref for programmatic focus on play button
-    const playButtonRef = useRef<View>(null);
-
     const {
       defaultAudioIndex,
       defaultBitrate,
@@ -662,16 +656,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       defaultSubtitleIndex,
       defaultMediaSource,
     ]);
-
-    // Programmatically focus play button after content renders
-    useEffect(() => {
-      if (selectedOptions && playButtonRef.current) {
-        const timer = setTimeout(() => {
-          (playButtonRef.current as any)?.requestTVFocus?.();
-        }, 50);
-        return () => clearTimeout(timer);
-      }
-    }, [selectedOptions]);
 
     const handlePlay = () => {
       if (!item || !selectedOptions) return;
@@ -1086,7 +1070,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 }}
               >
                 <TVFocusableButton
-                  ref={playButtonRef}
                   onPress={handlePlay}
                   hasTVPreferredFocus
                   variant='primary'
