@@ -114,6 +114,25 @@ export const Controls: FC<Props> = ({
     setShowControls(!showControls);
   }, [showControls, setShowControls]);
 
+  // Long press seek handlers for continuous seeking
+  const handleSeekForward = useCallback(
+    (seconds: number) => {
+      const newPosition = Math.min(max.value, progress.value + seconds * 1000);
+      progress.value = newPosition;
+      seek(newPosition);
+    },
+    [progress, max, seek],
+  );
+
+  const handleSeekBackward = useCallback(
+    (seconds: number) => {
+      const newPosition = Math.max(min.value, progress.value - seconds * 1000);
+      progress.value = newPosition;
+      seek(newPosition);
+    },
+    [progress, min, seek],
+  );
+
   // Remote control hook for TV navigation
   const {
     remoteScrubProgress,
@@ -132,8 +151,8 @@ export const Controls: FC<Props> = ({
     togglePlay,
     toggleControls,
     calculateTrickplayUrl,
-    handleSeekForward: () => {},
-    handleSeekBackward: () => {},
+    handleSeekForward,
+    handleSeekBackward,
   });
 
   // Slider hook
