@@ -823,7 +823,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            paddingTop: insets.top + 100,
+            paddingTop: insets.top + 140,
             paddingBottom: insets.bottom + 60,
             paddingHorizontal: insets.left + 80,
           }}
