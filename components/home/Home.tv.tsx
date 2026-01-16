@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -12,40 +12,27 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import { useNavigation, useSegments } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  View,
-} from "react-native";
-import { Pressable } from "react-native-gesture-handler";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
-import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
-import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
-import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
+import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
+import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
+import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
 import { Loader } from "@/components/Loader";
-import { MediaListSection } from "@/components/medialists/MediaListSection";
-import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
-import { useDownload } from "@/providers/DownloadProvider";
-import { useIntroSheet } from "@/providers/IntroSheetProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
-import { eventBus } from "@/utils/eventBus";
-import { storage } from "@/utils/mmkv";
 
-// Conditionally load TV version
-const HomeTV = Platform.isTV ? require("./Home.tv").Home : null;
+const HORIZONTAL_PADDING = 60;
+const TOP_PADDING = 100;
+// Reduced gap since sections have internal padding for scale animations
+const SECTION_GAP = 10;
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -54,113 +41,28 @@ type InfiniteScrollingCollectionListSection = {
   queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
-  priority?: 1 | 2; // 1 = high priority (loads first), 2 = low priority
-  parentId?: string; // Library ID for "See All" navigation
-};
-
-type MediaListSectionType = {
-  type: "MediaListSection";
-  queryKey: (string | undefined)[];
-  queryFn: QueryFunction<BaseItemDto>;
   priority?: 1 | 2;
+  parentId?: string;
 };
 
-type Section = InfiniteScrollingCollectionListSection | MediaListSectionType;
+type Section = InfiniteScrollingCollectionListSection;
 
-const HomeMobile = () => {
-  const router = useRouter();
+export const Home = () => {
+  const _router = useRouter();
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = useState(false);
-  const { settings, refreshStreamyfinPluginSettings } = useSettings();
-  const navigation = useNavigation();
+  const { settings } = useSettings();
   const scrollRef = useRef<ScrollView>(null);
-  const { downloadedItems, cleanCacheDirectory } = useDownload();
-  const prevIsConnected = useRef<boolean | null>(false);
   const {
     isConnected,
     serverConnected,
     loading: retryLoading,
     retryCheck,
   } = useNetworkStatus();
-  const invalidateCache = useInvalidatePlaybackProgressCache();
+  const _invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
-  const { showIntro } = useIntroSheet();
-
-  // Show intro modal on first launch
-  useEffect(() => {
-    const hasShownIntro = storage.getBoolean("hasShownIntro");
-    if (!hasShownIntro) {
-      const timer = setTimeout(() => {
-        showIntro();
-      }, 1000);
-
-      return () => {
-        clearTimeout(timer);
-      };
-    }
-  }, [showIntro]);
-
-  useEffect(() => {
-    if (isConnected && !prevIsConnected.current) {
-      invalidateCache();
-    }
-    prevIsConnected.current = isConnected;
-  }, [isConnected, invalidateCache]);
-
-  const hasDownloads = useMemo(() => {
-    if (Platform.isTV) return false;
-    return downloadedItems.length > 0;
-  }, [downloadedItems]);
-
-  useEffect(() => {
-    if (Platform.isTV) {
-      navigation.setOptions({
-        headerLeft: () => null,
-      });
-      return;
-    }
-    navigation.setOptions({
-      headerLeft: () => (
-        <Pressable
-          onPress={() => {
-            router.push("/(auth)/downloads");
-          }}
-          className='ml-1.5'
-          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-        >
-          <Feather
-            name='download'
-            color={hasDownloads ? Colors.primary : "white"}
-            size={24}
-          />
-        </Pressable>
-      ),
-    });
-  }, [navigation, router, hasDownloads]);
-
-  useEffect(() => {
-    cleanCacheDirectory().catch((_e) =>
-      console.error("Something went wrong cleaning cache directory"),
-    );
-  }, []);
-
-  const segments = useSegments();
-  useEffect(() => {
-    const unsubscribe = eventBus.on("scrollToTop", () => {
-      if ((segments as string[])[2] === "(home)")
-        scrollRef.current?.scrollTo({
-          y: Platform.isTV ? -152 : -100,
-          animated: true,
-        });
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [segments]);
 
   const {
     data,
@@ -197,27 +99,18 @@ const HomeMobile = () => {
     );
   }, [userViews]);
 
-  const refetch = async () => {
-    setLoading(true);
-    setLoadedSections(new Set());
-    await refreshStreamyfinPluginSettings();
-    await invalidateCache();
-    setLoading(false);
-  };
-
   const createCollectionConfig = useCallback(
     (
       title: string,
       queryKey: string[],
       includeItemTypes: BaseItemKind[],
       parentId: string | undefined,
-      pageSize: number = 10,
+      pageSize = 10,
     ): InfiniteScrollingCollectionListSection => ({
       title,
       queryKey,
       queryFn: async ({ pageParam = 0 }) => {
         if (!api) return [];
-        // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
         const allData =
           (
             await getUserLibraryApi(api).getLatestMedia({
@@ -231,7 +124,6 @@ const HomeMobile = () => {
             })
           ).data || [];
 
-        // Simulate pagination by slicing
         return allData.slice(pageParam, pageParam + pageSize);
       },
       type: "InfiniteScrollingCollectionList",
@@ -265,7 +157,6 @@ const HomeMobile = () => {
       );
     });
 
-    // Helper to sort items by most recent activity
     const sortByRecentActivity = (items: BaseItemDto[]): BaseItemDto[] => {
       return items.sort((a, b) => {
         const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
@@ -274,7 +165,6 @@ const HomeMobile = () => {
       });
     };
 
-    // Helper to deduplicate items by ID
     const deduplicateById = (items: BaseItemDto[]): BaseItemDto[] => {
       const seen = new Set<string>();
       return items.filter((item) => {
@@ -284,14 +174,12 @@ const HomeMobile = () => {
       });
     };
 
-    // Build the first sections based on merge setting
     const firstSections: Section[] = settings.mergeNextUpAndContinueWatching
       ? [
           {
             title: t("home.continue_and_next_up"),
             queryKey: ["home", "continueAndNextUp"],
             queryFn: async ({ pageParam = 0 }) => {
-              // Fetch both in parallel
               const [resumeResponse, nextUpResponse] = await Promise.all([
                 getItemsApi(api).getResumeItems({
                   userId: user.Id,
@@ -312,12 +200,10 @@ const HomeMobile = () => {
               const resumeItems = resumeResponse.data.Items || [];
               const nextUpItems = nextUpResponse.data.Items || [];
 
-              // Combine, sort by recent activity, deduplicate
               const combined = [...resumeItems, ...nextUpItems];
               const sorted = sortByRecentActivity(combined);
               const deduplicated = deduplicateById(sorted);
 
-              // Paginate client-side
               return deduplicated.slice(pageParam, pageParam + 10);
             },
             type: "InfiniteScrollingCollectionList",
@@ -368,7 +254,6 @@ const HomeMobile = () => {
     const ss: Section[] = [
       ...firstSections,
       ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
-      // Only show Jellyfin suggested movies if StreamyStats recommendations are disabled
       ...(!settings?.streamyStatsMovieRecommendations
         ? [
             {
@@ -439,7 +324,6 @@ const HomeMobile = () => {
             return response.data.Items || [];
           }
           if (section.latest) {
-            // getLatestMedia doesn't support startIndex, so we fetch all and slice client-side
             const allData =
               (
                 await getUserLibraryApi(api).getLatestMedia({
@@ -451,7 +335,6 @@ const HomeMobile = () => {
                 })
               ).data || [];
 
-            // Simulate pagination by slicing
             return allData.slice(pageParam, pageParam + pageSize);
           }
           if (section.custom) {
@@ -474,7 +357,6 @@ const HomeMobile = () => {
         type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
         pageSize,
-        // First 2 custom sections are high priority
         priority: index < 2 ? 1 : 2,
       });
     });
@@ -483,7 +365,6 @@ const HomeMobile = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
-  // Get all high priority section keys and check if all have loaded
   const highPrioritySectionKeys = useMemo(() => {
     return sections
       .filter((s) => s.priority === 1)
@@ -517,32 +398,43 @@ const HomeMobile = () => {
       subtitle = t("home.server_unreachable_message");
     }
     return (
-      <View className='flex flex-col items-center justify-center h-full -mt-6 px-8'>
-        <Text className='text-3xl font-bold mb-2'>{title}</Text>
-        <Text className='text-center opacity-70'>{subtitle}</Text>
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: HORIZONTAL_PADDING,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 32,
+            fontWeight: "bold",
+            marginBottom: 8,
+            color: "#FFFFFF",
+          }}
+        >
+          {title}
+        </Text>
+        <Text
+          style={{
+            textAlign: "center",
+            opacity: 0.7,
+            fontSize: 18,
+            color: "#FFFFFF",
+          }}
+        >
+          {subtitle}
+        </Text>
 
-        <View className='mt-4'>
-          {!Platform.isTV && (
-            <Button
-              color='purple'
-              onPress={() => router.push("/(auth)/downloads")}
-              justify='center'
-              iconRight={
-                <Ionicons name='arrow-forward' size={20} color='white' />
-              }
-            >
-              {t("home.go_to_downloads")}
-            </Button>
-          )}
-
+        <View style={{ marginTop: 24 }}>
           <Button
             color='black'
             onPress={retryCheck}
             justify='center'
-            className='mt-2'
             iconRight={
               retryLoading ? null : (
-                <Ionicons name='refresh' size={20} color='white' />
+                <Ionicons name='refresh' size={24} color='white' />
               )
             }
           >
@@ -559,9 +451,31 @@ const HomeMobile = () => {
 
   if (e1)
     return (
-      <View className='flex flex-col items-center justify-center h-full -mt-6'>
-        <Text className='text-3xl font-bold mb-2'>{t("home.oops")}</Text>
-        <Text className='text-center opacity-70'>
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 32,
+            fontWeight: "bold",
+            marginBottom: 8,
+            color: "#FFFFFF",
+          }}
+        >
+          {t("home.oops")}
+        </Text>
+        <Text
+          style={{
+            textAlign: "center",
+            opacity: 0.7,
+            fontSize: 18,
+            color: "#FFFFFF",
+          }}
+        >
           {t("home.error_message")}
         </Text>
       </View>
@@ -569,7 +483,7 @@ const HomeMobile = () => {
 
   if (l1)
     return (
-      <View className='justify-center items-center h-full'>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Loader />
       </View>
     );
@@ -578,25 +492,15 @@ const HomeMobile = () => {
     <ScrollView
       ref={scrollRef}
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior='automatic'
-      refreshControl={
-        <RefreshControl
-          refreshing={loading}
-          onRefresh={refetch}
-          tintColor='white'
-          colors={["white"]}
-        />
-      }
+      showsVerticalScrollIndicator={false}
       contentContainerStyle={{
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-        paddingBottom: 16,
+        paddingTop: insets.top + TOP_PADDING,
+        paddingBottom: insets.bottom + 60,
+        paddingLeft: insets.left + HORIZONTAL_PADDING,
+        paddingRight: insets.right + HORIZONTAL_PADDING,
       }}
     >
-      <View
-        className='flex flex-col space-y-4'
-        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
-      >
+      <View style={{ gap: SECTION_GAP }}>
         {sections.map((section, index) => {
           // Render Streamystats sections after Continue Watching and Next Up
           // When merged, they appear after index 0; otherwise after index 1
@@ -609,10 +513,7 @@ const HomeMobile = () => {
             settings.streamyStatsPromotedWatchlists;
           const streamystatsSections =
             index === streamystatsIndex && hasStreamystatsContent ? (
-              <View
-                key='streamystats-sections'
-                className='flex flex-col space-y-4'
-              >
+              <View key='streamystats-sections' style={{ gap: SECTION_GAP }}>
                 {settings.streamyStatsMovieRecommendations && (
                   <StreamystatsRecommendations
                     title={t(
@@ -638,22 +539,12 @@ const HomeMobile = () => {
                 )}
               </View>
             ) : null;
+
           if (section.type === "InfiniteScrollingCollectionList") {
             const isHighPriority = section.priority === 1;
-            const handleSeeAll = section.parentId
-              ? () => {
-                  router.push({
-                    pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
-                    params: {
-                      libraryId: section.parentId!,
-                      sortBy: SortByOption.DateCreated,
-                      sortOrder: SortOrderOption.Descending,
-                    },
-                  } as any);
-                }
-              : undefined;
+            const isFirstSection = index === 0;
             return (
-              <View key={index} className='flex flex-col space-y-4'>
+              <View key={index} style={{ gap: SECTION_GAP }}>
                 <InfiniteScrollingCollectionList
                   title={section.title}
                   queryKey={section.queryKey}
@@ -667,18 +558,7 @@ const HomeMobile = () => {
                       ? () => markSectionLoaded(section.queryKey)
                       : undefined
                   }
-                  onPressSeeAll={handleSeeAll}
-                />
-                {streamystatsSections}
-              </View>
-            );
-          }
-          if (section.type === "MediaListSection") {
-            return (
-              <View key={index} className='flex flex-col space-y-4'>
-                <MediaListSection
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
+                  isFirstSection={isFirstSection}
                 />
                 {streamystatsSections}
               </View>
@@ -689,12 +569,4 @@ const HomeMobile = () => {
       </View>
     </ScrollView>
   );
-};
-
-// Exported component that renders TV or mobile version based on platform
-export const Home = () => {
-  if (Platform.isTV && HomeTV) {
-    return <HomeTV />;
-  }
-  return <HomeMobile />;
 };

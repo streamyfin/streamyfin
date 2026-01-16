@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -199,6 +200,15 @@ export const Controls: FC<Props> = ({
 
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
+      {/* Center Play Button - shown when paused */}
+      {!isPlaying && showControls && (
+        <View style={styles.centerContainer}>
+          <View style={styles.playButtonContainer}>
+            <Ionicons name='play' size={80} color='white' />
+          </View>
+        </View>
+      )}
+
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
         pointerEvents={showControls ? "auto" : "none"}
@@ -287,6 +297,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  centerContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playButtonContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingLeft: 8,
   },
   bottomContainer: {
     position: "absolute",
