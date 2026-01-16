@@ -72,9 +72,11 @@ class MpvPlayerView: ExpoView {
 
 		displayLayer.frame = bounds
 		displayLayer.videoGravity = .resizeAspect
+		#if !os(tvOS)
 		if #available(iOS 17.0, *) {
 			displayLayer.wantsExtendedDynamicRangeContent = true
 		}
+		#endif
 		displayLayer.backgroundColor = UIColor.black.cgColor
 		videoContainer.layer.addSublayer(displayLayer)
 
