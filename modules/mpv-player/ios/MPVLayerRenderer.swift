@@ -219,7 +219,7 @@ final class MPVLayerRenderer {
         
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if #available(iOS 18.0, *) {
+            if #available(iOS 18.0, tvOS 17.0, *) {
                 self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
             } else {
                 self.displayLayer.flushAndRemoveImage()

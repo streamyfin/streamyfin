@@ -23,7 +23,7 @@ export const Tag: React.FC<
     textStyle?: StyleProp<TextStyle>;
   } & ViewProps
 > = ({ text, textClass, textStyle, ...props }) => {
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View>
         <GlassEffectView style={styles.glass}>
