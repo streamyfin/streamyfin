@@ -42,10 +42,12 @@ interface UseRemoteControlProps {
  * Simplified version - D-pad navigation is handled by native focus system.
  * This hook handles:
  * - Showing controls on any button press
+ * - Play/pause button on TV remote
  */
 export function useRemoteControl({
   showControls,
   toggleControls,
+  togglePlay,
   onBack,
 }: UseRemoteControlProps) {
   // Keep these for backward compatibility with the component
@@ -63,6 +65,14 @@ export function useRemoteControl({
     if (evt.eventType === "menu" || evt.eventType === "back") {
       if (onBack) {
         onBack();
+      }
+      return;
+    }
+
+    // Handle play/pause button press on TV remote
+    if (evt.eventType === "playPause") {
+      if (togglePlay) {
+        togglePlay();
       }
       return;
     }

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { Platform, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Favorites } from "@/components/home/Favorites";
+import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 
 export default function favorites() {
@@ -14,6 +15,10 @@ export default function favorites() {
     setLoading(false);
   }, []);
   const insets = useSafeAreaInsets();
+
+  if (Platform.isTV) {
+    return <TVFavorites />;
+  }
 
   return (
     <ScrollView
