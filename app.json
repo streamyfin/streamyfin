@@ -23,7 +23,8 @@
         },
         "UISupportsTrueScreenSizeOnMac": true,
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "AVInitialRouteSharingPolicy": "LongFormAudio"
       },
       "config": {
         "usesNonExemptEncryption": false
