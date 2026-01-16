@@ -14,7 +14,11 @@ import { UserInfo } from "@/components/settings/UserInfo";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 
-export default function settings() {
+// TV-specific settings component
+const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
+
+// Mobile settings component
+function SettingsMobile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [_user] = useAtom(userAtom);
@@ -104,8 +108,17 @@ export default function settings() {
           </ListGroup>
         </View>
 
-        {!Platform.isTV && <StorageSettings />}
+        <StorageSettings />
       </View>
     </ScrollView>
   );
+}
+
+export default function settings() {
+  // Use TV settings component on TV platforms
+  if (Platform.isTV && SettingsTV) {
+    return <SettingsTV />;
+  }
+
+  return <SettingsMobile />;
 }
