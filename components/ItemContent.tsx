@@ -47,8 +47,9 @@ export type SelectedOptions = {
 };
 
 interface ItemContentProps {
-  item: BaseItemDto;
+  item?: BaseItemDto | null;
   itemWithSources?: BaseItemDto | null;
+  isLoading?: boolean;
 }
 
 // Mobile-specific implementation
