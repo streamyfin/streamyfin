@@ -258,15 +258,6 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       {/* Example Searches (when no search query) */}
       {!loading && debouncedSearch.length === 0 && (
         <View style={{ alignItems: "center", paddingTop: 40, gap: 16 }}>
-          <Text
-            style={{
-              fontSize: 18,
-              color: "#9CA3AF",
-              marginBottom: 8,
-            }}
-          >
-            {t("search.search")}
-          </Text>
           <View
             style={{
               flexDirection: "row",
