@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { BlurView } from "expo-blur";
+import { useLocalSearchParams } from "expo-router";
+import { useAtomValue } from "jotai";
 import {
   type FC,
   useCallback,
@@ -14,6 +17,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Image,
   Pressable,
   Animated as RNAnimated,
   Easing as RNEasing,
@@ -23,7 +27,9 @@ import {
 } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import Animated, {
+  cancelAnimation,
   Easing,
+  runOnJS,
   type SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -32,7 +38,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
+import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { formatTimeString, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
@@ -480,6 +492,159 @@ const selectorStyles = StyleSheet.create({
   },
 });
 
+// TV Next Episode Countdown component - horizontal layout with animated progress bar
+const TVNextEpisodeCountdown: FC<{
+  nextItem: BaseItemDto;
+  api: Api | null;
+  show: boolean;
+  isPlaying: boolean;
+  onFinish: () => void;
+}> = ({ nextItem, api, show, isPlaying, onFinish }) => {
+  const { t } = useTranslation();
+  const progress = useSharedValue(0);
+  const onFinishRef = useRef(onFinish);
+
+  // Keep onFinish ref updated
+  onFinishRef.current = onFinish;
+
+  // Get episode thumbnail
+  const imageUrl = getPrimaryImageUrl({
+    api,
+    item: nextItem,
+    width: 360, // 2x for retina
+    quality: 80,
+  });
+
+  // Handle animation based on show and isPlaying state
+  useEffect(() => {
+    if (show && isPlaying) {
+      // Start/restart animation from beginning
+      progress.value = 0;
+      progress.value = withTiming(
+        1,
+        {
+          duration: 8000, // 8 seconds (ends 2 seconds before episode end)
+          easing: Easing.linear,
+        },
+        (finished) => {
+          if (finished && onFinishRef.current) {
+            runOnJS(onFinishRef.current)();
+          }
+        },
+      );
+    } else {
+      // Pause: cancel animation and reset progress
+      cancelAnimation(progress);
+      progress.value = 0;
+    }
+  }, [show, isPlaying, progress]);
+
+  // Animated style for progress bar
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
+  if (!show) return null;
+
+  return (
+    <View style={countdownStyles.container} pointerEvents='none'>
+      <BlurView intensity={80} tint='dark' style={countdownStyles.blur}>
+        <View style={countdownStyles.innerContainer}>
+          {/* Episode Thumbnail - left side */}
+          {imageUrl && (
+            <Image
+              source={{ uri: imageUrl }}
+              style={countdownStyles.thumbnail}
+              resizeMode='cover'
+            />
+          )}
+
+          {/* Content - right side */}
+          <View style={countdownStyles.content}>
+            {/* Label: "Next Episode" */}
+            <Text style={countdownStyles.label}>
+              {t("player.next_episode")}
+            </Text>
+
+            {/* Series Name */}
+            <Text style={countdownStyles.seriesName} numberOfLines={1}>
+              {nextItem.SeriesName}
+            </Text>
+
+            {/* Episode Info: S#E# - Episode Name */}
+            <Text style={countdownStyles.episodeInfo} numberOfLines={1}>
+              S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
+              {nextItem.Name}
+            </Text>
+
+            {/* Progress Bar */}
+            <View style={countdownStyles.progressContainer}>
+              <Animated.View
+                style={[countdownStyles.progressBar, progressStyle]}
+              />
+            </View>
+          </View>
+        </View>
+      </BlurView>
+    </View>
+  );
+};
+
+const countdownStyles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    bottom: 140,
+    right: 48,
+    zIndex: 100,
+  },
+  blur: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  innerContainer: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  thumbnail: {
+    width: 180,
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  content: {
+    padding: 16,
+    justifyContent: "center",
+    width: 280,
+  },
+  label: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  seriesName: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.7)",
+    marginBottom: 2,
+  },
+  episodeInfo: {
+    fontSize: 20,
+    color: "#fff",
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  progressContainer: {
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 2,
+  },
+});
+
 export const Controls: FC<Props> = ({
   item,
   seek,
@@ -500,6 +665,21 @@ export const Controls: FC<Props> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const api = useAtomValue(apiAtom);
+  const { settings } = useSettings();
+  const router = useRouter();
+  const {
+    bitrateValue,
+    subtitleIndex: paramSubtitleIndex,
+    audioIndex: paramAudioIndex,
+  } = useLocalSearchParams<{
+    bitrateValue: string;
+    subtitleIndex: string;
+    audioIndex: string;
+  }>();
+
+  // TV is always online
+  const { nextItem } = usePlaybackManager({ item, isOffline: false });
 
   // Modal state for option selectors
   // "settings" shows the settings panel, "audio"/"subtitle" for direct selection
@@ -748,6 +928,66 @@ export const Controls: FC<Props> = ({
     disabled: false,
   });
 
+  // goToNextItem function for auto-play
+  const goToNextItem = useCallback(
+    ({ isAutoPlay }: { isAutoPlay?: boolean } = {}) => {
+      if (!nextItem || !settings) {
+        return;
+      }
+
+      const previousIndexes = {
+        subtitleIndex: paramSubtitleIndex
+          ? Number.parseInt(paramSubtitleIndex, 10)
+          : undefined,
+        audioIndex: paramAudioIndex
+          ? Number.parseInt(paramAudioIndex, 10)
+          : undefined,
+      };
+
+      const {
+        mediaSource: newMediaSource,
+        audioIndex: defaultAudioIndex,
+        subtitleIndex: defaultSubtitleIndex,
+      } = getDefaultPlaySettings(nextItem, settings, {
+        indexes: previousIndexes,
+        source: mediaSource ?? undefined,
+      });
+
+      const queryParams = new URLSearchParams({
+        itemId: nextItem.Id ?? "",
+        audioIndex: defaultAudioIndex?.toString() ?? "",
+        subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+        mediaSourceId: newMediaSource?.Id ?? "",
+        bitrateValue: bitrateValue?.toString() ?? "",
+        playbackPosition:
+          nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+      }).toString();
+
+      router.replace(`player/direct-player?${queryParams}` as any);
+    },
+    [
+      nextItem,
+      settings,
+      paramSubtitleIndex,
+      paramAudioIndex,
+      mediaSource,
+      bitrateValue,
+      router,
+    ],
+  );
+
+  // Should show countdown? (TV always auto-plays next episode, no episode count limit)
+  const shouldShowCountdown = useMemo(() => {
+    if (!nextItem) return false;
+    if (item?.Type !== "Episode") return false;
+    return remainingTime > 0 && remainingTime <= 10000;
+  }, [nextItem, item, remainingTime]);
+
+  // Handler for when countdown animation finishes
+  const handleAutoPlayFinish = useCallback(() => {
+    goToNextItem({ isAutoPlay: true });
+  }, [goToNextItem]);
+
   // Check if we have any settings to show
   const hasSettings =
     audioTracks.length > 0 ||
@@ -756,6 +996,12 @@ export const Controls: FC<Props> = ({
 
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
+      {/* Dark tint overlay when controls are visible */}
+      <Animated.View
+        style={[styles.darkOverlay, bottomAnimatedStyle]}
+        pointerEvents='none'
+      />
+
       {/* Center Play Button - shown when paused */}
       {!isPlaying && showControls && (
         <View style={styles.centerContainer}>
@@ -770,6 +1016,17 @@ export const Controls: FC<Props> = ({
             </View>
           </BlurView>
         </View>
+      )}
+
+      {/* Next Episode Countdown - always visible when countdown active */}
+      {nextItem && (
+        <TVNextEpisodeCountdown
+          nextItem={nextItem}
+          api={api}
+          show={shouldShowCountdown}
+          isPlaying={isPlaying}
+          onFinish={handleAutoPlayFinish}
+        />
       )}
 
       {/* Top hint - swipe up for settings */}
@@ -794,7 +1051,7 @@ export const Controls: FC<Props> = ({
               </Text>
               <Ionicons
                 name='chevron-down'
-                size={16}
+                size={20}
                 color='rgba(255,255,255,0.5)'
               />
             </View>
@@ -820,9 +1077,9 @@ export const Controls: FC<Props> = ({
           {/* Metadata */}
           <View style={styles.metadataContainer}>
             {item?.Type === "Episode" && (
-              <Text style={styles.subtitleText}>
-                {`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}
-              </Text>
+              <Text
+                style={styles.subtitleText}
+              >{`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}</Text>
             )}
             <Text style={styles.titleText}>{item?.Name}</Text>
             {item?.Type === "Movie" && (
@@ -924,6 +1181,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
+  darkOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+  },
   centerContainer: {
     position: "absolute",
     top: 0,
@@ -1022,6 +1287,6 @@ const styles = StyleSheet.create({
   },
   settingsHintText: {
     color: "rgba(255,255,255,0.5)",
-    fontSize: 14,
+    fontSize: 16,
   },
 });

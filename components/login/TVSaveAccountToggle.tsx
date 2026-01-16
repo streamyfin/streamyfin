@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Animated, Easing, Pressable, Switch, View } from "react-native";
+import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 
@@ -87,12 +87,25 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
           >
             {label}
           </Text>
-          <View pointerEvents='none'>
-            <Switch
-              value={value}
-              onValueChange={onValueChange}
-              trackColor={{ false: "#3f3f46", true: Colors.primary }}
-              thumbColor='white'
+          <View
+            pointerEvents='none'
+            style={{
+              width: 60,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: value ? Colors.primary : "#3f3f46",
+              justifyContent: "center",
+              paddingHorizontal: 3,
+            }}
+          >
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: "white",
+                alignSelf: value ? "flex-end" : "flex-start",
+              }}
             />
           </View>
         </View>

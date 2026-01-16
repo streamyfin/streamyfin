@@ -490,7 +490,7 @@ const TVOptionButton: React.FC<{
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
-        animateTo(1.04);
+        animateTo(1.02);
       }}
       onBlur={() => {
         setFocused(false);
@@ -501,6 +501,10 @@ const TVOptionButton: React.FC<{
       <Animated.View
         style={{
           transform: [{ scale }],
+          shadowColor: "#fff",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: focused ? 0.4 : 0,
+          shadowRadius: focused ? 12 : 0,
         }}
       >
         <View
@@ -1001,12 +1005,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 </TVFocusableButton>
               </View>
 
-              {/* Playback options row */}
+              {/* Playback options */}
               <View
                 style={{
-                  flexDirection: "row",
-                  flexWrap: "wrap",
-                  gap: 12,
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 10,
                   marginBottom: 24,
                 }}
               >
