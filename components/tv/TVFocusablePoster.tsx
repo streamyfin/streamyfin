@@ -8,6 +8,8 @@ interface TVFocusablePosterProps {
   glowColor?: "white" | "purple";
   scaleAmount?: number;
   style?: ViewStyle;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
@@ -17,6 +19,8 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   glowColor = "white",
   scaleAmount = 1.05,
   style,
+  onFocus: onFocusProp,
+  onBlur: onBlurProp,
 }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -37,10 +41,12 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
       onFocus={() => {
         setFocused(true);
         animateTo(scaleAmount);
+        onFocusProp?.();
       }}
       onBlur={() => {
         setFocused(false);
         animateTo(1);
+        onBlurProp?.();
       }}
       hasTVPreferredFocus={hasTVPreferredFocus}
     >

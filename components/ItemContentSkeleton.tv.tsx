@@ -9,8 +9,8 @@ export const ItemContentSkeletonTV: React.FC = () => {
       style={{
         flex: 1,
         flexDirection: "row",
-        paddingTop: 140,
-        paddingHorizontal: 80,
+        paddingTop: 180,
+        paddingHorizontal: 160,
       }}
     >
       {/* Left side - Poster placeholder */}

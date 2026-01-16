@@ -36,6 +36,10 @@
       "icon": "./assets/images/icon-ios-liquid-glass.icon",
       "appleTeamId": "MWD5K362T8"
     },
+    "tvos": {
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.fredrikburmester.streamyfin"
+    },
     "android": {
       "jsEngine": "hermes",
       "versionCode": 92,
