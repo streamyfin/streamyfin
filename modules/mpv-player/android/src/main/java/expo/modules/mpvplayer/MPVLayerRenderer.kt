@@ -1,10 +1,13 @@
 package expo.modules.mpvplayer
 
 import android.content.Context
+import android.content.res.AssetManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Surface
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * MPV renderer that wraps libmpv for video playback.
@@ -84,6 +87,20 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.create(context)
             MPVLib.addObserver(this)
             
+            // Create mpv config directory and copy font files
+            val mpvDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "mpv")
+            //Log.i(TAG, "mpv config dir: $mpvDir")
+            if (!mpvDir.exists()) mpvDir.mkdirs()
+            arrayOf("font.ttf").forEach { fileName ->
+                val file = File(mpvDir, fileName)
+                if (file.exists()) return@forEach
+                context.assets
+                    .open(fileName, AssetManager.ACCESS_STREAMING)
+                    .copyTo(FileOutputStream(file))
+            }
+            MPVLib.setOptionString("config", "yes")
+            MPVLib.setOptionString("config-dir", mpvDir.path)
+            
             // Configure mpv options before initialization (based on Findroid)
             MPVLib.setOptionString("vo", "gpu")
             MPVLib.setOptionString("gpu-context", "android")
@@ -107,7 +124,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("hr-seek-framedrop", "yes")
             
             // Subtitle settings
-            MPVLib.setOptionString("sub-scale-with-window", "yes")
+            MPVLib.setOptionString("sub-scale-with-window", "no")
             MPVLib.setOptionString("sub-use-margins", "no")
             MPVLib.setOptionString("subs-match-os-language", "yes")
             MPVLib.setOptionString("subs-fallback", "yes")
