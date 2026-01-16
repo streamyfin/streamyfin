@@ -134,3 +134,89 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - TV version uses `:tv` suffix for scripts
 - Platform checks: `Platform.isTV`, `Platform.OS === "android"` or `"ios"`
 - Some features disabled on TV (e.g., notifications, Chromecast)
+
+### TV Component Rendering Pattern
+
+**IMPORTANT**: The `.tv.tsx` file suffix only works for **pages** in the `app/` directory (resolved by Expo Router). It does NOT work for components - Metro bundler doesn't resolve platform-specific suffixes for component imports.
+
+**Pattern for TV-specific components**:
+```typescript
+// In page file (e.g., app/login.tsx)
+import { Platform } from "react-native";
+import { Login } from "@/components/login/Login";
+import { TVLogin } from "@/components/login/TVLogin";
+
+const LoginPage: React.FC = () => {
+  if (Platform.isTV) {
+    return <TVLogin />;
+  }
+  return <Login />;
+};
+
+export default LoginPage;
+```
+
+- Create separate component files for mobile and TV (e.g., `MyComponent.tsx` and `TVMyComponent.tsx`)
+- Use `Platform.isTV` to conditionally render the appropriate component
+- TV components typically use `TVInput`, `TVServerCard`, and other TV-prefixed components with focus handling
+
+### TV Option Selector Pattern (Dropdowns/Multi-select)
+
+For dropdown/select components on TV, use a **bottom sheet with horizontal scrolling**. This pattern is ideal for TV because:
+- Horizontal scrolling is natural for TV remotes (left/right D-pad)
+- Bottom sheet takes minimal screen space
+- Focus-based navigation works reliably
+
+**Key implementation details:**
+
+1. **Use absolute positioning instead of Modal** - React Native's `Modal` breaks the TV focus chain. Use an absolutely positioned `View` overlay instead:
+```typescript
+<View style={{
+  position: "absolute",
+  top: 0, left: 0, right: 0, bottom: 0,
+  backgroundColor: "rgba(0, 0, 0, 0.5)",
+  justifyContent: "flex-end",
+  zIndex: 1000,
+}}>
+  <BlurView intensity={80} tint="dark" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+    {/* Content */}
+  </BlurView>
+</View>
+```
+
+2. **Horizontal ScrollView with focusable cards**:
+```typescript
+<ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={{ overflow: "visible" }}
+  contentContainerStyle={{ paddingHorizontal: 48, paddingVertical: 10, gap: 12 }}
+>
+  {options.map((option, index) => (
+    <TVOptionCard
+      key={index}
+      hasTVPreferredFocus={index === selectedIndex}
+      onPress={() => { onSelect(option.value); onClose(); }}
+      // ...
+    />
+  ))}
+</ScrollView>
+```
+
+3. **Focus handling on cards** - Use `Pressable` with `onFocus`/`onBlur` and `hasTVPreferredFocus`:
+```typescript
+<Pressable
+  onPress={onPress}
+  onFocus={() => { setFocused(true); animateTo(1.05); }}
+  onBlur={() => { setFocused(false); animateTo(1); }}
+  hasTVPreferredFocus={hasTVPreferredFocus}
+>
+  <Animated.View style={{ transform: [{ scale }], backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.08)" }}>
+    <Text style={{ color: focused ? "#000" : "#fff" }}>{label}</Text>
+  </Animated.View>
+</Pressable>
+```
+
+4. **Add padding for scale animations** - When items scale on focus, add enough padding (`overflow: "visible"` + `paddingVertical`) so scaled items don't clip.
+
+**Reference implementation**: See `TVOptionSelector` and `TVOptionCard` in `components/ItemContent.tv.tsx`
