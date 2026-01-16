@@ -23,7 +23,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
   const animateFocus = (focused: boolean) => {
     Animated.parallel([
       Animated.timing(scale, {
-        toValue: focused ? 1.03 : 1,
+        toValue: focused ? 1.02 : 1,
         duration: 150,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
@@ -87,12 +87,14 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
           >
             {label}
           </Text>
-          <Switch
-            value={value}
-            onValueChange={onValueChange}
-            trackColor={{ false: "#3f3f46", true: Colors.primary }}
-            thumbColor='white'
-          />
+          <View pointerEvents='none'>
+            <Switch
+              value={value}
+              onValueChange={onValueChange}
+              trackColor={{ false: "#3f3f46", true: Colors.primary }}
+              thumbColor='white'
+            />
+          </View>
         </View>
       </Animated.View>
     </Pressable>

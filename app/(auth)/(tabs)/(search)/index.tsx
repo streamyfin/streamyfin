@@ -7,7 +7,7 @@ import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import {
   useCallback,
@@ -22,9 +22,11 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import {
+  getItemNavigation,
+  TouchableItemRouter,
+} from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import {
   JellyseerrSearchSort,
@@ -36,6 +38,7 @@ import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
+import { TVSearchPage } from "@/components/search/TVSearchPage";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -59,6 +62,8 @@ export default function search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const segments = useSegments();
+  const from = (segments as string[])[2] || "(search)";
 
   const [user] = useAtom(userAtom);
 
@@ -438,6 +443,38 @@ export default function search() {
     return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12;
   }, [l1, l2, l3, l7, l8, l9, l10, l11, l12]);
 
+  // TV item press handler
+  const handleItemPress = useCallback(
+    (item: BaseItemDto) => {
+      const navigation = getItemNavigation(item, from);
+      router.push(navigation as any);
+    },
+    [from, router],
+  );
+
+  // Render TV search page
+  if (Platform.isTV) {
+    return (
+      <TVSearchPage
+        search={search}
+        setSearch={setSearch}
+        debouncedSearch={debouncedSearch}
+        movies={movies}
+        series={series}
+        episodes={episodes}
+        collections={collections}
+        actors={actors}
+        artists={artists}
+        albums={albums}
+        songs={songs}
+        playlists={playlists}
+        loading={loading}
+        noResults={noResults}
+        onItemPress={handleItemPress}
+      />
+    );
+  }
+
   return (
     <ScrollView
       keyboardDismissMode='on-drag'
@@ -448,30 +485,6 @@ export default function search() {
         paddingBottom: 60,
       }}
     >
-      {/* <View
-        className='flex flex-col'
-        style={{
-          marginTop: Platform.OS === "android" ? 16 : 0,
-        }}
-      > */}
-      {Platform.isTV && (
-        <View
-          style={{ paddingHorizontal: 48, paddingTop: 0, paddingBottom: 8 }}
-        >
-          <Input
-            placeholder={t("search.search")}
-            onChangeText={(text) => {
-              router.setParams({ q: "" });
-              setSearch(text);
-            }}
-            keyboardType='default'
-            returnKeyType='done'
-            autoCapitalize='none'
-            clearButtonMode='while-editing'
-            maxLength={500}
-          />
-        </View>
-      )}
       <View
         className='flex flex-col'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}

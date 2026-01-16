@@ -5,9 +5,7 @@ import {
   Pressable,
   TextInput,
   type TextInputProps,
-  View,
 } from "react-native";
-import { Text } from "@/components/common/Text";
 
 interface TVInputProps extends TextInputProps {
   label?: string;
@@ -16,6 +14,7 @@ interface TVInputProps extends TextInputProps {
 
 export const TVInput: React.FC<TVInputProps> = ({
   label,
+  placeholder,
   hasTVPreferredFocus,
   style,
   ...props
@@ -43,94 +42,40 @@ export const TVInput: React.FC<TVInputProps> = ({
     animateFocus(false);
   };
 
+  const displayPlaceholder = placeholder || label;
+
   return (
-    <View>
-      {label && (
-        <Text
-          style={{
-            fontSize: 18,
-            color: isFocused ? "#FFFFFF" : "#9CA3AF",
-            marginBottom: 8,
-            marginLeft: 4,
-          }}
-        >
-          {label}
-        </Text>
-      )}
-      <Pressable
-        onPress={() => inputRef.current?.focus()}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        hasTVPreferredFocus={hasTVPreferredFocus}
+    <Pressable
+      onPress={() => inputRef.current?.focus()}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          borderRadius: 10,
+          borderWidth: 3,
+          borderColor: isFocused ? "#FFFFFF" : "#333333",
+        }}
       >
-        <Animated.View
-          style={{
-            transform: [{ scale }],
-          }}
-        >
-          {/* Outer glow layer - only visible when focused */}
-          {isFocused && (
-            <View
-              style={{
-                position: "absolute",
-                top: -4,
-                left: -4,
-                right: -4,
-                bottom: -4,
-                backgroundColor: "#9334E9",
-                borderRadius: 20,
-                opacity: 0.4,
-              }}
-            />
-          )}
-
-          {/* Main input container */}
-          <View
-            style={{
-              backgroundColor: isFocused ? "#3a3a3a" : "#1a1a1a",
-              borderWidth: 3,
-              borderColor: isFocused ? "#FFFFFF" : "#333333",
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-          >
-            {/* Inner highlight bar when focused */}
-            {isFocused && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 3,
-                  backgroundColor: "#9334E9",
-                }}
-              />
-            )}
-
-            <TextInput
-              ref={inputRef}
-              allowFontScaling={false}
-              placeholderTextColor={isFocused ? "#AAAAAA" : "#666666"}
-              style={[
-                {
-                  height: 68,
-                  fontSize: 26,
-                  fontWeight: "500",
-                  paddingHorizontal: 24,
-                  paddingTop: isFocused ? 6 : 0,
-                  color: "#FFFFFF",
-                  backgroundColor: "transparent",
-                },
-                style,
-              ]}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              {...props}
-            />
-          </View>
-        </Animated.View>
-      </Pressable>
-    </View>
+        <TextInput
+          ref={inputRef}
+          placeholder={displayPlaceholder}
+          allowFontScaling={false}
+          style={[
+            {
+              height: 68,
+              fontSize: 24,
+              color: "#FFFFFF",
+            },
+            style,
+          ]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          {...props}
+        />
+      </Animated.View>
+    </Pressable>
   );
 };

@@ -577,7 +577,11 @@
       "sort_by": "Sort By",
       "filter_by": "Filter By",
       "sort_order": "Sort Order",
-      "tags": "Tags"
+      "tags": "Tags",
+      "all": "All",
+      "reset": "Reset",
+      "asc": "Ascending",
+      "desc": "Descending"
     }
   },
   "favorites": {

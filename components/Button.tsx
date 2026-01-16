@@ -122,7 +122,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
-        animateTo(1.08);
+        animateTo(1.03);
       }}
       onBlur={() => {
         setFocused(false);
@@ -132,10 +132,10 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       <Animated.View
         style={{
           transform: [{ scale }],
-          shadowColor: "#a855f7",
+          shadowColor: color === "black" ? "#ffffff" : "#a855f7",
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.9 : 0,
-          shadowRadius: focused ? 18 : 0,
+          shadowOpacity: focused ? 0.5 : 0,
+          shadowRadius: focused ? 10 : 0,
           elevation: focused ? 12 : 0, // Android glow
         }}
       >

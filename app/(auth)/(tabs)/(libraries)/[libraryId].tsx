@@ -223,7 +223,7 @@ const TVFilterButton: React.FC<{
             backgroundColor: focused
               ? "#fff"
               : hasActiveFilter
-                ? "rgba(147, 51, 234, 0.3)"
+                ? "rgba(255, 255, 255, 0.25)"
                 : "rgba(255,255,255,0.1)",
             borderRadius: 10,
             paddingVertical: 10,
@@ -232,12 +232,14 @@ const TVFilterButton: React.FC<{
             alignItems: "center",
             gap: 8,
             borderWidth: hasActiveFilter && !focused ? 1 : 0,
-            borderColor: "rgba(147, 51, 234, 0.5)",
+            borderColor: "rgba(255, 255, 255, 0.4)",
           }}
         >
-          <Text style={{ fontSize: 14, color: focused ? "#444" : "#bbb" }}>
-            {label}
-          </Text>
+          {label ? (
+            <Text style={{ fontSize: 14, color: focused ? "#444" : "#bbb" }}>
+              {label}
+            </Text>
+          ) : null}
           <Text
             style={{
               fontSize: 14,
@@ -260,27 +262,15 @@ const TVFilterSelector = <T,>({
   options,
   onSelect,
   onClose,
-  multiSelect = false,
 }: {
   visible: boolean;
   title: string;
   options: TVFilterOption<T>[];
   onSelect: (value: T) => void;
   onClose: () => void;
-  multiSelect?: boolean;
 }) => {
-  const [doneButtonFocused, setDoneButtonFocused] = useState(false);
-  const doneScale = useRef(new Animated.Value(1)).current;
   // Track initial focus index - only set once when modal opens
   const initialFocusIndexRef = useRef<number | null>(null);
-
-  const animateDone = (v: number) =>
-    Animated.timing(doneScale, {
-      toValue: v,
-      duration: 120,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
 
   // Calculate initial focus index only once when visible becomes true
   if (visible && initialFocusIndexRef.current === null) {
@@ -319,54 +309,17 @@ const TVFilterSelector = <T,>({
         }}
       >
         <View style={{ paddingVertical: 24 }}>
-          <View
+          <Text
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
+              fontSize: 20,
+              fontWeight: "600",
+              color: "#fff",
               paddingHorizontal: 48,
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 20, fontWeight: "600", color: "#fff" }}>
-              {title}
-            </Text>
-            {multiSelect && (
-              <Pressable
-                onPress={onClose}
-                onFocus={() => {
-                  setDoneButtonFocused(true);
-                  animateDone(1.05);
-                }}
-                onBlur={() => {
-                  setDoneButtonFocused(false);
-                  animateDone(1);
-                }}
-              >
-                <Animated.View
-                  style={{
-                    transform: [{ scale: doneScale }],
-                    backgroundColor: doneButtonFocused
-                      ? "#fff"
-                      : "rgba(255,255,255,0.2)",
-                    paddingHorizontal: 20,
-                    paddingVertical: 8,
-                    borderRadius: 8,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "500",
-                      color: doneButtonFocused ? "#000" : "#fff",
-                    }}
-                  >
-                    Done
-                  </Text>
-                </Animated.View>
-              </Pressable>
-            )}
-          </View>
+            {title}
+          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -385,9 +338,7 @@ const TVFilterSelector = <T,>({
                 hasTVPreferredFocus={index === initialFocusIndex}
                 onPress={() => {
                   onSelect(option.value);
-                  if (!multiSelect) {
-                    onClose();
-                  }
+                  onClose();
                 }}
               />
             ))}
@@ -434,6 +385,8 @@ const Page = () => {
   const [openFilterModal, setOpenFilterModal] =
     useState<TVFilterModalType>(null);
   const isFilterModalOpen = openFilterModal !== null;
+
+  const isFiltersDisabled = isFilterModalOpen;
 
   // TV Filter queries
   const { data: tvGenreOptions } = useQuery({
@@ -729,7 +682,7 @@ const Page = () => {
   );
 
   const renderTVItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => {
+    ({ item }: { item: BaseItemDto }) => {
       const handlePress = () => {
         const navTarget = getItemNavigation(item, "(libraries)");
         router.push(navTarget as any);
@@ -743,11 +696,7 @@ const Page = () => {
             width: TV_POSTER_WIDTH,
           }}
         >
-          <TVFocusablePoster
-            onPress={handlePress}
-            hasTVPreferredFocus={index === 0 && !isFilterModalOpen}
-            disabled={isFilterModalOpen}
-          >
+          <TVFocusablePoster onPress={handlePress} disabled={isFilterModalOpen}>
             {item.Type === "Movie" && <MoviePoster item={item} />}
             {(item.Type === "Series" || item.Type === "Episode") && (
               <SeriesPoster item={item} />
@@ -961,35 +910,53 @@ const Page = () => {
     _setFilterBy([]);
   }, [setSelectedGenres, setSelectedYears, setSelectedTags, _setFilterBy]);
 
-  // TV Filter options
+  // TV Filter options - with "All" option for clearable filters
   const tvGenreFilterOptions = useMemo(
-    (): TVFilterOption<string>[] =>
-      (tvGenreOptions || []).map((genre) => ({
+    (): TVFilterOption<string>[] => [
+      {
+        label: t("library.filters.all"),
+        value: "__all__",
+        selected: selectedGenres.length === 0,
+      },
+      ...(tvGenreOptions || []).map((genre) => ({
         label: genre,
         value: genre,
         selected: selectedGenres.includes(genre),
       })),
-    [tvGenreOptions, selectedGenres],
+    ],
+    [tvGenreOptions, selectedGenres, t],
   );
 
   const tvYearFilterOptions = useMemo(
-    (): TVFilterOption<string>[] =>
-      (tvYearOptions || []).map((year) => ({
+    (): TVFilterOption<string>[] => [
+      {
+        label: t("library.filters.all"),
+        value: "__all__",
+        selected: selectedYears.length === 0,
+      },
+      ...(tvYearOptions || []).map((year) => ({
         label: String(year),
         value: String(year),
         selected: selectedYears.includes(String(year)),
       })),
-    [tvYearOptions, selectedYears],
+    ],
+    [tvYearOptions, selectedYears, t],
   );
 
   const tvTagFilterOptions = useMemo(
-    (): TVFilterOption<string>[] =>
-      (tvTagOptions || []).map((tag) => ({
+    (): TVFilterOption<string>[] => [
+      {
+        label: t("library.filters.all"),
+        value: "__all__",
+        selected: selectedTags.length === 0,
+      },
+      ...(tvTagOptions || []).map((tag) => ({
         label: tag,
         value: tag,
         selected: selectedTags.includes(tag),
       })),
-    [tvTagOptions, selectedTags],
+    ],
+    [tvTagOptions, selectedTags, t],
   );
 
   const tvSortByOptions = useMemo(
@@ -1013,19 +980,27 @@ const Page = () => {
   );
 
   const tvFilterByOptions = useMemo(
-    (): TVFilterOption<FilterByOption>[] =>
-      generalFilters.map((option) => ({
+    (): TVFilterOption<string>[] => [
+      {
+        label: t("library.filters.all"),
+        value: "__all__",
+        selected: filterBy.length === 0,
+      },
+      ...generalFilters.map((option) => ({
         label: option.value,
         value: option.key,
         selected: filterBy.includes(option.key),
       })),
-    [filterBy, generalFilters],
+    ],
+    [filterBy, generalFilters, t],
   );
 
   // TV Filter handlers
   const handleGenreSelect = useCallback(
     (value: string) => {
-      if (selectedGenres.includes(value)) {
+      if (value === "__all__") {
+        setSelectedGenres([]);
+      } else if (selectedGenres.includes(value)) {
         setSelectedGenres(selectedGenres.filter((g) => g !== value));
       } else {
         setSelectedGenres([...selectedGenres, value]);
@@ -1036,7 +1011,9 @@ const Page = () => {
 
   const handleYearSelect = useCallback(
     (value: string) => {
-      if (selectedYears.includes(value)) {
+      if (value === "__all__") {
+        setSelectedYears([]);
+      } else if (selectedYears.includes(value)) {
         setSelectedYears(selectedYears.filter((y) => y !== value));
       } else {
         setSelectedYears([...selectedYears, value]);
@@ -1047,13 +1024,26 @@ const Page = () => {
 
   const handleTagSelect = useCallback(
     (value: string) => {
-      if (selectedTags.includes(value)) {
+      if (value === "__all__") {
+        setSelectedTags([]);
+      } else if (selectedTags.includes(value)) {
         setSelectedTags(selectedTags.filter((t) => t !== value));
       } else {
         setSelectedTags([...selectedTags, value]);
       }
     },
     [selectedTags, setSelectedTags],
+  );
+
+  const handleFilterBySelect = useCallback(
+    (value: string) => {
+      if (value === "__all__") {
+        _setFilterBy([]);
+      } else {
+        setFilter([value as FilterByOption]);
+      }
+    },
+    [setFilter, _setFilterBy],
   );
 
   const insets = useSafeAreaInsets();
@@ -1126,7 +1116,7 @@ const Page = () => {
           style={{
             flexDirection: "row",
             flexWrap: "nowrap",
-            marginTop: insets.top + 20,
+            marginTop: insets.top + 100,
             paddingBottom: 8,
             paddingHorizontal: TV_SCALE_PADDING,
             gap: 12,
@@ -1137,7 +1127,7 @@ const Page = () => {
               label=''
               value={t("library.filters.reset")}
               onPress={resetAllFilters}
-              disabled={isFilterModalOpen}
+              disabled={isFiltersDisabled}
               hasActiveFilter
             />
           )}
@@ -1150,7 +1140,7 @@ const Page = () => {
             }
             onPress={() => setOpenFilterModal("genre")}
             hasTVPreferredFocus={!hasActiveFilters}
-            disabled={isFilterModalOpen}
+            disabled={isFiltersDisabled}
             hasActiveFilter={selectedGenres.length > 0}
           />
           <TVFilterButton
@@ -1161,7 +1151,7 @@ const Page = () => {
                 : t("library.filters.all")
             }
             onPress={() => setOpenFilterModal("year")}
-            disabled={isFilterModalOpen}
+            disabled={isFiltersDisabled}
             hasActiveFilter={selectedYears.length > 0}
           />
           <TVFilterButton
@@ -1172,14 +1162,14 @@ const Page = () => {
                 : t("library.filters.all")
             }
             onPress={() => setOpenFilterModal("tags")}
-            disabled={isFilterModalOpen}
+            disabled={isFiltersDisabled}
             hasActiveFilter={selectedTags.length > 0}
           />
           <TVFilterButton
             label={t("library.filters.sort_by")}
             value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}
             onPress={() => setOpenFilterModal("sortBy")}
-            disabled={isFilterModalOpen}
+            disabled={isFiltersDisabled}
           />
           <TVFilterButton
             label={t("library.filters.sort_order")}
@@ -1187,7 +1177,7 @@ const Page = () => {
               sortOrderOptions.find((o) => o.key === sortOrder[0])?.value || ""
             }
             onPress={() => setOpenFilterModal("sortOrder")}
-            disabled={isFilterModalOpen}
+            disabled={isFiltersDisabled}
           />
           <TVFilterButton
             label={t("library.filters.filter_by")}
@@ -1197,7 +1187,7 @@ const Page = () => {
                 : t("library.filters.all")
             }
             onPress={() => setOpenFilterModal("filterBy")}
-            disabled={isFilterModalOpen}
+            disabled={isFiltersDisabled}
             hasActiveFilter={filterBy.length > 0}
           />
         </View>
@@ -1229,7 +1219,7 @@ const Page = () => {
             paddingBottom: 24,
             paddingLeft: TV_SCALE_PADDING,
             paddingRight: TV_SCALE_PADDING,
-            paddingTop: 8,
+            paddingTop: 20,
           }}
           ItemSeparatorComponent={() => (
             <View
@@ -1249,7 +1239,6 @@ const Page = () => {
         options={tvGenreFilterOptions}
         onSelect={handleGenreSelect}
         onClose={() => setOpenFilterModal(null)}
-        multiSelect
       />
       <TVFilterSelector
         visible={openFilterModal === "year"}
@@ -1257,7 +1246,6 @@ const Page = () => {
         options={tvYearFilterOptions}
         onSelect={handleYearSelect}
         onClose={() => setOpenFilterModal(null)}
-        multiSelect
       />
       <TVFilterSelector
         visible={openFilterModal === "tags"}
@@ -1265,7 +1253,6 @@ const Page = () => {
         options={tvTagFilterOptions}
         onSelect={handleTagSelect}
         onClose={() => setOpenFilterModal(null)}
-        multiSelect
       />
       <TVFilterSelector
         visible={openFilterModal === "sortBy"}
@@ -1285,7 +1272,7 @@ const Page = () => {
         visible={openFilterModal === "filterBy"}
         title={t("library.filters.filter_by")}
         options={tvFilterByOptions}
-        onSelect={(value) => setFilter([value])}
+        onSelect={handleFilterBySelect}
         onClose={() => setOpenFilterModal(null)}
       />
     </View>
