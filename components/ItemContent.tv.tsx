@@ -838,23 +838,23 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [selectedOptions?.bitrate?.key, t]);
 
     // Format year and duration
-    const year = item.ProductionYear;
-    const duration = item.RunTimeTicks
+    const year = item?.ProductionYear;
+    const duration = item?.RunTimeTicks
       ? runtimeTicksToMinutes(item.RunTimeTicks)
       : null;
-    const hasProgress = (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
+    const hasProgress = (item?.UserData?.PlaybackPositionTicks ?? 0) > 0;
     const remainingTime = hasProgress
       ? runtimeTicksToMinutes(
-          (item.RunTimeTicks || 0) -
-            (item.UserData?.PlaybackPositionTicks || 0),
+          (item?.RunTimeTicks || 0) -
+            (item?.UserData?.PlaybackPositionTicks || 0),
         )
       : null;
 
     // Get director
-    const director = item.People?.find((p) => p.Type === "Director");
+    const director = item?.People?.find((p) => p.Type === "Director");
 
     // Get cast (first 3)
-    const cast = item.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
+    const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
 
     if (!item || !selectedOptions) return null;
 

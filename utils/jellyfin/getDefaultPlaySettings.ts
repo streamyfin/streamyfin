@@ -42,11 +42,16 @@ export interface PreviousIndexes {
  * @param previous - Optional previous track selections to carry over (for sequential play)
  */
 export function getDefaultPlaySettings(
-  item: BaseItemDto,
+  item: BaseItemDto | null | undefined,
   settings: Settings | null,
   previous?: { indexes?: PreviousIndexes; source?: MediaSourceInfo },
 ): PlaySettings {
   const bitrate = settings?.defaultBitrate ?? BITRATES[0];
+
+  // Handle undefined/null item
+  if (!item) {
+    return { item: {} as BaseItemDto, bitrate };
+  }
 
   // Live TV programs don't have media sources
   if (item.Type === "Program") {

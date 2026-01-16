@@ -86,7 +86,7 @@ const Page: React.FC = () => {
               <View style={{ paddingHorizontal: 16, width: "100%" }}>
                 <View
                   style={{
-                    height: item?.Type === "Episode" ? 300 : 450,
+                    height: 450,
                   }}
                   className='bg-transparent rounded-lg mb-4 w-full'
                 />
