@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import { BlurView } from "expo-blur";
 import { useAtom } from "jotai";
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,7 +17,8 @@ const TVSettingsRow: React.FC<{
   onPress?: () => void;
   isFirst?: boolean;
   showChevron?: boolean;
-}> = ({ label, value, onPress, isFirst, showChevron = true }) => {
+  disabled?: boolean;
+}> = ({ label, value, onPress, isFirst, showChevron = true, disabled }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -39,7 +41,9 @@ const TVSettingsRow: React.FC<{
         setFocused(false);
         animateTo(1);
       }}
-      hasTVPreferredFocus={isFirst}
+      hasTVPreferredFocus={isFirst && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={{
@@ -82,7 +86,8 @@ const TVSettingsToggle: React.FC<{
   value: boolean;
   onToggle: (value: boolean) => void;
   isFirst?: boolean;
-}> = ({ label, value, onToggle, isFirst }) => {
+  disabled?: boolean;
+}> = ({ label, value, onToggle, isFirst, disabled }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -105,7 +110,9 @@ const TVSettingsToggle: React.FC<{
         setFocused(false);
         animateTo(1);
       }}
-      hasTVPreferredFocus={isFirst}
+      hasTVPreferredFocus={isFirst && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={{
@@ -156,7 +163,16 @@ const TVSettingsStepper: React.FC<{
   onIncrease: () => void;
   formatValue?: (value: number) => string;
   isFirst?: boolean;
-}> = ({ label, value, onDecrease, onIncrease, formatValue, isFirst }) => {
+  disabled?: boolean;
+}> = ({
+  label,
+  value,
+  onDecrease,
+  onIncrease,
+  formatValue,
+  isFirst,
+  disabled,
+}) => {
   const [focused, setFocused] = useState(false);
   const [buttonFocused, setButtonFocused] = useState<"minus" | "plus" | null>(
     null,
@@ -200,7 +216,9 @@ const TVSettingsStepper: React.FC<{
           setFocused(false);
           animateTo(scale, 1);
         }}
-        hasTVPreferredFocus={isFirst}
+        hasTVPreferredFocus={isFirst && !disabled}
+        disabled={disabled}
+        focusable={!disabled}
       >
         <Animated.View style={{ transform: [{ scale }] }}>
           <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
@@ -217,6 +235,8 @@ const TVSettingsStepper: React.FC<{
             setButtonFocused(null);
             animateTo(minusScale, 1);
           }}
+          disabled={disabled}
+          focusable={!disabled}
         >
           <Animated.View
             style={{
@@ -254,6 +274,8 @@ const TVSettingsStepper: React.FC<{
             setButtonFocused(null);
             animateTo(plusScale, 1);
           }}
+          disabled={disabled}
+          focusable={!disabled}
         >
           <Animated.View
             style={{
@@ -274,71 +296,21 @@ const TVSettingsStepper: React.FC<{
   );
 };
 
-// TV-optimized horizontal selector - navigate left/right through options
-const TVSettingsSelector: React.FC<{
+// Option item type for bottom sheet selector
+type TVSettingsOptionItem<T> = {
   label: string;
-  options: { label: string; value: string }[];
-  selectedValue: string;
-  onSelect: (value: string) => void;
-  isFirst?: boolean;
-}> = ({ label, options, selectedValue, onSelect, isFirst }) => {
-  const [rowFocused, setRowFocused] = useState(false);
-
-  const currentIndex = options.findIndex((o) => o.value === selectedValue);
-
-  return (
-    <View
-      style={{
-        backgroundColor: rowFocused
-          ? "rgba(255, 255, 255, 0.1)"
-          : "rgba(255, 255, 255, 0.05)",
-        borderRadius: 12,
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        marginBottom: 8,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 20,
-          color: "#FFFFFF",
-          marginBottom: 12,
-        }}
-      >
-        {label}
-      </Text>
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 8,
-        }}
-      >
-        {options.map((option, index) => (
-          <TVSelectorOption
-            key={option.value}
-            label={option.label}
-            selected={option.value === selectedValue}
-            onSelect={() => onSelect(option.value)}
-            onFocus={() => setRowFocused(true)}
-            onBlur={() => setRowFocused(false)}
-            isFirst={isFirst && index === currentIndex}
-          />
-        ))}
-      </View>
-    </View>
-  );
+  value: T;
+  selected: boolean;
 };
 
-// Individual option button for horizontal selector
-const TVSelectorOption: React.FC<{
+// TV Settings Option Button - displays current value and opens bottom sheet
+const TVSettingsOptionButton: React.FC<{
   label: string;
-  selected: boolean;
-  onSelect: () => void;
-  onFocus: () => void;
-  onBlur: () => void;
+  value: string;
+  onPress: () => void;
   isFirst?: boolean;
-}> = ({ label, selected, onSelect, onFocus, onBlur, isFirst }) => {
+  disabled?: boolean;
+}> = ({ label, value, onPress, isFirst, disabled }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -352,43 +324,220 @@ const TVSelectorOption: React.FC<{
 
   return (
     <Pressable
-      onPress={onSelect}
+      onPress={onPress}
       onFocus={() => {
         setFocused(true);
-        onFocus();
-        animateTo(1.08);
+        animateTo(1.02);
       }}
       onBlur={() => {
         setFocused(false);
-        onBlur();
         animateTo(1);
       }}
-      hasTVPreferredFocus={isFirst}
+      hasTVPreferredFocus={isFirst && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={{
           transform: [{ scale }],
-          backgroundColor: selected
-            ? "#7c3aed"
-            : focused
-              ? "rgba(124, 58, 237, 0.4)"
-              : "rgba(255, 255, 255, 0.1)",
-          borderRadius: 8,
-          paddingVertical: 10,
-          paddingHorizontal: 16,
-          borderWidth: focused ? 2 : 0,
-          borderColor: "#FFFFFF",
+          backgroundColor: focused
+            ? "rgba(255, 255, 255, 0.15)"
+            : "rgba(255, 255, 255, 0.05)",
+          borderRadius: 12,
+          paddingVertical: 16,
+          paddingHorizontal: 24,
+          marginBottom: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text
+            style={{
+              fontSize: 18,
+              color: "#9CA3AF",
+              marginRight: 12,
+            }}
+          >
+            {value}
+          </Text>
+          <Ionicons name='chevron-forward' size={20} color='#6B7280' />
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+// TV Settings Bottom Sheet - Apple TV style horizontal scrolling selector
+const TVSettingsBottomSheet = <T,>({
+  visible,
+  title,
+  options,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  options: TVSettingsOptionItem<T>[];
+  onSelect: (value: T) => void;
+  onClose: () => void;
+}) => {
+  const initialSelectedIndex = useMemo(() => {
+    const idx = options.findIndex((o) => o.selected);
+    return idx >= 0 ? idx : 0;
+  }, [options]);
+
+  if (!visible) return null;
+
+  return (
+    <View
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "flex-end",
+        zIndex: 1000,
+      }}
+    >
+      <BlurView
+        intensity={80}
+        tint='dark'
+        style={{
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            paddingTop: 24,
+            paddingBottom: 50,
+            overflow: "visible",
+          }}
+        >
+          {/* Title */}
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "500",
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: 16,
+              paddingHorizontal: 48,
+              textTransform: "uppercase",
+              letterSpacing: 1,
+            }}
+          >
+            {title}
+          </Text>
+
+          {/* Horizontal options */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ overflow: "visible" }}
+            contentContainerStyle={{
+              paddingHorizontal: 48,
+              paddingVertical: 10,
+              gap: 12,
+            }}
+          >
+            {options.map((option, index) => (
+              <TVSettingsOptionCard
+                key={index}
+                label={option.label}
+                selected={option.selected}
+                hasTVPreferredFocus={index === initialSelectedIndex}
+                onPress={() => {
+                  onSelect(option.value);
+                  onClose();
+                }}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      </BlurView>
+    </View>
+  );
+};
+
+// Option card for horizontal bottom sheet selector (Apple TV style)
+const TVSettingsOptionCard: React.FC<{
+  label: string;
+  selected: boolean;
+  hasTVPreferredFocus?: boolean;
+  onPress: () => void;
+}> = ({ label, selected, hasTVPreferredFocus, onPress }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          width: 160,
+          height: 75,
+          backgroundColor: focused
+            ? "#fff"
+            : selected
+              ? "rgba(255,255,255,0.2)"
+              : "rgba(255,255,255,0.08)",
+          borderRadius: 14,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingHorizontal: 12,
         }}
       >
         <Text
           style={{
             fontSize: 16,
-            color: "#FFFFFF",
-            fontWeight: selected ? "600" : "400",
+            color: focused ? "#000" : "#fff",
+            fontWeight: focused || selected ? "600" : "400",
+            textAlign: "center",
           }}
+          numberOfLines={2}
         >
           {label}
         </Text>
+        {selected && !focused && (
+          <View
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+            }}
+          >
+            <Ionicons
+              name='checkmark'
+              size={16}
+              color='rgba(255,255,255,0.8)'
+            />
+          </View>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -413,7 +562,10 @@ const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
 );
 
 // Logout button component
-const TVLogoutButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
+const TVLogoutButton: React.FC<{ onPress: () => void; disabled?: boolean }> = ({
+  onPress,
+  disabled,
+}) => {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -437,6 +589,8 @@ const TVLogoutButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
         setFocused(false);
         animateTo(1);
       }}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={{
@@ -472,6 +626,14 @@ const TVLogoutButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
   );
 };
 
+// Modal type for tracking open bottom sheets
+type SettingsModalType =
+  | "audioTranscode"
+  | "subtitleMode"
+  | "alignX"
+  | "alignY"
+  | null;
+
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -480,212 +642,338 @@ export default function SettingsTV() {
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
 
+  // Modal state for option selectors
+  const [openModal, setOpenModal] = useState<SettingsModalType>(null);
+
+  const currentAudioTranscode =
+    settings.audioTranscodeMode || AudioTranscodeMode.Auto;
+  const currentSubtitleMode =
+    settings.subtitleMode || SubtitlePlaybackMode.Default;
+  const currentAlignX = settings.mpvSubtitleAlignX ?? "center";
+  const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
+
   // Audio transcoding options
-  const audioTranscodeModeOptions = [
-    {
-      label: t("home.settings.audio.transcode_mode.auto"),
-      value: AudioTranscodeMode.Auto,
-    },
-    {
-      label: t("home.settings.audio.transcode_mode.stereo"),
-      value: AudioTranscodeMode.ForceStereo,
-    },
-    {
-      label: t("home.settings.audio.transcode_mode.5_1"),
-      value: AudioTranscodeMode.Allow51,
-    },
-    {
-      label: t("home.settings.audio.transcode_mode.passthrough"),
-      value: AudioTranscodeMode.AllowAll,
-    },
-  ];
+  const audioTranscodeModeOptions = useMemo(
+    () => [
+      {
+        label: t("home.settings.audio.transcode_mode.auto"),
+        value: AudioTranscodeMode.Auto,
+        selected: currentAudioTranscode === AudioTranscodeMode.Auto,
+      },
+      {
+        label: t("home.settings.audio.transcode_mode.stereo"),
+        value: AudioTranscodeMode.ForceStereo,
+        selected: currentAudioTranscode === AudioTranscodeMode.ForceStereo,
+      },
+      {
+        label: t("home.settings.audio.transcode_mode.5_1"),
+        value: AudioTranscodeMode.Allow51,
+        selected: currentAudioTranscode === AudioTranscodeMode.Allow51,
+      },
+      {
+        label: t("home.settings.audio.transcode_mode.passthrough"),
+        value: AudioTranscodeMode.AllowAll,
+        selected: currentAudioTranscode === AudioTranscodeMode.AllowAll,
+      },
+    ],
+    [t, currentAudioTranscode],
+  );
 
   // Subtitle mode options
-  const subtitleModeOptions = [
-    {
-      label: t("home.settings.subtitles.modes.Default"),
-      value: SubtitlePlaybackMode.Default,
-    },
-    {
-      label: t("home.settings.subtitles.modes.Smart"),
-      value: SubtitlePlaybackMode.Smart,
-    },
-    {
-      label: t("home.settings.subtitles.modes.OnlyForced"),
-      value: SubtitlePlaybackMode.OnlyForced,
-    },
-    {
-      label: t("home.settings.subtitles.modes.Always"),
-      value: SubtitlePlaybackMode.Always,
-    },
-    {
-      label: t("home.settings.subtitles.modes.None"),
-      value: SubtitlePlaybackMode.None,
-    },
-  ];
+  const subtitleModeOptions = useMemo(
+    () => [
+      {
+        label: t("home.settings.subtitles.modes.Default"),
+        value: SubtitlePlaybackMode.Default,
+        selected: currentSubtitleMode === SubtitlePlaybackMode.Default,
+      },
+      {
+        label: t("home.settings.subtitles.modes.Smart"),
+        value: SubtitlePlaybackMode.Smart,
+        selected: currentSubtitleMode === SubtitlePlaybackMode.Smart,
+      },
+      {
+        label: t("home.settings.subtitles.modes.OnlyForced"),
+        value: SubtitlePlaybackMode.OnlyForced,
+        selected: currentSubtitleMode === SubtitlePlaybackMode.OnlyForced,
+      },
+      {
+        label: t("home.settings.subtitles.modes.Always"),
+        value: SubtitlePlaybackMode.Always,
+        selected: currentSubtitleMode === SubtitlePlaybackMode.Always,
+      },
+      {
+        label: t("home.settings.subtitles.modes.None"),
+        value: SubtitlePlaybackMode.None,
+        selected: currentSubtitleMode === SubtitlePlaybackMode.None,
+      },
+    ],
+    [t, currentSubtitleMode],
+  );
 
   // MPV alignment options
-  const alignXOptions = [
-    { label: "Left", value: "left" },
-    { label: "Center", value: "center" },
-    { label: "Right", value: "right" },
-  ];
+  const alignXOptions = useMemo(
+    () => [
+      { label: "Left", value: "left", selected: currentAlignX === "left" },
+      {
+        label: "Center",
+        value: "center",
+        selected: currentAlignX === "center",
+      },
+      { label: "Right", value: "right", selected: currentAlignX === "right" },
+    ],
+    [currentAlignX],
+  );
 
-  const alignYOptions = [
-    { label: "Top", value: "top" },
-    { label: "Center", value: "center" },
-    { label: "Bottom", value: "bottom" },
-  ];
+  const alignYOptions = useMemo(
+    () => [
+      { label: "Top", value: "top", selected: currentAlignY === "top" },
+      {
+        label: "Center",
+        value: "center",
+        selected: currentAlignY === "center",
+      },
+      {
+        label: "Bottom",
+        value: "bottom",
+        selected: currentAlignY === "bottom",
+      },
+    ],
+    [currentAlignY],
+  );
+
+  // Get display labels for option buttons
+  const audioTranscodeLabel = useMemo(() => {
+    const option = audioTranscodeModeOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.audio.transcode_mode.auto");
+  }, [audioTranscodeModeOptions, t]);
+
+  const subtitleModeLabel = useMemo(() => {
+    const option = subtitleModeOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.subtitles.modes.Default");
+  }, [subtitleModeOptions, t]);
+
+  const alignXLabel = useMemo(() => {
+    const option = alignXOptions.find((o) => o.selected);
+    return option?.label || "Center";
+  }, [alignXOptions]);
+
+  const alignYLabel = useMemo(() => {
+    const option = alignYOptions.find((o) => o.selected);
+    return option?.label || "Bottom";
+  }, [alignYOptions]);
+
+  const isModalOpen = openModal !== null;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: "#000000" }}
-      contentContainerStyle={{
-        paddingTop: insets.top + 120,
-        paddingBottom: insets.bottom + 60,
-        paddingHorizontal: insets.left + 80,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <Text
-        style={{
-          fontSize: 42,
-          fontWeight: "bold",
-          color: "#FFFFFF",
-          marginBottom: 8,
-        }}
+    <View style={{ flex: 1, backgroundColor: "#000000" }}>
+      <View
+        style={{ flex: 1, opacity: isModalOpen ? 0.3 : 1 }}
+        focusable={!isModalOpen}
+        isTVSelectable={!isModalOpen}
+        pointerEvents={isModalOpen ? "none" : "auto"}
+        accessibilityElementsHidden={isModalOpen}
+        importantForAccessibility={isModalOpen ? "no-hide-descendants" : "auto"}
       >
-        {t("home.settings.settings_title")}
-      </Text>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingTop: insets.top + 120,
+            paddingBottom: insets.bottom + 60,
+            paddingHorizontal: insets.left + 80,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <Text
+            style={{
+              fontSize: 42,
+              fontWeight: "bold",
+              color: "#FFFFFF",
+              marginBottom: 8,
+            }}
+          >
+            {t("home.settings.settings_title")}
+          </Text>
 
-      {/* Audio Section */}
-      <SectionHeader title={t("home.settings.audio.audio_title")} />
-      <TVSettingsSelector
-        label={t("home.settings.audio.transcode_mode.title")}
+          {/* Audio Section */}
+          <SectionHeader title={t("home.settings.audio.audio_title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.audio.transcode_mode.title")}
+            value={audioTranscodeLabel}
+            onPress={() => setOpenModal("audioTranscode")}
+            isFirst
+            disabled={isModalOpen}
+          />
+
+          {/* Subtitles Section */}
+          <SectionHeader title={t("home.settings.subtitles.subtitle_title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_mode")}
+            value={subtitleModeLabel}
+            onPress={() => setOpenModal("subtitleMode")}
+            disabled={isModalOpen}
+          />
+          <TVSettingsToggle
+            label={t("home.settings.subtitles.set_subtitle_track")}
+            value={settings.rememberSubtitleSelections}
+            onToggle={(value) =>
+              updateSettings({ rememberSubtitleSelections: value })
+            }
+            disabled={isModalOpen}
+          />
+          <TVSettingsStepper
+            label={t("home.settings.subtitles.subtitle_size")}
+            value={settings.subtitleSize / 100}
+            onDecrease={() => {
+              const newValue = Math.max(0.3, settings.subtitleSize / 100 - 0.1);
+              updateSettings({ subtitleSize: Math.round(newValue * 100) });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(1.5, settings.subtitleSize / 100 + 0.1);
+              updateSettings({ subtitleSize: Math.round(newValue * 100) });
+            }}
+            formatValue={(v) => `${v.toFixed(1)}x`}
+            disabled={isModalOpen}
+          />
+
+          {/* MPV Subtitles Section */}
+          <SectionHeader title='MPV Subtitle Settings' />
+          <TVSettingsStepper
+            label='Subtitle Scale'
+            value={settings.mpvSubtitleScale ?? 1.0}
+            onDecrease={() => {
+              const newValue = Math.max(
+                0.5,
+                (settings.mpvSubtitleScale ?? 1.0) - 0.1,
+              );
+              updateSettings({
+                mpvSubtitleScale: Math.round(newValue * 10) / 10,
+              });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                2.0,
+                (settings.mpvSubtitleScale ?? 1.0) + 0.1,
+              );
+              updateSettings({
+                mpvSubtitleScale: Math.round(newValue * 10) / 10,
+              });
+            }}
+            formatValue={(v) => `${v.toFixed(1)}x`}
+            disabled={isModalOpen}
+          />
+          <TVSettingsStepper
+            label='Vertical Margin'
+            value={settings.mpvSubtitleMarginY ?? 0}
+            onDecrease={() => {
+              const newValue = Math.max(
+                0,
+                (settings.mpvSubtitleMarginY ?? 0) - 5,
+              );
+              updateSettings({ mpvSubtitleMarginY: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                100,
+                (settings.mpvSubtitleMarginY ?? 0) + 5,
+              );
+              updateSettings({ mpvSubtitleMarginY: newValue });
+            }}
+            disabled={isModalOpen}
+          />
+          <TVSettingsOptionButton
+            label='Horizontal Alignment'
+            value={alignXLabel}
+            onPress={() => setOpenModal("alignX")}
+            disabled={isModalOpen}
+          />
+          <TVSettingsOptionButton
+            label='Vertical Alignment'
+            value={alignYLabel}
+            onPress={() => setOpenModal("alignY")}
+            disabled={isModalOpen}
+          />
+
+          {/* Appearance Section */}
+          <SectionHeader title={t("home.settings.appearance.title")} />
+          <TVSettingsToggle
+            label={t(
+              "home.settings.appearance.merge_next_up_continue_watching",
+            )}
+            value={settings.mergeNextUpAndContinueWatching}
+            onToggle={(value) =>
+              updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+            disabled={isModalOpen}
+          />
+
+          {/* User Section */}
+          <SectionHeader title={t("home.settings.user_info.user_info_title")} />
+          <TVSettingsRow
+            label={t("home.settings.user_info.user")}
+            value={user?.Name || "-"}
+            showChevron={false}
+            disabled={isModalOpen}
+          />
+          <TVSettingsRow
+            label={t("home.settings.user_info.server")}
+            value={api?.basePath || "-"}
+            showChevron={false}
+            disabled={isModalOpen}
+          />
+
+          {/* Logout Button */}
+          <View style={{ marginTop: 48, alignItems: "center" }}>
+            <TVLogoutButton onPress={logout} disabled={isModalOpen} />
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Bottom sheet modals */}
+      <TVSettingsBottomSheet
+        visible={openModal === "audioTranscode"}
+        title={t("home.settings.audio.transcode_mode.title")}
         options={audioTranscodeModeOptions}
-        selectedValue={settings.audioTranscodeMode || AudioTranscodeMode.Auto}
         onSelect={(value) =>
           updateSettings({ audioTranscodeMode: value as AudioTranscodeMode })
         }
-        isFirst
+        onClose={() => setOpenModal(null)}
       />
 
-      {/* Subtitles Section */}
-      <SectionHeader title={t("home.settings.subtitles.subtitle_title")} />
-      <TVSettingsSelector
-        label={t("home.settings.subtitles.subtitle_mode")}
+      <TVSettingsBottomSheet
+        visible={openModal === "subtitleMode"}
+        title={t("home.settings.subtitles.subtitle_mode")}
         options={subtitleModeOptions}
-        selectedValue={settings.subtitleMode || SubtitlePlaybackMode.Default}
         onSelect={(value) =>
           updateSettings({ subtitleMode: value as SubtitlePlaybackMode })
         }
-      />
-      <TVSettingsToggle
-        label={t("home.settings.subtitles.set_subtitle_track")}
-        value={settings.rememberSubtitleSelections}
-        onToggle={(value) =>
-          updateSettings({ rememberSubtitleSelections: value })
-        }
-      />
-      <TVSettingsStepper
-        label={t("home.settings.subtitles.subtitle_size")}
-        value={settings.subtitleSize / 100}
-        onDecrease={() => {
-          const newValue = Math.max(0.3, settings.subtitleSize / 100 - 0.1);
-          updateSettings({ subtitleSize: Math.round(newValue * 100) });
-        }}
-        onIncrease={() => {
-          const newValue = Math.min(1.5, settings.subtitleSize / 100 + 0.1);
-          updateSettings({ subtitleSize: Math.round(newValue * 100) });
-        }}
-        formatValue={(v) => `${v.toFixed(1)}x`}
+        onClose={() => setOpenModal(null)}
       />
 
-      {/* MPV Subtitles Section */}
-      <SectionHeader title='MPV Subtitle Settings' />
-      <TVSettingsStepper
-        label='Subtitle Scale'
-        value={settings.mpvSubtitleScale ?? 1.0}
-        onDecrease={() => {
-          const newValue = Math.max(
-            0.5,
-            (settings.mpvSubtitleScale ?? 1.0) - 0.1,
-          );
-          updateSettings({ mpvSubtitleScale: Math.round(newValue * 10) / 10 });
-        }}
-        onIncrease={() => {
-          const newValue = Math.min(
-            2.0,
-            (settings.mpvSubtitleScale ?? 1.0) + 0.1,
-          );
-          updateSettings({ mpvSubtitleScale: Math.round(newValue * 10) / 10 });
-        }}
-        formatValue={(v) => `${v.toFixed(1)}x`}
-      />
-      <TVSettingsStepper
-        label='Vertical Margin'
-        value={settings.mpvSubtitleMarginY ?? 0}
-        onDecrease={() => {
-          const newValue = Math.max(0, (settings.mpvSubtitleMarginY ?? 0) - 5);
-          updateSettings({ mpvSubtitleMarginY: newValue });
-        }}
-        onIncrease={() => {
-          const newValue = Math.min(
-            100,
-            (settings.mpvSubtitleMarginY ?? 0) + 5,
-          );
-          updateSettings({ mpvSubtitleMarginY: newValue });
-        }}
-      />
-      <TVSettingsSelector
-        label='Horizontal Alignment'
+      <TVSettingsBottomSheet
+        visible={openModal === "alignX"}
+        title='Horizontal Alignment'
         options={alignXOptions}
-        selectedValue={settings.mpvSubtitleAlignX ?? "center"}
         onSelect={(value) =>
           updateSettings({
             mpvSubtitleAlignX: value as "left" | "center" | "right",
           })
         }
+        onClose={() => setOpenModal(null)}
       />
-      <TVSettingsSelector
-        label='Vertical Alignment'
+
+      <TVSettingsBottomSheet
+        visible={openModal === "alignY"}
+        title='Vertical Alignment'
         options={alignYOptions}
-        selectedValue={settings.mpvSubtitleAlignY ?? "bottom"}
         onSelect={(value) =>
           updateSettings({
             mpvSubtitleAlignY: value as "top" | "center" | "bottom",
           })
         }
+        onClose={() => setOpenModal(null)}
       />
-
-      {/* Appearance Section */}
-      <SectionHeader title={t("home.settings.appearance.title")} />
-      <TVSettingsToggle
-        label={t("home.settings.appearance.merge_next_up_continue_watching")}
-        value={settings.mergeNextUpAndContinueWatching}
-        onToggle={(value) =>
-          updateSettings({ mergeNextUpAndContinueWatching: value })
-        }
-      />
-
-      {/* User Section */}
-      <SectionHeader title={t("home.settings.user_info.user_info_title")} />
-      <TVSettingsRow
-        label={t("home.settings.user_info.user")}
-        value={user?.Name || "-"}
-        showChevron={false}
-      />
-      <TVSettingsRow
-        label={t("home.settings.user_info.server")}
-        value={api?.basePath || "-"}
-        showChevron={false}
-      />
-
-      {/* Logout Button */}
-      <View style={{ marginTop: 48, alignItems: "center" }}>
-        <TVLogoutButton onPress={logout} />
-      </View>
-    </ScrollView>
+    </View>
   );
 }
