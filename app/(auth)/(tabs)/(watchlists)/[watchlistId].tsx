@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   RefreshControl,
   TouchableOpacity,
   useWindowDimensions,
@@ -16,9 +17,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderBackButton } from "@/components/common/HeaderBackButton";
 import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import {
+  getItemNavigation,
+  TouchableItemRouter,
+} from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import { ItemPoster } from "@/components/posters/ItemPoster";
+import MoviePoster, {
+  TV_POSTER_WIDTH,
+} from "@/components/posters/MoviePoster.tv";
+import SeriesPoster from "@/components/posters/SeriesPoster.tv";
+import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import {
@@ -31,6 +40,20 @@ import {
 } from "@/hooks/useWatchlists";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { userAtom } from "@/providers/JellyfinProvider";
+
+const TV_ITEM_GAP = 16;
+const TV_SCALE_PADDING = 20;
+
+const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => (
+  <View style={{ marginTop: 12 }}>
+    <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+      {item.Name}
+    </Text>
+    <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+      {item.ProductionYear}
+    </Text>
+  </View>
+);
 
 export default function WatchlistDetailScreen() {
   const { t } = useTranslation();
@@ -47,6 +70,14 @@ export default function WatchlistDetailScreen() {
     : undefined;
 
   const nrOfCols = useMemo(() => {
+    if (Platform.isTV) {
+      // Calculate columns based on TV poster width + gap
+      const itemWidth = TV_POSTER_WIDTH + TV_ITEM_GAP;
+      return Math.max(
+        1,
+        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
+      );
+    }
     if (screenWidth < 300) return 2;
     if (screenWidth < 500) return 3;
     if (screenWidth < 800) return 5;
@@ -151,6 +182,37 @@ export default function WatchlistDetailScreen() {
       );
     },
     [removeFromWatchlist, watchlistIdNum, watchlist?.name, t],
+  );
+
+  const renderTVItem = useCallback(
+    ({ item, index }: { item: BaseItemDto; index: number }) => {
+      const handlePress = () => {
+        const navigation = getItemNavigation(item, "(watchlists)");
+        router.push(navigation as any);
+      };
+
+      return (
+        <View
+          style={{
+            marginRight: TV_ITEM_GAP,
+            marginBottom: TV_ITEM_GAP,
+            width: TV_POSTER_WIDTH,
+          }}
+        >
+          <TVFocusablePoster
+            onPress={handlePress}
+            hasTVPreferredFocus={index === 0}
+          >
+            {item.Type === "Movie" && <MoviePoster item={item} />}
+            {(item.Type === "Series" || item.Type === "Episode") && (
+              <SeriesPoster item={item} />
+            )}
+          </TVFocusablePoster>
+          <TVItemCardText item={item} />
+        </View>
+      );
+    },
+    [router],
   );
 
   const renderItem = useCallback(
@@ -278,13 +340,14 @@ export default function WatchlistDetailScreen() {
       keyExtractor={keyExtractor}
       contentContainerStyle={{
         paddingBottom: 24,
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
+        paddingLeft: Platform.isTV ? TV_SCALE_PADDING : insets.left,
+        paddingRight: Platform.isTV ? TV_SCALE_PADDING : insets.right,
+        paddingTop: Platform.isTV ? TV_SCALE_PADDING : 0,
       }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
-      renderItem={renderItem}
+      renderItem={Platform.isTV ? renderTVItem : renderItem}
       ItemSeparatorComponent={() => (
         <View
           style={{
