@@ -28,7 +28,7 @@ export const Badge: React.FC<Props> = ({
     </View>
   );
 
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View {...props} style={[styles.container, props.style]}>
         <GlassEffectView style={{ borderRadius: 100 }}>
