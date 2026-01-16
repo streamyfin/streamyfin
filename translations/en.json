@@ -627,7 +627,10 @@
     "media_options": "Media Options",
     "quality": "Quality",
     "audio": "Audio",
-    "subtitles": "Subtitle",
+    "subtitles": {
+      "label": "Subtitle",
+      "none": "None"
+    },
     "show_more": "Show More",
     "show_less": "Show Less",
     "left": "left",
@@ -721,7 +724,8 @@
     "search": "Search",
     "library": "Library",
     "custom_links": "Custom Links",
-    "favorites": "Favorites"
+    "favorites": "Favorites",
+    "settings": "Settings"
   },
   "music": {
     "title": "Music",
