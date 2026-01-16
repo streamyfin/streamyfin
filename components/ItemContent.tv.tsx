@@ -17,10 +17,13 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   Animated,
+  BackHandler,
   Dimensions,
   Easing,
+  Platform,
   Pressable,
   ScrollView,
+  TVFocusGuideView,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -308,10 +311,32 @@ const TVOptionSelector = <T,>({
   onSelect: (value: T) => void;
   onClose: () => void;
 }) => {
+  const [isReady, setIsReady] = useState(false);
+  const firstCardRef = useRef<View>(null);
+
   const initialSelectedIndex = useMemo(() => {
     const idx = options.findIndex((o) => o.selected);
     return idx >= 0 ? idx : 0;
   }, [options]);
+
+  // Delay rendering to work around hasTVPreferredFocus timing issue
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => setIsReady(true), 100);
+      return () => clearTimeout(timer);
+    }
+    setIsReady(false);
+  }, [visible]);
+
+  // Programmatic focus fallback
+  useEffect(() => {
+    if (isReady && firstCardRef.current) {
+      const timer = setTimeout(() => {
+        (firstCardRef.current as any)?.requestTVFocus?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isReady]);
 
   if (!visible) return null;
 
@@ -337,7 +362,12 @@ const TVOptionSelector = <T,>({
           overflow: "hidden",
         }}
       >
-        <View
+        <TVFocusGuideView
+          autoFocus
+          trapFocusUp
+          trapFocusDown
+          trapFocusLeft
+          trapFocusRight
           style={{
             paddingTop: 24,
             paddingBottom: 50,
@@ -360,42 +390,50 @@ const TVOptionSelector = <T,>({
           </Text>
 
           {/* Horizontal options */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ overflow: "visible" }}
-            contentContainerStyle={{
-              paddingHorizontal: 48,
-              paddingVertical: 10,
-              gap: 12,
-            }}
-          >
-            {options.map((option, index) => (
-              <TVOptionCard
-                key={index}
-                label={option.label}
-                selected={option.selected}
-                hasTVPreferredFocus={index === initialSelectedIndex}
-                onPress={() => {
-                  onSelect(option.value);
-                  onClose();
-                }}
-              />
-            ))}
-          </ScrollView>
-        </View>
+          {isReady && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ overflow: "visible" }}
+              contentContainerStyle={{
+                paddingHorizontal: 48,
+                paddingVertical: 10,
+                gap: 12,
+              }}
+            >
+              {options.map((option, index) => (
+                <TVOptionCard
+                  key={index}
+                  ref={
+                    index === initialSelectedIndex ? firstCardRef : undefined
+                  }
+                  label={option.label}
+                  selected={option.selected}
+                  hasTVPreferredFocus={index === initialSelectedIndex}
+                  onPress={() => {
+                    onSelect(option.value);
+                    onClose();
+                  }}
+                />
+              ))}
+            </ScrollView>
+          )}
+        </TVFocusGuideView>
       </BlurView>
     </View>
   );
 };
 
-// Option card for horizontal selector (Apple TV style)
-const TVOptionCard: React.FC<{
-  label: string;
-  selected: boolean;
-  hasTVPreferredFocus?: boolean;
-  onPress: () => void;
-}> = ({ label, selected, hasTVPreferredFocus, onPress }) => {
+// Option card for horizontal selector (Apple TV style) - with forwardRef for programmatic focus
+const TVOptionCard = React.forwardRef<
+  View,
+  {
+    label: string;
+    selected: boolean;
+    hasTVPreferredFocus?: boolean;
+    onPress: () => void;
+  }
+>(({ label, selected, hasTVPreferredFocus, onPress }, ref) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -409,6 +447,7 @@ const TVOptionCard: React.FC<{
 
   return (
     <Pressable
+      ref={ref}
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
@@ -465,7 +504,7 @@ const TVOptionCard: React.FC<{
       </Animated.View>
     </Pressable>
   );
-};
+});
 
 // Button to open option selector
 const TVOptionButton: React.FC<{
@@ -606,6 +645,21 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Modal state for option selectors
     type ModalType = "audio" | "subtitle" | "mediaSource" | "quality" | null;
     const [openModal, setOpenModal] = useState<ModalType>(null);
+    const isModalOpen = openModal !== null;
+
+    // Android TV BackHandler for closing modals
+    useEffect(() => {
+      if (Platform.OS === "android" && isModalOpen) {
+        const backHandler = BackHandler.addEventListener(
+          "hardwareBackPress",
+          () => {
+            setOpenModal(null);
+            return true;
+          },
+        );
+        return () => backHandler.remove();
+      }
+    }, [isModalOpen]);
 
     // Get available audio tracks
     const audioTracks = useMemo(() => {
