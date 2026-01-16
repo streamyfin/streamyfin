@@ -274,112 +274,71 @@ const TVSettingsStepper: React.FC<{
   );
 };
 
-// TV-optimized dropdown selector
-const TVSettingsDropdown: React.FC<{
+// TV-optimized horizontal selector - navigate left/right through options
+const TVSettingsSelector: React.FC<{
   label: string;
   options: { label: string; value: string }[];
   selectedValue: string;
   onSelect: (value: string) => void;
   isFirst?: boolean;
 }> = ({ label, options, selectedValue, onSelect, isFirst }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
+  const [rowFocused, setRowFocused] = useState(false);
 
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const currentIndex = options.findIndex((o) => o.value === selectedValue);
 
-  const selectedLabel =
-    options.find((o) => o.value === selectedValue)?.label || selectedValue;
-
-  if (expanded) {
-    return (
-      <View
+  return (
+    <View
+      style={{
+        backgroundColor: rowFocused
+          ? "rgba(255, 255, 255, 0.1)"
+          : "rgba(255, 255, 255, 0.05)",
+        borderRadius: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        marginBottom: 8,
+      }}
+    >
+      <Text
         style={{
-          backgroundColor: "rgba(255, 255, 255, 0.1)",
-          borderRadius: 12,
-          marginBottom: 8,
-          overflow: "hidden",
+          fontSize: 20,
+          color: "#FFFFFF",
+          marginBottom: 12,
         }}
       >
-        <View
-          style={{
-            paddingVertical: 16,
-            paddingHorizontal: 24,
-            borderBottomWidth: 1,
-            borderBottomColor: "rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <Text style={{ fontSize: 18, color: "#9CA3AF" }}>{label}</Text>
-        </View>
+        {label}
+      </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+        }}
+      >
         {options.map((option, index) => (
-          <TVDropdownOption
+          <TVSelectorOption
             key={option.value}
             label={option.label}
             selected={option.value === selectedValue}
-            onSelect={() => {
-              onSelect(option.value);
-              setExpanded(false);
-            }}
-            isFirst={index === 0}
+            onSelect={() => onSelect(option.value)}
+            onFocus={() => setRowFocused(true)}
+            onBlur={() => setRowFocused(false)}
+            isFirst={isFirst && index === currentIndex}
           />
         ))}
       </View>
-    );
-  }
-
-  return (
-    <Pressable
-      onPress={() => setExpanded(true)}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.02);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={isFirst}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          backgroundColor: focused
-            ? "rgba(255, 255, 255, 0.15)"
-            : "rgba(255, 255, 255, 0.05)",
-          borderRadius: 12,
-          paddingVertical: 16,
-          paddingHorizontal: 24,
-          marginBottom: 8,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Text style={{ fontSize: 18, color: "#9CA3AF", marginRight: 12 }}>
-            {selectedLabel}
-          </Text>
-          <Ionicons name='chevron-down' size={20} color='#6B7280' />
-        </View>
-      </Animated.View>
-    </Pressable>
+    </View>
   );
 };
 
-// Dropdown option component
-const TVDropdownOption: React.FC<{
+// Individual option button for horizontal selector
+const TVSelectorOption: React.FC<{
   label: string;
   selected: boolean;
   onSelect: () => void;
+  onFocus: () => void;
+  onBlur: () => void;
   isFirst?: boolean;
-}> = ({ label, selected, onSelect, isFirst }) => {
+}> = ({ label, selected, onSelect, onFocus, onBlur, isFirst }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -396,10 +355,12 @@ const TVDropdownOption: React.FC<{
       onPress={onSelect}
       onFocus={() => {
         setFocused(true);
-        animateTo(1.02);
+        onFocus();
+        animateTo(1.08);
       }}
       onBlur={() => {
         setFocused(false);
+        onBlur();
         animateTo(1);
       }}
       hasTVPreferredFocus={isFirst}
@@ -407,16 +368,27 @@ const TVDropdownOption: React.FC<{
       <Animated.View
         style={{
           transform: [{ scale }],
-          backgroundColor: focused ? "rgba(124, 58, 237, 0.5)" : "transparent",
-          paddingVertical: 14,
-          paddingHorizontal: 24,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
+          backgroundColor: selected
+            ? "#7c3aed"
+            : focused
+              ? "rgba(124, 58, 237, 0.4)"
+              : "rgba(255, 255, 255, 0.1)",
+          borderRadius: 8,
+          paddingVertical: 10,
+          paddingHorizontal: 16,
+          borderWidth: focused ? 2 : 0,
+          borderColor: "#FFFFFF",
         }}
       >
-        <Text style={{ fontSize: 18, color: "#FFFFFF" }}>{label}</Text>
-        {selected && <Ionicons name='checkmark' size={24} color='#7c3aed' />}
+        <Text
+          style={{
+            fontSize: 16,
+            color: "#FFFFFF",
+            fontWeight: selected ? "600" : "400",
+          }}
+        >
+          {label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -569,7 +541,7 @@ export default function SettingsTV() {
     <ScrollView
       style={{ flex: 1, backgroundColor: "#000000" }}
       contentContainerStyle={{
-        paddingTop: insets.top + 40,
+        paddingTop: insets.top + 120,
         paddingBottom: insets.bottom + 60,
         paddingHorizontal: insets.left + 80,
       }}
@@ -589,7 +561,7 @@ export default function SettingsTV() {
 
       {/* Audio Section */}
       <SectionHeader title={t("home.settings.audio.audio_title")} />
-      <TVSettingsDropdown
+      <TVSettingsSelector
         label={t("home.settings.audio.transcode_mode.title")}
         options={audioTranscodeModeOptions}
         selectedValue={settings.audioTranscodeMode || AudioTranscodeMode.Auto}
@@ -601,7 +573,7 @@ export default function SettingsTV() {
 
       {/* Subtitles Section */}
       <SectionHeader title={t("home.settings.subtitles.subtitle_title")} />
-      <TVSettingsDropdown
+      <TVSettingsSelector
         label={t("home.settings.subtitles.subtitle_mode")}
         options={subtitleModeOptions}
         selectedValue={settings.subtitleMode || SubtitlePlaybackMode.Default}
@@ -666,7 +638,7 @@ export default function SettingsTV() {
           updateSettings({ mpvSubtitleMarginY: newValue });
         }}
       />
-      <TVSettingsDropdown
+      <TVSettingsSelector
         label='Horizontal Alignment'
         options={alignXOptions}
         selectedValue={settings.mpvSubtitleAlignX ?? "center"}
@@ -676,7 +648,7 @@ export default function SettingsTV() {
           })
         }
       />
-      <TVSettingsDropdown
+      <TVSettingsSelector
         label='Vertical Alignment'
         options={alignYOptions}
         selectedValue={settings.mpvSubtitleAlignY ?? "bottom"}

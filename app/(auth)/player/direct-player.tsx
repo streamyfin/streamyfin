@@ -20,6 +20,7 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { Controls } from "@/components/video-player/controls/Controls";
+import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import {
@@ -958,37 +959,56 @@ export default function page() {
                 </View>
               )}
             </View>
-            {isMounted === true && item && !isPipMode && (
-              <Controls
-                mediaSource={stream?.mediaSource}
-                item={item}
-                togglePlay={togglePlay}
-                isPlaying={isPlaying}
-                isSeeking={isSeeking}
-                progress={progress}
-                cacheProgress={cacheProgress}
-                isBuffering={isBuffering}
-                showControls={showControls}
-                setShowControls={setShowControls}
-                startPictureInPicture={startPictureInPicture}
-                play={play}
-                pause={pause}
-                seek={seek}
-                enableTrickplay={true}
-                aspectRatio={aspectRatio}
-                isZoomedToFill={isZoomedToFill}
-                onZoomToggle={handleZoomToggle}
-                api={api}
-                downloadedFiles={downloadedFiles}
-                playbackSpeed={currentPlaybackSpeed}
-                setPlaybackSpeed={handleSetPlaybackSpeed}
-                showTechnicalInfo={showTechnicalInfo}
-                onToggleTechnicalInfo={handleToggleTechnicalInfo}
-                getTechnicalInfo={getTechnicalInfo}
-                playMethod={playMethod}
-                transcodeReasons={transcodeReasons}
-              />
-            )}
+            {isMounted === true &&
+              item &&
+              !isPipMode &&
+              (Platform.isTV ? (
+                <TVControls
+                  mediaSource={stream?.mediaSource}
+                  item={item}
+                  togglePlay={togglePlay}
+                  isPlaying={isPlaying}
+                  isSeeking={isSeeking}
+                  progress={progress}
+                  cacheProgress={cacheProgress}
+                  isBuffering={isBuffering}
+                  showControls={showControls}
+                  setShowControls={setShowControls}
+                  play={play}
+                  pause={pause}
+                  seek={seek}
+                />
+              ) : (
+                <Controls
+                  mediaSource={stream?.mediaSource}
+                  item={item}
+                  togglePlay={togglePlay}
+                  isPlaying={isPlaying}
+                  isSeeking={isSeeking}
+                  progress={progress}
+                  cacheProgress={cacheProgress}
+                  isBuffering={isBuffering}
+                  showControls={showControls}
+                  setShowControls={setShowControls}
+                  startPictureInPicture={startPictureInPicture}
+                  play={play}
+                  pause={pause}
+                  seek={seek}
+                  enableTrickplay={true}
+                  aspectRatio={aspectRatio}
+                  isZoomedToFill={isZoomedToFill}
+                  onZoomToggle={handleZoomToggle}
+                  api={api}
+                  downloadedFiles={downloadedFiles}
+                  playbackSpeed={currentPlaybackSpeed}
+                  setPlaybackSpeed={handleSetPlaybackSpeed}
+                  showTechnicalInfo={showTechnicalInfo}
+                  onToggleTechnicalInfo={handleToggleTechnicalInfo}
+                  getTechnicalInfo={getTechnicalInfo}
+                  playMethod={playMethod}
+                  transcodeReasons={transcodeReasons}
+                />
+              ))}
           </View>
         </VideoProvider>
       </PlayerProvider>
