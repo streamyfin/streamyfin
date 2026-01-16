@@ -1,0 +1,637 @@
+import { Ionicons } from "@expo/vector-icons";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { useAtom } from "jotai";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Badge } from "@/components/Badge";
+import { type Bitrate } from "@/components/BitrateSelector";
+import { ItemImage } from "@/components/common/ItemImage";
+import { Text } from "@/components/common/Text";
+import { GenreTags } from "@/components/GenreTags";
+import useRouter from "@/hooks/useAppRouter";
+import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
+import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { runtimeTicksToMinutes } from "@/utils/time";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+export type SelectedOptions = {
+  bitrate: Bitrate;
+  mediaSource: MediaSourceInfo | undefined;
+  audioIndex: number | undefined;
+  subtitleIndex: number;
+};
+
+interface ItemContentTVProps {
+  item: BaseItemDto;
+  itemWithSources?: BaseItemDto | null;
+}
+
+// Focusable button component for TV with Apple TV-style animations
+const TVFocusableButton: React.FC<{
+  onPress: () => void;
+  children: React.ReactNode;
+  hasTVPreferredFocus?: boolean;
+  style?: any;
+  variant?: "primary" | "secondary";
+}> = ({
+  onPress,
+  children,
+  hasTVPreferredFocus,
+  style,
+  variant = "primary",
+}) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  const isPrimary = variant === "primary";
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={[
+          {
+            transform: [{ scale }],
+            shadowColor: isPrimary ? "#fff" : "#a855f7",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.6 : 0,
+            shadowRadius: focused ? 20 : 0,
+          },
+          style,
+        ]}
+      >
+        <View
+          style={{
+            backgroundColor: focused
+              ? isPrimary
+                ? "#ffffff"
+                : "#7c3aed"
+              : isPrimary
+                ? "rgba(255, 255, 255, 0.9)"
+                : "rgba(124, 58, 237, 0.8)",
+            borderRadius: 12,
+            paddingVertical: 18,
+            paddingHorizontal: 32,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: 180,
+          }}
+        >
+          {children}
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+// Info row component for metadata display
+const _InfoRow: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => (
+  <View style={{ flexDirection: "row", marginBottom: 8 }}>
+    <Text style={{ color: "#9CA3AF", fontSize: 16, width: 100 }}>{label}</Text>
+    <Text style={{ color: "#FFFFFF", fontSize: 16, flex: 1 }}>{value}</Text>
+  </View>
+);
+
+export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
+  ({ item, itemWithSources }) => {
+    const [api] = useAtom(apiAtom);
+    const [_user] = useAtom(userAtom);
+    const isOffline = useOfflineMode();
+    const { settings } = useSettings();
+    const insets = useSafeAreaInsets();
+    const router = useRouter();
+    const { t } = useTranslation();
+
+    const _itemColors = useImageColorsReturn({ item });
+
+    const [selectedOptions, setSelectedOptions] = useState<
+      SelectedOptions | undefined
+    >(undefined);
+
+    const {
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultMediaSource,
+      defaultSubtitleIndex,
+    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
+
+    const logoUrl = useMemo(
+      () => (item ? getLogoImageUrlById({ api, item }) : null),
+      [api, item],
+    );
+
+    // Set default play options
+    useEffect(() => {
+      setSelectedOptions(() => ({
+        bitrate: defaultBitrate,
+        mediaSource: defaultMediaSource ?? undefined,
+        subtitleIndex: defaultSubtitleIndex ?? -1,
+        audioIndex: defaultAudioIndex,
+      }));
+    }, [
+      defaultAudioIndex,
+      defaultBitrate,
+      defaultSubtitleIndex,
+      defaultMediaSource,
+    ]);
+
+    const handlePlay = () => {
+      if (!item || !selectedOptions) return;
+
+      const queryParams = new URLSearchParams({
+        itemId: item.Id!,
+        audioIndex: selectedOptions.audioIndex?.toString() ?? "",
+        subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
+        mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
+        bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+        playbackPosition:
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+        offline: isOffline ? "true" : "false",
+      });
+
+      router.push(`/player/direct-player?${queryParams.toString()}`);
+    };
+
+    // Format year and duration
+    const year = item.ProductionYear;
+    const duration = item.RunTimeTicks
+      ? runtimeTicksToMinutes(item.RunTimeTicks)
+      : null;
+    const hasProgress =
+      item.UserData?.PlaybackPositionTicks &&
+      item.UserData.PlaybackPositionTicks > 0;
+    const remainingTime = hasProgress
+      ? runtimeTicksToMinutes(
+          (item.RunTimeTicks || 0) -
+            (item.UserData?.PlaybackPositionTicks || 0),
+        )
+      : null;
+
+    // Get director
+    const director = item.People?.find((p) => p.Type === "Director");
+
+    // Get cast (first 3)
+    const cast = item.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
+
+    if (!item || !selectedOptions) return null;
+
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#000000",
+        }}
+      >
+        {/* Full-screen backdrop */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        >
+          <ItemImage
+            variant='Backdrop'
+            item={item}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          />
+          {/* Gradient overlays for readability */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
+            locations={[0, 0.5, 1]}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "70%",
+            }}
+          />
+          <LinearGradient
+            colors={["rgba(0,0,0,0.8)", "transparent"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.6, y: 0 }}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: "60%",
+            }}
+          />
+        </View>
+
+        {/* Main content area */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingTop: insets.top + 40,
+            paddingBottom: insets.bottom + 60,
+            paddingHorizontal: insets.left + 80,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top section - Logo/Title + Metadata */}
+          <View
+            style={{
+              flexDirection: "row",
+              minHeight: SCREEN_HEIGHT * 0.45,
+            }}
+          >
+            {/* Left side - Poster */}
+            <View
+              style={{
+                width: SCREEN_WIDTH * 0.22,
+                marginRight: 50,
+              }}
+            >
+              <View
+                style={{
+                  aspectRatio: 2 / 3,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 20,
+                }}
+              >
+                <ItemImage
+                  variant='Primary'
+                  item={item}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                />
+              </View>
+            </View>
+
+            {/* Right side - Content */}
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              {/* Logo or Title */}
+              {logoUrl ? (
+                <Image
+                  source={{ uri: logoUrl }}
+                  style={{
+                    height: 100,
+                    width: "80%",
+                    marginBottom: 24,
+                  }}
+                  contentFit='contain'
+                  contentPosition='left'
+                />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 52,
+                    fontWeight: "bold",
+                    color: "#FFFFFF",
+                    marginBottom: 16,
+                  }}
+                  numberOfLines={2}
+                >
+                  {item.Name}
+                </Text>
+              )}
+
+              {/* Episode info for TV shows */}
+              {item.Type === "Episode" && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text
+                    style={{
+                      fontSize: 24,
+                      color: "#FFFFFF",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {item.SeriesName}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      color: "#9CA3AF",
+                      marginTop: 4,
+                    }}
+                  >
+                    S{item.ParentIndexNumber} E{item.IndexNumber} · {item.Name}
+                  </Text>
+                </View>
+              )}
+
+              {/* Metadata badges row */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  marginBottom: 20,
+                }}
+              >
+                {year != null && (
+                  <Text style={{ color: "#9CA3AF", fontSize: 18 }}>{year}</Text>
+                )}
+                {duration && (
+                  <Text style={{ color: "#9CA3AF", fontSize: 18 }}>
+                    {duration}
+                  </Text>
+                )}
+                {item.OfficialRating && (
+                  <Badge text={item.OfficialRating} variant='gray' />
+                )}
+                {item.CommunityRating != null && (
+                  <Badge
+                    text={item.CommunityRating.toFixed(1)}
+                    variant='gray'
+                    iconLeft={<Ionicons name='star' size={16} color='gold' />}
+                  />
+                )}
+              </View>
+
+              {/* Genres */}
+              {item.Genres && item.Genres.length > 0 && (
+                <View style={{ marginBottom: 24 }}>
+                  <GenreTags genres={item.Genres} />
+                </View>
+              )}
+
+              {/* Overview */}
+              {item.Overview && (
+                <Text
+                  style={{
+                    fontSize: 18,
+                    color: "#D1D5DB",
+                    lineHeight: 28,
+                    maxWidth: SCREEN_WIDTH * 0.45,
+                    marginBottom: 32,
+                  }}
+                  numberOfLines={4}
+                >
+                  {item.Overview}
+                </Text>
+              )}
+
+              {/* Action buttons */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  gap: 16,
+                  marginBottom: 32,
+                }}
+              >
+                <TVFocusableButton
+                  onPress={handlePlay}
+                  hasTVPreferredFocus
+                  variant='primary'
+                >
+                  <Ionicons
+                    name='play'
+                    size={28}
+                    color='#000000'
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      color: "#000000",
+                    }}
+                  >
+                    {hasProgress
+                      ? `${remainingTime} ${t("item_card.left")}`
+                      : t("common.play")}
+                  </Text>
+                </TVFocusableButton>
+
+                {!isOffline && item.Type !== "Program" && (
+                  <TVFocusableButton
+                    onPress={() => {
+                      // Info/More options action
+                    }}
+                    variant='secondary'
+                  >
+                    <Ionicons
+                      name='information-circle-outline'
+                      size={24}
+                      color='#FFFFFF'
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "600",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      {t("item_card.more_info")}
+                    </Text>
+                  </TVFocusableButton>
+                )}
+              </View>
+
+              {/* Progress bar (if partially watched) */}
+              {hasProgress && item.RunTimeTicks && (
+                <View style={{ maxWidth: 400, marginBottom: 24 }}>
+                  <View
+                    style={{
+                      height: 4,
+                      backgroundColor: "rgba(255,255,255,0.2)",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${((item.UserData?.PlaybackPositionTicks || 0) / item.RunTimeTicks) * 100}%`,
+                        height: "100%",
+                        backgroundColor: "#a855f7",
+                        borderRadius: 2,
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Additional info section */}
+          <View style={{ marginTop: 40 }}>
+            {/* Cast & Crew */}
+            {(director || (cast && cast.length > 0)) && (
+              <View style={{ marginBottom: 32 }}>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                    marginBottom: 16,
+                  }}
+                >
+                  {t("item_card.cast_and_crew")}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 40 }}>
+                  {director && (
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          textTransform: "uppercase",
+                          letterSpacing: 1,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {t("item_card.director")}
+                      </Text>
+                      <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+                        {director.Name}
+                      </Text>
+                    </View>
+                  )}
+                  {cast && cast.length > 0 && (
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#6B7280",
+                          textTransform: "uppercase",
+                          letterSpacing: 1,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {t("item_card.cast")}
+                      </Text>
+                      <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+                        {cast.map((c) => c.Name).join(", ")}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Technical details */}
+            {selectedOptions.mediaSource?.MediaStreams &&
+              selectedOptions.mediaSource.MediaStreams.length > 0 && (
+                <View style={{ marginBottom: 32 }}>
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: "600",
+                      color: "#FFFFFF",
+                      marginBottom: 16,
+                    }}
+                  >
+                    {t("item_card.technical_details")}
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 40 }}>
+                    {/* Video info */}
+                    {(() => {
+                      const videoStream =
+                        selectedOptions.mediaSource?.MediaStreams?.find(
+                          (s) => s.Type === "Video",
+                        );
+                      if (!videoStream) return null;
+                      return (
+                        <View>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#6B7280",
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
+                              marginBottom: 4,
+                            }}
+                          >
+                            Video
+                          </Text>
+                          <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+                            {videoStream.DisplayTitle ||
+                              `${videoStream.Codec?.toUpperCase()} ${videoStream.Width}x${videoStream.Height}`}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                    {/* Audio info */}
+                    {(() => {
+                      const audioStream =
+                        selectedOptions.mediaSource?.MediaStreams?.find(
+                          (s) => s.Type === "Audio",
+                        );
+                      if (!audioStream) return null;
+                      return (
+                        <View>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#6B7280",
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
+                              marginBottom: 4,
+                            }}
+                          >
+                            Audio
+                          </Text>
+                          <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+                            {audioStream.DisplayTitle ||
+                              `${audioStream.Codec?.toUpperCase()} ${audioStream.Channels}ch`}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                  </View>
+                </View>
+              )}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  },
+);
