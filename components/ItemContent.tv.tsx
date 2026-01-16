@@ -198,9 +198,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const duration = item.RunTimeTicks
       ? runtimeTicksToMinutes(item.RunTimeTicks)
       : null;
-    const hasProgress =
-      item.UserData?.PlaybackPositionTicks &&
-      item.UserData.PlaybackPositionTicks > 0;
+    const hasProgress = (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
     const remainingTime = hasProgress
       ? runtimeTicksToMinutes(
           (item.RunTimeTicks || 0) -
@@ -271,7 +269,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
-            paddingTop: insets.top + 40,
+            paddingTop: insets.top + 100,
             paddingBottom: insets.bottom + 60,
             paddingHorizontal: insets.left + 80,
           }}
@@ -449,35 +447,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       : t("common.play")}
                   </Text>
                 </TVFocusableButton>
-
-                {!isOffline && item.Type !== "Program" && (
-                  <TVFocusableButton
-                    onPress={() => {
-                      // Info/More options action
-                    }}
-                    variant='secondary'
-                  >
-                    <Ionicons
-                      name='information-circle-outline'
-                      size={24}
-                      color='#FFFFFF'
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: "#FFFFFF",
-                      }}
-                    >
-                      {t("item_card.more_info")}
-                    </Text>
-                  </TVFocusableButton>
-                )}
               </View>
 
               {/* Progress bar (if partially watched) */}
-              {hasProgress && item.RunTimeTicks && (
+              {hasProgress && item.RunTimeTicks != null && (
                 <View style={{ maxWidth: 400, marginBottom: 24 }}>
                   <View
                     style={{
