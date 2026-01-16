@@ -17,7 +17,10 @@ import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { TVInput } from "@/components/login/TVInput";
-import { TVPreviousServersList } from "@/components/login/TVPreviousServersList";
+import {
+  TVPreviousServersList,
+  TVServerActionSheet,
+} from "@/components/login/TVPreviousServersList";
 import { TVSaveAccountToggle } from "@/components/login/TVSaveAccountToggle";
 import { TVServerCard } from "@/components/login/TVServerCard";
 import { PasswordEntryModal } from "@/components/PasswordEntryModal";
@@ -26,10 +29,11 @@ import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
 import { useJellyfinDiscovery } from "@/hooks/useJellyfinDiscovery";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
-import type {
-  AccountSecurityType,
-  SavedServer,
-  SavedServerAccount,
+import {
+  type AccountSecurityType,
+  removeServerFromList,
+  type SavedServer,
+  type SavedServerAccount,
 } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
@@ -83,6 +87,14 @@ export const TVLogin: React.FC = () => {
   );
   const [selectedAccount, setSelectedAccount] =
     useState<SavedServerAccount | null>(null);
+
+  // Server action sheet state
+  const [showServerActionSheet, setShowServerActionSheet] = useState(false);
+  const [actionSheetServer, setActionSheetServer] =
+    useState<SavedServer | null>(null);
+  const [loginTriggerServer, setLoginTriggerServer] =
+    useState<SavedServer | null>(null);
+  const [actionSheetKey, setActionSheetKey] = useState(0);
 
   // Server discovery
   const {
@@ -241,6 +253,50 @@ export const TVLogin: React.FC = () => {
       setSelectedAccount(null);
       setPinModalVisible(false);
     }
+  };
+
+  // Server action sheet handlers
+  const handleServerAction = (server: SavedServer) => {
+    setActionSheetServer(server);
+    setActionSheetKey((k) => k + 1); // Force remount to reset focus
+    setShowServerActionSheet(true);
+  };
+
+  const handleServerActionLogin = () => {
+    setShowServerActionSheet(false);
+    if (actionSheetServer) {
+      // Trigger the login flow in TVPreviousServersList
+      setLoginTriggerServer(actionSheetServer);
+      // Reset the trigger after a tick to allow re-triggering the same server
+      setTimeout(() => setLoginTriggerServer(null), 0);
+    }
+  };
+
+  const handleServerActionDelete = () => {
+    if (!actionSheetServer) return;
+
+    Alert.alert(
+      t("server.remove_server"),
+      t("server.remove_server_description", {
+        server: actionSheetServer.name || actionSheetServer.address,
+      }),
+      [
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+          onPress: () => setShowServerActionSheet(false),
+        },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: async () => {
+            await removeServerFromList(actionSheetServer.address);
+            setShowServerActionSheet(false);
+            setActionSheetServer(null);
+          },
+        },
+      ],
+    );
   };
 
   const checkUrl = useCallback(async (url: string) => {
@@ -593,6 +649,8 @@ export const TVLogin: React.FC = () => {
                   onAddAccount={handleAddAccount}
                   onPinRequired={handlePinRequired}
                   onPasswordRequired={handlePasswordRequired}
+                  onServerAction={handleServerAction}
+                  loginServerOverride={loginTriggerServer}
                 />
               </View>
             </View>
@@ -636,6 +694,16 @@ export const TVLogin: React.FC = () => {
         }}
         onSubmit={handlePasswordSubmit}
         username={selectedAccount?.username || ""}
+      />
+
+      {/* Server Action Sheet */}
+      <TVServerActionSheet
+        key={actionSheetKey}
+        visible={showServerActionSheet}
+        server={actionSheetServer}
+        onLogin={handleServerActionLogin}
+        onDelete={handleServerActionDelete}
+        onClose={() => setShowServerActionSheet(false)}
       />
     </SafeAreaView>
   );
