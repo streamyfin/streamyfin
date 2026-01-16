@@ -49,6 +49,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
 import { useSettings } from "@/utils/atoms/settings";
+import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
   getMpvAudioId,
@@ -133,7 +134,6 @@ export default function page() {
   const { lockOrientation, unlockOrientation } = useOrientation();
 
   const offline = offlineStr === "true";
-  const playbackManager = usePlaybackManager({ isOffline: offline });
 
   // Audio index: use URL param if provided, otherwise use stored index for offline playback
   // This is computed after downloadedItem is available, see audioIndexResolved below
@@ -155,6 +155,10 @@ export default function page() {
     isLoading: true,
     isError: false,
   });
+
+  // Playback manager for progress reporting and adjacent items
+  const playbackManager = usePlaybackManager({ item, isOffline: offline });
+  const { nextItem, previousItem } = playbackManager;
 
   // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
   const audioIndex = useMemo(() => {
@@ -887,6 +891,80 @@ export default function page() {
     }
   }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
 
+  // TV: Navigate to previous item
+  const goToPreviousItem = useCallback(() => {
+    if (!previousItem || !settings) return;
+
+    const {
+      mediaSource: newMediaSource,
+      audioIndex: defaultAudioIndex,
+      subtitleIndex: defaultSubtitleIndex,
+    } = getDefaultPlaySettings(previousItem, settings, {
+      indexes: {
+        subtitleIndex: subtitleIndex,
+        audioIndex: audioIndex,
+      },
+      source: stream?.mediaSource ?? undefined,
+    });
+
+    const queryParams = new URLSearchParams({
+      itemId: previousItem.Id ?? "",
+      audioIndex: defaultAudioIndex?.toString() ?? "",
+      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+      mediaSourceId: newMediaSource?.Id ?? "",
+      bitrateValue: bitrateValue?.toString() ?? "",
+      playbackPosition:
+        previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+    }).toString();
+
+    router.replace(`player/direct-player?${queryParams}` as any);
+  }, [
+    previousItem,
+    settings,
+    subtitleIndex,
+    audioIndex,
+    stream?.mediaSource,
+    bitrateValue,
+    router,
+  ]);
+
+  // TV: Navigate to next item
+  const goToNextItem = useCallback(() => {
+    if (!nextItem || !settings) return;
+
+    const {
+      mediaSource: newMediaSource,
+      audioIndex: defaultAudioIndex,
+      subtitleIndex: defaultSubtitleIndex,
+    } = getDefaultPlaySettings(nextItem, settings, {
+      indexes: {
+        subtitleIndex: subtitleIndex,
+        audioIndex: audioIndex,
+      },
+      source: stream?.mediaSource ?? undefined,
+    });
+
+    const queryParams = new URLSearchParams({
+      itemId: nextItem.Id ?? "",
+      audioIndex: defaultAudioIndex?.toString() ?? "",
+      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
+      mediaSourceId: newMediaSource?.Id ?? "",
+      bitrateValue: bitrateValue?.toString() ?? "",
+      playbackPosition:
+        nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
+    }).toString();
+
+    router.replace(`player/direct-player?${queryParams}` as any);
+  }, [
+    nextItem,
+    settings,
+    subtitleIndex,
+    audioIndex,
+    stream?.mediaSource,
+    bitrateValue,
+    router,
+  ]);
+
   // Apply subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
@@ -1047,6 +1125,10 @@ export default function page() {
                   subtitleIndex={currentSubtitleIndex}
                   onAudioIndexChange={handleAudioIndexChange}
                   onSubtitleIndexChange={handleSubtitleIndexChange}
+                  previousItem={previousItem}
+                  nextItem={nextItem}
+                  goToPreviousItem={goToPreviousItem}
+                  goToNextItem={goToNextItem}
                 />
               ) : (
                 <Controls
