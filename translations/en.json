@@ -626,6 +626,7 @@
     "series": "Series",
     "seasons": "Seasons",
     "season": "Season",
+    "select_season": "Select Season",
     "no_episodes_for_this_season": "No episodes for this season",
     "overview": "Overview",
     "more_with": "More with {{name}}",

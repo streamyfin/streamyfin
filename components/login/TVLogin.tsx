@@ -4,9 +4,11 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -39,6 +41,69 @@ import {
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
+
+const TVBackButton: React.FC<{ onPress: () => void; label: string }> = ({
+  onPress,
+  label,
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateFocus = (focused: boolean) => {
+    Animated.timing(scale, {
+      toValue: focused ? 1.05 : 1,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setIsFocused(true);
+        animateFocus(true);
+      }}
+      onBlur={() => {
+        setIsFocused(false);
+        animateFocus(false);
+      }}
+      style={{ alignSelf: "flex-start", marginBottom: 40 }}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          flexDirection: "row",
+          alignItems: "center",
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          borderRadius: 8,
+          backgroundColor: isFocused
+            ? "rgba(168, 85, 247, 0.2)"
+            : "transparent",
+          borderWidth: 2,
+          borderColor: isFocused ? Colors.primary : "transparent",
+        }}
+      >
+        <Ionicons
+          name='chevron-back'
+          size={28}
+          color={isFocused ? "#FFFFFF" : Colors.primary}
+        />
+        <Text
+          style={{
+            color: isFocused ? "#FFFFFF" : Colors.primary,
+            fontSize: 20,
+            marginLeft: 4,
+          }}
+        >
+          {label}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+};
 
 export const TVLogin: React.FC = () => {
   const api = useAtomValue(apiAtom);
@@ -402,25 +467,10 @@ export const TVLogin: React.FC = () => {
               }}
             >
               {/* Back Button */}
-              <Pressable
+              <TVBackButton
                 onPress={() => removeServer()}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 40,
-                }}
-              >
-                <Ionicons
-                  name='chevron-back'
-                  size={28}
-                  color={Colors.primary}
-                />
-                <Text
-                  style={{ color: Colors.primary, fontSize: 20, marginLeft: 4 }}
-                >
-                  {t("login.change_server")}
-                </Text>
-              </Pressable>
+                label={t("login.change_server")}
+              />
 
               {/* Title */}
               <Text
