@@ -7,7 +7,10 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
  * React hook wrapper for getDefaultPlaySettings.
  * Used in UI components for initial playback (no previous track state).
  */
-const useDefaultPlaySettings = (item: BaseItemDto, settings: Settings | null) =>
+const useDefaultPlaySettings = (
+  item: BaseItemDto | null | undefined,
+  settings: Settings | null,
+) =>
   useMemo(() => {
     const { mediaSource, audioIndex, subtitleIndex, bitrate } =
       getDefaultPlaySettings(item, settings);
