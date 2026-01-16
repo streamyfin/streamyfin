@@ -25,7 +25,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Slider } from "react-native-awesome-slider";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -45,10 +44,9 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { formatTimeString, ticksToMs } from "@/utils/time";
+import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
-import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TrickplayBubble } from "./TrickplayBubble";
 import { useControlsTimeout } from "./useControlsTimeout";
@@ -71,6 +69,10 @@ interface Props {
   subtitleIndex?: number;
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
+  previousItem?: BaseItemDto | null;
+  nextItem?: BaseItemDto | null;
+  goToPreviousItem?: () => void;
+  goToNextItem?: () => void;
 }
 
 const TV_SEEKBAR_HEIGHT = 16;
@@ -203,7 +205,7 @@ const TVOptionCard: FC<{
 };
 
 // Settings panel with tabs for Audio and Subtitles
-const TVSettingsPanel: FC<{
+const _TVSettingsPanel: FC<{
   visible: boolean;
   audioOptions: TVOptionItem<number>[];
   subtitleOptions: TVOptionItem<number>[];
@@ -248,7 +250,7 @@ const TVSettingsPanel: FC<{
             )}
             {subtitleOptions.length > 0 && (
               <TVSettingsTab
-                label={t("item_card.subtitles")}
+                label={t("item_card.subtitles.label")}
                 active={activeTab === "subtitle"}
                 onSelect={() => setActiveTab("subtitle")}
               />
@@ -407,6 +409,87 @@ const _TVControlButton: FC<{
     </Pressable>
   );
 };
+
+// TV Control Button for player controls (icon only, no label)
+const TVControlButton: FC<{
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  onLongPress?: () => void;
+  onPressOut?: () => void;
+  disabled?: boolean;
+  hasTVPreferredFocus?: boolean;
+  size?: number;
+  delayLongPress?: number;
+}> = ({
+  icon,
+  onPress,
+  onLongPress,
+  onPressOut,
+  disabled,
+  hasTVPreferredFocus,
+  size = 32,
+  delayLongPress = 300,
+}) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 120,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      onPressOut={onPressOut}
+      delayLongPress={delayLongPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.15);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      disabled={disabled}
+      focusable={!disabled}
+      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+    >
+      <RNAnimated.View
+        style={[
+          controlButtonStyles.button,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused
+              ? "rgba(255,255,255,0.3)"
+              : "rgba(255,255,255,0.1)",
+            borderColor: focused
+              ? "rgba(255,255,255,0.8)"
+              : "rgba(255,255,255,0.2)",
+            opacity: disabled ? 0.3 : 1,
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={size} color='#fff' />
+      </RNAnimated.View>
+    </Pressable>
+  );
+};
+
+const controlButtonStyles = StyleSheet.create({
+  button: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
 
 const selectorStyles = StyleSheet.create({
   overlay: {
@@ -593,8 +676,8 @@ const TVNextEpisodeCountdown: FC<{
 const countdownStyles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 140,
-    right: 48,
+    bottom: 180,
+    right: 80,
     zIndex: 100,
   },
   blur: {
@@ -648,8 +731,8 @@ const countdownStyles = StyleSheet.create({
 export const Controls: FC<Props> = ({
   item,
   seek,
-  play,
-  pause,
+  play: _play,
+  pause: _pause,
   togglePlay,
   isPlaying,
   isSeeking,
@@ -662,6 +745,10 @@ export const Controls: FC<Props> = ({
   subtitleIndex,
   onAudioIndexChange,
   onSubtitleIndexChange,
+  previousItem,
+  nextItem: nextItemProp,
+  goToPreviousItem,
+  goToNextItem: goToNextItemProp,
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -679,20 +766,21 @@ export const Controls: FC<Props> = ({
   }>();
 
   // TV is always online
-  const { nextItem } = usePlaybackManager({ item, isOffline: false });
+  const { nextItem: internalNextItem } = usePlaybackManager({
+    item,
+    isOffline: false,
+  });
+
+  // Use props if provided, otherwise use internal state
+  const nextItem = nextItemProp ?? internalNextItem;
 
   // Modal state for option selectors
-  // "settings" shows the settings panel, "audio"/"subtitle" for direct selection
-  type ModalType = "settings" | "audio" | "subtitle" | null;
+  type ModalType = "audio" | "subtitle" | null;
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const isModalOpen = openModal !== null;
 
-  // Handle swipe down to open settings panel
-  const handleSwipeDown = useCallback(() => {
-    if (!isModalOpen) {
-      setOpenModal("settings");
-    }
-  }, [isModalOpen]);
+  // Track which button last opened a modal (for returning focus)
+  const [lastOpenedModal, setLastOpenedModal] = useState<ModalType>(null);
 
   // Get available audio tracks
   const audioTracks = useMemo(() => {
@@ -741,7 +829,9 @@ export const Controls: FC<Props> = ({
   const _selectedSubtitleLabel = useMemo(() => {
     if (subtitleIndex === -1) return t("item_card.subtitles.none");
     const track = subtitleTracks.find((t) => t.Index === subtitleIndex);
-    return track?.DisplayTitle || track?.Language || t("item_card.subtitles");
+    return (
+      track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
+    );
   }, [subtitleTracks, subtitleIndex, t]);
 
   // Handlers for option changes
@@ -824,91 +914,80 @@ export const Controls: FC<Props> = ({
     setShowControls(!showControls);
   }, [showControls, setShowControls]);
 
-  // Long press seek handlers for continuous seeking
-  const handleSeekForward = useCallback(
-    (seconds: number) => {
-      const newPosition = Math.min(max.value, progress.value + seconds * 1000);
-      progress.value = newPosition;
-      seek(newPosition);
-    },
-    [progress, max, seek],
+  // Trickplay bubble state for seek buttons
+  const [showSeekBubble, setShowSeekBubble] = useState(false);
+  const [seekBubbleTime, setSeekBubbleTime] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+  const seekBubbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const continuousSeekRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seekAccelerationRef = useRef(1);
+  const controlsInteractionRef = useRef<() => void>(() => {});
+  const goToNextItemRef = useRef<(opts?: { isAutoPlay?: boolean }) => void>(
+    () => {},
   );
 
-  const handleSeekBackward = useCallback(
-    (seconds: number) => {
-      const newPosition = Math.max(min.value, progress.value - seconds * 1000);
-      progress.value = newPosition;
-      seek(newPosition);
-    },
-    [progress, min, seek],
-  );
+  // Update trickplay time from ms
+  const updateSeekBubbleTime = useCallback((ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    setSeekBubbleTime({ hours, minutes, seconds });
+  }, []);
 
-  // Remote control hook for TV navigation
-  const {
-    remoteScrubProgress,
-    isRemoteScrubbing,
-    showRemoteBubble,
-    isSliding: isRemoteSliding,
-  } = useRemoteControl({
-    progress,
-    min,
-    max,
+  // Handler for back button to close modals
+  const handleBack = useCallback(() => {
+    if (isModalOpen) {
+      setOpenModal(null);
+    }
+  }, [isModalOpen]);
+
+  // Remote control hook for TV navigation (simplified - D-pad navigates buttons now)
+  const { isSliding: isRemoteSliding } = useRemoteControl({
     showControls,
-    isPlaying,
-    seek,
-    play,
-    togglePlay,
     toggleControls,
-    calculateTrickplayUrl,
-    handleSeekForward,
-    handleSeekBackward,
-    disableSeeking: isModalOpen,
-    onSwipeDown: handleSwipeDown,
+    onBack: handleBack,
   });
 
-  // Slider hook
-  const {
-    isSliding,
-    time,
-    handleSliderStart,
-    handleTouchStart,
-    handleTouchEnd,
-    handleSliderComplete,
-    handleSliderChange,
-  } = useVideoSlider({
-    progress,
-    isSeeking,
-    isPlaying,
-    seek,
-    play,
-    pause,
-    calculateTrickplayUrl,
-    showControls,
-  });
+  // Handlers for opening audio/subtitle sheets
+  const handleOpenAudioSheet = useCallback(() => {
+    setLastOpenedModal("audio");
+    setOpenModal("audio");
+    controlsInteractionRef.current();
+  }, []);
 
+  const handleOpenSubtitleSheet = useCallback(() => {
+    setLastOpenedModal("subtitle");
+    setOpenModal("subtitle");
+    controlsInteractionRef.current();
+  }, []);
+
+  // Progress value for the progress bar (directly from playback progress)
   const effectiveProgress = useSharedValue(0);
 
-  // Recompute progress for remote scrubbing
+  // Threshold for detecting a seek (5 seconds) vs normal playback
+  const SEEK_THRESHOLD_MS = 5000;
+
+  // Update effective progress from playback progress
   useAnimatedReaction(
-    () => ({
-      isScrubbing: isRemoteScrubbing.value,
-      scrub: remoteScrubProgress.value,
-      actual: progress.value,
-    }),
-    (current, previous) => {
-      if (
-        current.isScrubbing !== previous?.isScrubbing ||
-        current.isScrubbing
-      ) {
-        effectiveProgress.value =
-          current.isScrubbing && current.scrub != null
-            ? current.scrub
-            : current.actual;
-      } else {
-        const progressUnit = CONTROLS_CONSTANTS.PROGRESS_UNIT_MS;
-        const progressDiff = Math.abs(current.actual - effectiveProgress.value);
-        if (progressDiff >= progressUnit) {
-          effectiveProgress.value = current.actual;
+    () => progress.value,
+    (current, _previous) => {
+      const progressUnit = CONTROLS_CONSTANTS.PROGRESS_UNIT_MS;
+      const progressDiff = Math.abs(current - effectiveProgress.value);
+      if (progressDiff >= progressUnit) {
+        // Animate large jumps (seeks), instant update for normal playback
+        if (progressDiff >= SEEK_THRESHOLD_MS) {
+          effectiveProgress.value = withTiming(current, {
+            duration: 200,
+            easing: Easing.out(Easing.quad),
+          });
+        } else {
+          effectiveProgress.value = current;
         }
       }
     },
@@ -921,16 +1000,173 @@ export const Controls: FC<Props> = ({
 
   const { handleControlsInteraction } = useControlsTimeout({
     showControls,
-    isSliding: isSliding || isRemoteSliding,
+    isSliding: isRemoteSliding,
     episodeView: false,
     onHideControls: hideControls,
     timeout: TV_AUTO_HIDE_TIMEOUT,
     disabled: false,
   });
 
+  // Keep ref updated for seek button handlers
+  controlsInteractionRef.current = handleControlsInteraction;
+
+  // Seek button handlers (30 seconds)
+  const handleSeekForwardButton = useCallback(() => {
+    const newPosition = Math.min(max.value, progress.value + 30 * 1000);
+    progress.value = newPosition;
+    seek(newPosition);
+
+    // Show trickplay bubble
+    calculateTrickplayUrl(msToTicks(newPosition));
+    updateSeekBubbleTime(newPosition);
+    setShowSeekBubble(true);
+
+    // Hide bubble after delay
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+
+    controlsInteractionRef.current();
+  }, [progress, max, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+
+  const handleSeekBackwardButton = useCallback(() => {
+    const newPosition = Math.max(min.value, progress.value - 30 * 1000);
+    progress.value = newPosition;
+    seek(newPosition);
+
+    // Show trickplay bubble
+    calculateTrickplayUrl(msToTicks(newPosition));
+    updateSeekBubbleTime(newPosition);
+    setShowSeekBubble(true);
+
+    // Hide bubble after delay
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+
+    controlsInteractionRef.current();
+  }, [progress, min, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+
+  // Stop continuous seeking
+  const stopContinuousSeeking = useCallback(() => {
+    if (continuousSeekRef.current) {
+      clearInterval(continuousSeekRef.current);
+      continuousSeekRef.current = null;
+    }
+    seekAccelerationRef.current = 1;
+
+    // Hide trickplay bubble after delay
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+  }, []);
+
+  // Start continuous seek forward (on long press)
+  const startContinuousSeekForward = useCallback(() => {
+    seekAccelerationRef.current = 1;
+
+    // Perform immediate first seek
+    handleSeekForwardButton();
+
+    // Start interval for continuous seeking with acceleration
+    continuousSeekRef.current = setInterval(() => {
+      const seekAmount =
+        CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK *
+        seekAccelerationRef.current *
+        1000;
+      const newPosition = Math.min(max.value, progress.value + seekAmount);
+      progress.value = newPosition;
+      seek(newPosition);
+
+      // Update trickplay bubble
+      calculateTrickplayUrl(msToTicks(newPosition));
+      updateSeekBubbleTime(newPosition);
+
+      // Accelerate for next interval
+      seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
+
+      controlsInteractionRef.current();
+    }, CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL);
+  }, [
+    handleSeekForwardButton,
+    max,
+    progress,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+  ]);
+
+  // Start continuous seek backward (on long press)
+  const startContinuousSeekBackward = useCallback(() => {
+    seekAccelerationRef.current = 1;
+
+    // Perform immediate first seek
+    handleSeekBackwardButton();
+
+    // Start interval for continuous seeking with acceleration
+    continuousSeekRef.current = setInterval(() => {
+      const seekAmount =
+        CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK *
+        seekAccelerationRef.current *
+        1000;
+      const newPosition = Math.max(min.value, progress.value - seekAmount);
+      progress.value = newPosition;
+      seek(newPosition);
+
+      // Update trickplay bubble
+      calculateTrickplayUrl(msToTicks(newPosition));
+      updateSeekBubbleTime(newPosition);
+
+      // Accelerate for next interval
+      seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
+
+      controlsInteractionRef.current();
+    }, CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL);
+  }, [
+    handleSeekBackwardButton,
+    min,
+    progress,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+  ]);
+
+  // Play/Pause button handler
+  const handlePlayPauseButton = useCallback(() => {
+    togglePlay();
+    controlsInteractionRef.current();
+  }, [togglePlay]);
+
+  // Previous item handler
+  const handlePreviousItem = useCallback(() => {
+    if (goToPreviousItem) {
+      goToPreviousItem();
+    }
+    controlsInteractionRef.current();
+  }, [goToPreviousItem]);
+
+  // Next item button handler
+  const handleNextItemButton = useCallback(() => {
+    if (goToNextItemProp) {
+      goToNextItemProp();
+    } else {
+      goToNextItemRef.current({ isAutoPlay: false });
+    }
+    controlsInteractionRef.current();
+  }, [goToNextItemProp]);
+
   // goToNextItem function for auto-play
   const goToNextItem = useCallback(
-    ({ isAutoPlay }: { isAutoPlay?: boolean } = {}) => {
+    ({ isAutoPlay: _isAutoPlay }: { isAutoPlay?: boolean } = {}) => {
       if (!nextItem || !settings) {
         return;
       }
@@ -976,6 +1212,9 @@ export const Controls: FC<Props> = ({
     ],
   );
 
+  // Keep ref updated for button handlers
+  goToNextItemRef.current = goToNextItem;
+
   // Should show countdown? (TV always auto-plays next episode, no episode count limit)
   const shouldShowCountdown = useMemo(() => {
     if (!nextItem) return false;
@@ -988,12 +1227,6 @@ export const Controls: FC<Props> = ({
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
 
-  // Check if we have any settings to show
-  const hasSettings =
-    audioTracks.length > 0 ||
-    subtitleTracks.length > 0 ||
-    subtitleIndex !== undefined;
-
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
       {/* Dark tint overlay when controls are visible */}
@@ -1001,22 +1234,6 @@ export const Controls: FC<Props> = ({
         style={[styles.darkOverlay, bottomAnimatedStyle]}
         pointerEvents='none'
       />
-
-      {/* Center Play Button - shown when paused */}
-      {!isPlaying && showControls && (
-        <View style={styles.centerContainer}>
-          <BlurView intensity={40} tint='dark' style={styles.playButtonBlur}>
-            <View style={styles.playButtonInner}>
-              <Ionicons
-                name='play'
-                size={44}
-                color='white'
-                style={styles.playIcon}
-              />
-            </View>
-          </BlurView>
-        </View>
-      )}
 
       {/* Next Episode Countdown - always visible when countdown active */}
       {nextItem && (
@@ -1027,36 +1244,6 @@ export const Controls: FC<Props> = ({
           isPlaying={isPlaying}
           onFinish={handleAutoPlayFinish}
         />
-      )}
-
-      {/* Top hint - swipe up for settings */}
-      {showControls && hasSettings && !isModalOpen && (
-        <Animated.View
-          style={[styles.topContainer, bottomAnimatedStyle]}
-          pointerEvents='none'
-        >
-          <View
-            style={[
-              styles.topInner,
-              {
-                paddingRight: Math.max(insets.right, 48),
-                paddingLeft: Math.max(insets.left, 48),
-                paddingTop: Math.max(insets.top, 48),
-              },
-            ]}
-          >
-            <View style={styles.settingsHint}>
-              <Text style={styles.settingsHintText}>
-                {t("player.swipe_down_settings")}
-              </Text>
-              <Ionicons
-                name='chevron-down'
-                size={20}
-                color='rgba(255,255,255,0.5)'
-              />
-            </View>
-          </View>
-        </Animated.View>
       )}
 
       <Animated.View
@@ -1087,42 +1274,107 @@ export const Controls: FC<Props> = ({
             )}
           </View>
 
-          {/* Large Seekbar */}
-          <View
-            style={styles.sliderContainer}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <Slider
-              theme={{
-                maximumTrackTintColor: "rgba(255,255,255,0.2)",
-                minimumTrackTintColor: "#fff",
-                cacheTrackTintColor: "rgba(255,255,255,0.3)",
-                bubbleBackgroundColor: "#fff",
-                bubbleTextColor: "#666",
-                heartbeatColor: "#999",
-              }}
-              renderThumb={() => null}
-              cache={cacheProgress}
-              onSlidingStart={handleSliderStart}
-              onSlidingComplete={handleSliderComplete}
-              onValueChange={handleSliderChange}
-              containerStyle={styles.sliderTrack}
-              renderBubble={() =>
-                (isSliding || showRemoteBubble) && (
-                  <TrickplayBubble
-                    trickPlayUrl={trickPlayUrl}
-                    trickplayInfo={trickplayInfo}
-                    time={time}
-                  />
-                )
-              }
-              sliderHeight={TV_SEEKBAR_HEIGHT}
-              thumbWidth={0}
-              progress={effectiveProgress}
-              minimumValue={min}
-              maximumValue={max}
+          {/* Control Buttons Row */}
+          <View style={styles.controlButtonsRow}>
+            <TVControlButton
+              icon='play-skip-back'
+              onPress={handlePreviousItem}
+              disabled={isModalOpen || !previousItem}
+              size={28}
             />
+            <TVControlButton
+              icon='play-back'
+              onPress={handleSeekBackwardButton}
+              onLongPress={startContinuousSeekBackward}
+              onPressOut={stopContinuousSeeking}
+              disabled={isModalOpen}
+              size={28}
+            />
+            <TVControlButton
+              icon={isPlaying ? "pause" : "play"}
+              onPress={handlePlayPauseButton}
+              disabled={isModalOpen}
+              hasTVPreferredFocus={!isModalOpen && lastOpenedModal === null}
+              size={36}
+            />
+            <TVControlButton
+              icon='play-forward'
+              onPress={handleSeekForwardButton}
+              onLongPress={startContinuousSeekForward}
+              onPressOut={stopContinuousSeeking}
+              disabled={isModalOpen}
+              size={28}
+            />
+            <TVControlButton
+              icon='play-skip-forward'
+              onPress={handleNextItemButton}
+              disabled={isModalOpen || !nextItem}
+              size={28}
+            />
+
+            {/* Spacer to separate settings buttons from transport controls */}
+            <View style={styles.controlButtonsSpacer} />
+
+            {/* Audio button - only show when audio tracks are available */}
+            {audioOptions.length > 0 && (
+              <TVControlButton
+                icon='volume-high'
+                onPress={handleOpenAudioSheet}
+                disabled={isModalOpen}
+                hasTVPreferredFocus={
+                  !isModalOpen && lastOpenedModal === "audio"
+                }
+                size={24}
+              />
+            )}
+
+            {/* Subtitle button - only show when subtitle tracks are available */}
+            {subtitleTracks.length > 0 && (
+              <TVControlButton
+                icon='text'
+                onPress={handleOpenSubtitleSheet}
+                disabled={isModalOpen}
+                hasTVPreferredFocus={
+                  !isModalOpen && lastOpenedModal === "subtitle"
+                }
+                size={24}
+              />
+            )}
+          </View>
+
+          {/* Trickplay Bubble - shown when seeking */}
+          {showSeekBubble && (
+            <View style={styles.trickplayBubbleContainer}>
+              <TrickplayBubble
+                trickPlayUrl={trickPlayUrl}
+                trickplayInfo={trickplayInfo}
+                time={seekBubbleTime}
+              />
+            </View>
+          )}
+
+          {/* Non-interactive Progress Bar */}
+          <View style={styles.progressBarContainer} pointerEvents='none'>
+            <View style={styles.progressTrack}>
+              {/* Cache progress */}
+              <Animated.View
+                style={[
+                  styles.cacheProgress,
+                  useAnimatedStyle(() => ({
+                    width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
+                  })),
+                ]}
+              />
+              {/* Playback progress */}
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  useAnimatedStyle(() => ({
+                    width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
+                  })),
+                ]}
+              />
+            </View>
           </View>
 
           {/* Time Display */}
@@ -1142,18 +1394,7 @@ export const Controls: FC<Props> = ({
         </View>
       </Animated.View>
 
-      {/* Settings panel - shows audio and subtitle options */}
-      <TVSettingsPanel
-        visible={openModal === "settings"}
-        audioOptions={audioOptions}
-        subtitleOptions={subtitleOptions}
-        onAudioSelect={handleAudioChange}
-        onSubtitleSelect={handleSubtitleChange}
-        onClose={() => setOpenModal(null)}
-        t={t}
-      />
-
-      {/* Direct option selector modals (for future use) */}
+      {/* Audio option selector */}
       <TVOptionSelector
         visible={openModal === "audio"}
         title={t("item_card.audio")}
@@ -1164,7 +1405,7 @@ export const Controls: FC<Props> = ({
 
       <TVOptionSelector
         visible={openModal === "subtitle"}
-        title={t("item_card.subtitles")}
+        title={t("item_card.subtitles.label")}
         options={subtitleOptions}
         onSelect={handleSubtitleChange}
         onClose={() => setOpenModal(null)}
@@ -1189,44 +1430,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
-  centerContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playButtonBlur: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    overflow: "hidden",
-  },
-  playButtonInner: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    borderRadius: 40,
-  },
-  playIcon: {
-    marginLeft: 4,
-  },
-  topContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  topInner: {
-    flexDirection: "row",
-    justifyContent: "center",
-  },
   bottomContainer: {
     position: "absolute",
     bottom: 0,
@@ -1249,13 +1452,50 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
   },
-  sliderContainer: {
+  controlButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 20,
+    paddingVertical: 8,
+  },
+  controlButtonsSpacer: {
+    flex: 1,
+  },
+  trickplayBubbleContainer: {
+    position: "absolute",
+    bottom: 120,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 20,
+  },
+  progressBarContainer: {
     height: TV_SEEKBAR_HEIGHT,
     justifyContent: "center",
-    alignItems: "stretch",
+    marginBottom: 8,
   },
-  sliderTrack: {
-    borderRadius: 100,
+  progressTrack: {
+    height: TV_SEEKBAR_HEIGHT,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  cacheProgress: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: "100%",
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderRadius: 8,
+  },
+  progressFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 8,
   },
   timeContainer: {
     flexDirection: "row",
@@ -1275,18 +1515,5 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     fontSize: 16,
     marginTop: 2,
-  },
-  settingsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  settingsHint: {
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 4,
-  },
-  settingsHintText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 16,
   },
 });
