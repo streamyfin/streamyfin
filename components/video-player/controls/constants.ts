@@ -1,6 +1,6 @@
 export const CONTROLS_CONSTANTS = {
   TIMEOUT: 4000,
-  SCRUB_INTERVAL_MS: 10 * 1000, // 10 seconds in ms
+  SCRUB_INTERVAL_MS: 30 * 1000, // 30 seconds in ms
   SCRUB_INTERVAL_TICKS: 10 * 10000000, // 10 seconds in ticks
   TILE_WIDTH: 150,
   PROGRESS_UNIT_MS: 1000, // 1 second in ms
