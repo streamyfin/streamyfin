@@ -39,6 +39,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -538,6 +539,230 @@ const TVOptionCard = React.forwardRef<
   );
 });
 
+// Circular actor card with Apple TV style focus animations
+const TVActorCard: React.FC<{
+  person: {
+    Id?: string | null;
+    Name?: string | null;
+    Role?: string | null;
+  };
+  apiBasePath?: string;
+  onPress: () => void;
+  hasTVPreferredFocus?: boolean;
+}> = ({ person, apiBasePath, onPress, hasTVPreferredFocus }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  const imageUrl = person.Id
+    ? `${apiBasePath}/Items/${person.Id}/Images/Primary?fillWidth=200&fillHeight=200&quality=90`
+    : null;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.08);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          alignItems: "center",
+          width: 120,
+          shadowColor: "#fff",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: focused ? 0.5 : 0,
+          shadowRadius: focused ? 16 : 0,
+        }}
+      >
+        {/* Circular image */}
+        <View
+          style={{
+            width: 100,
+            height: 100,
+            borderRadius: 50,
+            overflow: "hidden",
+            backgroundColor: "rgba(255,255,255,0.1)",
+            marginBottom: 12,
+            borderWidth: focused ? 3 : 0,
+            borderColor: "#fff",
+          }}
+        >
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit='cover'
+            />
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name='person' size={40} color='rgba(255,255,255,0.4)' />
+            </View>
+          )}
+        </View>
+
+        {/* Name */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: "600",
+            color: focused ? "#fff" : "rgba(255,255,255,0.9)",
+            textAlign: "center",
+            marginBottom: 2,
+          }}
+          numberOfLines={1}
+        >
+          {person.Name}
+        </Text>
+
+        {/* Role */}
+        {person.Role && (
+          <Text
+            style={{
+              fontSize: 12,
+              color: focused
+                ? "rgba(255,255,255,0.8)"
+                : "rgba(255,255,255,0.5)",
+              textAlign: "center",
+            }}
+            numberOfLines={1}
+          >
+            {person.Role}
+          </Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+// Series/Season poster card with Apple TV style focus animations
+const TVSeriesSeasonCard: React.FC<{
+  title: string;
+  subtitle?: string;
+  imageUrl: string | null;
+  onPress: () => void;
+  hasTVPreferredFocus?: boolean;
+}> = ({ title, subtitle, imageUrl, onPress, hasTVPreferredFocus }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          width: 140,
+          shadowColor: "#fff",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: focused ? 0.5 : 0,
+          shadowRadius: focused ? 16 : 0,
+        }}
+      >
+        {/* Poster image */}
+        <View
+          style={{
+            width: 140,
+            aspectRatio: 2 / 3,
+            borderRadius: 12,
+            overflow: "hidden",
+            backgroundColor: "rgba(255,255,255,0.1)",
+            marginBottom: 12,
+            borderWidth: focused ? 3 : 0,
+            borderColor: "#fff",
+          }}
+        >
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit='cover'
+            />
+          ) : (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name='film' size={40} color='rgba(255,255,255,0.4)' />
+            </View>
+          )}
+        </View>
+
+        {/* Title */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: "600",
+            color: focused ? "#fff" : "rgba(255,255,255,0.9)",
+            textAlign: "center",
+            marginBottom: 2,
+          }}
+          numberOfLines={2}
+        >
+          {title}
+        </Text>
+
+        {/* Subtitle */}
+        {subtitle && (
+          <Text
+            style={{
+              fontSize: 12,
+              color: focused
+                ? "rgba(255,255,255,0.8)"
+                : "rgba(255,255,255,0.5)",
+              textAlign: "center",
+            }}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+};
+
 // Button to open option selector
 const TVOptionButton: React.FC<{
   label: string;
@@ -853,8 +1078,28 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Get director
     const director = item?.People?.find((p) => p.Type === "Director");
 
-    // Get cast (first 3)
+    // Get cast (first 3 for text display)
     const cast = item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 3);
+
+    // Get full cast for visual display (up to 10 actors)
+    const fullCast = useMemo(() => {
+      return (
+        item?.People?.filter((p) => p.Type === "Actor")?.slice(0, 10) ?? []
+      );
+    }, [item?.People]);
+
+    // Series/Season image URLs for episodes
+    const seriesImageUrl = useMemo(() => {
+      if (item?.Type !== "Episode" || !item.SeriesId) return null;
+      return getPrimaryImageUrlById({ api, id: item.SeriesId, width: 300 });
+    }, [api, item?.Type, item?.SeriesId]);
+
+    const seasonImageUrl = useMemo(() => {
+      if (item?.Type !== "Episode") return null;
+      const seasonId = item.SeasonId || item.ParentId;
+      if (!seasonId) return null;
+      return getPrimaryImageUrlById({ api, id: seasonId, width: 300 });
+    }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
 
     if (!item || !selectedOptions) return null;
 
@@ -1292,6 +1537,101 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   </View>
                 </View>
               )}
+
+            {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
+            {(item.Type === "Movie" ||
+              item.Type === "Series" ||
+              item.Type === "Episode") &&
+              fullCast.length > 0 && (
+                <View style={{ marginBottom: 32 }}>
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: "600",
+                      color: "#FFFFFF",
+                      marginBottom: 20,
+                    }}
+                  >
+                    {t("item_card.cast")}
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginHorizontal: -80, overflow: "visible" }}
+                    contentContainerStyle={{
+                      paddingHorizontal: 80,
+                      paddingVertical: 12,
+                      gap: 20,
+                    }}
+                  >
+                    {fullCast.map((person, index) => (
+                      <TVActorCard
+                        key={person.Id || index}
+                        person={person}
+                        apiBasePath={api?.basePath}
+                        onPress={() => {
+                          if (person.Id) {
+                            router.push(`/(auth)/persons/${person.Id}`);
+                          }
+                        }}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+            {/* From this Series - Episode only */}
+            {item.Type === "Episode" && item.SeriesId && (
+              <View style={{ marginBottom: 32 }}>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                    marginBottom: 20,
+                  }}
+                >
+                  {t("item_card.from_this_series") || "From this Series"}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginHorizontal: -80, overflow: "visible" }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 80,
+                    paddingVertical: 12,
+                    gap: 24,
+                  }}
+                >
+                  {/* Series card */}
+                  <TVSeriesSeasonCard
+                    title={item.SeriesName || "Series"}
+                    subtitle={t("item_card.view_series") || "View Series"}
+                    imageUrl={seriesImageUrl}
+                    onPress={() => {
+                      router.push(`/(auth)/series/${item.SeriesId}`);
+                    }}
+                    hasTVPreferredFocus={false}
+                  />
+
+                  {/* Season card */}
+                  {(item.SeasonId || item.ParentId) && (
+                    <TVSeriesSeasonCard
+                      title={
+                        item.SeasonName || `Season ${item.ParentIndexNumber}`
+                      }
+                      subtitle={t("item_card.view_season") || "View Season"}
+                      imageUrl={seasonImageUrl}
+                      onPress={() => {
+                        router.push(
+                          `/(auth)/series/${item.SeriesId}?seasonIndex=${item.ParentIndexNumber}`,
+                        );
+                      }}
+                    />
+                  )}
+                </ScrollView>
+              </View>
+            )}
           </View>
         </ScrollView>
 
