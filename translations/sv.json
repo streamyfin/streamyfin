@@ -574,7 +574,11 @@
       "sort_by": "Sortera efter",
       "filter_by": "Filtrera På",
       "sort_order": "Sorteringsordning",
-      "tags": "Etiketter"
+      "tags": "Etiketter",
+      "all": "Alla",
+      "reset": "Återställ",
+      "asc": "Stigande",
+      "desc": "Fallande"
     }
   },
   "favorites": {

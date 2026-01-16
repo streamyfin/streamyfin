@@ -252,3 +252,54 @@ const TVFocusableButton: React.FC<{
 ```
 
 **Reference implementation**: See `settings.tv.tsx` for complete example with `TVSettingsOptionButton`, `TVSettingsToggle`, `TVSettingsStepper`, etc.
+
+### TV Focus Flickering Between Zones (Lists with Headers)
+
+When you have a page with multiple focusable zones (e.g., a filter bar above a grid), the TV focus engine can rapidly flicker between elements when navigating between zones. This is a known issue with React Native TV.
+
+**Solutions:**
+
+1. **Use FlatList instead of FlashList for TV** - FlashList has known focus issues on TV platforms. Use regular FlatList with `Platform.isTV` check:
+```typescript
+{Platform.isTV ? (
+  <FlatList
+    data={items}
+    renderItem={renderTVItem}
+    removeClippedSubviews={false}
+    // ...
+  />
+) : (
+  <FlashList data={items} renderItem={renderItem} />
+)}
+```
+
+2. **Add `removeClippedSubviews={false}`** - Prevents the list from unmounting off-screen items, which can cause focus to "fall through" to other elements.
+
+3. **Only ONE element should have `hasTVPreferredFocus`** - Never have multiple elements competing for initial focus. Choose one element (usually the first filter button or first list item) to have preferred focus:
+```typescript
+// ✅ Good - only first filter button has preferred focus
+<TVFilterButton hasTVPreferredFocus={index === 0} />
+<TVFocusablePoster /> // No hasTVPreferredFocus
+
+// ❌ Bad - both compete for focus
+<TVFilterButton hasTVPreferredFocus />
+<TVFocusablePoster hasTVPreferredFocus={index === 0} />
+```
+
+4. **Keep headers/filter bars outside the list** - Instead of using `ListHeaderComponent`, render the filter bar as a separate View above the FlatList:
+```typescript
+<View style={{ flex: 1 }}>
+  {/* Filter bar - separate from list */}
+  <View style={{ flexDirection: "row", gap: 12 }}>
+    <TVFilterButton />
+    <TVFilterButton />
+  </View>
+
+  {/* Grid */}
+  <FlatList data={items} renderItem={renderTVItem} />
+</View>
+```
+
+5. **Avoid multiple scrollable containers** - Don't use ScrollView for the filter bar if you have a FlatList below. Use a simple View instead to prevent focus conflicts between scrollable containers.
+
+**Reference implementation**: See `app/(auth)/(tabs)/(libraries)/[libraryId].tsx` for the TV filter bar + grid pattern.

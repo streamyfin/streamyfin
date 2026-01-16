@@ -34,7 +34,7 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
   const animateFocus = (focused: boolean) => {
     Animated.parallel([
       Animated.timing(scale, {
-        toValue: focused ? 1.05 : 1,
+        toValue: focused ? 1.02 : 1,
         duration: 150,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
