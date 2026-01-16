@@ -5,7 +5,13 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Pressable, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
@@ -30,7 +36,7 @@ const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
 
-const TVLogin: React.FC = () => {
+export const TVLogin: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
@@ -322,11 +328,22 @@ const TVLogin: React.FC = () => {
       <KeyboardAvoidingView behavior='padding' style={{ flex: 1 }}>
         {api?.basePath ? (
           // ==================== CREDENTIALS SCREEN ====================
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingVertical: 60,
+            }}
+            showsVerticalScrollIndicator={false}
           >
             <View
-              style={{ width: "100%", maxWidth: 800, paddingHorizontal: 40 }}
+              style={{
+                width: "100%",
+                maxWidth: 800,
+                paddingHorizontal: 60,
+              }}
             >
               {/* Back Button */}
               <Pressable
@@ -377,8 +394,8 @@ const TVLogin: React.FC = () => {
                 {api.basePath}
               </Text>
 
-              {/* Username Input */}
-              <View style={{ marginBottom: 16 }}>
+              {/* Username Input - extra padding for focus scale */}
+              <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
                 <TVInput
                   placeholder={t("login.username_placeholder")}
                   value={credentials.username}
@@ -394,7 +411,7 @@ const TVLogin: React.FC = () => {
               </View>
 
               {/* Password Input */}
-              <View style={{ marginBottom: 24 }}>
+              <View style={{ marginBottom: 32, paddingHorizontal: 8 }}>
                 <TVInput
                   placeholder={t("login.password_placeholder")}
                   value={credentials.password}
@@ -409,7 +426,7 @@ const TVLogin: React.FC = () => {
               </View>
 
               {/* Save Account Toggle */}
-              <View style={{ marginBottom: 32 }}>
+              <View style={{ marginBottom: 40, paddingHorizontal: 8 }}>
                 <TVSaveAccountToggle
                   value={saveAccount}
                   onValueChange={setSaveAccount}
@@ -437,19 +454,30 @@ const TVLogin: React.FC = () => {
                 {t("login.quick_connect")}
               </Button>
             </View>
-          </View>
+          </ScrollView>
         ) : (
           // ==================== SERVER SELECTION SCREEN ====================
-          <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingVertical: 60,
+            }}
+            showsVerticalScrollIndicator={false}
           >
             <View
-              style={{ width: "100%", maxWidth: 800, paddingHorizontal: 40 }}
+              style={{
+                width: "100%",
+                maxWidth: 800,
+                paddingHorizontal: 60,
+              }}
             >
               {/* Logo */}
               <View style={{ alignItems: "center", marginBottom: 16 }}>
                 <Image
-                  source={require("@/assets/images/icon-ios-plain.png")}
+                  source={require("@/assets/images/icon-tvos.png")}
                   style={{ width: 150, height: 150 }}
                   contentFit='contain'
                 />
@@ -472,14 +500,14 @@ const TVLogin: React.FC = () => {
                   fontSize: 20,
                   color: "#9CA3AF",
                   textAlign: "center",
-                  marginBottom: 32,
+                  marginBottom: 40,
                 }}
               >
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>
 
-              {/* Server URL Input */}
-              <View style={{ marginBottom: 24 }}>
+              {/* Server URL Input - extra padding for focus scale */}
+              <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
                 <TVInput
                   placeholder={t("server.server_url_placeholder")}
                   value={serverURL}
@@ -493,7 +521,7 @@ const TVLogin: React.FC = () => {
               </View>
 
               {/* Connect Button */}
-              <View style={{ marginBottom: 24 }}>
+              <View style={{ marginBottom: 16 }}>
                 <Button
                   onPress={() => handleConnect(serverURL)}
                   loading={loadingServerCheck}
@@ -504,7 +532,7 @@ const TVLogin: React.FC = () => {
               </View>
 
               {/* Server Discovery */}
-              <View style={{ marginBottom: 16 }}>
+              <View style={{ marginBottom: 24 }}>
                 <Button
                   onPress={startDiscovery}
                   color='black'
@@ -518,45 +546,57 @@ const TVLogin: React.FC = () => {
 
               {/* Discovered Servers */}
               {discoveredServers.length > 0 && (
-                <View style={{ marginTop: 16, gap: 12 }}>
+                <View
+                  style={{
+                    marginTop: 16,
+                    marginBottom: 16,
+                    paddingHorizontal: 8,
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: 20,
                       fontWeight: "600",
                       color: "#9CA3AF",
-                      marginBottom: 8,
+                      marginBottom: 16,
                     }}
                   >
                     {t("server.servers")}
                   </Text>
-                  {discoveredServers.map((server) => (
-                    <TVServerCard
-                      key={server.address}
-                      title={server.serverName || server.address}
-                      subtitle={server.serverName ? server.address : undefined}
-                      onPress={() => {
-                        setServerURL(server.address);
-                        if (server.serverName) {
-                          setServerName(server.serverName);
+                  <View style={{ gap: 16 }}>
+                    {discoveredServers.map((server) => (
+                      <TVServerCard
+                        key={server.address}
+                        title={server.serverName || server.address}
+                        subtitle={
+                          server.serverName ? server.address : undefined
                         }
-                        handleConnect(server.address);
-                      }}
-                    />
-                  ))}
+                        onPress={() => {
+                          setServerURL(server.address);
+                          if (server.serverName) {
+                            setServerName(server.serverName);
+                          }
+                          handleConnect(server.address);
+                        }}
+                      />
+                    ))}
+                  </View>
                 </View>
               )}
 
               {/* Previous Servers */}
-              <TVPreviousServersList
-                onServerSelect={(s) => handleConnect(s.address)}
-                onQuickLogin={handleQuickLoginWithSavedCredential}
-                onPasswordLogin={handlePasswordLogin}
-                onAddAccount={handleAddAccount}
-                onPinRequired={handlePinRequired}
-                onPasswordRequired={handlePasswordRequired}
-              />
+              <View style={{ paddingHorizontal: 8 }}>
+                <TVPreviousServersList
+                  onServerSelect={(s) => handleConnect(s.address)}
+                  onQuickLogin={handleQuickLoginWithSavedCredential}
+                  onPasswordLogin={handlePasswordLogin}
+                  onAddAccount={handleAddAccount}
+                  onPinRequired={handlePinRequired}
+                  onPasswordRequired={handlePasswordRequired}
+                />
+              </View>
             </View>
-          </View>
+          </ScrollView>
         )}
       </KeyboardAvoidingView>
 
@@ -600,5 +640,3 @@ const TVLogin: React.FC = () => {
     </SafeAreaView>
   );
 };
-
-export default TVLogin;
