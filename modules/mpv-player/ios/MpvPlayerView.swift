@@ -1,3 +1,4 @@
+import AVFAudio
 import AVFoundation
 import CoreMedia
 import ExpoModulesCore
@@ -63,6 +64,7 @@ class MpvPlayerView: ExpoView {
 	private func setupView() {
 		clipsToBounds = true
 		backgroundColor = .black
+		configureAudioSession()
 
 		videoContainer = UIView()
 		videoContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -109,6 +111,21 @@ class MpvPlayerView: ExpoView {
 		displayLayer.isHidden = false
 		displayLayer.opacity = 1.0
 		CATransaction.commit()
+	}
+
+	private func configureAudioSession() {
+		let audioSession = AVAudioSession.sharedInstance()
+		do {
+			try audioSession.setCategory(
+				.playback,
+				mode: .moviePlayback,
+				policy: .longFormAudio,
+				options: []
+			)
+			try audioSession.setActive(true)
+		} catch {
+			print("Failed to configure audio session: \(error)")
+		}
 	}
 
 	func loadVideo(config: VideoLoadConfig) {

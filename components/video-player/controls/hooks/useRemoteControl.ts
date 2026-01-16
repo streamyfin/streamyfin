@@ -107,6 +107,7 @@ export function useRemoteControl({
         updateTime(updated);
         break;
       }
+      case "playPause":
       case "select": {
         if (isRemoteScrubbing.value && remoteScrubProgress.value != null) {
           progress.value = remoteScrubProgress.value;
