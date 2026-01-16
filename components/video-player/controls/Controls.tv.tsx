@@ -105,10 +105,38 @@ const TVOptionSelector = <T,>({
   const [isReady, setIsReady] = useState(false);
   const firstCardRef = useRef<View>(null);
 
+  // Animation values
+  const overlayOpacity = useRef(new RNAnimated.Value(0)).current;
+  const sheetTranslateY = useRef(new RNAnimated.Value(200)).current;
+
   const initialSelectedIndex = useMemo(() => {
     const idx = options.findIndex((o) => o.selected);
     return idx >= 0 ? idx : 0;
   }, [options]);
+
+  // Animate in when visible
+  useEffect(() => {
+    if (visible) {
+      // Reset values and animate in
+      overlayOpacity.setValue(0);
+      sheetTranslateY.setValue(200);
+
+      RNAnimated.parallel([
+        RNAnimated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 250,
+          easing: RNEasing.out(RNEasing.quad),
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          easing: RNEasing.out(RNEasing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, overlayOpacity, sheetTranslateY]);
 
   // Delay rendering to work around hasTVPreferredFocus timing issue
   useEffect(() => {
@@ -132,44 +160,57 @@ const TVOptionSelector = <T,>({
   if (!visible) return null;
 
   return (
-    <View style={selectorStyles.overlay}>
-      <BlurView intensity={80} tint='dark' style={selectorStyles.blurContainer}>
-        <TVFocusGuideView
-          autoFocus
-          trapFocusUp
-          trapFocusDown
-          trapFocusLeft
-          trapFocusRight
-          style={selectorStyles.content}
+    <RNAnimated.View
+      style={[selectorStyles.overlay, { opacity: overlayOpacity }]}
+    >
+      <RNAnimated.View
+        style={[
+          selectorStyles.sheetContainer,
+          { transform: [{ translateY: sheetTranslateY }] },
+        ]}
+      >
+        <BlurView
+          intensity={80}
+          tint='dark'
+          style={selectorStyles.blurContainer}
         >
-          <Text style={selectorStyles.title}>{title}</Text>
-          {isReady && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={selectorStyles.scrollView}
-              contentContainerStyle={selectorStyles.scrollContent}
-            >
-              {options.map((option, index) => (
-                <TVOptionCard
-                  key={index}
-                  ref={
-                    index === initialSelectedIndex ? firstCardRef : undefined
-                  }
-                  label={option.label}
-                  selected={option.selected}
-                  hasTVPreferredFocus={index === initialSelectedIndex}
-                  onPress={() => {
-                    onSelect(option.value);
-                    onClose();
-                  }}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </TVFocusGuideView>
-      </BlurView>
-    </View>
+          <TVFocusGuideView
+            autoFocus
+            trapFocusUp
+            trapFocusDown
+            trapFocusLeft
+            trapFocusRight
+            style={selectorStyles.content}
+          >
+            <Text style={selectorStyles.title}>{title}</Text>
+            {isReady && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={selectorStyles.scrollView}
+                contentContainerStyle={selectorStyles.scrollContent}
+              >
+                {options.map((option, index) => (
+                  <TVOptionCard
+                    key={index}
+                    ref={
+                      index === initialSelectedIndex ? firstCardRef : undefined
+                    }
+                    label={option.label}
+                    selected={option.selected}
+                    hasTVPreferredFocus={index === initialSelectedIndex}
+                    onPress={() => {
+                      onSelect(option.value);
+                      onClose();
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </TVFocusGuideView>
+        </BlurView>
+      </RNAnimated.View>
+    </RNAnimated.View>
   );
 };
 
@@ -542,6 +583,9 @@ const selectorStyles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
     zIndex: 1000,
+  },
+  sheetContainer: {
+    // Container for the sheet to enable slide animation
   },
   blurContainer: {
     borderTopLeftRadius: 24,

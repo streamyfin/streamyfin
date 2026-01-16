@@ -314,10 +314,38 @@ const TVOptionSelector = <T,>({
   const [isReady, setIsReady] = useState(false);
   const firstCardRef = useRef<View>(null);
 
+  // Animation values
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(200)).current;
+
   const initialSelectedIndex = useMemo(() => {
     const idx = options.findIndex((o) => o.selected);
     return idx >= 0 ? idx : 0;
   }, [options]);
+
+  // Animate in when visible
+  useEffect(() => {
+    if (visible) {
+      // Reset values and animate in
+      overlayOpacity.setValue(0);
+      sheetTranslateY.setValue(200);
+
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 250,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, overlayOpacity, sheetTranslateY]);
 
   // Delay rendering to work around hasTVPreferredFocus timing issue
   useEffect(() => {
@@ -341,7 +369,7 @@ const TVOptionSelector = <T,>({
   if (!visible) return null;
 
   return (
-    <View
+    <Animated.View
       style={{
         position: "absolute",
         top: 0,
@@ -351,76 +379,79 @@ const TVOptionSelector = <T,>({
         backgroundColor: "rgba(0, 0, 0, 0.5)",
         justifyContent: "flex-end",
         zIndex: 1000,
+        opacity: overlayOpacity,
       }}
     >
-      <BlurView
-        intensity={80}
-        tint='dark'
-        style={{
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          overflow: "hidden",
-        }}
-      >
-        <TVFocusGuideView
-          autoFocus
-          trapFocusUp
-          trapFocusDown
-          trapFocusLeft
-          trapFocusRight
+      <Animated.View style={{ transform: [{ translateY: sheetTranslateY }] }}>
+        <BlurView
+          intensity={80}
+          tint='dark'
           style={{
-            paddingTop: 24,
-            paddingBottom: 50,
-            overflow: "visible",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            overflow: "hidden",
           }}
         >
-          {/* Title */}
-          <Text
+          <TVFocusGuideView
+            autoFocus
+            trapFocusUp
+            trapFocusDown
+            trapFocusLeft
+            trapFocusRight
             style={{
-              fontSize: 18,
-              fontWeight: "500",
-              color: "rgba(255,255,255,0.6)",
-              marginBottom: 16,
-              paddingHorizontal: 48,
-              textTransform: "uppercase",
-              letterSpacing: 1,
+              paddingTop: 24,
+              paddingBottom: 50,
+              overflow: "visible",
             }}
           >
-            {title}
-          </Text>
-
-          {/* Horizontal options */}
-          {isReady && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ overflow: "visible" }}
-              contentContainerStyle={{
+            {/* Title */}
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "500",
+                color: "rgba(255,255,255,0.6)",
+                marginBottom: 16,
                 paddingHorizontal: 48,
-                paddingVertical: 10,
-                gap: 12,
+                textTransform: "uppercase",
+                letterSpacing: 1,
               }}
             >
-              {options.map((option, index) => (
-                <TVOptionCard
-                  key={index}
-                  ref={
-                    index === initialSelectedIndex ? firstCardRef : undefined
-                  }
-                  label={option.label}
-                  selected={option.selected}
-                  hasTVPreferredFocus={index === initialSelectedIndex}
-                  onPress={() => {
-                    onSelect(option.value);
-                    onClose();
-                  }}
-                />
-              ))}
-            </ScrollView>
-          )}
-        </TVFocusGuideView>
-      </BlurView>
-    </View>
+              {title}
+            </Text>
+
+            {/* Horizontal options */}
+            {isReady && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ overflow: "visible" }}
+                contentContainerStyle={{
+                  paddingHorizontal: 48,
+                  paddingVertical: 10,
+                  gap: 12,
+                }}
+              >
+                {options.map((option, index) => (
+                  <TVOptionCard
+                    key={index}
+                    ref={
+                      index === initialSelectedIndex ? firstCardRef : undefined
+                    }
+                    label={option.label}
+                    selected={option.selected}
+                    hasTVPreferredFocus={index === initialSelectedIndex}
+                    onPress={() => {
+                      onSelect(option.value);
+                      onClose();
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </TVFocusGuideView>
+        </BlurView>
+      </Animated.View>
+    </Animated.View>
   );
 };
 
