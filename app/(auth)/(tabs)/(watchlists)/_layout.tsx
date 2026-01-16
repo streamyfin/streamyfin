@@ -40,7 +40,7 @@ export default function WatchlistsLayout() {
         name='[watchlistId]'
         options={{
           title: "",
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -51,7 +51,7 @@ export default function WatchlistsLayout() {
         options={{
           title: t("watchlists.create_title"),
           presentation: "modal",
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerStyle: { backgroundColor: "#171717" },
           headerTintColor: "white",
           contentStyle: { backgroundColor: "#171717" },
@@ -62,7 +62,7 @@ export default function WatchlistsLayout() {
         options={{
           title: t("watchlists.edit_title"),
           presentation: "modal",
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerStyle: { backgroundColor: "#171717" },
           headerTintColor: "white",
           contentStyle: { backgroundColor: "#171717" },
