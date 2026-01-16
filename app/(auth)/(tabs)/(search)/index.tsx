@@ -199,9 +199,7 @@ export default function search() {
           return [];
         }
 
-        const url = `${
-          settings.marlinServerUrl
-        }/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
+        const url = `${settings.marlinServerUrl}/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
           .map((type) => encodeURIComponent(type))
           .join("&includeItemTypes=")}`;
 
@@ -457,18 +455,22 @@ export default function search() {
         }}
       > */}
       {Platform.isTV && (
-        <Input
-          placeholder={t("search.search")}
-          onChangeText={(text) => {
-            router.setParams({ q: "" });
-            setSearch(text);
-          }}
-          keyboardType='default'
-          returnKeyType='done'
-          autoCapitalize='none'
-          clearButtonMode='while-editing'
-          maxLength={500}
-        />
+        <View
+          style={{ paddingHorizontal: 48, paddingTop: 0, paddingBottom: 8 }}
+        >
+          <Input
+            placeholder={t("search.search")}
+            onChangeText={(text) => {
+              router.setParams({ q: "" });
+              setSearch(text);
+            }}
+            keyboardType='default'
+            returnKeyType='done'
+            autoCapitalize='none'
+            clearButtonMode='while-editing'
+            maxLength={500}
+          />
+        </View>
       )}
       <View
         className='flex flex-col'

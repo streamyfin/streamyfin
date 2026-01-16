@@ -85,6 +85,12 @@ export default function page() {
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
+  // TV audio/subtitle selection state (tracks current selection for dynamic changes)
+  const [currentAudioIndex, setCurrentAudioIndex] = useState<
+    number | undefined
+  >(undefined);
+  const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState<number>(-1);
+
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
@@ -160,6 +166,17 @@ export default function page() {
     }
     return undefined;
   }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+
+  // Initialize TV audio/subtitle indices from URL params
+  useEffect(() => {
+    if (audioIndex !== undefined) {
+      setCurrentAudioIndex(audioIndex);
+    }
+  }, [audioIndex]);
+
+  useEffect(() => {
+    setCurrentSubtitleIndex(subtitleIndex);
+  }, [subtitleIndex]);
 
   // Get the playback speed for this item based on settings
   const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
@@ -732,6 +749,55 @@ export default function page() {
     videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
+  // TV audio track change handler
+  const handleAudioIndexChange = useCallback(
+    async (index: number) => {
+      setCurrentAudioIndex(index);
+
+      // Check if we're transcoding
+      const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
+
+      // Convert Jellyfin index to MPV track ID
+      const mpvTrackId = getMpvAudioId(
+        stream?.mediaSource,
+        index,
+        isTranscoding,
+      );
+
+      if (mpvTrackId !== undefined) {
+        await videoRef.current?.setAudioTrack?.(mpvTrackId);
+      }
+    },
+    [stream?.mediaSource],
+  );
+
+  // TV subtitle track change handler
+  const handleSubtitleIndexChange = useCallback(
+    async (index: number) => {
+      setCurrentSubtitleIndex(index);
+
+      // Check if we're transcoding
+      const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
+
+      if (index === -1) {
+        // Disable subtitles
+        await videoRef.current?.disableSubtitles?.();
+      } else {
+        // Convert Jellyfin index to MPV track ID
+        const mpvTrackId = getMpvSubtitleId(
+          stream?.mediaSource,
+          index,
+          isTranscoding,
+        );
+
+        if (mpvTrackId !== undefined && mpvTrackId !== -1) {
+          await videoRef.current?.setSubtitleTrack?.(mpvTrackId);
+        }
+      }
+    },
+    [stream?.mediaSource],
+  );
+
   // Technical info toggle handler
   const handleToggleTechnicalInfo = useCallback(() => {
     setShowTechnicalInfo((prev) => !prev);
@@ -977,6 +1043,10 @@ export default function page() {
                   play={play}
                   pause={pause}
                   seek={seek}
+                  audioIndex={currentAudioIndex}
+                  subtitleIndex={currentSubtitleIndex}
+                  onAudioIndexChange={handleAudioIndexChange}
+                  onSubtitleIndexChange={handleSubtitleIndexChange}
                 />
               ) : (
                 <Controls

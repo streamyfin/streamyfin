@@ -33,8 +33,8 @@ interface UseRemoteControlProps {
   handleSeekBackward: (seconds: number) => void;
   /** When true, disables left/right seeking (e.g., when settings modal is open) */
   disableSeeking?: boolean;
-  /** Callback when swipe up is detected - used to open settings */
-  onSwipeUp?: () => void;
+  /** Callback when swipe down is detected - used to open settings */
+  onSwipeDown?: () => void;
 }
 
 /**
@@ -55,7 +55,7 @@ export function useRemoteControl({
   handleSeekForward,
   handleSeekBackward,
   disableSeeking = false,
-  onSwipeUp,
+  onSwipeDown,
 }: UseRemoteControlProps) {
   const remoteScrubProgress = useSharedValue<number | null>(null);
   const isRemoteScrubbing = useSharedValue(false);
@@ -74,9 +74,9 @@ export function useRemoteControl({
   const disableSeekingRef = useRef(disableSeeking);
   disableSeekingRef.current = disableSeeking;
 
-  // Use ref for onSwipeUp callback
-  const onSwipeUpRef = useRef(onSwipeUp);
-  onSwipeUpRef.current = onSwipeUp;
+  // Use ref for onSwipeDown callback
+  const onSwipeDownRef = useRef(onSwipeDown);
+  onSwipeDownRef.current = onSwipeDown;
 
   // MPV uses ms
   const SCRUB_INTERVAL = CONTROLS_CONSTANTS.SCRUB_INTERVAL_MS;
@@ -130,6 +130,10 @@ export function useRemoteControl({
       }
       case "playPause":
       case "select": {
+        // Skip play/pause when modal is open (let native focus handle selection)
+        if (disableSeekingRef.current) {
+          break;
+        }
         if (isRemoteScrubbing.value && remoteScrubProgress.value != null) {
           progress.value = remoteScrubProgress.value;
 
@@ -148,17 +152,17 @@ export function useRemoteControl({
         break;
       }
       case "down":
-        // cancel scrubbing on down
+        // cancel scrubbing and trigger swipe down callback (for settings)
         isRemoteScrubbing.value = false;
         remoteScrubProgress.value = null;
         setShowRemoteBubble(false);
+        onSwipeDownRef.current?.();
         break;
       case "up":
-        // cancel scrubbing and trigger swipe up callback (for settings)
+        // cancel scrubbing on up
         isRemoteScrubbing.value = false;
         remoteScrubProgress.value = null;
         setShowRemoteBubble(false);
-        onSwipeUpRef.current?.();
         break;
       default:
         break;
