@@ -467,88 +467,6 @@ const TVOptionCard: React.FC<{
   );
 };
 
-// Glass-style back button for TV (Apple TV design)
-const TVBackButton: React.FC<{
-  onPress: () => void;
-}> = ({ onPress }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.08);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      style={{ alignSelf: "flex-start", marginBottom: 20 }}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          shadowColor: "#fff",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.5 : 0,
-          shadowRadius: focused ? 15 : 0,
-        }}
-      >
-        <BlurView
-          intensity={focused ? 100 : 60}
-          tint='dark'
-          style={{
-            borderRadius: 16,
-            overflow: "hidden",
-            borderWidth: 1,
-            borderColor: focused
-              ? "rgba(255, 255, 255, 0.4)"
-              : "rgba(255, 255, 255, 0.15)",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 12,
-              paddingHorizontal: 18,
-              backgroundColor: focused
-                ? "rgba(255, 255, 255, 0.2)"
-                : "rgba(255, 255, 255, 0.08)",
-            }}
-          >
-            <Ionicons
-              name='chevron-back'
-              size={22}
-              color={focused ? "#fff" : "rgba(255, 255, 255, 0.8)"}
-            />
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "500",
-                color: focused ? "#fff" : "rgba(255, 255, 255, 0.8)",
-                marginLeft: 6,
-              }}
-            >
-              Back
-            </Text>
-          </View>
-        </BlurView>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
 // Button to open option selector
 const TVOptionButton: React.FC<{
   label: string;
@@ -929,9 +847,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 marginRight: 50,
               }}
             >
-              {/* Glass back button */}
-              <TVBackButton onPress={() => router.back()} />
-
               {/* Poster */}
               <View
                 style={{
