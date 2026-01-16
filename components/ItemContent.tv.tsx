@@ -133,6 +133,7 @@ const _InfoRow: React.FC<{ label: string; value: string }> = ({
   </View>
 );
 
+// Export as both ItemContentTV (for direct requires) and ItemContent (for platform-resolved imports)
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const [api] = useAtom(apiAtom);
@@ -608,3 +609,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     );
   },
 );
+
+// Alias for platform-resolved imports (tvOS auto-resolves .tv.tsx files)
+export const ItemContent = ItemContentTV;

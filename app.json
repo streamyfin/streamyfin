@@ -36,10 +36,6 @@
       "icon": "./assets/images/icon-ios-liquid-glass.icon",
       "appleTeamId": "MWD5K362T8"
     },
-    "tvos": {
-      "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.fredrikburmester.streamyfin"
-    },
     "android": {
       "jsEngine": "hermes",
       "versionCode": 92,
@@ -59,7 +55,20 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
-      "@react-native-tvos/config-tv",
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "appleTVImages": {
+            "icon": "./assets/images/icon-tvos.png",
+            "iconSmall": "./assets/images/icon-tvos-small.png",
+            "iconSmall2x": "./assets/images/icon-tvos-small-2x.png",
+            "topShelf": "./assets/images/icon-tvos-topshelf.png",
+            "topShelf2x": "./assets/images/icon-tvos-topshelf-2x.png",
+            "topShelfWide": "./assets/images/icon-tvos-topshelf-wide.png",
+            "topShelfWide2x": "./assets/images/icon-tvos-topshelf-wide-2x.png"
+          }
+        }
+      ],
       "expo-router",
       "expo-font",
       "./plugins/withExcludeMedia3Dash.js",
@@ -125,6 +134,7 @@
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
+      ["./plugins/withTVOSAppIcon.js"],
       [
         "./plugins/withGitPod.js",
         {
