@@ -42,7 +42,9 @@
     "accounts_count": "{{count}} accounts",
     "select_account": "Select Account",
     "add_account": "Add Account",
-    "remove_account_description": "This will remove the saved credentials for {{username}}."
+    "remove_account_description": "This will remove the saved credentials for {{username}}.",
+    "remove_server": "Remove Server",
+    "remove_server_description": "This will remove {{server}} and all saved accounts from your list."
   },
   "save_account": {
     "title": "Save Account",
@@ -507,7 +509,8 @@
     "next": "Next",
     "back": "Back",
     "continue": "Continue",
-    "verifying": "Verifying..."
+    "verifying": "Verifying...",
+    "login": "Login"
   },
   "search": {
     "search": "Search...",
