@@ -31,6 +31,10 @@ interface UseRemoteControlProps {
   calculateTrickplayUrl: (progressInTicks: number) => void;
   handleSeekForward: (seconds: number) => void;
   handleSeekBackward: (seconds: number) => void;
+  /** When true, disables left/right seeking (e.g., when settings modal is open) */
+  disableSeeking?: boolean;
+  /** Callback when swipe up is detected - used to open settings */
+  onSwipeUp?: () => void;
 }
 
 /**
@@ -50,6 +54,8 @@ export function useRemoteControl({
   calculateTrickplayUrl,
   handleSeekForward,
   handleSeekBackward,
+  disableSeeking = false,
+  onSwipeUp,
 }: UseRemoteControlProps) {
   const remoteScrubProgress = useSharedValue<number | null>(null);
   const isRemoteScrubbing = useSharedValue(false);
@@ -63,6 +69,15 @@ export function useRemoteControl({
   const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  // Use ref to track disableSeeking so the callback always has current value
+  const disableSeekingRef = useRef(disableSeeking);
+  disableSeekingRef.current = disableSeeking;
+
+  // Use ref for onSwipeUp callback
+  const onSwipeUpRef = useRef(onSwipeUp);
+  onSwipeUpRef.current = onSwipeUp;
+
   // MPV uses ms
   const SCRUB_INTERVAL = CONTROLS_CONSTANTS.SCRUB_INTERVAL_MS;
 
@@ -82,15 +97,21 @@ export function useRemoteControl({
 
     switch (evt.eventType) {
       case "longLeft": {
+        if (disableSeekingRef.current) break;
         setLongPressScrubMode((prev) => (!prev ? "RW" : null));
         break;
       }
       case "longRight": {
+        if (disableSeekingRef.current) break;
         setLongPressScrubMode((prev) => (!prev ? "FF" : null));
         break;
       }
       case "left":
       case "right": {
+        // Skip seeking if disabled (e.g., when settings modal is open)
+        if (disableSeekingRef.current) {
+          break;
+        }
         isRemoteScrubbing.value = true;
         setShowRemoteBubble(true);
 
@@ -127,11 +148,17 @@ export function useRemoteControl({
         break;
       }
       case "down":
-      case "up":
-        // cancel scrubbing on other directions
+        // cancel scrubbing on down
         isRemoteScrubbing.value = false;
         remoteScrubProgress.value = null;
         setShowRemoteBubble(false);
+        break;
+      case "up":
+        // cancel scrubbing and trigger swipe up callback (for settings)
+        isRemoteScrubbing.value = false;
+        remoteScrubProgress.value = null;
+        setShowRemoteBubble(false);
+        onSwipeUpRef.current?.();
         break;
       default:
         break;

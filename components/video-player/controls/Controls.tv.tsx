@@ -3,8 +3,24 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { type FC, useCallback, useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Pressable,
+  Animated as RNAnimated,
+  Easing as RNEasing,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import Animated, {
   Easing,
@@ -39,10 +55,429 @@ interface Props {
   seek: (ticks: number) => void;
   play: () => void;
   pause: () => void;
+  audioIndex?: number;
+  subtitleIndex?: number;
+  onAudioIndexChange?: (index: number) => void;
+  onSubtitleIndexChange?: (index: number) => void;
 }
 
 const TV_SEEKBAR_HEIGHT = 16;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
+
+// Option item type for TV selector
+type TVOptionItem<T> = {
+  label: string;
+  value: T;
+  selected: boolean;
+};
+
+// TV Option Selector - Bottom sheet with horizontal scrolling
+const TVOptionSelector = <T,>({
+  visible,
+  title,
+  options,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  options: TVOptionItem<T>[];
+  onSelect: (value: T) => void;
+  onClose: () => void;
+}) => {
+  const initialSelectedIndex = useMemo(() => {
+    const idx = options.findIndex((o) => o.selected);
+    return idx >= 0 ? idx : 0;
+  }, [options]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={selectorStyles.overlay}>
+      <BlurView intensity={80} tint='dark' style={selectorStyles.blurContainer}>
+        <View style={selectorStyles.content}>
+          <Text style={selectorStyles.title}>{title}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={selectorStyles.scrollView}
+            contentContainerStyle={selectorStyles.scrollContent}
+          >
+            {options.map((option, index) => (
+              <TVOptionCard
+                key={index}
+                label={option.label}
+                selected={option.selected}
+                hasTVPreferredFocus={index === initialSelectedIndex}
+                onPress={() => {
+                  onSelect(option.value);
+                  onClose();
+                }}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      </BlurView>
+    </View>
+  );
+};
+
+// Option card for horizontal selector
+const TVOptionCard: FC<{
+  label: string;
+  selected: boolean;
+  hasTVPreferredFocus?: boolean;
+  onPress: () => void;
+}> = ({ label, selected, hasTVPreferredFocus, onPress }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <RNAnimated.View
+        style={[
+          selectorStyles.card,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused
+              ? "#fff"
+              : selected
+                ? "rgba(255,255,255,0.2)"
+                : "rgba(255,255,255,0.08)",
+          },
+        ]}
+      >
+        <Text
+          style={[
+            selectorStyles.cardText,
+            { color: focused ? "#000" : "#fff" },
+            (focused || selected) && { fontWeight: "600" },
+          ]}
+          numberOfLines={2}
+        >
+          {label}
+        </Text>
+        {selected && !focused && (
+          <View style={selectorStyles.checkmark}>
+            <Ionicons
+              name='checkmark'
+              size={16}
+              color='rgba(255,255,255,0.8)'
+            />
+          </View>
+        )}
+      </RNAnimated.View>
+    </Pressable>
+  );
+};
+
+// Settings panel with tabs for Audio and Subtitles
+const TVSettingsPanel: FC<{
+  visible: boolean;
+  audioOptions: TVOptionItem<number>[];
+  subtitleOptions: TVOptionItem<number>[];
+  onAudioSelect: (value: number) => void;
+  onSubtitleSelect: (value: number) => void;
+  onClose: () => void;
+  t: (key: string) => string;
+}> = ({
+  visible,
+  audioOptions,
+  subtitleOptions,
+  onAudioSelect,
+  onSubtitleSelect,
+  onClose,
+  t,
+}) => {
+  const [activeTab, setActiveTab] = useState<"audio" | "subtitle">("audio");
+
+  const currentOptions = activeTab === "audio" ? audioOptions : subtitleOptions;
+  const currentOnSelect =
+    activeTab === "audio" ? onAudioSelect : onSubtitleSelect;
+
+  const initialSelectedIndex = useMemo(() => {
+    const idx = currentOptions.findIndex((o) => o.selected);
+    return idx >= 0 ? idx : 0;
+  }, [currentOptions]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={selectorStyles.overlay}>
+      <BlurView intensity={80} tint='dark' style={selectorStyles.blurContainer}>
+        <View style={selectorStyles.content}>
+          {/* Tab buttons - no preferred focus, navigate here via up from options */}
+          <View style={selectorStyles.tabRow}>
+            {audioOptions.length > 0 && (
+              <TVSettingsTab
+                label={t("item_card.audio")}
+                active={activeTab === "audio"}
+                onPress={() => setActiveTab("audio")}
+              />
+            )}
+            {subtitleOptions.length > 0 && (
+              <TVSettingsTab
+                label={t("item_card.subtitles")}
+                active={activeTab === "subtitle"}
+                onPress={() => setActiveTab("subtitle")}
+              />
+            )}
+          </View>
+
+          {/* Options - first selected option gets preferred focus */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={selectorStyles.scrollView}
+            contentContainerStyle={selectorStyles.scrollContent}
+          >
+            {currentOptions.map((option, index) => (
+              <TVOptionCard
+                key={`${activeTab}-${index}`}
+                label={option.label}
+                selected={option.selected}
+                hasTVPreferredFocus={index === initialSelectedIndex}
+                onPress={() => {
+                  currentOnSelect(option.value);
+                  onClose();
+                }}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      </BlurView>
+    </View>
+  );
+};
+
+// Tab button for settings panel
+const TVSettingsTab: FC<{
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  hasTVPreferredFocus?: boolean;
+}> = ({ label, active, onPress, hasTVPreferredFocus }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 120,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <RNAnimated.View
+        style={[
+          selectorStyles.tabButton,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused
+              ? "#fff"
+              : active
+                ? "rgba(255,255,255,0.2)"
+                : "transparent",
+            borderBottomColor: active ? "#fff" : "transparent",
+          },
+        ]}
+      >
+        <Text
+          style={[
+            selectorStyles.tabText,
+            { color: focused ? "#000" : "#fff" },
+            (focused || active) && { fontWeight: "600" },
+          ]}
+        >
+          {label}
+        </Text>
+      </RNAnimated.View>
+    </Pressable>
+  );
+};
+
+// Button to open option selector (kept for potential future use)
+const _TVControlButton: FC<{
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  onFocusChange?: (focused: boolean) => void;
+}> = ({ icon, label, onPress, disabled, onFocusChange }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 120,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.08);
+        onFocusChange?.(true);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+        onFocusChange?.(false);
+      }}
+      disabled={disabled}
+      focusable={!disabled}
+    >
+      <RNAnimated.View
+        style={[
+          selectorStyles.controlButton,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused
+              ? "rgba(255,255,255,0.25)"
+              : "rgba(255,255,255,0.15)",
+            borderColor: focused ? "rgba(255,255,255,0.6)" : "transparent",
+          },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color='#fff'
+          style={{ marginRight: 6 }}
+        />
+        <Text
+          style={[
+            selectorStyles.controlButtonText,
+            { color: "#fff", fontWeight: focused ? "600" : "500" },
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </RNAnimated.View>
+    </Pressable>
+  );
+};
+
+const selectorStyles = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+    zIndex: 1000,
+  },
+  blurContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
+  content: {
+    paddingTop: 24,
+    paddingBottom: 50,
+    overflow: "visible",
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.6)",
+    marginBottom: 16,
+    paddingHorizontal: 48,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  scrollView: {
+    overflow: "visible",
+  },
+  scrollContent: {
+    paddingHorizontal: 48,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  card: {
+    width: 180,
+    height: 80,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 12,
+  },
+  cardText: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  checkmark: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+  },
+  controlButton: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 2,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  controlButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  tabRow: {
+    flexDirection: "row",
+    paddingHorizontal: 48,
+    marginBottom: 16,
+    gap: 24,
+  },
+  tabButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    fontSize: 18,
+  },
+});
 
 export const Controls: FC<Props> = ({
   item,
@@ -56,8 +491,92 @@ export const Controls: FC<Props> = ({
   cacheProgress,
   showControls,
   setShowControls,
+  mediaSource,
+  audioIndex,
+  subtitleIndex,
+  onAudioIndexChange,
+  onSubtitleIndexChange,
 }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+
+  // Modal state for option selectors
+  // "settings" shows the settings panel, "audio"/"subtitle" for direct selection
+  type ModalType = "settings" | "audio" | "subtitle" | null;
+  const [openModal, setOpenModal] = useState<ModalType>(null);
+  const isModalOpen = openModal !== null;
+
+  // Handle swipe up to open settings panel
+  const handleSwipeUp = useCallback(() => {
+    if (!isModalOpen) {
+      setOpenModal("settings");
+    }
+  }, [isModalOpen]);
+
+  // Get available audio tracks
+  const audioTracks = useMemo(() => {
+    return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
+  }, [mediaSource]);
+
+  // Get available subtitle tracks
+  const subtitleTracks = useMemo(() => {
+    return (
+      mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ?? []
+    );
+  }, [mediaSource]);
+
+  // Audio options for selector
+  const audioOptions = useMemo(() => {
+    return audioTracks.map((track) => ({
+      label:
+        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
+      value: track.Index!,
+      selected: track.Index === audioIndex,
+    }));
+  }, [audioTracks, audioIndex]);
+
+  // Subtitle options for selector (with "None" option)
+  const subtitleOptions = useMemo(() => {
+    const noneOption = {
+      label: t("item_card.subtitles.none"),
+      value: -1,
+      selected: subtitleIndex === -1,
+    };
+    const trackOptions = subtitleTracks.map((track) => ({
+      label:
+        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
+      value: track.Index!,
+      selected: track.Index === subtitleIndex,
+    }));
+    return [noneOption, ...trackOptions];
+  }, [subtitleTracks, subtitleIndex, t]);
+
+  // Get display labels for buttons
+  const _selectedAudioLabel = useMemo(() => {
+    const track = audioTracks.find((t) => t.Index === audioIndex);
+    return track?.DisplayTitle || track?.Language || t("item_card.audio");
+  }, [audioTracks, audioIndex, t]);
+
+  const _selectedSubtitleLabel = useMemo(() => {
+    if (subtitleIndex === -1) return t("item_card.subtitles.none");
+    const track = subtitleTracks.find((t) => t.Index === subtitleIndex);
+    return track?.DisplayTitle || track?.Language || t("item_card.subtitles");
+  }, [subtitleTracks, subtitleIndex, t]);
+
+  // Handlers for option changes
+  const handleAudioChange = useCallback(
+    (index: number) => {
+      onAudioIndexChange?.(index);
+    },
+    [onAudioIndexChange],
+  );
+
+  const handleSubtitleChange = useCallback(
+    (index: number) => {
+      onSubtitleIndexChange?.(index);
+    },
+    [onSubtitleIndexChange],
+  );
 
   const {
     trickPlayUrl,
@@ -139,7 +658,6 @@ export const Controls: FC<Props> = ({
     isRemoteScrubbing,
     showRemoteBubble,
     isSliding: isRemoteSliding,
-    time: remoteTime,
   } = useRemoteControl({
     progress,
     min,
@@ -153,6 +671,8 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     handleSeekForward,
     handleSeekBackward,
+    disableSeeking: isModalOpen,
+    onSwipeUp: handleSwipeUp,
   });
 
   // Slider hook
@@ -217,6 +737,12 @@ export const Controls: FC<Props> = ({
     disabled: false,
   });
 
+  // Check if we have any settings to show
+  const hasSettings =
+    audioTracks.length > 0 ||
+    subtitleTracks.length > 0 ||
+    subtitleIndex !== undefined;
+
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
       {/* Center Play Button - shown when paused */}
@@ -228,9 +754,39 @@ export const Controls: FC<Props> = ({
         </View>
       )}
 
+      {/* Top hint - swipe up for settings */}
+      {showControls && hasSettings && !isModalOpen && (
+        <Animated.View
+          style={[styles.topContainer, bottomAnimatedStyle]}
+          pointerEvents='none'
+        >
+          <View
+            style={[
+              styles.topInner,
+              {
+                paddingRight: Math.max(insets.right, 48),
+                paddingLeft: Math.max(insets.left, 48),
+                paddingTop: Math.max(insets.top, 48),
+              },
+            ]}
+          >
+            <View style={styles.settingsHint}>
+              <Ionicons
+                name='chevron-up'
+                size={16}
+                color='rgba(255,255,255,0.5)'
+              />
+              <Text style={styles.settingsHintText}>
+                {t("player.swipe_up_settings")}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
+
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
-        pointerEvents={showControls ? "auto" : "none"}
+        pointerEvents={showControls && !isModalOpen ? "auto" : "none"}
       >
         <View
           style={[
@@ -294,7 +850,7 @@ export const Controls: FC<Props> = ({
             />
           </View>
 
-          {/* Time Display - TV sized */}
+          {/* Time Display */}
           <View style={styles.timeContainer}>
             <Text style={styles.timeText}>
               {formatTimeString(currentTime, "ms")}
@@ -305,6 +861,34 @@ export const Controls: FC<Props> = ({
           </View>
         </View>
       </Animated.View>
+
+      {/* Settings panel - shows audio and subtitle options */}
+      <TVSettingsPanel
+        visible={openModal === "settings"}
+        audioOptions={audioOptions}
+        subtitleOptions={subtitleOptions}
+        onAudioSelect={handleAudioChange}
+        onSubtitleSelect={handleSubtitleChange}
+        onClose={() => setOpenModal(null)}
+        t={t}
+      />
+
+      {/* Direct option selector modals (for future use) */}
+      <TVOptionSelector
+        visible={openModal === "audio"}
+        title={t("item_card.audio")}
+        options={audioOptions}
+        onSelect={handleAudioChange}
+        onClose={() => setOpenModal(null)}
+      />
+
+      <TVOptionSelector
+        visible={openModal === "subtitle"}
+        title={t("item_card.subtitles")}
+        options={subtitleOptions}
+        onSelect={handleSubtitleChange}
+        onClose={() => setOpenModal(null)}
+      />
     </View>
   );
 };
@@ -334,6 +918,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingLeft: 8,
+  },
+  topContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  topInner: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   bottomContainer: {
     position: "absolute",
@@ -368,10 +963,28 @@ const styles = StyleSheet.create({
   timeContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 12,
   },
   timeText: {
     color: "rgba(255,255,255,0.7)",
     fontSize: 22,
+  },
+  settingsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  settingsHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  settingsHintText: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 14,
   },
 });

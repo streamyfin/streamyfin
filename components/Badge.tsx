@@ -38,21 +38,37 @@ export const Badge: React.FC<Props> = ({
     );
   }
 
+  // On TV, use transparent backgrounds for a cleaner look
+  const isTV = Platform.isTV;
+
   return (
     <View
       {...props}
-      className={`
-      rounded p-1 shrink grow-0 self-start flex flex-row items-center px-1.5
-      ${variant === "purple" && "bg-purple-600"}
-      ${variant === "gray" && "bg-neutral-800"}
-      `}
+      style={[
+        {
+          borderRadius: 4,
+          padding: 4,
+          paddingHorizontal: 6,
+          flexShrink: 1,
+          flexGrow: 0,
+          alignSelf: "flex-start",
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: isTV
+            ? "rgba(255,255,255,0.1)"
+            : variant === "purple"
+              ? "#9333ea"
+              : "#262626",
+        },
+        props.style,
+      ]}
     >
-      {iconLeft && <View className='mr-1'>{iconLeft}</View>}
+      {iconLeft && <View style={{ marginRight: 4 }}>{iconLeft}</View>}
       <Text
-        className={`
-          text-xs
-          ${variant === "purple" && "text-white"}
-      `}
+        style={{
+          fontSize: 12,
+          color: "#fff",
+        }}
       >
         {text}
       </Text>

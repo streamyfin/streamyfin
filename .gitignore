@@ -50,8 +50,6 @@ npm-debug.*
 .idea/
 .ruby-lsp
 .cursor/
-.claude/
-CLAUDE.md
 
 # Environment and Configuration
 expo-env.d.ts
@@ -73,3 +71,4 @@ modules/background-downloader/android/build/*
 
 # ios:unsigned-build Artifacts
 build/
+.claude/settings.local.json

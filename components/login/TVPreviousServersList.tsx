@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -18,7 +18,6 @@ import { Text } from "@/components/common/Text";
 import {
   deleteAccountCredential,
   getPreviousServers,
-  removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
@@ -123,79 +122,86 @@ const TVServerActionSheet: React.FC<{
 }> = ({ visible, server, onLogin, onDelete, onClose }) => {
   const { t } = useTranslation();
 
-  if (!visible || !server) return null;
+  if (!server) return null;
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        justifyContent: "flex-end",
-        zIndex: 1000,
-      }}
+    <Modal
+      visible={visible}
+      transparent
+      animationType='fade'
+      onRequestClose={onClose}
     >
-      <BlurView
-        intensity={80}
-        tint='dark'
+      <View
         style={{
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          overflow: "hidden",
+          flex: 1,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          justifyContent: "flex-end",
         }}
       >
-        <View
+        <BlurView
+          intensity={80}
+          tint='dark'
           style={{
-            paddingTop: 24,
-            paddingBottom: 50,
-            overflow: "visible",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            overflow: "hidden",
           }}
         >
-          {/* Title */}
-          <Text
+          <View
             style={{
-              fontSize: 18,
-              fontWeight: "500",
-              color: "rgba(255,255,255,0.6)",
-              marginBottom: 8,
-              paddingHorizontal: 48,
-              textTransform: "uppercase",
-              letterSpacing: 1,
+              paddingTop: 24,
+              paddingBottom: 50,
+              overflow: "visible",
             }}
           >
-            {server.name || server.address}
-          </Text>
+            {/* Title */}
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "500",
+                color: "rgba(255,255,255,0.6)",
+                marginBottom: 8,
+                paddingHorizontal: 48,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              {server.name || server.address}
+            </Text>
 
-          {/* Horizontal options */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ overflow: "visible" }}
-            contentContainerStyle={{
-              paddingHorizontal: 48,
-              paddingVertical: 10,
-              gap: 12,
-            }}
-          >
-            <TVServerActionCard
-              label={t("common.login")}
-              icon='log-in-outline'
-              hasTVPreferredFocus
-              onPress={onLogin}
-            />
-            <TVServerActionCard
-              label={t("common.delete")}
-              icon='trash-outline'
-              variant='destructive'
-              onPress={onDelete}
-            />
-          </ScrollView>
-        </View>
-      </BlurView>
-    </View>
+            {/* Horizontal options */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ overflow: "visible" }}
+              contentContainerStyle={{
+                paddingHorizontal: 48,
+                paddingVertical: 10,
+                gap: 12,
+              }}
+            >
+              <TVServerActionCard
+                label={t("common.login")}
+                icon='log-in-outline'
+                hasTVPreferredFocus
+                onPress={onLogin}
+              />
+              <TVServerActionCard
+                label={t("common.delete")}
+                icon='trash-outline'
+                variant='destructive'
+                onPress={onDelete}
+              />
+              <TVServerActionCard
+                label={t("common.cancel")}
+                icon='close-outline'
+                onPress={onClose}
+              />
+            </ScrollView>
+          </View>
+        </BlurView>
+      </View>
+    </Modal>
   );
 };
 
@@ -213,7 +219,14 @@ interface TVPreviousServersListProps {
     server: SavedServer,
     account: SavedServerAccount,
   ) => void;
+  // Called when server is pressed to show action sheet (handled by parent)
+  onServerAction?: (server: SavedServer) => void;
+  // Called by parent when "Login" is selected from action sheet
+  loginServerOverride?: SavedServer | null;
 }
+
+// Export the action sheet for use in parent components
+export { TVServerActionSheet };
 
 export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
   onServerSelect,
@@ -221,6 +234,8 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
   onAddAccount,
   onPinRequired,
   onPasswordRequired,
+  onServerAction,
+  loginServerOverride,
 }) => {
   const { t } = useTranslation();
   const [_previousServers, setPreviousServers] =
@@ -230,11 +245,29 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
     null,
   );
   const [showAccountsModal, setShowAccountsModal] = useState(false);
-  const [showActionSheet, setShowActionSheet] = useState(false);
 
   const previousServers = useMemo(() => {
     return JSON.parse(_previousServers || "[]") as SavedServer[];
   }, [_previousServers]);
+
+  // When parent triggers login via loginServerOverride, execute the login flow
+  useEffect(() => {
+    if (loginServerOverride) {
+      const accountCount = loginServerOverride.accounts?.length || 0;
+
+      if (accountCount === 0) {
+        onServerSelect(loginServerOverride);
+      } else if (accountCount === 1) {
+        handleAccountLogin(
+          loginServerOverride,
+          loginServerOverride.accounts[0],
+        );
+      } else {
+        setSelectedServer(loginServerOverride);
+        setShowAccountsModal(true);
+      }
+    }
+  }, [loginServerOverride]);
 
   const refreshServers = () => {
     const servers = getPreviousServers();
@@ -281,51 +314,23 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
 
   const handleServerPress = (server: SavedServer) => {
     if (loadingServer) return;
-    setSelectedServer(server);
-    setShowActionSheet(true);
-  };
 
-  const handleServerLoginAction = () => {
-    if (!selectedServer) return;
-    setShowActionSheet(false);
+    // If onServerAction is provided, delegate to parent for action sheet handling
+    if (onServerAction) {
+      onServerAction(server);
+      return;
+    }
 
-    const accountCount = selectedServer.accounts?.length || 0;
-
+    // Fallback: direct login flow (for backwards compatibility)
+    const accountCount = server.accounts?.length || 0;
     if (accountCount === 0) {
-      onServerSelect(selectedServer);
+      onServerSelect(server);
     } else if (accountCount === 1) {
-      handleAccountLogin(selectedServer, selectedServer.accounts[0]);
+      handleAccountLogin(server, server.accounts[0]);
     } else {
+      setSelectedServer(server);
       setShowAccountsModal(true);
     }
-  };
-
-  const handleServerDeleteAction = () => {
-    if (!selectedServer) return;
-
-    Alert.alert(
-      t("server.remove_server"),
-      t("server.remove_server_description", {
-        server: selectedServer.name || selectedServer.address,
-      }),
-      [
-        {
-          text: t("common.cancel"),
-          style: "cancel",
-          onPress: () => setShowActionSheet(false),
-        },
-        {
-          text: t("common.delete"),
-          style: "destructive",
-          onPress: async () => {
-            await removeServerFromList(selectedServer.address);
-            refreshServers();
-            setShowActionSheet(false);
-            setSelectedServer(null);
-          },
-        },
-      ],
-    );
   };
 
   const getServerSubtitle = (server: SavedServer): string | undefined => {
@@ -498,15 +503,6 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
           </View>
         </View>
       </Modal>
-
-      {/* TV Server Action Sheet */}
-      <TVServerActionSheet
-        visible={showActionSheet}
-        server={selectedServer}
-        onLogin={handleServerLoginAction}
-        onDelete={handleServerDeleteAction}
-        onClose={() => setShowActionSheet(false)}
-      />
     </View>
   );
 };

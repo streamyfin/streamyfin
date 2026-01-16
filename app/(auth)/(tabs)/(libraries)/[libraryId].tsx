@@ -15,7 +15,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, useWindowDimensions, View } from "react-native";
+import { FlatList, Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -24,6 +24,7 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
+import { TV_POSTER_WIDTH } from "@/components/posters/MoviePoster.tv";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -48,6 +49,20 @@ import {
   yearFilterAtom,
 } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
+
+const TV_ITEM_GAP = 16;
+const TV_SCALE_PADDING = 20;
+
+const _TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => (
+  <View style={{ marginTop: 12 }}>
+    <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+      {item.Name}
+    </Text>
+    <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+      {item.ProductionYear}
+    </Text>
+  </View>
+);
 
 const Page = () => {
   const searchParams = useLocalSearchParams() as {
@@ -162,6 +177,14 @@ const Page = () => {
   );
 
   const nrOfCols = useMemo(() => {
+    if (Platform.isTV) {
+      // Calculate columns based on TV poster width + gap
+      const itemWidth = TV_POSTER_WIDTH + TV_ITEM_GAP;
+      return Math.max(
+        1,
+        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
+      );
+    }
     if (screenWidth < 300) return 2;
     if (screenWidth < 500) return 3;
     if (screenWidth < 800) return 5;

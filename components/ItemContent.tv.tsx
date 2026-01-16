@@ -505,12 +505,10 @@ const TVOptionButton: React.FC<{
       >
         <View
           style={{
-            backgroundColor: focused ? "#2a2a2a" : "rgba(255,255,255,0.1)",
+            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.1)",
             borderRadius: 10,
             paddingVertical: 10,
             paddingHorizontal: 16,
-            borderWidth: 2,
-            borderColor: focused ? "#fff" : "transparent",
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
@@ -519,7 +517,7 @@ const TVOptionButton: React.FC<{
           <Text
             style={{
               fontSize: 14,
-              color: "#888",
+              color: focused ? "#444" : "#bbb",
             }}
           >
             {label}
@@ -527,7 +525,7 @@ const TVOptionButton: React.FC<{
           <Text
             style={{
               fontSize: 14,
-              color: "#FFFFFF",
+              color: focused ? "#000" : "#FFFFFF",
               fontWeight: "500",
             }}
             numberOfLines={1}
@@ -640,7 +638,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Subtitle options for selector (with "None" option)
     const subtitleOptions = useMemo(() => {
       const noneOption = {
-        label: t("subtitles.none") || "None",
+        label: t("item_card.subtitles.none"),
         value: -1,
         selected: selectedOptions?.subtitleIndex === -1,
       };
@@ -729,7 +727,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     const selectedSubtitleLabel = useMemo(() => {
       if (selectedOptions?.subtitleIndex === -1)
-        return t("subtitles.none") || "None";
+        return t("item_card.subtitles.none");
       const track = subtitleTracks.find(
         (t) => t.Index === selectedOptions?.subtitleIndex,
       );
