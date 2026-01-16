@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Platform } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
-import { CONTROLS_CONSTANTS } from "../constants";
 
 // TV event handler with fallback for non-TV platforms
 let useTVEventHandler: (callback: (evt: any) => void) => void;
@@ -19,197 +17,66 @@ if (Platform.isTV) {
 }
 
 interface UseRemoteControlProps {
-  progress: SharedValue<number>;
-  min: SharedValue<number>;
-  max: SharedValue<number>;
   showControls: boolean;
-  isPlaying: boolean;
-  seek: (value: number) => void;
-  play: () => void;
-  togglePlay: () => void;
   toggleControls: () => void;
-  calculateTrickplayUrl: (progressInTicks: number) => void;
-  handleSeekForward: (seconds: number) => void;
-  handleSeekBackward: (seconds: number) => void;
-  /** When true, disables left/right seeking (e.g., when settings modal is open) */
+  /** When true, disables handling D-pad events (e.g., when settings modal is open) */
   disableSeeking?: boolean;
-  /** Callback when swipe down is detected - used to open settings */
-  onSwipeDown?: () => void;
+  /** Callback for back/menu button press (tvOS: menu, Android TV: back) */
+  onBack?: () => void;
+  // Legacy props - kept for backwards compatibility with mobile Controls.tsx
+  // These are ignored in the simplified implementation
+  progress?: SharedValue<number>;
+  min?: SharedValue<number>;
+  max?: SharedValue<number>;
+  isPlaying?: boolean;
+  seek?: (value: number) => void;
+  play?: () => void;
+  togglePlay?: () => void;
+  calculateTrickplayUrl?: (progressInTicks: number) => void;
+  handleSeekForward?: (seconds: number) => void;
+  handleSeekBackward?: (seconds: number) => void;
 }
 
 /**
  * Hook to manage TV remote control interactions.
- * MPV player uses milliseconds for time values.
+ * Simplified version - D-pad navigation is handled by native focus system.
+ * This hook handles:
+ * - Showing controls on any button press
  */
 export function useRemoteControl({
-  progress,
-  min,
-  max,
   showControls,
-  isPlaying,
-  seek,
-  play,
-  togglePlay,
   toggleControls,
-  calculateTrickplayUrl,
-  handleSeekForward,
-  handleSeekBackward,
-  disableSeeking = false,
-  onSwipeDown,
+  onBack,
 }: UseRemoteControlProps) {
+  // Keep these for backward compatibility with the component
   const remoteScrubProgress = useSharedValue<number | null>(null);
   const isRemoteScrubbing = useSharedValue(false);
-  const [showRemoteBubble, setShowRemoteBubble] = useState(false);
-  const [longPressScrubMode, setLongPressScrubMode] = useState<
-    "FF" | "RW" | null
-  >(null);
-  const [isSliding, setIsSliding] = useState(false);
-  const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
-
-  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-
-  // Use ref to track disableSeeking so the callback always has current value
-  const disableSeekingRef = useRef(disableSeeking);
-  disableSeekingRef.current = disableSeeking;
-
-  // Use ref for onSwipeDown callback
-  const onSwipeDownRef = useRef(onSwipeDown);
-  onSwipeDownRef.current = onSwipeDown;
-
-  // MPV uses ms
-  const SCRUB_INTERVAL = CONTROLS_CONSTANTS.SCRUB_INTERVAL_MS;
-
-  const updateTime = useCallback((progressValue: number) => {
-    // Convert ms to ticks for calculation
-    const progressInTicks = msToTicks(progressValue);
-    const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
-    const hours = Math.floor(progressInSeconds / 3600);
-    const minutes = Math.floor((progressInSeconds % 3600) / 60);
-    const seconds = progressInSeconds % 60;
-    setTime({ hours, minutes, seconds });
-  }, []);
+  const [showRemoteBubble] = useState(false);
+  const [isSliding] = useState(false);
+  const [time] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
     if (!evt) return;
 
-    switch (evt.eventType) {
-      case "longLeft": {
-        if (disableSeekingRef.current) break;
-        setLongPressScrubMode((prev) => (!prev ? "RW" : null));
-        break;
+    // Handle back/menu button press (tvOS: menu, Android TV: back)
+    if (evt.eventType === "menu" || evt.eventType === "back") {
+      if (onBack) {
+        onBack();
       }
-      case "longRight": {
-        if (disableSeekingRef.current) break;
-        setLongPressScrubMode((prev) => (!prev ? "FF" : null));
-        break;
-      }
-      case "left":
-      case "right": {
-        // Skip seeking if disabled (e.g., when settings modal is open)
-        if (disableSeekingRef.current) {
-          break;
-        }
-        isRemoteScrubbing.value = true;
-        setShowRemoteBubble(true);
-
-        const direction = evt.eventType === "left" ? -1 : 1;
-        const base = remoteScrubProgress.value ?? progress.value;
-        const updated = Math.max(
-          min.value,
-          Math.min(max.value, base + direction * SCRUB_INTERVAL),
-        );
-        remoteScrubProgress.value = updated;
-        // Convert ms to ticks for trickplay
-        const progressInTicks = msToTicks(updated);
-        calculateTrickplayUrl(progressInTicks);
-        updateTime(updated);
-        break;
-      }
-      case "playPause":
-      case "select": {
-        // Skip play/pause when modal is open (let native focus handle selection)
-        if (disableSeekingRef.current) {
-          break;
-        }
-        if (isRemoteScrubbing.value && remoteScrubProgress.value != null) {
-          progress.value = remoteScrubProgress.value;
-
-          // MPV uses ms, seek expects ms
-          const seekTarget = Math.max(0, remoteScrubProgress.value);
-
-          seek(seekTarget);
-          if (isPlaying) play();
-
-          isRemoteScrubbing.value = false;
-          remoteScrubProgress.value = null;
-          setShowRemoteBubble(false);
-        } else {
-          togglePlay();
-        }
-        break;
-      }
-      case "down":
-        // cancel scrubbing and trigger swipe down callback (for settings)
-        isRemoteScrubbing.value = false;
-        remoteScrubProgress.value = null;
-        setShowRemoteBubble(false);
-        onSwipeDownRef.current?.();
-        break;
-      case "up":
-        // cancel scrubbing on up
-        isRemoteScrubbing.value = false;
-        remoteScrubProgress.value = null;
-        setShowRemoteBubble(false);
-        break;
-      default:
-        break;
+      return;
     }
 
-    if (!showControls) toggleControls();
+    // Show controls on any D-pad press
+    if (!showControls) {
+      toggleControls();
+    }
   });
-
-  useEffect(() => {
-    let isActive = true;
-    let seekTime = CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK;
-
-    const scrubWithLongPress = () => {
-      if (!isActive || !longPressScrubMode) return;
-
-      setIsSliding(true);
-      const scrubFn =
-        longPressScrubMode === "FF" ? handleSeekForward : handleSeekBackward;
-      scrubFn(seekTime);
-      seekTime *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
-
-      longPressTimeoutRef.current = setTimeout(
-        scrubWithLongPress,
-        CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL,
-      );
-    };
-
-    if (longPressScrubMode) {
-      isActive = true;
-      scrubWithLongPress();
-    }
-
-    return () => {
-      isActive = false;
-      setIsSliding(false);
-      if (longPressTimeoutRef.current) {
-        clearTimeout(longPressTimeoutRef.current);
-        longPressTimeoutRef.current = null;
-      }
-    };
-  }, [longPressScrubMode, handleSeekForward, handleSeekBackward]);
 
   return {
     remoteScrubProgress,
     isRemoteScrubbing,
     showRemoteBubble,
-    longPressScrubMode,
     isSliding,
     time,
   };
