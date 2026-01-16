@@ -220,3 +220,35 @@ For dropdown/select components on TV, use a **bottom sheet with horizontal scrol
 4. **Add padding for scale animations** - When items scale on focus, add enough padding (`overflow: "visible"` + `paddingVertical`) so scaled items don't clip.
 
 **Reference implementation**: See `TVOptionSelector` and `TVOptionCard` in `components/ItemContent.tv.tsx`
+
+### TV Focus Management for Overlays/Modals
+
+**CRITICAL**: When displaying overlays (bottom sheets, modals, dialogs) on TV, you must explicitly disable focus on all background elements. Without this, the TV focus engine will rapidly switch between overlay and background elements, causing a focus loop that freezes navigation.
+
+**Solution**: Add a `disabled` prop to every focusable component and pass `disabled={isModalOpen}` when an overlay is visible:
+
+```typescript
+// 1. Track modal state
+const [openModal, setOpenModal] = useState<ModalType | null>(null);
+const isModalOpen = openModal !== null;
+
+// 2. Each focusable component accepts disabled prop
+const TVFocusableButton: React.FC<{
+  onPress: () => void;
+  disabled?: boolean;
+}> = ({ onPress, disabled }) => (
+  <Pressable
+    onPress={onPress}
+    disabled={disabled}
+    focusable={!disabled}
+    hasTVPreferredFocus={isFirst && !disabled}
+  >
+    {/* content */}
+  </Pressable>
+);
+
+// 3. Pass disabled to all background components when modal is open
+<TVFocusableButton onPress={handlePress} disabled={isModalOpen} />
+```
+
+**Reference implementation**: See `settings.tv.tsx` for complete example with `TVSettingsOptionButton`, `TVSettingsToggle`, `TVSettingsStepper`, etc.
