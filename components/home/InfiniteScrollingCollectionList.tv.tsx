@@ -5,7 +5,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -94,6 +94,27 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const router = useRouter();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
+
+  // Track focus within section and scroll back to start when leaving
+  const flatListRef = useRef<FlatList<BaseItemDto>>(null);
+  const [focusedCount, setFocusedCount] = useState(0);
+  const prevFocusedCount = useRef(0);
+
+  // When section loses all focus, scroll back to start
+  useEffect(() => {
+    if (prevFocusedCount.current > 0 && focusedCount === 0) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+    prevFocusedCount.current = focusedCount;
+  }, [focusedCount]);
+
+  const handleItemFocus = useCallback(() => {
+    setFocusedCount((c) => c + 1);
+  }, []);
+
+  const handleItemBlur = useCallback(() => {
+    setFocusedCount((c) => Math.max(0, c - 1));
+  }, []);
 
   const {
     data,
@@ -229,6 +250,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
             hasTVPreferredFocus={isFirstItem}
+            onFocus={handleItemFocus}
+            onBlur={handleItemBlur}
           >
             {renderPoster()}
           </TVFocusablePoster>
@@ -236,7 +259,14 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         </View>
       );
     },
-    [orientation, isFirstSection, itemWidth, handleItemPress],
+    [
+      orientation,
+      isFirstSection,
+      itemWidth,
+      handleItemPress,
+      handleItemFocus,
+      handleItemBlur,
+    ],
   );
 
   if (hideIfEmpty === true && allItems.length === 0 && !isLoading) return null;
@@ -310,6 +340,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           horizontal
           data={allItems}
           keyExtractor={(item) => item.Id!}
