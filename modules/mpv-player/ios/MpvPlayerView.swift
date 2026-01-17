@@ -298,7 +298,7 @@ class MpvPlayerView: ExpoView {
 // MARK: - MPVLayerRendererDelegate
 
 extension MpvPlayerView: MPVLayerRendererDelegate {
-	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double) {
+	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double) {
 		cachedPosition = position
 		cachedDuration = duration
 		
@@ -313,6 +313,7 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 				"position": position,
 				"duration": duration,
 				"progress": duration > 0 ? position / duration : 0,
+				"cacheSeconds": cacheSeconds,
 			])
 		}
 	}
