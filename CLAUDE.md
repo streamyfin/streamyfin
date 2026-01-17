@@ -303,3 +303,39 @@ When you have a page with multiple focusable zones (e.g., a filter bar above a g
 5. **Avoid multiple scrollable containers** - Don't use ScrollView for the filter bar if you have a FlatList below. Use a simple View instead to prevent focus conflicts between scrollable containers.
 
 **Reference implementation**: See `app/(auth)/(tabs)/(libraries)/[libraryId].tsx` for the TV filter bar + grid pattern.
+
+### TV Focus Guide Navigation (Non-Adjacent Sections)
+
+When you need focus to navigate between sections that aren't geometrically aligned (e.g., left-aligned buttons to a horizontal ScrollView), use `TVFocusGuideView` with the `destinations` prop:
+
+```typescript
+// 1. Track destination with useState (NOT useRef - won't trigger re-renders)
+const [firstCardRef, setFirstCardRef] = useState<View | null>(null);
+
+// 2. Place invisible focus guide between sections
+{firstCardRef && (
+  <TVFocusGuideView
+    destinations={[firstCardRef]}
+    style={{ height: 1, width: "100%" }}
+  />
+)}
+
+// 3. Target component must use forwardRef
+const MyCard = React.forwardRef<View, Props>(({ ... }, ref) => (
+  <Pressable ref={ref} ...>
+    ...
+  </Pressable>
+));
+
+// 4. Pass state setter as callback ref to first item
+{items.map((item, index) => (
+  <MyCard
+    ref={index === 0 ? setFirstCardRef : undefined}
+    ...
+  />
+))}
+```
+
+**For detailed documentation and bidirectional navigation patterns, see [docs/tv-focus-guide.md](docs/tv-focus-guide.md)**
+
+**Reference implementation**: See `components/ItemContent.tv.tsx` for bidirectional focus navigation between playback options and cast list.

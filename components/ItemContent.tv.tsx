@@ -540,16 +540,19 @@ const TVOptionCard = React.forwardRef<
 });
 
 // Circular actor card with Apple TV style focus animations
-const TVActorCard: React.FC<{
-  person: {
-    Id?: string | null;
-    Name?: string | null;
-    Role?: string | null;
-  };
-  apiBasePath?: string;
-  onPress: () => void;
-  hasTVPreferredFocus?: boolean;
-}> = ({ person, apiBasePath, onPress, hasTVPreferredFocus }) => {
+const TVActorCard = React.forwardRef<
+  View,
+  {
+    person: {
+      Id?: string | null;
+      Name?: string | null;
+      Role?: string | null;
+    };
+    apiBasePath?: string;
+    onPress: () => void;
+    hasTVPreferredFocus?: boolean;
+  }
+>(({ person, apiBasePath, onPress, hasTVPreferredFocus }, ref) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -567,6 +570,7 @@ const TVActorCard: React.FC<{
 
   return (
     <Pressable
+      ref={ref}
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
@@ -653,7 +657,7 @@ const TVActorCard: React.FC<{
       </Animated.View>
     </Pressable>
   );
-};
+});
 
 // Series/Season poster card with Apple TV style focus animations
 const TVSeriesSeasonCard: React.FC<{
@@ -764,12 +768,15 @@ const TVSeriesSeasonCard: React.FC<{
 };
 
 // Button to open option selector
-const TVOptionButton: React.FC<{
-  label: string;
-  value: string;
-  onPress: () => void;
-  hasTVPreferredFocus?: boolean;
-}> = ({ label, value, onPress, hasTVPreferredFocus }) => {
+const TVOptionButton = React.forwardRef<
+  View,
+  {
+    label: string;
+    value: string;
+    onPress: () => void;
+    hasTVPreferredFocus?: boolean;
+  }
+>(({ label, value, onPress, hasTVPreferredFocus }, ref) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -783,6 +790,7 @@ const TVOptionButton: React.FC<{
 
   return (
     <Pressable
+      ref={ref}
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
@@ -836,7 +844,7 @@ const TVOptionButton: React.FC<{
       </Animated.View>
     </Pressable>
   );
-};
+});
 
 // Export as both ItemContentTV (for direct requires) and ItemContent (for platform-resolved imports)
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
@@ -903,6 +911,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     type ModalType = "audio" | "subtitle" | "mediaSource" | "quality" | null;
     const [openModal, setOpenModal] = useState<ModalType>(null);
     const isModalOpen = openModal !== null;
+
+    // State for first actor card ref (used for focus guide)
+    // Using state instead of useRef to trigger re-renders when ref is set
+    const [firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
+      null,
+    );
+
+    // State for last option button ref (used for upward focus guide from cast)
+    const [lastOptionButtonRef, setLastOptionButtonRef] = useState<View | null>(
+      null,
+    );
 
     // Android TV BackHandler for closing modals
     useEffect(() => {
@@ -1100,6 +1119,25 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       if (!seasonId) return null;
       return getPrimaryImageUrlById({ api, id: seasonId, width: 300 });
     }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
+
+    // Determine which option button is the last one (for focus guide targeting)
+    const lastOptionButton = useMemo(() => {
+      const hasSubtitleOption =
+        subtitleTracks.length > 0 ||
+        selectedOptions?.subtitleIndex !== undefined;
+      const hasAudioOption = audioTracks.length > 0;
+      const hasMediaSourceOption = mediaSources.length > 1;
+
+      if (hasSubtitleOption) return "subtitle";
+      if (hasAudioOption) return "audio";
+      if (hasMediaSourceOption) return "mediaSource";
+      return "quality";
+    }, [
+      subtitleTracks.length,
+      selectedOptions?.subtitleIndex,
+      audioTracks.length,
+      mediaSources.length,
+    ]);
 
     if (!item || !selectedOptions) return null;
 
@@ -1350,6 +1388,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               >
                 {/* Quality selector */}
                 <TVOptionButton
+                  ref={
+                    lastOptionButton === "quality"
+                      ? setLastOptionButtonRef
+                      : undefined
+                  }
                   label={t("item_card.quality")}
                   value={selectedQualityLabel}
                   onPress={() => setOpenModal("quality")}
@@ -1358,6 +1401,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Media source selector (only if multiple sources) */}
                 {mediaSources.length > 1 && (
                   <TVOptionButton
+                    ref={
+                      lastOptionButton === "mediaSource"
+                        ? setLastOptionButtonRef
+                        : undefined
+                    }
                     label={t("item_card.video")}
                     value={selectedMediaSourceLabel}
                     onPress={() => setOpenModal("mediaSource")}
@@ -1367,6 +1415,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Audio selector */}
                 {audioTracks.length > 0 && (
                   <TVOptionButton
+                    ref={
+                      lastOptionButton === "audio"
+                        ? setLastOptionButtonRef
+                        : undefined
+                    }
                     label={t("item_card.audio")}
                     value={selectedAudioLabel}
                     onPress={() => setOpenModal("audio")}
@@ -1377,12 +1430,25 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {(subtitleTracks.length > 0 ||
                   selectedOptions?.subtitleIndex !== undefined) && (
                   <TVOptionButton
+                    ref={
+                      lastOptionButton === "subtitle"
+                        ? setLastOptionButtonRef
+                        : undefined
+                    }
                     label={t("item_card.subtitles.label")}
                     value={selectedSubtitleLabel}
                     onPress={() => setOpenModal("subtitle")}
                   />
                 )}
               </View>
+
+              {/* Focus guide to direct navigation from options to cast list */}
+              {fullCast.length > 0 && firstActorCardRef && (
+                <TVFocusGuideView
+                  destinations={[firstActorCardRef]}
+                  style={{ height: 1, width: "100%" }}
+                />
+              )}
 
               {/* Progress bar (if partially watched) */}
               {hasProgress && item.RunTimeTicks != null && (
@@ -1443,24 +1509,32 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       </Text>
                     </View>
                   )}
-                  {cast && cast.length > 0 && (
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          textTransform: "uppercase",
-                          letterSpacing: 1,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {t("item_card.cast")}
-                      </Text>
-                      <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
-                        {cast.map((c) => c.Name).join(", ")}
-                      </Text>
-                    </View>
-                  )}
+                  {/* Only show text cast if visual cast section won't be shown */}
+                  {cast &&
+                    cast.length > 0 &&
+                    !(
+                      (item.Type === "Movie" ||
+                        item.Type === "Series" ||
+                        item.Type === "Episode") &&
+                      fullCast.length > 0
+                    ) && (
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#6B7280",
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {t("item_card.cast")}
+                        </Text>
+                        <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+                          {cast.map((c) => c.Name).join(", ")}
+                        </Text>
+                      </View>
+                    )}
                 </View>
               </View>
             )}
@@ -1554,6 +1628,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   >
                     {t("item_card.cast")}
                   </Text>
+                  {/* Focus guide to direct upward navigation from cast back to options */}
+                  {lastOptionButtonRef && (
+                    <TVFocusGuideView
+                      destinations={[lastOptionButtonRef]}
+                      style={{ height: 1, width: "100%" }}
+                    />
+                  )}
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -1567,6 +1648,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     {fullCast.map((person, index) => (
                       <TVActorCard
                         key={person.Id || index}
+                        ref={index === 0 ? setFirstActorCardRef : undefined}
                         person={person}
                         apiBasePath={api?.basePath}
                         onPress={() => {
