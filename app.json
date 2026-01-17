@@ -67,6 +67,9 @@
             "topShelf2x": "./assets/images/icon-tvos-topshelf-2x.png",
             "topShelfWide": "./assets/images/icon-tvos-topshelf-wide.png",
             "topShelfWide2x": "./assets/images/icon-tvos-topshelf-wide-2x.png"
+          },
+          "infoPlist": {
+            "UIAppSupportsHDR": true
           }
         }
       ],
