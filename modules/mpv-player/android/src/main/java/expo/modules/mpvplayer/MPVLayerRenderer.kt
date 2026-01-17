@@ -139,7 +139,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             val mpvDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "mpv")
             //Log.i(TAG, "mpv config dir: $mpvDir")
             if (!mpvDir.exists()) mpvDir.mkdirs()
-            arrayOf("font.ttf").forEach { fileName ->
+            // This needs to be named `subfont.ttf` else it won't work
+            arrayOf("subfont.ttf").forEach { fileName ->
                 val file = File(mpvDir, fileName)
                 if (file.exists()) return@forEach
                 context.assets
