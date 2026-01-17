@@ -10,9 +10,12 @@
 ## 🔖 Summary
 <!--
 A concise description of the changes introduced by this PR.
+CodeRabbit will auto-generate a summary here if enabled.
 Example:
-“Add real-time currency conversion widget to dashboard.”
+"Add real-time currency conversion widget to dashboard."
 -->
+
+@coderabbitai summary
 
 ## 🏷️ Ticket / Issue
 <!--
