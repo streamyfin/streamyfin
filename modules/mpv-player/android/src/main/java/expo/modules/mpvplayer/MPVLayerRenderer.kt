@@ -104,6 +104,37 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.create(context)
             MPVLib.addObserver(this)
             
+            /**
+             * Create mpv config directory and copy font files to ensure SubRip subtitles load properly on Android.
+             *
+             * Technical Background:
+             * ====================
+             * On Android, mpv requires access to a font file to render text-based subtitles, particularly SubRip (.srt)
+             * format subtitles. Without an available font in the config directory, mpv will fail to display subtitles
+             * even when subtitle tracks are properly detected and loaded.
+             *
+             * Why This Is Necessary:
+             * =====================
+             * 1. Android's font system is isolated from native libraries like mpv. While Android has system fonts,
+             *    mpv cannot access them directly due to sandboxing and library isolation.
+             *
+             * 2. SubRip subtitles require a font to render text overlay on video. When no font is available in the
+             *    configured directory, mpv either:
+             *    - Fails silently (subtitles don't appear)
+             *    - Falls back to a default font that may not support the required character set
+             *    - Crashes or produces rendering errors
+             *
+             * 3. By placing a font file (font.ttf) in mpv's config directory and setting that directory via
+             *    MPVLib.setOptionString("config-dir", ...), we ensure mpv has a known, accessible font source.
+             *
+             * Reference:
+             * =========
+             * This workaround is documented in the mpv-android project:
+             * https://github.com/mpv-android/mpv-android/issues/96
+             *
+             * The issue discusses that without a font in the config directory, SubRip subtitles fail to load
+             * properly on Android, and the solution is to copy a font file to a known location that mpv can access.
+             */
             // Create mpv config directory and copy font files
             val mpvDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "mpv")
             //Log.i(TAG, "mpv config dir: $mpvDir")
