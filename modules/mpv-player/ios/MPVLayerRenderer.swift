@@ -176,16 +176,17 @@ final class MPVLayerRenderer {
         // Use AVFoundation video output - required for PiP support
         checkError(mpv_set_option_string(handle, "vo", "avfoundation"))
 
+        // Enable composite OSD mode - renders subtitles directly onto video frames using GPU
+        // This is better for PiP as subtitles are baked into the video
+        // NOTE: Must be set BEFORE the #if targetEnvironment check or tvOS will freeze on player exit
+        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
+
         // Hardware decoding with VideoToolbox
         // On simulator, use software decoding since VideoToolbox is not available
         // On device, use VideoToolbox with software fallback enabled
         #if targetEnvironment(simulator)
         checkError(mpv_set_option_string(handle, "hwdec", "no"))
         #else
-        // Only enable composite OSD mode on real device (OSD is not supported in simulator).
-        // This renders subtitles directly onto video frames using the GPU, which is better for PiP since subtitles are baked into the video.
-        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
-
         checkError(mpv_set_option_string(handle, "hwdec", "videotoolbox"))
         #endif
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
