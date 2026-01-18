@@ -16,7 +16,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Pressable,
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
@@ -25,8 +24,10 @@ import {
 import { Text } from "@/components/common/Text";
 import {
   TVCancelButton,
+  TVLanguageCard,
+  TVSubtitleResultCard,
   TVTabButton,
-  useTVFocusAnimation,
+  TVTrackCard,
 } from "@/components/tv";
 import {
   type SubtitleSearchResult,
@@ -47,327 +48,6 @@ interface TVSubtitleSheetProps {
 }
 
 type TabType = "tracks" | "download";
-
-// Track card for subtitle track selection
-const TVTrackCard = React.forwardRef<
-  View,
-  {
-    label: string;
-    sublabel?: string;
-    selected: boolean;
-    hasTVPreferredFocus?: boolean;
-    onPress: () => void;
-  }
->(({ label, sublabel, selected, hasTVPreferredFocus, onPress }, ref) => {
-  const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.05 });
-
-  return (
-    <Pressable
-      ref={ref}
-      onPress={onPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={[
-          styles.trackCard,
-          animatedStyle,
-          {
-            backgroundColor: focused
-              ? "#fff"
-              : selected
-                ? "rgba(255,255,255,0.2)"
-                : "rgba(255,255,255,0.08)",
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.trackCardText,
-            { color: focused ? "#000" : "#fff" },
-            (focused || selected) && { fontWeight: "600" },
-          ]}
-          numberOfLines={2}
-        >
-          {label}
-        </Text>
-        {sublabel && (
-          <Text
-            style={[
-              styles.trackCardSublabel,
-              { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
-            ]}
-            numberOfLines={1}
-          >
-            {sublabel}
-          </Text>
-        )}
-        {selected && !focused && (
-          <View style={styles.checkmark}>
-            <Ionicons
-              name='checkmark'
-              size={16}
-              color='rgba(255,255,255,0.8)'
-            />
-          </View>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-});
-
-// Language selector card
-const LanguageCard = React.forwardRef<
-  View,
-  {
-    code: string;
-    name: string;
-    selected: boolean;
-    hasTVPreferredFocus?: boolean;
-    onPress: () => void;
-  }
->(({ code, name, selected, hasTVPreferredFocus, onPress }, ref) => {
-  const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.05 });
-
-  return (
-    <Pressable
-      ref={ref}
-      onPress={onPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={[
-          styles.languageCard,
-          animatedStyle,
-          {
-            backgroundColor: focused
-              ? "#fff"
-              : selected
-                ? "rgba(255,255,255,0.2)"
-                : "rgba(255,255,255,0.08)",
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.languageCardText,
-            { color: focused ? "#000" : "#fff" },
-            (focused || selected) && { fontWeight: "600" },
-          ]}
-          numberOfLines={1}
-        >
-          {name}
-        </Text>
-        <Text
-          style={[
-            styles.languageCardCode,
-            { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
-          ]}
-        >
-          {code.toUpperCase()}
-        </Text>
-        {selected && !focused && (
-          <View style={styles.checkmark}>
-            <Ionicons
-              name='checkmark'
-              size={16}
-              color='rgba(255,255,255,0.8)'
-            />
-          </View>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-});
-
-// Subtitle result card
-const SubtitleResultCard = React.forwardRef<
-  View,
-  {
-    result: SubtitleSearchResult;
-    hasTVPreferredFocus?: boolean;
-    isDownloading?: boolean;
-    onPress: () => void;
-  }
->(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
-  const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.03 });
-
-  return (
-    <Pressable
-      ref={ref}
-      onPress={onPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-      disabled={isDownloading}
-    >
-      <Animated.View
-        style={[
-          styles.resultCard,
-          animatedStyle,
-          {
-            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.08)",
-            borderColor: focused
-              ? "rgba(255,255,255,0.8)"
-              : "rgba(255,255,255,0.1)",
-          },
-        ]}
-      >
-        {/* Provider/Source badge */}
-        <View
-          style={[
-            styles.providerBadge,
-            {
-              backgroundColor: focused
-                ? "rgba(0,0,0,0.1)"
-                : "rgba(255,255,255,0.1)",
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.providerText,
-              { color: focused ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.7)" },
-            ]}
-          >
-            {result.providerName}
-          </Text>
-        </View>
-
-        {/* Name */}
-        <Text
-          style={[styles.resultName, { color: focused ? "#000" : "#fff" }]}
-          numberOfLines={2}
-        >
-          {result.name}
-        </Text>
-
-        {/* Meta info row */}
-        <View style={styles.resultMeta}>
-          {/* Format */}
-          <Text
-            style={[
-              styles.resultMetaText,
-              { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
-            ]}
-          >
-            {result.format?.toUpperCase()}
-          </Text>
-
-          {/* Rating if available */}
-          {result.communityRating !== undefined &&
-            result.communityRating > 0 && (
-              <View style={styles.ratingContainer}>
-                <Ionicons
-                  name='star'
-                  size={12}
-                  color={focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)"}
-                />
-                <Text
-                  style={[
-                    styles.resultMetaText,
-                    {
-                      color: focused
-                        ? "rgba(0,0,0,0.6)"
-                        : "rgba(255,255,255,0.5)",
-                    },
-                  ]}
-                >
-                  {result.communityRating.toFixed(1)}
-                </Text>
-              </View>
-            )}
-
-          {/* Download count if available */}
-          {result.downloadCount !== undefined && result.downloadCount > 0 && (
-            <View style={styles.downloadCountContainer}>
-              <Ionicons
-                name='download-outline'
-                size={12}
-                color={focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)"}
-              />
-              <Text
-                style={[
-                  styles.resultMetaText,
-                  {
-                    color: focused
-                      ? "rgba(0,0,0,0.6)"
-                      : "rgba(255,255,255,0.5)",
-                  },
-                ]}
-              >
-                {result.downloadCount.toLocaleString()}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Flags */}
-        <View style={styles.flagsContainer}>
-          {result.isHashMatch && (
-            <View
-              style={[
-                styles.flag,
-                {
-                  backgroundColor: focused
-                    ? "rgba(0,150,0,0.2)"
-                    : "rgba(0,200,0,0.2)",
-                },
-              ]}
-            >
-              <Text style={styles.flagText}>Hash Match</Text>
-            </View>
-          )}
-          {result.hearingImpaired && (
-            <View
-              style={[
-                styles.flag,
-                {
-                  backgroundColor: focused
-                    ? "rgba(0,0,0,0.1)"
-                    : "rgba(255,255,255,0.1)",
-                },
-              ]}
-            >
-              <Ionicons
-                name='ear-outline'
-                size={12}
-                color={focused ? "#000" : "#fff"}
-              />
-            </View>
-          )}
-          {result.aiTranslated && (
-            <View
-              style={[
-                styles.flag,
-                {
-                  backgroundColor: focused
-                    ? "rgba(0,0,150,0.2)"
-                    : "rgba(100,100,255,0.2)",
-                },
-              ]}
-            >
-              <Text style={styles.flagText}>AI</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Loading indicator when downloading */}
-        {isDownloading && (
-          <View style={styles.downloadingOverlay}>
-            <ActivityIndicator size='small' color='#fff' />
-          </View>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-});
 
 export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
   visible,
@@ -627,7 +307,7 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
                     contentContainerStyle={styles.languageScrollContent}
                   >
                     {displayLanguages.map((lang, index) => (
-                      <LanguageCard
+                      <TVLanguageCard
                         key={lang.code}
                         code={lang.code}
                         name={lang.name}
@@ -708,7 +388,7 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
                         contentContainerStyle={styles.resultsScrollContent}
                       >
                         {searchResults.map((result, index) => (
-                          <SubtitleResultCard
+                          <TVSubtitleResultCard
                             key={result.id}
                             result={result}
                             hasTVPreferredFocus={index === 0}
@@ -810,27 +490,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 12,
   },
-  trackCard: {
-    width: 180,
-    height: 80,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  trackCardText: {
-    fontSize: 16,
-    textAlign: "center",
-  },
-  trackCardSublabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  checkmark: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
   languageScroll: {
     overflow: "visible",
   },
@@ -839,22 +498,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 10,
   },
-  languageCard: {
-    width: 120,
-    height: 60,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  languageCardText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  languageCardCode: {
-    fontSize: 11,
-    marginTop: 2,
-  },
   resultsScroll: {
     overflow: "visible",
   },
@@ -862,73 +505,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     paddingVertical: 8,
     gap: 12,
-  },
-  resultCard: {
-    width: 220,
-    minHeight: 120,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-  },
-  providerBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  providerText: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  resultName: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  resultMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 8,
-  },
-  resultMetaText: {
-    fontSize: 12,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  downloadCountContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  flagsContainer: {
-    flexDirection: "row",
-    gap: 6,
-    flexWrap: "wrap",
-  },
-  flag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  flagText: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  downloadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
   },
   loadingContainer: {
     paddingVertical: 40,
