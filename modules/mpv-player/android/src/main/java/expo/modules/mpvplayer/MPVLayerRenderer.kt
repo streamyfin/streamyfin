@@ -26,7 +26,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
     
     interface Delegate {
-        fun onPositionChanged(position: Double, duration: Double)
+        fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double)
         fun onPauseChanged(isPaused: Boolean)
         fun onLoadingChanged(isLoading: Boolean)
         fun onReadyToSeek()
@@ -46,6 +46,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     // Cached state
     private var cachedPosition: Double = 0.0
     private var cachedDuration: Double = 0.0
+    private var cachedCacheSeconds: Double = 0.0
     private var _isPaused: Boolean = true
     private var _isLoading: Boolean = false
     private var _playbackSpeed: Double = 1.0
@@ -283,6 +284,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         MPVLib.observeProperty("pause", MPV_FORMAT_FLAG)
         MPVLib.observeProperty("track-list/count", MPV_FORMAT_INT64)
         MPVLib.observeProperty("paused-for-cache", MPV_FORMAT_FLAG)
+        MPVLib.observeProperty("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
         // Video dimensions for PiP aspect ratio
         MPVLib.observeProperty("video-params/w", MPV_FORMAT_INT64)
         MPVLib.observeProperty("video-params/h", MPV_FORMAT_INT64)
@@ -561,7 +563,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         when (property) {
             "duration" -> {
                 cachedDuration = value
-                mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration) }
+                mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration, cachedCacheSeconds) }
             }
             "time-pos" -> {
                 cachedPosition = value
@@ -570,8 +572,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 val shouldUpdate = _isSeeking || (now - lastProgressUpdateTime >= 1000)
                 if (shouldUpdate) {
                     lastProgressUpdateTime = now
-                    mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration) }
+                    mainHandler.post { delegate?.onPositionChanged(cachedPosition, cachedDuration, cachedCacheSeconds) }
                 }
+            }
+            "demuxer-cache-duration" -> {
+                cachedCacheSeconds = value
             }
         }
     }
