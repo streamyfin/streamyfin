@@ -391,10 +391,54 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 
 #if os(tvOS)
 import AVKit
+import CoreMedia
 
 extension MpvPlayerView {
+	/// Creates a CMFormatDescription with HDR metadata for display criteria
+	private func createHDRFormatDescription(hdrMode: HDRMode) -> CMFormatDescription? {
+		var formatDescription: CMFormatDescription?
+
+		// Build extensions dictionary for HDR color properties
+		var extensions: [String: Any] = [
+			kCMFormatDescriptionExtension_FullRangeVideo as String: true
+		]
+
+		switch hdrMode {
+		case .hdr10, .dolbyVision:
+			// HDR10 and Dolby Vision use BT.2020 primaries with PQ transfer function
+			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] = kCMFormatDescriptionColorPrimaries_ITU_R_2020
+			extensions[kCMFormatDescriptionExtension_TransferFunction as String] = kCMFormatDescriptionTransferFunction_SMPTE_ST_2084_PQ
+			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] = kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
+		case .hlg:
+			// HLG uses BT.2020 primaries with HLG transfer function
+			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] = kCMFormatDescriptionColorPrimaries_ITU_R_2020
+			extensions[kCMFormatDescriptionExtension_TransferFunction as String] = kCMFormatDescriptionTransferFunction_ITU_R_2100_HLG
+			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] = kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
+		case .sdr:
+			return nil
+		}
+
+		// Create a video format description with HDR extensions
+		// Using HEVC codec type and 4K resolution as typical HDR parameters
+		let status = CMVideoFormatDescriptionCreate(
+			allocator: kCFAllocatorDefault,
+			codecType: kCMVideoCodecType_HEVC,
+			width: 3840,
+			height: 2160,
+			extensions: extensions as CFDictionary,
+			formatDescriptionOut: &formatDescription
+		)
+
+		return status == noErr ? formatDescription : nil
+	}
+
 	/// Sets the preferred display criteria for HDR content on tvOS
 	func setDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
+		guard #available(tvOS 17.0, *) else {
+			print("🎬 HDR: AVDisplayCriteria requires tvOS 17.0+")
+			return
+		}
+
 		guard let window = self.window else {
 			print("🎬 HDR: No window available for display criteria")
 			return
@@ -402,33 +446,27 @@ extension MpvPlayerView {
 
 		let manager = window.avDisplayManager
 
-		switch hdrMode {
-		case .sdr:
+		if hdrMode == .sdr {
 			print("🎬 HDR: Setting display criteria to SDR (nil)")
 			manager.preferredDisplayCriteria = nil
-		case .hdr10:
-			print("🎬 HDR: Setting display criteria to HDR10, fps: \(fps)")
-			manager.preferredDisplayCriteria = AVDisplayCriteria(
-				refreshRate: fps,
-				videoDynamicRange: "hdr10"
-			)
-		case .dolbyVision:
-			print("🎬 HDR: Setting display criteria to Dolby Vision, fps: \(fps)")
-			manager.preferredDisplayCriteria = AVDisplayCriteria(
-				refreshRate: fps,
-				videoDynamicRange: "dolbyVision"
-			)
-		case .hlg:
-			print("🎬 HDR: Setting display criteria to HLG, fps: \(fps)")
-			manager.preferredDisplayCriteria = AVDisplayCriteria(
-				refreshRate: fps,
-				videoDynamicRange: "hlg"
-			)
+			return
 		}
+
+		guard let formatDescription = createHDRFormatDescription(hdrMode: hdrMode) else {
+			print("🎬 HDR: Failed to create format description for \(hdrMode)")
+			return
+		}
+
+		print("🎬 HDR: Setting display criteria to \(hdrMode), fps: \(fps)")
+		manager.preferredDisplayCriteria = AVDisplayCriteria(
+			refreshRate: fps,
+			formatDescription: formatDescription
+		)
 	}
 
 	/// Resets display criteria when playback ends
 	func resetDisplayCriteria() {
+		guard #available(tvOS 17.0, *) else { return }
 		guard let window = self.window else { return }
 		print("🎬 HDR: Resetting display criteria")
 		window.avDisplayManager.preferredDisplayCriteria = nil
