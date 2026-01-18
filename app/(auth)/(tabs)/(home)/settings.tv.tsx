@@ -196,9 +196,9 @@ const TVSettingsStepper: React.FC<{
             style={[
               minusAnim.animatedStyle,
               {
-                width: 48,
-                height: 36,
-                borderRadius: 18,
+                width: 40,
+                height: 40,
+                borderRadius: 10,
                 backgroundColor: minusAnim.focused ? "#FFFFFF" : "#4B5563",
                 justifyContent: "center",
                 alignItems: "center",
@@ -234,9 +234,9 @@ const TVSettingsStepper: React.FC<{
             style={[
               plusAnim.animatedStyle,
               {
-                width: 48,
-                height: 36,
-                borderRadius: 18,
+                width: 40,
+                height: 40,
+                borderRadius: 10,
                 backgroundColor: plusAnim.focused ? "#FFFFFF" : "#4B5563",
                 justifyContent: "center",
                 alignItems: "center",
