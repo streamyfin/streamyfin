@@ -7,7 +7,7 @@ import type {
 import { BlurView } from "expo-blur";
 import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, {
+import {
   type FC,
   useCallback,
   useEffect,
@@ -22,10 +22,7 @@ import {
   Platform,
   Pressable,
   Animated as RNAnimated,
-  Easing as RNEasing,
-  ScrollView,
   StyleSheet,
-  TVFocusGuideView,
   View,
 } from "react-native";
 import Animated, {
@@ -40,6 +37,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import type { TVOptionItem } from "@/components/tv";
+import { TVOptionSelector, useTVFocusAnimation } from "@/components/tv";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -77,487 +76,12 @@ interface Props {
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
   goToNextItem?: () => void;
-  /** Called when a subtitle is downloaded to the server (re-fetch media source needed) */
   onServerSubtitleDownloaded?: () => void;
-  /** Add a local subtitle file to the player */
   addSubtitleFile?: (path: string) => void;
 }
 
 const TV_SEEKBAR_HEIGHT = 16;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
-
-// Option item type for TV selector
-type TVOptionItem<T> = {
-  label: string;
-  value: T;
-  selected: boolean;
-};
-
-// TV Option Selector - Bottom sheet with horizontal scrolling
-const TVOptionSelector = <T,>({
-  visible,
-  title,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: TVOptionItem<T>[];
-  onSelect: (value: T) => void;
-  onClose: () => void;
-}) => {
-  const [isReady, setIsReady] = useState(false);
-  const firstCardRef = useRef<View>(null);
-
-  // Animation values
-  const overlayOpacity = useRef(new RNAnimated.Value(0)).current;
-  const sheetTranslateY = useRef(new RNAnimated.Value(200)).current;
-
-  const initialSelectedIndex = useMemo(() => {
-    const idx = options.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
-  }, [options]);
-
-  // Animate in when visible
-  useEffect(() => {
-    if (visible) {
-      // Reset values and animate in
-      overlayOpacity.setValue(0);
-      sheetTranslateY.setValue(200);
-
-      RNAnimated.parallel([
-        RNAnimated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: 250,
-          easing: RNEasing.out(RNEasing.quad),
-          useNativeDriver: true,
-        }),
-        RNAnimated.timing(sheetTranslateY, {
-          toValue: 0,
-          duration: 300,
-          easing: RNEasing.out(RNEasing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible, overlayOpacity, sheetTranslateY]);
-
-  // Delay rendering to work around hasTVPreferredFocus timing issue
-  useEffect(() => {
-    if (visible) {
-      const timer = setTimeout(() => setIsReady(true), 100);
-      return () => clearTimeout(timer);
-    }
-    setIsReady(false);
-  }, [visible]);
-
-  // Programmatic focus fallback
-  useEffect(() => {
-    if (isReady && firstCardRef.current) {
-      const timer = setTimeout(() => {
-        (firstCardRef.current as any)?.requestTVFocus?.();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isReady]);
-
-  if (!visible) return null;
-
-  return (
-    <RNAnimated.View
-      style={[selectorStyles.overlay, { opacity: overlayOpacity }]}
-    >
-      <RNAnimated.View
-        style={[
-          selectorStyles.sheetContainer,
-          { transform: [{ translateY: sheetTranslateY }] },
-        ]}
-      >
-        <BlurView
-          intensity={80}
-          tint='dark'
-          style={selectorStyles.blurContainer}
-        >
-          <TVFocusGuideView
-            autoFocus
-            trapFocusUp
-            trapFocusDown
-            trapFocusLeft
-            trapFocusRight
-            style={selectorStyles.content}
-          >
-            <Text style={selectorStyles.title}>{title}</Text>
-            {isReady && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={selectorStyles.scrollView}
-                contentContainerStyle={selectorStyles.scrollContent}
-              >
-                {options.map((option, index) => (
-                  <TVOptionCard
-                    key={index}
-                    ref={
-                      index === initialSelectedIndex ? firstCardRef : undefined
-                    }
-                    label={option.label}
-                    selected={option.selected}
-                    hasTVPreferredFocus={index === initialSelectedIndex}
-                    onPress={() => {
-                      onSelect(option.value);
-                      onClose();
-                    }}
-                  />
-                ))}
-              </ScrollView>
-            )}
-
-            {/* Cancel button */}
-            {isReady && (
-              <View style={selectorStyles.cancelButtonContainer}>
-                <TVCancelButton onPress={onClose} label='Cancel' />
-              </View>
-            )}
-          </TVFocusGuideView>
-        </BlurView>
-      </RNAnimated.View>
-    </RNAnimated.View>
-  );
-};
-
-// Cancel button for TV option selectors
-const TVCancelButton: React.FC<{ onPress: () => void; label: string }> = ({
-  onPress,
-  label,
-}) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-    >
-      <RNAnimated.View
-        style={[
-          selectorStyles.cancelButton,
-          {
-            transform: [{ scale }],
-            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
-          },
-        ]}
-      >
-        <Ionicons
-          name='close'
-          size={20}
-          color={focused ? "#000" : "rgba(255,255,255,0.8)"}
-        />
-        <Text
-          style={[
-            selectorStyles.cancelButtonText,
-            { color: focused ? "#000" : "rgba(255,255,255,0.8)" },
-          ]}
-        >
-          {label}
-        </Text>
-      </RNAnimated.View>
-    </Pressable>
-  );
-};
-
-// Option card for horizontal selector (with forwardRef for programmatic focus)
-const TVOptionCard = React.forwardRef<
-  View,
-  {
-    label: string;
-    selected: boolean;
-    hasTVPreferredFocus?: boolean;
-    onPress: () => void;
-  }
->(({ label, selected, hasTVPreferredFocus, onPress }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      ref={ref}
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <RNAnimated.View
-        style={[
-          selectorStyles.card,
-          {
-            transform: [{ scale }],
-            backgroundColor: focused
-              ? "#fff"
-              : selected
-                ? "rgba(255,255,255,0.2)"
-                : "rgba(255,255,255,0.08)",
-          },
-        ]}
-      >
-        <Text
-          style={[
-            selectorStyles.cardText,
-            { color: focused ? "#000" : "#fff" },
-            (focused || selected) && { fontWeight: "600" },
-          ]}
-          numberOfLines={2}
-        >
-          {label}
-        </Text>
-        {selected && !focused && (
-          <View style={selectorStyles.checkmark}>
-            <Ionicons
-              name='checkmark'
-              size={16}
-              color='rgba(255,255,255,0.8)'
-            />
-          </View>
-        )}
-      </RNAnimated.View>
-    </Pressable>
-  );
-});
-
-// Settings panel with tabs for Audio and Subtitles
-const _TVSettingsPanel: FC<{
-  visible: boolean;
-  audioOptions: TVOptionItem<number>[];
-  subtitleOptions: TVOptionItem<number>[];
-  onAudioSelect: (value: number) => void;
-  onSubtitleSelect: (value: number) => void;
-  onClose: () => void;
-  t: (key: string) => string;
-}> = ({
-  visible,
-  audioOptions,
-  subtitleOptions,
-  onAudioSelect,
-  onSubtitleSelect,
-  onClose,
-  t,
-}) => {
-  const [activeTab, setActiveTab] = useState<"audio" | "subtitle">("audio");
-
-  const currentOptions = activeTab === "audio" ? audioOptions : subtitleOptions;
-  const currentOnSelect =
-    activeTab === "audio" ? onAudioSelect : onSubtitleSelect;
-
-  const initialSelectedIndex = useMemo(() => {
-    const idx = currentOptions.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
-  }, [currentOptions]);
-
-  if (!visible) return null;
-
-  return (
-    <View style={selectorStyles.overlay}>
-      <BlurView intensity={80} tint='dark' style={selectorStyles.blurContainer}>
-        <View style={selectorStyles.content}>
-          {/* Tab buttons - switch automatically on focus */}
-          <View style={selectorStyles.tabRow}>
-            {audioOptions.length > 0 && (
-              <TVSettingsTab
-                label={t("item_card.audio")}
-                active={activeTab === "audio"}
-                onSelect={() => setActiveTab("audio")}
-              />
-            )}
-            {subtitleOptions.length > 0 && (
-              <TVSettingsTab
-                label={t("item_card.subtitles.label")}
-                active={activeTab === "subtitle"}
-                onSelect={() => setActiveTab("subtitle")}
-              />
-            )}
-          </View>
-
-          {/* Options - first selected option gets preferred focus */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={selectorStyles.scrollView}
-            contentContainerStyle={selectorStyles.scrollContent}
-          >
-            {currentOptions.map((option, index) => (
-              <TVOptionCard
-                key={`${activeTab}-${index}`}
-                label={option.label}
-                selected={option.selected}
-                hasTVPreferredFocus={index === initialSelectedIndex}
-                onPress={() => {
-                  currentOnSelect(option.value);
-                  onClose();
-                }}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      </BlurView>
-    </View>
-  );
-};
-
-// Tab button for settings panel - switches on focus, no click needed
-const TVSettingsTab: FC<{
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-  hasTVPreferredFocus?: boolean;
-}> = ({ label, active, onSelect, hasTVPreferredFocus }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-        // Switch tab automatically on focus
-        onSelect();
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <RNAnimated.View
-        style={[
-          selectorStyles.tabButton,
-          {
-            transform: [{ scale }],
-            backgroundColor: focused
-              ? "#fff"
-              : active
-                ? "rgba(255,255,255,0.2)"
-                : "transparent",
-            borderBottomColor: active ? "#fff" : "transparent",
-          },
-        ]}
-      >
-        <Text
-          style={[
-            selectorStyles.tabText,
-            { color: focused ? "#000" : "#fff" },
-            (focused || active) && { fontWeight: "600" },
-          ]}
-        >
-          {label}
-        </Text>
-      </RNAnimated.View>
-    </Pressable>
-  );
-};
-
-// Button to open option selector (kept for potential future use)
-const _TVControlButton: FC<{
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  onFocusChange?: (focused: boolean) => void;
-}> = ({ icon, label, onPress, disabled, onFocusChange }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.08);
-        onFocusChange?.(true);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-        onFocusChange?.(false);
-      }}
-      disabled={disabled}
-      focusable={!disabled}
-    >
-      <RNAnimated.View
-        style={[
-          selectorStyles.controlButton,
-          {
-            transform: [{ scale }],
-            backgroundColor: focused
-              ? "rgba(255,255,255,0.25)"
-              : "rgba(255,255,255,0.15)",
-            borderColor: focused ? "rgba(255,255,255,0.6)" : "transparent",
-          },
-        ]}
-      >
-        <Ionicons
-          name={icon}
-          size={20}
-          color='#fff'
-          style={{ marginRight: 6 }}
-        />
-        <Text
-          style={[
-            selectorStyles.controlButtonText,
-            { color: "#fff", fontWeight: focused ? "600" : "500" },
-          ]}
-          numberOfLines={1}
-        >
-          {label}
-        </Text>
-      </RNAnimated.View>
-    </Pressable>
-  );
-};
 
 // TV Control Button for player controls (icon only, no label)
 const TVControlButton: FC<{
@@ -579,16 +103,8 @@ const TVControlButton: FC<{
   size = 32,
   delayLongPress = 300,
 }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.15, duration: 120 });
 
   return (
     <Pressable
@@ -596,14 +112,8 @@ const TVControlButton: FC<{
       onLongPress={onLongPress}
       onPressOut={onPressOut}
       delayLongPress={delayLongPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.15);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       disabled={disabled}
       focusable={!disabled}
       hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
@@ -611,8 +121,8 @@ const TVControlButton: FC<{
       <RNAnimated.View
         style={[
           controlButtonStyles.button,
+          animatedStyle,
           {
-            transform: [{ scale }],
             backgroundColor: focused
               ? "rgba(255,255,255,0.3)"
               : "rgba(255,255,255,0.1)",
@@ -640,110 +150,6 @@ const controlButtonStyles = StyleSheet.create({
   },
 });
 
-const selectorStyles = StyleSheet.create({
-  overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-    zIndex: 1000,
-  },
-  sheetContainer: {
-    // Container for the sheet to enable slide animation
-  },
-  blurContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
-  },
-  content: {
-    paddingTop: 24,
-    paddingBottom: 50,
-    overflow: "visible",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "rgba(255,255,255,0.6)",
-    marginBottom: 16,
-    paddingHorizontal: 48,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  scrollView: {
-    overflow: "visible",
-  },
-  scrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  card: {
-    width: 180,
-    height: 80,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  cardText: {
-    fontSize: 16,
-    textAlign: "center",
-  },
-  checkmark: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
-  controlButton: {
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: 2,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  controlButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  tabRow: {
-    flexDirection: "row",
-    paddingHorizontal: 48,
-    marginBottom: 16,
-    gap: 24,
-  },
-  tabButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderBottomWidth: 2,
-  },
-  tabText: {
-    fontSize: 18,
-  },
-  cancelButtonContainer: {
-    paddingHorizontal: 48,
-    paddingTop: 16,
-    alignItems: "flex-start",
-  },
-  cancelButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
-
 // TV Next Episode Countdown component - horizontal layout with animated progress bar
 const TVNextEpisodeCountdown: FC<{
   nextItem: BaseItemDto;
@@ -756,26 +162,22 @@ const TVNextEpisodeCountdown: FC<{
   const progress = useSharedValue(0);
   const onFinishRef = useRef(onFinish);
 
-  // Keep onFinish ref updated
   onFinishRef.current = onFinish;
 
-  // Get episode thumbnail
   const imageUrl = getPrimaryImageUrl({
     api,
     item: nextItem,
-    width: 360, // 2x for retina
+    width: 360,
     quality: 80,
   });
 
-  // Handle animation based on show and isPlaying state
   useEffect(() => {
     if (show && isPlaying) {
-      // Start/restart animation from beginning
       progress.value = 0;
       progress.value = withTiming(
         1,
         {
-          duration: 8000, // 8 seconds (ends 2 seconds before episode end)
+          duration: 8000,
           easing: Easing.linear,
         },
         (finished) => {
@@ -785,13 +187,11 @@ const TVNextEpisodeCountdown: FC<{
         },
       );
     } else {
-      // Pause: cancel animation and reset progress
       cancelAnimation(progress);
       progress.value = 0;
     }
   }, [show, isPlaying, progress]);
 
-  // Animated style for progress bar
   const progressStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
   }));
@@ -802,7 +202,6 @@ const TVNextEpisodeCountdown: FC<{
     <View style={countdownStyles.container} pointerEvents='none'>
       <BlurView intensity={80} tint='dark' style={countdownStyles.blur}>
         <View style={countdownStyles.innerContainer}>
-          {/* Episode Thumbnail - left side */}
           {imageUrl && (
             <Image
               source={{ uri: imageUrl }}
@@ -811,25 +210,20 @@ const TVNextEpisodeCountdown: FC<{
             />
           )}
 
-          {/* Content - right side */}
           <View style={countdownStyles.content}>
-            {/* Label: "Next Episode" */}
             <Text style={countdownStyles.label}>
               {t("player.next_episode")}
             </Text>
 
-            {/* Series Name */}
             <Text style={countdownStyles.seriesName} numberOfLines={1}>
               {nextItem.SeriesName}
             </Text>
 
-            {/* Episode Info: S#E# - Episode Name */}
             <Text style={countdownStyles.episodeInfo} numberOfLines={1}>
               S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
               {nextItem.Name}
             </Text>
 
-            {/* Progress Bar */}
             <View style={countdownStyles.progressContainer}>
               <Animated.View
                 style={[countdownStyles.progressBar, progressStyle]}
@@ -936,24 +330,19 @@ export const Controls: FC<Props> = ({
     audioIndex: string;
   }>();
 
-  // TV is always online
   const { nextItem: internalNextItem } = usePlaybackManager({
     item,
     isOffline: false,
   });
 
-  // Use props if provided, otherwise use internal state
   const nextItem = nextItemProp ?? internalNextItem;
 
-  // Modal state for option selectors
   type ModalType = "audio" | "subtitle" | null;
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const isModalOpen = openModal !== null;
 
-  // Track which button last opened a modal (for returning focus)
   const [lastOpenedModal, setLastOpenedModal] = useState<ModalType>(null);
 
-  // Android TV BackHandler for closing modals
   useEffect(() => {
     if (Platform.OS === "android" && isModalOpen) {
       const backHandler = BackHandler.addEventListener(
@@ -967,20 +356,17 @@ export const Controls: FC<Props> = ({
     }
   }, [isModalOpen]);
 
-  // Get available audio tracks
   const audioTracks = useMemo(() => {
     return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
   }, [mediaSource]);
 
-  // Get available subtitle tracks
   const subtitleTracks = useMemo(() => {
     return (
       mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ?? []
     );
   }, [mediaSource]);
 
-  // Audio options for selector
-  const audioOptions = useMemo(() => {
+  const audioOptions: TVOptionItem<number>[] = useMemo(() => {
     return audioTracks.map((track) => ({
       label:
         track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
@@ -989,21 +375,6 @@ export const Controls: FC<Props> = ({
     }));
   }, [audioTracks, audioIndex]);
 
-  // Get display labels for buttons
-  const _selectedAudioLabel = useMemo(() => {
-    const track = audioTracks.find((t) => t.Index === audioIndex);
-    return track?.DisplayTitle || track?.Language || t("item_card.audio");
-  }, [audioTracks, audioIndex, t]);
-
-  const _selectedSubtitleLabel = useMemo(() => {
-    if (subtitleIndex === -1) return t("item_card.subtitles.none");
-    const track = subtitleTracks.find((t) => t.Index === subtitleIndex);
-    return (
-      track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
-    );
-  }, [subtitleTracks, subtitleIndex, t]);
-
-  // Handlers for option changes
   const handleAudioChange = useCallback(
     (index: number) => {
       onAudioIndexChange?.(index);
@@ -1029,7 +400,6 @@ export const Controls: FC<Props> = ({
   const maxMs = ticksToMs(item.RunTimeTicks || 0);
   const max = useSharedValue(maxMs);
 
-  // Animation values for controls
   const controlsOpacity = useSharedValue(showControls ? 1 : 0);
   const bottomTranslateY = useSharedValue(showControls ? 0 : 50);
 
@@ -1037,7 +407,6 @@ export const Controls: FC<Props> = ({
     prefetchAllTrickplayImages();
   }, [prefetchAllTrickplayImages]);
 
-  // Animate controls visibility
   useEffect(() => {
     const animationConfig = {
       duration: 300,
@@ -1048,13 +417,11 @@ export const Controls: FC<Props> = ({
     bottomTranslateY.value = withTiming(showControls ? 0 : 30, animationConfig);
   }, [showControls, controlsOpacity, bottomTranslateY]);
 
-  // Create animated style for bottom controls
   const bottomAnimatedStyle = useAnimatedStyle(() => ({
     opacity: controlsOpacity.value,
     transform: [{ translateY: bottomTranslateY.value }],
   }));
 
-  // Initialize progress values
   useEffect(() => {
     if (item) {
       progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
@@ -1062,7 +429,6 @@ export const Controls: FC<Props> = ({
     }
   }, [item, progress, max]);
 
-  // Time management hook
   const { currentTime, remainingTime } = useVideoTime({
     progress,
     max,
@@ -1083,7 +449,6 @@ export const Controls: FC<Props> = ({
     setShowControls(!showControls);
   }, [showControls, setShowControls]);
 
-  // Trickplay bubble state for seek buttons
   const [showSeekBubble, setShowSeekBubble] = useState(false);
   const [seekBubbleTime, setSeekBubbleTime] = useState({
     hours: 0,
@@ -1100,7 +465,6 @@ export const Controls: FC<Props> = ({
     () => {},
   );
 
-  // Update trickplay time from ms
   const updateSeekBubbleTime = useCallback((ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -1109,14 +473,12 @@ export const Controls: FC<Props> = ({
     setSeekBubbleTime({ hours, minutes, seconds });
   }, []);
 
-  // Handler for back button to close modals
   const handleBack = useCallback(() => {
     if (isModalOpen) {
       setOpenModal(null);
     }
   }, [isModalOpen]);
 
-  // Remote control hook for TV navigation (simplified - D-pad navigates buttons now)
   const { isSliding: isRemoteSliding } = useRemoteControl({
     showControls,
     toggleControls,
@@ -1124,7 +486,6 @@ export const Controls: FC<Props> = ({
     onBack: handleBack,
   });
 
-  // Handlers for opening audio/subtitle sheets
   const handleOpenAudioSheet = useCallback(() => {
     setLastOpenedModal("audio");
     setOpenModal("audio");
@@ -1137,12 +498,10 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, []);
 
-  // Handler for when a subtitle is downloaded via server
   const handleServerSubtitleDownloaded = useCallback(() => {
     onServerSubtitleDownloaded?.();
   }, [onServerSubtitleDownloaded]);
 
-  // Handler for when a subtitle is downloaded locally
   const handleLocalSubtitleDownloaded = useCallback(
     (path: string) => {
       addSubtitleFile?.(path);
@@ -1150,20 +509,16 @@ export const Controls: FC<Props> = ({
     [addSubtitleFile],
   );
 
-  // Progress value for the progress bar (directly from playback progress)
   const effectiveProgress = useSharedValue(0);
 
-  // Threshold for detecting a seek (5 seconds) vs normal playback
   const SEEK_THRESHOLD_MS = 5000;
 
-  // Update effective progress from playback progress
   useAnimatedReaction(
     () => progress.value,
     (current, _previous) => {
       const progressUnit = CONTROLS_CONSTANTS.PROGRESS_UNIT_MS;
       const progressDiff = Math.abs(current - effectiveProgress.value);
       if (progressDiff >= progressUnit) {
-        // Animate large jumps (seeks), instant update for normal playback
         if (progressDiff >= SEEK_THRESHOLD_MS) {
           effectiveProgress.value = withTiming(current, {
             duration: 200,
@@ -1190,21 +545,17 @@ export const Controls: FC<Props> = ({
     disabled: false,
   });
 
-  // Keep ref updated for seek button handlers
   controlsInteractionRef.current = handleControlsInteraction;
 
-  // Seek button handlers (30 seconds)
   const handleSeekForwardButton = useCallback(() => {
     const newPosition = Math.min(max.value, progress.value + 30 * 1000);
     progress.value = newPosition;
     seek(newPosition);
 
-    // Show trickplay bubble
     calculateTrickplayUrl(msToTicks(newPosition));
     updateSeekBubbleTime(newPosition);
     setShowSeekBubble(true);
 
-    // Hide bubble after delay
     if (seekBubbleTimeoutRef.current) {
       clearTimeout(seekBubbleTimeoutRef.current);
     }
@@ -1220,12 +571,10 @@ export const Controls: FC<Props> = ({
     progress.value = newPosition;
     seek(newPosition);
 
-    // Show trickplay bubble
     calculateTrickplayUrl(msToTicks(newPosition));
     updateSeekBubbleTime(newPosition);
     setShowSeekBubble(true);
 
-    // Hide bubble after delay
     if (seekBubbleTimeoutRef.current) {
       clearTimeout(seekBubbleTimeoutRef.current);
     }
@@ -1236,7 +585,6 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [progress, min, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
 
-  // Stop continuous seeking
   const stopContinuousSeeking = useCallback(() => {
     if (continuousSeekRef.current) {
       clearInterval(continuousSeekRef.current);
@@ -1244,7 +592,6 @@ export const Controls: FC<Props> = ({
     }
     seekAccelerationRef.current = 1;
 
-    // Hide trickplay bubble after delay
     if (seekBubbleTimeoutRef.current) {
       clearTimeout(seekBubbleTimeoutRef.current);
     }
@@ -1253,14 +600,11 @@ export const Controls: FC<Props> = ({
     }, 2000);
   }, []);
 
-  // Start continuous seek forward (on long press)
   const startContinuousSeekForward = useCallback(() => {
     seekAccelerationRef.current = 1;
 
-    // Perform immediate first seek
     handleSeekForwardButton();
 
-    // Start interval for continuous seeking with acceleration
     continuousSeekRef.current = setInterval(() => {
       const seekAmount =
         CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK *
@@ -1270,11 +614,9 @@ export const Controls: FC<Props> = ({
       progress.value = newPosition;
       seek(newPosition);
 
-      // Update trickplay bubble
       calculateTrickplayUrl(msToTicks(newPosition));
       updateSeekBubbleTime(newPosition);
 
-      // Accelerate for next interval
       seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
 
       controlsInteractionRef.current();
@@ -1288,14 +630,11 @@ export const Controls: FC<Props> = ({
     updateSeekBubbleTime,
   ]);
 
-  // Start continuous seek backward (on long press)
   const startContinuousSeekBackward = useCallback(() => {
     seekAccelerationRef.current = 1;
 
-    // Perform immediate first seek
     handleSeekBackwardButton();
 
-    // Start interval for continuous seeking with acceleration
     continuousSeekRef.current = setInterval(() => {
       const seekAmount =
         CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK *
@@ -1305,11 +644,9 @@ export const Controls: FC<Props> = ({
       progress.value = newPosition;
       seek(newPosition);
 
-      // Update trickplay bubble
       calculateTrickplayUrl(msToTicks(newPosition));
       updateSeekBubbleTime(newPosition);
 
-      // Accelerate for next interval
       seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
 
       controlsInteractionRef.current();
@@ -1323,13 +660,11 @@ export const Controls: FC<Props> = ({
     updateSeekBubbleTime,
   ]);
 
-  // Play/Pause button handler
   const handlePlayPauseButton = useCallback(() => {
     togglePlay();
     controlsInteractionRef.current();
   }, [togglePlay]);
 
-  // Previous item handler
   const handlePreviousItem = useCallback(() => {
     if (goToPreviousItem) {
       goToPreviousItem();
@@ -1337,7 +672,6 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [goToPreviousItem]);
 
-  // Next item button handler
   const handleNextItemButton = useCallback(() => {
     if (goToNextItemProp) {
       goToNextItemProp();
@@ -1347,7 +681,6 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [goToNextItemProp]);
 
-  // goToNextItem function for auto-play
   const goToNextItem = useCallback(
     ({ isAutoPlay: _isAutoPlay }: { isAutoPlay?: boolean } = {}) => {
       if (!nextItem || !settings) {
@@ -1395,30 +728,25 @@ export const Controls: FC<Props> = ({
     ],
   );
 
-  // Keep ref updated for button handlers
   goToNextItemRef.current = goToNextItem;
 
-  // Should show countdown? (TV always auto-plays next episode, no episode count limit)
   const shouldShowCountdown = useMemo(() => {
     if (!nextItem) return false;
     if (item?.Type !== "Episode") return false;
     return remainingTime > 0 && remainingTime <= 10000;
   }, [nextItem, item, remainingTime]);
 
-  // Handler for when countdown animation finishes
   const handleAutoPlayFinish = useCallback(() => {
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
 
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
-      {/* Dark tint overlay when controls are visible */}
       <Animated.View
         style={[styles.darkOverlay, bottomAnimatedStyle]}
         pointerEvents='none'
       />
 
-      {/* Next Episode Countdown - always visible when countdown active */}
       {nextItem && (
         <TVNextEpisodeCountdown
           nextItem={nextItem}
@@ -1444,7 +772,6 @@ export const Controls: FC<Props> = ({
           ]}
           onTouchStart={handleControlsInteraction}
         >
-          {/* Metadata */}
           <View style={styles.metadataContainer}>
             {item?.Type === "Episode" && (
               <Text
@@ -1457,7 +784,6 @@ export const Controls: FC<Props> = ({
             )}
           </View>
 
-          {/* Control Buttons Row */}
           <View style={styles.controlButtonsRow}>
             <TVControlButton
               icon='play-skip-back'
@@ -1495,10 +821,8 @@ export const Controls: FC<Props> = ({
               size={28}
             />
 
-            {/* Spacer to separate settings buttons from transport controls */}
             <View style={styles.controlButtonsSpacer} />
 
-            {/* Audio button - only show when audio tracks are available */}
             {audioOptions.length > 0 && (
               <TVControlButton
                 icon='volume-high'
@@ -1511,7 +835,6 @@ export const Controls: FC<Props> = ({
               />
             )}
 
-            {/* Subtitle button */}
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
@@ -1523,7 +846,6 @@ export const Controls: FC<Props> = ({
             />
           </View>
 
-          {/* Trickplay Bubble - shown when seeking */}
           {showSeekBubble && (
             <View style={styles.trickplayBubbleContainer}>
               <TrickplayBubble
@@ -1534,10 +856,8 @@ export const Controls: FC<Props> = ({
             </View>
           )}
 
-          {/* Non-interactive Progress Bar */}
           <View style={styles.progressBarContainer} pointerEvents='none'>
             <View style={styles.progressTrack}>
-              {/* Cache progress */}
               <Animated.View
                 style={[
                   styles.cacheProgress,
@@ -1546,7 +866,6 @@ export const Controls: FC<Props> = ({
                   })),
                 ]}
               />
-              {/* Playback progress */}
               <Animated.View
                 style={[
                   styles.progressFill,
@@ -1558,7 +877,6 @@ export const Controls: FC<Props> = ({
             </View>
           </View>
 
-          {/* Time Display */}
           <View style={styles.timeContainer}>
             <Text style={styles.timeText}>
               {formatTimeString(currentTime, "ms")}
@@ -1575,7 +893,6 @@ export const Controls: FC<Props> = ({
         </View>
       </Animated.View>
 
-      {/* Audio option selector */}
       <TVOptionSelector
         visible={openModal === "audio"}
         title={t("item_card.audio")}
@@ -1584,7 +901,6 @@ export const Controls: FC<Props> = ({
         onClose={() => setOpenModal(null)}
       />
 
-      {/* Unified Subtitle Sheet (tracks + download) */}
       <TVSubtitleSheet
         visible={openModal === "subtitle"}
         item={item}

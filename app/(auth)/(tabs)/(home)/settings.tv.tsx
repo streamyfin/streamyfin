@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { BlurView } from "expo-blur";
 import { useAtom } from "jotai";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import { Animated, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import type { TVOptionItem } from "@/components/tv";
+import { TVOptionSelector, useTVFocusAnimation } from "@/components/tv";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
 
@@ -19,46 +20,34 @@ const TVSettingsRow: React.FC<{
   showChevron?: boolean;
   disabled?: boolean;
 }> = ({ label, value, onPress, isFirst, showChevron = true, disabled }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.02 });
 
   return (
     <Pressable
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.02);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={isFirst && !disabled}
       disabled={disabled}
       focusable={!disabled}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          backgroundColor: focused
-            ? "rgba(255, 255, 255, 0.15)"
-            : "rgba(255, 255, 255, 0.05)",
-          borderRadius: 12,
-          paddingVertical: 16,
-          paddingHorizontal: 24,
-          marginBottom: 8,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
+        style={[
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(255, 255, 255, 0.05)",
+            borderRadius: 12,
+            paddingVertical: 16,
+            paddingHorizontal: 24,
+            marginBottom: 8,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          },
+        ]}
       >
         <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -88,46 +77,34 @@ const TVSettingsToggle: React.FC<{
   isFirst?: boolean;
   disabled?: boolean;
 }> = ({ label, value, onToggle, isFirst, disabled }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.02 });
 
   return (
     <Pressable
       onPress={() => onToggle(!value)}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.02);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={isFirst && !disabled}
       disabled={disabled}
       focusable={!disabled}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          backgroundColor: focused
-            ? "rgba(255, 255, 255, 0.15)"
-            : "rgba(255, 255, 255, 0.05)",
-          borderRadius: 12,
-          paddingVertical: 16,
-          paddingHorizontal: 24,
-          marginBottom: 8,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
+        style={[
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(255, 255, 255, 0.05)",
+            borderRadius: 12,
+            paddingVertical: 16,
+            paddingHorizontal: 24,
+            marginBottom: 8,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          },
+        ]}
       >
         <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
         <View
@@ -173,21 +150,9 @@ const TVSettingsStepper: React.FC<{
   isFirst,
   disabled,
 }) => {
-  const [focused, setFocused] = useState(false);
-  const [buttonFocused, setButtonFocused] = useState<"minus" | "plus" | null>(
-    null,
-  );
-  const scale = useRef(new Animated.Value(1)).current;
-  const minusScale = useRef(new Animated.Value(1)).current;
-  const plusScale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (ref: Animated.Value, v: number) =>
-    Animated.timing(ref, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const labelAnim = useTVFocusAnimation({ scaleAmount: 1.02 });
+  const minusAnim = useTVFocusAnimation({ scaleAmount: 1.1 });
+  const plusAnim = useTVFocusAnimation({ scaleAmount: 1.1 });
 
   const displayValue = formatValue ? formatValue(value) : String(value);
 
@@ -195,7 +160,7 @@ const TVSettingsStepper: React.FC<{
     <View
       style={{
         backgroundColor:
-          focused || buttonFocused
+          labelAnim.focused || minusAnim.focused || plusAnim.focused
             ? "rgba(255, 255, 255, 0.15)"
             : "rgba(255, 255, 255, 0.05)",
         borderRadius: 12,
@@ -208,47 +173,36 @@ const TVSettingsStepper: React.FC<{
       }}
     >
       <Pressable
-        onFocus={() => {
-          setFocused(true);
-          animateTo(scale, 1.02);
-        }}
-        onBlur={() => {
-          setFocused(false);
-          animateTo(scale, 1);
-        }}
+        onFocus={labelAnim.handleFocus}
+        onBlur={labelAnim.handleBlur}
         hasTVPreferredFocus={isFirst && !disabled}
         disabled={disabled}
         focusable={!disabled}
       >
-        <Animated.View style={{ transform: [{ scale }] }}>
+        <Animated.View style={labelAnim.animatedStyle}>
           <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
         </Animated.View>
       </Pressable>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Pressable
           onPress={onDecrease}
-          onFocus={() => {
-            setButtonFocused("minus");
-            animateTo(minusScale, 1.1);
-          }}
-          onBlur={() => {
-            setButtonFocused(null);
-            animateTo(minusScale, 1);
-          }}
+          onFocus={minusAnim.handleFocus}
+          onBlur={minusAnim.handleBlur}
           disabled={disabled}
           focusable={!disabled}
         >
           <Animated.View
-            style={{
-              transform: [{ scale: minusScale }],
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor:
-                buttonFocused === "minus" ? "#7c3aed" : "#4B5563",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
+            style={[
+              minusAnim.animatedStyle,
+              {
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: minusAnim.focused ? "#7c3aed" : "#4B5563",
+                justifyContent: "center",
+                alignItems: "center",
+              },
+            ]}
           >
             <Ionicons name='remove' size={24} color='#FFFFFF' />
           </Animated.View>
@@ -266,27 +220,23 @@ const TVSettingsStepper: React.FC<{
         </Text>
         <Pressable
           onPress={onIncrease}
-          onFocus={() => {
-            setButtonFocused("plus");
-            animateTo(plusScale, 1.1);
-          }}
-          onBlur={() => {
-            setButtonFocused(null);
-            animateTo(plusScale, 1);
-          }}
+          onFocus={plusAnim.handleFocus}
+          onBlur={plusAnim.handleBlur}
           disabled={disabled}
           focusable={!disabled}
         >
           <Animated.View
-            style={{
-              transform: [{ scale: plusScale }],
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: buttonFocused === "plus" ? "#7c3aed" : "#4B5563",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
+            style={[
+              plusAnim.animatedStyle,
+              {
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: plusAnim.focused ? "#7c3aed" : "#4B5563",
+                justifyContent: "center",
+                alignItems: "center",
+              },
+            ]}
           >
             <Ionicons name='add' size={24} color='#FFFFFF' />
           </Animated.View>
@@ -294,13 +244,6 @@ const TVSettingsStepper: React.FC<{
       </View>
     </View>
   );
-};
-
-// Option item type for bottom sheet selector
-type TVSettingsOptionItem<T> = {
-  label: string;
-  value: T;
-  selected: boolean;
 };
 
 // TV Settings Option Button - displays current value and opens bottom sheet
@@ -311,46 +254,34 @@ const TVSettingsOptionButton: React.FC<{
   isFirst?: boolean;
   disabled?: boolean;
 }> = ({ label, value, onPress, isFirst, disabled }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.02 });
 
   return (
     <Pressable
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.02);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={isFirst && !disabled}
       disabled={disabled}
       focusable={!disabled}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          backgroundColor: focused
-            ? "rgba(255, 255, 255, 0.15)"
-            : "rgba(255, 255, 255, 0.05)",
-          borderRadius: 12,
-          paddingVertical: 16,
-          paddingHorizontal: 24,
-          marginBottom: 8,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
+        style={[
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(255, 255, 255, 0.05)",
+            borderRadius: 12,
+            paddingVertical: 16,
+            paddingHorizontal: 24,
+            marginBottom: 8,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          },
+        ]}
       >
         <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -365,179 +296,6 @@ const TVSettingsOptionButton: React.FC<{
           </Text>
           <Ionicons name='chevron-forward' size={20} color='#6B7280' />
         </View>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-// TV Settings Bottom Sheet - Apple TV style horizontal scrolling selector
-const TVSettingsBottomSheet = <T,>({
-  visible,
-  title,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: TVSettingsOptionItem<T>[];
-  onSelect: (value: T) => void;
-  onClose: () => void;
-}) => {
-  const initialSelectedIndex = useMemo(() => {
-    const idx = options.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
-  }, [options]);
-
-  if (!visible) return null;
-
-  return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        justifyContent: "flex-end",
-        zIndex: 1000,
-      }}
-    >
-      <BlurView
-        intensity={80}
-        tint='dark'
-        style={{
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          overflow: "hidden",
-        }}
-      >
-        <View
-          style={{
-            paddingTop: 24,
-            paddingBottom: 50,
-            overflow: "visible",
-          }}
-        >
-          {/* Title */}
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "500",
-              color: "rgba(255,255,255,0.6)",
-              marginBottom: 16,
-              paddingHorizontal: 48,
-              textTransform: "uppercase",
-              letterSpacing: 1,
-            }}
-          >
-            {title}
-          </Text>
-
-          {/* Horizontal options */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ overflow: "visible" }}
-            contentContainerStyle={{
-              paddingHorizontal: 48,
-              paddingVertical: 10,
-              gap: 12,
-            }}
-          >
-            {options.map((option, index) => (
-              <TVSettingsOptionCard
-                key={index}
-                label={option.label}
-                selected={option.selected}
-                hasTVPreferredFocus={index === initialSelectedIndex}
-                onPress={() => {
-                  onSelect(option.value);
-                  onClose();
-                }}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      </BlurView>
-    </View>
-  );
-};
-
-// Option card for horizontal bottom sheet selector (Apple TV style)
-const TVSettingsOptionCard: React.FC<{
-  label: string;
-  selected: boolean;
-  hasTVPreferredFocus?: boolean;
-  onPress: () => void;
-}> = ({ label, selected, hasTVPreferredFocus, onPress }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 160,
-          height: 75,
-          backgroundColor: focused
-            ? "#fff"
-            : selected
-              ? "rgba(255,255,255,0.2)"
-              : "rgba(255,255,255,0.08)",
-          borderRadius: 14,
-          justifyContent: "center",
-          alignItems: "center",
-          paddingHorizontal: 12,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            color: focused ? "#000" : "#fff",
-            fontWeight: focused || selected ? "600" : "400",
-            textAlign: "center",
-          }}
-          numberOfLines={2}
-        >
-          {label}
-        </Text>
-        {selected && !focused && (
-          <View
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-            }}
-          >
-            <Ionicons
-              name='checkmark'
-              size={16}
-              color='rgba(255,255,255,0.8)'
-            />
-          </View>
-        )}
       </Animated.View>
     </Pressable>
   );
@@ -567,39 +325,27 @@ const TVLogoutButton: React.FC<{ onPress: () => void; disabled?: boolean }> = ({
   disabled,
 }) => {
   const { t } = useTranslation();
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.05 });
 
   return (
     <Pressable
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       disabled={disabled}
       focusable={!disabled}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          shadowColor: "#ef4444",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.6 : 0,
-          shadowRadius: focused ? 20 : 0,
-        }}
+        style={[
+          animatedStyle,
+          {
+            shadowColor: "#ef4444",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.6 : 0,
+            shadowRadius: focused ? 20 : 0,
+          },
+        ]}
       >
         <View
           style={{
@@ -653,7 +399,7 @@ export default function SettingsTV() {
   const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
 
   // Audio transcoding options
-  const audioTranscodeModeOptions = useMemo(
+  const audioTranscodeModeOptions: TVOptionItem<AudioTranscodeMode>[] = useMemo(
     () => [
       {
         label: t("home.settings.audio.transcode_mode.auto"),
@@ -680,7 +426,7 @@ export default function SettingsTV() {
   );
 
   // Subtitle mode options
-  const subtitleModeOptions = useMemo(
+  const subtitleModeOptions: TVOptionItem<SubtitlePlaybackMode>[] = useMemo(
     () => [
       {
         label: t("home.settings.subtitles.modes.Default"),
@@ -712,7 +458,7 @@ export default function SettingsTV() {
   );
 
   // MPV alignment options
-  const alignXOptions = useMemo(
+  const alignXOptions: TVOptionItem<string>[] = useMemo(
     () => [
       { label: "Left", value: "left", selected: currentAlignX === "left" },
       {
@@ -725,7 +471,7 @@ export default function SettingsTV() {
     [currentAlignX],
   );
 
-  const alignYOptions = useMemo(
+  const alignYOptions: TVOptionItem<string>[] = useMemo(
     () => [
       { label: "Top", value: "top", selected: currentAlignY === "top" },
       {
@@ -936,28 +682,24 @@ export default function SettingsTV() {
         </ScrollView>
       </View>
 
-      {/* Bottom sheet modals */}
-      <TVSettingsBottomSheet
+      {/* Bottom sheet modals using shared TVOptionSelector */}
+      <TVOptionSelector
         visible={openModal === "audioTranscode"}
         title={t("home.settings.audio.transcode_mode.title")}
         options={audioTranscodeModeOptions}
-        onSelect={(value) =>
-          updateSettings({ audioTranscodeMode: value as AudioTranscodeMode })
-        }
+        onSelect={(value) => updateSettings({ audioTranscodeMode: value })}
         onClose={() => setOpenModal(null)}
       />
 
-      <TVSettingsBottomSheet
+      <TVOptionSelector
         visible={openModal === "subtitleMode"}
         title={t("home.settings.subtitles.subtitle_mode")}
         options={subtitleModeOptions}
-        onSelect={(value) =>
-          updateSettings({ subtitleMode: value as SubtitlePlaybackMode })
-        }
+        onSelect={(value) => updateSettings({ subtitleMode: value })}
         onClose={() => setOpenModal(null)}
       />
 
-      <TVSettingsBottomSheet
+      <TVOptionSelector
         visible={openModal === "alignX"}
         title='Horizontal Alignment'
         options={alignXOptions}
@@ -969,7 +711,7 @@ export default function SettingsTV() {
         onClose={() => setOpenModal(null)}
       />
 
-      <TVSettingsBottomSheet
+      <TVOptionSelector
         visible={openModal === "alignY"}
         title='Vertical Alignment'
         options={alignYOptions}

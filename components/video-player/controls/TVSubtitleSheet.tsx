@@ -14,15 +14,20 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
-  Animated as RNAnimated,
-  Easing as RNEasing,
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import {
+  TVCancelButton,
+  TVTabButton,
+  useTVFocusAnimation,
+} from "@/components/tv";
 import {
   type SubtitleSearchResult,
   useRemoteSubtitles,
@@ -33,83 +38,15 @@ interface TVSubtitleSheetProps {
   visible: boolean;
   item: BaseItemDto;
   mediaSourceId?: string | null;
-
-  // Existing subtitle tracks from media source
   subtitleTracks: MediaStream[];
   currentSubtitleIndex: number;
-
-  // Track selection callback
   onSubtitleIndexChange: (index: number) => void;
   onClose: () => void;
-
-  // Optional - for during-playback context only
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
 }
 
 type TabType = "tracks" | "download";
-
-// Tab button component - requires press to switch
-const TVTabButton: React.FC<{
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-  hasTVPreferredFocus?: boolean;
-  disabled?: boolean;
-}> = ({ label, active, onSelect, hasTVPreferredFocus, disabled }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onSelect}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
-      disabled={disabled}
-      focusable={!disabled}
-    >
-      <RNAnimated.View
-        style={[
-          styles.tabButton,
-          {
-            transform: [{ scale }],
-            backgroundColor: focused
-              ? "#fff"
-              : active
-                ? "rgba(255,255,255,0.2)"
-                : "transparent",
-            borderBottomColor: active ? "#fff" : "transparent",
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.tabText,
-            { color: focused ? "#000" : "#fff" },
-            (focused || active) && { fontWeight: "600" },
-          ]}
-        >
-          {label}
-        </Text>
-      </RNAnimated.View>
-    </Pressable>
-  );
-};
 
 // Track card for subtitle track selection
 const TVTrackCard = React.forwardRef<
@@ -122,36 +59,22 @@ const TVTrackCard = React.forwardRef<
     onPress: () => void;
   }
 >(({ label, sublabel, selected, hasTVPreferredFocus, onPress }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.05 });
 
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus}
     >
-      <RNAnimated.View
+      <Animated.View
         style={[
           styles.trackCard,
+          animatedStyle,
           {
-            transform: [{ scale }],
             backgroundColor: focused
               ? "#fff"
               : selected
@@ -190,7 +113,7 @@ const TVTrackCard = React.forwardRef<
             />
           </View>
         )}
-      </RNAnimated.View>
+      </Animated.View>
     </Pressable>
   );
 });
@@ -206,36 +129,22 @@ const LanguageCard = React.forwardRef<
     onPress: () => void;
   }
 >(({ code, name, selected, hasTVPreferredFocus, onPress }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.05 });
 
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus}
     >
-      <RNAnimated.View
+      <Animated.View
         style={[
           styles.languageCard,
+          animatedStyle,
           {
-            transform: [{ scale }],
             backgroundColor: focused
               ? "#fff"
               : selected
@@ -271,7 +180,7 @@ const LanguageCard = React.forwardRef<
             />
           </View>
         )}
-      </RNAnimated.View>
+      </Animated.View>
     </Pressable>
   );
 });
@@ -286,37 +195,23 @@ const SubtitleResultCard = React.forwardRef<
     onPress: () => void;
   }
 >(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.03 });
 
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.03);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus}
       disabled={isDownloading}
     >
-      <RNAnimated.View
+      <Animated.View
         style={[
           styles.resultCard,
+          animatedStyle,
           {
-            transform: [{ scale }],
             backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.08)",
             borderColor: focused
               ? "rgba(255,255,255,0.8)"
@@ -469,65 +364,10 @@ const SubtitleResultCard = React.forwardRef<
             <ActivityIndicator size='small' color='#fff' />
           </View>
         )}
-      </RNAnimated.View>
+      </Animated.View>
     </Pressable>
   );
 });
-
-// Cancel button for TV subtitle sheet
-const TVCancelButton: React.FC<{ onPress: () => void; label: string }> = ({
-  onPress,
-  label,
-}) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new RNAnimated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    RNAnimated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: RNEasing.out(RNEasing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-    >
-      <RNAnimated.View
-        style={[
-          styles.cancelButton,
-          {
-            transform: [{ scale }],
-            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
-          },
-        ]}
-      >
-        <Ionicons
-          name='close'
-          size={20}
-          color={focused ? "#000" : "rgba(255,255,255,0.8)"}
-        />
-        <Text
-          style={[
-            styles.cancelButtonText,
-            { color: focused ? "#000" : "rgba(255,255,255,0.8)" },
-          ]}
-        >
-          {label}
-        </Text>
-      </RNAnimated.View>
-    </Pressable>
-  );
-};
 
 export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
   visible,
@@ -563,47 +403,42 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     mediaSourceId,
   });
 
-  // Store reset in a ref to avoid dependency issues
   const resetRef = useRef(reset);
   resetRef.current = reset;
 
-  // Animation values
-  const overlayOpacity = useRef(new RNAnimated.Value(0)).current;
-  const sheetTranslateY = useRef(new RNAnimated.Value(300)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(300)).current;
 
-  // Determine initial selected track index
   const initialSelectedTrackIndex = useMemo(() => {
-    if (currentSubtitleIndex === -1) return 0; // "None" option
+    if (currentSubtitleIndex === -1) return 0;
     const trackIdx = subtitleTracks.findIndex(
       (t) => t.Index === currentSubtitleIndex,
     );
-    return trackIdx >= 0 ? trackIdx + 1 : 0; // +1 because "None" is at index 0
+    return trackIdx >= 0 ? trackIdx + 1 : 0;
   }, [subtitleTracks, currentSubtitleIndex]);
 
-  // Animate in/out
   useEffect(() => {
     if (visible) {
       overlayOpacity.setValue(0);
       sheetTranslateY.setValue(300);
 
-      RNAnimated.parallel([
-        RNAnimated.timing(overlayOpacity, {
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
           toValue: 1,
           duration: 250,
-          easing: RNEasing.out(RNEasing.quad),
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        RNAnimated.timing(sheetTranslateY, {
+        Animated.timing(sheetTranslateY, {
           toValue: 0,
           duration: 300,
-          easing: RNEasing.out(RNEasing.cubic),
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start();
     }
   }, [visible, overlayOpacity, sheetTranslateY]);
 
-  // Reset state when sheet closes
   useEffect(() => {
     if (!visible) {
       setHasSearchedThisSession(false);
@@ -613,7 +448,6 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     }
   }, [visible]);
 
-  // Delay rendering to work around hasTVPreferredFocus timing issue
   useEffect(() => {
     if (visible) {
       const timer = setTimeout(() => setIsReady(true), 100);
@@ -622,7 +456,6 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     setIsReady(false);
   }, [visible]);
 
-  // Lazy loading: search when Download tab is first activated
   useEffect(() => {
     if (visible && activeTab === "download" && !hasSearchedThisSession) {
       search({ language: selectedLanguage });
@@ -630,7 +463,6 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     }
   }, [visible, activeTab, hasSearchedThisSession, search, selectedLanguage]);
 
-  // Delay tab content rendering to prevent focus conflicts when switching tabs
   useEffect(() => {
     if (isReady) {
       setIsTabContentReady(false);
@@ -640,7 +472,6 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     setIsTabContentReady(false);
   }, [activeTab, isReady]);
 
-  // Handle language selection
   const handleLanguageSelect = useCallback(
     (code: string) => {
       setSelectedLanguage(code);
@@ -649,7 +480,6 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     [search],
   );
 
-  // Handle track selection
   const handleTrackSelect = useCallback(
     (index: number) => {
       onSubtitleIndexChange(index);
@@ -658,7 +488,6 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     [onSubtitleIndexChange, onClose],
   );
 
-  // Handle subtitle download
   const handleDownload = useCallback(
     async (result: SubtitleSearchResult) => {
       setDownloadingId(result.id);
@@ -687,13 +516,11 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     ],
   );
 
-  // Subset of common languages for TV
   const displayLanguages = useMemo(
     () => COMMON_SUBTITLE_LANGUAGES.slice(0, 16),
     [],
   );
 
-  // Track options with "None" at the start
   const trackOptions = useMemo(() => {
     const noneOption = {
       label: t("item_card.subtitles.none"),
@@ -714,8 +541,8 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
   if (!visible) return null;
 
   return (
-    <RNAnimated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
-      <RNAnimated.View
+    <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+      <Animated.View
         style={[
           styles.sheetContainer,
           { transform: [{ translateY: sheetTranslateY }] },
@@ -914,8 +741,8 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
             )}
           </TVFocusGuideView>
         </BlurView>
-      </RNAnimated.View>
-    </RNAnimated.View>
+      </Animated.View>
+    </Animated.View>
   );
 };
 
@@ -955,15 +782,6 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: "row",
     gap: 24,
-  },
-  tabButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderBottomWidth: 2,
-  },
-  tabText: {
-    fontSize: 18,
   },
   section: {
     marginBottom: 20,
@@ -1155,17 +973,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     paddingTop: 20,
     alignItems: "flex-start",
-  },
-  cancelButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
