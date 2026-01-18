@@ -186,6 +186,12 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
         checkError(mpv_set_option_string(handle, "hwdec-software-fallback", "yes"))
 
+        // HDR passthrough - signal content colorspace to display system
+        // This prevents tone-mapping and allows HDR content to pass through
+        #if os(tvOS)
+        checkError(mpv_set_option_string(handle, "target-colorspace-hint", "yes"))
+        #endif
+
         // Subtitle and audio settings
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
