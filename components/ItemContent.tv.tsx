@@ -7,23 +7,26 @@ import type {
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, ScrollView, TVFocusGuideView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Badge } from "@/components/Badge";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import {
-  TVActorCard,
+  TVBackdrop,
   TVButton,
+  TVCastCrewText,
+  TVCastSection,
+  TVMetadataBadges,
   TVOptionButton,
+  TVProgressBar,
   TVRefreshButton,
-  TVSeriesSeasonCard,
+  TVSeriesNavigation,
+  TVTechnicalDetails,
 } from "@/components/tv";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -324,6 +327,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       );
     }, [item?.People]);
 
+    // Whether to show visual cast section
+    const showVisualCast =
+      (item?.Type === "Movie" ||
+        item?.Type === "Series" ||
+        item?.Type === "Episode") &&
+      fullCast.length > 0;
+
     // Series/Season image URLs for episodes
     const seriesImageUrl = useMemo(() => {
       if (item?.Type !== "Episode" || !item.SeriesId) return null;
@@ -356,6 +366,28 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       mediaSources.length,
     ]);
 
+    // Navigation handlers
+    const handleActorPress = useCallback(
+      (personId: string) => {
+        router.push(`/(auth)/persons/${personId}`);
+      },
+      [router],
+    );
+
+    const handleSeriesPress = useCallback(() => {
+      if (item?.SeriesId) {
+        router.push(`/(auth)/series/${item.SeriesId}`);
+      }
+    }, [router, item?.SeriesId]);
+
+    const handleSeasonPress = useCallback(() => {
+      if (item?.SeriesId && item?.ParentIndexNumber) {
+        router.push(
+          `/(auth)/series/${item.SeriesId}?seasonIndex=${item.ParentIndexNumber}`,
+        );
+      }
+    }, [router, item?.SeriesId, item?.ParentIndexNumber]);
+
     if (!item || !selectedOptions) return null;
 
     return (
@@ -366,48 +398,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         }}
       >
         {/* Full-screen backdrop */}
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-        >
-          <ItemImage
-            variant='Backdrop'
-            item={item}
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-          />
-          {/* Gradient overlays for readability */}
-          <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
-            locations={[0, 0.5, 1]}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: "70%",
-            }}
-          />
-          <LinearGradient
-            colors={["rgba(0,0,0,0.8)", "transparent"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0.6, y: 0 }}
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: "60%",
-            }}
-          />
-        </View>
+        <TVBackdrop item={item} />
 
         {/* Main content area */}
         <ScrollView
@@ -426,14 +417,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               minHeight: SCREEN_HEIGHT * 0.45,
             }}
           >
-            {/* Left side - Back button + Poster */}
+            {/* Left side - Poster */}
             <View
               style={{
                 width: SCREEN_WIDTH * 0.22,
                 marginRight: 50,
               }}
             >
-              {/* Poster */}
               <View
                 style={{
                   aspectRatio: 2 / 3,
@@ -509,34 +499,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               )}
 
               {/* Metadata badges row */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: 12,
-                  marginBottom: 20,
-                }}
-              >
-                {year != null && (
-                  <Text style={{ color: "#9CA3AF", fontSize: 18 }}>{year}</Text>
-                )}
-                {duration && (
-                  <Text style={{ color: "#9CA3AF", fontSize: 18 }}>
-                    {duration}
-                  </Text>
-                )}
-                {item.OfficialRating && (
-                  <Badge text={item.OfficialRating} variant='gray' />
-                )}
-                {item.CommunityRating != null && (
-                  <Badge
-                    text={item.CommunityRating.toFixed(1)}
-                    variant='gray'
-                    iconLeft={<Ionicons name='star' size={16} color='gold' />}
-                  />
-                )}
-              </View>
+              <TVMetadataBadges
+                year={year}
+                duration={duration}
+                officialRating={item.OfficialRating}
+                communityRating={item.CommunityRating}
+              />
 
               {/* Genres */}
               {item.Genres && item.Genres.length > 0 && (
@@ -700,268 +668,52 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
               {/* Progress bar (if partially watched) */}
               {hasProgress && item.RunTimeTicks != null && (
-                <View style={{ maxWidth: 400, marginBottom: 24 }}>
-                  <View
-                    style={{
-                      height: 4,
-                      backgroundColor: "rgba(255,255,255,0.2)",
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: `${((item.UserData?.PlaybackPositionTicks || 0) / item.RunTimeTicks) * 100}%`,
-                        height: "100%",
-                        backgroundColor: "#a855f7",
-                        borderRadius: 2,
-                      }}
-                    />
-                  </View>
-                </View>
+                <TVProgressBar
+                  progress={
+                    (item.UserData?.PlaybackPositionTicks || 0) /
+                    item.RunTimeTicks
+                  }
+                />
               )}
             </View>
           </View>
 
           {/* Additional info section */}
           <View style={{ marginTop: 40 }}>
-            {/* Cast & Crew */}
-            {(director || (cast && cast.length > 0)) && (
-              <View style={{ marginBottom: 32 }}>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "600",
-                    color: "#FFFFFF",
-                    marginBottom: 16,
-                  }}
-                >
-                  {t("item_card.cast_and_crew")}
-                </Text>
-                <View style={{ flexDirection: "row", gap: 40 }}>
-                  {director && (
-                    <View>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#6B7280",
-                          textTransform: "uppercase",
-                          letterSpacing: 1,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {t("item_card.director")}
-                      </Text>
-                      <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
-                        {director.Name}
-                      </Text>
-                    </View>
-                  )}
-                  {/* Only show text cast if visual cast section won't be shown */}
-                  {cast &&
-                    cast.length > 0 &&
-                    !(
-                      (item.Type === "Movie" ||
-                        item.Type === "Series" ||
-                        item.Type === "Episode") &&
-                      fullCast.length > 0
-                    ) && (
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 14,
-                            color: "#6B7280",
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            marginBottom: 4,
-                          }}
-                        >
-                          {t("item_card.cast")}
-                        </Text>
-                        <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
-                          {cast.map((c) => c.Name).join(", ")}
-                        </Text>
-                      </View>
-                    )}
-                </View>
-              </View>
-            )}
+            {/* Cast & Crew (text version) */}
+            <TVCastCrewText
+              director={director}
+              cast={cast}
+              hideCast={showVisualCast}
+            />
 
             {/* Technical details */}
             {selectedOptions.mediaSource?.MediaStreams &&
               selectedOptions.mediaSource.MediaStreams.length > 0 && (
-                <View style={{ marginBottom: 32 }}>
-                  <Text
-                    style={{
-                      fontSize: 22,
-                      fontWeight: "600",
-                      color: "#FFFFFF",
-                      marginBottom: 16,
-                    }}
-                  >
-                    {t("item_card.technical_details")}
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 40 }}>
-                    {/* Video info */}
-                    {(() => {
-                      const videoStream =
-                        selectedOptions.mediaSource?.MediaStreams?.find(
-                          (s) => s.Type === "Video",
-                        );
-                      if (!videoStream) return null;
-                      return (
-                        <View>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              color: "#6B7280",
-                              textTransform: "uppercase",
-                              letterSpacing: 1,
-                              marginBottom: 4,
-                            }}
-                          >
-                            Video
-                          </Text>
-                          <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
-                            {videoStream.DisplayTitle ||
-                              `${videoStream.Codec?.toUpperCase()} ${videoStream.Width}x${videoStream.Height}`}
-                          </Text>
-                        </View>
-                      );
-                    })()}
-                    {/* Audio info */}
-                    {(() => {
-                      const audioStream =
-                        selectedOptions.mediaSource?.MediaStreams?.find(
-                          (s) => s.Type === "Audio",
-                        );
-                      if (!audioStream) return null;
-                      return (
-                        <View>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              color: "#6B7280",
-                              textTransform: "uppercase",
-                              letterSpacing: 1,
-                              marginBottom: 4,
-                            }}
-                          >
-                            Audio
-                          </Text>
-                          <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
-                            {audioStream.DisplayTitle ||
-                              `${audioStream.Codec?.toUpperCase()} ${audioStream.Channels}ch`}
-                          </Text>
-                        </View>
-                      );
-                    })()}
-                  </View>
-                </View>
+                <TVTechnicalDetails
+                  mediaStreams={selectedOptions.mediaSource.MediaStreams}
+                />
               )}
 
             {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
-            {(item.Type === "Movie" ||
-              item.Type === "Series" ||
-              item.Type === "Episode") &&
-              fullCast.length > 0 && (
-                <View style={{ marginBottom: 32 }}>
-                  <Text
-                    style={{
-                      fontSize: 22,
-                      fontWeight: "600",
-                      color: "#FFFFFF",
-                      marginBottom: 20,
-                    }}
-                  >
-                    {t("item_card.cast")}
-                  </Text>
-                  {/* Focus guide to direct upward navigation from cast back to options */}
-                  {lastOptionButtonRef && (
-                    <TVFocusGuideView
-                      destinations={[lastOptionButtonRef]}
-                      style={{ height: 1, width: "100%" }}
-                    />
-                  )}
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ marginHorizontal: -80, overflow: "visible" }}
-                    contentContainerStyle={{
-                      paddingHorizontal: 80,
-                      paddingVertical: 12,
-                      gap: 20,
-                    }}
-                  >
-                    {fullCast.map((person, index) => (
-                      <TVActorCard
-                        key={person.Id || index}
-                        ref={index === 0 ? setFirstActorCardRef : undefined}
-                        person={person}
-                        apiBasePath={api?.basePath}
-                        onPress={() => {
-                          if (person.Id) {
-                            router.push(`/(auth)/persons/${person.Id}`);
-                          }
-                        }}
-                      />
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
+            {showVisualCast && (
+              <TVCastSection
+                cast={fullCast}
+                apiBasePath={api?.basePath}
+                onActorPress={handleActorPress}
+                firstActorRefSetter={setFirstActorCardRef}
+                upwardFocusDestination={lastOptionButtonRef}
+              />
+            )}
 
             {/* From this Series - Episode only */}
-            {item.Type === "Episode" && item.SeriesId && (
-              <View style={{ marginBottom: 32 }}>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "600",
-                    color: "#FFFFFF",
-                    marginBottom: 20,
-                  }}
-                >
-                  {t("item_card.from_this_series") || "From this Series"}
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginHorizontal: -80, overflow: "visible" }}
-                  contentContainerStyle={{
-                    paddingHorizontal: 80,
-                    paddingVertical: 12,
-                    gap: 24,
-                  }}
-                >
-                  {/* Series card */}
-                  <TVSeriesSeasonCard
-                    title={item.SeriesName || "Series"}
-                    subtitle={t("item_card.view_series") || "View Series"}
-                    imageUrl={seriesImageUrl}
-                    onPress={() => {
-                      router.push(`/(auth)/series/${item.SeriesId}`);
-                    }}
-                    hasTVPreferredFocus={false}
-                  />
-
-                  {/* Season card */}
-                  {(item.SeasonId || item.ParentId) && (
-                    <TVSeriesSeasonCard
-                      title={
-                        item.SeasonName || `Season ${item.ParentIndexNumber}`
-                      }
-                      subtitle={t("item_card.view_season") || "View Season"}
-                      imageUrl={seasonImageUrl}
-                      onPress={() => {
-                        router.push(
-                          `/(auth)/series/${item.SeriesId}?seasonIndex=${item.ParentIndexNumber}`,
-                        );
-                      }}
-                    />
-                  )}
-                </ScrollView>
-              </View>
-            )}
+            <TVSeriesNavigation
+              item={item}
+              seriesImageUrl={seriesImageUrl}
+              seasonImageUrl={seasonImageUrl}
+              onSeriesPress={handleSeriesPress}
+              onSeasonPress={handleSeasonPress}
+            />
           </View>
         </ScrollView>
       </View>
