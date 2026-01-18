@@ -2,16 +2,25 @@ import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   MediaSourceInfo,
+  MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
   Dimensions,
+  Easing,
   Pressable,
   ScrollView,
   TVFocusGuideView,
@@ -317,6 +326,65 @@ const TVOptionButton = React.forwardRef<
   );
 });
 
+// Refresh metadata button with spinning animation
+const TVRefreshButton: React.FC<{
+  itemId: string | undefined;
+}> = ({ itemId }) => {
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const spinValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isRefreshing) {
+      spinValue.setValue(0);
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ).start();
+    } else {
+      spinValue.stopAnimation();
+      spinValue.setValue(0);
+    }
+  }, [isRefreshing, spinValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const handleRefresh = useCallback(async () => {
+    if (!itemId || isRefreshing) return;
+
+    setIsRefreshing(true);
+    const minSpinTime = new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["item", itemId] }),
+        minSpinTime,
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [itemId, queryClient, isRefreshing]);
+
+  return (
+    <TVButton
+      onPress={handleRefresh}
+      variant='glass'
+      square
+      disabled={isRefreshing}
+    >
+      <Animated.View style={{ transform: [{ rotate: spin }] }}>
+        <Ionicons name='refresh' size={28} color='#FFFFFF' />
+      </Animated.View>
+    </TVButton>
+  );
+};
+
 // Export as both ItemContentTV (for direct requires) and ItemContent (for platform-resolved imports)
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
@@ -498,12 +566,39 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       }
     }, [item?.Id, queryClient]);
 
-    // Handle manual refresh of metadata
-    const handleRefreshMetadata = useCallback(() => {
-      if (item?.Id) {
-        queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
+    // Refresh subtitle tracks by fetching fresh item data from Jellyfin
+    const refreshSubtitleTracks = useCallback(async (): Promise<
+      MediaStream[]
+    > => {
+      if (!api || !item?.Id) return [];
+
+      try {
+        // Fetch fresh item data with media sources
+        const response = await getUserLibraryApi(api).getItem({
+          itemId: item.Id,
+        });
+
+        const freshItem = response.data;
+        const mediaSourceId = selectedOptions?.mediaSource?.Id;
+
+        // Find the matching media source
+        const mediaSource = mediaSourceId
+          ? freshItem.MediaSources?.find(
+              (s: MediaSourceInfo) => s.Id === mediaSourceId,
+            )
+          : freshItem.MediaSources?.[0];
+
+        // Return subtitle tracks from the fresh data
+        return (
+          mediaSource?.MediaStreams?.filter(
+            (s: MediaStream) => s.Type === "Subtitle",
+          ) ?? []
+        );
+      } catch (error) {
+        console.error("Failed to refresh subtitle tracks:", error);
+        return [];
       }
-    }, [item?.Id, queryClient]);
+    }, [api, item?.Id, selectedOptions?.mediaSource?.Id]);
 
     // Get display values for buttons
     const selectedAudioLabel = useMemo(() => {
@@ -829,13 +924,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       : t("common.play")}
                   </Text>
                 </TVButton>
-                <TVButton
-                  onPress={handleRefreshMetadata}
-                  variant='glass'
-                  square
-                >
-                  <Ionicons name='refresh' size={28} color='#FFFFFF' />
-                </TVButton>
+                <TVRefreshButton itemId={item.Id} />
               </View>
 
               {/* Playback options */}
@@ -926,6 +1015,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                         onSubtitleIndexChange: handleSubtitleChange,
                         onServerSubtitleDownloaded:
                           handleServerSubtitleDownloaded,
+                        refreshSubtitleTracks,
                       })
                     }
                   />

@@ -466,12 +466,30 @@ export default function TVSubtitleModal() {
         const downloadResult = await downloadAsync(result);
 
         if (downloadResult.type === "server") {
+          // Give Jellyfin time to process the downloaded subtitle
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+
+          // Refresh tracks and stay open for server-side downloads
+          if (modalState?.refreshSubtitleTracks) {
+            const newTracks = await modalState.refreshSubtitleTracks();
+            // Update atom with new tracks
+            store.set(tvSubtitleModalAtom, {
+              ...modalState,
+              subtitleTracks: newTracks,
+            });
+            // Switch to tracks tab to show the new subtitle
+            setActiveTab("tracks");
+          }
+
+          // Also call onServerSubtitleDownloaded to invalidate React Query cache
+          // (used when opening modal from item detail page)
           modalState?.onServerSubtitleDownloaded?.();
+
+          // Do NOT close modal - user can see and select the new track
         } else if (downloadResult.type === "local" && downloadResult.path) {
           modalState?.onLocalSubtitleDownloaded?.(downloadResult.path);
+          handleClose(); // Only close for local downloads
         }
-
-        handleClose();
       } catch (error) {
         console.error("Failed to download subtitle:", error);
       } finally {
