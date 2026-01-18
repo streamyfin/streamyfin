@@ -628,6 +628,7 @@
     "search_subtitles": "Search Subtitles",
     "subtitle_tracks": "Tracks",
     "subtitle_search": "Search & Download",
+    "download": "Download",
     "subtitle_download_hint": "Downloaded subtitles will be saved to your library",
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
@@ -661,7 +662,8 @@
     "audio": "Audio",
     "subtitles": {
       "label": "Subtitle",
-      "none": "None"
+      "none": "None",
+      "tracks": "Tracks"
     },
     "show_more": "Show More",
     "show_less": "Show Less",

@@ -40,7 +40,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { TVSubtitleSheet } from "@/components/common/TVSubtitleSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -53,6 +52,7 @@ import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TrickplayBubble } from "./TrickplayBubble";
+import { TVSubtitleSheet } from "./TVSubtitleSheet";
 import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
@@ -916,6 +916,14 @@ export const Controls: FC<Props> = ({
     return track?.DisplayTitle || track?.Language || t("item_card.audio");
   }, [audioTracks, audioIndex, t]);
 
+  const _selectedSubtitleLabel = useMemo(() => {
+    if (subtitleIndex === -1) return t("item_card.subtitles.none");
+    const track = subtitleTracks.find((t) => t.Index === subtitleIndex);
+    return (
+      track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
+    );
+  }, [subtitleTracks, subtitleIndex, t]);
+
   // Handlers for option changes
   const handleAudioChange = useCallback(
     (index: number) => {
@@ -1049,6 +1057,19 @@ export const Controls: FC<Props> = ({
     setOpenModal("subtitle");
     controlsInteractionRef.current();
   }, []);
+
+  // Handler for when a subtitle is downloaded via server
+  const handleServerSubtitleDownloaded = useCallback(() => {
+    onServerSubtitleDownloaded?.();
+  }, [onServerSubtitleDownloaded]);
+
+  // Handler for when a subtitle is downloaded locally
+  const handleLocalSubtitleDownloaded = useCallback(
+    (path: string) => {
+      addSubtitleFile?.(path);
+    },
+    [addSubtitleFile],
+  );
 
   // Progress value for the progress bar (directly from playback progress)
   const effectiveProgress = useSharedValue(0);
@@ -1411,7 +1432,7 @@ export const Controls: FC<Props> = ({
               />
             )}
 
-            {/* Subtitle button - always show to allow search even if no tracks */}
+            {/* Subtitle button */}
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
@@ -1484,17 +1505,17 @@ export const Controls: FC<Props> = ({
         onClose={() => setOpenModal(null)}
       />
 
-      {/* Subtitle Sheet with tabs for tracks and search */}
+      {/* Unified Subtitle Sheet (tracks + download) */}
       <TVSubtitleSheet
         visible={openModal === "subtitle"}
         item={item}
         mediaSourceId={mediaSource?.Id}
         subtitleTracks={subtitleTracks}
         currentSubtitleIndex={subtitleIndex ?? -1}
-        onSubtitleChange={handleSubtitleChange}
+        onSubtitleIndexChange={handleSubtitleChange}
         onClose={() => setOpenModal(null)}
-        onServerSubtitleDownloaded={onServerSubtitleDownloaded}
-        onLocalSubtitleDownloaded={addSubtitleFile}
+        onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
+        onLocalSubtitleDownloaded={handleLocalSubtitleDownloaded}
       />
     </View>
   );

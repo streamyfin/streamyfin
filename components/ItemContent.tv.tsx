@@ -32,8 +32,8 @@ import { Badge } from "@/components/Badge";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
-import { TVSubtitleSheet } from "@/components/common/TVSubtitleSheet";
 import { GenreTags } from "@/components/GenreTags";
+import { TVSubtitleSheet } from "@/components/video-player/controls/TVSubtitleSheet";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
@@ -1037,13 +1037,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       setSelectedOptions((prev) => (prev ? { ...prev, bitrate } : undefined));
     }, []);
 
-    // Refresh item data when server-side subtitle is downloaded
+    // Handle server-side subtitle download - invalidate queries to refresh tracks
     const handleServerSubtitleDownloaded = useCallback(() => {
-      // Invalidate item queries to refresh media sources with new subtitle
       if (item?.Id) {
         queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
       }
-    }, [queryClient, item?.Id]);
+    }, [item?.Id, queryClient]);
 
     // Get display values for buttons
     const selectedAudioLabel = useMemo(() => {
@@ -1115,11 +1114,23 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
 
     // Determine which option button is the last one (for focus guide targeting)
-    // Subtitle is always shown now (always has search capability)
     const lastOptionButton = useMemo(() => {
-      // Subtitle is always the last button since it's always shown
-      return "subtitle";
-    }, []);
+      const hasSubtitleOption =
+        subtitleTracks.length > 0 ||
+        selectedOptions?.subtitleIndex !== undefined;
+      const hasAudioOption = audioTracks.length > 0;
+      const hasMediaSourceOption = mediaSources.length > 1;
+
+      if (hasSubtitleOption) return "subtitle";
+      if (hasAudioOption) return "audio";
+      if (hasMediaSourceOption) return "mediaSource";
+      return "quality";
+    }, [
+      subtitleTracks.length,
+      selectedOptions?.subtitleIndex,
+      audioTracks.length,
+      mediaSources.length,
+    ]);
 
     if (!item || !selectedOptions) return null;
 
@@ -1408,17 +1419,20 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   />
                 )}
 
-                {/* Subtitle selector - always show to enable search */}
-                <TVOptionButton
-                  ref={
-                    lastOptionButton === "subtitle"
-                      ? setLastOptionButtonRef
-                      : undefined
-                  }
-                  label={t("item_card.subtitles.label")}
-                  value={selectedSubtitleLabel}
-                  onPress={() => setOpenModal("subtitle")}
-                />
+                {/* Subtitle selector */}
+                {(subtitleTracks.length > 0 ||
+                  selectedOptions?.subtitleIndex !== undefined) && (
+                  <TVOptionButton
+                    ref={
+                      lastOptionButton === "subtitle"
+                        ? setLastOptionButtonRef
+                        : undefined
+                    }
+                    label={t("item_card.subtitles.label")}
+                    value={selectedSubtitleLabel}
+                    onPress={() => setOpenModal("subtitle")}
+                  />
+                )}
               </View>
 
               {/* Focus guide to direct navigation from options to cast list */}
@@ -1721,17 +1735,19 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           onClose={() => setOpenModal(null)}
         />
 
-        {/* Subtitle Sheet with tabs for tracks and search */}
-        <TVSubtitleSheet
-          visible={openModal === "subtitle"}
-          item={item}
-          mediaSourceId={selectedOptions?.mediaSource?.Id}
-          subtitleTracks={subtitleTracks}
-          currentSubtitleIndex={selectedOptions?.subtitleIndex ?? -1}
-          onSubtitleChange={handleSubtitleChange}
-          onClose={() => setOpenModal(null)}
-          onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
-        />
+        {/* Unified Subtitle Sheet (tracks + download) */}
+        {item && (
+          <TVSubtitleSheet
+            visible={openModal === "subtitle"}
+            item={item}
+            mediaSourceId={selectedOptions?.mediaSource?.Id}
+            subtitleTracks={subtitleTracks}
+            currentSubtitleIndex={selectedOptions?.subtitleIndex ?? -1}
+            onSubtitleIndexChange={handleSubtitleChange}
+            onClose={() => setOpenModal(null)}
+            onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
+          />
+        )}
       </View>
     );
   },

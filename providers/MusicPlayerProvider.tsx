@@ -30,32 +30,20 @@ import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { storage } from "@/utils/mmkv";
 
 // Conditionally import TrackPlayer only on non-TV platforms
-// Wrap in try-catch in case native module isn't linked
-let TrackPlayerModule: typeof import("react-native-track-player") | null = null;
-if (!Platform.isTV) {
-  try {
-    TrackPlayerModule = require("react-native-track-player");
-  } catch (e) {
-    console.warn("TrackPlayer not available:", e);
-  }
-}
-const TrackPlayer = TrackPlayerModule?.default ?? null;
+// This prevents the native module from being loaded on TV where it doesn't exist
+const TrackPlayer = Platform.isTV
+  ? null
+  : require("react-native-track-player").default;
+
+const TrackPlayerModule = Platform.isTV
+  ? null
+  : require("react-native-track-player");
 
 // Extract types and enums from the module (only available on non-TV)
 const Capability = TrackPlayerModule?.Capability;
 const TPRepeatMode = TrackPlayerModule?.RepeatMode;
-
-// Define types locally since they can't be extracted from conditional import
-type Track = {
-  id: string;
-  url: string;
-  title?: string;
-  artist?: string;
-  album?: string;
-  artwork?: string;
-  duration?: number;
-};
-type Progress = { position: number; duration: number; buffered: number };
+type Track = NonNullable<typeof TrackPlayerModule>["Track"];
+type Progress = NonNullable<typeof TrackPlayerModule>["Progress"];
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -394,7 +382,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Setup TrackPlayer and AudioStorage
   useEffect(() => {
-    if (!TrackPlayer || !Capability) return;
+    if (!TrackPlayer) return;
 
     const setupPlayer = async () => {
       if (playerSetupRef.current) return;
@@ -444,21 +432,21 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Sync repeat mode to TrackPlayer
   useEffect(() => {
-    if (!TrackPlayer || !TPRepeatMode) return;
+    if (!TrackPlayer) return;
 
     const syncRepeatMode = async () => {
       if (!playerSetupRef.current) return;
 
-      let tpRepeatMode: number;
+      let tpRepeatMode: typeof TPRepeatMode;
       switch (state.repeatMode) {
         case "one":
-          tpRepeatMode = TPRepeatMode.Track;
+          tpRepeatMode = TPRepeatMode?.Track;
           break;
         case "all":
-          tpRepeatMode = TPRepeatMode.Queue;
+          tpRepeatMode = TPRepeatMode?.Queue;
           break;
         default:
-          tpRepeatMode = TPRepeatMode.Off;
+          tpRepeatMode = TPRepeatMode?.Off;
       }
       await TrackPlayer.setRepeatMode(tpRepeatMode);
     };
