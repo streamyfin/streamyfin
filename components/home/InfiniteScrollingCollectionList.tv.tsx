@@ -456,12 +456,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                marginLeft: itemWidth / 2,
               }}
             >
               {isFetchingNextPage && (
                 <View
                   style={{
+                    marginLeft: itemWidth / 2,
                     marginRight: ITEM_GAP,
                     justifyContent: "center",
                     height: orientation === "horizontal" ? 191 : 315,
