@@ -613,10 +613,7 @@ export default function TVSubtitleModal() {
                   {/* Loading state */}
                   {isSearching && (
                     <View style={styles.loadingContainer}>
-                      <ActivityIndicator size='large' color='#fff' />
-                      <Text style={styles.loadingText}>
-                        {t("player.searching") || "Searching..."}
-                      </Text>
+                      <ActivityIndicator size='small' color='#fff' />
                     </View>
                   )}
 
@@ -811,10 +808,11 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     width: 220,
-    minHeight: 120,
+    height: 130,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
+    overflow: "hidden",
   },
   providerBadge: {
     alignSelf: "flex-start",
@@ -877,13 +875,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingContainer: {
-    paddingVertical: 40,
+    paddingVertical: 20,
     alignItems: "center",
-  },
-  loadingText: {
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 12,
-    fontSize: 14,
   },
   errorContainer: {
     paddingVertical: 40,
