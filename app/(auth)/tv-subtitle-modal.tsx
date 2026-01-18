@@ -26,11 +26,12 @@ import {
   type SubtitleSearchResult,
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
+import { useSettings } from "@/utils/atoms/settings";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { store } from "@/utils/store";
 
-type TabType = "tracks" | "download";
+type TabType = "tracks" | "download" | "settings";
 
 // Track card for subtitle track selection
 const TVTrackCard = React.forwardRef<
@@ -353,10 +354,161 @@ const SubtitleResultCard = React.forwardRef<
   );
 });
 
+// Stepper button for subtitle size control
+const TVStepperButton: React.FC<{
+  icon: "remove" | "add";
+  onPress: () => void;
+  disabled?: boolean;
+  hasTVPreferredFocus?: boolean;
+}> = ({ icon, onPress, disabled, hasTVPreferredFocus }) => {
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.1 });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      disabled={disabled}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={[
+          styles.stepperButton,
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "#fff"
+              : disabled
+                ? "rgba(255,255,255,0.05)"
+                : "rgba(255,255,255,0.12)",
+            opacity: disabled ? 0.4 : 1,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={28}
+          color={focused ? "#000" : disabled ? "rgba(255,255,255,0.4)" : "#fff"}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+// Generic stepper control component
+const TVStepperControl: React.FC<{
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  formatValue: (value: number) => string;
+  onChange: (newValue: number) => void;
+  hasTVPreferredFocus?: boolean;
+}> = ({
+  value,
+  min,
+  max,
+  step,
+  formatValue,
+  onChange,
+  hasTVPreferredFocus,
+}) => {
+  const canDecrease = value > min;
+  const canIncrease = value < max;
+
+  const handleDecrease = () => {
+    if (canDecrease) {
+      const newValue = Math.max(min, Math.round((value - step) * 10) / 10);
+      onChange(newValue);
+    }
+  };
+
+  const handleIncrease = () => {
+    if (canIncrease) {
+      const newValue = Math.min(max, Math.round((value + step) * 10) / 10);
+      onChange(newValue);
+    }
+  };
+
+  return (
+    <View style={styles.sizeControlContainer}>
+      <TVStepperButton
+        icon='remove'
+        onPress={handleDecrease}
+        disabled={!canDecrease}
+        hasTVPreferredFocus={hasTVPreferredFocus}
+      />
+      <View style={styles.sizeValueContainer}>
+        <Text style={styles.sizeValueText}>{formatValue(value)}</Text>
+      </View>
+      <TVStepperButton
+        icon='add'
+        onPress={handleIncrease}
+        disabled={!canIncrease}
+      />
+    </View>
+  );
+};
+
+// Alignment option card
+const TVAlignmentCard: React.FC<{
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  hasTVPreferredFocus?: boolean;
+}> = ({ label, selected, onPress, hasTVPreferredFocus }) => {
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.05 });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <Animated.View
+        style={[
+          styles.alignmentCard,
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "#fff"
+              : selected
+                ? "rgba(255,255,255,0.2)"
+                : "rgba(255,255,255,0.08)",
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.alignmentCardText,
+            { color: focused ? "#000" : "#fff" },
+            (focused || selected) && { fontWeight: "600" },
+          ]}
+        >
+          {label}
+        </Text>
+        {selected && !focused && (
+          <View style={styles.alignmentCheckmark}>
+            <Ionicons
+              name='checkmark'
+              size={14}
+              color='rgba(255,255,255,0.8)'
+            />
+          </View>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+};
+
 export default function TVSubtitleModal() {
   const router = useRouter();
   const { t } = useTranslation();
   const modalState = useAtomValue(tvSubtitleModalAtom);
+  const { settings, updateSettings } = useSettings();
 
   const [activeTab, setActiveTab] = useState<TabType>("tracks");
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
@@ -397,8 +549,12 @@ export default function TVSubtitleModal() {
     return trackIdx >= 0 ? trackIdx + 1 : 0;
   }, [subtitleTracks, currentSubtitleIndex]);
 
-  // Animate in on mount
+  // Track if component is mounted for async operations
+  const isMountedRef = useRef(true);
+
+  // Animate in on mount and cleanup atom on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(300);
 
@@ -418,7 +574,12 @@ export default function TVSubtitleModal() {
     ]).start();
 
     const timer = setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      isMountedRef.current = false;
+      // Clear the atom on unmount to prevent stale callbacks from being retained
+      store.set(tvSubtitleModalAtom, null);
+    };
   }, [overlayOpacity, sheetTranslateY]);
 
   useEffect(() => {
@@ -465,13 +626,23 @@ export default function TVSubtitleModal() {
       try {
         const downloadResult = await downloadAsync(result);
 
+        // Check if component is still mounted after async operation
+        if (!isMountedRef.current) return;
+
         if (downloadResult.type === "server") {
           // Give Jellyfin time to process the downloaded subtitle
           await new Promise((resolve) => setTimeout(resolve, 5000));
 
+          // Check if component is still mounted after the wait
+          if (!isMountedRef.current) return;
+
           // Refresh tracks and stay open for server-side downloads
           if (modalState?.refreshSubtitleTracks) {
             const newTracks = await modalState.refreshSubtitleTracks();
+
+            // Check if component is still mounted after fetching tracks
+            if (!isMountedRef.current) return;
+
             // Update atom with new tracks
             store.set(tvSubtitleModalAtom, {
               ...modalState,
@@ -493,7 +664,9 @@ export default function TVSubtitleModal() {
       } catch (error) {
         console.error("Failed to download subtitle:", error);
       } finally {
-        setDownloadingId(null);
+        if (isMountedRef.current) {
+          setDownloadingId(null);
+        }
       }
     },
     [downloadAsync, modalState, handleClose],
@@ -559,6 +732,11 @@ export default function TVSubtitleModal() {
                   label={t("player.download") || "Download"}
                   active={activeTab === "download"}
                   onSelect={() => setActiveTab("download")}
+                />
+                <TVTabButton
+                  label={t("player.settings") || "Settings"}
+                  active={activeTab === "settings"}
+                  onSelect={() => setActiveTab("settings")}
                 />
               </View>
             </View>
@@ -711,6 +889,104 @@ export default function TVSubtitleModal() {
                   </View>
                 )}
               </>
+            )}
+
+            {/* Settings Tab Content */}
+            {activeTab === "settings" && isTabContentReady && (
+              <View style={styles.section}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  style={styles.settingsScroll}
+                  contentContainerStyle={styles.settingsScrollContent}
+                >
+                  {/* Subtitle Scale */}
+                  <View style={styles.settingRow}>
+                    <TVStepperControl
+                      value={settings.mpvSubtitleScale ?? 1.0}
+                      min={0.5}
+                      max={2.0}
+                      step={0.1}
+                      formatValue={(v) => `${v.toFixed(1)}x`}
+                      onChange={(newValue) => {
+                        updateSettings({
+                          mpvSubtitleScale: Math.round(newValue * 10) / 10,
+                        });
+                      }}
+                      hasTVPreferredFocus={true}
+                    />
+                    <Text style={styles.settingLabel}>
+                      {t("home.settings.subtitles.mpv_subtitle_scale") ||
+                        "Subtitle Scale"}
+                    </Text>
+                  </View>
+
+                  {/* Vertical Margin */}
+                  <View style={styles.settingRow}>
+                    <TVStepperControl
+                      value={settings.mpvSubtitleMarginY ?? 0}
+                      min={-100}
+                      max={100}
+                      step={5}
+                      formatValue={(v) => `${v}`}
+                      onChange={(newValue) => {
+                        updateSettings({ mpvSubtitleMarginY: newValue });
+                      }}
+                    />
+                    <Text style={styles.settingLabel}>
+                      {t("home.settings.subtitles.mpv_subtitle_margin_y") ||
+                        "Vertical Margin"}
+                    </Text>
+                  </View>
+
+                  {/* Horizontal Alignment */}
+                  <View style={styles.settingRow}>
+                    <View style={styles.alignmentRow}>
+                      {(["left", "center", "right"] as const).map((align) => (
+                        <TVAlignmentCard
+                          key={align}
+                          label={
+                            t(`home.settings.subtitles.align.${align}`) || align
+                          }
+                          selected={
+                            (settings.mpvSubtitleAlignX ?? "center") === align
+                          }
+                          onPress={() =>
+                            updateSettings({ mpvSubtitleAlignX: align })
+                          }
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.settingLabel}>
+                      {t("home.settings.subtitles.mpv_subtitle_align_x") ||
+                        "Horizontal Align"}
+                    </Text>
+                  </View>
+
+                  {/* Vertical Alignment */}
+                  <View style={styles.settingRow}>
+                    <View style={styles.alignmentRow}>
+                      {(["top", "center", "bottom"] as const).map((align) => (
+                        <TVAlignmentCard
+                          key={align}
+                          label={
+                            t(`home.settings.subtitles.align.${align}`) || align
+                          }
+                          selected={
+                            (settings.mpvSubtitleAlignY ?? "bottom") === align
+                          }
+                          onPress={() =>
+                            updateSettings({ mpvSubtitleAlignY: align })
+                          }
+                        />
+                      ))}
+                    </View>
+                    <Text style={styles.settingLabel}>
+                      {t("home.settings.subtitles.mpv_subtitle_align_y") ||
+                        "Vertical Align"}
+                    </Text>
+                  </View>
+                </ScrollView>
+              </View>
             )}
           </TVFocusGuideView>
         </BlurView>
@@ -932,5 +1208,65 @@ const styles = StyleSheet.create({
   apiKeyHintText: {
     color: "rgba(255,255,255,0.4)",
     fontSize: 12,
+  },
+  // Settings tab styles
+  settingsScroll: {
+    maxHeight: 300,
+  },
+  settingsScrollContent: {
+    paddingHorizontal: 48,
+    paddingVertical: 8,
+    gap: 24,
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  settingLabel: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#fff",
+  },
+  sizeControlContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  stepperButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sizeValueContainer: {
+    width: 80,
+    alignItems: "center",
+  },
+  sizeValueText: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  alignmentRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  alignmentCard: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minWidth: 90,
+    alignItems: "center",
+  },
+  alignmentCardText: {
+    fontSize: 15,
+    textTransform: "capitalize",
+  },
+  alignmentCheckmark: {
+    position: "absolute",
+    top: 6,
+    right: 6,
   },
 });

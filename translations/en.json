@@ -265,7 +265,18 @@
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
         "opensubtitles_api_key_placeholder": "Enter API key...",
-        "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers"
+        "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers",
+        "mpv_subtitle_scale": "Subtitle Scale",
+        "mpv_subtitle_margin_y": "Vertical Margin",
+        "mpv_subtitle_align_x": "Horizontal Align",
+        "mpv_subtitle_align_y": "Vertical Align",
+        "align": {
+          "left": "Left",
+          "center": "Center",
+          "right": "Right",
+          "top": "Top",
+          "bottom": "Bottom"
+        }
       },
       "vlc_subtitles": {
         "title": "VLC Subtitle Settings",
@@ -638,7 +649,8 @@
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
-    "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback"
+    "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
+    "settings": "Settings"
   },
   "item_card": {
     "next_up": "Next Up",

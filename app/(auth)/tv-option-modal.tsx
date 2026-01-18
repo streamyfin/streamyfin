@@ -31,7 +31,7 @@ export default function TVOptionModal() {
     return idx >= 0 ? idx : 0;
   }, [modalState?.options]);
 
-  // Animate in on mount
+  // Animate in on mount and cleanup atom on unmount
   useEffect(() => {
     overlayOpacity.setValue(0);
     sheetTranslateY.setValue(200);
@@ -53,7 +53,11 @@ export default function TVOptionModal() {
 
     // Delay focus setup to allow layout
     const timer = setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      // Clear the atom on unmount to prevent stale callbacks from being retained
+      store.set(tvOptionModalAtom, null);
+    };
   }, [overlayOpacity, sheetTranslateY]);
 
   // Request focus on the first card when ready
