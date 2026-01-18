@@ -13,7 +13,7 @@ enum HDRMode {
 }
 
 protocol MPVLayerRendererDelegate: AnyObject {
-    func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double)
+    func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double)
     func renderer(_ renderer: MPVLayerRenderer, didChangePause isPaused: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
@@ -53,6 +53,7 @@ final class MPVLayerRenderer {
     // Thread-safe state for playback
     private var _cachedDuration: Double = 0
     private var _cachedPosition: Double = 0
+    private var _cachedCacheSeconds: Double = 0
     private var _isPaused: Bool = true
     private var _playbackSpeed: Double = 1.0
     private var _isLoading: Bool = false
@@ -83,6 +84,10 @@ final class MPVLayerRenderer {
     private var cachedPosition: Double {
         get { stateQueue.sync { _cachedPosition } }
         set { stateQueue.async(flags: .barrier) { self._cachedPosition = newValue } }
+    }
+    private var cachedCacheSeconds: Double {
+        get { stateQueue.sync { _cachedCacheSeconds } }
+        set { stateQueue.async(flags: .barrier) { self._cachedCacheSeconds = newValue } }
     }
     private var isPaused: Bool {
         get { stateQueue.sync { _isPaused } }
@@ -171,16 +176,16 @@ final class MPVLayerRenderer {
         // Use AVFoundation video output - required for PiP support
         checkError(mpv_set_option_string(handle, "vo", "avfoundation"))
 
-        // Enable composite OSD mode - renders subtitles directly onto video frames using GPU
-        // This is better for PiP as subtitles are baked into the video
-        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
-
         // Hardware decoding with VideoToolbox
         // On simulator, use software decoding since VideoToolbox is not available
         // On device, use VideoToolbox with software fallback enabled
         #if targetEnvironment(simulator)
         checkError(mpv_set_option_string(handle, "hwdec", "no"))
         #else
+        // Only enable composite OSD mode on real device (OSD is not supported in simulator).
+        // This renders subtitles directly onto video frames using the GPU, which is better for PiP since subtitles are baked into the video.
+        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
+
         checkError(mpv_set_option_string(handle, "hwdec", "videotoolbox"))
         #endif
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
@@ -355,7 +360,8 @@ final class MPVLayerRenderer {
             ("time-pos", MPV_FORMAT_DOUBLE),
             ("pause", MPV_FORMAT_FLAG),
             ("track-list/count", MPV_FORMAT_INT64),
-            ("paused-for-cache", MPV_FORMAT_FLAG)
+            ("paused-for-cache", MPV_FORMAT_FLAG),
+            ("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
         ]
         for (name, format) in properties {
             mpv_observe_property(handle, 0, name, format)
@@ -502,7 +508,7 @@ final class MPVLayerRenderer {
                 cachedDuration = value
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
-                    self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration)
+                    self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration, cacheSeconds: self.cachedCacheSeconds)
                 }
             }
         case "time-pos":
@@ -517,9 +523,15 @@ final class MPVLayerRenderer {
                     lastProgressUpdateTime = now
                     DispatchQueue.main.async { [weak self] in
                         guard let self else { return }
-                        self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration)
+                        self.delegate?.renderer(self, didUpdatePosition: self.cachedPosition, duration: self.cachedDuration, cacheSeconds: self.cachedCacheSeconds)
                     }
                 }
+            }
+        case "demuxer-cache-duration":
+            var value = Double(0)
+            let status = getProperty(handle: handle, name: name, format: MPV_FORMAT_DOUBLE, value: &value)
+            if status >= 0 {
+                cachedCacheSeconds = value
             }
         case "pause":
             var flag: Int32 = 0
