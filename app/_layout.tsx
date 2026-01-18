@@ -60,7 +60,7 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { store } from "@/utils/store";
+import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
 import { Toaster } from "sonner-native";
 
@@ -179,7 +179,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <JotaiProvider>
+      <JotaiProvider store={jotaiStore}>
         <ActionSheetProvider>
           <I18nextProvider i18n={i18n}>
             <Layout />
@@ -429,6 +429,22 @@ function Layout() {
                                   }}
                                 />
                                 <Stack.Screen name='+not-found' />
+                                <Stack.Screen
+                                  name='(auth)/tv-option-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/tv-subtitle-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
                               </Stack>
                               <Toaster
                                 duration={4000}
