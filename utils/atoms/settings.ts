@@ -200,6 +200,8 @@ export type Settings = {
   usePopularPlugin: boolean;
   showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  // TV-specific settings
+  showHomeBackdrop: boolean;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -211,6 +213,8 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // OpenSubtitles API key for client-side subtitle fetching
+  openSubtitlesApiKey?: string;
 };
 
 export interface Lockable<T> {
@@ -285,6 +289,8 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
+  // TV-specific settings
+  showHomeBackdrop: true,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,

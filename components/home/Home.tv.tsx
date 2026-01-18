@@ -12,10 +12,18 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  ScrollView,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -28,6 +36,7 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
@@ -47,6 +56,9 @@ type InfiniteScrollingCollectionListSection = {
 
 type Section = InfiniteScrollingCollectionListSection;
 
+// Debounce delay in ms - prevents rapid backdrop changes when scrolling fast
+const BACKDROP_DEBOUNCE_MS = 300;
+
 export const Home = () => {
   const _router = useRouter();
   const { t } = useTranslation();
@@ -63,6 +75,111 @@ export const Home = () => {
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
+
+  // Dynamic backdrop state with debounce
+  const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Handle item focus with debounce
+  const handleItemFocus = useCallback((item: BaseItemDto) => {
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    // Set new timer to update focused item after debounce delay
+    debounceTimerRef.current = setTimeout(() => {
+      setFocusedItem(item);
+    }, BACKDROP_DEBOUNCE_MS);
+  }, []);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Get backdrop URL from focused item (only if setting is enabled)
+  const backdropUrl = useMemo(() => {
+    if (!settings.showHomeBackdrop || !focusedItem) return null;
+    return getBackdropUrl({
+      api,
+      item: focusedItem,
+      quality: 90,
+      width: 1920,
+    });
+  }, [api, focusedItem, settings.showHomeBackdrop]);
+
+  // Crossfade animation for backdrop transitions
+  const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
+  const [layer0Url, setLayer0Url] = useState<string | null>(null);
+  const [layer1Url, setLayer1Url] = useState<string | null>(null);
+  const layer0Opacity = useRef(new Animated.Value(0)).current;
+  const layer1Opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!backdropUrl) return;
+
+    let isCancelled = false;
+
+    const performCrossfade = async () => {
+      // Prefetch the image before starting the crossfade
+      try {
+        await Image.prefetch(backdropUrl);
+      } catch {
+        // Continue even if prefetch fails
+      }
+
+      if (isCancelled) return;
+
+      // Determine which layer to fade in
+      const incomingLayer = activeLayer === 0 ? 1 : 0;
+      const incomingOpacity =
+        incomingLayer === 0 ? layer0Opacity : layer1Opacity;
+      const outgoingOpacity =
+        incomingLayer === 0 ? layer1Opacity : layer0Opacity;
+
+      // Set the new URL on the incoming layer
+      if (incomingLayer === 0) {
+        setLayer0Url(backdropUrl);
+      } else {
+        setLayer1Url(backdropUrl);
+      }
+
+      // Small delay to ensure image component has the new URL
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      if (isCancelled) return;
+
+      // Crossfade: fade in the incoming layer, fade out the outgoing
+      Animated.parallel([
+        Animated.timing(incomingOpacity, {
+          toValue: 1,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(outgoingOpacity, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        if (!isCancelled) {
+          setActiveLayer(incomingLayer);
+        }
+      });
+    };
+
+    performCrossfade();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [backdropUrl]);
 
   const {
     data,
@@ -489,84 +606,148 @@ export const Home = () => {
     );
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      nestedScrollEnabled
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingTop: insets.top + TOP_PADDING,
-        paddingBottom: insets.bottom + 60,
-        paddingLeft: insets.left + HORIZONTAL_PADDING,
-        paddingRight: insets.right + HORIZONTAL_PADDING,
-      }}
-    >
-      <View style={{ gap: SECTION_GAP }}>
-        {sections.map((section, index) => {
-          // Render Streamystats sections after Continue Watching and Next Up
-          // When merged, they appear after index 0; otherwise after index 1
-          const streamystatsIndex = settings.mergeNextUpAndContinueWatching
-            ? 0
-            : 1;
-          const hasStreamystatsContent =
-            settings.streamyStatsMovieRecommendations ||
-            settings.streamyStatsSeriesRecommendations ||
-            settings.streamyStatsPromotedWatchlists;
-          const streamystatsSections =
-            index === streamystatsIndex && hasStreamystatsContent ? (
-              <View key='streamystats-sections' style={{ gap: SECTION_GAP }}>
-                {settings.streamyStatsMovieRecommendations && (
-                  <StreamystatsRecommendations
-                    title={t(
-                      "home.settings.plugins.streamystats.recommended_movies",
-                    )}
-                    type='Movie'
-                    enabled={allHighPriorityLoaded}
-                  />
-                )}
-                {settings.streamyStatsSeriesRecommendations && (
-                  <StreamystatsRecommendations
-                    title={t(
-                      "home.settings.plugins.streamystats.recommended_series",
-                    )}
-                    type='Series'
-                    enabled={allHighPriorityLoaded}
-                  />
-                )}
-                {settings.streamyStatsPromotedWatchlists && (
-                  <StreamystatsPromotedWatchlists
-                    enabled={allHighPriorityLoaded}
-                  />
-                )}
-              </View>
-            ) : null;
-
-          if (section.type === "InfiniteScrollingCollectionList") {
-            const isHighPriority = section.priority === 1;
-            const isFirstSection = index === 0;
-            return (
-              <View key={index} style={{ gap: SECTION_GAP }}>
-                <InfiniteScrollingCollectionList
-                  title={section.title}
-                  queryKey={section.queryKey}
-                  queryFn={section.queryFn}
-                  orientation={section.orientation}
-                  hideIfEmpty
-                  pageSize={section.pageSize}
-                  enabled={isHighPriority || allHighPriorityLoaded}
-                  onLoaded={
-                    isHighPriority
-                      ? () => markSectionLoaded(section.queryKey)
-                      : undefined
-                  }
-                  isFirstSection={isFirstSection}
-                />
-                {streamystatsSections}
-              </View>
-            );
-          }
-          return null;
-        })}
+    <View style={{ flex: 1, backgroundColor: "#000000" }}>
+      {/* Dynamic backdrop with crossfade */}
+      <View
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        {/* Layer 0 */}
+        <Animated.View
+          style={{
+            position: "absolute",
+            width: "100%",
+            height: "100%",
+            opacity: layer0Opacity,
+          }}
+        >
+          {layer0Url && (
+            <Image
+              source={{ uri: layer0Url }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit='cover'
+            />
+          )}
+        </Animated.View>
+        {/* Layer 1 */}
+        <Animated.View
+          style={{
+            position: "absolute",
+            width: "100%",
+            height: "100%",
+            opacity: layer1Opacity,
+          }}
+        >
+          {layer1Url && (
+            <Image
+              source={{ uri: layer1Url }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit='cover'
+            />
+          )}
+        </Animated.View>
+        {/* Gradient overlays for readability */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
+          locations={[0, 0.4, 1]}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: "100%",
+          }}
+        />
       </View>
-    </ScrollView>
+
+      <ScrollView
+        ref={scrollRef}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingTop: insets.top + TOP_PADDING,
+          paddingBottom: insets.bottom + 60,
+          paddingLeft: insets.left + HORIZONTAL_PADDING,
+          paddingRight: insets.right + HORIZONTAL_PADDING,
+        }}
+      >
+        <View style={{ gap: SECTION_GAP }}>
+          {sections.map((section, index) => {
+            // Render Streamystats sections after Continue Watching and Next Up
+            // When merged, they appear after index 0; otherwise after index 1
+            const streamystatsIndex = settings.mergeNextUpAndContinueWatching
+              ? 0
+              : 1;
+            const hasStreamystatsContent =
+              settings.streamyStatsMovieRecommendations ||
+              settings.streamyStatsSeriesRecommendations ||
+              settings.streamyStatsPromotedWatchlists;
+            const streamystatsSections =
+              index === streamystatsIndex && hasStreamystatsContent ? (
+                <View key='streamystats-sections' style={{ gap: SECTION_GAP }}>
+                  {settings.streamyStatsMovieRecommendations && (
+                    <StreamystatsRecommendations
+                      title={t(
+                        "home.settings.plugins.streamystats.recommended_movies",
+                      )}
+                      type='Movie'
+                      enabled={allHighPriorityLoaded}
+                      onItemFocus={handleItemFocus}
+                    />
+                  )}
+                  {settings.streamyStatsSeriesRecommendations && (
+                    <StreamystatsRecommendations
+                      title={t(
+                        "home.settings.plugins.streamystats.recommended_series",
+                      )}
+                      type='Series'
+                      enabled={allHighPriorityLoaded}
+                      onItemFocus={handleItemFocus}
+                    />
+                  )}
+                  {settings.streamyStatsPromotedWatchlists && (
+                    <StreamystatsPromotedWatchlists
+                      enabled={allHighPriorityLoaded}
+                      onItemFocus={handleItemFocus}
+                    />
+                  )}
+                </View>
+              ) : null;
+
+            if (section.type === "InfiniteScrollingCollectionList") {
+              const isHighPriority = section.priority === 1;
+              const isFirstSection = index === 0;
+              return (
+                <View key={index} style={{ gap: SECTION_GAP }}>
+                  <InfiniteScrollingCollectionList
+                    title={section.title}
+                    queryKey={section.queryKey}
+                    queryFn={section.queryFn}
+                    orientation={section.orientation}
+                    hideIfEmpty
+                    pageSize={section.pageSize}
+                    enabled={isHighPriority || allHighPriorityLoaded}
+                    onLoaded={
+                      isHighPriority
+                        ? () => markSectionLoaded(section.queryKey)
+                        : undefined
+                    }
+                    isFirstSection={isFirstSection}
+                    onItemFocus={handleItemFocus}
+                  />
+                  {streamystatsSections}
+                </View>
+              );
+            }
+            return null;
+          })}
+        </View>
+      </ScrollView>
+    </View>
   );
 };

@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
+import { Input } from "@/components/common/Input";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
@@ -22,6 +23,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
+
+  // Local state for OpenSubtitles API key (only commit on blur)
+  const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
+    settings?.openSubtitlesApiKey || "",
+  );
 
   const subtitleModes = [
     SubtitlePlaybackMode.Default,
@@ -170,6 +176,44 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
+      </ListGroup>
+
+      {/* OpenSubtitles API Key for client-side subtitle fetching */}
+      <ListGroup
+        title={
+          t("home.settings.subtitles.opensubtitles_title") || "OpenSubtitles"
+        }
+        description={
+          <Text className='text-[#8E8D91] text-xs'>
+            {t("home.settings.subtitles.opensubtitles_hint") ||
+              "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured."}
+          </Text>
+        }
+      >
+        <View className='p-4'>
+          <Text className='text-xs text-gray-400 mb-2'>
+            {t("home.settings.subtitles.opensubtitles_api_key") || "API Key"}
+          </Text>
+          <Input
+            className='border border-neutral-800'
+            placeholder={
+              t("home.settings.subtitles.opensubtitles_api_key_placeholder") ||
+              "Enter API key..."
+            }
+            value={openSubtitlesApiKey}
+            onChangeText={setOpenSubtitlesApiKey}
+            onBlur={() => {
+              updateSettings({ openSubtitlesApiKey });
+            }}
+            autoCapitalize='none'
+            autoCorrect={false}
+            secureTextEntry
+          />
+          <Text className='text-xs text-gray-500 mt-2'>
+            {t("home.settings.subtitles.opensubtitles_get_key") ||
+              "Get your free API key at opensubtitles.com/en/consumers"}
+          </Text>
+        </View>
       </ListGroup>
     </View>
   );

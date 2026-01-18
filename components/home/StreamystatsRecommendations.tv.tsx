@@ -30,6 +30,7 @@ interface Props extends ViewProps {
   type: "Movie" | "Series";
   limit?: number;
   enabled?: boolean;
+  onItemFocus?: (item: BaseItemDto) => void;
 }
 
 const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
@@ -50,6 +51,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   type,
   limit = 20,
   enabled = true,
+  onItemFocus,
   ...props
 }) => {
   const api = useAtomValue(apiAtom);
@@ -185,6 +187,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         <View style={{ marginRight: ITEM_GAP, width: TV_POSTER_WIDTH }}>
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
+            onFocus={() => onItemFocus?.(item)}
             hasTVPreferredFocus={false}
           >
             {item.Type === "Movie" && <MoviePoster item={item} />}
@@ -194,7 +197,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         </View>
       );
     },
-    [handleItemPress],
+    [handleItemPress, onItemFocus],
   );
 
   if (!streamyStatsEnabled) return null;

@@ -41,11 +41,13 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
 interface WatchlistSectionProps extends ViewProps {
   watchlist: StreamystatsWatchlist;
   jellyfinServerId: string;
+  onItemFocus?: (item: BaseItemDto) => void;
 }
 
 const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   watchlist,
   jellyfinServerId,
+  onItemFocus,
   ...props
 }) => {
   const api = useAtomValue(apiAtom);
@@ -124,6 +126,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
         <View style={{ marginRight: ITEM_GAP, width: TV_POSTER_WIDTH }}>
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
+            onFocus={() => onItemFocus?.(item)}
             hasTVPreferredFocus={false}
           >
             {item.Type === "Movie" && <MoviePoster item={item} />}
@@ -133,7 +136,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
         </View>
       );
     },
-    [handleItemPress],
+    [handleItemPress, onItemFocus],
   );
 
   if (!isLoading && (!items || items.length === 0)) return null;
@@ -200,11 +203,12 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
 
 interface StreamystatsPromotedWatchlistsProps extends ViewProps {
   enabled?: boolean;
+  onItemFocus?: (item: BaseItemDto) => void;
 }
 
 export const StreamystatsPromotedWatchlists: React.FC<
   StreamystatsPromotedWatchlistsProps
-> = ({ enabled = true, ...props }) => {
+> = ({ enabled = true, onItemFocus, ...props }) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -319,6 +323,7 @@ export const StreamystatsPromotedWatchlists: React.FC<
           key={watchlist.id}
           watchlist={watchlist}
           jellyfinServerId={jellyfinServerId!}
+          onItemFocus={onItemFocus}
           {...props}
         />
       ))}
