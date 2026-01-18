@@ -2,12 +2,13 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { TVSearchBadge } from "./TVSearchBadge";
 import { TVSearchSection } from "./TVSearchSection";
 
 const HORIZONTAL_PADDING = 60;
@@ -267,28 +268,11 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
             }}
           >
             {exampleSearches.map((example) => (
-              <Pressable
+              <TVSearchBadge
                 key={example}
+                label={example}
                 onPress={() => setSearch(example)}
-                style={({ focused }) => ({
-                  paddingHorizontal: 20,
-                  paddingVertical: 12,
-                  borderRadius: 24,
-                  backgroundColor: focused
-                    ? "#9334E9"
-                    : "rgba(255, 255, 255, 0.1)",
-                  transform: [{ scale: focused ? 1.05 : 1 }],
-                })}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: "#FFFFFF",
-                  }}
-                >
-                  {example}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
         </View>
