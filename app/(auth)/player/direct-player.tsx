@@ -1,6 +1,7 @@
 import {
   type BaseItemDto,
   type MediaSourceInfo,
+  type MediaStream,
   PlaybackOrder,
   PlaybackProgressInfo,
   RepeatMode,
@@ -269,15 +270,18 @@ export default function page() {
     isError: false,
   });
 
+  // Ref to store the stream fetch function for refreshing subtitle tracks
+  const refetchStreamRef = useRef<(() => Promise<Stream | null>) | null>(null);
+
   useEffect(() => {
-    const fetchStreamData = async () => {
+    const fetchStreamData = async (): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
       try {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
           setStreamStatus({ isLoading: false, isError: false });
-          return;
+          return null;
         }
 
         let result: Stream | null = null;
@@ -295,12 +299,12 @@ export default function page() {
           if (!api) {
             console.warn("API not available for streaming");
             setStreamStatus({ isLoading: false, isError: true });
-            return;
+            return null;
           }
           if (!user?.Id) {
             console.warn("User not authenticated for streaming");
             setStreamStatus({ isLoading: false, isError: true });
-            return;
+            return null;
           }
 
           // Calculate start ticks directly from item to avoid stale closure
@@ -319,7 +323,7 @@ export default function page() {
             subtitleStreamIndex: subtitleIndex,
             deviceProfile: generateDeviceProfile(),
           });
-          if (!res) return;
+          if (!res) return null;
           const { mediaSource, sessionId, url } = res;
 
           if (!sessionId || !mediaSource || !url) {
@@ -327,17 +331,22 @@ export default function page() {
               t("player.error"),
               t("player.failed_to_get_stream_url"),
             );
-            return;
+            return null;
           }
           result = { mediaSource, sessionId, url };
         }
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
+        return result;
       } catch (error) {
         console.error("Failed to fetch stream:", error);
         setStreamStatus({ isLoading: false, isError: true });
+        return null;
       }
     };
+
+    // Store the fetch function in ref for use by refresh handler
+    refetchStreamRef.current = fetchStreamData;
     fetchStreamData();
   }, [
     itemId,
@@ -933,16 +942,23 @@ export default function page() {
     await videoRef.current?.addSubtitleFile?.(path, true);
   }, []);
 
-  // TV: Handle server-side subtitle download (needs media source refresh)
-  // Note: After downloading via Jellyfin API, the subtitle appears in the track list
-  // but we need to re-fetch the media source to see it. For now, we just log a message.
-  // A full implementation would refetch getStreamUrl and update the stream state.
-  const handleServerSubtitleDownloaded = useCallback(() => {
-    console.log(
-      "Server-side subtitle downloaded - track list should be refreshed",
-    );
-    // TODO: Implement media source refresh to pick up new subtitle
-    // This would involve re-calling getStreamUrl and updating the stream state
+  // TV: Refresh subtitle tracks after server-side subtitle download
+  // Re-fetches the media source to pick up newly downloaded subtitles
+  const handleRefreshSubtitleTracks = useCallback(async (): Promise<
+    MediaStream[]
+  > => {
+    if (!refetchStreamRef.current) return [];
+
+    const newStream = await refetchStreamRef.current();
+    if (newStream) {
+      setStream(newStream);
+      return (
+        newStream.mediaSource?.MediaStreams?.filter(
+          (s) => s.Type === "Subtitle",
+        ) ?? []
+      );
+    }
+    return [];
   }, []);
 
   // TV: Navigate to next item
@@ -1146,7 +1162,7 @@ export default function page() {
                   nextItem={nextItem}
                   goToPreviousItem={goToPreviousItem}
                   goToNextItem={goToNextItem}
-                  onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
+                  onRefreshSubtitleTracks={handleRefreshSubtitleTracks}
                   addSubtitleFile={addSubtitleFile}
                 />
               ) : (

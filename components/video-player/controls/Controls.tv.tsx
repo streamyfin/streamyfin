@@ -75,7 +75,9 @@ interface Props {
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
   goToNextItem?: () => void;
-  onServerSubtitleDownloaded?: () => void;
+  onRefreshSubtitleTracks?: () => Promise<
+    import("@jellyfin/sdk/lib/generated-client").MediaStream[]
+  >;
   addSubtitleFile?: (path: string) => void;
 }
 
@@ -311,7 +313,7 @@ export const Controls: FC<Props> = ({
   nextItem: nextItemProp,
   goToPreviousItem,
   goToNextItem: goToNextItemProp,
-  onServerSubtitleDownloaded,
+  onRefreshSubtitleTracks,
   addSubtitleFile,
 }) => {
   const insets = useSafeAreaInsets();
@@ -484,10 +486,6 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [showOptions, t, audioOptions, handleAudioChange]);
 
-  const handleServerSubtitleDownloaded = useCallback(() => {
-    onServerSubtitleDownloaded?.();
-  }, [onServerSubtitleDownloaded]);
-
   const handleLocalSubtitleDownloaded = useCallback(
     (path: string) => {
       addSubtitleFile?.(path);
@@ -503,8 +501,8 @@ export const Controls: FC<Props> = ({
       subtitleTracks,
       currentSubtitleIndex: subtitleIndex ?? -1,
       onSubtitleIndexChange: handleSubtitleChange,
-      onServerSubtitleDownloaded: handleServerSubtitleDownloaded,
       onLocalSubtitleDownloaded: handleLocalSubtitleDownloaded,
+      refreshSubtitleTracks: onRefreshSubtitleTracks,
     });
     controlsInteractionRef.current();
   }, [
@@ -514,8 +512,8 @@ export const Controls: FC<Props> = ({
     subtitleTracks,
     subtitleIndex,
     handleSubtitleChange,
-    handleServerSubtitleDownloaded,
     handleLocalSubtitleDownloaded,
+    onRefreshSubtitleTracks,
   ]);
 
   const effectiveProgress = useSharedValue(0);

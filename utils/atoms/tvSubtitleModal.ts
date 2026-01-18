@@ -12,6 +12,7 @@ export type TVSubtitleModalState = {
   onSubtitleIndexChange: (index: number) => void;
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
+  refreshSubtitleTracks?: () => Promise<MediaStream[]>;
 } | null;
 
 export const tvSubtitleModalAtom = atom<TVSubtitleModalState>(null);
