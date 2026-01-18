@@ -739,6 +739,7 @@ export const Home = () => {
                     }
                     isFirstSection={isFirstSection}
                     onItemFocus={handleItemFocus}
+                    parentId={section.parentId}
                   />
                   {streamystatsSections}
                 </View>

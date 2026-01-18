@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   type QueryFunction,
@@ -21,6 +22,7 @@ import MoviePoster, {
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
+import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import ContinueWatchingPoster, {
   TV_LANDSCAPE_WIDTH,
 } from "../ContinueWatchingPoster.tv";
@@ -43,6 +45,7 @@ interface Props extends ViewProps {
   onLoaded?: () => void;
   isFirstSection?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
+  parentId?: string;
 }
 
 // TV-specific ItemCardText with larger fonts
@@ -77,6 +80,54 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   );
 };
 
+// TV-specific "See All" card for end of lists
+const TVSeeAllCard: React.FC<{
+  onPress: () => void;
+  orientation: "horizontal" | "vertical";
+  disabled?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
+}> = ({ onPress, orientation, disabled, onFocus, onBlur }) => {
+  const { t } = useTranslation();
+  const width =
+    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+  const aspectRatio = orientation === "horizontal" ? 16 / 9 : 10 / 15;
+
+  return (
+    <View style={{ width }}>
+      <TVFocusablePoster
+        onPress={onPress}
+        disabled={disabled}
+        onFocus={onFocus}
+        onBlur={onBlur}
+      >
+        <View
+          style={{
+            width,
+            aspectRatio,
+            borderRadius: 24,
+            backgroundColor: "rgba(255, 255, 255, 0.08)",
+            justifyContent: "center",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255, 255, 255, 0.15)",
+          }}
+        >
+          <Ionicons
+            name='arrow-forward'
+            size={32}
+            color='white'
+            style={{ marginBottom: 8 }}
+          />
+          <Text style={{ fontSize: 18, color: "#FFFFFF", fontWeight: "600" }}>
+            {t("common.seeAll", { defaultValue: "See all" })}
+          </Text>
+        </View>
+      </TVFocusablePoster>
+    </View>
+  );
+};
+
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   title,
   orientation = "vertical",
@@ -89,6 +140,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   onLoaded,
   isFirstSection = false,
   onItemFocus,
+  parentId,
   ...props
 }) => {
   const effectivePageSize = Math.max(1, pageSize);
@@ -101,13 +153,30 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
+  const scrollBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // When section loses all focus, scroll back to start
+  // When section loses all focus, scroll back to start (with debounce to avoid
+  // triggering during transient focus changes like infinite scroll loading)
   useEffect(() => {
+    // Clear any pending scroll-back timer
+    if (scrollBackTimerRef.current) {
+      clearTimeout(scrollBackTimerRef.current);
+      scrollBackTimerRef.current = null;
+    }
+
     if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      // Debounce the scroll-back to avoid triggering during re-renders
+      scrollBackTimerRef.current = setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }, 150);
     }
     prevFocusedCount.current = focusedCount;
+
+    return () => {
+      if (scrollBackTimerRef.current) {
+        clearTimeout(scrollBackTimerRef.current);
+      }
+    };
   }, [focusedCount]);
 
   const handleItemFocus = useCallback(
@@ -120,6 +189,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   const handleItemBlur = useCallback(() => {
     setFocusedCount((c) => Math.max(0, c - 1));
+  }, []);
+
+  // Focus handler for See All card (doesn't need item parameter)
+  const handleSeeAllFocus = useCallback(() => {
+    setFocusedCount((c) => c + 1);
   }, []);
 
   const {
@@ -188,6 +262,18 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handleSeeAllPress = useCallback(() => {
+    if (!parentId) return;
+    router.push({
+      pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+      params: {
+        libraryId: parentId,
+        sortBy: SortByOption.DateCreated,
+        sortOrder: SortOrderOption.Descending,
+      },
+    } as any);
+  }, [router, parentId]);
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
@@ -359,23 +445,41 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           windowSize={5}
           removeClippedSubviews={false}
           getItemLayout={getItemLayout}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           style={{ overflow: "visible" }}
           contentContainerStyle={{
             paddingVertical: SCALE_PADDING,
             paddingHorizontal: SCALE_PADDING,
           }}
           ListFooterComponent={
-            isFetchingNextPage ? (
-              <View
-                style={{
-                  marginLeft: 8,
-                  justifyContent: "center",
-                  height: orientation === "horizontal" ? 191 : 315,
-                }}
-              >
-                <ActivityIndicator size='small' color={Colors.primary} />
-              </View>
-            ) : null
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginLeft: itemWidth / 2,
+              }}
+            >
+              {isFetchingNextPage && (
+                <View
+                  style={{
+                    marginRight: ITEM_GAP,
+                    justifyContent: "center",
+                    height: orientation === "horizontal" ? 191 : 315,
+                  }}
+                >
+                  <ActivityIndicator size='small' color={Colors.primary} />
+                </View>
+              )}
+              {parentId && allItems.length > 0 && (
+                <TVSeeAllCard
+                  onPress={handleSeeAllPress}
+                  orientation={orientation}
+                  disabled={disabled}
+                  onFocus={handleSeeAllFocus}
+                  onBlur={handleItemBlur}
+                />
+              )}
+            </View>
           }
         />
       )}
