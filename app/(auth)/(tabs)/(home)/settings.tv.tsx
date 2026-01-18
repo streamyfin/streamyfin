@@ -3,7 +3,7 @@ import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, Pressable, ScrollView, View } from "react-native";
+import { Animated, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import type { TVOptionItem } from "@/components/tv";
@@ -301,6 +301,81 @@ const TVSettingsOptionButton: React.FC<{
   );
 };
 
+// TV-optimized text input component
+const TVSettingsTextInput: React.FC<{
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChangeText: (text: string) => void;
+  onBlur?: () => void;
+  secureTextEntry?: boolean;
+  disabled?: boolean;
+}> = ({
+  label,
+  value,
+  placeholder,
+  onChangeText,
+  onBlur,
+  secureTextEntry,
+  disabled,
+}) => {
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.02 });
+
+  const handleInputBlur = () => {
+    handleBlur();
+    onBlur?.();
+  };
+
+  return (
+    <Pressable
+      onFocus={handleFocus}
+      onBlur={handleInputBlur}
+      disabled={disabled}
+      focusable={!disabled}
+    >
+      <Animated.View
+        style={[
+          animatedStyle,
+          {
+            backgroundColor: focused
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(255, 255, 255, 0.05)",
+            borderRadius: 12,
+            paddingVertical: 16,
+            paddingHorizontal: 24,
+            marginBottom: 8,
+          },
+        ]}
+      >
+        <Text style={{ fontSize: 16, color: "#9CA3AF", marginBottom: 8 }}>
+          {label}
+        </Text>
+        <TextInput
+          value={value}
+          placeholder={placeholder}
+          placeholderTextColor='#6B7280'
+          onChangeText={onChangeText}
+          onBlur={handleInputBlur}
+          secureTextEntry={secureTextEntry}
+          autoCapitalize='none'
+          autoCorrect={false}
+          style={{
+            fontSize: 18,
+            color: "#FFFFFF",
+            backgroundColor: "rgba(255, 255, 255, 0.05)",
+            borderRadius: 8,
+            paddingVertical: 12,
+            paddingHorizontal: 16,
+            borderWidth: focused ? 2 : 1,
+            borderColor: focused ? "#7c3aed" : "#4B5563",
+          }}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+};
+
 // Section header component
 const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
   <Text
@@ -390,6 +465,11 @@ export default function SettingsTV() {
 
   // Modal state for option selectors
   const [openModal, setOpenModal] = useState<SettingsModalType>(null);
+
+  // Local state for OpenSubtitles API key (only commit on blur)
+  const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
+    settings.openSubtitlesApiKey || "",
+  );
 
   const currentAudioTranscode =
     settings.audioTranscodeMode || AudioTranscodeMode.Auto;
@@ -640,6 +720,50 @@ export default function SettingsTV() {
             onPress={() => setOpenModal("alignY")}
             disabled={isModalOpen}
           />
+
+          {/* OpenSubtitles Section */}
+          <SectionHeader
+            title={
+              t("home.settings.subtitles.opensubtitles_title") ||
+              "OpenSubtitles"
+            }
+          />
+          <Text
+            style={{
+              color: "#9CA3AF",
+              fontSize: 14,
+              marginBottom: 16,
+              marginLeft: 8,
+            }}
+          >
+            {t("home.settings.subtitles.opensubtitles_hint") ||
+              "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured."}
+          </Text>
+          <TVSettingsTextInput
+            label={
+              t("home.settings.subtitles.opensubtitles_api_key") || "API Key"
+            }
+            value={openSubtitlesApiKey}
+            placeholder={
+              t("home.settings.subtitles.opensubtitles_api_key_placeholder") ||
+              "Enter API key..."
+            }
+            onChangeText={setOpenSubtitlesApiKey}
+            onBlur={() => updateSettings({ openSubtitlesApiKey })}
+            secureTextEntry
+            disabled={isModalOpen}
+          />
+          <Text
+            style={{
+              color: "#6B7280",
+              fontSize: 12,
+              marginTop: 8,
+              marginLeft: 8,
+            }}
+          >
+            {t("home.settings.subtitles.opensubtitles_get_key") ||
+              "Get your free API key at opensubtitles.com/en/consumers"}
+          </Text>
 
           {/* Appearance Section */}
           <SectionHeader title={t("home.settings.appearance.title")} />
