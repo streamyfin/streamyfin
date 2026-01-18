@@ -928,6 +928,23 @@ export default function page() {
     router,
   ]);
 
+  // TV: Add subtitle file to player (for client-side downloaded subtitles)
+  const addSubtitleFile = useCallback(async (path: string) => {
+    await videoRef.current?.addSubtitleFile?.(path, true);
+  }, []);
+
+  // TV: Handle server-side subtitle download (needs media source refresh)
+  // Note: After downloading via Jellyfin API, the subtitle appears in the track list
+  // but we need to re-fetch the media source to see it. For now, we just log a message.
+  // A full implementation would refetch getStreamUrl and update the stream state.
+  const handleServerSubtitleDownloaded = useCallback(() => {
+    console.log(
+      "Server-side subtitle downloaded - track list should be refreshed",
+    );
+    // TODO: Implement media source refresh to pick up new subtitle
+    // This would involve re-calling getStreamUrl and updating the stream state
+  }, []);
+
   // TV: Navigate to next item
   const goToNextItem = useCallback(() => {
     if (!nextItem || !settings) return;
@@ -1129,6 +1146,8 @@ export default function page() {
                   nextItem={nextItem}
                   goToPreviousItem={goToPreviousItem}
                   goToNextItem={goToNextItem}
+                  onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
+                  addSubtitleFile={addSubtitleFile}
                 />
               ) : (
                 <Controls

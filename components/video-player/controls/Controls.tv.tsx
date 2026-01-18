@@ -52,6 +52,7 @@ import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TrickplayBubble } from "./TrickplayBubble";
+import { TVSubtitleSearch } from "./TVSubtitleSearch";
 import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
@@ -76,6 +77,10 @@ interface Props {
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
   goToNextItem?: () => void;
+  /** Called when a subtitle is downloaded to the server (re-fetch media source needed) */
+  onServerSubtitleDownloaded?: () => void;
+  /** Add a local subtitle file to the player */
+  addSubtitleFile?: (path: string) => void;
 }
 
 const TV_SEEKBAR_HEIGHT = 16;
@@ -834,6 +839,8 @@ export const Controls: FC<Props> = ({
   nextItem: nextItemProp,
   goToPreviousItem,
   goToNextItem: goToNextItemProp,
+  onServerSubtitleDownloaded,
+  addSubtitleFile,
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -860,7 +867,7 @@ export const Controls: FC<Props> = ({
   const nextItem = nextItemProp ?? internalNextItem;
 
   // Modal state for option selectors
-  type ModalType = "audio" | "subtitle" | null;
+  type ModalType = "audio" | "subtitle" | "subtitleSearch" | null;
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const isModalOpen = openModal !== null;
 
@@ -1066,6 +1073,25 @@ export const Controls: FC<Props> = ({
     setOpenModal("subtitle");
     controlsInteractionRef.current();
   }, []);
+
+  const handleOpenSubtitleSearch = useCallback(() => {
+    setLastOpenedModal("subtitleSearch");
+    setOpenModal("subtitleSearch");
+    controlsInteractionRef.current();
+  }, []);
+
+  // Handler for when a subtitle is downloaded via server
+  const handleServerSubtitleDownloaded = useCallback(() => {
+    onServerSubtitleDownloaded?.();
+  }, [onServerSubtitleDownloaded]);
+
+  // Handler for when a subtitle is downloaded locally
+  const handleLocalSubtitleDownloaded = useCallback(
+    (path: string) => {
+      addSubtitleFile?.(path);
+    },
+    [addSubtitleFile],
+  );
 
   // Progress value for the progress bar (directly from playback progress)
   const effectiveProgress = useSharedValue(0);
@@ -1440,6 +1466,17 @@ export const Controls: FC<Props> = ({
                 size={24}
               />
             )}
+
+            {/* Subtitle Search button */}
+            <TVControlButton
+              icon='download-outline'
+              onPress={handleOpenSubtitleSearch}
+              disabled={isModalOpen}
+              hasTVPreferredFocus={
+                !isModalOpen && lastOpenedModal === "subtitleSearch"
+              }
+              size={24}
+            />
           </View>
 
           {/* Trickplay Bubble - shown when seeking */}
@@ -1509,6 +1546,16 @@ export const Controls: FC<Props> = ({
         options={subtitleOptions}
         onSelect={handleSubtitleChange}
         onClose={() => setOpenModal(null)}
+      />
+
+      {/* Subtitle Search Modal */}
+      <TVSubtitleSearch
+        visible={openModal === "subtitleSearch"}
+        item={item}
+        mediaSourceId={mediaSource?.Id}
+        onClose={() => setOpenModal(null)}
+        onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
+        onLocalSubtitleDownloaded={handleLocalSubtitleDownloaded}
       />
     </View>
   );

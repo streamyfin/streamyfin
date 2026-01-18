@@ -907,6 +907,12 @@ export default function SettingsTV() {
             }
             disabled={isModalOpen}
           />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.show_home_backdrop")}
+            value={settings.showHomeBackdrop}
+            onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
+            disabled={isModalOpen}
+          />
 
           {/* User Section */}
           <SectionHeader title={t("home.settings.user_info.user_info_title")} />

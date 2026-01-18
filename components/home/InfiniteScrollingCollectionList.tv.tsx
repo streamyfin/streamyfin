@@ -42,6 +42,7 @@ interface Props extends ViewProps {
   enabled?: boolean;
   onLoaded?: () => void;
   isFirstSection?: boolean;
+  onItemFocus?: (item: BaseItemDto) => void;
 }
 
 // TV-specific ItemCardText with larger fonts
@@ -87,6 +88,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   enabled = true,
   onLoaded,
   isFirstSection = false,
+  onItemFocus,
   ...props
 }) => {
   const effectivePageSize = Math.max(1, pageSize);
@@ -108,9 +110,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     prevFocusedCount.current = focusedCount;
   }, [focusedCount]);
 
-  const handleItemFocus = useCallback(() => {
-    setFocusedCount((c) => c + 1);
-  }, []);
+  const handleItemFocus = useCallback(
+    (item: BaseItemDto) => {
+      setFocusedCount((c) => c + 1);
+      onItemFocus?.(item);
+    },
+    [onItemFocus],
+  );
 
   const handleItemBlur = useCallback(() => {
     setFocusedCount((c) => Math.max(0, c - 1));
@@ -250,7 +256,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
             hasTVPreferredFocus={isFirstItem}
-            onFocus={handleItemFocus}
+            onFocus={() => handleItemFocus(item)}
             onBlur={handleItemBlur}
           >
             {renderPoster()}
