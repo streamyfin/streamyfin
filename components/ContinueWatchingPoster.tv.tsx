@@ -66,9 +66,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
         style={{
           width: TV_LANDSCAPE_WIDTH,
           aspectRatio: 16 / 9,
-          borderWidth: 1,
-          borderColor: "#262626",
-          borderRadius: 12,
+          borderRadius: 24,
         }}
       />
     );
@@ -80,10 +78,8 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
         position: "relative",
         width: TV_LANDSCAPE_WIDTH,
         aspectRatio: 16 / 9,
-        borderRadius: 12,
+        borderRadius: 24,
         overflow: "hidden",
-        borderWidth: 1,
-        borderColor: "#262626",
       }}
     >
       <View

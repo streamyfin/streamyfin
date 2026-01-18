@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -319,6 +319,7 @@ const TVSettingsTextInput: React.FC<{
   secureTextEntry,
   disabled,
 }) => {
+  const inputRef = useRef<TextInput>(null);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02 });
 
@@ -329,6 +330,7 @@ const TVSettingsTextInput: React.FC<{
 
   return (
     <Pressable
+      onPress={() => inputRef.current?.focus()}
       onFocus={handleFocus}
       onBlur={handleInputBlur}
       disabled={disabled}
@@ -352,6 +354,7 @@ const TVSettingsTextInput: React.FC<{
           {label}
         </Text>
         <TextInput
+          ref={inputRef}
           value={value}
           placeholder={placeholder}
           placeholderTextColor='#6B7280'
