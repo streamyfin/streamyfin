@@ -956,6 +956,11 @@ export default function page() {
     if (!refetchStreamRef.current) return [];
 
     const newStream = await refetchStreamRef.current();
+
+    // Check if component is still mounted before updating state
+    // This callback may be invoked from a modal after the player unmounts
+    if (!isMounted) return [];
+
     if (newStream) {
       setStream(newStream);
       return (
@@ -965,7 +970,7 @@ export default function page() {
       );
     }
     return [];
-  }, []);
+  }, [isMounted]);
 
   // TV: Navigate to next item
   const goToNextItem = useCallback(() => {
