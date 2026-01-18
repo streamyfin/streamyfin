@@ -1,10 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
-import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { BlurView } from "expo-blur";
 import { useLocalSearchParams } from "expo-router";
 import { useAtomValue } from "jotai";
 import {
@@ -16,17 +13,9 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Image,
-  Pressable,
-  Animated as RNAnimated,
-  StyleSheet,
-  View,
-} from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
-  cancelAnimation,
   Easing,
-  runOnJS,
   type SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -35,7 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { useTVFocusAnimation } from "@/components/tv";
+import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -45,7 +34,6 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
@@ -83,214 +71,6 @@ interface Props {
 
 const TV_SEEKBAR_HEIGHT = 16;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
-
-// TV Control Button for player controls (icon only, no label)
-const TVControlButton: FC<{
-  icon: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  onLongPress?: () => void;
-  onPressOut?: () => void;
-  disabled?: boolean;
-  hasTVPreferredFocus?: boolean;
-  size?: number;
-  delayLongPress?: number;
-}> = ({
-  icon,
-  onPress,
-  onLongPress,
-  onPressOut,
-  disabled,
-  hasTVPreferredFocus,
-  size = 32,
-  delayLongPress = 300,
-}) => {
-  const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.15, duration: 120 });
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      onPressOut={onPressOut}
-      delayLongPress={delayLongPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      disabled={disabled}
-      focusable={!disabled}
-      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
-    >
-      <RNAnimated.View
-        style={[
-          controlButtonStyles.button,
-          animatedStyle,
-          {
-            backgroundColor: focused
-              ? "rgba(255,255,255,0.3)"
-              : "rgba(255,255,255,0.1)",
-            borderColor: focused
-              ? "rgba(255,255,255,0.8)"
-              : "rgba(255,255,255,0.2)",
-            opacity: disabled ? 0.3 : 1,
-          },
-        ]}
-      >
-        <Ionicons name={icon} size={size} color='#fff' />
-      </RNAnimated.View>
-    </Pressable>
-  );
-};
-
-const controlButtonStyles = StyleSheet.create({
-  button: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
-
-// TV Next Episode Countdown component - horizontal layout with animated progress bar
-const TVNextEpisodeCountdown: FC<{
-  nextItem: BaseItemDto;
-  api: Api | null;
-  show: boolean;
-  isPlaying: boolean;
-  onFinish: () => void;
-}> = ({ nextItem, api, show, isPlaying, onFinish }) => {
-  const { t } = useTranslation();
-  const progress = useSharedValue(0);
-  const onFinishRef = useRef(onFinish);
-
-  onFinishRef.current = onFinish;
-
-  const imageUrl = getPrimaryImageUrl({
-    api,
-    item: nextItem,
-    width: 360,
-    quality: 80,
-  });
-
-  useEffect(() => {
-    if (show && isPlaying) {
-      progress.value = 0;
-      progress.value = withTiming(
-        1,
-        {
-          duration: 8000,
-          easing: Easing.linear,
-        },
-        (finished) => {
-          if (finished && onFinishRef.current) {
-            runOnJS(onFinishRef.current)();
-          }
-        },
-      );
-    } else {
-      cancelAnimation(progress);
-      progress.value = 0;
-    }
-  }, [show, isPlaying, progress]);
-
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
-
-  if (!show) return null;
-
-  return (
-    <View style={countdownStyles.container} pointerEvents='none'>
-      <BlurView intensity={80} tint='dark' style={countdownStyles.blur}>
-        <View style={countdownStyles.innerContainer}>
-          {imageUrl && (
-            <Image
-              source={{ uri: imageUrl }}
-              style={countdownStyles.thumbnail}
-              resizeMode='cover'
-            />
-          )}
-
-          <View style={countdownStyles.content}>
-            <Text style={countdownStyles.label}>
-              {t("player.next_episode")}
-            </Text>
-
-            <Text style={countdownStyles.seriesName} numberOfLines={1}>
-              {nextItem.SeriesName}
-            </Text>
-
-            <Text style={countdownStyles.episodeInfo} numberOfLines={1}>
-              S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
-              {nextItem.Name}
-            </Text>
-
-            <View style={countdownStyles.progressContainer}>
-              <Animated.View
-                style={[countdownStyles.progressBar, progressStyle]}
-              />
-            </View>
-          </View>
-        </View>
-      </BlurView>
-    </View>
-  );
-};
-
-const countdownStyles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    bottom: 180,
-    right: 80,
-    zIndex: 100,
-  },
-  blur: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  innerContainer: {
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  thumbnail: {
-    width: 180,
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-  content: {
-    padding: 16,
-    justifyContent: "center",
-    width: 280,
-  },
-  label: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  seriesName: {
-    fontSize: 16,
-    color: "rgba(255,255,255,0.7)",
-    marginBottom: 2,
-  },
-  episodeInfo: {
-    fontSize: 20,
-    color: "#fff",
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  progressContainer: {
-    height: 4,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    backgroundColor: "#fff",
-    borderRadius: 2,
-  },
-});
 
 export const Controls: FC<Props> = ({
   item,
