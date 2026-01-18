@@ -25,6 +25,7 @@ import {
   Pressable,
   ScrollView,
   TVFocusGuideView,
+  useTVEventHandler,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -301,6 +302,63 @@ const _TVOptionRowModal: React.FC<{
   );
 };
 
+// Cancel button for TV option selectors
+const TVCancelButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
+  const { t } = useTranslation();
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 120,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
+          borderRadius: 12,
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          gap: 8,
+        }}
+      >
+        <Ionicons
+          name='close'
+          size={20}
+          color={focused ? "#000" : "rgba(255,255,255,0.8)"}
+        />
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            color: focused ? "#000" : "rgba(255,255,255,0.8)",
+          }}
+        >
+          {t("common.cancel") || "Cancel"}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
+};
+
 // TV Option Selector - Bottom sheet with horizontal scrolling (Apple TV style)
 const TVOptionSelector = <T,>({
   visible,
@@ -451,6 +509,19 @@ const TVOptionSelector = <T,>({
                   />
                 ))}
               </ScrollView>
+            )}
+
+            {/* Cancel button */}
+            {isReady && (
+              <View
+                style={{
+                  paddingHorizontal: 48,
+                  paddingTop: 16,
+                  alignItems: "flex-start",
+                }}
+              >
+                <TVCancelButton onPress={onClose} />
+              </View>
             )}
           </TVFocusGuideView>
         </BlurView>
@@ -939,6 +1010,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         return () => backHandler.remove();
       }
     }, [isModalOpen]);
+
+    // tvOS menu button handler for closing modals
+    // Note: This may not receive events if React Navigation intercepts them first
+    useTVEventHandler((evt) => {
+      if (!evt || !isModalOpen) return;
+      if (evt.eventType === "menu" || evt.eventType === "back") {
+        setOpenModal(null);
+      }
+    });
 
     // Get available audio tracks
     const audioTracks = useMemo(() => {
