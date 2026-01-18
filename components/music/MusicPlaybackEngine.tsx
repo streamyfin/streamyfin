@@ -1,12 +1,5 @@
 import { useEffect, useRef } from "react";
-import TrackPlayer, {
-  Event,
-  type PlaybackActiveTrackChangedEvent,
-  State,
-  useActiveTrack,
-  usePlaybackState,
-  useProgress,
-} from "react-native-track-player";
+import { Platform } from "react-native";
 import {
   audioStorageEvents,
   deleteTrack,
@@ -14,7 +7,34 @@ import {
 } from "@/providers/AudioStorage";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 
-export const MusicPlaybackEngine: React.FC = () => {
+// TrackPlayer is not available on tvOS - wrap in try-catch in case native module isn't linked
+let TrackPlayerModule: typeof import("react-native-track-player") | null = null;
+if (!Platform.isTV) {
+  try {
+    TrackPlayerModule = require("react-native-track-player");
+  } catch (e) {
+    console.warn("TrackPlayer not available:", e);
+  }
+}
+
+type PlaybackActiveTrackChangedEvent = {
+  track?: { id?: string; url?: string };
+  lastTrack?: { id?: string };
+};
+
+type Track = { id?: string; url?: string; [key: string]: unknown };
+type PlaybackErrorEvent = { code?: string; message?: string };
+
+// Stub component for tvOS or when TrackPlayer is not available
+const StubMusicPlaybackEngine: React.FC = () => null;
+
+// Full implementation for non-TV platforms when TrackPlayer is available
+const MobileMusicPlaybackEngine: React.FC = () => {
+  // These are guaranteed to exist since we only use this component when TrackPlayerModule is available
+  const TrackPlayer = TrackPlayerModule!.default;
+  const { Event, State, useActiveTrack, usePlaybackState, useProgress } =
+    TrackPlayerModule!;
+
   const { position, duration } = useProgress(1000);
   const playbackState = usePlaybackState();
   const activeTrack = useActiveTrack();
@@ -48,7 +68,7 @@ export const MusicPlaybackEngine: React.FC = () => {
   useEffect(() => {
     const isPlaying = playbackState.state === State.Playing;
     setIsPlaying(isPlaying);
-  }, [playbackState.state, setIsPlaying]);
+  }, [playbackState.state, setIsPlaying, State.Playing]);
 
   // Sync active track changes
   useEffect(() => {
@@ -71,59 +91,63 @@ export const MusicPlaybackEngine: React.FC = () => {
   // Listen for track changes (native -> JS)
   // This triggers look-ahead caching, checks for cached versions, and handles track end
   useEffect(() => {
-    const subscription =
-      TrackPlayer.addEventListener<PlaybackActiveTrackChangedEvent>(
-        Event.PlaybackActiveTrackChanged,
-        async (event) => {
-          // Trigger look-ahead caching when a new track starts playing
-          if (event.track) {
-            triggerLookahead();
+    const subscription = TrackPlayer.addEventListener(
+      Event.PlaybackActiveTrackChanged,
+      async (event: PlaybackActiveTrackChangedEvent) => {
+        // Trigger look-ahead caching when a new track starts playing
+        if (event.track) {
+          triggerLookahead();
 
-            // Check if there's a cached version we should use instead
-            const trackId = event.track.id;
-            const currentUrl = event.track.url as string;
+          // Check if there's a cached version we should use instead
+          const trackId = event.track.id;
+          const currentUrl = event.track.url as string;
 
-            // Only check if currently using a remote URL
-            if (trackId && currentUrl && !currentUrl.startsWith("file://")) {
-              const cachedPath = getLocalPath(trackId);
-              if (cachedPath) {
-                console.log(
-                  `[AudioCache] Switching to cached version for ${trackId}`,
-                );
-                try {
-                  // Load the cached version, preserving position if any
-                  const currentIndex = await TrackPlayer.getActiveTrackIndex();
-                  if (currentIndex !== undefined && currentIndex >= 0) {
-                    const queue = await TrackPlayer.getQueue();
-                    const track = queue[currentIndex];
-                    // Remove and re-add with cached URL
-                    await TrackPlayer.remove(currentIndex);
-                    await TrackPlayer.add(
-                      { ...track, url: cachedPath },
-                      currentIndex,
-                    );
-                    await TrackPlayer.skip(currentIndex);
-                    await TrackPlayer.play();
-                  }
-                } catch (error) {
-                  console.warn(
-                    "[AudioCache] Failed to switch to cached version:",
-                    error,
+          // Only check if currently using a remote URL
+          if (trackId && currentUrl && !currentUrl.startsWith("file://")) {
+            const cachedPath = getLocalPath(trackId);
+            if (cachedPath) {
+              console.log(
+                `[AudioCache] Switching to cached version for ${trackId}`,
+              );
+              try {
+                // Load the cached version, preserving position if any
+                const currentIndex = await TrackPlayer.getActiveTrackIndex();
+                if (currentIndex !== undefined && currentIndex >= 0) {
+                  const queue = await TrackPlayer.getQueue();
+                  const track = queue[currentIndex];
+                  // Remove and re-add with cached URL
+                  await TrackPlayer.remove(currentIndex);
+                  await TrackPlayer.add(
+                    { ...track, url: cachedPath },
+                    currentIndex,
                   );
+                  await TrackPlayer.skip(currentIndex);
+                  await TrackPlayer.play();
                 }
+              } catch (error) {
+                console.warn(
+                  "[AudioCache] Failed to switch to cached version:",
+                  error,
+                );
               }
             }
           }
+        }
 
-          // If there's no next track and the previous track ended, call onTrackEnd
-          if (event.lastTrack && !event.track) {
-            onTrackEnd();
-          }
-        },
-      );
+        // If there's no next track and the previous track ended, call onTrackEnd
+        if (event.lastTrack && !event.track) {
+          onTrackEnd();
+        }
+      },
+    );
 
     return () => subscription.remove();
-  }, [onTrackEnd, triggerLookahead]);
+  }, [
+    Event.PlaybackActiveTrackChanged,
+    TrackPlayer,
+    onTrackEnd,
+    triggerLookahead,
+  ]);
 
   // Listen for audio cache download completion and update queue URLs
   useEffect(() => {
@@ -141,7 +165,7 @@ export const MusicPlaybackEngine: React.FC = () => {
         const currentIndex = await TrackPlayer.getActiveTrackIndex();
 
         // Find the track in the queue
-        const trackIndex = queue.findIndex((t) => t.id === itemId);
+        const trackIndex = queue.findIndex((t: Track) => t.id === itemId);
 
         // Only update if track is in queue and not currently playing
         if (trackIndex >= 0 && trackIndex !== currentIndex) {
@@ -170,13 +194,13 @@ export const MusicPlaybackEngine: React.FC = () => {
     return () => {
       audioStorageEvents.off("complete", onComplete);
     };
-  }, []);
+  }, [TrackPlayer]);
 
   // Listen for playback errors (corrupted cache files)
   useEffect(() => {
     const subscription = TrackPlayer.addEventListener(
       Event.PlaybackError,
-      async (event) => {
+      async (event: PlaybackErrorEvent) => {
         const activeTrack = await TrackPlayer.getActiveTrack();
         if (!activeTrack?.url) return;
 
@@ -215,8 +239,14 @@ export const MusicPlaybackEngine: React.FC = () => {
     );
 
     return () => subscription.remove();
-  }, []);
+  }, [Event.PlaybackError, TrackPlayer]);
 
   // No visual component needed - TrackPlayer is headless
   return null;
 };
+
+// Export the appropriate component based on platform and module availability
+export const MusicPlaybackEngine: React.FC =
+  Platform.isTV || !TrackPlayerModule
+    ? StubMusicPlaybackEngine
+    : MobileMusicPlaybackEngine;

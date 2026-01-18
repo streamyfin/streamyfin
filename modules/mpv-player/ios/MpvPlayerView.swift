@@ -308,6 +308,9 @@ class MpvPlayerView: ExpoView {
 	}
 
 	deinit {
+		#if os(tvOS)
+		resetDisplayCriteria()
+		#endif
 		pipController?.stopPictureInPicture()
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
@@ -376,7 +379,62 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 			self.onTracksReady([:])
 		}
 	}
+
+	func renderer(_: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double) {
+		#if os(tvOS)
+		setDisplayCriteria(for: mode, fps: Float(fps))
+		#endif
+	}
 }
+
+// MARK: - tvOS HDR Display Criteria
+
+#if os(tvOS)
+import AVKit
+
+extension MpvPlayerView {
+	/// Sets the preferred display criteria for HDR content on tvOS
+	func setDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
+		guard let window = self.window else {
+			print("🎬 HDR: No window available for display criteria")
+			return
+		}
+
+		let manager = window.avDisplayManager
+
+		switch hdrMode {
+		case .sdr:
+			print("🎬 HDR: Setting display criteria to SDR (nil)")
+			manager.preferredDisplayCriteria = nil
+		case .hdr10:
+			print("🎬 HDR: Setting display criteria to HDR10, fps: \(fps)")
+			manager.preferredDisplayCriteria = AVDisplayCriteria(
+				refreshRate: fps,
+				videoDynamicRange: "hdr10"
+			)
+		case .dolbyVision:
+			print("🎬 HDR: Setting display criteria to Dolby Vision, fps: \(fps)")
+			manager.preferredDisplayCriteria = AVDisplayCriteria(
+				refreshRate: fps,
+				videoDynamicRange: "dolbyVision"
+			)
+		case .hlg:
+			print("🎬 HDR: Setting display criteria to HLG, fps: \(fps)")
+			manager.preferredDisplayCriteria = AVDisplayCriteria(
+				refreshRate: fps,
+				videoDynamicRange: "hlg"
+			)
+		}
+	}
+
+	/// Resets display criteria when playback ends
+	func resetDisplayCriteria() {
+		guard let window = self.window else { return }
+		print("🎬 HDR: Resetting display criteria")
+		window.avDisplayManager.preferredDisplayCriteria = nil
+	}
+}
+#endif
 
 // MARK: - PiPControllerDelegate
 

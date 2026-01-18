@@ -260,7 +260,12 @@
         "subtitle_font": "Subtitle Font",
         "ksplayer_title": "KSPlayer Settings",
         "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues."
+        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
+        "opensubtitles_title": "OpenSubtitles",
+        "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
+        "opensubtitles_api_key": "API Key",
+        "opensubtitles_api_key_placeholder": "Enter API key...",
+        "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers"
       },
       "vlc_subtitles": {
         "title": "VLC Subtitle Settings",
@@ -619,7 +624,19 @@
     "downloaded_file_no": "No",
     "downloaded_file_cancel": "Cancel",
     "swipe_down_settings": "Swipe down for settings",
-    "ends_at": "ends at"
+    "ends_at": "ends at",
+    "search_subtitles": "Search Subtitles",
+    "subtitle_tracks": "Tracks",
+    "subtitle_search": "Search & Download",
+    "subtitle_download_hint": "Downloaded subtitles will be saved to your library",
+    "using_jellyfin_server": "Using Jellyfin Server",
+    "language": "Language",
+    "results": "Results",
+    "searching": "Searching...",
+    "search_failed": "Search failed",
+    "no_subtitle_provider": "No subtitle provider configured on server",
+    "no_subtitles_found": "No subtitles found",
+    "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback"
   },
   "item_card": {
     "next_up": "Next Up",

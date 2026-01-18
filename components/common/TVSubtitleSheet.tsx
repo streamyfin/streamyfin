@@ -1,5 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  MediaStream,
+} from "@jellyfin/sdk/lib/generated-client";
 import { BlurView } from "expo-blur";
 import React, {
   useCallback,
@@ -30,12 +33,148 @@ interface Props {
   visible: boolean;
   item: BaseItemDto;
   mediaSourceId?: string | null;
+  subtitleTracks: MediaStream[];
+  currentSubtitleIndex: number;
+  onSubtitleChange: (index: number) => void;
   onClose: () => void;
+  /** Called when a subtitle is downloaded locally (client-side) - only during playback */
+  onLocalSubtitleDownloaded?: (path: string) => void;
   /** Called when a subtitle is downloaded via Jellyfin API (server-side) */
-  onServerSubtitleDownloaded: () => void;
-  /** Called when a subtitle is downloaded locally (client-side) */
-  onLocalSubtitleDownloaded: (path: string) => void;
+  onServerSubtitleDownloaded?: () => void;
 }
+
+type TabType = "tracks" | "search";
+
+// Tab button component
+const TVSubtitleTab: React.FC<{
+  label: string;
+  isActive: boolean;
+  onSelect: () => void;
+  hasTVPreferredFocus?: boolean;
+}> = ({ label, isActive, onSelect, hasTVPreferredFocus }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 120,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+        onSelect();
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <RNAnimated.View
+        style={[
+          styles.tabButton,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused
+              ? "#fff"
+              : isActive
+                ? "rgba(255,255,255,0.2)"
+                : "transparent",
+            borderBottomColor: isActive ? "#fff" : "transparent",
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            { color: focused ? "#000" : "#fff" },
+            (focused || isActive) && { fontWeight: "600" },
+          ]}
+        >
+          {label}
+        </Text>
+      </RNAnimated.View>
+    </Pressable>
+  );
+};
+
+// Track option card
+const TVTrackCard = React.forwardRef<
+  View,
+  {
+    label: string;
+    selected: boolean;
+    hasTVPreferredFocus?: boolean;
+    onPress: () => void;
+  }
+>(({ label, selected, hasTVPreferredFocus, onPress }, ref) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 150,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      ref={ref}
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+      hasTVPreferredFocus={hasTVPreferredFocus}
+    >
+      <RNAnimated.View
+        style={[
+          styles.trackCard,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused
+              ? "#fff"
+              : selected
+                ? "rgba(255,255,255,0.2)"
+                : "rgba(255,255,255,0.08)",
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.trackCardText,
+            { color: focused ? "#000" : "#fff" },
+            (focused || selected) && { fontWeight: "600" },
+          ]}
+          numberOfLines={2}
+        >
+          {label}
+        </Text>
+        {selected && !focused && (
+          <View style={styles.checkmark}>
+            <Ionicons
+              name='checkmark'
+              size={16}
+              color='rgba(255,255,255,0.8)'
+            />
+          </View>
+        )}
+      </RNAnimated.View>
+    </Pressable>
+  );
+});
 
 // Language selector card
 const LanguageCard = React.forwardRef<
@@ -166,7 +305,7 @@ const SubtitleResultCard = React.forwardRef<
           },
         ]}
       >
-        {/* Provider/Source badge */}
+        {/* Provider badge */}
         <View
           style={[
             styles.providerBadge,
@@ -197,7 +336,6 @@ const SubtitleResultCard = React.forwardRef<
 
         {/* Meta info row */}
         <View style={styles.resultMeta}>
-          {/* Format */}
           <Text
             style={[
               styles.resultMetaText,
@@ -207,7 +345,6 @@ const SubtitleResultCard = React.forwardRef<
             {result.format?.toUpperCase()}
           </Text>
 
-          {/* Rating if available */}
           {result.communityRating !== undefined &&
             result.communityRating > 0 && (
               <View style={styles.ratingContainer}>
@@ -231,7 +368,6 @@ const SubtitleResultCard = React.forwardRef<
               </View>
             )}
 
-          {/* Download count if available */}
           {result.downloadCount !== undefined && result.downloadCount > 0 && (
             <View style={styles.downloadCountContainer}>
               <Ionicons
@@ -305,7 +441,6 @@ const SubtitleResultCard = React.forwardRef<
           )}
         </View>
 
-        {/* Loading indicator when downloading */}
         {isDownloading && (
           <View style={styles.downloadingOverlay}>
             <ActivityIndicator size='small' color='#fff' />
@@ -316,18 +451,23 @@ const SubtitleResultCard = React.forwardRef<
   );
 });
 
-export const TVSubtitleSearch: React.FC<Props> = ({
+export const TVSubtitleSheet: React.FC<Props> = ({
   visible,
   item,
   mediaSourceId,
+  subtitleTracks,
+  currentSubtitleIndex,
+  onSubtitleChange,
   onClose,
-  onServerSubtitleDownloaded,
   onLocalSubtitleDownloaded,
+  onServerSubtitleDownloaded,
 }) => {
   const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<TabType>("tracks");
+  const [isReady, setIsReady] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const firstResultRef = useRef<View>(null);
+  const firstTrackCardRef = useRef<View>(null);
 
   const {
     hasOpenSubtitlesApiKey,
@@ -347,11 +487,40 @@ export const TVSubtitleSearch: React.FC<Props> = ({
   const overlayOpacity = useRef(new RNAnimated.Value(0)).current;
   const sheetTranslateY = useRef(new RNAnimated.Value(300)).current;
 
+  // Build subtitle options (with "None" option)
+  const subtitleOptions = useMemo(() => {
+    const noneOption = {
+      label: t("item_card.subtitles.none"),
+      value: -1,
+      selected: currentSubtitleIndex === -1,
+    };
+    const trackOptions = subtitleTracks.map((track) => ({
+      label:
+        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
+      value: track.Index!,
+      selected: track.Index === currentSubtitleIndex,
+    }));
+    return [noneOption, ...trackOptions];
+  }, [subtitleTracks, currentSubtitleIndex, t]);
+
+  // Find initial selected index for focus
+  const initialSelectedIndex = useMemo(() => {
+    const idx = subtitleOptions.findIndex((o) => o.selected);
+    return idx >= 0 ? idx : 0;
+  }, [subtitleOptions]);
+
+  // Languages for search
+  const displayLanguages = useMemo(
+    () => COMMON_SUBTITLE_LANGUAGES.slice(0, 16),
+    [],
+  );
+
   // Animate in/out
   useEffect(() => {
     if (visible) {
       overlayOpacity.setValue(0);
       sheetTranslateY.setValue(300);
+      setActiveTab("tracks");
 
       RNAnimated.parallel([
         RNAnimated.timing(overlayOpacity, {
@@ -367,13 +536,36 @@ export const TVSubtitleSearch: React.FC<Props> = ({
           useNativeDriver: true,
         }),
       ]).start();
-
-      // Auto-search with default language
-      search({ language: selectedLanguage });
     } else {
       reset();
     }
+  }, [visible, overlayOpacity, sheetTranslateY, reset]);
+
+  // Delay rendering to work around hasTVPreferredFocus timing issue
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => setIsReady(true), 100);
+      return () => clearTimeout(timer);
+    }
+    setIsReady(false);
   }, [visible]);
+
+  // Programmatic focus fallback
+  useEffect(() => {
+    if (isReady && firstTrackCardRef.current) {
+      const timer = setTimeout(() => {
+        (firstTrackCardRef.current as any)?.requestTVFocus?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isReady]);
+
+  // Auto-search when switching to search tab
+  useEffect(() => {
+    if (activeTab === "search" && !searchResults && !isSearching) {
+      search({ language: selectedLanguage });
+    }
+  }, [activeTab, searchResults, isSearching, search, selectedLanguage]);
 
   // Handle language selection
   const handleLanguageSelect = useCallback(
@@ -382,6 +574,15 @@ export const TVSubtitleSearch: React.FC<Props> = ({
       search({ language: code });
     },
     [search],
+  );
+
+  // Handle track selection
+  const handleTrackSelect = useCallback(
+    (index: number) => {
+      onSubtitleChange(index);
+      onClose();
+    },
+    [onSubtitleChange, onClose],
   );
 
   // Handle subtitle download
@@ -393,11 +594,9 @@ export const TVSubtitleSearch: React.FC<Props> = ({
         const downloadResult = await downloadAsync(result);
 
         if (downloadResult.type === "server") {
-          // Server-side download - track list should be refreshed
-          onServerSubtitleDownloaded();
+          onServerSubtitleDownloaded?.();
         } else if (downloadResult.type === "local" && downloadResult.path) {
-          // Client-side download - load into MPV
-          onLocalSubtitleDownloaded(downloadResult.path);
+          onLocalSubtitleDownloaded?.(downloadResult.path);
         }
 
         onClose();
@@ -415,11 +614,8 @@ export const TVSubtitleSearch: React.FC<Props> = ({
     ],
   );
 
-  // Subset of common languages for TV (horizontal scroll works best with fewer items)
-  const displayLanguages = useMemo(
-    () => COMMON_SUBTITLE_LANGUAGES.slice(0, 16),
-    [],
-  );
+  // Whether we're in player context (can use local subtitles)
+  const isInPlayer = Boolean(onLocalSubtitleDownloaded);
 
   if (!visible) return null;
 
@@ -440,133 +636,189 @@ export const TVSubtitleSearch: React.FC<Props> = ({
             trapFocusRight
             style={styles.content}
           >
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>
-                {t("player.search_subtitles") || "Search Subtitles"}
-              </Text>
-              {!hasOpenSubtitlesApiKey && (
-                <Text style={styles.sourceHint}>
-                  {t("player.using_jellyfin_server") || "Using Jellyfin Server"}
-                </Text>
-              )}
+            {/* Header with title */}
+            <Text style={styles.title}>
+              {t("item_card.subtitles.label").toUpperCase()}
+            </Text>
+
+            {/* Tabs */}
+            <View style={styles.tabRow}>
+              <TVSubtitleTab
+                label={t("player.subtitle_tracks") || "Tracks"}
+                isActive={activeTab === "tracks"}
+                onSelect={() => setActiveTab("tracks")}
+                hasTVPreferredFocus={true}
+              />
+              <TVSubtitleTab
+                label={t("player.subtitle_search") || "Search & Download"}
+                isActive={activeTab === "search"}
+                onSelect={() => setActiveTab("search")}
+              />
             </View>
 
-            {/* Language Selector */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {t("player.language") || "Language"}
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.languageScroll}
-                contentContainerStyle={styles.languageScrollContent}
-              >
-                {displayLanguages.map((lang, index) => (
-                  <LanguageCard
-                    key={lang.code}
-                    code={lang.code}
-                    name={lang.name}
-                    selected={selectedLanguage === lang.code}
-                    hasTVPreferredFocus={
-                      index === 0 &&
-                      (!searchResults || searchResults.length === 0)
-                    }
-                    onPress={() => handleLanguageSelect(lang.code)}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Results Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {t("player.results") || "Results"}
-                {searchResults && ` (${searchResults.length})`}
-              </Text>
-
-              {/* Loading state */}
-              {isSearching && (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size='large' color='#fff' />
-                  <Text style={styles.loadingText}>
-                    {t("player.searching") || "Searching..."}
-                  </Text>
-                </View>
-              )}
-
-              {/* Error state */}
-              {searchError && !isSearching && (
-                <View style={styles.errorContainer}>
-                  <Ionicons
-                    name='alert-circle-outline'
-                    size={32}
-                    color='rgba(255,100,100,0.8)'
-                  />
-                  <Text style={styles.errorText}>
-                    {t("player.search_failed") || "Search failed"}
-                  </Text>
-                  <Text style={styles.errorHint}>
-                    {!hasOpenSubtitlesApiKey
-                      ? t("player.no_subtitle_provider") ||
-                        "No subtitle provider configured on server"
-                      : String(searchError)}
-                  </Text>
-                </View>
-              )}
-
-              {/* No results */}
-              {searchResults &&
-                searchResults.length === 0 &&
-                !isSearching &&
-                !searchError && (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons
-                      name='document-text-outline'
-                      size={32}
-                      color='rgba(255,255,255,0.4)'
+            {/* Tab Content */}
+            {activeTab === "tracks" && isReady && (
+              <View style={styles.tabContent}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.scrollContent}
+                >
+                  {subtitleOptions.map((option, index) => (
+                    <TVTrackCard
+                      key={index}
+                      ref={
+                        index === initialSelectedIndex
+                          ? firstTrackCardRef
+                          : undefined
+                      }
+                      label={option.label}
+                      selected={option.selected}
+                      hasTVPreferredFocus={index === initialSelectedIndex}
+                      onPress={() => handleTrackSelect(option.value)}
                     />
-                    <Text style={styles.emptyText}>
-                      {t("player.no_subtitles_found") || "No subtitles found"}
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {activeTab === "search" && (
+              <View style={styles.tabContent}>
+                {/* Download hint - only show on item details page */}
+                {!isInPlayer && (
+                  <View style={styles.downloadHint}>
+                    <Ionicons
+                      name='information-circle-outline'
+                      size={16}
+                      color='rgba(255,255,255,0.5)'
+                    />
+                    <Text style={styles.downloadHintText}>
+                      {t("player.subtitle_download_hint") ||
+                        "Downloaded subtitles will be saved to your library"}
                     </Text>
                   </View>
                 )}
 
-              {/* Results list */}
-              {searchResults && searchResults.length > 0 && !isSearching && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.resultsScroll}
-                  contentContainerStyle={styles.resultsScrollContent}
-                >
-                  {searchResults.map((result, index) => (
-                    <SubtitleResultCard
-                      key={result.id}
-                      ref={index === 0 ? firstResultRef : undefined}
-                      result={result}
-                      hasTVPreferredFocus={index === 0}
-                      isDownloading={downloadingId === result.id}
-                      onPress={() => handleDownload(result)}
-                    />
-                  ))}
-                </ScrollView>
-              )}
-            </View>
+                {/* Language Selector */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>
+                    {t("player.language") || "Language"}
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.languageScrollContent}
+                  >
+                    {displayLanguages.map((lang, index) => (
+                      <LanguageCard
+                        key={lang.code}
+                        code={lang.code}
+                        name={lang.name}
+                        selected={selectedLanguage === lang.code}
+                        hasTVPreferredFocus={
+                          index === 0 &&
+                          (!searchResults || searchResults.length === 0)
+                        }
+                        onPress={() => handleLanguageSelect(lang.code)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
 
-            {/* API Key hint if no fallback available */}
-            {!hasOpenSubtitlesApiKey && (
-              <View style={styles.apiKeyHint}>
-                <Ionicons
-                  name='information-circle-outline'
-                  size={16}
-                  color='rgba(255,255,255,0.4)'
-                />
-                <Text style={styles.apiKeyHintText}>
-                  {t("player.add_opensubtitles_key_hint") ||
-                    "Add OpenSubtitles API key in settings for client-side fallback"}
-                </Text>
+                {/* Results Section */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>
+                    {t("player.results") || "Results"}
+                    {searchResults && ` (${searchResults.length})`}
+                  </Text>
+
+                  {/* Loading state */}
+                  {isSearching && (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size='large' color='#fff' />
+                      <Text style={styles.loadingText}>
+                        {t("player.searching") || "Searching..."}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Error state */}
+                  {searchError && !isSearching && (
+                    <View style={styles.errorContainer}>
+                      <Ionicons
+                        name='alert-circle-outline'
+                        size={32}
+                        color='rgba(255,100,100,0.8)'
+                      />
+                      <Text style={styles.errorText}>
+                        {t("player.search_failed") || "Search failed"}
+                      </Text>
+                      <Text style={styles.errorHint}>
+                        {!hasOpenSubtitlesApiKey
+                          ? t("player.no_subtitle_provider") ||
+                            "No subtitle provider configured on server"
+                          : String(searchError)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* No results */}
+                  {searchResults &&
+                    searchResults.length === 0 &&
+                    !isSearching &&
+                    !searchError && (
+                      <View style={styles.emptyContainer}>
+                        <Ionicons
+                          name='document-text-outline'
+                          size={32}
+                          color='rgba(255,255,255,0.4)'
+                        />
+                        <Text style={styles.emptyText}>
+                          {t("player.no_subtitles_found") ||
+                            "No subtitles found"}
+                        </Text>
+                      </View>
+                    )}
+
+                  {/* Results list */}
+                  {searchResults &&
+                    searchResults.length > 0 &&
+                    !isSearching && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.resultsScrollContent}
+                      >
+                        {searchResults.map((result, index) => (
+                          <SubtitleResultCard
+                            key={result.id}
+                            result={result}
+                            hasTVPreferredFocus={index === 0}
+                            isDownloading={downloadingId === result.id}
+                            onPress={() => handleDownload(result)}
+                          />
+                        ))}
+                      </ScrollView>
+                    )}
+                </View>
+
+                {/* API Key hint */}
+                {!hasOpenSubtitlesApiKey && (
+                  <View style={styles.apiKeyHint}>
+                    <Ionicons
+                      name='information-circle-outline'
+                      size={16}
+                      color='rgba(255,255,255,0.4)'
+                    />
+                    <Text style={styles.apiKeyHintText}>
+                      {t("player.add_opensubtitles_key_hint") ||
+                        "Add OpenSubtitles API key in settings for client-side fallback"}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </TVFocusGuideView>
@@ -588,7 +840,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   sheetContainer: {
-    maxHeight: "70%",
+    maxHeight: "75%",
   },
   blurContainer: {
     borderTopLeftRadius: 24,
@@ -598,23 +850,73 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 24,
     paddingBottom: 48,
-  },
-  header: {
-    paddingHorizontal: 48,
-    marginBottom: 20,
+    overflow: "visible",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#fff",
+    fontSize: 18,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.6)",
+    marginBottom: 16,
+    paddingHorizontal: 48,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
-  sourceHint: {
-    fontSize: 14,
+  tabRow: {
+    flexDirection: "row",
+    paddingHorizontal: 48,
+    marginBottom: 16,
+    gap: 24,
+  },
+  tabButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    fontSize: 18,
+  },
+  tabContent: {
+    overflow: "visible",
+  },
+  scrollView: {
+    overflow: "visible",
+  },
+  scrollContent: {
+    paddingHorizontal: 48,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  trackCard: {
+    width: 180,
+    height: 80,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 12,
+  },
+  trackCardText: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  checkmark: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+  },
+  downloadHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 48,
+    marginBottom: 16,
+  },
+  downloadHintText: {
     color: "rgba(255,255,255,0.5)",
-    marginTop: 4,
+    fontSize: 14,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 14,
@@ -624,9 +926,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 12,
     paddingHorizontal: 48,
-  },
-  languageScroll: {
-    overflow: "visible",
   },
   languageScrollContent: {
     paddingHorizontal: 48,
@@ -648,14 +947,6 @@ const styles = StyleSheet.create({
   languageCardCode: {
     fontSize: 11,
     marginTop: 2,
-  },
-  checkmark: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-  },
-  resultsScroll: {
-    overflow: "visible",
   },
   resultsScrollContent: {
     paddingHorizontal: 48,
