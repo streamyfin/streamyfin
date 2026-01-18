@@ -7,7 +7,8 @@ import { Animated, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import type { TVOptionItem } from "@/components/tv";
-import { TVOptionSelector, useTVFocusAnimation } from "@/components/tv";
+import { useTVFocusAnimation } from "@/components/tv";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
 
@@ -112,7 +113,7 @@ const TVSettingsToggle: React.FC<{
             width: 56,
             height: 32,
             borderRadius: 16,
-            backgroundColor: value ? "#7c3aed" : "#4B5563",
+            backgroundColor: value ? "#34C759" : "#4B5563",
             justifyContent: "center",
             paddingHorizontal: 2,
           }}
@@ -195,16 +196,20 @@ const TVSettingsStepper: React.FC<{
             style={[
               minusAnim.animatedStyle,
               {
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: minusAnim.focused ? "#7c3aed" : "#4B5563",
+                width: 48,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: minusAnim.focused ? "#FFFFFF" : "#4B5563",
                 justifyContent: "center",
                 alignItems: "center",
               },
             ]}
           >
-            <Ionicons name='remove' size={24} color='#FFFFFF' />
+            <Ionicons
+              name='remove'
+              size={24}
+              color={minusAnim.focused ? "#000000" : "#FFFFFF"}
+            />
           </Animated.View>
         </Pressable>
         <Text
@@ -229,16 +234,20 @@ const TVSettingsStepper: React.FC<{
             style={[
               plusAnim.animatedStyle,
               {
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: plusAnim.focused ? "#7c3aed" : "#4B5563",
+                width: 48,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: plusAnim.focused ? "#FFFFFF" : "#4B5563",
                 justifyContent: "center",
                 alignItems: "center",
               },
             ]}
           >
-            <Ionicons name='add' size={24} color='#FFFFFF' />
+            <Ionicons
+              name='add'
+              size={24}
+              color={plusAnim.focused ? "#000000" : "#FFFFFF"}
+            />
           </Animated.View>
         </Pressable>
       </View>
@@ -371,7 +380,7 @@ const TVSettingsTextInput: React.FC<{
             paddingVertical: 12,
             paddingHorizontal: 16,
             borderWidth: focused ? 2 : 1,
-            borderColor: focused ? "#7c3aed" : "#4B5563",
+            borderColor: focused ? "#FFFFFF" : "#4B5563",
           }}
         />
       </Animated.View>
@@ -450,14 +459,6 @@ const TVLogoutButton: React.FC<{ onPress: () => void; disabled?: boolean }> = ({
   );
 };
 
-// Modal type for tracking open bottom sheets
-type SettingsModalType =
-  | "audioTranscode"
-  | "subtitleMode"
-  | "alignX"
-  | "alignY"
-  | null;
-
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -465,9 +466,7 @@ export default function SettingsTV() {
   const { logout } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
-
-  // Modal state for option selectors
-  const [openModal, setOpenModal] = useState<SettingsModalType>(null);
+  const { showOptions } = useTVOptionModal();
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -592,18 +591,9 @@ export default function SettingsTV() {
     return option?.label || "Bottom";
   }, [alignYOptions]);
 
-  const isModalOpen = openModal !== null;
-
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
-      <View
-        style={{ flex: 1, opacity: isModalOpen ? 0.3 : 1 }}
-        focusable={!isModalOpen}
-        isTVSelectable={!isModalOpen}
-        pointerEvents={isModalOpen ? "none" : "auto"}
-        accessibilityElementsHidden={isModalOpen}
-        importantForAccessibility={isModalOpen ? "no-hide-descendants" : "auto"}
-      >
+      <View style={{ flex: 1 }}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{
@@ -630,9 +620,15 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.audio.transcode_mode.title")}
             value={audioTranscodeLabel}
-            onPress={() => setOpenModal("audioTranscode")}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.audio.transcode_mode.title"),
+                options: audioTranscodeModeOptions,
+                onSelect: (value) =>
+                  updateSettings({ audioTranscodeMode: value }),
+              })
+            }
             isFirst
-            disabled={isModalOpen}
           />
 
           {/* Subtitles Section */}
@@ -640,8 +636,13 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_mode")}
             value={subtitleModeLabel}
-            onPress={() => setOpenModal("subtitleMode")}
-            disabled={isModalOpen}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.subtitle_mode"),
+                options: subtitleModeOptions,
+                onSelect: (value) => updateSettings({ subtitleMode: value }),
+              })
+            }
           />
           <TVSettingsToggle
             label={t("home.settings.subtitles.set_subtitle_track")}
@@ -649,7 +650,6 @@ export default function SettingsTV() {
             onToggle={(value) =>
               updateSettings({ rememberSubtitleSelections: value })
             }
-            disabled={isModalOpen}
           />
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
@@ -663,7 +663,6 @@ export default function SettingsTV() {
               updateSettings({ subtitleSize: Math.round(newValue * 100) });
             }}
             formatValue={(v) => `${v.toFixed(1)}x`}
-            disabled={isModalOpen}
           />
 
           {/* MPV Subtitles Section */}
@@ -690,7 +689,6 @@ export default function SettingsTV() {
               });
             }}
             formatValue={(v) => `${v.toFixed(1)}x`}
-            disabled={isModalOpen}
           />
           <TVSettingsStepper
             label='Vertical Margin'
@@ -709,19 +707,34 @@ export default function SettingsTV() {
               );
               updateSettings({ mpvSubtitleMarginY: newValue });
             }}
-            disabled={isModalOpen}
           />
           <TVSettingsOptionButton
             label='Horizontal Alignment'
             value={alignXLabel}
-            onPress={() => setOpenModal("alignX")}
-            disabled={isModalOpen}
+            onPress={() =>
+              showOptions({
+                title: "Horizontal Alignment",
+                options: alignXOptions,
+                onSelect: (value) =>
+                  updateSettings({
+                    mpvSubtitleAlignX: value as "left" | "center" | "right",
+                  }),
+              })
+            }
           />
           <TVSettingsOptionButton
             label='Vertical Alignment'
             value={alignYLabel}
-            onPress={() => setOpenModal("alignY")}
-            disabled={isModalOpen}
+            onPress={() =>
+              showOptions({
+                title: "Vertical Alignment",
+                options: alignYOptions,
+                onSelect: (value) =>
+                  updateSettings({
+                    mpvSubtitleAlignY: value as "top" | "center" | "bottom",
+                  }),
+              })
+            }
           />
 
           {/* OpenSubtitles Section */}
@@ -754,7 +767,6 @@ export default function SettingsTV() {
             onChangeText={setOpenSubtitlesApiKey}
             onBlur={() => updateSettings({ openSubtitlesApiKey })}
             secureTextEntry
-            disabled={isModalOpen}
           />
           <Text
             style={{
@@ -778,13 +790,11 @@ export default function SettingsTV() {
             onToggle={(value) =>
               updateSettings({ mergeNextUpAndContinueWatching: value })
             }
-            disabled={isModalOpen}
           />
           <TVSettingsToggle
             label={t("home.settings.appearance.show_home_backdrop")}
             value={settings.showHomeBackdrop}
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
-            disabled={isModalOpen}
           />
 
           {/* User Section */}
@@ -793,62 +803,19 @@ export default function SettingsTV() {
             label={t("home.settings.user_info.user")}
             value={user?.Name || "-"}
             showChevron={false}
-            disabled={isModalOpen}
           />
           <TVSettingsRow
             label={t("home.settings.user_info.server")}
             value={api?.basePath || "-"}
             showChevron={false}
-            disabled={isModalOpen}
           />
 
           {/* Logout Button */}
           <View style={{ marginTop: 48, alignItems: "center" }}>
-            <TVLogoutButton onPress={logout} disabled={isModalOpen} />
+            <TVLogoutButton onPress={logout} />
           </View>
         </ScrollView>
       </View>
-
-      {/* Bottom sheet modals using shared TVOptionSelector */}
-      <TVOptionSelector
-        visible={openModal === "audioTranscode"}
-        title={t("home.settings.audio.transcode_mode.title")}
-        options={audioTranscodeModeOptions}
-        onSelect={(value) => updateSettings({ audioTranscodeMode: value })}
-        onClose={() => setOpenModal(null)}
-      />
-
-      <TVOptionSelector
-        visible={openModal === "subtitleMode"}
-        title={t("home.settings.subtitles.subtitle_mode")}
-        options={subtitleModeOptions}
-        onSelect={(value) => updateSettings({ subtitleMode: value })}
-        onClose={() => setOpenModal(null)}
-      />
-
-      <TVOptionSelector
-        visible={openModal === "alignX"}
-        title='Horizontal Alignment'
-        options={alignXOptions}
-        onSelect={(value) =>
-          updateSettings({
-            mpvSubtitleAlignX: value as "left" | "center" | "right",
-          })
-        }
-        onClose={() => setOpenModal(null)}
-      />
-
-      <TVOptionSelector
-        visible={openModal === "alignY"}
-        title='Vertical Alignment'
-        options={alignYOptions}
-        onSelect={(value) =>
-          updateSettings({
-            mpvSubtitleAlignY: value as "top" | "center" | "bottom",
-          })
-        }
-        onClose={() => setOpenModal(null)}
-      />
     </View>
   );
 }
