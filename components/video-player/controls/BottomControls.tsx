@@ -195,7 +195,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
                   key={i}
                   style={{
                     position: "absolute",
-                    backgroundColor: `#${i}FFF${i}${i}`,
+                    backgroundColor: "white",
                     width: 2,
                     height: "50%",
                     top: "25%",

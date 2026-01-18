@@ -73,6 +73,7 @@ export const CenterControls: FC<CenterControlsProps> = ({
           display: "flex",
           flexDirection: "row",
           justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         {!Platform.isTV && (
@@ -86,7 +87,7 @@ export const CenterControls: FC<CenterControlsProps> = ({
             >
               <Ionicons
                 name='chevron-back-circle-outline'
-                size={ICON_SIZES.CENTER}
+                size={ICON_SIZES.CHAPTER}
                 color='white'
               />
             </View>
@@ -179,7 +180,7 @@ export const CenterControls: FC<CenterControlsProps> = ({
             >
               <Ionicons
                 name='chevron-forward-circle-outline'
-                size={ICON_SIZES.CENTER}
+                size={ICON_SIZES.CHAPTER}
                 color='white'
               />
             </View>

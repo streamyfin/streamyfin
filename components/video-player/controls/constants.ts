@@ -14,6 +14,7 @@ export const CONTROLS_CONSTANTS = {
 export const ICON_SIZES = {
   HEADER: 24,
   CENTER: 50,
+  CHAPTER: 35,
 } as const;
 
 export const HEADER_LAYOUT = {
