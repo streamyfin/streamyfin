@@ -17,9 +17,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  BackHandler,
   Image,
-  Platform,
   Pressable,
   Animated as RNAnimated,
   StyleSheet,
@@ -37,13 +35,15 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import type { TVOptionItem } from "@/components/tv";
-import { TVOptionSelector, useTVFocusAnimation } from "@/components/tv";
+import { useTVFocusAnimation } from "@/components/tv";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
@@ -51,7 +51,6 @@ import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TrickplayBubble } from "./TrickplayBubble";
-import { TVSubtitleSheet } from "./TVSubtitleSheet";
 import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
@@ -337,24 +336,15 @@ export const Controls: FC<Props> = ({
 
   const nextItem = nextItemProp ?? internalNextItem;
 
-  type ModalType = "audio" | "subtitle" | null;
-  const [openModal, setOpenModal] = useState<ModalType>(null);
-  const isModalOpen = openModal !== null;
+  // TV Option Modal hook for audio selector
+  const { showOptions } = useTVOptionModal();
 
-  const [lastOpenedModal, setLastOpenedModal] = useState<ModalType>(null);
+  // TV Subtitle Modal hook
+  const { showSubtitleModal } = useTVSubtitleModal();
 
-  useEffect(() => {
-    if (Platform.OS === "android" && isModalOpen) {
-      const backHandler = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => {
-          setOpenModal(null);
-          return true;
-        },
-      );
-      return () => backHandler.remove();
-    }
-  }, [isModalOpen]);
+  // Track which button should have preferred focus when controls show
+  type LastModalType = "audio" | "subtitle" | null;
+  const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
 
   const audioTracks = useMemo(() => {
     return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
@@ -474,10 +464,8 @@ export const Controls: FC<Props> = ({
   }, []);
 
   const handleBack = useCallback(() => {
-    if (isModalOpen) {
-      setOpenModal(null);
-    }
-  }, [isModalOpen]);
+    // No longer needed since modals are screen-based
+  }, []);
 
   const { isSliding: isRemoteSliding } = useRemoteControl({
     showControls,
@@ -488,15 +476,13 @@ export const Controls: FC<Props> = ({
 
   const handleOpenAudioSheet = useCallback(() => {
     setLastOpenedModal("audio");
-    setOpenModal("audio");
+    showOptions({
+      title: t("item_card.audio"),
+      options: audioOptions,
+      onSelect: handleAudioChange,
+    });
     controlsInteractionRef.current();
-  }, []);
-
-  const handleOpenSubtitleSheet = useCallback(() => {
-    setLastOpenedModal("subtitle");
-    setOpenModal("subtitle");
-    controlsInteractionRef.current();
-  }, []);
+  }, [showOptions, t, audioOptions, handleAudioChange]);
 
   const handleServerSubtitleDownloaded = useCallback(() => {
     onServerSubtitleDownloaded?.();
@@ -508,6 +494,29 @@ export const Controls: FC<Props> = ({
     },
     [addSubtitleFile],
   );
+
+  const handleOpenSubtitleSheet = useCallback(() => {
+    setLastOpenedModal("subtitle");
+    showSubtitleModal({
+      item,
+      mediaSourceId: mediaSource?.Id,
+      subtitleTracks,
+      currentSubtitleIndex: subtitleIndex ?? -1,
+      onSubtitleIndexChange: handleSubtitleChange,
+      onServerSubtitleDownloaded: handleServerSubtitleDownloaded,
+      onLocalSubtitleDownloaded: handleLocalSubtitleDownloaded,
+    });
+    controlsInteractionRef.current();
+  }, [
+    showSubtitleModal,
+    item,
+    mediaSource?.Id,
+    subtitleTracks,
+    subtitleIndex,
+    handleSubtitleChange,
+    handleServerSubtitleDownloaded,
+    handleLocalSubtitleDownloaded,
+  ]);
 
   const effectiveProgress = useSharedValue(0);
 
@@ -759,7 +768,7 @@ export const Controls: FC<Props> = ({
 
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
-        pointerEvents={showControls && !isModalOpen ? "auto" : "none"}
+        pointerEvents={showControls && !false ? "auto" : "none"}
       >
         <View
           style={[
@@ -788,7 +797,7 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='play-skip-back'
               onPress={handlePreviousItem}
-              disabled={isModalOpen || !previousItem}
+              disabled={false || !previousItem}
               size={28}
             />
             <TVControlButton
@@ -796,14 +805,14 @@ export const Controls: FC<Props> = ({
               onPress={handleSeekBackwardButton}
               onLongPress={startContinuousSeekBackward}
               onPressOut={stopContinuousSeeking}
-              disabled={isModalOpen}
+              disabled={false}
               size={28}
             />
             <TVControlButton
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
-              disabled={isModalOpen}
-              hasTVPreferredFocus={!isModalOpen && lastOpenedModal === null}
+              disabled={false}
+              hasTVPreferredFocus={!false && lastOpenedModal === null}
               size={36}
             />
             <TVControlButton
@@ -811,13 +820,13 @@ export const Controls: FC<Props> = ({
               onPress={handleSeekForwardButton}
               onLongPress={startContinuousSeekForward}
               onPressOut={stopContinuousSeeking}
-              disabled={isModalOpen}
+              disabled={false}
               size={28}
             />
             <TVControlButton
               icon='play-skip-forward'
               onPress={handleNextItemButton}
-              disabled={isModalOpen || !nextItem}
+              disabled={false || !nextItem}
               size={28}
             />
 
@@ -827,10 +836,8 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='volume-high'
                 onPress={handleOpenAudioSheet}
-                disabled={isModalOpen}
-                hasTVPreferredFocus={
-                  !isModalOpen && lastOpenedModal === "audio"
-                }
+                disabled={false}
+                hasTVPreferredFocus={!false && lastOpenedModal === "audio"}
                 size={24}
               />
             )}
@@ -838,10 +845,8 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
-              disabled={isModalOpen}
-              hasTVPreferredFocus={
-                !isModalOpen && lastOpenedModal === "subtitle"
-              }
+              disabled={false}
+              hasTVPreferredFocus={!false && lastOpenedModal === "subtitle"}
               size={24}
             />
           </View>
@@ -892,26 +897,6 @@ export const Controls: FC<Props> = ({
           </View>
         </View>
       </Animated.View>
-
-      <TVOptionSelector
-        visible={openModal === "audio"}
-        title={t("item_card.audio")}
-        options={audioOptions}
-        onSelect={handleAudioChange}
-        onClose={() => setOpenModal(null)}
-      />
-
-      <TVSubtitleSheet
-        visible={openModal === "subtitle"}
-        item={item}
-        mediaSourceId={mediaSource?.Id}
-        subtitleTracks={subtitleTracks}
-        currentSubtitleIndex={subtitleIndex ?? -1}
-        onSubtitleIndexChange={handleSubtitleChange}
-        onClose={() => setOpenModal(null)}
-        onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
-        onLocalSubtitleDownloaded={handleLocalSubtitleDownloaded}
-      />
     </View>
   );
 };

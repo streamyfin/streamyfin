@@ -11,13 +11,10 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
-  BackHandler,
   Dimensions,
-  Platform,
   Pressable,
   ScrollView,
   TVFocusGuideView,
-  useTVEventHandler,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,19 +23,16 @@ import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
-import type { TVOptionItem } from "@/components/tv";
-import {
-  TVButton,
-  TVOptionSelector,
-  useTVFocusAnimation,
-} from "@/components/tv";
-import { TVSubtitleSheet } from "@/components/video-player/controls/TVSubtitleSheet";
+import { TVButton, useTVFocusAnimation } from "@/components/tv";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { runtimeTicksToMinutes } from "@/utils/time";
@@ -385,10 +379,11 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       router.push(`/player/direct-player?${queryParams.toString()}`);
     };
 
-    // Modal state for option selectors
-    type ModalType = "audio" | "subtitle" | "mediaSource" | "quality" | null;
-    const [openModal, setOpenModal] = useState<ModalType>(null);
-    const isModalOpen = openModal !== null;
+    // TV Option Modal hook for quality, audio, media source selectors
+    const { showOptions } = useTVOptionModal();
+
+    // TV Subtitle Modal hook
+    const { showSubtitleModal } = useTVSubtitleModal();
 
     // State for first actor card ref (used for focus guide)
     const [firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
@@ -399,28 +394,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const [lastOptionButtonRef, setLastOptionButtonRef] = useState<View | null>(
       null,
     );
-
-    // Android TV BackHandler for closing modals
-    useEffect(() => {
-      if (Platform.OS === "android" && isModalOpen) {
-        const backHandler = BackHandler.addEventListener(
-          "hardwareBackPress",
-          () => {
-            setOpenModal(null);
-            return true;
-          },
-        );
-        return () => backHandler.remove();
-      }
-    }, [isModalOpen]);
-
-    // tvOS menu button handler for closing modals
-    useTVEventHandler((evt) => {
-      if (!evt || !isModalOpen) return;
-      if (evt.eventType === "menu" || evt.eventType === "back") {
-        setOpenModal(null);
-      }
-    });
 
     // Get available audio tracks
     const audioTracks = useMemo(() => {
@@ -883,7 +856,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   }
                   label={t("item_card.quality")}
                   value={selectedQualityLabel}
-                  onPress={() => setOpenModal("quality")}
+                  onPress={() =>
+                    showOptions({
+                      title: t("item_card.quality"),
+                      options: qualityOptions,
+                      onSelect: handleQualityChange,
+                    })
+                  }
                 />
 
                 {/* Media source selector (only if multiple sources) */}
@@ -896,7 +875,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     }
                     label={t("item_card.video")}
                     value={selectedMediaSourceLabel}
-                    onPress={() => setOpenModal("mediaSource")}
+                    onPress={() =>
+                      showOptions({
+                        title: t("item_card.video"),
+                        options: mediaSourceOptions,
+                        onSelect: handleMediaSourceChange,
+                      })
+                    }
                   />
                 )}
 
@@ -910,7 +895,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     }
                     label={t("item_card.audio")}
                     value={selectedAudioLabel}
-                    onPress={() => setOpenModal("audio")}
+                    onPress={() =>
+                      showOptions({
+                        title: t("item_card.audio"),
+                        options: audioOptions,
+                        onSelect: handleAudioChange,
+                      })
+                    }
                   />
                 )}
 
@@ -925,7 +916,18 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     }
                     label={t("item_card.subtitles.label")}
                     value={selectedSubtitleLabel}
-                    onPress={() => setOpenModal("subtitle")}
+                    onPress={() =>
+                      showSubtitleModal({
+                        item,
+                        mediaSourceId: selectedOptions?.mediaSource?.Id,
+                        subtitleTracks,
+                        currentSubtitleIndex:
+                          selectedOptions?.subtitleIndex ?? -1,
+                        onSubtitleIndexChange: handleSubtitleChange,
+                        onServerSubtitleDownloaded:
+                          handleServerSubtitleDownloaded,
+                      })
+                    }
                   />
                 )}
               </View>
@@ -1204,45 +1206,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             )}
           </View>
         </ScrollView>
-
-        {/* Option selector modals */}
-        <TVOptionSelector
-          visible={openModal === "quality"}
-          title={t("item_card.quality")}
-          options={qualityOptions}
-          onSelect={handleQualityChange}
-          onClose={() => setOpenModal(null)}
-        />
-
-        <TVOptionSelector
-          visible={openModal === "mediaSource"}
-          title={t("item_card.video")}
-          options={mediaSourceOptions}
-          onSelect={handleMediaSourceChange}
-          onClose={() => setOpenModal(null)}
-        />
-
-        <TVOptionSelector
-          visible={openModal === "audio"}
-          title={t("item_card.audio")}
-          options={audioOptions}
-          onSelect={handleAudioChange}
-          onClose={() => setOpenModal(null)}
-        />
-
-        {/* Unified Subtitle Sheet (tracks + download) */}
-        {item && (
-          <TVSubtitleSheet
-            visible={openModal === "subtitle"}
-            item={item}
-            mediaSourceId={selectedOptions?.mediaSource?.Id}
-            subtitleTracks={subtitleTracks}
-            currentSubtitleIndex={selectedOptions?.subtitleIndex ?? -1}
-            onSubtitleIndexChange={handleSubtitleChange}
-            onClose={() => setOpenModal(null)}
-            onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
-          />
-        )}
       </View>
     );
   },

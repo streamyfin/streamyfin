@@ -1,9 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import type {
-  BaseItemDto,
-  MediaStream,
-} from "@jellyfin/sdk/lib/generated-client";
 import { BlurView } from "expo-blur";
+import { useAtomValue } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -23,28 +20,15 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
-import {
-  TVCancelButton,
-  TVTabButton,
-  useTVFocusAnimation,
-} from "@/components/tv";
+import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
+import useRouter from "@/hooks/useAppRouter";
 import {
   type SubtitleSearchResult,
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
+import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
-
-interface TVSubtitleSheetProps {
-  visible: boolean;
-  item: BaseItemDto;
-  mediaSourceId?: string | null;
-  subtitleTracks: MediaStream[];
-  currentSubtitleIndex: number;
-  onSubtitleIndexChange: (index: number) => void;
-  onClose: () => void;
-  onServerSubtitleDownloaded?: () => void;
-  onLocalSubtitleDownloaded?: (path: string) => void;
-}
+import { store } from "@/utils/store";
 
 type TabType = "tracks" | "download";
 
@@ -369,25 +353,11 @@ const SubtitleResultCard = React.forwardRef<
   );
 });
 
-export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
-  visible,
-  item,
-  mediaSourceId,
-  subtitleTracks,
-  currentSubtitleIndex,
-  onSubtitleIndexChange,
-  onClose,
-  onServerSubtitleDownloaded,
-  onLocalSubtitleDownloaded,
-}) => {
+export default function TVSubtitleModal() {
+  const router = useRouter();
   const { t } = useTranslation();
+  const modalState = useAtomValue(tvSubtitleModalAtom);
 
-  console.log(
-    "[TVSubtitleSheet] visible:",
-    visible,
-    "tracks:",
-    subtitleTracks.length,
-  );
   const [activeTab, setActiveTab] = useState<TabType>("tracks");
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -395,6 +365,9 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
   const [isReady, setIsReady] = useState(false);
   const [isTabContentReady, setIsTabContentReady] = useState(false);
   const firstTrackRef = useRef<View>(null);
+
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(300)).current;
 
   const {
     hasOpenSubtitlesApiKey,
@@ -405,16 +378,16 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     downloadAsync,
     reset,
   } = useRemoteSubtitles({
-    itemId: item.Id ?? "",
-    item,
-    mediaSourceId,
+    itemId: modalState?.item?.Id ?? "",
+    item: modalState?.item ?? ({} as any),
+    mediaSourceId: modalState?.mediaSourceId,
   });
 
   const resetRef = useRef(reset);
   resetRef.current = reset;
 
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+  const subtitleTracks = modalState?.subtitleTracks ?? [];
+  const currentSubtitleIndex = modalState?.currentSubtitleIndex ?? -1;
 
   const initialSelectedTrackIndex = useMemo(() => {
     if (currentSubtitleIndex === -1) return 0;
@@ -424,51 +397,36 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     return trackIdx >= 0 ? trackIdx + 1 : 0;
   }, [subtitleTracks, currentSubtitleIndex]);
 
+  // Animate in on mount
   useEffect(() => {
-    if (visible) {
-      overlayOpacity.setValue(0);
-      sheetTranslateY.setValue(300);
+    overlayOpacity.setValue(0);
+    sheetTranslateY.setValue(300);
 
-      Animated.parallel([
-        Animated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: 250,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheetTranslateY, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible, overlayOpacity, sheetTranslateY]);
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 250,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-  useEffect(() => {
-    if (!visible) {
-      setHasSearchedThisSession(false);
-      setActiveTab("tracks");
-      resetRef.current();
-      setIsReady(false);
-    }
-  }, [visible]);
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, [overlayOpacity, sheetTranslateY]);
 
   useEffect(() => {
-    if (visible) {
-      const timer = setTimeout(() => setIsReady(true), 100);
-      return () => clearTimeout(timer);
-    }
-    setIsReady(false);
-  }, [visible]);
-
-  useEffect(() => {
-    if (visible && activeTab === "download" && !hasSearchedThisSession) {
+    if (activeTab === "download" && !hasSearchedThisSession && modalState) {
       search({ language: selectedLanguage });
       setHasSearchedThisSession(true);
     }
-  }, [visible, activeTab, hasSearchedThisSession, search, selectedLanguage]);
+  }, [activeTab, hasSearchedThisSession, search, selectedLanguage, modalState]);
 
   useEffect(() => {
     if (isReady) {
@@ -478,6 +436,11 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     }
     setIsTabContentReady(false);
   }, [activeTab, isReady]);
+
+  const handleClose = useCallback(() => {
+    store.set(tvSubtitleModalAtom, null);
+    router.back();
+  }, [router]);
 
   const handleLanguageSelect = useCallback(
     (code: string) => {
@@ -489,10 +452,10 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
 
   const handleTrackSelect = useCallback(
     (index: number) => {
-      onSubtitleIndexChange(index);
-      onClose();
+      modalState?.onSubtitleIndexChange(index);
+      handleClose();
     },
-    [onSubtitleIndexChange, onClose],
+    [modalState, handleClose],
   );
 
   const handleDownload = useCallback(
@@ -503,24 +466,19 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
         const downloadResult = await downloadAsync(result);
 
         if (downloadResult.type === "server") {
-          onServerSubtitleDownloaded?.();
+          modalState?.onServerSubtitleDownloaded?.();
         } else if (downloadResult.type === "local" && downloadResult.path) {
-          onLocalSubtitleDownloaded?.(downloadResult.path);
+          modalState?.onLocalSubtitleDownloaded?.(downloadResult.path);
         }
 
-        onClose();
+        handleClose();
       } catch (error) {
         console.error("Failed to download subtitle:", error);
       } finally {
         setDownloadingId(null);
       }
     },
-    [
-      downloadAsync,
-      onServerSubtitleDownloaded,
-      onLocalSubtitleDownloaded,
-      onClose,
-    ],
+    [downloadAsync, modalState, handleClose],
   );
 
   const displayLanguages = useMemo(
@@ -545,7 +503,9 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
     return [noneOption, ...options];
   }, [subtitleTracks, currentSubtitleIndex, t]);
 
-  if (!visible) return null;
+  if (!modalState) {
+    return null;
+  }
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -557,6 +517,7 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
       >
         <BlurView intensity={90} tint='dark' style={styles.blurContainer}>
           <TVFocusGuideView
+            autoFocus
             trapFocusUp
             trapFocusDown
             trapFocusLeft
@@ -736,33 +697,18 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
                 )}
               </>
             )}
-
-            {/* Cancel button */}
-            {isReady && (
-              <View style={styles.cancelButtonContainer}>
-                <TVCancelButton
-                  onPress={onClose}
-                  label={t("common.cancel") || "Cancel"}
-                />
-              </View>
-            )}
           </TVFocusGuideView>
         </BlurView>
       </Animated.View>
     </Animated.View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "flex-end",
-    zIndex: 1000,
   },
   sheetContainer: {
     maxHeight: "70%",
@@ -975,10 +921,5 @@ const styles = StyleSheet.create({
   apiKeyHintText: {
     color: "rgba(255,255,255,0.4)",
     fontSize: 12,
-  },
-  cancelButtonContainer: {
-    paddingHorizontal: 48,
-    paddingTop: 20,
-    alignItems: "flex-start",
   },
 });
