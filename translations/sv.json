@@ -613,7 +613,15 @@
     "downloaded_file_message": "Vill du spela upp den nedladdade filen?",
     "downloaded_file_yes": "Ja",
     "downloaded_file_no": "Nej",
-    "downloaded_file_cancel": "Avbryt"
+    "downloaded_file_cancel": "Avbryt",
+    "download": "Ladda ner",
+    "language": "Språk",
+    "results": "Resultat",
+    "searching": "Söker...",
+    "search_failed": "Sökningen misslyckades",
+    "no_subtitle_provider": "Ingen undertextleverantör konfigurerad på servern",
+    "no_subtitles_found": "Inga undertexter hittades",
+    "add_opensubtitles_key_hint": "Lägg till OpenSubtitles API-nyckel i inställningar för klientsidesökning som reserv"
   },
   "item_card": {
     "next_up": "Näst på tur",
@@ -635,7 +643,11 @@
     "media_options": "Medieinställningar",
     "quality": "Kvalitet",
     "audio": "Ljud",
-    "subtitles": "Undertext",
+    "subtitles": {
+      "label": "Undertext",
+      "none": "Ingen",
+      "tracks": "Spår"
+    },
     "show_more": "Visa Mer",
     "show_less": "Visa Mindre",
     "appeared_in": "Förekommer I",
