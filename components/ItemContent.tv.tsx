@@ -4,23 +4,15 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQueryClient } from "@tanstack/react-query";
-import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
   BackHandler,
   Dimensions,
-  Easing,
   Platform,
   Pressable,
   ScrollView,
@@ -34,6 +26,12 @@ import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
+import type { TVOptionItem } from "@/components/tv";
+import {
+  TVButton,
+  TVOptionSelector,
+  useTVFocusAnimation,
+} from "@/components/tv";
 import { TVSubtitleSheet } from "@/components/video-player/controls/TVSubtitleSheet";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -60,558 +58,6 @@ interface ItemContentTVProps {
   isLoading?: boolean;
 }
 
-// Focusable button component for TV with Apple TV-style animations
-const TVFocusableButton: React.FC<{
-  onPress: () => void;
-  children: React.ReactNode;
-  hasTVPreferredFocus?: boolean;
-  style?: any;
-  variant?: "primary" | "secondary";
-}> = ({
-  onPress,
-  children,
-  hasTVPreferredFocus,
-  style,
-  variant = "primary",
-}) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  const isPrimary = variant === "primary";
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={[
-          {
-            transform: [{ scale }],
-            shadowColor: isPrimary ? "#fff" : "#a855f7",
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
-          },
-          style,
-        ]}
-      >
-        <View
-          style={{
-            backgroundColor: focused
-              ? isPrimary
-                ? "#ffffff"
-                : "#7c3aed"
-              : isPrimary
-                ? "rgba(255, 255, 255, 0.9)"
-                : "rgba(124, 58, 237, 0.8)",
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: 32,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            minWidth: 180,
-          }}
-        >
-          {children}
-        </View>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-// Info row component for metadata display
-const _InfoRow: React.FC<{ label: string; value: string }> = ({
-  label,
-  value,
-}) => (
-  <View style={{ flexDirection: "row", marginBottom: 8 }}>
-    <Text style={{ color: "#9CA3AF", fontSize: 16, width: 100 }}>{label}</Text>
-    <Text style={{ color: "#FFFFFF", fontSize: 16, flex: 1 }}>{value}</Text>
-  </View>
-);
-
-// Option item for the TV selector modal
-type TVOptionItem<T> = {
-  label: string;
-  value: T;
-  selected: boolean;
-};
-
-// TV Option Selector (Modal style - saved as backup)
-const _TVOptionSelectorModal = <T,>({
-  visible,
-  title,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: TVOptionItem<T>[];
-  onSelect: (value: T) => void;
-  onClose: () => void;
-}) => {
-  // Find the initially selected index
-  const initialSelectedIndex = useMemo(() => {
-    const idx = options.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
-  }, [options]);
-
-  if (!visible) return null;
-
-  return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.85)",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 1000,
-      }}
-    >
-      <View
-        style={{
-          backgroundColor: "#111",
-          borderRadius: 16,
-          paddingVertical: 24,
-          paddingHorizontal: 32,
-          minWidth: 420,
-          maxWidth: SCREEN_WIDTH * 0.4,
-          maxHeight: SCREEN_HEIGHT * 0.7,
-          overflow: "visible",
-        }}
-      >
-        {/* Header */}
-        <Text
-          style={{
-            fontSize: 24,
-            fontWeight: "600",
-            color: "#FFFFFF",
-            marginBottom: 16,
-            paddingHorizontal: 8,
-          }}
-        >
-          {title}
-        </Text>
-
-        {/* Options list */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={{ maxHeight: SCREEN_HEIGHT * 0.5, overflow: "visible" }}
-          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 4 }}
-        >
-          {options.map((option, index) => (
-            <_TVOptionRowModal
-              key={index}
-              label={option.label}
-              selected={option.selected}
-              hasTVPreferredFocus={index === initialSelectedIndex}
-              onPress={() => {
-                onSelect(option.value);
-                onClose();
-              }}
-            />
-          ))}
-        </ScrollView>
-      </View>
-    </View>
-  );
-};
-
-// Individual option row in the modal selector (backup)
-const _TVOptionRowModal: React.FC<{
-  label: string;
-  selected: boolean;
-  hasTVPreferredFocus?: boolean;
-  onPress: () => void;
-}> = ({ label, selected, hasTVPreferredFocus, onPress }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.02);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-      style={{ marginBottom: 2 }}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: focused ? "#2a2a2a" : "transparent",
-          borderRadius: 10,
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View style={{ width: 28, marginRight: 12 }}>
-          {selected && <Ionicons name='checkmark' size={22} color='#a855f7' />}
-        </View>
-        <Text
-          style={{
-            fontSize: 18,
-            color: focused || selected ? "#FFFFFF" : "#888",
-            fontWeight: selected ? "600" : "400",
-            flex: 1,
-          }}
-          numberOfLines={1}
-        >
-          {label}
-        </Text>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-// Cancel button for TV option selectors
-const TVCancelButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
-  const { t } = useTranslation();
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
-          borderRadius: 12,
-          paddingVertical: 12,
-          paddingHorizontal: 20,
-          gap: 8,
-        }}
-      >
-        <Ionicons
-          name='close'
-          size={20}
-          color={focused ? "#000" : "rgba(255,255,255,0.8)"}
-        />
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: "600",
-            color: focused ? "#000" : "rgba(255,255,255,0.8)",
-          }}
-        >
-          {t("common.cancel") || "Cancel"}
-        </Text>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-// TV Option Selector - Bottom sheet with horizontal scrolling (Apple TV style)
-const TVOptionSelector = <T,>({
-  visible,
-  title,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: TVOptionItem<T>[];
-  onSelect: (value: T) => void;
-  onClose: () => void;
-}) => {
-  const [isReady, setIsReady] = useState(false);
-  const firstCardRef = useRef<View>(null);
-
-  // Animation values
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(200)).current;
-
-  const initialSelectedIndex = useMemo(() => {
-    const idx = options.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
-  }, [options]);
-
-  // Animate in when visible
-  useEffect(() => {
-    if (visible) {
-      // Reset values and animate in
-      overlayOpacity.setValue(0);
-      sheetTranslateY.setValue(200);
-
-      Animated.parallel([
-        Animated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: 250,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheetTranslateY, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible, overlayOpacity, sheetTranslateY]);
-
-  // Delay rendering to work around hasTVPreferredFocus timing issue
-  useEffect(() => {
-    if (visible) {
-      const timer = setTimeout(() => setIsReady(true), 100);
-      return () => clearTimeout(timer);
-    }
-    setIsReady(false);
-  }, [visible]);
-
-  // Programmatic focus fallback
-  useEffect(() => {
-    if (isReady && firstCardRef.current) {
-      const timer = setTimeout(() => {
-        (firstCardRef.current as any)?.requestTVFocus?.();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [isReady]);
-
-  if (!visible) return null;
-
-  return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        justifyContent: "flex-end",
-        zIndex: 1000,
-        opacity: overlayOpacity,
-      }}
-    >
-      <Animated.View style={{ transform: [{ translateY: sheetTranslateY }] }}>
-        <BlurView
-          intensity={80}
-          tint='dark'
-          style={{
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            overflow: "hidden",
-          }}
-        >
-          <TVFocusGuideView
-            autoFocus
-            trapFocusUp
-            trapFocusDown
-            trapFocusLeft
-            trapFocusRight
-            style={{
-              paddingTop: 24,
-              paddingBottom: 50,
-              overflow: "visible",
-            }}
-          >
-            {/* Title */}
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "500",
-                color: "rgba(255,255,255,0.6)",
-                marginBottom: 16,
-                paddingHorizontal: 48,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              {title}
-            </Text>
-
-            {/* Horizontal options */}
-            {isReady && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ overflow: "visible" }}
-                contentContainerStyle={{
-                  paddingHorizontal: 48,
-                  paddingVertical: 10,
-                  gap: 12,
-                }}
-              >
-                {options.map((option, index) => (
-                  <TVOptionCard
-                    key={index}
-                    ref={
-                      index === initialSelectedIndex ? firstCardRef : undefined
-                    }
-                    label={option.label}
-                    selected={option.selected}
-                    hasTVPreferredFocus={index === initialSelectedIndex}
-                    onPress={() => {
-                      onSelect(option.value);
-                      onClose();
-                    }}
-                  />
-                ))}
-              </ScrollView>
-            )}
-
-            {/* Cancel button */}
-            {isReady && (
-              <View
-                style={{
-                  paddingHorizontal: 48,
-                  paddingTop: 16,
-                  alignItems: "flex-start",
-                }}
-              >
-                <TVCancelButton onPress={onClose} />
-              </View>
-            )}
-          </TVFocusGuideView>
-        </BlurView>
-      </Animated.View>
-    </Animated.View>
-  );
-};
-
-// Option card for horizontal selector (Apple TV style) - with forwardRef for programmatic focus
-const TVOptionCard = React.forwardRef<
-  View,
-  {
-    label: string;
-    selected: boolean;
-    hasTVPreferredFocus?: boolean;
-    onPress: () => void;
-  }
->(({ label, selected, hasTVPreferredFocus, onPress }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      ref={ref}
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 160,
-          height: 75,
-          backgroundColor: focused
-            ? "#fff"
-            : selected
-              ? "rgba(255,255,255,0.2)"
-              : "rgba(255,255,255,0.08)",
-          borderRadius: 14,
-          justifyContent: "center",
-          alignItems: "center",
-          paddingHorizontal: 12,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            color: focused ? "#000" : "#fff",
-            fontWeight: focused || selected ? "600" : "400",
-            textAlign: "center",
-          }}
-          numberOfLines={2}
-        >
-          {label}
-        </Text>
-        {selected && !focused && (
-          <View
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-            }}
-          >
-            <Ionicons
-              name='checkmark'
-              size={16}
-              color='rgba(255,255,255,0.8)'
-            />
-          </View>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-});
-
 // Circular actor card with Apple TV style focus animations
 const TVActorCard = React.forwardRef<
   View,
@@ -626,16 +72,8 @@ const TVActorCard = React.forwardRef<
     hasTVPreferredFocus?: boolean;
   }
 >(({ person, apiBasePath, onPress, hasTVPreferredFocus }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.08 });
 
   const imageUrl = person.Id
     ? `${apiBasePath}/Items/${person.Id}/Images/Primary?fillWidth=200&fillHeight=200&quality=90`
@@ -645,28 +83,23 @@ const TVActorCard = React.forwardRef<
     <Pressable
       ref={ref}
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.08);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          alignItems: "center",
-          width: 120,
-          shadowColor: "#fff",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.5 : 0,
-          shadowRadius: focused ? 16 : 0,
-        }}
+        style={[
+          animatedStyle,
+          {
+            alignItems: "center",
+            width: 120,
+            shadowColor: "#fff",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.5 : 0,
+            shadowRadius: focused ? 16 : 0,
+          },
+        ]}
       >
-        {/* Circular image */}
         <View
           style={{
             width: 100,
@@ -698,7 +131,6 @@ const TVActorCard = React.forwardRef<
           )}
         </View>
 
-        {/* Name */}
         <Text
           style={{
             fontSize: 14,
@@ -712,7 +144,6 @@ const TVActorCard = React.forwardRef<
           {person.Name}
         </Text>
 
-        {/* Role */}
         {person.Role && (
           <Text
             style={{
@@ -740,41 +171,28 @@ const TVSeriesSeasonCard: React.FC<{
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
 }> = ({ title, subtitle, imageUrl, onPress, hasTVPreferredFocus }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.05 });
 
   return (
     <Pressable
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 140,
-          shadowColor: "#fff",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.5 : 0,
-          shadowRadius: focused ? 16 : 0,
-        }}
+        style={[
+          animatedStyle,
+          {
+            width: 140,
+            shadowColor: "#fff",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.5 : 0,
+            shadowRadius: focused ? 16 : 0,
+          },
+        ]}
       >
-        {/* Poster image */}
         <View
           style={{
             width: 140,
@@ -806,7 +224,6 @@ const TVSeriesSeasonCard: React.FC<{
           )}
         </View>
 
-        {/* Title */}
         <Text
           style={{
             fontSize: 14,
@@ -820,7 +237,6 @@ const TVSeriesSeasonCard: React.FC<{
           {title}
         </Text>
 
-        {/* Subtitle */}
         {subtitle && (
           <Text
             style={{
@@ -850,39 +266,27 @@ const TVOptionButton = React.forwardRef<
     hasTVPreferredFocus?: boolean;
   }
 >(({ label, value, onPress, hasTVPreferredFocus }, ref) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({ scaleAmount: 1.02, duration: 120 });
 
   return (
     <Pressable
       ref={ref}
       onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.02);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       hasTVPreferredFocus={hasTVPreferredFocus}
     >
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          shadowColor: "#fff",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.4 : 0,
-          shadowRadius: focused ? 12 : 0,
-        }}
+        style={[
+          animatedStyle,
+          {
+            shadowColor: "#fff",
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: focused ? 0.4 : 0,
+            shadowRadius: focused ? 12 : 0,
+          },
+        ]}
       >
         <View
           style={{
@@ -987,7 +391,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const isModalOpen = openModal !== null;
 
     // State for first actor card ref (used for focus guide)
-    // Using state instead of useRef to trigger re-renders when ref is set
     const [firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
       null,
     );
@@ -1012,7 +415,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [isModalOpen]);
 
     // tvOS menu button handler for closing modals
-    // Note: This may not receive events if React Navigation intercepts them first
     useTVEventHandler((evt) => {
       if (!evt || !isModalOpen) return;
       if (evt.eventType === "menu" || evt.eventType === "back") {
@@ -1042,7 +444,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [item, itemWithSources]);
 
     // Audio options for selector
-    const audioOptions = useMemo(() => {
+    const audioOptions: TVOptionItem<number>[] = useMemo(() => {
       return audioTracks.map((track) => ({
         label:
           track.DisplayTitle ||
@@ -1053,7 +455,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [audioTracks, selectedOptions?.audioIndex]);
 
     // Media source options for selector
-    const mediaSourceOptions = useMemo(() => {
+    const mediaSourceOptions: TVOptionItem<MediaSourceInfo>[] = useMemo(() => {
       return mediaSources.map((source) => {
         const videoStream = source.MediaStreams?.find(
           (s) => s.Type === "Video",
@@ -1069,7 +471,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [mediaSources, selectedOptions?.mediaSource?.Id]);
 
     // Quality/bitrate options for selector
-    const qualityOptions = useMemo(() => {
+    const qualityOptions: TVOptionItem<Bitrate>[] = useMemo(() => {
       return BITRATES.map((bitrate) => ({
         label: bitrate.key,
         value: bitrate,
@@ -1092,7 +494,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     const handleMediaSourceChange = useCallback(
       (mediaSource: MediaSourceInfo) => {
-        // When media source changes, reset audio/subtitle to defaults
         const defaultAudio = mediaSource.MediaStreams?.find(
           (s) => s.Type === "Audio" && s.IsDefault,
         );
@@ -1425,7 +826,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   marginBottom: 32,
                 }}
               >
-                <TVFocusableButton
+                <TVButton
                   onPress={handlePlay}
                   hasTVPreferredFocus
                   variant='primary'
@@ -1447,7 +848,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       ? `${remainingTime} ${t("item_card.left")}`
                       : t("common.play")}
                   </Text>
-                </TVFocusableButton>
+                </TVButton>
               </View>
 
               {/* Playback options */}
