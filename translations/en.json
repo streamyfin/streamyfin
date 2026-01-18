@@ -517,7 +517,8 @@
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
-    "login": "Login"
+    "login": "Login",
+    "refresh": "Refresh"
   },
   "search": {
     "search": "Search...",

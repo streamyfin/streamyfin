@@ -5,12 +5,46 @@ import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 export interface TVButtonProps {
   onPress: () => void;
   children: React.ReactNode;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "glass";
   hasTVPreferredFocus?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
   scaleAmount?: number;
+  square?: boolean;
 }
+
+const getButtonStyles = (
+  variant: "primary" | "secondary" | "glass",
+  focused: boolean,
+) => {
+  switch (variant) {
+    case "glass":
+      return {
+        backgroundColor: focused
+          ? "rgba(255, 255, 255, 0.25)"
+          : "rgba(255, 255, 255, 0.1)",
+        shadowColor: "#fff",
+        borderWidth: 1,
+        borderColor: focused
+          ? "rgba(255, 255, 255, 0.4)"
+          : "rgba(255, 255, 255, 0.15)",
+      };
+    case "secondary":
+      return {
+        backgroundColor: focused ? "#7c3aed" : "rgba(124, 58, 237, 0.8)",
+        shadowColor: "#a855f7",
+        borderWidth: 1,
+        borderColor: "transparent",
+      };
+    default:
+      return {
+        backgroundColor: focused ? "#ffffff" : "rgba(255, 255, 255, 0.9)",
+        shadowColor: "#fff",
+        borderWidth: 1,
+        borderColor: "transparent",
+      };
+  }
+};
 
 export const TVButton: React.FC<TVButtonProps> = ({
   onPress,
@@ -20,11 +54,12 @@ export const TVButton: React.FC<TVButtonProps> = ({
   disabled = false,
   style,
   scaleAmount = 1.05,
+  square = false,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount });
 
-  const isPrimary = variant === "primary";
+  const buttonStyles = getButtonStyles(variant, focused);
 
   return (
     <Pressable
@@ -39,30 +74,26 @@ export const TVButton: React.FC<TVButtonProps> = ({
         style={[
           animatedStyle,
           {
-            shadowColor: isPrimary ? "#fff" : "#a855f7",
+            shadowColor: buttonStyles.shadowColor,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
+            shadowOpacity: focused ? 0.4 : 0,
+            shadowRadius: focused ? 15 : 0,
           },
           style,
         ]}
       >
         <View
           style={{
-            backgroundColor: focused
-              ? isPrimary
-                ? "#ffffff"
-                : "#7c3aed"
-              : isPrimary
-                ? "rgba(255, 255, 255, 0.9)"
-                : "rgba(124, 58, 237, 0.8)",
+            backgroundColor: buttonStyles.backgroundColor,
+            borderWidth: buttonStyles.borderWidth,
+            borderColor: buttonStyles.borderColor,
             borderRadius: 12,
             paddingVertical: 18,
-            paddingHorizontal: 32,
+            paddingHorizontal: square ? 18 : 32,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            minWidth: 180,
+            minWidth: square ? undefined : 180,
           }}
         >
           {children}

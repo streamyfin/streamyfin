@@ -525,6 +525,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       }
     }, [item?.Id, queryClient]);
 
+    // Handle manual refresh of metadata
+    const handleRefreshMetadata = useCallback(() => {
+      if (item?.Id) {
+        queryClient.invalidateQueries({ queryKey: ["item", item.Id] });
+      }
+    }, [item?.Id, queryClient]);
+
     // Get display values for buttons
     const selectedAudioLabel = useMemo(() => {
       const track = audioTracks.find(
@@ -848,6 +855,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       ? `${remainingTime} ${t("item_card.left")}`
                       : t("common.play")}
                   </Text>
+                </TVButton>
+                <TVButton
+                  onPress={handleRefreshMetadata}
+                  variant='glass'
+                  square
+                >
+                  <Ionicons name='refresh' size={28} color='#FFFFFF' />
                 </TVButton>
               </View>
 
