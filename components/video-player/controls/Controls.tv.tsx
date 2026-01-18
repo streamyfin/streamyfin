@@ -40,6 +40,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { TVSubtitleSheet } from "@/components/common/TVSubtitleSheet";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -52,7 +53,6 @@ import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TrickplayBubble } from "./TrickplayBubble";
-import { TVSubtitleSearch } from "./TVSubtitleSearch";
 import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
@@ -867,7 +867,7 @@ export const Controls: FC<Props> = ({
   const nextItem = nextItemProp ?? internalNextItem;
 
   // Modal state for option selectors
-  type ModalType = "audio" | "subtitle" | "subtitleSearch" | null;
+  type ModalType = "audio" | "subtitle" | null;
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const isModalOpen = openModal !== null;
 
@@ -910,35 +910,11 @@ export const Controls: FC<Props> = ({
     }));
   }, [audioTracks, audioIndex]);
 
-  // Subtitle options for selector (with "None" option)
-  const subtitleOptions = useMemo(() => {
-    const noneOption = {
-      label: t("item_card.subtitles.none"),
-      value: -1,
-      selected: subtitleIndex === -1,
-    };
-    const trackOptions = subtitleTracks.map((track) => ({
-      label:
-        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
-      value: track.Index!,
-      selected: track.Index === subtitleIndex,
-    }));
-    return [noneOption, ...trackOptions];
-  }, [subtitleTracks, subtitleIndex, t]);
-
   // Get display labels for buttons
   const _selectedAudioLabel = useMemo(() => {
     const track = audioTracks.find((t) => t.Index === audioIndex);
     return track?.DisplayTitle || track?.Language || t("item_card.audio");
   }, [audioTracks, audioIndex, t]);
-
-  const _selectedSubtitleLabel = useMemo(() => {
-    if (subtitleIndex === -1) return t("item_card.subtitles.none");
-    const track = subtitleTracks.find((t) => t.Index === subtitleIndex);
-    return (
-      track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
-    );
-  }, [subtitleTracks, subtitleIndex, t]);
 
   // Handlers for option changes
   const handleAudioChange = useCallback(
@@ -1073,25 +1049,6 @@ export const Controls: FC<Props> = ({
     setOpenModal("subtitle");
     controlsInteractionRef.current();
   }, []);
-
-  const handleOpenSubtitleSearch = useCallback(() => {
-    setLastOpenedModal("subtitleSearch");
-    setOpenModal("subtitleSearch");
-    controlsInteractionRef.current();
-  }, []);
-
-  // Handler for when a subtitle is downloaded via server
-  const handleServerSubtitleDownloaded = useCallback(() => {
-    onServerSubtitleDownloaded?.();
-  }, [onServerSubtitleDownloaded]);
-
-  // Handler for when a subtitle is downloaded locally
-  const handleLocalSubtitleDownloaded = useCallback(
-    (path: string) => {
-      addSubtitleFile?.(path);
-    },
-    [addSubtitleFile],
-  );
 
   // Progress value for the progress bar (directly from playback progress)
   const effectiveProgress = useSharedValue(0);
@@ -1454,26 +1411,13 @@ export const Controls: FC<Props> = ({
               />
             )}
 
-            {/* Subtitle button - only show when subtitle tracks are available */}
-            {subtitleTracks.length > 0 && (
-              <TVControlButton
-                icon='text'
-                onPress={handleOpenSubtitleSheet}
-                disabled={isModalOpen}
-                hasTVPreferredFocus={
-                  !isModalOpen && lastOpenedModal === "subtitle"
-                }
-                size={24}
-              />
-            )}
-
-            {/* Subtitle Search button */}
+            {/* Subtitle button - always show to allow search even if no tracks */}
             <TVControlButton
-              icon='download-outline'
-              onPress={handleOpenSubtitleSearch}
+              icon='text'
+              onPress={handleOpenSubtitleSheet}
               disabled={isModalOpen}
               hasTVPreferredFocus={
-                !isModalOpen && lastOpenedModal === "subtitleSearch"
+                !isModalOpen && lastOpenedModal === "subtitle"
               }
               size={24}
             />
@@ -1540,22 +1484,17 @@ export const Controls: FC<Props> = ({
         onClose={() => setOpenModal(null)}
       />
 
-      <TVOptionSelector
+      {/* Subtitle Sheet with tabs for tracks and search */}
+      <TVSubtitleSheet
         visible={openModal === "subtitle"}
-        title={t("item_card.subtitles.label")}
-        options={subtitleOptions}
-        onSelect={handleSubtitleChange}
-        onClose={() => setOpenModal(null)}
-      />
-
-      {/* Subtitle Search Modal */}
-      <TVSubtitleSearch
-        visible={openModal === "subtitleSearch"}
         item={item}
         mediaSourceId={mediaSource?.Id}
+        subtitleTracks={subtitleTracks}
+        currentSubtitleIndex={subtitleIndex ?? -1}
+        onSubtitleChange={handleSubtitleChange}
         onClose={() => setOpenModal(null)}
-        onServerSubtitleDownloaded={handleServerSubtitleDownloaded}
-        onLocalSubtitleDownloaded={handleLocalSubtitleDownloaded}
+        onServerSubtitleDownloaded={onServerSubtitleDownloaded}
+        onLocalSubtitleDownloaded={addSubtitleFile}
       />
     </View>
   );

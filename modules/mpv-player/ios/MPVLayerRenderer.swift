@@ -4,12 +4,21 @@ import CoreMedia
 import CoreVideo
 import AVFoundation
 
+/// HDR mode detected from video properties
+enum HDRMode {
+    case sdr
+    case hdr10
+    case dolbyVision
+    case hlg
+}
+
 protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double)
     func renderer(_ renderer: MPVLayerRenderer, didChangePause isPaused: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
+    func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
 }
 
 /// MPV player using vo_avfoundation for video output.
@@ -427,7 +436,10 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didChangeLoading: false)
                 }
             }
-            
+
+            // Detect HDR mode for tvOS display switching
+            detectHDRMode()
+
         case MPV_EVENT_SEEK:
             // Seek started - show loading indicator and enable immediate progress updates
             isSeeking = true
@@ -791,6 +803,53 @@ final class MPVLayerRenderer {
         var aid: Int64 = 0
         getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
         return Int(aid)
+    }
+
+    // MARK: - HDR Detection
+
+    /// Detects the HDR mode of the currently playing video by reading mpv properties
+    private func detectHDRMode() {
+        guard let handle = mpv else { return }
+
+        // Get video color properties
+        let primaries = getStringProperty(handle: handle, name: "video-params/primaries")
+        let gamma = getStringProperty(handle: handle, name: "video-params/gamma")
+
+        // Get FPS for display criteria
+        var fps: Double = 24.0
+        getProperty(handle: handle, name: "container-fps", format: MPV_FORMAT_DOUBLE, value: &fps)
+        if fps <= 0 { fps = 24.0 }
+
+        Logger.shared.log("HDR Detection - primaries: \(primaries ?? "nil"), gamma: \(gamma ?? "nil"), fps: \(fps)", type: "Info")
+
+        // Determine HDR mode based on color properties
+        // bt.2020 primaries with PQ gamma = HDR10 or Dolby Vision
+        // bt.2020 primaries with HLG gamma = HLG
+        // Otherwise SDR
+        let hdrMode: HDRMode
+
+        if primaries == "bt.2020" || primaries == "bt.2020-ncl" {
+            if gamma == "pq" {
+                // PQ gamma indicates HDR10 or Dolby Vision
+                // We'll use hdr10 as the base, Dolby Vision detection would need codec inspection
+                // For DV Profile 8.1, HDR10 fallback should work
+                hdrMode = .hdr10
+            } else if gamma == "hlg" {
+                hdrMode = .hlg
+            } else {
+                // bt.2020 without HDR gamma - still request HDR mode for wide color
+                hdrMode = .hdr10
+            }
+        } else {
+            hdrMode = .sdr
+        }
+
+        Logger.shared.log("HDR Detection - detected mode: \(hdrMode)", type: "Info")
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.delegate?.renderer(self, didDetectHDRMode: hdrMode, fps: fps)
+        }
     }
 
     // MARK: - Technical Info
