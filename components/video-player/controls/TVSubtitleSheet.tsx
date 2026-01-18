@@ -29,29 +29,34 @@ import {
 } from "@/hooks/useRemoteSubtitles";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 
-interface Props {
+interface TVSubtitleSheetProps {
   visible: boolean;
   item: BaseItemDto;
   mediaSourceId?: string | null;
+
+  // Existing subtitle tracks from media source
   subtitleTracks: MediaStream[];
   currentSubtitleIndex: number;
-  onSubtitleChange: (index: number) => void;
+
+  // Track selection callback
+  onSubtitleIndexChange: (index: number) => void;
   onClose: () => void;
-  /** Called when a subtitle is downloaded locally (client-side) - only during playback */
-  onLocalSubtitleDownloaded?: (path: string) => void;
-  /** Called when a subtitle is downloaded via Jellyfin API (server-side) */
+
+  // Optional - for during-playback context only
   onServerSubtitleDownloaded?: () => void;
+  onLocalSubtitleDownloaded?: (path: string) => void;
 }
 
-type TabType = "tracks" | "search";
+type TabType = "tracks" | "download";
 
-// Tab button component
-const TVSubtitleTab: React.FC<{
+// Tab button component - requires press to switch
+const TVTabButton: React.FC<{
   label: string;
-  isActive: boolean;
+  active: boolean;
   onSelect: () => void;
   hasTVPreferredFocus?: boolean;
-}> = ({ label, isActive, onSelect, hasTVPreferredFocus }) => {
+  disabled?: boolean;
+}> = ({ label, active, onSelect, hasTVPreferredFocus, disabled }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new RNAnimated.Value(1)).current;
 
@@ -65,16 +70,18 @@ const TVSubtitleTab: React.FC<{
 
   return (
     <Pressable
+      onPress={onSelect}
       onFocus={() => {
         setFocused(true);
         animateTo(1.05);
-        onSelect();
       }}
       onBlur={() => {
         setFocused(false);
         animateTo(1);
       }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
+      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <RNAnimated.View
         style={[
@@ -83,10 +90,10 @@ const TVSubtitleTab: React.FC<{
             transform: [{ scale }],
             backgroundColor: focused
               ? "#fff"
-              : isActive
+              : active
                 ? "rgba(255,255,255,0.2)"
                 : "transparent",
-            borderBottomColor: isActive ? "#fff" : "transparent",
+            borderBottomColor: active ? "#fff" : "transparent",
           },
         ]}
       >
@@ -94,7 +101,7 @@ const TVSubtitleTab: React.FC<{
           style={[
             styles.tabText,
             { color: focused ? "#000" : "#fff" },
-            (focused || isActive) && { fontWeight: "600" },
+            (focused || active) && { fontWeight: "600" },
           ]}
         >
           {label}
@@ -104,16 +111,17 @@ const TVSubtitleTab: React.FC<{
   );
 };
 
-// Track option card
+// Track card for subtitle track selection
 const TVTrackCard = React.forwardRef<
   View,
   {
     label: string;
+    sublabel?: string;
     selected: boolean;
     hasTVPreferredFocus?: boolean;
     onPress: () => void;
   }
->(({ label, selected, hasTVPreferredFocus, onPress }, ref) => {
+>(({ label, sublabel, selected, hasTVPreferredFocus, onPress }, ref) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new RNAnimated.Value(1)).current;
 
@@ -162,6 +170,17 @@ const TVTrackCard = React.forwardRef<
         >
           {label}
         </Text>
+        {sublabel && (
+          <Text
+            style={[
+              styles.trackCardSublabel,
+              { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
+            ]}
+            numberOfLines={1}
+          >
+            {sublabel}
+          </Text>
+        )}
         {selected && !focused && (
           <View style={styles.checkmark}>
             <Ionicons
@@ -305,7 +324,7 @@ const SubtitleResultCard = React.forwardRef<
           },
         ]}
       >
-        {/* Provider badge */}
+        {/* Provider/Source badge */}
         <View
           style={[
             styles.providerBadge,
@@ -336,6 +355,7 @@ const SubtitleResultCard = React.forwardRef<
 
         {/* Meta info row */}
         <View style={styles.resultMeta}>
+          {/* Format */}
           <Text
             style={[
               styles.resultMetaText,
@@ -345,6 +365,7 @@ const SubtitleResultCard = React.forwardRef<
             {result.format?.toUpperCase()}
           </Text>
 
+          {/* Rating if available */}
           {result.communityRating !== undefined &&
             result.communityRating > 0 && (
               <View style={styles.ratingContainer}>
@@ -368,6 +389,7 @@ const SubtitleResultCard = React.forwardRef<
               </View>
             )}
 
+          {/* Download count if available */}
           {result.downloadCount !== undefined && result.downloadCount > 0 && (
             <View style={styles.downloadCountContainer}>
               <Ionicons
@@ -441,6 +463,7 @@ const SubtitleResultCard = React.forwardRef<
           )}
         </View>
 
+        {/* Loading indicator when downloading */}
         {isDownloading && (
           <View style={styles.downloadingOverlay}>
             <ActivityIndicator size='small' color='#fff' />
@@ -451,23 +474,25 @@ const SubtitleResultCard = React.forwardRef<
   );
 });
 
-export const TVSubtitleSheet: React.FC<Props> = ({
+export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
   visible,
   item,
   mediaSourceId,
   subtitleTracks,
   currentSubtitleIndex,
-  onSubtitleChange,
+  onSubtitleIndexChange,
   onClose,
-  onLocalSubtitleDownloaded,
   onServerSubtitleDownloaded,
+  onLocalSubtitleDownloaded,
 }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>("tracks");
-  const [isReady, setIsReady] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const firstTrackCardRef = useRef<View>(null);
+  const [hasSearchedThisSession, setHasSearchedThisSession] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [isTabContentReady, setIsTabContentReady] = useState(false);
+  const firstTrackRef = useRef<View>(null);
 
   const {
     hasOpenSubtitlesApiKey,
@@ -483,44 +508,28 @@ export const TVSubtitleSheet: React.FC<Props> = ({
     mediaSourceId,
   });
 
+  // Store reset in a ref to avoid dependency issues
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
+
   // Animation values
   const overlayOpacity = useRef(new RNAnimated.Value(0)).current;
   const sheetTranslateY = useRef(new RNAnimated.Value(300)).current;
 
-  // Build subtitle options (with "None" option)
-  const subtitleOptions = useMemo(() => {
-    const noneOption = {
-      label: t("item_card.subtitles.none"),
-      value: -1,
-      selected: currentSubtitleIndex === -1,
-    };
-    const trackOptions = subtitleTracks.map((track) => ({
-      label:
-        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
-      value: track.Index!,
-      selected: track.Index === currentSubtitleIndex,
-    }));
-    return [noneOption, ...trackOptions];
-  }, [subtitleTracks, currentSubtitleIndex, t]);
-
-  // Find initial selected index for focus
-  const initialSelectedIndex = useMemo(() => {
-    const idx = subtitleOptions.findIndex((o) => o.selected);
-    return idx >= 0 ? idx : 0;
-  }, [subtitleOptions]);
-
-  // Languages for search
-  const displayLanguages = useMemo(
-    () => COMMON_SUBTITLE_LANGUAGES.slice(0, 16),
-    [],
-  );
+  // Determine initial selected track index
+  const initialSelectedTrackIndex = useMemo(() => {
+    if (currentSubtitleIndex === -1) return 0; // "None" option
+    const trackIdx = subtitleTracks.findIndex(
+      (t) => t.Index === currentSubtitleIndex,
+    );
+    return trackIdx >= 0 ? trackIdx + 1 : 0; // +1 because "None" is at index 0
+  }, [subtitleTracks, currentSubtitleIndex]);
 
   // Animate in/out
   useEffect(() => {
     if (visible) {
       overlayOpacity.setValue(0);
       sheetTranslateY.setValue(300);
-      setActiveTab("tracks");
 
       RNAnimated.parallel([
         RNAnimated.timing(overlayOpacity, {
@@ -536,10 +545,18 @@ export const TVSubtitleSheet: React.FC<Props> = ({
           useNativeDriver: true,
         }),
       ]).start();
-    } else {
-      reset();
     }
-  }, [visible, overlayOpacity, sheetTranslateY, reset]);
+  }, [visible, overlayOpacity, sheetTranslateY]);
+
+  // Reset state when sheet closes
+  useEffect(() => {
+    if (!visible) {
+      setHasSearchedThisSession(false);
+      setActiveTab("tracks");
+      resetRef.current();
+      setIsReady(false);
+    }
+  }, [visible]);
 
   // Delay rendering to work around hasTVPreferredFocus timing issue
   useEffect(() => {
@@ -550,22 +567,23 @@ export const TVSubtitleSheet: React.FC<Props> = ({
     setIsReady(false);
   }, [visible]);
 
-  // Programmatic focus fallback
+  // Lazy loading: search when Download tab is first activated
   useEffect(() => {
-    if (isReady && firstTrackCardRef.current) {
-      const timer = setTimeout(() => {
-        (firstTrackCardRef.current as any)?.requestTVFocus?.();
-      }, 50);
+    if (visible && activeTab === "download" && !hasSearchedThisSession) {
+      search({ language: selectedLanguage });
+      setHasSearchedThisSession(true);
+    }
+  }, [visible, activeTab, hasSearchedThisSession, search, selectedLanguage]);
+
+  // Delay tab content rendering to prevent focus conflicts when switching tabs
+  useEffect(() => {
+    if (isReady) {
+      setIsTabContentReady(false);
+      const timer = setTimeout(() => setIsTabContentReady(true), 50);
       return () => clearTimeout(timer);
     }
-  }, [isReady]);
-
-  // Auto-search when switching to search tab
-  useEffect(() => {
-    if (activeTab === "search" && !searchResults && !isSearching) {
-      search({ language: selectedLanguage });
-    }
-  }, [activeTab, searchResults, isSearching, search, selectedLanguage]);
+    setIsTabContentReady(false);
+  }, [activeTab, isReady]);
 
   // Handle language selection
   const handleLanguageSelect = useCallback(
@@ -579,10 +597,10 @@ export const TVSubtitleSheet: React.FC<Props> = ({
   // Handle track selection
   const handleTrackSelect = useCallback(
     (index: number) => {
-      onSubtitleChange(index);
+      onSubtitleIndexChange(index);
       onClose();
     },
-    [onSubtitleChange, onClose],
+    [onSubtitleIndexChange, onClose],
   );
 
   // Handle subtitle download
@@ -614,8 +632,29 @@ export const TVSubtitleSheet: React.FC<Props> = ({
     ],
   );
 
-  // Whether we're in player context (can use local subtitles)
-  const isInPlayer = Boolean(onLocalSubtitleDownloaded);
+  // Subset of common languages for TV
+  const displayLanguages = useMemo(
+    () => COMMON_SUBTITLE_LANGUAGES.slice(0, 16),
+    [],
+  );
+
+  // Track options with "None" at the start
+  const trackOptions = useMemo(() => {
+    const noneOption = {
+      label: t("item_card.subtitles.none"),
+      sublabel: undefined as string | undefined,
+      value: -1,
+      selected: currentSubtitleIndex === -1,
+    };
+    const options = subtitleTracks.map((track) => ({
+      label:
+        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
+      sublabel: track.Codec?.toUpperCase(),
+      value: track.Index!,
+      selected: track.Index === currentSubtitleIndex,
+    }));
+    return [noneOption, ...options];
+  }, [subtitleTracks, currentSubtitleIndex, t]);
 
   if (!visible) return null;
 
@@ -629,53 +668,54 @@ export const TVSubtitleSheet: React.FC<Props> = ({
       >
         <BlurView intensity={90} tint='dark' style={styles.blurContainer}>
           <TVFocusGuideView
-            autoFocus
             trapFocusUp
             trapFocusDown
             trapFocusLeft
             trapFocusRight
             style={styles.content}
           >
-            {/* Header with title */}
-            <Text style={styles.title}>
-              {t("item_card.subtitles.label").toUpperCase()}
-            </Text>
+            {/* Header with tabs */}
+            <View style={styles.header}>
+              <Text style={styles.title}>
+                {t("item_card.subtitles.label") || "Subtitles"}
+              </Text>
 
-            {/* Tabs */}
-            <View style={styles.tabRow}>
-              <TVSubtitleTab
-                label={t("player.subtitle_tracks") || "Tracks"}
-                isActive={activeTab === "tracks"}
-                onSelect={() => setActiveTab("tracks")}
-                hasTVPreferredFocus={true}
-              />
-              <TVSubtitleTab
-                label={t("player.subtitle_search") || "Search & Download"}
-                isActive={activeTab === "search"}
-                onSelect={() => setActiveTab("search")}
-              />
+              {/* Tab bar */}
+              <View style={styles.tabRow}>
+                <TVTabButton
+                  label={t("item_card.subtitles.tracks") || "Tracks"}
+                  active={activeTab === "tracks"}
+                  onSelect={() => setActiveTab("tracks")}
+                />
+                <TVTabButton
+                  label={t("player.download") || "Download"}
+                  active={activeTab === "download"}
+                  onSelect={() => setActiveTab("download")}
+                />
+              </View>
             </View>
 
-            {/* Tab Content */}
-            {activeTab === "tracks" && isReady && (
-              <View style={styles.tabContent}>
+            {/* Tracks Tab Content */}
+            {activeTab === "tracks" && isTabContentReady && (
+              <View style={styles.section}>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
+                  style={styles.tracksScroll}
+                  contentContainerStyle={styles.tracksScrollContent}
                 >
-                  {subtitleOptions.map((option, index) => (
+                  {trackOptions.map((option, index) => (
                     <TVTrackCard
-                      key={index}
+                      key={option.value}
                       ref={
-                        index === initialSelectedIndex
-                          ? firstTrackCardRef
+                        index === initialSelectedTrackIndex
+                          ? firstTrackRef
                           : undefined
                       }
                       label={option.label}
+                      sublabel={option.sublabel}
                       selected={option.selected}
-                      hasTVPreferredFocus={index === initialSelectedIndex}
+                      hasTVPreferredFocus={index === initialSelectedTrackIndex}
                       onPress={() => handleTrackSelect(option.value)}
                     />
                   ))}
@@ -683,23 +723,9 @@ export const TVSubtitleSheet: React.FC<Props> = ({
               </View>
             )}
 
-            {activeTab === "search" && (
-              <View style={styles.tabContent}>
-                {/* Download hint - only show on item details page */}
-                {!isInPlayer && (
-                  <View style={styles.downloadHint}>
-                    <Ionicons
-                      name='information-circle-outline'
-                      size={16}
-                      color='rgba(255,255,255,0.5)'
-                    />
-                    <Text style={styles.downloadHintText}>
-                      {t("player.subtitle_download_hint") ||
-                        "Downloaded subtitles will be saved to your library"}
-                    </Text>
-                  </View>
-                )}
-
+            {/* Download Tab Content */}
+            {activeTab === "download" && isTabContentReady && (
+              <>
                 {/* Language Selector */}
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>
@@ -708,7 +734,7 @@ export const TVSubtitleSheet: React.FC<Props> = ({
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    style={styles.scrollView}
+                    style={styles.languageScroll}
                     contentContainerStyle={styles.languageScrollContent}
                   >
                     {displayLanguages.map((lang, index) => (
@@ -789,7 +815,7 @@ export const TVSubtitleSheet: React.FC<Props> = ({
                       <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        style={styles.scrollView}
+                        style={styles.resultsScroll}
                         contentContainerStyle={styles.resultsScrollContent}
                       >
                         {searchResults.map((result, index) => (
@@ -805,7 +831,7 @@ export const TVSubtitleSheet: React.FC<Props> = ({
                     )}
                 </View>
 
-                {/* API Key hint */}
+                {/* API Key hint if no fallback available */}
                 {!hasOpenSubtitlesApiKey && (
                   <View style={styles.apiKeyHint}>
                     <Ionicons
@@ -819,7 +845,7 @@ export const TVSubtitleSheet: React.FC<Props> = ({
                     </Text>
                   </View>
                 )}
-              </View>
+              </>
             )}
           </TVFocusGuideView>
         </BlurView>
@@ -840,7 +866,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   sheetContainer: {
-    maxHeight: "75%",
+    maxHeight: "70%",
   },
   blurContainer: {
     borderTopLeftRadius: 24,
@@ -850,21 +876,19 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 24,
     paddingBottom: 48,
-    overflow: "visible",
+  },
+  header: {
+    paddingHorizontal: 48,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "rgba(255,255,255,0.6)",
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#fff",
     marginBottom: 16,
-    paddingHorizontal: 48,
-    textTransform: "uppercase",
-    letterSpacing: 1,
   },
   tabRow: {
     flexDirection: "row",
-    paddingHorizontal: 48,
-    marginBottom: 16,
     gap: 24,
   },
   tabButton: {
@@ -876,15 +900,24 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 18,
   },
-  tabContent: {
-    overflow: "visible",
+  section: {
+    marginBottom: 20,
   },
-  scrollView: {
-    overflow: "visible",
-  },
-  scrollContent: {
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.5)",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 12,
     paddingHorizontal: 48,
-    paddingVertical: 10,
+  },
+  tracksScroll: {
+    overflow: "visible",
+  },
+  tracksScrollContent: {
+    paddingHorizontal: 48,
+    paddingVertical: 8,
     gap: 12,
   },
   trackCard: {
@@ -899,33 +932,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
   },
+  trackCardSublabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   checkmark: {
     position: "absolute",
     top: 8,
     right: 8,
   },
-  downloadHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 48,
-    marginBottom: 16,
-  },
-  downloadHintText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 14,
-  },
-  section: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "rgba(255,255,255,0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 12,
-    paddingHorizontal: 48,
+  languageScroll: {
+    overflow: "visible",
   },
   languageScrollContent: {
     paddingHorizontal: 48,
@@ -947,6 +964,9 @@ const styles = StyleSheet.create({
   languageCardCode: {
     fontSize: 11,
     marginTop: 2,
+  },
+  resultsScroll: {
+    overflow: "visible",
   },
   resultsScrollContent: {
     paddingHorizontal: 48,

@@ -6,7 +6,6 @@ import {
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
-  getMediaInfoApi,
   getPlaystateApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
@@ -935,47 +934,16 @@ export default function page() {
   }, []);
 
   // TV: Handle server-side subtitle download (needs media source refresh)
-  // After downloading via Jellyfin API, we need to refresh the media source
-  // to see the new subtitle in the track list.
-  const handleServerSubtitleDownloaded = useCallback(async () => {
-    if (!api || !user?.Id || !item?.Id || !stream) {
-      console.warn("Cannot refresh media source: missing required data");
-      return;
-    }
-
-    try {
-      // Re-fetch playback info to get updated MediaSources with new subtitle
-      const res = await getMediaInfoApi(api).getPlaybackInfo(
-        { itemId: item.Id },
-        {
-          method: "POST",
-          data: {
-            userId: user.Id,
-            deviceProfile: generateDeviceProfile(),
-            mediaSourceId: stream.mediaSource?.Id,
-          },
-        },
-      );
-
-      const newMediaSource = res.data.MediaSources?.find(
-        (ms) => ms.Id === stream.mediaSource?.Id,
-      );
-
-      if (newMediaSource) {
-        // Update the stream state with refreshed media source (preserving URL and sessionId)
-        setStream((prev) =>
-          prev ? { ...prev, mediaSource: newMediaSource } : prev,
-        );
-        console.log(
-          "Media source refreshed - new subtitle count:",
-          newMediaSource.MediaStreams?.filter((s) => s.Type === "Subtitle")
-            .length,
-        );
-      }
-    } catch (error) {
-      console.error("Failed to refresh media source:", error);
-    }
-  }, [api, user?.Id, item?.Id, stream]);
+  // Note: After downloading via Jellyfin API, the subtitle appears in the track list
+  // but we need to re-fetch the media source to see it. For now, we just log a message.
+  // A full implementation would refetch getStreamUrl and update the stream state.
+  const handleServerSubtitleDownloaded = useCallback(() => {
+    console.log(
+      "Server-side subtitle downloaded - track list should be refreshed",
+    );
+    // TODO: Implement media source refresh to pick up new subtitle
+    // This would involve re-calling getStreamUrl and updating the stream state
+  }, []);
 
   // TV: Navigate to next item
   const goToNextItem = useCallback(() => {
