@@ -39,10 +39,8 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
     <View
       style={{
         position: "relative",
-        borderRadius: 12,
+        borderRadius: 24,
         overflow: "hidden",
-        borderWidth: 1,
-        borderColor: "#262626",
         width: TV_POSTER_WIDTH,
         aspectRatio: 10 / 15,
       }}
