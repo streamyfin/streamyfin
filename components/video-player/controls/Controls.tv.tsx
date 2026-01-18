@@ -212,10 +212,72 @@ const TVOptionSelector = <T,>({
                 ))}
               </ScrollView>
             )}
+
+            {/* Cancel button */}
+            {isReady && (
+              <View style={selectorStyles.cancelButtonContainer}>
+                <TVCancelButton onPress={onClose} label='Cancel' />
+              </View>
+            )}
           </TVFocusGuideView>
         </BlurView>
       </RNAnimated.View>
     </RNAnimated.View>
+  );
+};
+
+// Cancel button for TV option selectors
+const TVCancelButton: React.FC<{ onPress: () => void; label: string }> = ({
+  onPress,
+  label,
+}) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new RNAnimated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    RNAnimated.timing(scale, {
+      toValue: v,
+      duration: 120,
+      easing: RNEasing.out(RNEasing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+    >
+      <RNAnimated.View
+        style={[
+          selectorStyles.cancelButton,
+          {
+            transform: [{ scale }],
+            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
+          },
+        ]}
+      >
+        <Ionicons
+          name='close'
+          size={20}
+          color={focused ? "#000" : "rgba(255,255,255,0.8)"}
+        />
+        <Text
+          style={[
+            selectorStyles.cancelButtonText,
+            { color: focused ? "#000" : "rgba(255,255,255,0.8)" },
+          ]}
+        >
+          {label}
+        </Text>
+      </RNAnimated.View>
+    </Pressable>
   );
 };
 
@@ -662,6 +724,23 @@ const selectorStyles = StyleSheet.create({
   },
   tabText: {
     fontSize: 18,
+  },
+  cancelButtonContainer: {
+    paddingHorizontal: 48,
+    paddingTop: 16,
+    alignItems: "flex-start",
+  },
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 
