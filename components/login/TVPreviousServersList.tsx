@@ -223,6 +223,8 @@ interface TVPreviousServersListProps {
   onServerAction?: (server: SavedServer) => void;
   // Called by parent when "Login" is selected from action sheet
   loginServerOverride?: SavedServer | null;
+  // Disable all focusable elements (when a modal is open)
+  disabled?: boolean;
 }
 
 // Export the action sheet for use in parent components
@@ -236,6 +238,7 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
   onPasswordRequired,
   onServerAction,
   loginServerOverride,
+  disabled = false,
 }) => {
   const { t } = useTranslation();
   const [_previousServers, setPreviousServers] =
@@ -416,6 +419,7 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
             securityIcon={getSecurityIcon(server)}
             isLoading={loadingServer === server.address}
             onPress={() => handleServerPress(server)}
+            disabled={disabled}
           />
         ))}
       </View>

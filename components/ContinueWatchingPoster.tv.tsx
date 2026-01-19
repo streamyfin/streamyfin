@@ -119,7 +119,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
           </View>
         )}
       </View>
-      {!item.UserData?.Played && <WatchedIndicator item={item} />}
+      <WatchedIndicator item={item} />
       <ProgressBar item={item} />
     </View>
   );

@@ -8,6 +8,7 @@ interface TVSaveAccountToggleProps {
   onValueChange: (value: boolean) => void;
   label: string;
   hasTVPreferredFocus?: boolean;
+  disabled?: boolean;
 }
 
 export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
@@ -15,6 +16,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
   onValueChange,
   label,
   hasTVPreferredFocus,
+  disabled = false,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -52,7 +54,9 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
       onPress={() => onValueChange(!value)}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={hasTVPreferredFocus}
+      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={[

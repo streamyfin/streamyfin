@@ -98,7 +98,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
               }}
             />
           )}
-          {!episode.UserData?.Played && <WatchedIndicator item={episode} />}
+          <WatchedIndicator item={episode} />
           <ProgressBar item={episode} />
         </View>
       </TVFocusablePoster>
