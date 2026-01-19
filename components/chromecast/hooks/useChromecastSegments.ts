@@ -127,7 +127,7 @@ export const useChromecastSegments = (
 
   const skipSegment = useCallback(
     (seekFn: (positionMs: number) => Promise<void>) => {
-      if (currentSegment) {
+      if (currentSegment?.segment) {
         return seekFn(currentSegment.segment.end * 1000);
       }
     },
@@ -140,9 +140,11 @@ export const useChromecastSegments = (
 
     switch (currentSegment.type) {
       case "intro":
-        return settings?.autoSkipIntro ?? false;
+        // TODO: Add autoSkipIntroEnabled setting
+        return false;
       case "credits":
-        return settings?.autoSkipCredits ?? false;
+        // TODO: Add autoSkipCreditsEnabled setting
+        return false;
       case "recap":
       case "commercial":
       case "preview":
@@ -151,7 +153,7 @@ export const useChromecastSegments = (
       default:
         return false;
     }
-  }, [currentSegment, settings]);
+  }, [currentSegment]);
 
   return {
     segments,

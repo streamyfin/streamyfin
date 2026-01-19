@@ -5,7 +5,6 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -48,9 +47,8 @@ export const ChromecastPlayer: React.FC<ChromecastPlayerProps> = ({
   visible,
   onClose,
 }) => {
-  const _router = useRouter();
   const insets = useSafeAreaInsets();
-  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
   const api = useAtomValue(apiAtom);
 
   const {
@@ -58,9 +56,6 @@ export const ChromecastPlayer: React.FC<ChromecastPlayerProps> = ({
     showControls,
     currentItem,
     nextItem,
-    castDevice,
-    play,
-    pause,
     stop,
     togglePlay,
     seek,
@@ -75,11 +70,12 @@ export const ChromecastPlayer: React.FC<ChromecastPlayerProps> = ({
     settings,
   } = useChromecastPlayer();
 
-  const { segments, currentSegment, skipSegment, hasIntro, hasCredits } =
-    useChromecastSegments(currentItem, playerState.progress);
+  const { currentSegment, skipSegment } = useChromecastSegments(
+    currentItem,
+    playerState.progress,
+  );
 
-  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } =
-    useTrickplay(currentItem);
+  const { calculateTrickplayUrl, trickplayInfo } = useTrickplay(currentItem!);
 
   const [_showMenu, setShowMenu] = useState(false);
   const [_showDeviceSheet, setShowDeviceSheet] = useState(false);
