@@ -4,10 +4,12 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -54,12 +56,71 @@ export default function CastingPlayerScreen() {
     stop,
     setVolume,
     volume,
+    remoteMediaClient,
+    seek,
   } = useCasting(null);
 
   // Modal states
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [showDeviceSheet, setShowDeviceSheet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [episodes, setEpisodes] = useState<BaseItemDto[]>([]);
+  const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null);
+
+  const availableAudioTracks = useMemo(() => {
+    // TODO: Parse from mediaInfo.mediaTracks or currentItem.MediaStreams
+    return [];
+  }, []);
+
+  const availableSubtitleTracks = useMemo(() => {
+    // TODO: Parse from mediaInfo.mediaTracks or currentItem.MediaStreams
+    return [];
+  }, []);
+
+  const availableMediaSources = useMemo(() => {
+    // TODO: Get from currentItem.MediaSources
+    return [];
+  }, []);
+
+  // Fetch episodes for TV shows
+  useEffect(() => {
+    if (currentItem?.Type !== "Episode" || !currentItem.SeriesId || !api)
+      return;
+
+    const fetchEpisodes = async () => {
+      try {
+        const tvShowsApi = getTvShowsApi(api);
+        const response = await tvShowsApi.getEpisodes({
+          seriesId: currentItem.SeriesId!,
+          seasonId: currentItem.SeasonId || undefined,
+          userId: api.accessToken ? undefined : "",
+        });
+
+        const episodeList = response.data.Items || [];
+        setEpisodes(episodeList);
+
+        // Find next episode
+        const currentIndex = episodeList.findIndex(
+          (ep) => ep.Id === currentItem.Id,
+        );
+        if (currentIndex >= 0 && currentIndex < episodeList.length - 1) {
+          setNextEpisode(episodeList[currentIndex + 1]);
+        } else {
+          setNextEpisode(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch episodes:", error);
+      }
+    };
+
+    fetchEpisodes();
+  }, [
+    currentItem?.Type,
+    currentItem?.SeriesId,
+    currentItem?.SeasonId,
+    currentItem?.Id,
+    api,
+  ]);
 
   // Segment detection (skip intro/credits)
   const { currentSegment, skipIntro, skipCredits, skipSegment } =
@@ -132,11 +193,10 @@ export default function CastingPlayerScreen() {
   );
 
   const showNextEpisode = useMemo(() => {
-    if (currentItem?.Type !== "Episode") return false;
+    if (currentItem?.Type !== "Episode" || !nextEpisode) return false;
     const remaining = duration - progress;
-    const hasNextEpisode = false; // TODO: Detect if next episode exists
-    return shouldShowNextEpisodeCountdown(remaining, hasNextEpisode, 30);
-  }, [currentItem?.Type, duration, progress]);
+    return shouldShowNextEpisodeCountdown(remaining, true, 30);
+  }, [currentItem?.Type, nextEpisode, duration, progress]);
 
   // Redirect if not connected
   if (!isConnected || !currentItem || !protocol) {
@@ -335,22 +395,38 @@ export default function CastingPlayerScreen() {
 
           {/* Progress slider */}
           <View style={{ marginBottom: 12 }}>
-            <View
-              style={{
-                height: 4,
-                backgroundColor: "#333",
-                borderRadius: 2,
-                overflow: "hidden",
+            <Pressable
+              onPress={(e) => {
+                // Calculate tap position and seek
+                const { locationX } = e.nativeEvent;
+                // Get width from event target
+                const width = (
+                  e.currentTarget as unknown as { offsetWidth: number }
+                ).offsetWidth;
+                if (width > 0) {
+                  const percent = locationX / width;
+                  const newPosition = duration * percent;
+                  seek(newPosition);
+                }
               }}
             >
               <View
                 style={{
-                  height: "100%",
-                  width: `${progressPercent}%`,
-                  backgroundColor: protocolColor,
+                  height: 4,
+                  backgroundColor: "#333",
+                  borderRadius: 2,
+                  overflow: "hidden",
                 }}
-              />
-            </View>
+              >
+                <View
+                  style={{
+                    height: "100%",
+                    width: `${progressPercent}%`,
+                    backgroundColor: protocolColor,
+                  }}
+                />
+              </View>
+            </Pressable>
           </View>
 
           {/* Time display */}
@@ -377,12 +453,17 @@ export default function CastingPlayerScreen() {
             <View style={{ marginBottom: 24, alignItems: "center" }}>
               <Pressable
                 onPress={() => {
+                  if (!remoteMediaClient) return;
+                  // Create seek function wrapper for remote media client
+                  const seekFn = (positionMs: number) =>
+                    remoteMediaClient.seek({ position: positionMs / 1000 });
+
                   if (currentSegment.type === "intro") {
-                    skipIntro(null as any); // TODO: Get RemoteMediaClient from useCasting
+                    skipIntro(seekFn);
                   } else if (currentSegment.type === "credits") {
-                    skipCredits(null as any);
+                    skipCredits(seekFn);
                   } else {
-                    skipSegment(null as any);
+                    skipSegment(seekFn);
                   }
                 }}
                 style={{
@@ -408,7 +489,7 @@ export default function CastingPlayerScreen() {
           )}
 
           {/* Next episode countdown */}
-          {showNextEpisode && (
+          {showNextEpisode && nextEpisode && (
             <View style={{ marginBottom: 24, alignItems: "center" }}>
               <View
                 style={{
@@ -422,19 +503,19 @@ export default function CastingPlayerScreen() {
                 }}
               >
                 <ActivityIndicator size='small' color={protocolColor} />
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text
                     style={{ color: "white", fontSize: 14, fontWeight: "600" }}
                   >
-                    Next Episode Starting Soon
+                    Next: {nextEpisode.Name}
                   </Text>
                   <Text style={{ color: "#999", fontSize: 12, marginTop: 2 }}>
-                    {Math.ceil((duration - progress) / 1000)}s remaining
+                    Starting in {Math.ceil((duration - progress) / 1000)}s
                   </Text>
                 </View>
                 <Pressable
                   onPress={() => {
-                    // TODO: Cancel auto-play
+                    setNextEpisode(null); // Cancel auto-play
                   }}
                   style={{ marginLeft: 8 }}
                 >
@@ -549,10 +630,11 @@ export default function CastingPlayerScreen() {
           visible={showEpisodeList}
           onClose={() => setShowEpisodeList(false)}
           currentItem={currentItem}
-          episodes={[]} // TODO: Fetch episodes from series
+          episodes={episodes}
           onSelectEpisode={(episode) => {
-            // TODO: Load new episode
+            // TODO: Load new episode - requires casting new media
             console.log("Selected episode:", episode.Name);
+            setShowEpisodeList(false);
           }}
         />
 
@@ -560,32 +642,39 @@ export default function CastingPlayerScreen() {
           visible={showSettings}
           onClose={() => setShowSettings(false)}
           item={currentItem}
-          mediaSources={[]} // TODO: Get from media source selector
+          mediaSources={availableMediaSources}
           selectedMediaSource={null}
           onMediaSourceChange={(source) => {
-            // TODO: Change quality
+            // TODO: Requires reloading media with new source URL
             console.log("Changed media source:", source);
           }}
-          audioTracks={[]} // TODO: Get from player
+          audioTracks={availableAudioTracks}
           selectedAudioTrack={null}
           onAudioTrackChange={(track) => {
-            // TODO: Change audio track
-            console.log("Changed audio track:", track);
+            // Set active tracks using RemoteMediaClient
+            remoteMediaClient
+              ?.setActiveTrackIds([track.index])
+              .catch(console.error);
           }}
-          subtitleTracks={[]} // TODO: Get from player
+          subtitleTracks={availableSubtitleTracks}
           selectedSubtitleTrack={null}
           onSubtitleTrackChange={(track) => {
-            // TODO: Change subtitle track
-            console.log("Changed subtitle track:", track);
+            if (track) {
+              remoteMediaClient
+                ?.setActiveTrackIds([track.index])
+                .catch(console.error);
+            } else {
+              // Disable subtitles
+              remoteMediaClient?.setActiveTrackIds([]).catch(console.error);
+            }
           }}
           playbackSpeed={1.0}
           onPlaybackSpeedChange={(speed) => {
-            // TODO: Change playback speed
-            console.log("Changed playback speed:", speed);
+            remoteMediaClient?.setPlaybackRate(speed).catch(console.error);
           }}
           showTechnicalInfo={false}
           onToggleTechnicalInfo={() => {
-            // TODO: Toggle technical info
+            // TODO: Show/hide technical info section
           }}
         />
       </Animated.View>

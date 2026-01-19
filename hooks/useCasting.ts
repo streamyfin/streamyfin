@@ -287,6 +287,9 @@ export const useCasting = (item: BaseItemDto | null) => {
     isChromecastAvailable: true, // Always available via react-native-google-cast
     isAirPlayAvailable: Platform.OS === "ios",
 
+    // Raw clients (for advanced operations)
+    remoteMediaClient: client,
+
     // Controls
     play,
     pause,
