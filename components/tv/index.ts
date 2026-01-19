@@ -23,6 +23,8 @@ export { TVCastSection } from "./TVCastSection";
 // Player control components
 export type { TVControlButtonProps } from "./TVControlButton";
 export { TVControlButton } from "./TVControlButton";
+export type { TVFavoriteButtonProps } from "./TVFavoriteButton";
+export { TVFavoriteButton } from "./TVFavoriteButton";
 export type { TVFocusablePosterProps } from "./TVFocusablePoster";
 export { TVFocusablePoster } from "./TVFocusablePoster";
 export type { TVLanguageCardProps } from "./TVLanguageCard";
