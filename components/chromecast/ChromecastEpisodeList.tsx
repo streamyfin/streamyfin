@@ -10,7 +10,7 @@ import React from "react";
 import { FlatList, Modal, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { truncateTitle } from "@/utils/chromecast/helpers";
+import { truncateTitle } from "@/utils/casting/helpers";
 
 interface ChromecastEpisodeListProps {
   visible: boolean;

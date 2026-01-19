@@ -4,6 +4,7 @@
  */
 
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
@@ -13,7 +14,6 @@ import {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import type { CastPlayerState, CastProtocol } from "@/utils/casting/types";
 import { DEFAULT_CAST_STATE } from "@/utils/casting/types";
 
@@ -23,7 +23,7 @@ import { DEFAULT_CAST_STATE } from "@/utils/casting/types";
 export const useCasting = (item: BaseItemDto | null) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const { settings } = useSettings();
+  // const { settings } = useSettings(); // TODO: Use for preferences
 
   // Chromecast hooks
   const client = useRemoteMediaClient();
@@ -86,10 +86,10 @@ export const useCasting = (item: BaseItemDto | null) => {
     if (activeProtocol === "chromecast" && mediaStatus) {
       setState((prev) => ({
         ...prev,
-        isPlaying: !mediaStatus.isPaused && !mediaStatus.isBuffering,
+        isPlaying: mediaStatus.playerState === "playing",
         progress: (mediaStatus.streamPosition || 0) * 1000,
         duration: (mediaStatus.mediaInfo?.streamDuration || 0) * 1000,
-        isBuffering: mediaStatus.isBuffering || false,
+        isBuffering: mediaStatus.playerState === "buffering",
       }));
     }
   }, [mediaStatus, activeProtocol]);
@@ -100,8 +100,9 @@ export const useCasting = (item: BaseItemDto | null) => {
 
     const reportProgress = () => {
       const progressSeconds = Math.floor(state.progress / 1000);
-      api?.playStateApi
-        .reportPlaybackProgress({
+      const playStateApi = api ? getPlaystateApi(api) : null;
+      playStateApi
+        ?.reportPlaybackProgress({
           playbackProgressInfo: {
             ItemId: item.Id,
             PositionTicks: progressSeconds * 10000000,
@@ -184,7 +185,8 @@ export const useCasting = (item: BaseItemDto | null) => {
 
     // Report stop to Jellyfin
     if (api && item?.Id && user?.Id) {
-      await api.playStateApi.reportPlaybackStopped({
+      const playStateApi = getPlaystateApi(api);
+      await playStateApi.reportPlaybackStopped({
         playbackStopInfo: {
           ItemId: item.Id,
           PositionTicks: state.progress * 10000,
@@ -200,7 +202,7 @@ export const useCasting = (item: BaseItemDto | null) => {
     async (volume: number) => {
       const clampedVolume = Math.max(0, Math.min(1, volume));
       if (activeProtocol === "chromecast") {
-        await client?.setVolume(clampedVolume);
+        await client?.setStreamVolume(clampedVolume);
       }
       // TODO: AirPlay volume control
       setState((prev) => ({ ...prev, volume: clampedVolume }));
