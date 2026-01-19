@@ -1,50 +1,47 @@
 /**
  * Hook for managing Chromecast segments (intro, credits, recap, commercial, preview)
- * Integrates with autoskip branch segment detection
+ * Integrates with autoskip API for segment detection
  */
 
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
+import { useDownloadedFiles } from "@/providers/Downloads/downloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { isWithinSegment } from "@/utils/chromecast/helpers";
 import type { ChromecastSegmentData } from "@/utils/chromecast/options";
-
-// Placeholder - will integrate with autoskip branch later
-interface SegmentData {
-  introSegments?: Array<{ startTime: number; endTime: number; text: string }>;
-  creditSegments?: Array<{ startTime: number; endTime: number; text: string }>;
-  recapSegments?: Array<{ startTime: number; endTime: number; text: string }>;
-  commercialSegments?: Array<{
-    startTime: number;
-    endTime: number;
-    text: string;
-  }>;
-  previewSegments?: Array<{ startTime: number; endTime: number; text: string }>;
-}
+import { useSegments } from "@/utils/segments";
 
 export const useChromecastSegments = (
   item: BaseItemDto | null,
   currentProgressMs: number,
+  isOffline = false,
 ) => {
-  const _api = useAtomValue(apiAtom);
+  const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
+  const { downloadedFiles } = useDownloadedFiles();
 
-  // TODO: Replace with actual segment fetching from autoskip branch
-  // For now, using mock data structure
-  const segmentData = useMemo<SegmentData>(() => {
-    return {
-      introSegments: [],
-      creditSegments: [],
-      recapSegments: [],
-      commercialSegments: [],
-      previewSegments: [],
-    };
-  }, [item?.Id]);
+  // Fetch segments from autoskip API
+  const { data: segmentData } = useSegments(
+    item?.Id || "",
+    isOffline,
+    downloadedFiles,
+    api,
+  );
 
   // Parse segments into usable format
   const segments = useMemo<ChromecastSegmentData>(() => {
+    if (!segmentData) {
+      return {
+        intro: null,
+        credits: null,
+        recap: null,
+        commercial: [],
+        preview: [],
+      };
+    }
+
     const intro =
       segmentData.introSegments && segmentData.introSegments.length > 0
         ? {
@@ -140,20 +137,18 @@ export const useChromecastSegments = (
 
     switch (currentSegment.type) {
       case "intro":
-        // TODO: Add autoSkipIntroEnabled setting
-        return false;
+        return settings?.autoSkipIntro === true;
       case "credits":
-        // TODO: Add autoSkipCreditsEnabled setting
-        return false;
+        return settings?.autoSkipCredits === true;
       case "recap":
       case "commercial":
       case "preview":
-        // Add settings for these when available
+        // These don't have settings yet, don't auto-skip
         return false;
       default:
         return false;
     }
-  }, [currentSegment]);
+  }, [currentSegment, settings?.autoSkipIntro, settings?.autoSkipCredits]);
 
   return {
     segments,
