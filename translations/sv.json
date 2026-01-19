@@ -334,7 +334,7 @@
           "server_url_placeholder": "Seerr URL",
           "password": "Lösenord",
           "password_placeholder": "Ange lösenord för Jellyfin användare {{username}}",
-          "login_button": "Login",
+          "login_button": "Logga in",
           "total_media_requests": "Totalt antal mediaförfrågningar",
           "movie_quota_limit": "Gräns för filmkvot",
           "movie_quota_days": "Filmkvot Dagar",

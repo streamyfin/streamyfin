@@ -19,17 +19,15 @@ import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { TVInput } from "@/components/login/TVInput";
+import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
+import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import {
   TVPreviousServersList,
   TVServerActionSheet,
 } from "@/components/login/TVPreviousServersList";
+import { TVSaveAccountModal } from "@/components/login/TVSaveAccountModal";
 import { TVSaveAccountToggle } from "@/components/login/TVSaveAccountToggle";
-import { TVServerCard } from "@/components/login/TVServerCard";
-import { PasswordEntryModal } from "@/components/PasswordEntryModal";
-import { PINEntryModal } from "@/components/PINEntryModal";
-import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
-import { useJellyfinDiscovery } from "@/hooks/useJellyfinDiscovery";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import {
   type AccountSecurityType,
@@ -42,10 +40,11 @@ const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
 });
 
-const TVBackButton: React.FC<{ onPress: () => void; label: string }> = ({
-  onPress,
-  label,
-}) => {
+const TVBackButton: React.FC<{
+  onPress: () => void;
+  label: string;
+  disabled?: boolean;
+}> = ({ onPress, label, disabled = false }) => {
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -70,6 +69,8 @@ const TVBackButton: React.FC<{ onPress: () => void; label: string }> = ({
         animateFocus(false);
       }}
       style={{ alignSelf: "flex-start", marginBottom: 40 }}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={{
@@ -161,12 +162,12 @@ export const TVLogin: React.FC = () => {
     useState<SavedServer | null>(null);
   const [actionSheetKey, setActionSheetKey] = useState(0);
 
-  // Server discovery
-  const {
-    servers: discoveredServers,
-    isSearching,
-    startDiscovery,
-  } = useJellyfinDiscovery();
+  // Track if any modal is open to disable background focus
+  const isAnyModalOpen =
+    showSaveModal ||
+    pinModalVisible ||
+    passwordModalVisible ||
+    showServerActionSheet;
 
   // Auto login from URL params
   useEffect(() => {
@@ -470,6 +471,7 @@ export const TVLogin: React.FC = () => {
               <TVBackButton
                 onPress={() => removeServer()}
                 label={t("login.change_server")}
+                disabled={isAnyModalOpen}
               />
 
               {/* Title */}
@@ -513,6 +515,7 @@ export const TVLogin: React.FC = () => {
                   textContentType='username'
                   returnKeyType='next'
                   hasTVPreferredFocus
+                  disabled={isAnyModalOpen}
                 />
               </View>
 
@@ -528,6 +531,7 @@ export const TVLogin: React.FC = () => {
                   autoCapitalize='none'
                   textContentType='password'
                   returnKeyType='done'
+                  disabled={isAnyModalOpen}
                 />
               </View>
 
@@ -537,6 +541,7 @@ export const TVLogin: React.FC = () => {
                   value={saveAccount}
                   onValueChange={setSaveAccount}
                   label={t("save_account.save_for_later")}
+                  disabled={isAnyModalOpen}
                 />
               </View>
 
@@ -623,11 +628,12 @@ export const TVLogin: React.FC = () => {
                   textContentType='URL'
                   returnKeyType='done'
                   hasTVPreferredFocus
+                  disabled={isAnyModalOpen}
                 />
               </View>
 
               {/* Connect Button */}
-              <View style={{ marginBottom: 16 }}>
+              <View style={{ marginBottom: 24 }}>
                 <Button
                   onPress={() => handleConnect(serverURL)}
                   loading={loadingServerCheck}
@@ -636,59 +642,6 @@ export const TVLogin: React.FC = () => {
                   {t("server.connect_button")}
                 </Button>
               </View>
-
-              {/* Server Discovery */}
-              <View style={{ marginBottom: 24 }}>
-                <Button
-                  onPress={startDiscovery}
-                  color='black'
-                  className='bg-neutral-800'
-                >
-                  {isSearching
-                    ? t("server.searching")
-                    : t("server.search_for_local_servers")}
-                </Button>
-              </View>
-
-              {/* Discovered Servers */}
-              {discoveredServers.length > 0 && (
-                <View
-                  style={{
-                    marginTop: 16,
-                    marginBottom: 16,
-                    paddingHorizontal: 8,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontWeight: "600",
-                      color: "#9CA3AF",
-                      marginBottom: 16,
-                    }}
-                  >
-                    {t("server.servers")}
-                  </Text>
-                  <View style={{ gap: 16 }}>
-                    {discoveredServers.map((server) => (
-                      <TVServerCard
-                        key={server.address}
-                        title={server.serverName || server.address}
-                        subtitle={
-                          server.serverName ? server.address : undefined
-                        }
-                        onPress={() => {
-                          setServerURL(server.address);
-                          if (server.serverName) {
-                            setServerName(server.serverName);
-                          }
-                          handleConnect(server.address);
-                        }}
-                      />
-                    ))}
-                  </View>
-                </View>
-              )}
 
               {/* Previous Servers */}
               <View style={{ paddingHorizontal: 8 }}>
@@ -701,6 +654,7 @@ export const TVLogin: React.FC = () => {
                   onPasswordRequired={handlePasswordRequired}
                   onServerAction={handleServerAction}
                   loginServerOverride={loginTriggerServer}
+                  disabled={isAnyModalOpen}
                 />
               </View>
             </View>
@@ -709,7 +663,7 @@ export const TVLogin: React.FC = () => {
       </KeyboardAvoidingView>
 
       {/* Save Account Modal */}
-      <SaveAccountModal
+      <TVSaveAccountModal
         visible={showSaveModal}
         onClose={() => {
           setShowSaveModal(false);
@@ -720,7 +674,7 @@ export const TVLogin: React.FC = () => {
       />
 
       {/* PIN Entry Modal */}
-      <PINEntryModal
+      <TVPINEntryModal
         visible={pinModalVisible}
         onClose={() => {
           setPinModalVisible(false);
@@ -735,7 +689,7 @@ export const TVLogin: React.FC = () => {
       />
 
       {/* Password Entry Modal */}
-      <PasswordEntryModal
+      <TVPasswordEntryModal
         visible={passwordModalVisible}
         onClose={() => {
           setPasswordModalVisible(false);

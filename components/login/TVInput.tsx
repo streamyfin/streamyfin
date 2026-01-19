@@ -10,12 +10,14 @@ import {
 interface TVInputProps extends TextInputProps {
   label?: string;
   hasTVPreferredFocus?: boolean;
+  disabled?: boolean;
 }
 
 export const TVInput: React.FC<TVInputProps> = ({
   label,
   placeholder,
   hasTVPreferredFocus,
+  disabled = false,
   style,
   ...props
 }) => {
@@ -49,7 +51,9 @@ export const TVInput: React.FC<TVInputProps> = ({
       onPress={() => inputRef.current?.focus()}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={hasTVPreferredFocus}
+      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={{

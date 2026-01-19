@@ -17,6 +17,7 @@ interface TVServerCardProps {
   isLoading?: boolean;
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
+  disabled?: boolean;
 }
 
 export const TVServerCard: React.FC<TVServerCardProps> = ({
@@ -26,6 +27,7 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
   isLoading,
   onPress,
   hasTVPreferredFocus,
+  disabled = false,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -58,13 +60,16 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
     animateFocus(false);
   };
 
+  const isDisabled = disabled || isLoading;
+
   return (
     <Pressable
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      disabled={isLoading}
-      hasTVPreferredFocus={hasTVPreferredFocus}
+      disabled={isDisabled}
+      focusable={!isDisabled}
+      hasTVPreferredFocus={hasTVPreferredFocus && !isDisabled}
     >
       <Animated.View
         style={[
