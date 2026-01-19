@@ -55,7 +55,7 @@ export const useChromecastPlayer = () => {
     setPlayerState((prev) => ({
       ...prev,
       isConnected: !!castDevice,
-      deviceName: castDevice?.deviceName || null,
+      deviceName: castDevice?.friendlyName || castDevice?.deviceId || null,
       isPlaying: mediaStatus.playerState === "playing",
       isPaused: mediaStatus.playerState === "paused",
       isStopped: mediaStatus.playerState === "idle",
@@ -179,7 +179,7 @@ export const useChromecastPlayer = () => {
   }, [playerState.progress, seek, settings?.rewindSkipTime]);
 
   const disconnect = useCallback(async () => {
-    await client?.endSession(true);
+    await client?.stop();
     setPlayerState(DEFAULT_CHROMECAST_STATE);
   }, [client]);
 
@@ -188,7 +188,7 @@ export const useChromecastPlayer = () => {
   const remainingTime = formatTime(playerState.duration - playerState.progress);
   const endingTime = calculateEndingTime(
     playerState.duration - playerState.progress,
-    settings?.use24HourFormat ?? true,
+    true, // TODO: Add use24HourFormat setting
   );
 
   // Next episode countdown

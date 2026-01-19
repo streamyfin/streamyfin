@@ -112,10 +112,10 @@ export const formatEpisodeInfo = (
  */
 export const getPosterUrl = (
   item: {
-    Type?: string;
-    ParentBackdropImageTags?: string[];
-    SeriesId?: string;
-    Id?: string;
+    Type?: string | null;
+    ParentBackdropImageTags?: string[] | null;
+    SeriesId?: string | null;
+    Id?: string | null;
   },
   api: { basePath?: string },
 ): string | null => {
