@@ -1,6 +1,6 @@
 /**
  * Unified Casting Player Modal
- * Full-screen player for both Chromecast and AirPlay
+ * Protocol-agnostic full-screen player for all supported casting protocols
  */
 
 import { Ionicons } from "@expo/vector-icons";
@@ -35,7 +35,6 @@ import {
   shouldShowNextEpisodeCountdown,
   truncateTitle,
 } from "@/utils/casting/helpers";
-import { PROTOCOL_COLORS } from "@/utils/casting/types";
 
 export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -178,7 +177,7 @@ export default function CastingPlayerScreen() {
   );
 
   const protocolColor = useMemo(
-    () => (protocol ? PROTOCOL_COLORS[protocol] : "#666"),
+    () => (protocol === "chromecast" ? "#F9AB00" : "#666"), // Google yellow
     [protocol],
   );
 

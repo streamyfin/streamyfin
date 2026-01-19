@@ -1,6 +1,6 @@
 /**
  * Unified Casting Mini Player
- * Works with both Chromecast and AirPlay
+ * Works with all supported casting protocols
  */
 
 import { Ionicons } from "@expo/vector-icons";
@@ -19,7 +19,7 @@ import {
   getProtocolIcon,
   getProtocolName,
 } from "@/utils/casting/helpers";
-import { CASTING_CONSTANTS, PROTOCOL_COLORS } from "@/utils/casting/types";
+import { CASTING_CONSTANTS } from "@/utils/casting/types";
 
 export const CastingMiniPlayer: React.FC = () => {
   const api = useAtomValue(apiAtom);
@@ -47,7 +47,7 @@ export const CastingMiniPlayer: React.FC = () => {
   );
 
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
-  const protocolColor = PROTOCOL_COLORS[protocol];
+  const protocolColor = protocol === "chromecast" ? "#F9AB00" : "#666"; // Google yellow
 
   const handlePress = () => {
     router.push("/casting-player");

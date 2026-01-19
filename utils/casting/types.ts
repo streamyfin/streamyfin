@@ -1,9 +1,10 @@
 /**
  * Unified Casting Types and Options
- * Abstracts Chromecast and AirPlay into a common interface
+ * Protocol-agnostic casting interface - currently supports Chromecast
+ * Architecture allows for future protocols (AirPlay, DLNA, etc.)
  */
 
-export type CastProtocol = "chromecast" | "airplay";
+export type CastProtocol = "chromecast";
 
 export interface CastDevice {
   id: string;
@@ -79,9 +80,3 @@ export const DEFAULT_CAST_STATE: CastPlayerState = {
 };
 
 export type ConnectionQuality = "excellent" | "good" | "fair" | "poor";
-
-// Protocol-specific colors for UI differentiation
-export const PROTOCOL_COLORS = {
-  chromecast: "#e50914", // Red (Google Cast)
-  airplay: "#007AFF", // Blue (Apple)
-} as const;

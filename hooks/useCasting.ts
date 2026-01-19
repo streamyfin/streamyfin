@@ -1,13 +1,13 @@
 /**
  * Unified Casting Hook
- * Manages both Chromecast and AirPlay through a common interface
+ * Protocol-agnostic casting interface - currently supports Chromecast
+ * Architecture allows for future protocol integrations
  */
 
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
 import {
   useCastDevice,
   useMediaStatus,
@@ -18,7 +18,8 @@ import type { CastPlayerState, CastProtocol } from "@/utils/casting/types";
 import { DEFAULT_CAST_STATE } from "@/utils/casting/types";
 
 /**
- * Unified hook for managing casting (Chromecast + AirPlay)
+ * Unified hook for managing casting
+ * Extensible architecture supporting multiple protocols
  */
 export const useCasting = (item: BaseItemDto | null) => {
   const api = useAtomValue(apiAtom);
@@ -39,21 +40,13 @@ export const useCasting = (item: BaseItemDto | null) => {
 
   // Detect which protocol is active
   const chromecastConnected = castDevice !== null;
-  // TODO: AirPlay detection requires integration with video player's AVRoutePickerView
-  // The @douglowder/expo-av-route-picker-view package doesn't expose route state
-  // Options:
-  // 1. Create native module to detect AVAudioSession.sharedInstance().currentRoute
-  // 2. Use AVPlayer's isExternalPlaybackActive property
-  // 3. Listen to AVPlayerItemDidPlayToEndTimeNotification for AirPlay events
-  const airplayConnected = false;
+  // Future: Add detection for other protocols here
 
   const activeProtocol: CastProtocol | null = chromecastConnected
     ? "chromecast"
-    : airplayConnected
-      ? "airplay"
-      : null;
+    : null;
 
-  const isConnected = chromecastConnected || airplayConnected;
+  const isConnected = chromecastConnected;
 
   // Update current device
   useEffect(() => {
@@ -68,17 +61,6 @@ export const useCasting = (item: BaseItemDto | null) => {
           protocol: "chromecast",
         },
       }));
-    } else if (airplayConnected) {
-      setState((prev) => ({
-        ...prev,
-        isConnected: true,
-        protocol: "airplay",
-        currentDevice: {
-          id: "airplay-device",
-          name: "AirPlay Device", // TODO: Get real device name
-          protocol: "airplay",
-        },
-      }));
     } else {
       setState((prev) => ({
         ...prev,
@@ -87,7 +69,8 @@ export const useCasting = (item: BaseItemDto | null) => {
         currentDevice: null,
       }));
     }
-  }, [chromecastConnected, airplayConnected, castDevice]);
+    // Future: Add device detection for other protocols
+  }, [chromecastConnected, castDevice]);
 
   // Chromecast: Update playback state
   useEffect(() => {
@@ -146,14 +129,14 @@ export const useCasting = (item: BaseItemDto | null) => {
     if (activeProtocol === "chromecast") {
       await client?.play();
     }
-    // TODO: AirPlay play control
+    // Future: Add play control for other protocols
   }, [client, activeProtocol]);
 
   const pause = useCallback(async () => {
     if (activeProtocol === "chromecast") {
       await client?.pause();
     }
-    // TODO: AirPlay pause control
+    // Future: Add pause control for other protocols
   }, [client, activeProtocol]);
 
   const togglePlayPause = useCallback(async () => {
@@ -170,7 +153,7 @@ export const useCasting = (item: BaseItemDto | null) => {
       if (activeProtocol === "chromecast") {
         await client?.seek({ position: positionMs / 1000 });
       }
-      // TODO: AirPlay seek control
+      // Future: Add seek control for other protocols
     },
     [client, activeProtocol],
   );
@@ -196,7 +179,7 @@ export const useCasting = (item: BaseItemDto | null) => {
     if (activeProtocol === "chromecast") {
       await client?.stop();
     }
-    // TODO: AirPlay stop control
+    // Future: Add stop control for other protocols
 
     // Report stop to Jellyfin
     if (api && item?.Id && user?.Id) {
@@ -229,7 +212,7 @@ export const useCasting = (item: BaseItemDto | null) => {
         if (activeProtocol === "chromecast") {
           await client?.setStreamVolume(clampedVolume).catch(console.error);
         }
-        // TODO: AirPlay volume control
+        // Future: Add volume control for other protocols
       }, 300);
     },
     [client, activeProtocol],
@@ -285,7 +268,7 @@ export const useCasting = (item: BaseItemDto | null) => {
 
     // Availability
     isChromecastAvailable: true, // Always available via react-native-google-cast
-    isAirPlayAvailable: Platform.OS === "ios",
+    // Future: Add availability checks for other protocols
 
     // Raw clients (for advanced operations)
     remoteMediaClient: client,
