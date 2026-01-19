@@ -1,6 +1,8 @@
+import { BlurView } from "expo-blur";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVOptionButtonProps {
@@ -34,36 +36,77 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
             },
           ]}
         >
-          <View
-            style={{
-              backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.1)",
-              borderRadius: 10,
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <Text
+          {focused ? (
+            <View
               style={{
-                fontSize: 14,
-                color: focused ? "#444" : "#bbb",
+                backgroundColor: "#fff",
+                borderRadius: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              {label}
-            </Text>
-            <Text
+              <Text
+                style={{
+                  fontSize: TVTypography.callout,
+                  color: "#444",
+                }}
+              >
+                {label}
+              </Text>
+              <Text
+                style={{
+                  fontSize: TVTypography.callout,
+                  color: "#000",
+                  fontWeight: "500",
+                }}
+                numberOfLines={1}
+              >
+                {value}
+              </Text>
+            </View>
+          ) : (
+            <BlurView
+              intensity={10}
+              tint='light'
               style={{
-                fontSize: 14,
-                color: focused ? "#000" : "#FFFFFF",
-                fontWeight: "500",
+                borderRadius: 8,
+                overflow: "hidden",
               }}
-              numberOfLines={1}
             >
-              {value}
-            </Text>
-          </View>
+              <View
+                style={{
+                  backgroundColor: "rgba(0,0,0,0.3)",
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: TVTypography.callout,
+                    color: "#bbb",
+                  }}
+                >
+                  {label}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: TVTypography.callout,
+                    color: "#E5E7EB",
+                    fontWeight: "500",
+                  }}
+                  numberOfLines={1}
+                >
+                  {value}
+                </Text>
+              </View>
+            </BlurView>
+          )}
         </Animated.View>
       </Pressable>
     );

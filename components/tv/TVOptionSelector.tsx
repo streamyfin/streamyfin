@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { TVCancelButton } from "./TVCancelButton";
 import { TVOptionCard } from "./TVOptionCard";
 
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   title: {
-    fontSize: 18,
+    fontSize: TVTypography.callout,
     fontWeight: "500",
     color: "rgba(255,255,255,0.6)",
     marginBottom: 16,

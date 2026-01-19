@@ -21,6 +21,7 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { Colors } from "@/constants/Colors";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import ContinueWatchingPoster, {
@@ -54,12 +55,19 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     <View style={{ marginTop: 12, flexDirection: "column" }}>
       {item.Type === "Episode" ? (
         <>
-          <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
           >
             {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
             {" - "}
@@ -68,10 +76,19 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         </>
       ) : (
         <>
-          <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
-          <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+          <Text
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
+          >
             {item.ProductionYear}
           </Text>
         </>
@@ -119,7 +136,13 @@ const TVSeeAllCard: React.FC<{
             color='white'
             style={{ marginBottom: 8 }}
           />
-          <Text style={{ fontSize: 18, color: "#FFFFFF", fontWeight: "600" }}>
+          <Text
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#FFFFFF",
+              fontWeight: "600",
+            }}
+          >
             {t("common.seeAll", { defaultValue: "See all" })}
           </Text>
         </View>
@@ -369,7 +392,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: 22,
+          fontSize: TVTypography.body,
           fontWeight: "600",
           color: "#FFFFFF",
           marginBottom: 16,
@@ -381,7 +404,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
       {isLoading === false && allItems.length === 0 && (
         <Text
-          style={{ color: "#737373", fontSize: 16, marginLeft: SCALE_PADDING }}
+          style={{
+            color: "#737373",
+            fontSize: TVTypography.callout,
+            marginLeft: SCALE_PADDING,
+          }}
         >
           {t("home.no_items")}
         </Text>
@@ -420,7 +447,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                     color: "#262626",
                     backgroundColor: "#262626",
                     borderRadius: 6,
-                    fontSize: 16,
+                    fontSize: TVTypography.callout,
                   }}
                   numberOfLines={1}
                 >

@@ -31,6 +31,7 @@ import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrol
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
 import { Loader } from "@/components/Loader";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -525,7 +526,7 @@ export const Home = () => {
       >
         <Text
           style={{
-            fontSize: 32,
+            fontSize: TVTypography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -537,7 +538,7 @@ export const Home = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: 18,
+            fontSize: TVTypography.body,
             color: "#FFFFFF",
           }}
         >
@@ -577,7 +578,7 @@ export const Home = () => {
       >
         <Text
           style={{
-            fontSize: 32,
+            fontSize: TVTypography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -589,7 +590,7 @@ export const Home = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: 18,
+            fontSize: TVTypography.body,
             color: "#FFFFFF",
           }}
         >

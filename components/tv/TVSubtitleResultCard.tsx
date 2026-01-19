@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import type { SubtitleSearchResult } from "@/hooks/useRemoteSubtitles";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
@@ -212,13 +213,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   providerText: {
-    fontSize: 11,
+    fontSize: TVTypography.callout,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   resultName: {
-    fontSize: 14,
+    fontSize: TVTypography.callout,
     fontWeight: "500",
     marginBottom: 8,
     lineHeight: 18,
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   resultMetaText: {
-    fontSize: 12,
+    fontSize: TVTypography.callout,
   },
   ratingContainer: {
     flexDirection: "row",
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   flagText: {
-    fontSize: 10,
+    fontSize: TVTypography.callout,
     fontWeight: "600",
     color: "#fff",
   },

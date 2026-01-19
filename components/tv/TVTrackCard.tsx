@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVTrackCardProps {
@@ -86,11 +87,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   trackCardText: {
-    fontSize: 16,
+    fontSize: TVTypography.callout,
     textAlign: "center",
   },
   trackCardSublabel: {
-    fontSize: 12,
+    fontSize: TVTypography.callout,
     marginTop: 2,
   },
   checkmark: {

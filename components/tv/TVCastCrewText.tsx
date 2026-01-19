@@ -3,6 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 
 export interface TVCastCrewTextProps {
   director?: BaseItemPerson | null;
@@ -23,7 +24,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
       <View style={{ marginBottom: 32 }}>
         <Text
           style={{
-            fontSize: 22,
+            fontSize: TVTypography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
             marginBottom: 16,
@@ -36,7 +37,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
             <View>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: TVTypography.callout,
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
@@ -45,7 +46,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
               >
                 {t("item_card.director")}
               </Text>
-              <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+              <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
                 {director.Name}
               </Text>
             </View>
@@ -54,7 +55,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
             <View style={{ flex: 1 }}>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: TVTypography.callout,
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
@@ -63,7 +64,7 @@ export const TVCastCrewText: React.FC<TVCastCrewTextProps> = React.memo(
               >
                 {t("item_card.cast")}
               </Text>
-              <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+              <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
                 {cast.map((c) => c.Name).join(", ")}
               </Text>
             </View>

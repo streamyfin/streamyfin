@@ -3,6 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { TVSeriesSeasonCard } from "./TVSeriesSeasonCard";
 
 export interface TVSeriesNavigationProps {
@@ -26,10 +27,10 @@ export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
       <View style={{ marginBottom: 32 }}>
         <Text
           style={{
-            fontSize: 22,
+            fontSize: TVTypography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
-            marginBottom: 20,
+            marginBottom: 24,
           }}
         >
           {t("item_card.from_this_series") || "From this Series"}

@@ -16,6 +16,7 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -36,10 +37,19 @@ interface Props extends ViewProps {
 const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   return (
     <View style={{ marginTop: 12, flexDirection: "column" }}>
-      <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+      <Text
+        numberOfLines={1}
+        style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+      >
         {item.Name}
       </Text>
-      <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+      <Text
+        style={{
+          fontSize: TVTypography.callout,
+          color: "#9CA3AF",
+          marginTop: 2,
+        }}
+      >
         {item.ProductionYear}
       </Text>
     </View>
@@ -208,7 +218,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
     <View style={{ overflow: "visible" }} {...props}>
       <Text
         style={{
-          fontSize: 22,
+          fontSize: TVTypography.body,
           fontWeight: "600",
           color: "#FFFFFF",
           marginBottom: 16,

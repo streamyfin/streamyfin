@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVOptionCardProps {
@@ -58,7 +59,7 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
         >
           <Text
             style={{
-              fontSize: 16,
+              fontSize: TVTypography.callout,
               color: focused ? "#000" : "#fff",
               fontWeight: focused || selected ? "600" : "400",
               textAlign: "center",
@@ -70,7 +71,7 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
           {sublabel && (
             <Text
               style={{
-                fontSize: 12,
+                fontSize: TVTypography.callout,
                 color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)",
                 textAlign: "center",
                 marginTop: 2,

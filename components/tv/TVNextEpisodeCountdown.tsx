@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 export interface TVNextEpisodeCountdownProps {
@@ -129,19 +130,19 @@ const styles = StyleSheet.create({
     width: 280,
   },
   label: {
-    fontSize: 13,
+    fontSize: TVTypography.callout,
     color: "rgba(255,255,255,0.5)",
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: 4,
   },
   seriesName: {
-    fontSize: 16,
+    fontSize: TVTypography.callout,
     color: "rgba(255,255,255,0.7)",
     marginBottom: 2,
   },
   episodeInfo: {
-    fontSize: 20,
+    fontSize: TVTypography.body,
     color: "#fff",
     fontWeight: "600",
     marginBottom: 12,

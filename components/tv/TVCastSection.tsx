@@ -3,6 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TVFocusGuideView, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { TVActorCard } from "./TVActorCard";
 
 export interface TVCastSectionProps {
@@ -30,13 +31,13 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
     }
 
     return (
-      <View style={{ marginBottom: 32 }}>
+      <View style={{ marginBottom: 40 }}>
         <Text
           style={{
-            fontSize: 22,
+            fontSize: TVTypography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
-            marginBottom: 20,
+            marginBottom: 24,
           }}
         >
           {t("item_card.cast")}
@@ -54,8 +55,8 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
           style={{ marginHorizontal: -80, overflow: "visible" }}
           contentContainerStyle={{
             paddingHorizontal: 80,
-            paddingVertical: 12,
-            gap: 20,
+            paddingVertical: 16,
+            gap: 28,
           }}
         >
           {cast.map((person, index) => (

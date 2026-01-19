@@ -6,6 +6,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -28,6 +29,7 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
@@ -453,7 +455,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 <Image
                   source={{ uri: logoUrl }}
                   style={{
-                    height: 100,
+                    height: 150,
                     width: "80%",
                     marginBottom: 24,
                   }}
@@ -463,10 +465,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               ) : (
                 <Text
                   style={{
-                    fontSize: 52,
+                    fontSize: TVTypography.display,
                     fontWeight: "bold",
                     color: "#FFFFFF",
-                    marginBottom: 16,
+                    marginBottom: 20,
                   }}
                   numberOfLines={2}
                 >
@@ -476,10 +478,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
               {/* Episode info for TV shows */}
               {item.Type === "Episode" && (
-                <View style={{ marginBottom: 12 }}>
+                <View style={{ marginBottom: 16 }}>
                   <Text
                     style={{
-                      fontSize: 24,
+                      fontSize: TVTypography.title,
                       color: "#FFFFFF",
                       fontWeight: "600",
                     }}
@@ -488,9 +490,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   </Text>
                   <Text
                     style={{
-                      fontSize: 20,
-                      color: "#9CA3AF",
-                      marginTop: 4,
+                      fontSize: TVTypography.body,
+                      color: "white",
+                      marginTop: 6,
                     }}
                   >
                     S{item.ParentIndexNumber} E{item.IndexNumber} · {item.Name}
@@ -515,18 +517,34 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
               {/* Overview */}
               {item.Overview && (
-                <Text
+                <BlurView
+                  intensity={10}
+                  tint='light'
                   style={{
-                    fontSize: 18,
-                    color: "#D1D5DB",
-                    lineHeight: 28,
+                    borderRadius: 8,
+                    overflow: "hidden",
                     maxWidth: SCREEN_WIDTH * 0.45,
                     marginBottom: 32,
                   }}
-                  numberOfLines={4}
                 >
-                  {item.Overview}
-                </Text>
+                  <View
+                    style={{
+                      padding: 16,
+                      backgroundColor: "rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: TVTypography.body,
+                        color: "#E5E7EB",
+                        lineHeight: 32,
+                      }}
+                      numberOfLines={4}
+                    >
+                      {item.Overview}
+                    </Text>
+                  </View>
+                </BlurView>
               )}
 
               {/* Action buttons */}
@@ -550,7 +568,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   />
                   <Text
                     style={{
-                      fontSize: 20,
+                      fontSize: TVTypography.callout,
                       fontWeight: "bold",
                       color: "#000000",
                     }}
@@ -673,6 +691,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     (item.UserData?.PlaybackPositionTicks || 0) /
                     item.RunTimeTicks
                   }
+                  fillColor='#FFFFFF'
                 />
               )}
             </View>
