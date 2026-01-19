@@ -22,6 +22,7 @@ import {
   TVButton,
   TVCastCrewText,
   TVCastSection,
+  TVFavoriteButton,
   TVMetadataBadges,
   TVOptionButton,
   TVProgressBar,
@@ -578,6 +579,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       : t("common.play")}
                   </Text>
                 </TVButton>
+                <TVFavoriteButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
               </View>
 
