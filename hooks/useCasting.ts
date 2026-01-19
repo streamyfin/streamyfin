@@ -34,10 +34,18 @@ export const useCasting = (item: BaseItemDto | null) => {
   const [state, setState] = useState<CastPlayerState>(DEFAULT_CAST_STATE);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastReportedProgressRef = useRef(0);
+  const volumeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Detect which protocol is active
   const chromecastConnected = castDevice !== null;
-  const airplayConnected = false; // TODO: Detect AirPlay connection from video player
+  // TODO: AirPlay detection requires integration with video player's AVRoutePickerView
+  // The @douglowder/expo-av-route-picker-view package doesn't expose route state
+  // Options:
+  // 1. Create native module to detect AVAudioSession.sharedInstance().currentRoute
+  // 2. Use AVPlayer's isExternalPlaybackActive property
+  // 3. Listen to AVPlayerItemDidPlayToEndTimeNotification for AirPlay events
+  const airplayConnected = false;
 
   const activeProtocol: CastProtocol | null = chromecastConnected
     ? "chromecast"
@@ -94,12 +102,19 @@ export const useCasting = (item: BaseItemDto | null) => {
     }
   }, [mediaStatus, activeProtocol]);
 
-  // Progress reporting to Jellyfin
+  // Progress reporting to Jellyfin (optimized to skip redundant reports)
   useEffect(() => {
     if (!isConnected || !item?.Id || !user?.Id || state.progress <= 0) return;
 
     const reportProgress = () => {
       const progressSeconds = Math.floor(state.progress / 1000);
+
+      // Skip if progress hasn't changed significantly (less than 5 seconds)
+      if (Math.abs(progressSeconds - lastReportedProgressRef.current) < 5) {
+        return;
+      }
+
+      lastReportedProgressRef.current = progressSeconds;
       const playStateApi = api ? getPlaystateApi(api) : null;
       playStateApi
         ?.reportPlaybackProgress({
@@ -197,15 +212,25 @@ export const useCasting = (item: BaseItemDto | null) => {
     setState(DEFAULT_CAST_STATE);
   }, [client, api, item?.Id, user?.Id, state.progress, activeProtocol]);
 
-  // Volume control
+  // Volume control (debounced to reduce API calls)
   const setVolume = useCallback(
-    async (volume: number) => {
+    (volume: number) => {
       const clampedVolume = Math.max(0, Math.min(1, volume));
-      if (activeProtocol === "chromecast") {
-        await client?.setStreamVolume(clampedVolume);
-      }
-      // TODO: AirPlay volume control
+
+      // Update UI immediately
       setState((prev) => ({ ...prev, volume: clampedVolume }));
+
+      // Debounce API call
+      if (volumeDebounceRef.current) {
+        clearTimeout(volumeDebounceRef.current);
+      }
+
+      volumeDebounceRef.current = setTimeout(async () => {
+        if (activeProtocol === "chromecast") {
+          await client?.setStreamVolume(clampedVolume).catch(console.error);
+        }
+        // TODO: AirPlay volume control
+      }, 300);
     },
     [client, activeProtocol],
   );
@@ -239,6 +264,9 @@ export const useCasting = (item: BaseItemDto | null) => {
       }
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
+      }
+      if (volumeDebounceRef.current) {
+        clearTimeout(volumeDebounceRef.current);
       }
     };
   }, []);

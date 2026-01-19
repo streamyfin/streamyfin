@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -17,6 +17,10 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
+import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
+import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
+import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
 import { useCasting } from "@/hooks/useCasting";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -26,6 +30,7 @@ import {
   getPosterUrl,
   getProtocolIcon,
   getProtocolName,
+  shouldShowNextEpisodeCountdown,
   truncateTitle,
 } from "@/utils/casting/helpers";
 import { PROTOCOL_COLORS } from "@/utils/casting/types";
@@ -47,7 +52,18 @@ export default function CastingPlayerScreen() {
     skipForward,
     skipBackward,
     stop,
+    setVolume,
+    volume,
   } = useCasting(null);
+
+  // Modal states
+  const [showEpisodeList, setShowEpisodeList] = useState(false);
+  const [showDeviceSheet, setShowDeviceSheet] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Segment detection (skip intro/credits)
+  const { currentSegment, skipIntro, skipCredits, skipSegment } =
+    useChromecastSegments(currentItem, progress, false);
 
   // Swipe down to dismiss gesture
   const translateY = useSharedValue(0);
@@ -82,6 +98,46 @@ export default function CastingPlayerScreen() {
     transform: [{ translateY: translateY.value }],
   }));
 
+  // Memoize expensive calculations (before early return)
+  const posterUrl = useMemo(
+    () =>
+      getPosterUrl(
+        api?.basePath,
+        currentItem?.Id,
+        currentItem?.ImageTags?.Primary,
+        300,
+        450,
+      ),
+    [api?.basePath, currentItem?.Id, currentItem?.ImageTags?.Primary],
+  );
+
+  const progressPercent = useMemo(
+    () => (duration > 0 ? (progress / duration) * 100 : 0),
+    [progress, duration],
+  );
+
+  const protocolColor = useMemo(
+    () => (protocol ? PROTOCOL_COLORS[protocol] : "#666"),
+    [protocol],
+  );
+
+  const protocolIcon = useMemo(
+    () => (protocol ? getProtocolIcon(protocol) : ("tv" as const)),
+    [protocol],
+  );
+
+  const protocolName = useMemo(
+    () => (protocol ? getProtocolName(protocol) : "Unknown"),
+    [protocol],
+  );
+
+  const showNextEpisode = useMemo(() => {
+    if (currentItem?.Type !== "Episode") return false;
+    const remaining = duration - progress;
+    const hasNextEpisode = false; // TODO: Detect if next episode exists
+    return shouldShowNextEpisodeCountdown(remaining, hasNextEpisode, 30);
+  }, [currentItem?.Type, duration, progress]);
+
   // Redirect if not connected
   if (!isConnected || !currentItem || !protocol) {
     if (router.canGoBack()) {
@@ -89,19 +145,6 @@ export default function CastingPlayerScreen() {
     }
     return null;
   }
-
-  const posterUrl = getPosterUrl(
-    api?.basePath,
-    currentItem.Id,
-    currentItem.ImageTags?.Primary,
-    300,
-    450,
-  );
-
-  const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
-  const protocolColor = PROTOCOL_COLORS[protocol];
-  const protocolIcon = getProtocolIcon(protocol);
-  const protocolName = getProtocolName(protocol);
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -140,7 +183,8 @@ export default function CastingPlayerScreen() {
             </Pressable>
 
             {/* Connection indicator */}
-            <View
+            <Pressable
+              onPress={() => setShowDeviceSheet(true)}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -168,9 +212,14 @@ export default function CastingPlayerScreen() {
               >
                 {protocolName}
               </Text>
-            </View>
+            </Pressable>
 
-            <View style={{ width: 48 }} />
+            <Pressable
+              onPress={() => setShowSettings(true)}
+              style={{ padding: 8, marginRight: -8 }}
+            >
+              <Ionicons name='settings-outline' size={24} color='white' />
+            </Pressable>
           </View>
 
           {/* Title and episode info */}
@@ -323,6 +372,78 @@ export default function CastingPlayerScreen() {
             </Text>
           </View>
 
+          {/* Segment skip button (intro/credits) */}
+          {currentSegment && (
+            <View style={{ marginBottom: 24, alignItems: "center" }}>
+              <Pressable
+                onPress={() => {
+                  if (currentSegment.type === "intro") {
+                    skipIntro(null as any); // TODO: Get RemoteMediaClient from useCasting
+                  } else if (currentSegment.type === "credits") {
+                    skipCredits(null as any);
+                  } else {
+                    skipSegment(null as any);
+                  }
+                }}
+                style={{
+                  backgroundColor: protocolColor,
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <Ionicons name='play-skip-forward' size={20} color='white' />
+                <Text
+                  style={{ color: "white", fontSize: 16, fontWeight: "600" }}
+                >
+                  Skip{" "}
+                  {currentSegment.type.charAt(0).toUpperCase() +
+                    currentSegment.type.slice(1)}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Next episode countdown */}
+          {showNextEpisode && (
+            <View style={{ marginBottom: 24, alignItems: "center" }}>
+              <View
+                style={{
+                  backgroundColor: "#1a1a1a",
+                  paddingHorizontal: 20,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <ActivityIndicator size='small' color={protocolColor} />
+                <View>
+                  <Text
+                    style={{ color: "white", fontSize: 14, fontWeight: "600" }}
+                  >
+                    Next Episode Starting Soon
+                  </Text>
+                  <Text style={{ color: "#999", fontSize: 12, marginTop: 2 }}>
+                    {Math.ceil((duration - progress) / 1000)}s remaining
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    // TODO: Cancel auto-play
+                  }}
+                  style={{ marginLeft: 8 }}
+                >
+                  <Ionicons name='close-circle' size={24} color='#999' />
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {/* Playback controls */}
           <View
             style={{
@@ -375,7 +496,7 @@ export default function CastingPlayerScreen() {
               justifyContent: "center",
               alignItems: "center",
               gap: 8,
-              marginBottom: 24,
+              marginBottom: 16,
             }}
           >
             <Ionicons name='stop-circle-outline' size={20} color='#FF3B30' />
@@ -383,7 +504,90 @@ export default function CastingPlayerScreen() {
               Stop Casting
             </Text>
           </Pressable>
+
+          {/* Episode list button (for TV shows) */}
+          {currentItem.Type === "Episode" && (
+            <Pressable
+              onPress={() => setShowEpisodeList(true)}
+              style={{
+                backgroundColor: "#1a1a1a",
+                padding: 16,
+                borderRadius: 12,
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 24,
+              }}
+            >
+              <Ionicons name='list' size={20} color='white' />
+              <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
+                Episodes
+              </Text>
+            </Pressable>
+          )}
         </ScrollView>
+
+        {/* Modals */}
+        <ChromecastDeviceSheet
+          visible={showDeviceSheet && protocol === "chromecast"}
+          onClose={() => setShowDeviceSheet(false)}
+          device={
+            currentDevice && protocol === "chromecast"
+              ? ({
+                  deviceId: currentDevice.id,
+                  friendlyName: currentDevice.name,
+                } as any)
+              : null
+          }
+          onDisconnect={stop}
+          volume={volume}
+          onVolumeChange={async (vol) => setVolume(vol)}
+        />
+
+        <ChromecastEpisodeList
+          visible={showEpisodeList}
+          onClose={() => setShowEpisodeList(false)}
+          currentItem={currentItem}
+          episodes={[]} // TODO: Fetch episodes from series
+          onSelectEpisode={(episode) => {
+            // TODO: Load new episode
+            console.log("Selected episode:", episode.Name);
+          }}
+        />
+
+        <ChromecastSettingsMenu
+          visible={showSettings}
+          onClose={() => setShowSettings(false)}
+          item={currentItem}
+          mediaSources={[]} // TODO: Get from media source selector
+          selectedMediaSource={null}
+          onMediaSourceChange={(source) => {
+            // TODO: Change quality
+            console.log("Changed media source:", source);
+          }}
+          audioTracks={[]} // TODO: Get from player
+          selectedAudioTrack={null}
+          onAudioTrackChange={(track) => {
+            // TODO: Change audio track
+            console.log("Changed audio track:", track);
+          }}
+          subtitleTracks={[]} // TODO: Get from player
+          selectedSubtitleTrack={null}
+          onSubtitleTrackChange={(track) => {
+            // TODO: Change subtitle track
+            console.log("Changed subtitle track:", track);
+          }}
+          playbackSpeed={1.0}
+          onPlaybackSpeedChange={(speed) => {
+            // TODO: Change playback speed
+            console.log("Changed playback speed:", speed);
+          }}
+          showTechnicalInfo={false}
+          onToggleTechnicalInfo={() => {
+            // TODO: Toggle technical info
+          }}
+        />
       </Animated.View>
     </GestureDetector>
   );
