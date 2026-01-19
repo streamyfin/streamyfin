@@ -686,6 +686,8 @@
     "cast": "Cast",
     "technical_details": "Technical Details",
     "appeared_in": "Appeared In",
+    "movies": "Movies",
+    "shows": "Shows",
     "could_not_load_item": "Could Not Load Item",
     "none": "None",
     "download": {
