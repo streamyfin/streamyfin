@@ -18,7 +18,7 @@ export const TVProgressBar: React.FC<TVProgressBarProps> = React.memo(
   ({
     progress,
     trackColor = "rgba(255,255,255,0.2)",
-    fillColor = "#a855f7",
+    fillColor = "#ffffff",
     maxWidth = 400,
     height = 4,
   }) => {

@@ -20,7 +20,6 @@ import MoviePoster, {
   TV_POSTER_WIDTH,
 } from "@/components/posters/MoviePoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { Colors } from "@/constants/Colors";
 import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
@@ -172,35 +171,9 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
 
-  // Track focus within section and scroll back to start when leaving
+  // Track focus within section for item focus/blur callbacks
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
-  const [focusedCount, setFocusedCount] = useState(0);
-  const prevFocusedCount = useRef(0);
-  const scrollBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // When section loses all focus, scroll back to start (with debounce to avoid
-  // triggering during transient focus changes like infinite scroll loading)
-  useEffect(() => {
-    // Clear any pending scroll-back timer
-    if (scrollBackTimerRef.current) {
-      clearTimeout(scrollBackTimerRef.current);
-      scrollBackTimerRef.current = null;
-    }
-
-    if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      // Debounce the scroll-back to avoid triggering during re-renders
-      scrollBackTimerRef.current = setTimeout(() => {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      }, 150);
-    }
-    prevFocusedCount.current = focusedCount;
-
-    return () => {
-      if (scrollBackTimerRef.current) {
-        clearTimeout(scrollBackTimerRef.current);
-      }
-    };
-  }, [focusedCount]);
+  const [_focusedCount, setFocusedCount] = useState(0);
 
   const handleItemFocus = useCallback(
     (item: BaseItemDto) => {
@@ -494,7 +467,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                     height: orientation === "horizontal" ? 191 : 315,
                   }}
                 >
-                  <ActivityIndicator size='small' color={Colors.primary} />
+                  <ActivityIndicator size='small' color='white' />
                 </View>
               )}
               {parentId && allItems.length > 0 && (
