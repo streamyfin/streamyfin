@@ -17,7 +17,7 @@ import {
   calculateEndingTime,
   formatTime,
   shouldShowNextEpisodeCountdown,
-} from "@/utils/chromecast/helpers";
+} from "@/utils/casting/helpers";
 import {
   CHROMECAST_CONSTANTS,
   type ChromecastPlayerState,
@@ -187,8 +187,8 @@ export const useChromecastPlayer = () => {
   const currentTime = formatTime(playerState.progress);
   const remainingTime = formatTime(playerState.duration - playerState.progress);
   const endingTime = calculateEndingTime(
-    playerState.duration - playerState.progress,
-    true, // TODO: Add use24HourFormat setting
+    playerState.progress,
+    playerState.duration,
   );
 
   // Next episode countdown

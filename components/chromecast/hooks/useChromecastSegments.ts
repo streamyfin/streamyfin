@@ -6,10 +6,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
-import { useDownloadedFiles } from "@/providers/Downloads/downloadProvider";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { isWithinSegment } from "@/utils/chromecast/helpers";
+import { isWithinSegment } from "@/utils/casting/helpers";
 import type { ChromecastSegmentData } from "@/utils/chromecast/options";
 import { useSegments } from "@/utils/segments";
 
@@ -20,13 +19,12 @@ export const useChromecastSegments = (
 ) => {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const { downloadedFiles } = useDownloadedFiles();
 
   // Fetch segments from autoskip API
   const { data: segmentData } = useSegments(
     item?.Id || "",
     isOffline,
-    downloadedFiles,
+    undefined, // downloadedFiles parameter
     api,
   );
 
@@ -137,18 +135,26 @@ export const useChromecastSegments = (
 
     switch (currentSegment.type) {
       case "intro":
-        return settings?.autoSkipIntro === true;
+        return settings?.skipIntro === "auto";
       case "credits":
-        return settings?.autoSkipCredits === true;
+        return settings?.skipOutro === "auto";
       case "recap":
+        return settings?.skipRecap === "auto";
       case "commercial":
+        return settings?.skipCommercial === "auto";
       case "preview":
-        // These don't have settings yet, don't auto-skip
-        return false;
+        return settings?.skipPreview === "auto";
       default:
         return false;
     }
-  }, [currentSegment, settings?.autoSkipIntro, settings?.autoSkipCredits]);
+  }, [
+    currentSegment,
+    settings?.skipIntro,
+    settings?.skipOutro,
+    settings?.skipRecap,
+    settings?.skipCommercial,
+    settings?.skipPreview,
+  ]);
 
   return {
     segments,

@@ -128,3 +128,35 @@ export const getProtocolIcon = (
       return "logo-apple";
   }
 };
+
+/**
+ * Format episode info (e.g., "S1 E1" or "Episode 1")
+ */
+export const formatEpisodeInfo = (
+  seasonNumber?: number | null,
+  episodeNumber?: number | null,
+): string => {
+  if (
+    seasonNumber !== undefined &&
+    seasonNumber !== null &&
+    episodeNumber !== undefined &&
+    episodeNumber !== null
+  ) {
+    return `S${seasonNumber} E${episodeNumber}`;
+  }
+  if (episodeNumber !== undefined && episodeNumber !== null) {
+    return `Episode ${episodeNumber}`;
+  }
+  return "";
+};
+
+/**
+ * Check if we should show next episode countdown
+ */
+export const shouldShowNextEpisodeCountdown = (
+  remainingMs: number,
+  hasNextEpisode: boolean,
+  countdownStartSeconds: number,
+): boolean => {
+  return hasNextEpisode && remainingMs <= countdownStartSeconds * 1000;
+};
