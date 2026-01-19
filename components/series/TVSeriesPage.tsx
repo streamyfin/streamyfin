@@ -31,9 +31,9 @@ import {
   TV_EPISODE_WIDTH,
   TVEpisodeCard,
 } from "@/components/series/TVEpisodeCard";
-import { TVSeasonSelector } from "@/components/series/TVSeasonSelector";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -227,9 +227,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     [item.Id, seasonIndexState],
   );
 
-  // Modal state
-  const [openModal, setOpenModal] = useState<"season" | null>(null);
-  const isModalOpen = openModal !== null;
+  // TV option modal hook
+  const { showOptions } = useTVOptionModal();
 
   // ScrollView ref for page scrolling
   const mainScrollRef = useRef<ScrollView>(null);
@@ -400,6 +399,25 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     [item.Id, setSeasonIndexState],
   );
 
+  // Open season modal
+  const handleOpenSeasonModal = useCallback(() => {
+    const options = seasons.map((season: BaseItemDto) => ({
+      label: season.Name || `Season ${season.IndexNumber}`,
+      value: season.IndexNumber ?? 0,
+      selected:
+        season.IndexNumber === selectedSeasonIndex ||
+        season.Name === String(selectedSeasonIndex),
+    }));
+
+    showOptions({
+      title: t("item_card.select_season"),
+      options,
+      onSelect: handleSeasonSelect,
+      cardWidth: 180,
+      cardHeight: 85,
+    });
+  }, [seasons, selectedSeasonIndex, showOptions, t, handleSeasonSelect]);
+
   // Episode list item layout
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
@@ -417,13 +435,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <TVEpisodeCard
           episode={episode}
           onPress={() => handleEpisodePress(episode)}
-          disabled={isModalOpen}
           onFocus={handleEpisodeFocus}
           onBlur={handleEpisodeBlur}
         />
       </View>
     ),
-    [handleEpisodePress, isModalOpen, handleEpisodeFocus, handleEpisodeBlur],
+    [handleEpisodePress, handleEpisodeFocus, handleEpisodeBlur],
   );
 
   // Get play button text
@@ -545,7 +562,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               <TVFocusableButton
                 onPress={handlePlayNextEpisode}
                 hasTVPreferredFocus
-                disabled={isModalOpen}
                 variant='primary'
               >
                 <Ionicons
@@ -568,8 +584,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               {seasons.length > 1 && (
                 <TVSeasonButton
                   seasonName={selectedSeasonName}
-                  onPress={() => setOpenModal("season")}
-                  disabled={isModalOpen}
+                  onPress={handleOpenSeasonModal}
                 />
               )}
             </View>
@@ -621,15 +636,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           />
         </View>
       </ScrollView>
-
-      {/* Season selector modal */}
-      <TVSeasonSelector
-        visible={openModal === "season"}
-        seasons={seasons}
-        selectedSeasonIndex={selectedSeasonIndex}
-        onSelect={handleSeasonSelect}
-        onClose={() => setOpenModal(null)}
-      />
     </View>
   );
 };
