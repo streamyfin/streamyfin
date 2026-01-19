@@ -195,6 +195,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
         <View style={styles.infoBox}>
           {playMethod && (
             <Text
+              maxFontSizeMultiplier={1.2}
               style={[
                 styles.infoText,
                 { color: getPlayMethodColor(playMethod) },
@@ -204,28 +205,31 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
             </Text>
           )}
           {transcodeReasons && transcodeReasons.length > 0 && (
-            <Text style={[styles.infoText, styles.reasonText]}>
+            <Text
+              maxFontSizeMultiplier={1.2}
+              style={[styles.infoText, styles.reasonText]}
+            >
               {transcodeReasons.map(formatTranscodeReason).join(", ")}
             </Text>
           )}
           {info?.videoWidth && info?.videoHeight && (
-            <Text style={styles.infoText}>
+            <Text maxFontSizeMultiplier={1.2} style={styles.infoText}>
               {info.videoWidth}x{info.videoHeight}
             </Text>
           )}
           {info?.videoCodec && (
-            <Text style={styles.infoText}>
+            <Text maxFontSizeMultiplier={1.2} style={styles.infoText}>
               Video: {formatCodec(info.videoCodec)}
               {info.fps ? ` @ ${formatFps(info.fps)} fps` : ""}
             </Text>
           )}
           {info?.audioCodec && (
-            <Text style={styles.infoText}>
+            <Text maxFontSizeMultiplier={1.2} style={styles.infoText}>
               Audio: {formatCodec(info.audioCodec)}
             </Text>
           )}
           {(info?.videoBitrate || info?.audioBitrate) && (
-            <Text style={styles.infoText}>
+            <Text maxFontSizeMultiplier={1.2} style={styles.infoText}>
               Bitrate:{" "}
               {info.videoBitrate
                 ? formatBitrate(info.videoBitrate)
@@ -235,17 +239,22 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
             </Text>
           )}
           {info?.cacheSeconds !== undefined && (
-            <Text style={styles.infoText}>
+            <Text maxFontSizeMultiplier={1.2} style={styles.infoText}>
               Buffer: {info.cacheSeconds.toFixed(1)}s
             </Text>
           )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (
-            <Text style={[styles.infoText, styles.warningText]}>
+            <Text
+              maxFontSizeMultiplier={1.2}
+              style={[styles.infoText, styles.warningText]}
+            >
               Dropped: {info.droppedFrames} frames
             </Text>
           )}
           {!info && !playMethod && (
-            <Text style={styles.infoText}>Loading...</Text>
+            <Text maxFontSizeMultiplier={1.2} style={styles.infoText}>
+              Loading...
+            </Text>
           )}
         </View>
       </Animated.View>

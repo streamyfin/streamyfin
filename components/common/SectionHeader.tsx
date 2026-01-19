@@ -19,7 +19,9 @@ export const SectionHeader: React.FC<Props> = ({
 
   return (
     <View className='px-4 flex flex-row items-center justify-between mb-2'>
-      <Text className='text-lg font-bold text-neutral-100'>{title}</Text>
+      <Text className='text-lg font-bold text-neutral-100' ellipsizeMode='tail'>
+        {title}
+      </Text>
       {shouldShowAction && (
         <TouchableOpacity
           onPress={onPressAction}
@@ -29,6 +31,7 @@ export const SectionHeader: React.FC<Props> = ({
           className='py-1 pl-3'
         >
           <Text
+            ellipsizeMode='tail'
             style={{
               color: actionDisabled ? "rgba(255,255,255,0.4)" : Colors.primary,
             }}
