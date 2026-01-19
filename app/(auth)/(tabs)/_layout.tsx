@@ -11,6 +11,7 @@ import { withLayoutContext } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { AirPlayMiniPlayer } from "@/components/airplay/AirPlayMiniPlayer";
 import { ChromecastMiniPlayer } from "@/components/chromecast/ChromecastMiniPlayer";
 import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
 import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
@@ -119,6 +120,7 @@ export default function TabLayout() {
           }}
         />
       </NativeTabs>
+      <AirPlayMiniPlayer />
       <ChromecastMiniPlayer />
       <MiniPlayerBar />
       <MusicPlaybackEngine />
