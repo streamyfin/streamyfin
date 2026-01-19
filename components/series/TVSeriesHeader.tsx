@@ -80,7 +80,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
         }}
       >
         {yearString && (
-          <Text style={{ color: "#9CA3AF", fontSize: TVTypography.body }}>
+          <Text style={{ color: "white", fontSize: TVTypography.body }}>
             {yearString}
           </Text>
         )}
