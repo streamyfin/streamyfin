@@ -1,6 +1,6 @@
 /**
  * Unified Casting Helper Functions
- * Common utilities for both Chromecast and AirPlay
+ * Common utilities for casting protocols
  */
 
 import type { CastProtocol, ConnectionQuality } from "./types";
@@ -110,8 +110,7 @@ export const getProtocolName = (protocol: CastProtocol): string => {
   switch (protocol) {
     case "chromecast":
       return "Chromecast";
-    case "airplay":
-      return "AirPlay";
+    // Future: Add cases for other protocols
   }
 };
 
@@ -124,8 +123,7 @@ export const getProtocolIcon = (
   switch (protocol) {
     case "chromecast":
       return "tv";
-    case "airplay":
-      return "logo-apple";
+    // Future: Add icons for other protocols
   }
 };
 
