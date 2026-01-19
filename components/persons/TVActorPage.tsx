@@ -107,10 +107,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const [user] = useAtom(userAtom);
 
   // Track which filmography item is currently focused for dynamic backdrop
-  const [focusedIndex, setFocusedIndex] = useState(0);
-
-  // FlatList ref for scrolling back
-  const filmographyListRef = useRef<FlatList<BaseItemDto>>(null);
+  const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
 
   // Fetch actor details
   const { data: item, isLoading: isLoadingActor } = useQuery({
@@ -125,9 +122,9 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     staleTime: 60,
   });
 
-  // Fetch filmography
-  const { data: filmography = [], isLoading: isLoadingFilmography } = useQuery({
-    queryKey: ["actor", "filmography", personId],
+  // Fetch movies
+  const { data: movies = [], isLoading: isLoadingMovies } = useQuery({
+    queryKey: ["actor", "movies", personId],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
 
@@ -137,7 +134,32 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
         startIndex: 0,
         limit: 20,
         sortOrder: ["Descending", "Descending", "Ascending"],
-        includeItemTypes: ["Movie", "Series"],
+        includeItemTypes: ["Movie"],
+        recursive: true,
+        fields: ["ParentId", "PrimaryImageAspectRatio"],
+        sortBy: ["PremiereDate", "ProductionYear", "SortName"],
+        collapseBoxSetItems: false,
+      });
+
+      return response.data.Items || [];
+    },
+    enabled: !!personId && !!api && !!user?.Id,
+    staleTime: 60,
+  });
+
+  // Fetch series
+  const { data: series = [], isLoading: isLoadingSeries } = useQuery({
+    queryKey: ["actor", "series", personId],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const response = await getItemsApi(api).getItems({
+        userId: user.Id,
+        personIds: [personId],
+        startIndex: 0,
+        limit: 20,
+        sortOrder: ["Descending", "Descending", "Ascending"],
+        includeItemTypes: ["Series"],
         recursive: true,
         fields: ["ParentId", "PrimaryImageAspectRatio"],
         sortBy: ["PremiereDate", "ProductionYear", "SortName"],
@@ -153,15 +175,16 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   // Get backdrop URL from the currently focused filmography item
   // Changes dynamically as user navigates through the list
   const backdropUrl = useMemo(() => {
-    if (filmography.length === 0) return null;
-    const focusedItem = filmography[focusedIndex] ?? filmography[0];
+    // Use focused item if available, otherwise fall back to first movie or series
+    const itemForBackdrop = focusedItem ?? movies[0] ?? series[0];
+    if (!itemForBackdrop) return null;
     return getBackdropUrl({
       api,
-      item: focusedItem,
+      item: itemForBackdrop,
       quality: 90,
       width: 1920,
     });
-  }, [api, filmography, focusedIndex]);
+  }, [api, focusedItem, movies, series]);
 
   // Crossfade animation for backdrop transitions
   // Use two alternating layers for smooth crossfade
@@ -261,12 +284,15 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
 
   // Render filmography item
   const renderFilmographyItem = useCallback(
-    ({ item: filmItem, index }: { item: BaseItemDto; index: number }) => (
+    (
+      { item: filmItem, index }: { item: BaseItemDto; index: number },
+      isFirstSection: boolean,
+    ) => (
       <View style={{ marginRight: ITEM_GAP }}>
         <TVFocusablePoster
           onPress={() => handleItemPress(filmItem)}
-          onFocus={() => setFocusedIndex(index)}
-          hasTVPreferredFocus={index === 0}
+          onFocus={() => setFocusedItem(filmItem)}
+          hasTVPreferredFocus={isFirstSection && index === 0}
         >
           <View>
             <MoviePoster item={filmItem} />
@@ -469,21 +495,10 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
           </View>
         </View>
 
-        {/* Filmography section */}
+        {/* Filmography sections */}
         <View style={{ flex: 1, overflow: "visible" }}>
-          <Text
-            style={{
-              fontSize: 22,
-              fontWeight: "600",
-              color: "#FFFFFF",
-              marginBottom: 16,
-              marginLeft: SCALE_PADDING,
-            }}
-          >
-            {t("item_card.appeared_in")}
-          </Text>
-
-          {isLoadingFilmography ? (
+          {/* Movies Section */}
+          {isLoadingMovies ? (
             <View
               style={{
                 height: 300,
@@ -493,36 +508,104 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             >
               <Loader />
             </View>
-          ) : filmography.length === 0 ? (
-            <Text
+          ) : (
+            movies.length > 0 && (
+              <View style={{ marginBottom: 32 }}>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                    marginBottom: 16,
+                    marginLeft: SCALE_PADDING,
+                  }}
+                >
+                  {t("item_card.movies")}
+                </Text>
+                <FlatList
+                  horizontal
+                  data={movies}
+                  keyExtractor={(filmItem) => filmItem.Id!}
+                  renderItem={(props) => renderFilmographyItem(props, true)}
+                  showsHorizontalScrollIndicator={false}
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={4}
+                  windowSize={5}
+                  removeClippedSubviews={false}
+                  getItemLayout={getItemLayout}
+                  style={{ overflow: "visible" }}
+                  contentContainerStyle={{
+                    paddingVertical: SCALE_PADDING,
+                    paddingHorizontal: SCALE_PADDING,
+                  }}
+                />
+              </View>
+            )
+          )}
+
+          {/* Series Section */}
+          {isLoadingSeries ? (
+            <View
               style={{
-                color: "#737373",
-                fontSize: 16,
-                marginLeft: SCALE_PADDING,
+                height: 300,
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              {t("common.no_results")}
-            </Text>
+              <Loader />
+            </View>
           ) : (
-            <FlatList
-              ref={filmographyListRef}
-              horizontal
-              data={filmography}
-              keyExtractor={(filmItem) => filmItem.Id!}
-              renderItem={renderFilmographyItem}
-              showsHorizontalScrollIndicator={false}
-              initialNumToRender={6}
-              maxToRenderPerBatch={4}
-              windowSize={5}
-              removeClippedSubviews={false}
-              getItemLayout={getItemLayout}
-              style={{ overflow: "visible" }}
-              contentContainerStyle={{
-                paddingVertical: SCALE_PADDING,
-                paddingHorizontal: SCALE_PADDING,
-              }}
-            />
+            series.length > 0 && (
+              <View>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                    marginBottom: 16,
+                    marginLeft: SCALE_PADDING,
+                  }}
+                >
+                  {t("item_card.shows")}
+                </Text>
+                <FlatList
+                  horizontal
+                  data={series}
+                  keyExtractor={(filmItem) => filmItem.Id!}
+                  renderItem={(props) =>
+                    renderFilmographyItem(props, movies.length === 0)
+                  }
+                  showsHorizontalScrollIndicator={false}
+                  initialNumToRender={6}
+                  maxToRenderPerBatch={4}
+                  windowSize={5}
+                  removeClippedSubviews={false}
+                  getItemLayout={getItemLayout}
+                  style={{ overflow: "visible" }}
+                  contentContainerStyle={{
+                    paddingVertical: SCALE_PADDING,
+                    paddingHorizontal: SCALE_PADDING,
+                  }}
+                />
+              </View>
+            )
           )}
+
+          {/* Empty state - only show if both sections are empty and not loading */}
+          {!isLoadingMovies &&
+            !isLoadingSeries &&
+            movies.length === 0 &&
+            series.length === 0 && (
+              <Text
+                style={{
+                  color: "#737373",
+                  fontSize: 16,
+                  marginLeft: SCALE_PADDING,
+                }}
+              >
+                {t("common.no_results")}
+              </Text>
+            )}
         </View>
       </View>
     </View>
