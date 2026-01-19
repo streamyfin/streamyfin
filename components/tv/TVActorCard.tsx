@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVActorCardProps {
@@ -22,7 +23,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
       useTVFocusAnimation({ scaleAmount: 1.08 });
 
     const imageUrl = person.Id
-      ? `${apiBasePath}/Items/${person.Id}/Images/Primary?fillWidth=200&fillHeight=200&quality=90`
+      ? `${apiBasePath}/Items/${person.Id}/Images/Primary?fillWidth=280&fillHeight=280&quality=90`
       : null;
 
     return (
@@ -38,7 +39,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
             animatedStyle,
             {
               alignItems: "center",
-              width: 120,
+              width: 160,
               shadowColor: "#fff",
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: focused ? 0.5 : 0,
@@ -48,12 +49,12 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
         >
           <View
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
+              width: 140,
+              height: 140,
+              borderRadius: 70,
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.1)",
-              marginBottom: 12,
+              marginBottom: 14,
               borderWidth: focused ? 3 : 0,
               borderColor: "#fff",
             }}
@@ -74,7 +75,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
               >
                 <Ionicons
                   name='person'
-                  size={40}
+                  size={56}
                   color='rgba(255,255,255,0.4)'
                 />
               </View>
@@ -83,11 +84,11 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
 
           <Text
             style={{
-              fontSize: 14,
+              fontSize: TVTypography.body,
               fontWeight: "600",
               color: focused ? "#fff" : "rgba(255,255,255,0.9)",
               textAlign: "center",
-              marginBottom: 2,
+              marginBottom: 4,
             }}
             numberOfLines={1}
           >
@@ -97,7 +98,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
           {person.Role && (
             <Text
               style={{
-                fontSize: 12,
+                fontSize: TVTypography.callout,
                 color: focused
                   ? "rgba(255,255,255,0.8)"
                   : "rgba(255,255,255,0.5)",

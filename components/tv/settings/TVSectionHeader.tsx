@@ -1,5 +1,6 @@
 import React from "react";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 
 export interface TVSectionHeaderProps {
   title: string;
@@ -8,7 +9,7 @@ export interface TVSectionHeaderProps {
 export const TVSectionHeader: React.FC<TVSectionHeaderProps> = ({ title }) => (
   <Text
     style={{
-      fontSize: 16,
+      fontSize: TVTypography.callout,
       fontWeight: "600",
       color: "#9CA3AF",
       textTransform: "uppercase",

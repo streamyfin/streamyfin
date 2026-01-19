@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
+import { TVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -75,11 +76,9 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           style={{
             width: TV_EPISODE_WIDTH,
             aspectRatio: 16 / 9,
-            borderRadius: 12,
+            borderRadius: 24,
             overflow: "hidden",
             backgroundColor: "#1a1a1a",
-            borderWidth: 1,
-            borderColor: "#262626",
           }}
         >
           {thumbnailUrl ? (
@@ -109,7 +108,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           {episodeLabel && (
             <Text
               style={{
-                fontSize: 14,
+                fontSize: TVTypography.callout,
                 color: "#9CA3AF",
                 fontWeight: "500",
               }}
@@ -119,15 +118,23 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           )}
           {duration && (
             <>
-              <Text style={{ color: "#6B7280", fontSize: 14 }}>•</Text>
-              <Text style={{ fontSize: 14, color: "#9CA3AF" }}>{duration}</Text>
+              <Text
+                style={{ color: "#6B7280", fontSize: TVTypography.callout }}
+              >
+                •
+              </Text>
+              <Text
+                style={{ fontSize: TVTypography.callout, color: "#9CA3AF" }}
+              >
+                {duration}
+              </Text>
             </>
           )}
         </View>
         <Text
           numberOfLines={2}
           style={{
-            fontSize: 16,
+            fontSize: TVTypography.callout,
             color: "#FFFFFF",
             marginTop: 4,
             fontWeight: "500",

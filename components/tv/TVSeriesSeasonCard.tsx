@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVSeriesSeasonCardProps {
@@ -34,22 +35,22 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         style={[
           animatedStyle,
           {
-            width: 140,
+            width: 210,
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.5 : 0,
-            shadowRadius: focused ? 16 : 0,
+            shadowRadius: focused ? 20 : 0,
           },
         ]}
       >
         <View
           style={{
-            width: 140,
-            aspectRatio: 2 / 3,
-            borderRadius: 12,
+            width: 210,
+            aspectRatio: 10 / 15,
+            borderRadius: 24,
             overflow: "hidden",
             backgroundColor: "rgba(255,255,255,0.1)",
-            marginBottom: 12,
+            marginBottom: 14,
             borderWidth: focused ? 3 : 0,
             borderColor: "#fff",
           }}
@@ -68,18 +69,18 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
                 alignItems: "center",
               }}
             >
-              <Ionicons name='film' size={40} color='rgba(255,255,255,0.4)' />
+              <Ionicons name='film' size={56} color='rgba(255,255,255,0.4)' />
             </View>
           )}
         </View>
 
         <Text
           style={{
-            fontSize: 14,
+            fontSize: TVTypography.body,
             fontWeight: "600",
             color: focused ? "#fff" : "rgba(255,255,255,0.9)",
             textAlign: "center",
-            marginBottom: 2,
+            marginBottom: 4,
           }}
           numberOfLines={2}
         >
@@ -89,7 +90,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         {subtitle && (
           <Text
             style={{
-              fontSize: 12,
+              fontSize: TVTypography.callout,
               color: focused
                 ? "rgba(255,255,255,0.8)"
                 : "rgba(255,255,255,0.5)",

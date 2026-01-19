@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsOptionButtonProps {
@@ -48,11 +49,13 @@ export const TVSettingsOptionButton: React.FC<TVSettingsOptionButtonProps> = ({
           },
         ]}
       >
-        <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
+        <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
+          {label}
+        </Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text
             style={{
-              fontSize: 18,
+              fontSize: TVTypography.callout,
               color: "#9CA3AF",
               marginRight: 12,
             }}

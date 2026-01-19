@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsStepperProps {
@@ -53,7 +54,9 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
         focusable={!disabled}
       >
         <Animated.View style={labelAnim.animatedStyle}>
-          <Text style={{ fontSize: 20, color: "#FFFFFF" }}>{label}</Text>
+          <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
+            {label}
+          </Text>
         </Animated.View>
       </Pressable>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -86,7 +89,7 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
         </Pressable>
         <Text
           style={{
-            fontSize: 18,
+            fontSize: TVTypography.callout,
             color: "#FFFFFF",
             minWidth: 60,
             textAlign: "center",

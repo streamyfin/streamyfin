@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import React, { useMemo } from "react";
@@ -7,6 +8,7 @@ import { Dimensions, View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
+import { TVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 
@@ -56,7 +58,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
       ) : (
         <Text
           style={{
-            fontSize: 52,
+            fontSize: TVTypography.display,
             fontWeight: "bold",
             color: "#FFFFFF",
             marginBottom: 16,
@@ -78,7 +80,9 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
         }}
       >
         {yearString && (
-          <Text style={{ color: "#9CA3AF", fontSize: 18 }}>{yearString}</Text>
+          <Text style={{ color: "#9CA3AF", fontSize: TVTypography.body }}>
+            {yearString}
+          </Text>
         )}
         {item.OfficialRating && (
           <Badge text={item.OfficialRating} variant='gray' />
@@ -101,17 +105,34 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
 
       {/* Overview */}
       {item.Overview && (
-        <Text
+        <BlurView
+          intensity={10}
+          tint='light'
           style={{
-            fontSize: 18,
-            color: "#D1D5DB",
-            lineHeight: 28,
+            borderRadius: 8,
+            overflow: "hidden",
             maxWidth: SCREEN_WIDTH * 0.45,
+            alignSelf: "flex-start",
           }}
-          numberOfLines={4}
         >
-          {item.Overview}
-        </Text>
+          <View
+            style={{
+              padding: 16,
+              backgroundColor: "rgba(0,0,0,0.3)",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: TVTypography.body,
+                color: "#E5E7EB",
+                lineHeight: 32,
+              }}
+              numberOfLines={4}
+            >
+              {item.Overview}
+            </Text>
+          </View>
+        </BlurView>
       )}
     </View>
   );

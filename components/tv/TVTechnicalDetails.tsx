@@ -3,6 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { TVTypography } from "@/constants/TVTypography";
 
 export interface TVTechnicalDetailsProps {
   mediaStreams: MediaStream[];
@@ -23,10 +24,10 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
       <View style={{ marginBottom: 32 }}>
         <Text
           style={{
-            fontSize: 22,
+            fontSize: TVTypography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
-            marginBottom: 16,
+            marginBottom: 20,
           }}
         >
           {t("item_card.technical_details")}
@@ -36,7 +37,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
             <View>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: TVTypography.callout,
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
@@ -45,7 +46,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
               >
                 Video
               </Text>
-              <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+              <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
                 {videoStream.DisplayTitle ||
                   `${videoStream.Codec?.toUpperCase()} ${videoStream.Width}x${videoStream.Height}`}
               </Text>
@@ -55,7 +56,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
             <View>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: TVTypography.callout,
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
@@ -64,7 +65,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
               >
                 Audio
               </Text>
-              <Text style={{ fontSize: 18, color: "#FFFFFF" }}>
+              <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
                 {audioStream.DisplayTitle ||
                   `${audioStream.Codec?.toUpperCase()} ${audioStream.Channels}ch`}
               </Text>

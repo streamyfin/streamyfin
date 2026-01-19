@@ -1,5 +1,7 @@
+import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View, type ViewProps } from "react-native";
 import { GlassEffectView } from "react-native-glass-effect-view";
+import { TVTypography } from "@/constants/TVTypography";
 import { Text } from "./common/Text";
 
 interface Props extends ViewProps {
@@ -38,8 +40,45 @@ export const Badge: React.FC<Props> = ({
     );
   }
 
-  // On TV, use transparent backgrounds for a cleaner look
-  const isTV = Platform.isTV;
+  // On TV, use BlurView for consistent styling
+  if (Platform.isTV) {
+    return (
+      <BlurView
+        intensity={10}
+        tint='light'
+        style={{
+          borderRadius: 8,
+          overflow: "hidden",
+          alignSelf: "flex-start",
+          flexShrink: 1,
+          flexGrow: 0,
+        }}
+      >
+        <View
+          style={[
+            {
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.3)",
+            },
+            props.style,
+          ]}
+        >
+          {iconLeft && <View style={{ marginRight: 8 }}>{iconLeft}</View>}
+          <Text
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#E5E7EB",
+            }}
+          >
+            {text}
+          </Text>
+        </View>
+      </BlurView>
+    );
+  }
 
   return (
     <View
@@ -54,11 +93,7 @@ export const Badge: React.FC<Props> = ({
           alignSelf: "flex-start",
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: isTV
-            ? "rgba(255,255,255,0.1)"
-            : variant === "purple"
-              ? "#9333ea"
-              : "#262626",
+          backgroundColor: variant === "purple" ? "#9333ea" : "#262626",
         },
         props.style,
       ]}

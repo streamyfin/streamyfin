@@ -32,6 +32,7 @@ import {
   TVEpisodeCard,
 } from "@/components/series/TVEpisodeCard";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -146,7 +147,7 @@ const TVSeasonButton: React.FC<{
   const animateTo = (v: number) =>
     Animated.timing(scale, {
       toValue: v,
-      duration: 120,
+      duration: 150,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
@@ -156,7 +157,7 @@ const TVSeasonButton: React.FC<{
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
-        animateTo(1.02);
+        animateTo(1.05);
       }}
       onBlur={() => {
         setFocused(false);
@@ -170,33 +171,34 @@ const TVSeasonButton: React.FC<{
           transform: [{ scale }],
           shadowColor: "#fff",
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.4 : 0,
-          shadowRadius: focused ? 12 : 0,
+          shadowOpacity: focused ? 0.6 : 0,
+          shadowRadius: focused ? 20 : 0,
         }}
       >
         <View
           style={{
             backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            paddingVertical: 14,
-            paddingHorizontal: 20,
+            borderRadius: 12,
+            paddingVertical: 18,
+            paddingHorizontal: 32,
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
+            justifyContent: "center",
+            gap: 10,
           }}
         >
           <Text
             style={{
-              fontSize: 16,
+              fontSize: TVTypography.body,
               color: focused ? "#000" : "#FFFFFF",
-              fontWeight: "500",
+              fontWeight: "bold",
             }}
           >
             {seasonName}
           </Text>
           <Ionicons
             name='chevron-down'
-            size={18}
+            size={28}
             color={focused ? "#000" : "#FFFFFF"}
           />
         </View>
@@ -572,7 +574,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 />
                 <Text
                   style={{
-                    fontSize: 20,
+                    fontSize: TVTypography.body,
                     fontWeight: "bold",
                     color: "#000000",
                   }}
@@ -595,7 +597,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View style={{ marginTop: 40, overflow: "visible" }}>
           <Text
             style={{
-              fontSize: 22,
+              fontSize: TVTypography.body,
               fontWeight: "600",
               color: "#FFFFFF",
               marginBottom: 16,
@@ -626,7 +628,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               <Text
                 style={{
                   color: "#737373",
-                  fontSize: 16,
+                  fontSize: TVTypography.callout,
                   marginLeft: SCALE_PADDING,
                 }}
               >
