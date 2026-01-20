@@ -35,6 +35,14 @@ interface UseRemoteControlProps {
   onMinimalSeekRight?: () => void;
   /** Callback for any interaction that should reset the controls timeout */
   onInteraction?: () => void;
+  /** Callback when long press seek left starts (eventKeyAction: 0) */
+  onLongSeekLeftStart?: () => void;
+  /** Callback when long press seek right starts (eventKeyAction: 0) */
+  onLongSeekRightStart?: () => void;
+  /** Callback when long press seek ends (eventKeyAction: 1) */
+  onLongSeekStop?: () => void;
+  /** Callback when up/down D-pad pressed (to show controls with play button focused) */
+  onVerticalDpad?: () => void;
   // Legacy props - kept for backwards compatibility with mobile Controls.tsx
   // These are ignored in the simplified implementation
   progress?: SharedValue<number>;
@@ -67,6 +75,10 @@ export function useRemoteControl({
   onMinimalSeekLeft,
   onMinimalSeekRight,
   onInteraction,
+  onLongSeekLeftStart,
+  onLongSeekRightStart,
+  onLongSeekStop,
+  onVerticalDpad,
 }: UseRemoteControlProps) {
   // Keep these for backward compatibility with the component
   const remoteScrubProgress = useSharedValue<number | null>(null);
@@ -96,15 +108,47 @@ export function useRemoteControl({
       return;
     }
 
-    // Handle left/right D-pad - check controls hidden state FIRST
+    // Handle long press D-pad for continuous seeking (works in both modes)
+    // Must be checked BEFORE the showControls check to work when controls are hidden
+    if (evt.eventType === "longLeft") {
+      if (evt.eventKeyAction === 0 && onLongSeekLeftStart) {
+        // Key pressed - start continuous seeking backward
+        onLongSeekLeftStart();
+      } else if (evt.eventKeyAction === 1 && onLongSeekStop) {
+        // Key released - stop seeking
+        onLongSeekStop();
+      }
+      return;
+    }
+
+    if (evt.eventType === "longRight") {
+      if (evt.eventKeyAction === 0 && onLongSeekRightStart) {
+        // Key pressed - start continuous seeking forward
+        onLongSeekRightStart();
+      } else if (evt.eventKeyAction === 1 && onLongSeekStop) {
+        // Key released - stop seeking
+        onLongSeekStop();
+      }
+      return;
+    }
+
+    // Handle D-pad when controls are hidden
     if (!showControls) {
-      // Minimal seek mode when controls are hidden
+      // Minimal seek mode for left/right
       if (evt.eventType === "left" && onMinimalSeekLeft) {
         onMinimalSeekLeft();
         return;
       }
       if (evt.eventType === "right" && onMinimalSeekRight) {
         onMinimalSeekRight();
+        return;
+      }
+      // Up/down shows controls with play button focused
+      if (
+        (evt.eventType === "up" || evt.eventType === "down") &&
+        onVerticalDpad
+      ) {
+        onVerticalDpad();
         return;
       }
       // For other D-pad presses, show full controls
