@@ -200,8 +200,23 @@ export const Controls: FC<Props> = ({
 
     controlsOpacity.value = withTiming(showControls ? 1 : 0, animationConfig);
     bottomTranslateY.value = withTiming(showControls ? 0 : 30, animationConfig);
+
+    // Hide minimal seek bar immediately when normal controls show
+    if (showControls) {
+      setShowMinimalSeekBar(false);
+      if (minimalSeekBarTimeoutRef.current) {
+        clearTimeout(minimalSeekBarTimeoutRef.current);
+        minimalSeekBarTimeoutRef.current = null;
+      }
+    }
   }, [showControls, controlsOpacity, bottomTranslateY]);
 
+  // Overlay only fades, no slide
+  const overlayAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: controlsOpacity.value,
+  }));
+
+  // Bottom controls fade and slide up
   const bottomAnimatedStyle = useAnimatedStyle(() => ({
     opacity: controlsOpacity.value,
     transform: [{ translateY: bottomTranslateY.value }],
@@ -689,7 +704,7 @@ export const Controls: FC<Props> = ({
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
       <Animated.View
-        style={[styles.darkOverlay, bottomAnimatedStyle]}
+        style={[styles.darkOverlay, overlayAnimatedStyle]}
         pointerEvents='none'
       />
 
@@ -704,13 +719,14 @@ export const Controls: FC<Props> = ({
       )}
 
       {/* Minimal seek bar - shows only progress bar when seeking while controls hidden */}
+      {/* Uses exact same layout as normal controls for alignment */}
       <Animated.View
         style={[styles.minimalSeekBarContainer, minimalSeekBarAnimatedStyle]}
         pointerEvents={showMinimalSeekBar && !showControls ? "auto" : "none"}
       >
         <View
           style={[
-            styles.minimalSeekBarInner,
+            styles.bottomInner,
             {
               paddingRight: Math.max(insets.right, 48),
               paddingLeft: Math.max(insets.left, 48),
@@ -719,7 +735,7 @@ export const Controls: FC<Props> = ({
           ]}
         >
           {showSeekBubble && (
-            <View style={styles.minimalTrickplayContainer}>
+            <View style={styles.trickplayBubbleContainer}>
               <TrickplayBubble
                 trickPlayUrl={trickPlayUrl}
                 trickplayInfo={trickplayInfo}
@@ -728,34 +744,44 @@ export const Controls: FC<Props> = ({
             </View>
           )}
 
-          <View style={styles.minimalProgressContainer}>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[
-                  styles.cacheProgress,
-                  useAnimatedStyle(() => ({
-                    width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
-                  })),
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  useAnimatedStyle(() => ({
-                    width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
-                  })),
-                ]}
-              />
+          {/* Same padding as TVFocusableProgressBar for alignment */}
+          <View style={styles.minimalProgressWrapper}>
+            <View
+              style={[styles.progressBarContainer, styles.minimalProgressGlow]}
+            >
+              <View style={[styles.progressTrack, styles.minimalProgressTrack]}>
+                <Animated.View
+                  style={[
+                    styles.cacheProgress,
+                    useAnimatedStyle(() => ({
+                      width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
+                    })),
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    useAnimatedStyle(() => ({
+                      width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
+                    })),
+                  ]}
+                />
+              </View>
             </View>
           </View>
 
-          <View style={styles.minimalTimeContainer}>
+          <View style={styles.timeContainer}>
             <Text style={styles.timeText}>
               {formatTimeString(currentTime, "ms")}
             </Text>
-            <Text style={styles.timeText}>
-              -{formatTimeString(remainingTime, "ms")}
-            </Text>
+            <View style={styles.timeRight}>
+              <Text style={styles.timeText}>
+                -{formatTimeString(remainingTime, "ms")}
+              </Text>
+              <Text style={styles.endsAtText}>
+                {t("player.ends_at")} {getFinishTime()}
+              </Text>
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -905,18 +931,10 @@ export const Controls: FC<Props> = ({
 
 const styles = StyleSheet.create({
   controlsContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
   },
   darkOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   bottomContainer: {
@@ -1017,21 +1035,21 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 5,
   },
-  minimalSeekBarInner: {
-    flexDirection: "column",
+  minimalProgressWrapper: {
+    // Match TVFocusableProgressBar padding for alignment
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  minimalTrickplayContainer: {
-    alignItems: "center",
-    marginBottom: 16,
+  minimalProgressGlow: {
+    // Same glow effect and scale as focused TVFocusableProgressBar
+    shadowColor: "#fff",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    transform: [{ scale: 1.02 }],
   },
-  minimalProgressContainer: {
-    height: TV_SEEKBAR_HEIGHT,
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  minimalTimeContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  minimalProgressTrack: {
+    // Brighter track like focused state
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
 });
