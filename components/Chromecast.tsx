@@ -132,8 +132,12 @@ export function Chromecast({
             currentItemId: mediaStatus?.currentItemId,
             castDevice: castDevice?.friendlyName,
           });
-          if (mediaStatus?.currentItemId) router.push("/casting-player");
-          else CastContext.showCastDialog();
+          if (mediaStatus?.currentItemId) {
+            console.log("Navigating to: /(auth)/casting-player");
+            router.push("/(auth)/casting-player");
+          } else {
+            CastContext.showCastDialog();
+          }
         }}
         {...props}
       >
