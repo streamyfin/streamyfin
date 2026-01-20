@@ -754,6 +754,8 @@
     "decline": "Decline",
     "requested_by": "Requested by {{user}}",
     "unknown_user": "Unknown User",
+    "select": "Select",
+    "request_all": "Request All",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",

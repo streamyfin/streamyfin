@@ -9,6 +9,7 @@ import axios from "axios";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
+import { orderBy, uniqBy } from "lodash";
 import {
   useCallback,
   useEffect,
@@ -45,6 +46,12 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import type {
+  MovieResult,
+  PersonResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
 import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
@@ -452,6 +459,135 @@ export default function search() {
     [from, router],
   );
 
+  // Jellyseerr search for TV
+  const { data: jellyseerrTVResults, isFetching: jellyseerrTVLoading } =
+    useQuery({
+      queryKey: ["search", "jellyseerr", "tv", debouncedSearch],
+      queryFn: async () => {
+        const params = {
+          query: new URLSearchParams(debouncedSearch || "").toString(),
+        };
+        return await Promise.all([
+          jellyseerrApi?.search({ ...params, page: 1 }),
+          jellyseerrApi?.search({ ...params, page: 2 }),
+          jellyseerrApi?.search({ ...params, page: 3 }),
+          jellyseerrApi?.search({ ...params, page: 4 }),
+        ]).then((all) =>
+          uniqBy(
+            all.flatMap((v) => v?.results || []),
+            "id",
+          ),
+        );
+      },
+      enabled:
+        Platform.isTV &&
+        !!jellyseerrApi &&
+        searchType === "Discover" &&
+        debouncedSearch.length > 0,
+    });
+
+  // Process Jellyseerr results for TV
+  const jellyseerrMovieResults = useMemo(
+    () =>
+      orderBy(
+        jellyseerrTVResults?.filter(
+          (r) => r.mediaType === MediaType.MOVIE,
+        ) as MovieResult[],
+        [(m) => m?.title?.toLowerCase() === debouncedSearch.toLowerCase()],
+        "desc",
+      ),
+    [jellyseerrTVResults, debouncedSearch],
+  );
+
+  const jellyseerrTvResults = useMemo(
+    () =>
+      orderBy(
+        jellyseerrTVResults?.filter(
+          (r) => r.mediaType === MediaType.TV,
+        ) as TvResult[],
+        [(t) => t?.name?.toLowerCase() === debouncedSearch.toLowerCase()],
+        "desc",
+      ),
+    [jellyseerrTVResults, debouncedSearch],
+  );
+
+  const jellyseerrPersonResults = useMemo(
+    () =>
+      orderBy(
+        jellyseerrTVResults?.filter(
+          (r) => r.mediaType === "person",
+        ) as PersonResult[],
+        [(p) => p?.name?.toLowerCase() === debouncedSearch.toLowerCase()],
+        "desc",
+      ),
+    [jellyseerrTVResults, debouncedSearch],
+  );
+
+  const jellyseerrTVNoResults = useMemo(() => {
+    return (
+      !jellyseerrMovieResults?.length &&
+      !jellyseerrTvResults?.length &&
+      !jellyseerrPersonResults?.length
+    );
+  }, [jellyseerrMovieResults, jellyseerrTvResults, jellyseerrPersonResults]);
+
+  // Fetch discover settings for TV (when no search query in Discover mode)
+  const { data: discoverSliders } = useQuery({
+    queryKey: ["search", "jellyseerr", "discoverSettings", "tv"],
+    queryFn: async () => jellyseerrApi?.discoverSettings(),
+    enabled:
+      Platform.isTV &&
+      !!jellyseerrApi &&
+      searchType === "Discover" &&
+      debouncedSearch.length === 0,
+  });
+
+  // TV Jellyseerr press handlers
+  const handleJellyseerrMoviePress = useCallback(
+    (item: MovieResult) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(search)/jellyseerr/page",
+        params: {
+          mediaTitle: item.title,
+          releaseYear: String(new Date(item.releaseDate || "").getFullYear()),
+          canRequest: "true",
+          posterSrc: jellyseerrApi?.imageProxy(item.posterPath) || "",
+          mediaType: MediaType.MOVIE,
+          id: String(item.id),
+          backdropPath: item.backdropPath || "",
+          overview: item.overview || "",
+        },
+      });
+    },
+    [router, jellyseerrApi],
+  );
+
+  const handleJellyseerrTvPress = useCallback(
+    (item: TvResult) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(search)/jellyseerr/page",
+        params: {
+          mediaTitle: item.name,
+          releaseYear: String(new Date(item.firstAirDate || "").getFullYear()),
+          canRequest: "true",
+          posterSrc: jellyseerrApi?.imageProxy(item.posterPath) || "",
+          mediaType: MediaType.TV,
+          id: String(item.id),
+          backdropPath: item.backdropPath || "",
+          overview: item.overview || "",
+        },
+      });
+    },
+    [router, jellyseerrApi],
+  );
+
+  const handleJellyseerrPersonPress = useCallback(
+    (item: PersonResult) => {
+      router.push(`/(auth)/jellyseerr/person/${item.id}` as any);
+    },
+    [router],
+  );
+
   // Render TV search page
   if (Platform.isTV) {
     return (
@@ -471,6 +607,18 @@ export default function search() {
         loading={loading}
         noResults={noResults}
         onItemPress={handleItemPress}
+        searchType={searchType}
+        setSearchType={setSearchType}
+        showDiscover={!!jellyseerrApi}
+        jellyseerrMovies={jellyseerrMovieResults}
+        jellyseerrTv={jellyseerrTvResults}
+        jellyseerrPersons={jellyseerrPersonResults}
+        jellyseerrLoading={jellyseerrTVLoading}
+        jellyseerrNoResults={jellyseerrTVNoResults}
+        onJellyseerrMoviePress={handleJellyseerrMoviePress}
+        onJellyseerrTvPress={handleJellyseerrTvPress}
+        onJellyseerrPersonPress={handleJellyseerrPersonPress}
+        discoverSliders={discoverSliders}
       />
     );
   }

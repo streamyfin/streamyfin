@@ -32,9 +32,9 @@ import {
   TVEpisodeCard,
 } from "@/components/series/TVEpisodeCard";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
+import { TVOptionSelector } from "@/components/tv/TVOptionSelector";
 import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -229,8 +229,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     [item.Id, seasonIndexState],
   );
 
-  // TV option modal hook
-  const { showOptions } = useTVOptionModal();
+  // Season selector modal state
+  const [isSeasonModalVisible, setIsSeasonModalVisible] = useState(false);
 
   // ScrollView ref for page scrolling
   const mainScrollRef = useRef<ScrollView>(null);
@@ -403,22 +403,24 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
 
   // Open season modal
   const handleOpenSeasonModal = useCallback(() => {
-    const options = seasons.map((season: BaseItemDto) => ({
+    setIsSeasonModalVisible(true);
+  }, []);
+
+  // Close season modal
+  const handleCloseSeasonModal = useCallback(() => {
+    setIsSeasonModalVisible(false);
+  }, []);
+
+  // Season options for the modal
+  const seasonOptions = useMemo(() => {
+    return seasons.map((season: BaseItemDto) => ({
       label: season.Name || `Season ${season.IndexNumber}`,
       value: season.IndexNumber ?? 0,
       selected:
         season.IndexNumber === selectedSeasonIndex ||
         season.Name === String(selectedSeasonIndex),
     }));
-
-    showOptions({
-      title: t("item_card.select_season"),
-      options,
-      onSelect: handleSeasonSelect,
-      cardWidth: 180,
-      cardHeight: 85,
-    });
-  }, [seasons, selectedSeasonIndex, showOptions, t, handleSeasonSelect]);
+  }, [seasons, selectedSeasonIndex]);
 
   // Episode list item layout
   const getItemLayout = useCallback(
@@ -439,10 +441,16 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           onPress={() => handleEpisodePress(episode)}
           onFocus={handleEpisodeFocus}
           onBlur={handleEpisodeBlur}
+          disabled={isSeasonModalVisible}
         />
       </View>
     ),
-    [handleEpisodePress, handleEpisodeFocus, handleEpisodeBlur],
+    [
+      handleEpisodePress,
+      handleEpisodeFocus,
+      handleEpisodeBlur,
+      isSeasonModalVisible,
+    ],
   );
 
   // Get play button text
@@ -563,7 +571,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             >
               <TVFocusableButton
                 onPress={handlePlayNextEpisode}
-                hasTVPreferredFocus
+                hasTVPreferredFocus={!isSeasonModalVisible}
+                disabled={isSeasonModalVisible}
                 variant='primary'
               >
                 <Ionicons
@@ -587,6 +596,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 <TVSeasonButton
                   seasonName={selectedSeasonName}
                   onPress={handleOpenSeasonModal}
+                  disabled={isSeasonModalVisible}
                 />
               )}
             </View>
@@ -638,6 +648,18 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           />
         </View>
       </ScrollView>
+
+      {/* Season selector modal */}
+      <TVOptionSelector
+        visible={isSeasonModalVisible}
+        title={t("item_card.select_season")}
+        options={seasonOptions}
+        onSelect={handleSeasonSelect}
+        onClose={handleCloseSeasonModal}
+        cancelLabel={t("common.cancel")}
+        cardWidth={180}
+        cardHeight={85}
+      />
     </View>
   );
 };

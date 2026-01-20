@@ -709,7 +709,7 @@
     "quality_profile": "Kvalitetsprofil",
     "root_folder": "Rotkatalog",
     "season_all": "Säsong (alla)",
-    "season_number": "Säsong {{seasonNumber}}",
+    "season_number": "Säsong {{season_number}}",
     "number_episodes": "{{episode_number}} Avsnitt",
     "born": "Född",
     "appearances": "Framträdanden",
@@ -717,6 +717,8 @@
     "decline": "Avvisa",
     "requested_by": "Begärt av {{user}}",
     "unknown_user": "Okänd användare",
+    "select": "Välj",
+    "request_all": "Begär alla",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Seerr-servern uppfyller inte minimikrav för version! Vänligen uppdatera till minst 2.0.0",
       "jellyseerr_test_failed": "Seerr test misslyckades. Försök igen.",
