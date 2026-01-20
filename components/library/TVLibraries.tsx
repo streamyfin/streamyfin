@@ -254,7 +254,9 @@ export const TVLibraries: React.FC = () => {
     () =>
       userViews
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
-        .filter((l) => l.CollectionType !== "books") || [],
+        .filter((l) => l.CollectionType !== "books")
+        .filter((l) => l.CollectionType !== "music")
+        .filter((l) => l.CollectionType !== "playlists") || [],
     [userViews, settings?.hiddenLibraries],
   );
 
