@@ -104,6 +104,11 @@ export function Chromecast({
       <Pressable
         className='mr-4'
         onPress={() => {
+          console.log("Chromecast button tapped (iOS)", {
+            hasMediaStatus: !!mediaStatus,
+            currentItemId: mediaStatus?.currentItemId,
+            castDevice: castDevice?.friendlyName,
+          });
           if (mediaStatus?.currentItemId) router.push("/casting-player");
           else CastContext.showCastDialog();
         }}
@@ -122,6 +127,11 @@ export function Chromecast({
         className='mr-2'
         background={false}
         onPress={() => {
+          console.log("Chromecast button tapped (Android transparent)", {
+            hasMediaStatus: !!mediaStatus,
+            currentItemId: mediaStatus?.currentItemId,
+            castDevice: castDevice?.friendlyName,
+          });
           if (mediaStatus?.currentItemId) router.push("/casting-player");
           else CastContext.showCastDialog();
         }}
@@ -136,6 +146,11 @@ export function Chromecast({
     <RoundButton
       size='large'
       onPress={() => {
+        console.log("Chromecast button tapped (Android)", {
+          hasMediaStatus: !!mediaStatus,
+          currentItemId: mediaStatus?.currentItemId,
+          castDevice: castDevice?.friendlyName,
+        });
         if (mediaStatus?.currentItemId) router.push("/casting-player");
         else CastContext.showCastDialog();
       }}
