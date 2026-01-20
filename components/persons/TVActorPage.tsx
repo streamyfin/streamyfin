@@ -20,6 +20,7 @@ import {
   Easing,
   FlatList,
   Pressable,
+  ScrollView,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -400,11 +401,14 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
       </View>
 
       {/* Main content area */}
-      <View
+      <ScrollView
         style={{
           flex: 1,
+        }}
+        contentContainerStyle={{
           paddingTop: insets.top + TOP_PADDING,
           paddingHorizontal: insets.left + HORIZONTAL_PADDING,
+          paddingBottom: 60,
         }}
       >
         {/* Top section - Actor image + Info */}
@@ -607,7 +611,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
               </Text>
             )}
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 };
