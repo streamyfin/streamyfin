@@ -129,6 +129,9 @@ export const Controls: FC<Props> = ({
   type LastModalType = "audio" | "subtitle" | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
 
+  // Track if play button should have focus (when showing controls via up/down D-pad)
+  const [focusPlayButton, setFocusPlayButton] = useState(false);
+
   // State for progress bar focus and focus guide refs
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
@@ -303,6 +306,27 @@ export const Controls: FC<Props> = ({
     }
 
     // Auto-hide after timeout
+    minimalSeekBarTimeoutRef.current = setTimeout(() => {
+      setShowMinimalSeekBar(false);
+    }, 2500);
+  }, []);
+
+  // Show minimal seek bar without auto-hide (for continuous seeking)
+  const showMinimalSeekPersistent = useCallback(() => {
+    setShowMinimalSeekBar(true);
+
+    // Clear existing timeout - don't set a new one
+    if (minimalSeekBarTimeoutRef.current) {
+      clearTimeout(minimalSeekBarTimeoutRef.current);
+      minimalSeekBarTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Start the minimal seek bar hide timeout
+  const startMinimalSeekHideTimeout = useCallback(() => {
+    if (minimalSeekBarTimeoutRef.current) {
+      clearTimeout(minimalSeekBarTimeoutRef.current);
+    }
     minimalSeekBarTimeoutRef.current = setTimeout(() => {
       setShowMinimalSeekBar(false);
     }, 2500);
@@ -513,39 +537,7 @@ export const Controls: FC<Props> = ({
     showMinimalSeek,
   ]);
 
-  // Callback for remote interactions to reset timeout
-  const handleRemoteInteraction = useCallback(() => {
-    controlsInteractionRef.current();
-  }, []);
-
-  const { isSliding: isRemoteSliding } = useRemoteControl({
-    showControls,
-    toggleControls,
-    togglePlay,
-    onBack: handleBack,
-    isProgressBarFocused,
-    onSeekLeft: handleProgressSeekLeft,
-    onSeekRight: handleProgressSeekRight,
-    onMinimalSeekLeft: handleMinimalSeekLeft,
-    onMinimalSeekRight: handleMinimalSeekRight,
-    onInteraction: handleRemoteInteraction,
-  });
-
-  const hideControls = useCallback(() => {
-    setShowControls(false);
-  }, [setShowControls]);
-
-  const { handleControlsInteraction } = useControlsTimeout({
-    showControls,
-    isSliding: isRemoteSliding,
-    episodeView: false,
-    onHideControls: hideControls,
-    timeout: TV_AUTO_HIDE_TIMEOUT,
-    disabled: false,
-  });
-
-  controlsInteractionRef.current = handleControlsInteraction;
-
+  // Continuous seeking functions (for button long-press and D-pad long-press)
   const stopContinuousSeeking = useCallback(() => {
     if (continuousSeekRef.current) {
       clearInterval(continuousSeekRef.current);
@@ -559,7 +551,10 @@ export const Controls: FC<Props> = ({
     seekBubbleTimeoutRef.current = setTimeout(() => {
       setShowSeekBubble(false);
     }, 2000);
-  }, []);
+
+    // Start minimal seekbar hide timeout (if it's showing)
+    startMinimalSeekHideTimeout();
+  }, [startMinimalSeekHideTimeout]);
 
   const startContinuousSeekForward = useCallback(() => {
     seekAccelerationRef.current = 1;
@@ -620,6 +615,65 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     updateSeekBubbleTime,
   ]);
+
+  // D-pad long press handlers - show minimal seekbar when controls are hidden
+  const handleDpadLongSeekForward = useCallback(() => {
+    if (!showControls) {
+      showMinimalSeekPersistent();
+    }
+    startContinuousSeekForward();
+  }, [showControls, showMinimalSeekPersistent, startContinuousSeekForward]);
+
+  const handleDpadLongSeekBackward = useCallback(() => {
+    if (!showControls) {
+      showMinimalSeekPersistent();
+    }
+    startContinuousSeekBackward();
+  }, [showControls, showMinimalSeekPersistent, startContinuousSeekBackward]);
+
+  // Callback for remote interactions to reset timeout
+  const handleRemoteInteraction = useCallback(() => {
+    controlsInteractionRef.current();
+  }, []);
+
+  // Callback for up/down D-pad - show controls with play button focused
+  const handleVerticalDpad = useCallback(() => {
+    setFocusPlayButton(true);
+    setShowControls(true);
+  }, [setShowControls]);
+
+  const { isSliding: isRemoteSliding } = useRemoteControl({
+    showControls,
+    toggleControls,
+    togglePlay,
+    onBack: handleBack,
+    isProgressBarFocused,
+    onSeekLeft: handleProgressSeekLeft,
+    onSeekRight: handleProgressSeekRight,
+    onMinimalSeekLeft: handleMinimalSeekLeft,
+    onMinimalSeekRight: handleMinimalSeekRight,
+    onInteraction: handleRemoteInteraction,
+    onLongSeekLeftStart: handleDpadLongSeekBackward,
+    onLongSeekRightStart: handleDpadLongSeekForward,
+    onLongSeekStop: stopContinuousSeeking,
+    onVerticalDpad: handleVerticalDpad,
+  });
+
+  const hideControls = useCallback(() => {
+    setShowControls(false);
+    setFocusPlayButton(false);
+  }, [setShowControls]);
+
+  const { handleControlsInteraction } = useControlsTimeout({
+    showControls,
+    isSliding: isRemoteSliding,
+    episodeView: false,
+    onHideControls: hideControls,
+    timeout: TV_AUTO_HIDE_TIMEOUT,
+    disabled: false,
+  });
+
+  controlsInteractionRef.current = handleControlsInteraction;
 
   const handlePlayPauseButton = useCallback(() => {
     togglePlay();
@@ -821,27 +875,12 @@ export const Controls: FC<Props> = ({
               size={28}
             />
             <TVControlButton
-              icon='play-back'
-              onPress={handleSeekBackwardButton}
-              onLongPress={startContinuousSeekBackward}
-              onPressOut={stopContinuousSeeking}
-              disabled={false}
-              size={28}
-            />
-            <TVControlButton
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
               disabled={false}
               size={36}
               refSetter={setPlayButtonRef}
-            />
-            <TVControlButton
-              icon='play-forward'
-              onPress={handleSeekForwardButton}
-              onLongPress={startContinuousSeekForward}
-              onPressOut={stopContinuousSeeking}
-              disabled={false}
-              size={28}
+              hasTVPreferredFocus={focusPlayButton && lastOpenedModal === null}
             />
             <TVControlButton
               icon='play-skip-forward'
@@ -906,7 +945,7 @@ export const Controls: FC<Props> = ({
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
-              hasTVPreferredFocus={lastOpenedModal === null}
+              hasTVPreferredFocus={lastOpenedModal === null && !focusPlayButton}
             />
           </TVFocusGuideView>
 
