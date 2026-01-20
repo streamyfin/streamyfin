@@ -6,10 +6,18 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
+import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { TVSearchBadge } from "./TVSearchBadge";
+import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
+import type {
+  MovieResult,
+  PersonResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
+import { TVJellyseerrSearchResults } from "./TVJellyseerrSearchResults";
 import { TVSearchSection } from "./TVSearchSection";
+import { TVSearchTabBadges } from "./TVSearchTabBadges";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
@@ -77,20 +85,13 @@ const TVLoadingSkeleton: React.FC = () => {
   );
 };
 
-// Example search suggestions for TV
-const exampleSearches = [
-  "Lord of the rings",
-  "Avengers",
-  "Game of Thrones",
-  "Breaking Bad",
-  "Stranger Things",
-  "The Mandalorian",
-];
+type SearchType = "Library" | "Discover";
 
 interface TVSearchPageProps {
   search: string;
   setSearch: (text: string) => void;
   debouncedSearch: string;
+  // Library search results
   movies?: BaseItemDto[];
   series?: BaseItemDto[];
   episodes?: BaseItemDto[];
@@ -103,6 +104,20 @@ interface TVSearchPageProps {
   loading: boolean;
   noResults: boolean;
   onItemPress: (item: BaseItemDto) => void;
+  // Jellyseerr/Discover props
+  searchType: SearchType;
+  setSearchType: (type: SearchType) => void;
+  showDiscover: boolean;
+  jellyseerrMovies?: MovieResult[];
+  jellyseerrTv?: TvResult[];
+  jellyseerrPersons?: PersonResult[];
+  jellyseerrLoading?: boolean;
+  jellyseerrNoResults?: boolean;
+  onJellyseerrMoviePress?: (item: MovieResult) => void;
+  onJellyseerrTvPress?: (item: TvResult) => void;
+  onJellyseerrPersonPress?: (item: PersonResult) => void;
+  // Discover sliders for empty state
+  discoverSliders?: DiscoverSlider[];
 }
 
 export const TVSearchPage: React.FC<TVSearchPageProps> = ({
@@ -121,6 +136,18 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   loading,
   noResults,
   onItemPress,
+  searchType,
+  setSearchType,
+  showDiscover,
+  jellyseerrMovies = [],
+  jellyseerrTv = [],
+  jellyseerrPersons = [],
+  jellyseerrLoading = false,
+  jellyseerrNoResults = false,
+  onJellyseerrMoviePress,
+  onJellyseerrTvPress,
+  onJellyseerrPersonPress,
+  discoverSliders,
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -177,6 +204,11 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
     t,
   ]);
 
+  const isLibraryMode = searchType === "Library";
+  const isDiscoverMode = searchType === "Discover";
+  const currentLoading = isLibraryMode ? loading : jellyseerrLoading;
+  const currentNoResults = isLibraryMode ? noResults : jellyseerrNoResults;
+
   return (
     <ScrollView
       nestedScrollEnabled
@@ -190,7 +222,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       }}
     >
       {/* Search Input */}
-      <View style={{ marginBottom: 32, marginHorizontal: SCALE_PADDING }}>
+      <View style={{ marginBottom: 24, marginHorizontal: SCALE_PADDING }}>
         <Input
           placeholder={t("search.search")}
           value={search}
@@ -201,21 +233,34 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           clearButtonMode='while-editing'
           maxLength={500}
           hasTVPreferredFocus={
-            debouncedSearch.length === 0 && sections.length === 0
+            debouncedSearch.length === 0 &&
+            sections.length === 0 &&
+            !showDiscover
           }
         />
       </View>
 
+      {/* Search Type Tab Badges */}
+      {showDiscover && (
+        <View style={{ marginHorizontal: SCALE_PADDING }}>
+          <TVSearchTabBadges
+            searchType={searchType}
+            setSearchType={setSearchType}
+            showDiscover={showDiscover}
+          />
+        </View>
+      )}
+
       {/* Loading State */}
-      {loading && (
+      {currentLoading && (
         <View style={{ gap: SECTION_GAP }}>
           <TVLoadingSkeleton />
           <TVLoadingSkeleton />
         </View>
       )}
 
-      {/* Search Results */}
-      {!loading && (
+      {/* Library Search Results */}
+      {isLibraryMode && !loading && (
         <View style={{ gap: SECTION_GAP }}>
           {sections.map((section, index) => (
             <TVSearchSection
@@ -237,8 +282,28 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         </View>
       )}
 
+      {/* Jellyseerr/Discover Search Results */}
+      {isDiscoverMode && !jellyseerrLoading && debouncedSearch.length > 0 && (
+        <TVJellyseerrSearchResults
+          movieResults={jellyseerrMovies}
+          tvResults={jellyseerrTv}
+          personResults={jellyseerrPersons}
+          loading={jellyseerrLoading}
+          noResults={jellyseerrNoResults}
+          searchQuery={debouncedSearch}
+          onMoviePress={onJellyseerrMoviePress || (() => {})}
+          onTvPress={onJellyseerrTvPress || (() => {})}
+          onPersonPress={onJellyseerrPersonPress || (() => {})}
+        />
+      )}
+
+      {/* Discover Content (when no search query in Discover mode) */}
+      {isDiscoverMode && !jellyseerrLoading && debouncedSearch.length === 0 && (
+        <TVDiscover sliders={discoverSliders} />
+      )}
+
       {/* No Results State */}
-      {!loading && noResults && debouncedSearch.length > 0 && (
+      {!currentLoading && currentNoResults && debouncedSearch.length > 0 && (
         <View style={{ alignItems: "center", paddingTop: 40 }}>
           <Text
             style={{
@@ -250,31 +315,9 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           >
             {t("search.no_results_found_for")}
           </Text>
-          <Text style={{ fontSize: 18, color: "#9334E9" }}>
+          <Text style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>
             "{debouncedSearch}"
           </Text>
-        </View>
-      )}
-
-      {/* Example Searches (when no search query) */}
-      {!loading && debouncedSearch.length === 0 && (
-        <View style={{ alignItems: "center", paddingTop: 40, gap: 16 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              gap: 12,
-              justifyContent: "center",
-            }}
-          >
-            {exampleSearches.map((example) => (
-              <TVSearchBadge
-                key={example}
-                label={example}
-                onPress={() => setSearch(example)}
-              />
-            ))}
-          </View>
         </View>
       )}
     </ScrollView>

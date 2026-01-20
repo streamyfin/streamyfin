@@ -134,6 +134,11 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - TV version uses `:tv` suffix for scripts
 - Platform checks: `Platform.isTV`, `Platform.OS === "android"` or `"ios"`
 - Some features disabled on TV (e.g., notifications, Chromecast)
+- **TV Design**: Don't use purple accent colors on TV. Use white for focused states and `expo-blur` (`BlurView`) for backgrounds/overlays.
+- **TV Typography**: Use `TVTypography` from `@/components/tv/TVTypography` for all text on TV. It provides consistent font sizes optimized for TV viewing distance.
+- **TV Button Sizing**: Ensure buttons placed next to each other have the same size for visual consistency.
+- **TV Focus Scale Padding**: Add sufficient padding around focusable items in tables/rows/columns/lists. The focus scale animation (typically 1.05x) will clip against parent containers without proper padding. Use `overflow: "visible"` on containers and add padding to prevent clipping.
+- **TV Modals**: Never use overlay/absolute-positioned modals on TV as they don't handle the back button correctly. Instead, use the navigation-based modal pattern: create a Jotai atom for state, a hook that sets the atom and calls `router.push()`, and a page file in `app/(auth)/` that reads the atom and clears it on unmount. You must also add a `Stack.Screen` entry in `app/_layout.tsx` with `presentation: "transparentModal"` and `animation: "fade"` for the modal to render correctly as an overlay. See `useTVRequestModal` + `tv-request-modal.tsx` for reference.
 
 ### TV Component Rendering Pattern
 
