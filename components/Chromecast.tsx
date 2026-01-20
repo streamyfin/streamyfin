@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import type { PlaybackProgressInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
+import { router } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
@@ -103,7 +104,7 @@ export function Chromecast({
       <Pressable
         className='mr-4'
         onPress={() => {
-          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+          if (mediaStatus?.currentItemId) router.push("/casting-player");
           else CastContext.showCastDialog();
         }}
         {...props}
@@ -121,7 +122,7 @@ export function Chromecast({
         className='mr-2'
         background={false}
         onPress={() => {
-          if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+          if (mediaStatus?.currentItemId) router.push("/casting-player");
           else CastContext.showCastDialog();
         }}
         {...props}
@@ -135,7 +136,7 @@ export function Chromecast({
     <RoundButton
       size='large'
       onPress={() => {
-        if (mediaStatus?.currentItemId) CastContext.showExpandedControls();
+        if (mediaStatus?.currentItemId) router.push("/casting-player");
         else CastContext.showCastDialog();
       }}
       {...props}
