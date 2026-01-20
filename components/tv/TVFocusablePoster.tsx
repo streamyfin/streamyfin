@@ -1,5 +1,11 @@
 import React, { useRef, useState } from "react";
-import { Animated, Easing, Pressable, type ViewStyle } from "react-native";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  View,
+  type ViewStyle,
+} from "react-native";
 
 export interface TVFocusablePosterProps {
   children: React.ReactNode;
@@ -11,6 +17,8 @@ export interface TVFocusablePosterProps {
   onFocus?: () => void;
   onBlur?: () => void;
   disabled?: boolean;
+  /** Setter function for the ref (for focus guide destinations) */
+  refSetter?: (ref: View | null) => void;
 }
 
 export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
@@ -23,6 +31,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   onFocus: onFocusProp,
   onBlur: onBlurProp,
   disabled = false,
+  refSetter,
 }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -39,6 +48,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
 
   return (
     <Pressable
+      ref={refSetter}
       onPress={onPress}
       onFocus={() => {
         setFocused(true);

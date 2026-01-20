@@ -17,9 +17,9 @@ import {
   Animated,
   Dimensions,
   Easing,
-  FlatList,
   Pressable,
   ScrollView,
+  TVFocusGuideView,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,10 +27,7 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
-import {
-  TV_EPISODE_WIDTH,
-  TVEpisodeCard,
-} from "@/components/series/TVEpisodeCard";
+import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import { TVOptionSelector } from "@/components/tv/TVOptionSelector";
 import { TVTypography } from "@/constants/TVTypography";
@@ -64,12 +61,14 @@ const TVFocusableButton: React.FC<{
   hasTVPreferredFocus?: boolean;
   disabled?: boolean;
   variant?: "primary" | "secondary";
+  refSetter?: (ref: View | null) => void;
 }> = ({
   onPress,
   children,
   hasTVPreferredFocus,
   disabled = false,
   variant = "primary",
+  refSetter,
 }) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -86,6 +85,7 @@ const TVFocusableButton: React.FC<{
 
   return (
     <Pressable
+      ref={refSetter}
       onPress={onPress}
       onFocus={() => {
         setFocused(true);
@@ -232,17 +232,21 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   // Season selector modal state
   const [isSeasonModalVisible, setIsSeasonModalVisible] = useState(false);
 
+  // Focus guide refs (using useState to trigger re-renders when refs are set)
+  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
+  const [firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+
   // ScrollView ref for page scrolling
   const mainScrollRef = useRef<ScrollView>(null);
-  // FlatList ref for scrolling back
-  const episodeListRef = useRef<FlatList<BaseItemDto>>(null);
+  // ScrollView ref for scrolling back
+  const episodeListRef = useRef<ScrollView>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 
   // Scroll back to start when episode list loses focus
   useEffect(() => {
     if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      episodeListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      episodeListRef.current?.scrollTo({ x: 0, animated: true });
       // Scroll page back to top when leaving episode section
       mainScrollRef.current?.scrollTo({ y: 0, animated: true });
     }
@@ -422,37 +426,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     }));
   }, [seasons, selectedSeasonIndex]);
 
-  // Episode list item layout
-  const getItemLayout = useCallback(
-    (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: TV_EPISODE_WIDTH + ITEM_GAP,
-      offset: (TV_EPISODE_WIDTH + ITEM_GAP) * index,
-      index,
-    }),
-    [],
-  );
-
-  // Render episode card
-  const renderEpisode = useCallback(
-    ({ item: episode }: { item: BaseItemDto; index: number }) => (
-      <View style={{ marginRight: ITEM_GAP }}>
-        <TVEpisodeCard
-          episode={episode}
-          onPress={() => handleEpisodePress(episode)}
-          onFocus={handleEpisodeFocus}
-          onBlur={handleEpisodeBlur}
-          disabled={isSeasonModalVisible}
-        />
-      </View>
-    ),
-    [
-      handleEpisodePress,
-      handleEpisodeFocus,
-      handleEpisodeBlur,
-      isSeasonModalVisible,
-    ],
-  );
-
   // Get play button text
   const playButtonText = useMemo(() => {
     if (!nextUnwatchedEpisode) return t("common.play");
@@ -574,6 +547,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 hasTVPreferredFocus={!isSeasonModalVisible}
                 disabled={isSeasonModalVisible}
                 variant='primary'
+                refSetter={setPlayButtonRef}
               >
                 <Ionicons
                   name='play'
@@ -617,24 +591,48 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             {selectedSeasonName}
           </Text>
 
-          <FlatList
+          {/* Bidirectional focus guides - stacked together above the list */}
+          {/* Downward: Play button → first episode */}
+          {firstEpisodeRef && (
+            <TVFocusGuideView
+              destinations={[firstEpisodeRef]}
+              style={{ height: 1, width: "100%" }}
+            />
+          )}
+          {/* Upward: episodes → Play button */}
+          {playButtonRef && (
+            <TVFocusGuideView
+              destinations={[playButtonRef]}
+              style={{ height: 1, width: "100%" }}
+            />
+          )}
+
+          <ScrollView
             ref={episodeListRef}
             horizontal
-            data={episodesForSeason}
-            keyExtractor={(ep) => ep.Id!}
-            renderItem={renderEpisode}
             showsHorizontalScrollIndicator={false}
-            initialNumToRender={5}
-            maxToRenderPerBatch={3}
-            windowSize={5}
-            removeClippedSubviews={false}
-            getItemLayout={getItemLayout}
             style={{ overflow: "visible" }}
             contentContainerStyle={{
               paddingVertical: SCALE_PADDING,
               paddingHorizontal: SCALE_PADDING,
+              gap: ITEM_GAP,
             }}
-            ListEmptyComponent={
+          >
+            {episodesForSeason.length > 0 ? (
+              episodesForSeason.map((episode, index) => (
+                <TVEpisodeCard
+                  key={episode.Id}
+                  episode={episode}
+                  onPress={() => handleEpisodePress(episode)}
+                  onFocus={handleEpisodeFocus}
+                  onBlur={handleEpisodeBlur}
+                  disabled={isSeasonModalVisible}
+                  // Pass refSetter to first episode for focus guide destination
+                  // Note: Do NOT use hasTVPreferredFocus on focus guide destinations
+                  refSetter={index === 0 ? setFirstEpisodeRef : undefined}
+                />
+              ))
+            ) : (
               <Text
                 style={{
                   color: "#737373",
@@ -644,8 +642,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               >
                 {t("item_card.no_episodes_for_this_season")}
               </Text>
-            }
-          />
+            )}
+          </ScrollView>
         </View>
       </ScrollView>
 
