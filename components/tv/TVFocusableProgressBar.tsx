@@ -78,13 +78,15 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
             style={[
               styles.animatedContainer,
               animatedStyle,
-              {
-                borderColor: focused ? "rgba(255,255,255,0.8)" : "transparent",
-                borderWidth: 2,
-              },
+              focused && styles.animatedContainerFocused,
             ]}
           >
-            <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressTrack,
+                focused && styles.progressTrackFocused,
+              ]}
+            >
               {cacheProgress && (
                 <ReanimatedView
                   style={[styles.cacheProgress, cacheProgressStyle]}
@@ -103,7 +105,7 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
 const styles = StyleSheet.create({
   pressableContainer: {
     // Add padding for focus scale animation to not clip
-    paddingVertical: 4,
+    paddingVertical: 8,
     paddingHorizontal: 4,
   },
   animatedContainer: {
@@ -112,11 +114,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 4,
   },
+  animatedContainerFocused: {
+    // Subtle glow effect when focused
+    shadowColor: "#fff",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+  },
   progressTrack: {
     height: PROGRESS_BAR_HEIGHT,
     backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 8,
     overflow: "hidden",
+  },
+  progressTrackFocused: {
+    // Brighter track when focused
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
   cacheProgress: {
     position: "absolute",
