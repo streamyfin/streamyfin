@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -70,7 +71,7 @@ interface Props {
   addSubtitleFile?: (path: string) => void;
 }
 
-const TV_SEEKBAR_HEIGHT = 16;
+const TV_SEEKBAR_HEIGHT = 14;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
 
 export const Controls: FC<Props> = ({
@@ -991,11 +992,11 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     color: "rgba(255,255,255,0.6)",
-    fontSize: 18,
+    fontSize: TVTypography.body,
   },
   titleText: {
     color: "#fff",
-    fontSize: 28,
+    fontSize: TVTypography.heading,
     fontWeight: "bold",
   },
   controlButtonsRow: {
@@ -1055,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: "rgba(255,255,255,0.7)",
-    fontSize: 22,
+    fontSize: TVTypography.body,
   },
   timeRight: {
     flexDirection: "column",
@@ -1063,7 +1064,7 @@ const styles = StyleSheet.create({
   },
   endsAtText: {
     color: "rgba(255,255,255,0.5)",
-    fontSize: 16,
+    fontSize: TVTypography.callout,
     marginTop: 2,
   },
   // Minimal seek bar styles
