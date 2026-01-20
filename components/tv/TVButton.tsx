@@ -11,6 +11,7 @@ export interface TVButtonProps {
   style?: ViewStyle;
   scaleAmount?: number;
   square?: boolean;
+  refSetter?: (ref: View | null) => void;
 }
 
 const getButtonStyles = (
@@ -31,10 +32,12 @@ const getButtonStyles = (
       };
     case "secondary":
       return {
-        backgroundColor: focused ? "#7c3aed" : "rgba(124, 58, 237, 0.8)",
-        shadowColor: "#a855f7",
-        borderWidth: 1,
-        borderColor: "transparent",
+        backgroundColor: focused
+          ? "rgba(255, 255, 255, 0.3)"
+          : "rgba(255, 255, 255, 0.15)",
+        shadowColor: "#fff",
+        borderWidth: 2,
+        borderColor: focused ? "#fff" : "rgba(255, 255, 255, 0.2)",
       };
     default:
       return {
@@ -55,6 +58,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
   style,
   scaleAmount = 1.05,
   square = false,
+  refSetter,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount });
@@ -63,6 +67,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
 
   return (
     <Pressable
+      ref={refSetter}
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
