@@ -13,7 +13,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, TVFocusGuideView, View } from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -25,6 +25,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
+import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -127,6 +128,11 @@ export const Controls: FC<Props> = ({
   // Track which button should have preferred focus when controls show
   type LastModalType = "audio" | "subtitle" | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
+
+  // State for progress bar focus and focus guide refs
+  const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
+  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
+  const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
 
   const audioTracks = useMemo(() => {
     return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
@@ -249,13 +255,6 @@ export const Controls: FC<Props> = ({
     // No longer needed since modals are screen-based
   }, []);
 
-  const { isSliding: isRemoteSliding } = useRemoteControl({
-    showControls,
-    toggleControls,
-    togglePlay,
-    onBack: handleBack,
-  });
-
   const handleOpenAudioSheet = useCallback(() => {
     setLastOpenedModal("audio");
     showOptions({
@@ -319,21 +318,6 @@ export const Controls: FC<Props> = ({
     [],
   );
 
-  const hideControls = useCallback(() => {
-    setShowControls(false);
-  }, [setShowControls]);
-
-  const { handleControlsInteraction } = useControlsTimeout({
-    showControls,
-    isSliding: isRemoteSliding,
-    episodeView: false,
-    onHideControls: hideControls,
-    timeout: TV_AUTO_HIDE_TIMEOUT,
-    disabled: false,
-  });
-
-  controlsInteractionRef.current = handleControlsInteraction;
-
   const handleSeekForwardButton = useCallback(() => {
     const newPosition = Math.min(max.value, progress.value + 30 * 1000);
     progress.value = newPosition;
@@ -371,6 +355,76 @@ export const Controls: FC<Props> = ({
 
     controlsInteractionRef.current();
   }, [progress, min, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+
+  // Progress bar D-pad seeking (10s increments for finer control)
+  const handleProgressSeekRight = useCallback(() => {
+    const newPosition = Math.min(max.value, progress.value + 10 * 1000);
+    progress.value = newPosition;
+    seek(newPosition);
+
+    calculateTrickplayUrl(msToTicks(newPosition));
+    updateSeekBubbleTime(newPosition);
+    setShowSeekBubble(true);
+
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+
+    controlsInteractionRef.current();
+  }, [progress, max, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+
+  const handleProgressSeekLeft = useCallback(() => {
+    const newPosition = Math.max(min.value, progress.value - 10 * 1000);
+    progress.value = newPosition;
+    seek(newPosition);
+
+    calculateTrickplayUrl(msToTicks(newPosition));
+    updateSeekBubbleTime(newPosition);
+    setShowSeekBubble(true);
+
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+
+    controlsInteractionRef.current();
+  }, [progress, min, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+
+  // Callback for remote interactions to reset timeout
+  const handleRemoteInteraction = useCallback(() => {
+    controlsInteractionRef.current();
+  }, []);
+
+  const { isSliding: isRemoteSliding } = useRemoteControl({
+    showControls,
+    toggleControls,
+    togglePlay,
+    onBack: handleBack,
+    isProgressBarFocused,
+    onSeekLeft: handleProgressSeekLeft,
+    onSeekRight: handleProgressSeekRight,
+    onInteraction: handleRemoteInteraction,
+  });
+
+  const hideControls = useCallback(() => {
+    setShowControls(false);
+  }, [setShowControls]);
+
+  const { handleControlsInteraction } = useControlsTimeout({
+    showControls,
+    isSliding: isRemoteSliding,
+    episodeView: false,
+    onHideControls: hideControls,
+    timeout: TV_AUTO_HIDE_TIMEOUT,
+    disabled: false,
+  });
+
+  controlsInteractionRef.current = handleControlsInteraction;
 
   const stopContinuousSeeking = useCallback(() => {
     if (continuousSeekRef.current) {
@@ -590,8 +644,8 @@ export const Controls: FC<Props> = ({
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
               disabled={false}
-              hasTVPreferredFocus={!false && lastOpenedModal === null}
               size={36}
+              refSetter={setPlayButtonRef}
             />
             <TVControlButton
               icon='play-forward'
@@ -639,26 +693,34 @@ export const Controls: FC<Props> = ({
             </View>
           )}
 
-          <View style={styles.progressBarContainer} pointerEvents='none'>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[
-                  styles.cacheProgress,
-                  useAnimatedStyle(() => ({
-                    width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
-                  })),
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  useAnimatedStyle(() => ({
-                    width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
-                  })),
-                ]}
-              />
-            </View>
-          </View>
+          {/* Bidirectional focus guides - stacked together per docs */}
+          {/* Downward: play button → progress bar */}
+          {progressBarRef && (
+            <TVFocusGuideView
+              destinations={[progressBarRef]}
+              style={styles.focusGuide}
+            />
+          )}
+          {/* Upward: progress bar → play button */}
+          {playButtonRef && (
+            <TVFocusGuideView
+              destinations={[playButtonRef]}
+              style={styles.focusGuide}
+            />
+          )}
+
+          {/* Progress bar with focus trapping for left/right */}
+          <TVFocusGuideView trapFocusLeft trapFocusRight>
+            <TVFocusableProgressBar
+              progress={effectiveProgress}
+              max={max}
+              cacheProgress={cacheProgress}
+              onFocus={() => setIsProgressBarFocused(true)}
+              onBlur={() => setIsProgressBarFocused(false)}
+              refSetter={setProgressBarRef}
+              hasTVPreferredFocus={lastOpenedModal === null}
+            />
+          </TVFocusGuideView>
 
           <View style={styles.timeContainer}>
             <Text style={styles.timeText}>
@@ -734,6 +796,10 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 20,
+  },
+  focusGuide: {
+    height: 1,
+    width: "100%",
   },
   progressBarContainer: {
     height: TV_SEEKBAR_HEIGHT,

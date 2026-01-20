@@ -1,6 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { FC } from "react";
-import { Pressable, Animated as RNAnimated, StyleSheet } from "react-native";
+import {
+  Pressable,
+  Animated as RNAnimated,
+  StyleSheet,
+  type View,
+} from "react-native";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVControlButtonProps {
@@ -12,6 +17,8 @@ export interface TVControlButtonProps {
   hasTVPreferredFocus?: boolean;
   size?: number;
   delayLongPress?: number;
+  /** Callback ref setter for focus guide destination pattern */
+  refSetter?: (ref: View | null) => void;
 }
 
 export const TVControlButton: FC<TVControlButtonProps> = ({
@@ -23,12 +30,14 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
   hasTVPreferredFocus,
   size = 32,
   delayLongPress = 300,
+  refSetter,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.15, duration: 120 });
 
   return (
     <Pressable
+      ref={refSetter}
       onPress={onPress}
       onLongPress={onLongPress}
       onPressOut={onPressOut}
