@@ -653,6 +653,7 @@ export const TVJellyseerrPage: React.FC = () => {
                   variant='secondary'
                   hasTVPreferredFocus={!hasJellyfinMedia}
                   refSetter={!hasJellyfinMedia ? setPlayButtonRef : undefined}
+                  scaleAmount={1.01}
                 >
                   <Ionicons
                     name='add'
