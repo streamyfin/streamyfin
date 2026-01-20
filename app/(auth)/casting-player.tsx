@@ -198,10 +198,18 @@ export default function CastingPlayerScreen() {
   }, [currentItem?.Type, nextEpisode, duration, progress]);
 
   // Redirect if not connected
-  if (!isConnected || !currentItem || !protocol) {
-    if (router.canGoBack()) {
-      router.back();
+  useEffect(() => {
+    if (!isConnected || !currentItem || !protocol) {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/(auth)/(tabs)/(home)/");
+      }
     }
+  }, [isConnected, currentItem, protocol]);
+
+  // Don't render if not connected
+  if (!isConnected || !currentItem || !protocol) {
     return null;
   }
 
