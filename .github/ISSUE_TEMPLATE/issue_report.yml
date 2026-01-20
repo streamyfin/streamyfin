@@ -77,6 +77,8 @@ body:
       label: Streamyfin Version
       description: What version of Streamyfin are you running?
       options:
+        - 0.52.0
+        - 0.51.0
         - 0.47.1
         - 0.30.2
         - older
