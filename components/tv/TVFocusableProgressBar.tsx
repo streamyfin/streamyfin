@@ -33,7 +33,7 @@ export interface TVFocusableProgressBarProps {
   style?: ViewStyle;
 }
 
-const PROGRESS_BAR_HEIGHT = 16;
+const PROGRESS_BAR_HEIGHT = 14;
 
 export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
   React.memo(
