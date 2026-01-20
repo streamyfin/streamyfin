@@ -15,6 +15,7 @@ import {
   useJellyseerr,
 } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
+import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
 import type {
   MovieResult,
@@ -35,7 +36,7 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
   const router = useRouter();
   const { jellyseerrApi, getTitle, getYear } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.08 });
+    useTVFocusAnimation({ scaleAmount: 1.05 });
 
   const posterUrl = item.posterPath
     ? jellyseerrApi?.imageProxy(item.posterPath, "w342")
@@ -43,6 +44,10 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
 
   const title = getTitle(item);
   const year = getYear(item);
+
+  const isInLibrary =
+    item.mediaInfo?.status === MediaStatus.AVAILABLE ||
+    item.mediaInfo?.status === MediaStatus.PARTIALLY_AVAILABLE;
 
   const handlePress = () => {
     router.push({
@@ -65,23 +70,21 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
         style={[
           animatedStyle,
           {
-            width: 180,
+            width: 210,
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.4 : 0,
-            shadowRadius: focused ? 12 : 0,
+            shadowOpacity: focused ? 0.6 : 0,
+            shadowRadius: focused ? 20 : 0,
           },
         ]}
       >
         <View
           style={{
-            width: 180,
-            aspectRatio: 2 / 3,
-            borderRadius: 12,
+            width: 210,
+            aspectRatio: 10 / 15,
+            borderRadius: 24,
             overflow: "hidden",
             backgroundColor: "rgba(255,255,255,0.1)",
-            borderWidth: focused ? 3 : 0,
-            borderColor: "#fff",
           }}
         >
           {posterUrl ? (
@@ -107,13 +110,30 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
               />
             </View>
           )}
+          {isInLibrary && (
+            <View
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                backgroundColor: "rgba(255,255,255,0.9)",
+                borderRadius: 14,
+                width: 28,
+                height: 28,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name='checkmark' size={18} color='black' />
+            </View>
+          )}
         </View>
         <Text
           style={{
             fontSize: TVTypography.callout,
-            color: focused ? "#fff" : "rgba(255,255,255,0.9)",
+            color: "#fff",
             fontWeight: "600",
-            marginTop: 10,
+            marginTop: 12,
           }}
           numberOfLines={2}
         >
@@ -122,10 +142,9 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
         {year && (
           <Text
             style={{
-              fontSize: 14,
-              color: focused
-                ? "rgba(255,255,255,0.7)"
-                : "rgba(255,255,255,0.5)",
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
             }}
           >
             {year}

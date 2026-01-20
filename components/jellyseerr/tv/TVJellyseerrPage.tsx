@@ -10,7 +10,6 @@ import { useTranslation } from "react-i18next";
 import {
   Animated,
   Dimensions,
-  FlatList,
   Pressable,
   ScrollView,
   TVFocusGuideView,
@@ -61,7 +60,6 @@ interface TVCastCardProps {
   };
   imageProxy: (path: string, size?: string) => string;
   onPress: () => void;
-  isFirst?: boolean;
   refSetter?: (ref: View | null) => void;
 }
 
@@ -69,7 +67,6 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
   person,
   imageProxy,
   onPress,
-  isFirst,
   refSetter,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -85,7 +82,6 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={isFirst}
     >
       <Animated.View
         style={[
@@ -174,6 +170,7 @@ interface TVSeasonCardProps {
   canRequest: boolean;
   disabled?: boolean;
   onCardFocus?: () => void;
+  refSetter?: (ref: View | null) => void;
 }
 
 const TVSeasonCard: React.FC<TVSeasonCardProps> = ({
@@ -182,6 +179,7 @@ const TVSeasonCard: React.FC<TVSeasonCardProps> = ({
   canRequest,
   disabled = false,
   onCardFocus,
+  refSetter,
 }) => {
   const { t } = useTranslation();
   const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -194,6 +192,7 @@ const TVSeasonCard: React.FC<TVSeasonCardProps> = ({
 
   return (
     <Pressable
+      ref={refSetter}
       onPress={canRequest ? onPress : undefined}
       onFocus={handleCardFocus}
       onBlur={handleBlur}
@@ -205,7 +204,8 @@ const TVSeasonCard: React.FC<TVSeasonCardProps> = ({
           animatedStyle,
           {
             minWidth: 180,
-            padding: 16,
+            paddingVertical: 18,
+            paddingHorizontal: 32,
             backgroundColor: focused
               ? "rgba(255,255,255,0.15)"
               : "rgba(255,255,255,0.08)",
@@ -221,42 +221,46 @@ const TVSeasonCard: React.FC<TVSeasonCardProps> = ({
           },
         ]}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
+        <View style={{ height: 40, justifyContent: "center" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: TVTypography.callout,
+                fontWeight: "600",
+                color: focused ? "#FFFFFF" : "rgba(255,255,255,0.9)",
+              }}
+              numberOfLines={1}
+            >
+              {t("jellyseerr.season_number", {
+                season_number: season.seasonNumber,
+              })}
+            </Text>
+            <JellyseerrStatusIcon
+              mediaStatus={season.status}
+              showRequestIcon={canRequest}
+            />
+          </View>
           <Text
             style={{
-              fontSize: TVTypography.callout,
-              fontWeight: "600",
-              color: focused ? "#FFFFFF" : "rgba(255,255,255,0.9)",
+              fontSize: 14,
+              color: focused
+                ? "rgba(255,255,255,0.8)"
+                : "rgba(255,255,255,0.5)",
+              marginTop: 4,
             }}
-            numberOfLines={1}
           >
-            {t("jellyseerr.season_number", {
-              season_number: season.seasonNumber,
+            {t("jellyseerr.number_episodes", {
+              episode_number: season.episodeCount,
             })}
           </Text>
-          <JellyseerrStatusIcon
-            mediaStatus={season.status}
-            showRequestIcon={canRequest}
-          />
         </View>
-        <Text
-          style={{
-            fontSize: 14,
-            color: focused ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.5)",
-            marginTop: 4,
-          }}
-        >
-          {t("jellyseerr.number_episodes", {
-            episode_number: season.episodeCount,
-          })}
-        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -279,9 +283,10 @@ export const TVJellyseerrPage: React.FC = () => {
 
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
   const { showRequestModal } = useTVRequestModal();
-  const [lastActionButtonRef, setLastActionButtonRef] = useState<View | null>(
-    null,
-  );
+
+  // Refs for TVFocusGuideView destinations (useState triggers re-render when set)
+  const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
+  const [firstCastCardRef, setFirstCastCardRef] = useState<View | null>(null);
 
   // Scroll control ref
   const mainScrollRef = useRef<ScrollView>(null);
@@ -757,7 +762,7 @@ export const TVJellyseerrPage: React.FC = () => {
                   onPress={handlePlay}
                   hasTVPreferredFocus
                   variant='primary'
-                  refSetter={!canRequest ? setLastActionButtonRef : undefined}
+                  refSetter={setPlayButtonRef}
                 >
                   <Ionicons
                     name='play'
@@ -777,12 +782,13 @@ export const TVJellyseerrPage: React.FC = () => {
                 </TVButton>
               )}
 
-              {canRequest && (
+              {/* Request button - only show for movies, TV series use Request All + season cards */}
+              {canRequest && mediaType === MediaType.MOVIE && (
                 <TVButton
                   onPress={handleRequest}
                   variant='secondary'
                   hasTVPreferredFocus={!hasJellyfinMedia}
-                  refSetter={setLastActionButtonRef}
+                  refSetter={!hasJellyfinMedia ? setPlayButtonRef : undefined}
                 >
                   <Ionicons
                     name='add'
@@ -801,6 +807,62 @@ export const TVJellyseerrPage: React.FC = () => {
                   </Text>
                 </TVButton>
               )}
+
+              {/* Request All button for TV series */}
+              {mediaType === MediaType.TV &&
+                seasons.filter((s) => s.seasonNumber !== 0).length > 0 &&
+                !allSeasonsAvailable && (
+                  <TVButton
+                    onPress={handleRequestAll}
+                    variant='secondary'
+                    hasTVPreferredFocus={!hasJellyfinMedia}
+                    refSetter={!hasJellyfinMedia ? setPlayButtonRef : undefined}
+                  >
+                    <View
+                      style={{
+                        height: 40,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Ionicons
+                        name='bag-add'
+                        size={20}
+                        color='#FFFFFF'
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text
+                        style={{
+                          fontSize: TVTypography.callout,
+                          fontWeight: "600",
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        {t("jellyseerr.request_all")}
+                      </Text>
+                    </View>
+                  </TVButton>
+                )}
+
+              {/* Individual season cards for TV series */}
+              {mediaType === MediaType.TV &&
+                orderBy(
+                  seasons.filter((s) => s.seasonNumber !== 0),
+                  "seasonNumber",
+                  "desc",
+                ).map((season) => {
+                  const canRequestSeason =
+                    season.status === MediaStatus.UNKNOWN;
+                  return (
+                    <TVSeasonCard
+                      key={season.id}
+                      season={season}
+                      onPress={() => handleSeasonRequest(season.seasonNumber)}
+                      canRequest={canRequestSeason}
+                      onCardFocus={handleSeasonsFocus}
+                    />
+                  );
+                })}
             </View>
 
             {/* Approve/Decline for managers */}
@@ -867,67 +929,6 @@ export const TVJellyseerrPage: React.FC = () => {
           </View>
         </View>
 
-        {/* Seasons section (TV shows only) */}
-        {mediaType === MediaType.TV &&
-          seasons.filter((s) => s.seasonNumber !== 0).length > 0 && (
-            <View style={{ marginTop: 40, marginBottom: 32 }}>
-              <Text
-                style={{
-                  fontSize: TVTypography.heading,
-                  fontWeight: "bold",
-                  color: "#FFFFFF",
-                  marginBottom: 16,
-                }}
-              >
-                {t("item_card.seasons")}
-              </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ overflow: "visible" }}
-                contentContainerStyle={{ paddingVertical: 16, gap: 16 }}
-              >
-                {!allSeasonsAvailable && (
-                  <TVButton onPress={handleRequestAll} variant='secondary'>
-                    <Ionicons
-                      name='bag-add'
-                      size={20}
-                      color='#FFFFFF'
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text
-                      style={{
-                        fontSize: TVTypography.callout,
-                        fontWeight: "600",
-                        color: "#FFFFFF",
-                      }}
-                    >
-                      {t("jellyseerr.request_all")}
-                    </Text>
-                  </TVButton>
-                )}
-                {orderBy(
-                  seasons.filter((s) => s.seasonNumber !== 0),
-                  "seasonNumber",
-                  "desc",
-                ).map((season) => {
-                  const canRequestSeason =
-                    season.status === MediaStatus.UNKNOWN;
-                  return (
-                    <TVSeasonCard
-                      key={season.id}
-                      season={season}
-                      onPress={() => handleSeasonRequest(season.seasonNumber)}
-                      canRequest={canRequestSeason}
-                      onCardFocus={handleSeasonsFocus}
-                    />
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
-
         {/* Cast section */}
         {cast.length > 0 && jellyseerrApi && (
           <View style={{ marginTop: 24 }}>
@@ -942,35 +943,51 @@ export const TVJellyseerrPage: React.FC = () => {
               {t("jellyseerr.cast")}
             </Text>
 
-            {/* Focus guide for upward navigation from cast to action buttons */}
-            {lastActionButtonRef && (
+            {/* Focus guides for bidirectional navigation - stacked together */}
+            {/* Downward: action buttons → first cast card */}
+            {firstCastCardRef && (
               <TVFocusGuideView
-                destinations={[lastActionButtonRef]}
-                style={{ height: 1, width: "100%" }}
+                destinations={[firstCastCardRef]}
+                style={{
+                  height: 1,
+                  width: SCREEN_WIDTH,
+                  marginLeft: -(insets.left + 80),
+                }}
+              />
+            )}
+            {/* Upward: cast → action buttons */}
+            {playButtonRef && (
+              <TVFocusGuideView
+                destinations={[playButtonRef]}
+                style={{
+                  height: 1,
+                  width: SCREEN_WIDTH,
+                  marginLeft: -(insets.left + 80),
+                }}
               />
             )}
 
-            <FlatList
+            <ScrollView
               horizontal
-              data={cast}
-              keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
+              style={{ overflow: "visible" }}
               contentContainerStyle={{
                 paddingVertical: 16,
                 gap: 28,
               }}
-              style={{ overflow: "visible" }}
-              renderItem={({ item, index }) => (
+            >
+              {cast.map((person, index) => (
                 <TVCastCard
-                  person={item}
+                  key={person.id}
+                  person={person}
                   imageProxy={(path, size) =>
                     jellyseerrApi.imageProxy(path, size || "w185")
                   }
-                  onPress={() => handleCastPress(item.id)}
-                  isFirst={index === 0}
+                  onPress={() => handleCastPress(person.id)}
+                  refSetter={index === 0 ? setFirstCastCardRef : undefined}
                 />
-              )}
-            />
+              ))}
+            </ScrollView>
           </View>
         )}
       </ScrollView>

@@ -20,6 +20,8 @@ interface TVEpisodeCardProps {
   onPress: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  /** Setter function for the ref (for focus guide destinations) */
+  refSetter?: (ref: View | null) => void;
 }
 
 export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
@@ -29,6 +31,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   onPress,
   onFocus,
   onBlur,
+  refSetter,
 }) => {
   const api = useAtomValue(apiAtom);
 
@@ -71,6 +74,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
         disabled={disabled}
         onFocus={onFocus}
         onBlur={onBlur}
+        refSetter={refSetter}
       >
         <View
           style={{
