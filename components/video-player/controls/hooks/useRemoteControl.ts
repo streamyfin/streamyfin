@@ -29,6 +29,10 @@ interface UseRemoteControlProps {
   onSeekLeft?: () => void;
   /** Callback for seeking right when progress bar is focused */
   onSeekRight?: () => void;
+  /** Callback for seeking left when controls are hidden (minimal seek mode) */
+  onMinimalSeekLeft?: () => void;
+  /** Callback for seeking right when controls are hidden (minimal seek mode) */
+  onMinimalSeekRight?: () => void;
   /** Callback for any interaction that should reset the controls timeout */
   onInteraction?: () => void;
   // Legacy props - kept for backwards compatibility with mobile Controls.tsx
@@ -60,6 +64,8 @@ export function useRemoteControl({
   isProgressBarFocused,
   onSeekLeft,
   onSeekRight,
+  onMinimalSeekLeft,
+  onMinimalSeekRight,
   onInteraction,
 }: UseRemoteControlProps) {
   // Keep these for backward compatibility with the component
@@ -90,7 +96,23 @@ export function useRemoteControl({
       return;
     }
 
-    // Handle left/right D-pad seeking when progress bar is focused
+    // Handle left/right D-pad - check controls hidden state FIRST
+    if (!showControls) {
+      // Minimal seek mode when controls are hidden
+      if (evt.eventType === "left" && onMinimalSeekLeft) {
+        onMinimalSeekLeft();
+        return;
+      }
+      if (evt.eventType === "right" && onMinimalSeekRight) {
+        onMinimalSeekRight();
+        return;
+      }
+      // For other D-pad presses, show full controls
+      toggleControls();
+      return;
+    }
+
+    // Controls are showing - handle seeking when progress bar is focused
     if (isProgressBarFocused) {
       if (evt.eventType === "left" && onSeekLeft) {
         onSeekLeft();
@@ -102,13 +124,8 @@ export function useRemoteControl({
       }
     }
 
-    // Show controls on any D-pad press, or reset timeout if already showing
-    if (!showControls) {
-      toggleControls();
-    } else {
-      // Reset the timeout on any D-pad navigation when controls are showing
-      onInteraction?.();
-    }
+    // Reset the timeout on any D-pad navigation when controls are showing
+    onInteraction?.();
   });
 
   return {

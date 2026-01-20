@@ -134,6 +134,13 @@ export const Controls: FC<Props> = ({
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
   const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
 
+  // Minimal seek bar state (shows only progress bar when seeking while controls hidden)
+  const [showMinimalSeekBar, setShowMinimalSeekBar] = useState(false);
+  const minimalSeekBarOpacity = useSharedValue(0);
+  const minimalSeekBarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
   const audioTracks = useMemo(() => {
     return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
   }, [mediaSource]);
@@ -200,6 +207,22 @@ export const Controls: FC<Props> = ({
     transform: [{ translateY: bottomTranslateY.value }],
   }));
 
+  // Minimal seek bar animation
+  useEffect(() => {
+    const animationConfig = {
+      duration: 200,
+      easing: Easing.out(Easing.quad),
+    };
+    minimalSeekBarOpacity.value = withTiming(
+      showMinimalSeekBar ? 1 : 0,
+      animationConfig,
+    );
+  }, [showMinimalSeekBar, minimalSeekBarOpacity]);
+
+  const minimalSeekBarAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: minimalSeekBarOpacity.value,
+  }));
+
   useEffect(() => {
     if (item) {
       progress.value = ticksToMs(item?.UserData?.PlaybackPositionTicks);
@@ -253,6 +276,31 @@ export const Controls: FC<Props> = ({
 
   const handleBack = useCallback(() => {
     // No longer needed since modals are screen-based
+  }, []);
+
+  // Show minimal seek bar (only progress bar, no buttons)
+  const showMinimalSeek = useCallback(() => {
+    setShowMinimalSeekBar(true);
+
+    // Clear existing timeout
+    if (minimalSeekBarTimeoutRef.current) {
+      clearTimeout(minimalSeekBarTimeoutRef.current);
+    }
+
+    // Auto-hide after timeout
+    minimalSeekBarTimeoutRef.current = setTimeout(() => {
+      setShowMinimalSeekBar(false);
+    }, 2500);
+  }, []);
+
+  // Reset minimal seek bar timeout (call on each seek action)
+  const _resetMinimalSeekTimeout = useCallback(() => {
+    if (minimalSeekBarTimeoutRef.current) {
+      clearTimeout(minimalSeekBarTimeoutRef.current);
+    }
+    minimalSeekBarTimeoutRef.current = setTimeout(() => {
+      setShowMinimalSeekBar(false);
+    }, 2500);
   }, []);
 
   const handleOpenAudioSheet = useCallback(() => {
@@ -395,6 +443,61 @@ export const Controls: FC<Props> = ({
     controlsInteractionRef.current();
   }, [progress, min, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
 
+  // Minimal seek mode handlers (only show progress bar, not full controls)
+  const handleMinimalSeekRight = useCallback(() => {
+    const newPosition = Math.min(max.value, progress.value + 10 * 1000);
+    progress.value = newPosition;
+    seek(newPosition);
+
+    calculateTrickplayUrl(msToTicks(newPosition));
+    updateSeekBubbleTime(newPosition);
+    setShowSeekBubble(true);
+
+    // Show minimal seek bar and reset its timeout
+    showMinimalSeek();
+
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+  }, [
+    progress,
+    max,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    showMinimalSeek,
+  ]);
+
+  const handleMinimalSeekLeft = useCallback(() => {
+    const newPosition = Math.max(min.value, progress.value - 10 * 1000);
+    progress.value = newPosition;
+    seek(newPosition);
+
+    calculateTrickplayUrl(msToTicks(newPosition));
+    updateSeekBubbleTime(newPosition);
+    setShowSeekBubble(true);
+
+    // Show minimal seek bar and reset its timeout
+    showMinimalSeek();
+
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+  }, [
+    progress,
+    min,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    showMinimalSeek,
+  ]);
+
   // Callback for remote interactions to reset timeout
   const handleRemoteInteraction = useCallback(() => {
     controlsInteractionRef.current();
@@ -408,6 +511,8 @@ export const Controls: FC<Props> = ({
     isProgressBarFocused,
     onSeekLeft: handleProgressSeekLeft,
     onSeekRight: handleProgressSeekRight,
+    onMinimalSeekLeft: handleMinimalSeekLeft,
+    onMinimalSeekRight: handleMinimalSeekRight,
     onInteraction: handleRemoteInteraction,
   });
 
@@ -597,6 +702,63 @@ export const Controls: FC<Props> = ({
           onFinish={handleAutoPlayFinish}
         />
       )}
+
+      {/* Minimal seek bar - shows only progress bar when seeking while controls hidden */}
+      <Animated.View
+        style={[styles.minimalSeekBarContainer, minimalSeekBarAnimatedStyle]}
+        pointerEvents={showMinimalSeekBar && !showControls ? "auto" : "none"}
+      >
+        <View
+          style={[
+            styles.minimalSeekBarInner,
+            {
+              paddingRight: Math.max(insets.right, 48),
+              paddingLeft: Math.max(insets.left, 48),
+              paddingBottom: Math.max(insets.bottom, 24),
+            },
+          ]}
+        >
+          {showSeekBubble && (
+            <View style={styles.minimalTrickplayContainer}>
+              <TrickplayBubble
+                trickPlayUrl={trickPlayUrl}
+                trickplayInfo={trickplayInfo}
+                time={seekBubbleTime}
+              />
+            </View>
+          )}
+
+          <View style={styles.minimalProgressContainer}>
+            <View style={styles.progressTrack}>
+              <Animated.View
+                style={[
+                  styles.cacheProgress,
+                  useAnimatedStyle(() => ({
+                    width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
+                  })),
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  useAnimatedStyle(() => ({
+                    width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
+                  })),
+                ]}
+              />
+            </View>
+          </View>
+
+          <View style={styles.minimalTimeContainer}>
+            <Text style={styles.timeText}>
+              {formatTimeString(currentTime, "ms")}
+            </Text>
+            <Text style={styles.timeText}>
+              -{formatTimeString(remainingTime, "ms")}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
 
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
@@ -846,5 +1008,30 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     fontSize: 16,
     marginTop: 2,
+  },
+  // Minimal seek bar styles
+  minimalSeekBarContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 5,
+  },
+  minimalSeekBarInner: {
+    flexDirection: "column",
+  },
+  minimalTrickplayContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  minimalProgressContainer: {
+    height: TV_SEEKBAR_HEIGHT,
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  minimalTimeContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
 });
