@@ -23,6 +23,14 @@ interface UseRemoteControlProps {
   disableSeeking?: boolean;
   /** Callback for back/menu button press (tvOS: menu, Android TV: back) */
   onBack?: () => void;
+  /** Whether the progress bar currently has focus */
+  isProgressBarFocused?: boolean;
+  /** Callback for seeking left when progress bar is focused */
+  onSeekLeft?: () => void;
+  /** Callback for seeking right when progress bar is focused */
+  onSeekRight?: () => void;
+  /** Callback for any interaction that should reset the controls timeout */
+  onInteraction?: () => void;
   // Legacy props - kept for backwards compatibility with mobile Controls.tsx
   // These are ignored in the simplified implementation
   progress?: SharedValue<number>;
@@ -49,6 +57,10 @@ export function useRemoteControl({
   toggleControls,
   togglePlay,
   onBack,
+  isProgressBarFocused,
+  onSeekLeft,
+  onSeekRight,
+  onInteraction,
 }: UseRemoteControlProps) {
   // Keep these for backward compatibility with the component
   const remoteScrubProgress = useSharedValue<number | null>(null);
@@ -74,12 +86,28 @@ export function useRemoteControl({
       if (togglePlay) {
         togglePlay();
       }
+      onInteraction?.();
       return;
     }
 
-    // Show controls on any D-pad press
+    // Handle left/right D-pad seeking when progress bar is focused
+    if (isProgressBarFocused) {
+      if (evt.eventType === "left" && onSeekLeft) {
+        onSeekLeft();
+        return;
+      }
+      if (evt.eventType === "right" && onSeekRight) {
+        onSeekRight();
+        return;
+      }
+    }
+
+    // Show controls on any D-pad press, or reset timeout if already showing
     if (!showControls) {
       toggleControls();
+    } else {
+      // Reset the timeout on any D-pad navigation when controls are showing
+      onInteraction?.();
     }
   });
 
