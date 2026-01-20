@@ -58,7 +58,7 @@ export const TVButton: React.FC<TVButtonProps> = ({
   hasTVPreferredFocus = false,
   disabled = false,
   style,
-  scaleAmount = 1.05,
+  scaleAmount = 1.04,
   square = false,
   refSetter,
   nextFocusDown,
