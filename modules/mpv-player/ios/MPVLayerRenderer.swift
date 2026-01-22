@@ -30,8 +30,11 @@ final class MPVLayerRenderer {
     }
     
     private let displayLayer: AVSampleBufferDisplayLayer
-    private let queue = DispatchQueue(label: "mpv.avfoundation", qos: .userInitiated)
+    private let queue: DispatchQueue
     private let stateQueue = DispatchQueue(label: "mpv.avfoundation.state", attributes: .concurrent)
+
+    // Key to identify if we're on the mpv queue (to avoid deadlock in stop())
+    private static let queueKey = DispatchSpecificKey<Bool>()
     
     private var mpv: OpaquePointer?
     
@@ -42,8 +45,18 @@ final class MPVLayerRenderer {
     private var initialSubtitleId: Int?
     private var initialAudioId: Int?
     
-    private var isRunning = false
-    private var isStopping = false
+    private var _isRunning = false
+    private var _isStopping = false
+
+    private var isRunning: Bool {
+        get { stateQueue.sync { _isRunning } }
+        set { stateQueue.async(flags: .barrier) { self._isRunning = newValue } }
+    }
+
+    private var isStopping: Bool {
+        get { stateQueue.sync { _isStopping } }
+        set { stateQueue.sync(flags: .barrier) { _isStopping = newValue } }  // Must be sync for stop() to work
+    }
     
     // KVO observation for display layer status
     private var statusObservation: NSKeyValueObservation?
@@ -116,6 +129,8 @@ final class MPVLayerRenderer {
     
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
+        self.queue = DispatchQueue(label: "mpv.avfoundation", qos: .userInitiated)
+        queue.setSpecific(key: Self.queueKey, value: true)
         observeDisplayLayerStatus()
     }
     
@@ -176,10 +191,16 @@ final class MPVLayerRenderer {
         // Use AVFoundation video output - required for PiP support
         checkError(mpv_set_option_string(handle, "vo", "avfoundation"))
 
-        // Enable composite OSD mode - renders subtitles directly onto video frames using GPU
-        // This is better for PiP as subtitles are baked into the video
-        // NOTE: Must be set BEFORE the #if targetEnvironment check or tvOS will freeze on player exit
+        // Composite OSD mode - renders subtitles directly onto video frames using GPU
+        // CRITICAL: This option MUST be set immediately after vo=avfoundation, before hwdec options.
+        // On tvOS, moving this elsewhere causes the app to freeze when exiting the player.
+        // - iOS: "yes" for PiP subtitle support (subtitles baked into video)
+        // - tvOS: "no" to prevent gray tint + frame drops with subtitles
+        #if os(tvOS)
+        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "no"))
+        #else
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
+        #endif
 
         // Hardware decoding with VideoToolbox
         // On simulator, use software decoding since VideoToolbox is not available
@@ -225,19 +246,41 @@ final class MPVLayerRenderer {
         if !isRunning, mpv == nil { return }
         isRunning = false
         isStopping = true
-        
+
         // Stop observing display layer status
         statusObservation?.invalidate()
         statusObservation = nil
-        
-        queue.sync { [weak self] in
-            guard let self, let handle = self.mpv else { return }
-            
+
+        // Clear wakeup callback first to stop event processing
+        if let handle = mpv {
             mpv_set_wakeup_callback(handle, nil, nil)
-            mpv_terminate_destroy(handle)
-            self.mpv = nil
+
+            // Send quit command and drain events on the mpv queue
+            queue.sync { [weak self] in
+                guard let self, let handle = self.mpv else { return }
+                self.commandSync(handle, ["quit"])
+
+                // Drain any remaining events after quit
+                var drainCount = 0
+                let maxDrain = 100
+                while drainCount < maxDrain, let event = mpv_wait_event(handle, 0.1)?.pointee {
+                    if event.event_id == MPV_EVENT_NONE || event.event_id == MPV_EVENT_SHUTDOWN {
+                        break
+                    }
+                    drainCount += 1
+                }
+            }
+
+            // Call mpv_terminate_destroy on a background thread to avoid blocking main
+            // mpv_terminate_destroy may need main thread for AVFoundation cleanup,
+            // so we can't call it while blocking main with queue.sync
+            let handleToDestroy = handle
+            mpv = nil  // Clear immediately so nothing else uses it
+            DispatchQueue.global(qos: .userInitiated).async {
+                mpv_terminate_destroy(handleToDestroy)
+            }
         }
-        
+
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             if #available(iOS 18.0, tvOS 17.0, *) {
@@ -246,7 +289,7 @@ final class MPVLayerRenderer {
                 self.displayLayer.flushAndRemoveImage()
             }
         }
-        
+
         isStopping = false
     }
     
@@ -402,7 +445,7 @@ final class MPVLayerRenderer {
     private func processEvents() {
         queue.async { [weak self] in
             guard let self else { return }
-            
+
             while self.mpv != nil && !self.isStopping {
                 guard let handle = self.mpv,
                       let eventPointer = mpv_wait_event(handle, 0) else { return }
