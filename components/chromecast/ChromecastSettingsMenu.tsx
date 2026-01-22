@@ -95,9 +95,8 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
     <Modal
       visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
+      presentationStyle='formSheet'
       onRequestClose={onClose}
-      transparent
     >
       <Pressable
         style={{
@@ -172,16 +171,17 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                       )}
                     </View>
                     {selectedMediaSource?.id === source.id && (
-                      <Ionicons name='checkmark' size={20} color='#e50914' />
+                      <Ionicons name='checkmark' size={20} color='#a855f7' />
                     )}
                   </Pressable>
                 ))}
               </View>
             )}
 
-            {/* Audio Tracks */}
-            {renderSectionHeader("Audio", "musical-notes", "audio")}
-            {expandedSection === "audio" && (
+            {/* Audio Tracks - only show if more than one track */}
+            {audioTracks.length > 1 &&
+              renderSectionHeader("Audio", "musical-notes", "audio")}
+            {audioTracks.length > 1 && expandedSection === "audio" && (
               <View style={{ paddingVertical: 8 }}>
                 {audioTracks.map((track) => (
                   <Pressable
@@ -214,16 +214,17 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                       )}
                     </View>
                     {selectedAudioTrack?.index === track.index && (
-                      <Ionicons name='checkmark' size={20} color='#e50914' />
+                      <Ionicons name='checkmark' size={20} color='#a855f7' />
                     )}
                   </Pressable>
                 ))}
               </View>
             )}
 
-            {/* Subtitle Tracks */}
-            {renderSectionHeader("Subtitles", "text", "subtitles")}
-            {expandedSection === "subtitles" && (
+            {/* Subtitle Tracks - only show if subtitles available */}
+            {subtitleTracks.length > 0 &&
+              renderSectionHeader("Subtitles", "text", "subtitles")}
+            {subtitleTracks.length > 0 && expandedSection === "subtitles" && (
               <View style={{ paddingVertical: 8 }}>
                 <Pressable
                   onPress={() => {
@@ -243,7 +244,7 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                 >
                   <Text style={{ color: "white", fontSize: 15 }}>None</Text>
                   {selectedSubtitleTrack === null && (
-                    <Ionicons name='checkmark' size={20} color='#e50914' />
+                    <Ionicons name='checkmark' size={20} color='#a855f7' />
                   )}
                 </Pressable>
                 {subtitleTracks.map((track) => (
@@ -278,7 +279,7 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                       )}
                     </View>
                     {selectedSubtitleTrack?.index === track.index && (
-                      <Ionicons name='checkmark' size={20} color='#e50914' />
+                      <Ionicons name='checkmark' size={20} color='#a855f7' />
                     )}
                   </Pressable>
                 ))}
@@ -309,7 +310,7 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                       {speed === 1 ? "Normal" : `${speed}x`}
                     </Text>
                     {playbackSpeed === speed && (
-                      <Ionicons name='checkmark' size={20} color='#e50914' />
+                      <Ionicons name='checkmark' size={20} color='#a855f7' />
                     )}
                   </Pressable>
                 ))}
@@ -343,7 +344,7 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                   width: 50,
                   height: 30,
                   borderRadius: 15,
-                  backgroundColor: showTechnicalInfo ? "#e50914" : "#333",
+                  backgroundColor: showTechnicalInfo ? "#a855f7" : "#333",
                   justifyContent: "center",
                   alignItems: showTechnicalInfo ? "flex-end" : "flex-start",
                   padding: 2,

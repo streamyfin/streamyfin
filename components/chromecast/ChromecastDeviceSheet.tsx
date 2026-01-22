@@ -4,7 +4,7 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import type { Device } from "react-native-google-cast";
@@ -19,6 +19,7 @@ interface ChromecastDeviceSheetProps {
   onDisconnect: () => Promise<void>;
   volume?: number;
   onVolumeChange?: (volume: number) => Promise<void>;
+  showTechnicalInfo?: boolean;
 }
 
 export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
@@ -28,10 +29,16 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   onDisconnect,
   volume = 0.5,
   onVolumeChange,
+  showTechnicalInfo = false,
 }) => {
   const insets = useSafeAreaInsets();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const volumeValue = useSharedValue(volume * 100);
+
+  // Sync volume slider with prop changes
+  useEffect(() => {
+    volumeValue.value = volume * 100;
+  }, [volume, volumeValue]);
 
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
@@ -55,9 +62,8 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
     <Modal
       visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
+      presentationStyle='formSheet'
       onRequestClose={onClose}
-      transparent
     >
       <Pressable
         style={{
@@ -90,7 +96,7 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
             >
-              <Ionicons name='tv' size={24} color='#e50914' />
+              <Ionicons name='tv' size={24} color='#a855f7' />
               <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
                 Chromecast
               </Text>
@@ -111,7 +117,7 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
               </Text>
             </View>
 
-            {device?.deviceId && (
+            {device?.deviceId && showTechnicalInfo && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={{ color: "#999", fontSize: 12, marginBottom: 4 }}>
                   Device ID
@@ -153,8 +159,8 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                     theme={{
                       disableMinTrackTintColor: "#333",
                       maximumTrackTintColor: "#333",
-                      minimumTrackTintColor: "#e50914",
-                      bubbleBackgroundColor: "#e50914",
+                      minimumTrackTintColor: "#a855f7",
+                      bubbleBackgroundColor: "#a855f7",
                     }}
                     onValueChange={(value) => {
                       volumeValue.value = value;
@@ -171,7 +177,7 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
               onPress={handleDisconnect}
               disabled={isDisconnecting}
               style={{
-                backgroundColor: "#e50914",
+                backgroundColor: "#a855f7",
                 padding: 16,
                 borderRadius: 8,
                 flexDirection: "row",
