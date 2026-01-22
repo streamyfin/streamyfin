@@ -39,6 +39,7 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { useVideoContext } from "./contexts/VideoContext";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
@@ -138,6 +139,9 @@ export const Controls: FC<Props> = ({
   // TV Subtitle Modal hook
   const { showSubtitleModal } = useTVSubtitleModal();
 
+  // Get subtitle tracks from VideoContext (with proper MPV index mapping)
+  const { subtitleTracks: videoContextSubtitleTracks } = useVideoContext();
+
   // Track which button should have preferred focus when controls show
   type LastModalType = "audio" | "subtitle" | "techInfo" | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
@@ -161,7 +165,7 @@ export const Controls: FC<Props> = ({
     return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
   }, [mediaSource]);
 
-  const subtitleTracks = useMemo(() => {
+  const _subtitleTracks = useMemo(() => {
     return (
       mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ?? []
     );
@@ -183,7 +187,7 @@ export const Controls: FC<Props> = ({
     [onAudioIndexChange],
   );
 
-  const handleSubtitleChange = useCallback(
+  const _handleSubtitleChange = useCallback(
     (index: number) => {
       onSubtitleIndexChange?.(index);
     },
@@ -374,25 +378,32 @@ export const Controls: FC<Props> = ({
 
   const handleOpenSubtitleSheet = useCallback(() => {
     setLastOpenedModal("subtitle");
+    // Filter out the "Disable" option from VideoContext tracks since the modal adds its own "None" option
+    const tracksWithoutDisable = (videoContextSubtitleTracks ?? []).filter(
+      (track) => track.index !== -1,
+    );
     showSubtitleModal({
       item,
       mediaSourceId: mediaSource?.Id,
-      subtitleTracks,
+      subtitleTracks: tracksWithoutDisable,
       currentSubtitleIndex: subtitleIndex ?? -1,
-      onSubtitleIndexChange: handleSubtitleChange,
+      onDisableSubtitles: () => {
+        // Find and call the "Disable" track's setTrack from VideoContext
+        const disableTrack = videoContextSubtitleTracks?.find(
+          (t) => t.index === -1,
+        );
+        disableTrack?.setTrack();
+      },
       onLocalSubtitleDownloaded: handleLocalSubtitleDownloaded,
-      refreshSubtitleTracks: onRefreshSubtitleTracks,
     });
     controlsInteractionRef.current();
   }, [
     showSubtitleModal,
     item,
     mediaSource?.Id,
-    subtitleTracks,
+    videoContextSubtitleTracks,
     subtitleIndex,
-    handleSubtitleChange,
     handleLocalSubtitleDownloaded,
-    onRefreshSubtitleTracks,
   ]);
 
   const handleToggleTechnicalInfo = useCallback(() => {

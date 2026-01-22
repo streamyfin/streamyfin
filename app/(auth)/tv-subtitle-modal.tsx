@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
+import type { Track } from "@/components/video-player/controls/types";
 import useRouter from "@/hooks/useAppRouter";
 import {
   type SubtitleSearchResult,
@@ -544,7 +545,7 @@ export default function TVSubtitleModal() {
   const initialSelectedTrackIndex = useMemo(() => {
     if (currentSubtitleIndex === -1) return 0;
     const trackIdx = subtitleTracks.findIndex(
-      (t) => t.Index === currentSubtitleIndex,
+      (t) => t.index === currentSubtitleIndex,
     );
     return trackIdx >= 0 ? trackIdx + 1 : 0;
   }, [subtitleTracks, currentSubtitleIndex]);
@@ -612,11 +613,11 @@ export default function TVSubtitleModal() {
   );
 
   const handleTrackSelect = useCallback(
-    (index: number) => {
-      modalState?.onSubtitleIndexChange(index);
+    (option: { setTrack?: () => void }) => {
+      option.setTrack?.();
       handleClose();
     },
-    [modalState, handleClose],
+    [handleClose],
   );
 
   const handleDownload = useCallback(
@@ -683,16 +684,17 @@ export default function TVSubtitleModal() {
       sublabel: undefined as string | undefined,
       value: -1,
       selected: currentSubtitleIndex === -1,
+      setTrack: () => modalState?.onDisableSubtitles?.(),
     };
-    const options = subtitleTracks.map((track) => ({
-      label:
-        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
-      sublabel: track.Codec?.toUpperCase(),
-      value: track.Index!,
-      selected: track.Index === currentSubtitleIndex,
+    const options = subtitleTracks.map((track: Track) => ({
+      label: track.name,
+      sublabel: undefined as string | undefined,
+      value: track.index,
+      selected: track.index === currentSubtitleIndex,
+      setTrack: track.setTrack,
     }));
     return [noneOption, ...options];
-  }, [subtitleTracks, currentSubtitleIndex, t]);
+  }, [subtitleTracks, currentSubtitleIndex, t, modalState]);
 
   if (!modalState) {
     return null;
@@ -762,7 +764,7 @@ export default function TVSubtitleModal() {
                       sublabel={option.sublabel}
                       selected={option.selected}
                       hasTVPreferredFocus={index === initialSelectedTrackIndex}
-                      onPress={() => handleTrackSelect(option.value)}
+                      onPress={() => handleTrackSelect(option)}
                     />
                   ))}
                 </ScrollView>

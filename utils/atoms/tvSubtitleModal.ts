@@ -1,18 +1,16 @@
-import type {
-  BaseItemDto,
-  MediaStream,
-} from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { atom } from "jotai";
+import type { Track } from "@/components/video-player/controls/types";
 
 export type TVSubtitleModalState = {
   item: BaseItemDto;
   mediaSourceId?: string | null;
-  subtitleTracks: MediaStream[];
+  subtitleTracks: Track[];
   currentSubtitleIndex: number;
-  onSubtitleIndexChange: (index: number) => void;
+  onDisableSubtitles?: () => void;
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
-  refreshSubtitleTracks?: () => Promise<MediaStream[]>;
+  refreshSubtitleTracks?: () => Promise<Track[]>;
 } | null;
 
 export const tvSubtitleModalAtom = atom<TVSubtitleModalState>(null);
