@@ -9,7 +9,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Dimensions, ScrollView, TVFocusGuideView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,6 +36,7 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
+import type { Track } from "@/components/video-player/controls/types";
 import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -145,13 +152,31 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return streams ?? [];
     }, [selectedOptions?.mediaSource]);
 
-    // Get available subtitle tracks
-    const subtitleTracks = useMemo(() => {
+    // Get available subtitle tracks (raw MediaStream[] for label lookup)
+    const subtitleStreams = useMemo(() => {
       const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
         (s) => s.Type === "Subtitle",
       );
       return streams ?? [];
     }, [selectedOptions?.mediaSource]);
+
+    // Store handleSubtitleChange in a ref for stable callback reference
+    const handleSubtitleChangeRef = useRef<((index: number) => void) | null>(
+      null,
+    );
+
+    // Convert MediaStream[] to Track[] for the modal (with setTrack callbacks)
+    const subtitleTracksForModal = useMemo((): Track[] => {
+      return subtitleStreams.map((stream) => ({
+        name:
+          stream.DisplayTitle ||
+          `${stream.Language || "Unknown"} (${stream.Codec})`,
+        index: stream.Index ?? -1,
+        setTrack: () => {
+          handleSubtitleChangeRef.current?.(stream.Index ?? -1);
+        },
+      }));
+    }, [subtitleStreams]);
 
     // Get available media sources
     const mediaSources = useMemo(() => {
@@ -207,6 +232,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       );
     }, []);
 
+    // Keep the ref updated with the latest callback
+    handleSubtitleChangeRef.current = handleSubtitleChange;
+
     const handleMediaSourceChange = useCallback(
       (mediaSource: MediaSourceInfo) => {
         const defaultAudio = mediaSource.MediaStreams?.find(
@@ -241,9 +269,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     }, [item?.Id, queryClient]);
 
     // Refresh subtitle tracks by fetching fresh item data from Jellyfin
-    const refreshSubtitleTracks = useCallback(async (): Promise<
-      MediaStream[]
-    > => {
+    const refreshSubtitleTracks = useCallback(async (): Promise<Track[]> => {
       if (!api || !item?.Id) return [];
 
       try {
@@ -262,12 +288,22 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             )
           : freshItem.MediaSources?.[0];
 
-        // Return subtitle tracks from the fresh data
-        return (
+        // Get subtitle streams from the fresh data
+        const streams =
           mediaSource?.MediaStreams?.filter(
             (s: MediaStream) => s.Type === "Subtitle",
-          ) ?? []
-        );
+          ) ?? [];
+
+        // Convert to Track[] with setTrack callbacks
+        return streams.map((stream) => ({
+          name:
+            stream.DisplayTitle ||
+            `${stream.Language || "Unknown"} (${stream.Codec})`,
+          index: stream.Index ?? -1,
+          setTrack: () => {
+            handleSubtitleChangeRef.current?.(stream.Index ?? -1);
+          },
+        }));
       } catch (error) {
         console.error("Failed to refresh subtitle tracks:", error);
         return [];
@@ -285,13 +321,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const selectedSubtitleLabel = useMemo(() => {
       if (selectedOptions?.subtitleIndex === -1)
         return t("item_card.subtitles.none");
-      const track = subtitleTracks.find(
+      const track = subtitleStreams.find(
         (t) => t.Index === selectedOptions?.subtitleIndex,
       );
       return (
         track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
       );
-    }, [subtitleTracks, selectedOptions?.subtitleIndex, t]);
+    }, [subtitleStreams, selectedOptions?.subtitleIndex, t]);
 
     const selectedMediaSourceLabel = useMemo(() => {
       const source = selectedOptions?.mediaSource;
@@ -353,7 +389,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     // Determine which option button is the last one (for focus guide targeting)
     const lastOptionButton = useMemo(() => {
       const hasSubtitleOption =
-        subtitleTracks.length > 0 ||
+        subtitleStreams.length > 0 ||
         selectedOptions?.subtitleIndex !== undefined;
       const hasAudioOption = audioTracks.length > 0;
       const hasMediaSourceOption = mediaSources.length > 1;
@@ -363,7 +399,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       if (hasMediaSourceOption) return "mediaSource";
       return "quality";
     }, [
-      subtitleTracks.length,
+      subtitleStreams.length,
       selectedOptions?.subtitleIndex,
       audioTracks.length,
       mediaSources.length,
@@ -651,7 +687,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 )}
 
                 {/* Subtitle selector */}
-                {(subtitleTracks.length > 0 ||
+                {(subtitleStreams.length > 0 ||
                   selectedOptions?.subtitleIndex !== undefined) && (
                   <TVOptionButton
                     ref={
@@ -665,10 +701,10 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                       showSubtitleModal({
                         item,
                         mediaSourceId: selectedOptions?.mediaSource?.Id,
-                        subtitleTracks,
+                        subtitleTracks: subtitleTracksForModal,
                         currentSubtitleIndex:
                           selectedOptions?.subtitleIndex ?? -1,
-                        onSubtitleIndexChange: handleSubtitleChange,
+                        onDisableSubtitles: () => handleSubtitleChange(-1),
                         onServerSubtitleDownloaded:
                           handleServerSubtitleDownloaded,
                         refreshSubtitleTracks,

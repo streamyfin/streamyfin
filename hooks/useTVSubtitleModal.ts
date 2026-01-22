@@ -1,8 +1,6 @@
-import type {
-  BaseItemDto,
-  MediaStream,
-} from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback } from "react";
+import type { Track } from "@/components/video-player/controls/types";
 import useRouter from "@/hooks/useAppRouter";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { store } from "@/utils/store";
@@ -10,12 +8,12 @@ import { store } from "@/utils/store";
 interface ShowSubtitleModalParams {
   item: BaseItemDto;
   mediaSourceId?: string | null;
-  subtitleTracks: MediaStream[];
+  subtitleTracks: Track[];
   currentSubtitleIndex: number;
-  onSubtitleIndexChange: (index: number) => void;
+  onDisableSubtitles?: () => void;
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
-  refreshSubtitleTracks?: () => Promise<MediaStream[]>;
+  refreshSubtitleTracks?: () => Promise<Track[]>;
 }
 
 export const useTVSubtitleModal = () => {
@@ -28,7 +26,7 @@ export const useTVSubtitleModal = () => {
         mediaSourceId: params.mediaSourceId,
         subtitleTracks: params.subtitleTracks,
         currentSubtitleIndex: params.currentSubtitleIndex,
-        onSubtitleIndexChange: params.onSubtitleIndexChange,
+        onDisableSubtitles: params.onDisableSubtitles,
         onServerSubtitleDownloaded: params.onServerSubtitleDownloaded,
         onLocalSubtitleDownloaded: params.onLocalSubtitleDownloaded,
         refreshSubtitleTracks: params.refreshSubtitleTracks,
