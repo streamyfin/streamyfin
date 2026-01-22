@@ -4,7 +4,7 @@ import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSegments } from "expo-router";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -29,12 +29,13 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
-import { TVOptionSelector } from "@/components/tv/TVOptionSelector";
 import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import {
   buildOfflineSeasons,
   getDownloadedEpisodesForSeason,
@@ -221,6 +222,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { getDownloadedItems, downloadedItems } = useDownload();
+  const { showSeasonModal } = useTVSeriesSeasonModal();
+  const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
+  const isSeasonModalVisible = seasonModalState !== null;
 
   // Season state
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
@@ -228,9 +232,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     () => seasonIndexState[item.Id ?? ""] ?? 1,
     [item.Id, seasonIndexState],
   );
-
-  // Season selector modal state
-  const [isSeasonModalVisible, setIsSeasonModalVisible] = useState(false);
 
   // Focus guide refs (using useState to trigger re-renders when refs are set)
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
@@ -405,16 +406,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     [item.Id, setSeasonIndexState],
   );
 
-  // Open season modal
-  const handleOpenSeasonModal = useCallback(() => {
-    setIsSeasonModalVisible(true);
-  }, []);
-
-  // Close season modal
-  const handleCloseSeasonModal = useCallback(() => {
-    setIsSeasonModalVisible(false);
-  }, []);
-
   // Season options for the modal
   const seasonOptions = useMemo(() => {
     return seasons.map((season: BaseItemDto) => ({
@@ -425,6 +416,23 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         season.Name === String(selectedSeasonIndex),
     }));
   }, [seasons, selectedSeasonIndex]);
+
+  // Open season modal
+  const handleOpenSeasonModal = useCallback(() => {
+    if (!item.Id) return;
+    showSeasonModal({
+      seasons: seasonOptions,
+      selectedSeasonIndex,
+      itemId: item.Id,
+      onSeasonSelect: handleSeasonSelect,
+    });
+  }, [
+    item.Id,
+    seasonOptions,
+    selectedSeasonIndex,
+    handleSeasonSelect,
+    showSeasonModal,
+  ]);
 
   // Get play button text
   const playButtonText = useMemo(() => {
@@ -646,18 +654,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           </ScrollView>
         </View>
       </ScrollView>
-
-      {/* Season selector modal */}
-      <TVOptionSelector
-        visible={isSeasonModalVisible}
-        title={t("item_card.select_season")}
-        options={seasonOptions}
-        onSelect={handleSeasonSelect}
-        onClose={handleCloseSeasonModal}
-        cancelLabel={t("common.cancel")}
-        cardWidth={180}
-        cardHeight={85}
-      />
     </View>
   );
 };
