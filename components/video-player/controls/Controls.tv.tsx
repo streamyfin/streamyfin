@@ -32,6 +32,7 @@ import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
+import type { TechnicalInfo } from "@/modules/mpv-player";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
@@ -40,6 +41,7 @@ import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { TrickplayBubble } from "./TrickplayBubble";
 import { useControlsTimeout } from "./useControlsTimeout";
 
@@ -69,6 +71,11 @@ interface Props {
     import("@jellyfin/sdk/lib/generated-client").MediaStream[]
   >;
   addSubtitleFile?: (path: string) => void;
+  showTechnicalInfo?: boolean;
+  onToggleTechnicalInfo?: () => void;
+  getTechnicalInfo?: () => Promise<TechnicalInfo>;
+  playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
+  transcodeReasons?: string[];
 }
 
 const TV_SEEKBAR_HEIGHT = 14;
@@ -97,6 +104,11 @@ export const Controls: FC<Props> = ({
   goToNextItem: goToNextItemProp,
   onRefreshSubtitleTracks,
   addSubtitleFile,
+  showTechnicalInfo,
+  onToggleTechnicalInfo,
+  getTechnicalInfo,
+  playMethod,
+  transcodeReasons,
 }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -127,7 +139,7 @@ export const Controls: FC<Props> = ({
   const { showSubtitleModal } = useTVSubtitleModal();
 
   // Track which button should have preferred focus when controls show
-  type LastModalType = "audio" | "subtitle" | null;
+  type LastModalType = "audio" | "subtitle" | "techInfo" | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
 
   // Track if play button should have focus (when showing controls via up/down D-pad)
@@ -382,6 +394,12 @@ export const Controls: FC<Props> = ({
     handleLocalSubtitleDownloaded,
     onRefreshSubtitleTracks,
   ]);
+
+  const handleToggleTechnicalInfo = useCallback(() => {
+    setLastOpenedModal("techInfo");
+    onToggleTechnicalInfo?.();
+    controlsInteractionRef.current();
+  }, [onToggleTechnicalInfo]);
 
   const effectiveProgress = useSharedValue(0);
 
@@ -763,6 +781,16 @@ export const Controls: FC<Props> = ({
         pointerEvents='none'
       />
 
+      {getTechnicalInfo && (
+        <TechnicalInfoOverlay
+          showControls={showControls}
+          visible={showTechnicalInfo ?? false}
+          getTechnicalInfo={getTechnicalInfo}
+          playMethod={playMethod}
+          transcodeReasons={transcodeReasons}
+        />
+      )}
+
       {nextItem && (
         <TVNextEpisodeCountdown
           nextItem={nextItem}
@@ -909,6 +937,16 @@ export const Controls: FC<Props> = ({
               hasTVPreferredFocus={!false && lastOpenedModal === "subtitle"}
               size={24}
             />
+
+            {getTechnicalInfo && (
+              <TVControlButton
+                icon='information-circle'
+                onPress={handleToggleTechnicalInfo}
+                disabled={false}
+                hasTVPreferredFocus={!false && lastOpenedModal === "techInfo"}
+                size={24}
+              />
+            )}
           </View>
 
           {showSeekBubble && (

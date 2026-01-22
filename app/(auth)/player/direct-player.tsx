@@ -1175,6 +1175,11 @@ export default function page() {
                   goToNextItem={goToNextItem}
                   onRefreshSubtitleTracks={handleRefreshSubtitleTracks}
                   addSubtitleFile={addSubtitleFile}
+                  showTechnicalInfo={showTechnicalInfo}
+                  onToggleTechnicalInfo={handleToggleTechnicalInfo}
+                  getTechnicalInfo={getTechnicalInfo}
+                  playMethod={playMethod}
+                  transcodeReasons={transcodeReasons}
                 />
               ) : (
                 <Controls
