@@ -139,6 +139,7 @@
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
       ["./plugins/withTVOSAppIcon.js"],
+      ["./plugins/withTVXcodeEnv.js"],
       [
         "./plugins/withGitPod.js",
         {
