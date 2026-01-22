@@ -25,3 +25,9 @@ This file is auto-imported into CLAUDE.md and loaded at the start of each sessio
 - **Mark as played flow**: The "mark as played" button uses `PlayedStatus` component → `useMarkAsPlayed` hook → `usePlaybackManager.markItemPlayed()`. The hook does optimistic updates via `setQueriesData` before calling the API. Located in `components/PlayedStatus.tsx` and `hooks/useMarkAsPlayed.ts`. _(2026-01-10)_
 
 - **Stack screen header configuration**: Sub-pages under `(home)` need explicit `Stack.Screen` entries in `app/(auth)/(tabs)/(home)/_layout.tsx` with `headerTransparent: Platform.OS === "ios"`, `headerBlurEffect: "none"`, and a back button. Without this, pages show with wrong header styling. _(2026-01-10)_
+
+- **MPV tvOS player exit freeze**: On tvOS, `mpv_terminate_destroy` can deadlock if called while blocking the main thread (e.g., via `queue.sync`). The fix is to run `mpv_terminate_destroy` on `DispatchQueue.global()` asynchronously, allowing it to access main thread for AVFoundation/GPU cleanup. Send `quit` command and drain events first. Located in `modules/mpv-player/ios/MPVLayerRenderer.swift`. _(2026-01-22)_
+
+- **MPV avfoundation-composite-osd ordering**: On tvOS, the `avfoundation-composite-osd` option MUST be set immediately after `vo=avfoundation`, before any `hwdec` options. Skipping or reordering this causes the app to freeze when exiting the player. Set to "no" on tvOS (prevents gray tint), "yes" on iOS (for PiP subtitle support). _(2026-01-22)_
+
+- **Thread-safe state for stop flags**: When using flags like `isStopping` that control loop termination across threads, the setter must be synchronous (`stateQueue.sync`) not async, otherwise the value may not be visible to other threads in time. _(2026-01-22)_
