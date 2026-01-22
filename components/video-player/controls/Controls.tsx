@@ -481,6 +481,7 @@ export const Controls: FC<Props> = ({
               getTechnicalInfo={getTechnicalInfo}
               playMethod={playMethod}
               transcodeReasons={transcodeReasons}
+              mediaSource={mediaSource}
             />
           )}
           <Animated.View
