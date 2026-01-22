@@ -550,6 +550,7 @@ export const Home = () => {
             color='black'
             onPress={retryCheck}
             justify='center'
+            className='px-4'
             iconRight={
               retryLoading ? null : (
                 <Ionicons name='refresh' size={24} color='white' />
