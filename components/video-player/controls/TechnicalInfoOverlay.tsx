@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TVTypography } from "@/constants/TVTypography";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { useSettings } from "@/utils/atoms/settings";
 import { HEADER_LAYOUT } from "./constants";
@@ -121,7 +122,7 @@ const formatTranscodeReason = (reason: string): string => {
 
 export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
   ({
-    showControls,
+    showControls: _showControls,
     visible,
     getTechnicalInfo,
     playMethod,
@@ -168,64 +169,64 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
       opacity: opacity.value,
     }));
 
-    // Hide on TV platforms
-    if (Platform.isTV) return null;
-
     // Don't render if not visible
     if (!visible) return null;
 
+    // TV-specific styles
+    const containerStyle = Platform.isTV
+      ? {
+          top: Math.max(insets.top, 48) + 20,
+          left: Math.max(insets.left, 48) + 20,
+        }
+      : {
+          top:
+            (settings?.safeAreaInControlsEnabled ?? true)
+              ? insets.top + HEADER_LAYOUT.CONTAINER_PADDING + 4
+              : HEADER_LAYOUT.CONTAINER_PADDING + 4,
+          left:
+            (settings?.safeAreaInControlsEnabled ?? true)
+              ? insets.left + HEADER_LAYOUT.CONTAINER_PADDING + 20
+              : HEADER_LAYOUT.CONTAINER_PADDING + 20,
+        };
+
+    const textStyle = Platform.isTV ? styles.infoTextTV : styles.infoText;
+    const reasonStyle = Platform.isTV ? styles.reasonTextTV : styles.reasonText;
+    const boxStyle = Platform.isTV ? styles.infoBoxTV : styles.infoBox;
+
     return (
       <Animated.View
-        style={[
-          styles.container,
-          animatedStyle,
-          {
-            top:
-              (settings?.safeAreaInControlsEnabled ?? true)
-                ? insets.top + HEADER_LAYOUT.CONTAINER_PADDING + 4
-                : HEADER_LAYOUT.CONTAINER_PADDING + 4,
-            left:
-              (settings?.safeAreaInControlsEnabled ?? true)
-                ? insets.left + HEADER_LAYOUT.CONTAINER_PADDING + 20
-                : HEADER_LAYOUT.CONTAINER_PADDING + 20,
-          },
-        ]}
+        style={[styles.container, animatedStyle, containerStyle]}
         pointerEvents='none'
       >
-        <View style={styles.infoBox}>
+        <View style={boxStyle}>
           {playMethod && (
             <Text
-              style={[
-                styles.infoText,
-                { color: getPlayMethodColor(playMethod) },
-              ]}
+              style={[textStyle, { color: getPlayMethodColor(playMethod) }]}
             >
               {getPlayMethodLabel(playMethod)}
             </Text>
           )}
           {transcodeReasons && transcodeReasons.length > 0 && (
-            <Text style={[styles.infoText, styles.reasonText]}>
+            <Text style={[textStyle, reasonStyle]}>
               {transcodeReasons.map(formatTranscodeReason).join(", ")}
             </Text>
           )}
           {info?.videoWidth && info?.videoHeight && (
-            <Text style={styles.infoText}>
+            <Text style={textStyle}>
               {info.videoWidth}x{info.videoHeight}
             </Text>
           )}
           {info?.videoCodec && (
-            <Text style={styles.infoText}>
+            <Text style={textStyle}>
               Video: {formatCodec(info.videoCodec)}
               {info.fps ? ` @ ${formatFps(info.fps)} fps` : ""}
             </Text>
           )}
           {info?.audioCodec && (
-            <Text style={styles.infoText}>
-              Audio: {formatCodec(info.audioCodec)}
-            </Text>
+            <Text style={textStyle}>Audio: {formatCodec(info.audioCodec)}</Text>
           )}
           {(info?.videoBitrate || info?.audioBitrate) && (
-            <Text style={styles.infoText}>
+            <Text style={textStyle}>
               Bitrate:{" "}
               {info.videoBitrate
                 ? formatBitrate(info.videoBitrate)
@@ -235,18 +236,16 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
             </Text>
           )}
           {info?.cacheSeconds !== undefined && (
-            <Text style={styles.infoText}>
+            <Text style={textStyle}>
               Buffer: {info.cacheSeconds.toFixed(1)}s
             </Text>
           )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (
-            <Text style={[styles.infoText, styles.warningText]}>
+            <Text style={[textStyle, styles.warningText]}>
               Dropped: {info.droppedFrames} frames
             </Text>
           )}
-          {!info && !playMethod && (
-            <Text style={styles.infoText}>Loading...</Text>
-          )}
+          {!info && !playMethod && <Text style={textStyle}>Loading...</Text>}
         </View>
       </Animated.View>
     );
@@ -267,11 +266,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minWidth: 150,
   },
+  infoBoxTV: {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    minWidth: 250,
+  },
   infoText: {
     color: "white",
     fontSize: 12,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     lineHeight: 18,
+  },
+  infoTextTV: {
+    color: "white",
+    fontSize: TVTypography.body,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    lineHeight: TVTypography.body * 1.5,
   },
   warningText: {
     color: "#ff9800",
@@ -279,5 +291,9 @@ const styles = StyleSheet.create({
   reasonText: {
     color: "#fbbf24",
     fontSize: 10,
+  },
+  reasonTextTV: {
+    color: "#fbbf24",
+    fontSize: TVTypography.callout,
   },
 });
