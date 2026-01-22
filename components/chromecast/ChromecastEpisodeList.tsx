@@ -41,7 +41,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
         style={{
           flexDirection: "row",
           padding: 12,
-          backgroundColor: isCurrentEpisode ? "#e50914" : "transparent",
+          backgroundColor: isCurrentEpisode ? "#a855f7" : "transparent",
           borderRadius: 8,
           marginBottom: 8,
         }}
@@ -131,7 +131,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
     <Modal
       visible={visible}
       animationType='slide'
-      presentationStyle='pageSheet'
+      presentationStyle='formSheet'
       onRequestClose={onClose}
     >
       <View

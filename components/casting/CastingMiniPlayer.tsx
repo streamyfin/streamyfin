@@ -47,7 +47,7 @@ export const CastingMiniPlayer: React.FC = () => {
   );
 
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
-  const protocolColor = protocol === "chromecast" ? "#F9AB00" : "#666"; // Google yellow
+  const protocolColor = "#a855f7"; // Streamyfin purple
 
   const handlePress = () => {
     router.push("/casting-player");

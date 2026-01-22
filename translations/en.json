@@ -49,6 +49,21 @@
     "downloaded_file_no": "No",
     "downloaded_file_cancel": "Cancel"
   },
+  "casting_player": {
+    "buffering": "Buffering...",
+    "episodes": "Episodes",
+    "favorite": "Favorite",
+    "next": "Next",
+    "previous": "Previous",
+    "end_playback": "End Playback",
+    "season_episode_format": "Season {{season}} • Episode {{episode}}",
+    "connection_quality": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "fair": "Fair",
+      "poor": "Poor"
+    }
+  },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
     "server_url_placeholder": "http(s)://your-server.com",

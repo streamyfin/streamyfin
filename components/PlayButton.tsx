@@ -261,7 +261,7 @@ export const PlayButton: React.FC<Props> = ({
                       if (isOpeningCurrentlyPlayingMedia) {
                         return;
                       }
-                      CastContext.showExpandedControls();
+                      router.push("/casting-player");
                     });
                 } catch (e) {
                   console.log(e);

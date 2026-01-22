@@ -23,27 +23,76 @@ export function Chromecast({
   background = "transparent",
   ...props
 }) {
-  const client = useRemoteMediaClient();
-  const castDevice = useCastDevice();
+  const _client = useRemoteMediaClient();
+  const _castDevice = useCastDevice();
   const devices = useDevices();
-  const sessionManager = GoogleCast.getSessionManager();
+  const _sessionManager = GoogleCast.getSessionManager();
   const discoveryManager = GoogleCast.getDiscoveryManager();
   const mediaStatus = useMediaStatus();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
   const lastReportedProgressRef = useRef(0);
+  const discoveryAttempts = useRef(0);
+  const maxDiscoveryAttempts = 3;
+  const hasLoggedDevices = useRef(false);
 
+  // Enhanced discovery with retry mechanism - runs once on mount
   useEffect(() => {
-    (async () => {
+    let isSubscribed = true;
+    let retryTimeout: NodeJS.Timeout;
+
+    const startDiscoveryWithRetry = async () => {
       if (!discoveryManager) {
-        console.warn("DiscoveryManager is not initialized");
         return;
       }
 
-      await discoveryManager.startDiscovery();
-    })();
-  }, [client, devices, castDevice, sessionManager, discoveryManager]);
+      try {
+        // Stop any existing discovery first
+        try {
+          await discoveryManager.stopDiscovery();
+        } catch (_e) {
+          // Ignore errors when stopping
+        }
+
+        // Start fresh discovery
+        await discoveryManager.startDiscovery();
+        discoveryAttempts.current = 0; // Reset on success
+      } catch (error) {
+        console.error("[Chromecast Discovery] Failed:", error);
+
+        // Retry on error
+        if (discoveryAttempts.current < maxDiscoveryAttempts && isSubscribed) {
+          discoveryAttempts.current++;
+          retryTimeout = setTimeout(() => {
+            if (isSubscribed) {
+              startDiscoveryWithRetry();
+            }
+          }, 2000);
+        }
+      }
+    };
+
+    startDiscoveryWithRetry();
+
+    return () => {
+      isSubscribed = false;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [discoveryManager]); // Only re-run if discoveryManager changes
+
+  // Log device changes for debugging - only once per session
+  useEffect(() => {
+    if (devices.length > 0 && !hasLoggedDevices.current) {
+      console.log(
+        "[Chromecast] Found device(s):",
+        devices.map((d) => d.friendlyName || d.deviceId).join(", "),
+      );
+      hasLoggedDevices.current = true;
+    }
+  }, [devices]);
 
   // Report video progress to Jellyfin server
   useEffect(() => {
@@ -104,13 +153,11 @@ export function Chromecast({
       <Pressable
         className='mr-4'
         onPress={() => {
-          console.log("Chromecast button tapped (iOS)", {
-            hasMediaStatus: !!mediaStatus,
-            currentItemId: mediaStatus?.currentItemId,
-            castDevice: castDevice?.friendlyName,
-          });
-          if (mediaStatus?.currentItemId) router.push("/casting-player");
-          else CastContext.showCastDialog();
+          if (mediaStatus?.currentItemId) {
+            router.push("/casting-player");
+          } else {
+            CastContext.showCastDialog();
+          }
         }}
         {...props}
       >
@@ -127,14 +174,8 @@ export function Chromecast({
         className='mr-2'
         background={false}
         onPress={() => {
-          console.log("Chromecast button tapped (Android transparent)", {
-            hasMediaStatus: !!mediaStatus,
-            currentItemId: mediaStatus?.currentItemId,
-            castDevice: castDevice?.friendlyName,
-          });
           if (mediaStatus?.currentItemId) {
-            console.log("Navigating to: /(auth)/casting-player");
-            router.push("/(auth)/casting-player");
+            router.replace("/casting-player" as any);
           } else {
             CastContext.showCastDialog();
           }
@@ -150,13 +191,11 @@ export function Chromecast({
     <RoundButton
       size='large'
       onPress={() => {
-        console.log("Chromecast button tapped (Android)", {
-          hasMediaStatus: !!mediaStatus,
-          currentItemId: mediaStatus?.currentItemId,
-          castDevice: castDevice?.friendlyName,
-        });
-        if (mediaStatus?.currentItemId) router.push("/casting-player");
-        else CastContext.showCastDialog();
+        if (mediaStatus?.currentItemId) {
+          router.push("/casting-player");
+        } else {
+          CastContext.showCastDialog();
+        }
       }}
       {...props}
     >
