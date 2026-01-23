@@ -9,12 +9,10 @@ import {
   Alert,
   Animated,
   Easing,
-  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -414,8 +412,10 @@ export const TVLogin: React.FC = () => {
 
   const handleConnect = useCallback(async (url: string) => {
     url = url.trim().replace(/\/$/, "");
+    console.log("[TVLogin] handleConnect called with:", url);
     try {
       const result = await checkUrl(url);
+      console.log("[TVLogin] checkUrl result:", result);
       if (result === undefined) {
         Alert.alert(
           t("login.connection_failed"),
@@ -423,8 +423,12 @@ export const TVLogin: React.FC = () => {
         );
         return;
       }
+      console.log("[TVLogin] Calling setServer with:", result);
       await setServer({ address: result });
-    } catch {}
+      console.log("[TVLogin] setServer completed successfully");
+    } catch (error) {
+      console.error("[TVLogin] Error in handleConnect:", error);
+    }
   }, []);
 
   const handleQuickConnect = async () => {
@@ -445,9 +449,12 @@ export const TVLogin: React.FC = () => {
     }
   };
 
+  // Debug logging
+  console.log("[TVLogin] Render - api?.basePath:", api?.basePath);
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#000000" }}>
-      <KeyboardAvoidingView behavior='padding' style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: "#000000" }}>
+      <View style={{ flex: 1 }}>
         {api?.basePath ? (
           // ==================== CREDENTIALS SCREEN ====================
           <ScrollView
@@ -660,7 +667,7 @@ export const TVLogin: React.FC = () => {
             </View>
           </ScrollView>
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       {/* Save Account Modal */}
       <TVSaveAccountModal
@@ -709,6 +716,6 @@ export const TVLogin: React.FC = () => {
         onDelete={handleServerActionDelete}
         onClose={() => setShowServerActionSheet(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 };
