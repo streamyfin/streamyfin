@@ -20,6 +20,8 @@ interface ChromecastDeviceSheetProps {
   volume?: number;
   onVolumeChange?: (volume: number) => Promise<void>;
   showTechnicalInfo?: boolean;
+  connectionQuality?: "excellent" | "good" | "fair" | "poor";
+  bitrate?: number;
 }
 
 export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
@@ -30,6 +32,8 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   volume = 0.5,
   onVolumeChange,
   showTechnicalInfo = false,
+  connectionQuality = "good",
+  bitrate,
 }) => {
   const insets = useSafeAreaInsets();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
@@ -61,14 +65,14 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   return (
     <Modal
       visible={visible}
+      transparent={true}
       animationType='slide'
-      presentationStyle='formSheet'
       onRequestClose={onClose}
     >
       <Pressable
         style={{
           flex: 1,
-          backgroundColor: "rgba(0,0,0,0.5)",
+          backgroundColor: "rgba(0, 0, 0, 0.85)",
           justifyContent: "flex-end",
         }}
         onPress={onClose}
@@ -117,6 +121,59 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
               </Text>
             </View>
 
+            {/* Connection Quality */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ color: "#999", fontSize: 12, marginBottom: 8 }}>
+                Connection Quality
+              </Text>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
+                <View
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor:
+                      connectionQuality === "excellent"
+                        ? "#10b981"
+                        : connectionQuality === "good"
+                          ? "#fbbf24"
+                          : connectionQuality === "fair"
+                            ? "#f97316"
+                            : "#ef4444",
+                  }}
+                />
+                <Text
+                  style={{
+                    color:
+                      connectionQuality === "excellent"
+                        ? "#10b981"
+                        : connectionQuality === "good"
+                          ? "#fbbf24"
+                          : connectionQuality === "fair"
+                            ? "#f97316"
+                            : "#ef4444",
+                    fontSize: 14,
+                    fontWeight: "600",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {connectionQuality}
+                </Text>
+              </View>
+              {bitrate && (
+                <Text style={{ color: "#999", fontSize: 12, marginTop: 4 }}>
+                  Bitrate: {(bitrate / 1000000).toFixed(1)} Mbps
+                  {connectionQuality === "poor" &&
+                    " (Low bitrate may cause buffering)"}
+                  {connectionQuality === "fair" && " (Moderate quality)"}
+                  {connectionQuality === "good" && " (Good quality)"}
+                  {connectionQuality === "excellent" && " (Maximum quality)"}
+                </Text>
+              )}
+            </View>
+
             {device?.deviceId && showTechnicalInfo && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={{ color: "#999", fontSize: 12, marginBottom: 4 }}>
@@ -162,10 +219,19 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                       minimumTrackTintColor: "#a855f7",
                       bubbleBackgroundColor: "#a855f7",
                     }}
+                    onSlidingStart={() => {
+                      console.log(
+                        "[Volume] Sliding started",
+                        volumeValue.value,
+                      );
+                    }}
                     onValueChange={(value) => {
                       volumeValue.value = value;
+                      console.log("[Volume] Value changed", value);
                     }}
                     onSlidingComplete={handleVolumeComplete}
+                    panHitSlop={{ top: 20, bottom: 20, left: 0, right: 0 }}
+                    disable={false}
                   />
                 </View>
                 <Ionicons name='volume-high' size={20} color='#999' />

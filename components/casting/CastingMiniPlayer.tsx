@@ -10,6 +10,7 @@ import { useAtomValue } from "jotai";
 import React from "react";
 import { Pressable, View } from "react-native";
 import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useCasting } from "@/hooks/useCasting";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -23,6 +24,7 @@ import { CASTING_CONSTANTS } from "@/utils/casting/types";
 
 export const CastingMiniPlayer: React.FC = () => {
   const api = useAtomValue(apiAtom);
+  const insets = useSafeAreaInsets();
   const {
     isConnected,
     protocol,
@@ -48,6 +50,7 @@ export const CastingMiniPlayer: React.FC = () => {
 
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
   const protocolColor = "#a855f7"; // Streamyfin purple
+  const TAB_BAR_HEIGHT = 49; // Standard tab bar height
 
   const handlePress = () => {
     router.push("/casting-player");
@@ -59,12 +62,13 @@ export const CastingMiniPlayer: React.FC = () => {
       exiting={SlideOutDown.duration(CASTING_CONSTANTS.ANIMATION_DURATION)}
       style={{
         position: "absolute",
-        bottom: 49, // Above tab bar
+        bottom: TAB_BAR_HEIGHT + insets.bottom,
         left: 0,
         right: 0,
         backgroundColor: "#1a1a1a",
         borderTopWidth: 1,
         borderTopColor: "#333",
+        zIndex: 100,
       }}
     >
       <Pressable onPress={handlePress}>
@@ -166,7 +170,9 @@ export const CastingMiniPlayer: React.FC = () => {
           <Pressable
             onPress={(e) => {
               e.stopPropagation();
-              togglePlayPause();
+              if (isConnected && protocol) {
+                togglePlayPause();
+              }
             }}
             style={{
               padding: 8,

@@ -62,6 +62,40 @@ export default function CastingPlayerScreen() {
   // Live progress tracking - update every second
   const [liveProgress, setLiveProgress] = useState(0);
 
+  // Fetch full item data from Jellyfin by ID
+  const [fetchedItem, setFetchedItem] = useState<BaseItemDto | null>(null);
+  const [_isFetchingItem, setIsFetchingItem] = useState(false);
+
+  useEffect(() => {
+    const fetchItemData = async () => {
+      const itemId = mediaStatus?.mediaInfo?.contentId;
+      if (!itemId || !api || !user?.Id) return;
+
+      setIsFetchingItem(true);
+      try {
+        const res = await getUserLibraryApi(api).getItem({
+          itemId,
+          userId: user.Id,
+        });
+        console.log("[Casting Player] Fetched full item from API:", {
+          Type: res.data.Type,
+          Name: res.data.Name,
+          SeriesName: res.data.SeriesName,
+          SeasonId: res.data.SeasonId,
+          ParentIndexNumber: res.data.ParentIndexNumber,
+          IndexNumber: res.data.IndexNumber,
+        });
+        setFetchedItem(res.data);
+      } catch (error) {
+        console.error("[Casting Player] Failed to fetch item:", error);
+      } finally {
+        setIsFetchingItem(false);
+      }
+    };
+
+    fetchItemData();
+  }, [mediaStatus?.mediaInfo?.contentId, api, user?.Id]);
+
   useEffect(() => {
     // Initialize with actual position
     if (mediaStatus?.streamPosition) {
@@ -84,26 +118,41 @@ export default function CastingPlayerScreen() {
     return () => clearInterval(interval);
   }, [mediaStatus?.playerState, mediaStatus?.streamPosition]);
 
-  // Extract item from customData, or create a minimal item from mediaInfo
+  // Extract item from customData, or use fetched item, or create a minimal fallback
   const currentItem = useMemo(() => {
+    // Priority 1: Use fetched item from API (most reliable)
+    if (fetchedItem) {
+      console.log("[Casting Player] Using fetched item from API");
+      return fetchedItem;
+    }
+
+    // Priority 2: Try customData from mediaStatus
     const customData = mediaStatus?.mediaInfo?.customData as BaseItemDto | null;
+    if (customData?.Type && customData.Type !== "Movie") {
+      // Only use customData if it has a real Type (not default fallback)
+      console.log("[Casting Player] Using customData item:", {
+        Type: customData.Type,
+        Name: customData.Name,
+      });
+      return customData;
+    }
 
-    // If we have full item data in customData, use it
-    if (customData) return customData;
-
-    // Otherwise, create a minimal item from available mediaInfo
+    // Priority 3: Create minimal fallback while loading
     if (mediaStatus?.mediaInfo) {
       const { contentId, metadata } = mediaStatus.mediaInfo;
+      console.log(
+        "[Casting Player] Using minimal fallback item (still loading)",
+      );
       return {
         Id: contentId,
         Name: metadata?.title || "Unknown",
-        Type: "Movie", // Default type
+        Type: "Movie", // Temporary until API fetch completes
         ServerId: "",
       } as BaseItemDto;
     }
 
     return null;
-  }, [mediaStatus?.mediaInfo]);
+  }, [fetchedItem, mediaStatus?.mediaInfo]);
 
   // Derive state from raw Chromecast hooks
   const protocol: CastProtocol = "chromecast";
@@ -329,12 +378,13 @@ export default function CastingPlayerScreen() {
   const isSeeking = useSharedValue(false);
 
   const dismissModal = useCallback(() => {
-    // Reset animation before dismissing to prevent black screen
-    translateY.value = 0;
+    // Navigate immediately without animation to prevent crashes
     if (router.canGoBack()) {
       router.back();
+    } else {
+      router.replace("/(auth)/(tabs)/(home)/");
     }
-  }, [translateY]);
+  }, [router]);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -383,17 +433,27 @@ export default function CastingPlayerScreen() {
           progressGestureContext.value.startValue + deltaSeconds,
         ),
       );
-      // Update live progress for immediate UI feedback
-      setLiveProgress(newPosition);
+      // Update live progress for immediate UI feedback (must use runOnJS)
+      runOnJS(setLiveProgress)(newPosition);
     })
-    .onEnd(() => {
+    .onEnd((event) => {
       isSeeking.value = false;
-      // Seek to final position
-      if (remoteMediaClient) {
-        const finalPosition = Math.max(0, Math.min(duration, liveProgress));
-        remoteMediaClient.seek({ position: finalPosition }).catch((error) => {
-          console.error("[Casting Player] Seek error:", error);
-        });
+      // Calculate final position from gesture context
+      if (remoteMediaClient && duration) {
+        const deltaSeconds = event.translationX / 5;
+        const finalPosition = Math.max(
+          0,
+          Math.min(
+            duration,
+            progressGestureContext.value.startValue + deltaSeconds,
+          ),
+        );
+        // Use runOnJS to call the async function
+        runOnJS((pos: number) => {
+          remoteMediaClient.seek({ position: pos }).catch((error) => {
+            console.error("[Casting Player] Seek error:", error);
+          });
+        })(finalPosition);
       }
     });
 
@@ -471,7 +531,7 @@ export default function CastingPlayerScreen() {
     }
   }, [connectionQuality, protocolColor]);
 
-  const showNextEpisode = useMemo(() => {
+  const _showNextEpisode = useMemo(() => {
     if (currentItem?.Type !== "Episode" || !nextEpisode) return false;
     const remaining = duration - progress;
     return shouldShowNextEpisodeCountdown(remaining, true, 30);
@@ -617,54 +677,66 @@ export default function CastingPlayerScreen() {
             </Pressable>
           </View>
 
+          {/* Title Area */}
+          <View
+            style={{
+              position: "absolute",
+              top: insets.top + 40,
+              left: 0,
+              right: 0,
+              zIndex: 95,
+              alignItems: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+            }}
+          >
+            {/* Title */}
+            <Text
+              style={{
+                color: "white",
+                fontSize: 22,
+                fontWeight: "700",
+                textAlign: "center",
+                marginBottom: 6,
+              }}
+            >
+              {truncateTitle(currentItem.Name || "Unknown", 50)}
+            </Text>
+
+            {/* Grey episode/season info */}
+            {currentItem.Type === "Episode" &&
+              currentItem.ParentIndexNumber !== undefined &&
+              currentItem.IndexNumber !== undefined && (
+                <Text
+                  style={{
+                    color: "#999",
+                    fontSize: 14,
+                    textAlign: "center",
+                  }}
+                >
+                  {t("casting_player.season_episode_format", {
+                    season: currentItem.ParentIndexNumber,
+                    episode: currentItem.IndexNumber,
+                  })}
+                </Text>
+              )}
+          </View>
+
           {/* Scrollable content area */}
           <ScrollView
             contentContainerStyle={{
               paddingHorizontal: 20,
-              paddingTop: insets.top + 60,
-              paddingBottom: insets.bottom + 300,
+              paddingTop: insets.top + 140,
+              paddingBottom: insets.bottom + 500,
             }}
             showsVerticalScrollIndicator={false}
           >
-            {/* Title */}
-            <View style={{ marginBottom: 8 }}>
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 28,
-                  fontWeight: "700",
-                  textAlign: "center",
-                }}
-              >
-                {truncateTitle(currentItem.Name || "Unknown", 50)}
-              </Text>
-            </View>
-
-            {/* Grey episode/season info between title and poster */}
-            {currentItem.Type === "Episode" &&
-              currentItem.ParentIndexNumber !== undefined &&
-              currentItem.IndexNumber !== undefined && (
-                <View style={{ marginBottom: 20 }}>
-                  <Text
-                    style={{
-                      color: "#999",
-                      fontSize: 16,
-                      textAlign: "center",
-                    }}
-                  >
-                    {t("casting_player.season_episode_format", {
-                      season: currentItem.ParentIndexNumber,
-                      episode: currentItem.IndexNumber,
-                    })}
-                  </Text>
-                </View>
-              )}
-
             {/* Poster with buffering overlay - reduced size */}
             <View
               style={{
                 alignItems: "center",
-                marginBottom: 32,
+                marginBottom: 40,
               }}
             >
               <View
@@ -771,7 +843,6 @@ export default function CastingPlayerScreen() {
                       backgroundColor: "rgba(0,0,0,0.7)",
                       justifyContent: "center",
                       alignItems: "center",
-                      backdropFilter: "blur(10px)",
                     }}
                   >
                     <ActivityIndicator size='large' color={protocolColor} />
@@ -789,16 +860,19 @@ export default function CastingPlayerScreen() {
               </View>
             </View>
 
+            {/* Spacer to push buttons down */}
+            <View style={{ height: 40 }} />
+
             {/* 4-button control row for episodes */}
-            {currentItem.Type === "Episode" && episodes.length > 0 && (
+            {currentItem.Type === "Episode" && (
               <View
                 style={{
                   flexDirection: "row",
                   justifyContent: "center",
                   alignItems: "center",
-                  gap: 12,
-                  marginBottom: 20,
-                  paddingHorizontal: 16,
+                  gap: 16,
+                  marginBottom: 40,
+                  paddingHorizontal: 20,
                 }}
               >
                 {/* Episodes button */}
@@ -812,66 +886,9 @@ export default function CastingPlayerScreen() {
                     flexDirection: "row",
                     justifyContent: "center",
                     alignItems: "center",
-                    gap: 6,
                   }}
                 >
-                  <Ionicons name='list' size={18} color='white' />
-                  <Text
-                    style={{ color: "white", fontSize: 13, fontWeight: "600" }}
-                  >
-                    {t("casting_player.episodes")}
-                  </Text>
-                </Pressable>
-
-                {/* Favorite button */}
-                <Pressable
-                  onPress={async () => {
-                    if (!api || !user?.Id || !currentItem.Id) return;
-                    try {
-                      const newIsFavorite = !(
-                        currentItem.UserData?.IsFavorite ?? false
-                      );
-                      const path = `/Users/${user.Id}/FavoriteItems/${currentItem.Id}`;
-
-                      if (newIsFavorite) {
-                        await api.post(path, {}, {});
-                      } else {
-                        await api.delete(path, {});
-                      }
-
-                      // Update local state
-                      if (currentItem.UserData) {
-                        currentItem.UserData.IsFavorite = newIsFavorite;
-                      }
-                    } catch (error) {
-                      console.error("Failed to toggle favorite:", error);
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#1a1a1a",
-                    padding: 12,
-                    borderRadius: 12,
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <Ionicons
-                    name={
-                      currentItem.UserData?.IsFavorite
-                        ? "heart"
-                        : "heart-outline"
-                    }
-                    size={18}
-                    color='white'
-                  />
-                  <Text
-                    style={{ color: "white", fontSize: 13, fontWeight: "600" }}
-                  >
-                    {t("casting_player.favorite")}
-                  </Text>
+                  <Ionicons name='list' size={22} color='white' />
                 </Pressable>
 
                 {/* Previous episode button */}
@@ -896,19 +913,13 @@ export default function CastingPlayerScreen() {
                     flexDirection: "row",
                     justifyContent: "center",
                     alignItems: "center",
-                    gap: 6,
                     opacity:
                       episodes.findIndex((ep) => ep.Id === currentItem.Id) === 0
                         ? 0.4
                         : 1,
                   }}
                 >
-                  <Ionicons name='play-skip-back' size={18} color='white' />
-                  <Text
-                    style={{ color: "white", fontSize: 13, fontWeight: "600" }}
-                  >
-                    {t("casting_player.previous")}
-                  </Text>
+                  <Ionicons name='play-skip-back' size={22} color='white' />
                 </Pressable>
 
                 {/* Next episode button */}
@@ -927,20 +938,57 @@ export default function CastingPlayerScreen() {
                     flexDirection: "row",
                     justifyContent: "center",
                     alignItems: "center",
-                    gap: 6,
                     opacity: nextEpisode ? 1 : 0.4,
                   }}
                 >
-                  <Ionicons name='play-skip-forward' size={18} color='white' />
-                  <Text
-                    style={{ color: "white", fontSize: 13, fontWeight: "600" }}
-                  >
-                    {t("casting_player.next")}
-                  </Text>
+                  <Ionicons name='play-skip-forward' size={22} color='white' />
+                </Pressable>
+
+                {/* Stop casting button */}
+                <Pressable
+                  onPress={async () => {
+                    try {
+                      await stop();
+                      if (router.canGoBack()) {
+                        router.back();
+                      } else {
+                        router.replace("/(auth)/(tabs)/(home)/");
+                      }
+                    } catch (error) {
+                      console.error("[Casting Player] Error stopping:", error);
+                      if (router.canGoBack()) {
+                        router.back();
+                      } else {
+                        router.replace("/(auth)/(tabs)/(home)/");
+                      }
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#1a1a1a",
+                    padding: 12,
+                    borderRadius: 12,
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Ionicons name='stop-circle' size={22} color='white' />
                 </Pressable>
               </View>
             )}
+          </ScrollView>
 
+          {/* Fixed bottom controls area */}
+          <View
+            style={{
+              position: "absolute",
+              bottom: insets.bottom + 10,
+              left: 20,
+              right: 20,
+              zIndex: 98,
+            }}
+          >
             {/* Progress slider - interactive with pan gesture and tap */}
             <View style={{ marginBottom: 16, marginTop: 8 }}>
               <GestureDetector gesture={progressPanGesture}>
@@ -1002,47 +1050,6 @@ export default function CastingPlayerScreen() {
                 {formatTime(duration * 1000)}
               </Text>
             </View>
-
-            {/* Next episode countdown */}
-            {showNextEpisode && nextEpisode && (
-              <View style={{ marginBottom: 24, alignItems: "center" }}>
-                <View
-                  style={{
-                    backgroundColor: "#1a1a1a",
-                    paddingHorizontal: 20,
-                    paddingVertical: 12,
-                    borderRadius: 8,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <ActivityIndicator size='small' color={protocolColor} />
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        color: "white",
-                        fontSize: 14,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {t("player.next_episode")}: {nextEpisode.Name}
-                    </Text>
-                    <Text style={{ color: "#999", fontSize: 12, marginTop: 2 }}>
-                      Starting in {Math.ceil((duration - progress) / 1000)}s
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      setNextEpisode(null); // Cancel auto-play
-                    }}
-                    style={{ marginLeft: 8 }}
-                  >
-                    <Ionicons name='close-circle' size={24} color='#999' />
-                  </Pressable>
-                </View>
-              </View>
-            )}
 
             {/* Playback controls */}
             <View
@@ -1129,56 +1136,6 @@ export default function CastingPlayerScreen() {
                 )}
               </Pressable>
             </View>
-          </ScrollView>
-
-          {/* Fixed End Playback button at bottom */}
-          <View
-            style={{
-              position: "absolute",
-              bottom: insets.bottom + 16,
-              left: 20,
-              right: 20,
-              zIndex: 99,
-            }}
-          >
-            <Pressable
-              onPress={async () => {
-                try {
-                  await stop();
-                  if (router.canGoBack()) {
-                    router.back();
-                  } else {
-                    router.replace("/(auth)/(tabs)/(home)/");
-                  }
-                } catch (error) {
-                  console.error("[Casting Player] Error stopping:", error);
-                  if (router.canGoBack()) {
-                    router.back();
-                  } else {
-                    router.replace("/(auth)/(tabs)/(home)/");
-                  }
-                }
-              }}
-              style={{
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 8,
-                paddingVertical: 16,
-                paddingHorizontal: 24,
-                borderRadius: 12,
-                backgroundColor: "#1a1a1a",
-                borderWidth: 2,
-                borderColor: "#FF3B30",
-              }}
-            >
-              <Ionicons name='stop-circle-outline' size={22} color='#FF3B30' />
-              <Text
-                style={{ color: "#FF3B30", fontSize: 17, fontWeight: "700" }}
-              >
-                {t("casting_player.end_playback")}
-              </Text>
-            </Pressable>
           </View>
 
           {/* Modals */}
@@ -1193,6 +1150,8 @@ export default function CastingPlayerScreen() {
                   } as any)
                 : null
             }
+            connectionQuality={connectionQuality}
+            bitrate={availableMediaSources[0]?.bitrate}
             onDisconnect={async () => {
               try {
                 await stop();
@@ -1221,6 +1180,7 @@ export default function CastingPlayerScreen() {
             onClose={() => setShowEpisodeList(false)}
             currentItem={currentItem}
             episodes={episodes}
+            api={api}
             onSelectEpisode={(episode) => {
               // TODO: Load new episode - requires casting new media
               console.log("Selected episode:", episode.Name);
@@ -1232,7 +1192,11 @@ export default function CastingPlayerScreen() {
             visible={showSettings}
             onClose={() => setShowSettings(false)}
             item={currentItem}
-            mediaSources={availableMediaSources}
+            mediaSources={availableMediaSources.filter((source) => {
+              const currentBitrate =
+                availableMediaSources[0]?.bitrate || Number.POSITIVE_INFINITY;
+              return (source.bitrate || 0) <= currentBitrate;
+            })}
             selectedMediaSource={availableMediaSources[0] || null}
             onMediaSourceChange={(source) => {
               // TODO: Requires reloading media with new source URL

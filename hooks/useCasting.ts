@@ -85,6 +85,16 @@ export const useCasting = (item: BaseItemDto | null) => {
     }
   }, [mediaStatus, activeProtocol]);
 
+  // Chromecast: Sync volume from device
+  useEffect(() => {
+    if (activeProtocol === "chromecast" && mediaStatus?.volume !== undefined) {
+      setState((prev) => ({
+        ...prev,
+        volume: mediaStatus.volume,
+      }));
+    }
+  }, [mediaStatus?.volume, activeProtocol]);
+
   // Progress reporting to Jellyfin (optimized to skip redundant reports)
   useEffect(() => {
     if (!isConnected || !item?.Id || !user?.Id || state.progress <= 0) return;
@@ -209,8 +219,13 @@ export const useCasting = (item: BaseItemDto | null) => {
       }
 
       volumeDebounceRef.current = setTimeout(async () => {
-        if (activeProtocol === "chromecast") {
-          await client?.setStreamVolume(clampedVolume).catch(console.error);
+        if (activeProtocol === "chromecast" && client && isConnected) {
+          await client.setStreamVolume(clampedVolume).catch((error) => {
+            console.log(
+              "[useCasting] Volume set failed (no session):",
+              error.message,
+            );
+          });
         }
         // Future: Add volume control for other protocols
       }, 300);

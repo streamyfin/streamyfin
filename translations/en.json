@@ -51,11 +51,6 @@
   },
   "casting_player": {
     "buffering": "Buffering...",
-    "episodes": "Episodes",
-    "favorite": "Favorite",
-    "next": "Next",
-    "previous": "Previous",
-    "end_playback": "End Playback",
     "season_episode_format": "Season {{season}} • Episode {{episode}}",
     "connection_quality": {
       "excellent": "Excellent",
