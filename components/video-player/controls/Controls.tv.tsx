@@ -13,7 +13,12 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, TVFocusGuideView, View } from "react-native";
+import {
+  StyleSheet,
+  TVFocusGuideView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -82,6 +87,96 @@ interface Props {
 const TV_SEEKBAR_HEIGHT = 14;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
 
+// Trickplay bubble positioning constants
+const TV_TRICKPLAY_SCALE = 2;
+const TV_TRICKPLAY_BUBBLE_BASE_WIDTH = CONTROLS_CONSTANTS.TILE_WIDTH * 1.5;
+const TV_TRICKPLAY_BUBBLE_WIDTH =
+  TV_TRICKPLAY_BUBBLE_BASE_WIDTH * TV_TRICKPLAY_SCALE;
+const TV_TRICKPLAY_INTERNAL_OFFSET = 62 * TV_TRICKPLAY_SCALE;
+const TV_TRICKPLAY_CENTERING_OFFSET = 98 * TV_TRICKPLAY_SCALE;
+const TV_TRICKPLAY_RIGHT_PADDING = 150;
+const TV_TRICKPLAY_FADE_DURATION = 200;
+
+interface TVTrickplayBubbleProps {
+  trickPlayUrl: {
+    x: number;
+    y: number;
+    url: string;
+  } | null;
+  trickplayInfo: {
+    aspectRatio?: number;
+    data: {
+      TileWidth?: number;
+      TileHeight?: number;
+    };
+  } | null;
+  time: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
+  progress: SharedValue<number>;
+  max: SharedValue<number>;
+  progressBarWidth: number;
+  visible: boolean;
+}
+
+const TVTrickplayBubblePositioned: FC<TVTrickplayBubbleProps> = ({
+  trickPlayUrl,
+  trickplayInfo,
+  time,
+  progress,
+  max,
+  progressBarWidth,
+  visible,
+}) => {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, {
+      duration: TV_TRICKPLAY_FADE_DURATION,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [visible, opacity]);
+
+  const minX = TV_TRICKPLAY_INTERNAL_OFFSET;
+  const maxX =
+    progressBarWidth -
+    TV_TRICKPLAY_BUBBLE_WIDTH +
+    TV_TRICKPLAY_INTERNAL_OFFSET +
+    TV_TRICKPLAY_RIGHT_PADDING;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const progressPercent = max.value > 0 ? progress.value / max.value : 0;
+
+    const xPosition = Math.max(
+      minX,
+      Math.min(
+        maxX,
+        progressPercent * progressBarWidth -
+          TV_TRICKPLAY_BUBBLE_WIDTH / 2 +
+          TV_TRICKPLAY_CENTERING_OFFSET,
+      ),
+    );
+
+    return {
+      transform: [{ translateX: xPosition }],
+      opacity: opacity.value,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.trickplayBubblePositioned, animatedStyle]}>
+      <TrickplayBubble
+        trickPlayUrl={trickPlayUrl}
+        trickplayInfo={trickplayInfo}
+        time={time}
+        imageScale={TV_TRICKPLAY_SCALE}
+      />
+    </Animated.View>
+  );
+};
+
 export const Controls: FC<Props> = ({
   item,
   seek,
@@ -112,7 +207,15 @@ export const Controls: FC<Props> = ({
   transcodeReasons,
 }) => {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
+
+  // Calculate progress bar width (matches the padding used in bottomInner)
+  const progressBarWidth = useMemo(() => {
+    const leftPadding = Math.max(insets.left, 48);
+    const rightPadding = Math.max(insets.right, 48);
+    return screenWidth - leftPadding - rightPadding;
+  }, [screenWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
   const router = useRouter();
@@ -831,15 +934,17 @@ export const Controls: FC<Props> = ({
             },
           ]}
         >
-          {showSeekBubble && (
-            <View style={styles.trickplayBubbleContainer}>
-              <TrickplayBubble
-                trickPlayUrl={trickPlayUrl}
-                trickplayInfo={trickplayInfo}
-                time={seekBubbleTime}
-              />
-            </View>
-          )}
+          <View style={styles.trickplayBubbleContainer}>
+            <TVTrickplayBubblePositioned
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              time={seekBubbleTime}
+              progress={effectiveProgress}
+              max={max}
+              progressBarWidth={progressBarWidth}
+              visible={showSeekBubble}
+            />
+          </View>
 
           {/* Same padding as TVFocusableProgressBar for alignment */}
           <View style={styles.minimalProgressWrapper}>
@@ -963,15 +1068,17 @@ export const Controls: FC<Props> = ({
             )}
           </View>
 
-          {showSeekBubble && (
-            <View style={styles.trickplayBubbleContainer}>
-              <TrickplayBubble
-                trickPlayUrl={trickPlayUrl}
-                trickplayInfo={trickplayInfo}
-                time={seekBubbleTime}
-              />
-            </View>
-          )}
+          <View style={styles.trickplayBubbleContainer}>
+            <TVTrickplayBubblePositioned
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              time={seekBubbleTime}
+              progress={effectiveProgress}
+              max={max}
+              progressBarWidth={progressBarWidth}
+              visible={showSeekBubble}
+            />
+          </View>
 
           {/* Bidirectional focus guides - stacked together per docs */}
           {/* Downward: play button → progress bar */}
@@ -1063,11 +1170,14 @@ const styles = StyleSheet.create({
   },
   trickplayBubbleContainer: {
     position: "absolute",
-    bottom: 120,
+    bottom: 170,
     left: 0,
     right: 0,
-    alignItems: "center",
     zIndex: 20,
+  },
+  trickplayBubblePositioned: {
+    position: "absolute",
+    bottom: 0,
   },
   focusGuide: {
     height: 1,
