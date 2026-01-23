@@ -72,7 +72,7 @@
     "expo-web-browser": "~15.0.10",
     "i18next": "^25.0.0",
     "jotai": "2.16.2",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "nativewind": "^2.0.11",
     "patch-package": "^8.0.0",
     "react": "19.1.0",
