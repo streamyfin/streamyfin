@@ -94,14 +94,14 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
   return (
     <Modal
       visible={visible}
+      transparent={true}
       animationType='slide'
-      presentationStyle='formSheet'
       onRequestClose={onClose}
     >
       <Pressable
         style={{
           flex: 1,
-          backgroundColor: "rgba(0,0,0,0.5)",
+          backgroundColor: "rgba(0, 0, 0, 0.85)",
           justifyContent: "flex-end",
         }}
         onPress={onClose}

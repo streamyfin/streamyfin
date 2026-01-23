@@ -176,6 +176,15 @@ export const PlayButton: React.FC<Props> = ({
                   });
 
                   console.log("URL: ", data?.url, enableH265);
+                  console.log("[PlayButton] Item before casting:", {
+                    Type: item.Type,
+                    Id: item.Id,
+                    Name: item.Name,
+                    ParentIndexNumber: item.ParentIndexNumber,
+                    IndexNumber: item.IndexNumber,
+                    SeasonId: item.SeasonId,
+                    SeriesId: item.SeriesId,
+                  });
 
                   if (!data?.url) {
                     console.warn("No URL returned from getStreamUrl", data);
@@ -195,6 +204,11 @@ export const PlayButton: React.FC<Props> = ({
                     ? item.RunTimeTicks / 10000000
                     : undefined;
 
+                  console.log("[PlayButton] Loading media with customData:", {
+                    hasCustomData: !!item,
+                    customDataType: item.Type,
+                  });
+
                   client
                     .loadMedia({
                       mediaInfo: {
@@ -203,6 +217,7 @@ export const PlayButton: React.FC<Props> = ({
                         contentType: "video/mp4",
                         streamType: MediaStreamType.BUFFERED,
                         streamDuration: streamDurationSeconds,
+                        customData: item,
                         metadata:
                           item.Type === "Episode"
                             ? {
