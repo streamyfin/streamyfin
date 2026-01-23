@@ -4,7 +4,7 @@ export function Text(props: TextProps) {
   if (Platform.isTV)
     return (
       <RNText
-        allowFontScaling={false}
+        allowFontScaling={true}
         style={[{ color: "white" }, style]}
         {...otherProps}
       />
