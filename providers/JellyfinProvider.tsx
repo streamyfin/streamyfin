@@ -2,7 +2,7 @@ import "@/augmentations";
 import { type Api, Jellyfin } from "@jellyfin/sdk";
 import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -114,6 +114,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const [secret, setSecret] = useState<string | null>(null);
   const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
+  const queryClient = useQueryClient();
 
   const headers = useMemo(() => {
     if (!deviceId) return {};
@@ -350,6 +351,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       setApi(null);
       setPluginSettings(undefined);
       await clearAllJellyseerData();
+
+      // Clear React Query cache to prevent data from previous account lingering
+      queryClient.clear();
+      storage.remove("REACT_QUERY_OFFLINE_CACHE");
+
       // Note: We keep saved credentials for quick switching back
     },
     onError: (error) => {
