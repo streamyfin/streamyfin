@@ -598,11 +598,14 @@ const HomeMobile = () => {
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
         {sections.map((section, index) => {
-          // Render Streamystats sections after Continue Watching and Next Up
-          // When merged, they appear after index 0; otherwise after index 1
-          const streamystatsIndex = settings.mergeNextUpAndContinueWatching
-            ? 0
-            : 1;
+          // Render Streamystats sections after Recently Added sections
+          // For default sections: place after Recently Added, before Suggested Movies (if present)
+          // For custom sections: place at the very end
+          const hasSuggestedMovies =
+            !settings?.streamyStatsMovieRecommendations &&
+            !settings?.home?.sections;
+          const streamystatsIndex =
+            sections.length - 1 - (hasSuggestedMovies ? 1 : 0);
           const hasStreamystatsContent =
             settings.streamyStatsMovieRecommendations ||
             settings.streamyStatsSeriesRecommendations ||
