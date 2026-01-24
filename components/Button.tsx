@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { fontSize, size } from "react-native-responsive-sizes";
 import { useHaptic } from "@/hooks/useHaptic";
 import { Loader } from "./Loader";
 
@@ -141,15 +140,11 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         }}
       >
         <View
-          className={`rounded-2xl items-center justify-center 
+          className={`rounded-2xl py-5 items-center justify-center 
             ${colorClasses}
             ${className}`}
-          style={{ paddingVertical: size(20) }}
         >
-          <Text
-            className={`${textColorClass} font-bold`}
-            style={{ fontSize: fontSize(20) }}
-          >
+          <Text className={`${textColorClass} text-xl font-bold`}>
             {children}
           </Text>
         </View>

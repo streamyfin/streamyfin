@@ -13,7 +13,6 @@ import {
   ScrollView,
   View,
 } from "react-native";
-import { fontSize, size } from "react-native-responsive-sizes";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -67,7 +66,7 @@ const TVBackButton: React.FC<{
         setIsFocused(false);
         animateFocus(false);
       }}
-      style={{ alignSelf: "flex-start", marginBottom: size(40) }}
+      style={{ alignSelf: "flex-start", marginBottom: 40 }}
       disabled={disabled}
       focusable={!disabled}
     >
@@ -76,25 +75,26 @@ const TVBackButton: React.FC<{
           transform: [{ scale }],
           flexDirection: "row",
           alignItems: "center",
-          paddingHorizontal: size(12),
-          borderRadius: size(8),
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          borderRadius: 8,
           backgroundColor: isFocused
             ? "rgba(168, 85, 247, 0.2)"
             : "transparent",
-          borderWidth: size(2),
+          borderWidth: 2,
           borderColor: isFocused ? Colors.primary : "transparent",
         }}
       >
         <Ionicons
           name='chevron-back'
-          size={size(28)}
+          size={28}
           color={isFocused ? "#FFFFFF" : Colors.primary}
         />
         <Text
           style={{
             color: isFocused ? "#FFFFFF" : Colors.primary,
-            fontSize: fontSize(14),
-            marginLeft: size(4),
+            fontSize: 20,
+            marginLeft: 4,
           }}
         >
           {label}
@@ -463,7 +463,7 @@ export const TVLogin: React.FC = () => {
               flexGrow: 1,
               justifyContent: "center",
               alignItems: "center",
-              paddingVertical: size(20),
+              paddingVertical: 60,
             }}
             showsVerticalScrollIndicator={false}
           >
@@ -471,7 +471,7 @@ export const TVLogin: React.FC = () => {
               style={{
                 width: "100%",
                 maxWidth: 800,
-                paddingHorizontal: size(40),
+                paddingHorizontal: 60,
               }}
             >
               {/* Back Button */}
@@ -484,10 +484,10 @@ export const TVLogin: React.FC = () => {
               {/* Title */}
               <Text
                 style={{
-                  fontSize: fontSize(12),
+                  fontSize: 48,
                   fontWeight: "bold",
                   color: "#FFFFFF",
-                  marginBottom: size(8),
+                  marginBottom: 8,
                 }}
               >
                 {serverName ? (
@@ -501,18 +501,16 @@ export const TVLogin: React.FC = () => {
               </Text>
               <Text
                 style={{
-                  fontSize: fontSize(14),
+                  fontSize: 18,
                   color: "#9CA3AF",
-                  marginBottom: size(40),
+                  marginBottom: 40,
                 }}
               >
                 {api.basePath}
               </Text>
 
               {/* Username Input - extra padding for focus scale */}
-              <View
-                style={{ marginBottom: size(24), paddingHorizontal: size(8) }}
-              >
+              <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
                 <TVInput
                   placeholder={t("login.username_placeholder")}
                   value={credentials.username}
@@ -529,9 +527,7 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Password Input */}
-              <View
-                style={{ marginBottom: size(32), paddingHorizontal: size(8) }}
-              >
+              <View style={{ marginBottom: 32, paddingHorizontal: 8 }}>
                 <TVInput
                   placeholder={t("login.password_placeholder")}
                   value={credentials.password}
@@ -547,9 +543,7 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Save Account Toggle */}
-              <View
-                style={{ marginBottom: size(40), paddingHorizontal: size(8) }}
-              >
+              <View style={{ marginBottom: 40, paddingHorizontal: 8 }}>
                 <TVSaveAccountToggle
                   value={saveAccount}
                   onValueChange={setSaveAccount}
@@ -559,7 +553,7 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Login Button */}
-              <View style={{ marginBottom: size(16) }}>
+              <View style={{ marginBottom: 16 }}>
                 <Button
                   onPress={handleLogin}
                   loading={loading}
@@ -585,11 +579,9 @@ export const TVLogin: React.FC = () => {
             style={{ flex: 1 }}
             contentContainerStyle={{
               flexGrow: 1,
-              // justifyContent: "center",
+              justifyContent: "center",
               alignItems: "center",
-              justifyContent: "flex-start",
-              paddingTop: size(40),
-              paddingBottom: size(40),
+              paddingVertical: 60,
             }}
             showsVerticalScrollIndicator={false}
           >
@@ -597,14 +589,14 @@ export const TVLogin: React.FC = () => {
               style={{
                 width: "100%",
                 maxWidth: 800,
-                paddingHorizontal: size(60),
+                paddingHorizontal: 60,
               }}
             >
               {/* Logo */}
-              <View style={{ alignItems: "center", marginBottom: size(16) }}>
+              <View style={{ alignItems: "center", marginBottom: 16 }}>
                 <Image
                   source={require("@/assets/images/icon-tvos.png")}
-                  style={{ width: size(300), height: size(300) }}
+                  style={{ width: 150, height: 150 }}
                   contentFit='contain'
                 />
               </View>
@@ -612,30 +604,28 @@ export const TVLogin: React.FC = () => {
               {/* Title */}
               <Text
                 style={{
-                  fontSize: fontSize(24),
+                  fontSize: 48,
                   fontWeight: "bold",
                   color: "#FFFFFF",
                   textAlign: "center",
-                  marginBottom: size(8),
+                  marginBottom: 8,
                 }}
               >
                 Streamyfin
               </Text>
               <Text
                 style={{
-                  fontSize: fontSize(20),
+                  fontSize: 20,
                   color: "#9CA3AF",
                   textAlign: "center",
-                  marginBottom: size(40),
+                  marginBottom: 40,
                 }}
               >
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>
 
               {/* Server URL Input - extra padding for focus scale */}
-              <View
-                style={{ marginBottom: size(24), paddingHorizontal: size(8) }}
-              >
+              <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
                 <TVInput
                   placeholder={t("server.server_url_placeholder")}
                   value={serverURL}
@@ -650,7 +640,7 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Connect Button */}
-              <View style={{ marginBottom: size(12) }}>
+              <View style={{ marginBottom: 24 }}>
                 <Button
                   onPress={() => handleConnect(serverURL)}
                   loading={loadingServerCheck}
@@ -661,7 +651,7 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Previous Servers */}
-              <View style={{ paddingHorizontal: size(8) }}>
+              <View style={{ paddingHorizontal: 8 }}>
                 <TVPreviousServersList
                   onServerSelect={(s) => handleConnect(s.address)}
                   onQuickLogin={handleQuickLoginWithSavedCredential}
