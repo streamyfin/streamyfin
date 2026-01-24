@@ -201,6 +201,7 @@ export const Home = () => {
     },
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   const userViews = useMemo(

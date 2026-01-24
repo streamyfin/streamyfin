@@ -211,6 +211,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     },
     initialPageParam: 0,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     enabled,

@@ -293,6 +293,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       return response.data.Items || [];
     },
     staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
 
@@ -345,7 +346,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       });
       return res.data.Items || [];
     },
-    staleTime: isOffline ? Infinity : 0,
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline
       ? !!item.Id && selectedSeasonNumber !== null
       : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,

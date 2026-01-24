@@ -108,7 +108,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
       Boolean(settings?.streamyStatsServerUrl) &&
       Boolean(api?.accessToken) &&
       Boolean(user?.Id),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -277,7 +278,8 @@ export const StreamystatsPromotedWatchlists: React.FC<
       Boolean(api?.accessToken) &&
       Boolean(jellyfinServerId) &&
       Boolean(user?.Id),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 

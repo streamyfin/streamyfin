@@ -62,6 +62,7 @@ const page: React.FC = () => {
       });
     },
     staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
@@ -117,7 +118,8 @@ const page: React.FC = () => {
           (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
           (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
       ),
-    staleTime: isOffline ? Infinity : 60,
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
