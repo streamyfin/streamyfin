@@ -30,6 +30,7 @@ import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
+import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
 import { Loader } from "@/components/Loader";
 import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -41,8 +42,8 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
-// Reduced gap since sections have internal padding for scale animations
-const SECTION_GAP = 10;
+// Generous gap between sections for Apple TV+ aesthetic
+const SECTION_GAP = 24;
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -198,6 +199,57 @@ export const Home = () => {
       });
 
       return response.data.Items || null;
+    },
+    enabled: !!api && !!user?.Id,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  // Fetch hero items (Continue Watching + Next Up combined)
+  const { data: heroItems } = useQuery({
+    queryKey: ["home", "heroItems", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const [resumeResponse, nextUpResponse] = await Promise.all([
+        getItemsApi(api).getResumeItems({
+          userId: user.Id,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          includeItemTypes: ["Movie", "Series", "Episode"],
+          fields: ["Overview"],
+          startIndex: 0,
+          limit: 10,
+        }),
+        getTvShowsApi(api).getNextUp({
+          userId: user.Id,
+          startIndex: 0,
+          limit: 10,
+          fields: ["Overview"],
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          enableResumable: false,
+        }),
+      ]);
+
+      const resumeItems = resumeResponse.data.Items || [];
+      const nextUpItems = nextUpResponse.data.Items || [];
+
+      // Combine, sort by recent activity, and dedupe
+      const combined = [...resumeItems, ...nextUpItems];
+      const sorted = combined.sort((a, b) => {
+        const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
+        const dateB = b.UserData?.LastPlayedDate || b.DateCreated || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+
+      const seen = new Set<string>();
+      const deduped: BaseItemDto[] = [];
+      for (const item of sorted) {
+        if (!item.Id || seen.has(item.Id)) continue;
+        seen.add(item.Id);
+        deduped.push(item);
+      }
+
+      return deduped.slice(0, 8);
     },
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
@@ -608,87 +660,106 @@ export const Home = () => {
       </View>
     );
 
+  // Determine if hero should be shown (separate setting from backdrop)
+  const showHero =
+    heroItems && heroItems.length > 0 && settings.showTVHeroCarousel;
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
-      {/* Dynamic backdrop with crossfade */}
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      >
-        {/* Layer 0 */}
-        <Animated.View
+      {/* Dynamic backdrop with crossfade - only shown when hero is disabled */}
+      {!showHero && settings.showHomeBackdrop && (
+        <View
           style={{
             position: "absolute",
-            width: "100%",
-            height: "100%",
-            opacity: layer0Opacity,
-          }}
-        >
-          {layer0Url && (
-            <Image
-              source={{ uri: layer0Url }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit='cover'
-            />
-          )}
-        </Animated.View>
-        {/* Layer 1 */}
-        <Animated.View
-          style={{
-            position: "absolute",
-            width: "100%",
-            height: "100%",
-            opacity: layer1Opacity,
-          }}
-        >
-          {layer1Url && (
-            <Image
-              source={{ uri: layer1Url }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit='cover'
-            />
-          )}
-        </Animated.View>
-        {/* Gradient overlays for readability */}
-        <LinearGradient
-          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
-          locations={[0, 0.4, 1]}
-          style={{
-            position: "absolute",
+            top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            height: "100%",
           }}
-        />
-      </View>
+        >
+          {/* Layer 0 */}
+          <Animated.View
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              opacity: layer0Opacity,
+            }}
+          >
+            {layer0Url && (
+              <Image
+                source={{ uri: layer0Url }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+              />
+            )}
+          </Animated.View>
+          {/* Layer 1 */}
+          <Animated.View
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              opacity: layer1Opacity,
+            }}
+          >
+            {layer1Url && (
+              <Image
+                source={{ uri: layer1Url }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+              />
+            )}
+          </Animated.View>
+          {/* Gradient overlays for readability */}
+          <LinearGradient
+            colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
+            locations={[0, 0.4, 1]}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "100%",
+            }}
+          />
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + TOP_PADDING,
+          paddingTop: showHero ? 0 : insets.top + TOP_PADDING,
           paddingBottom: insets.bottom + 60,
-          paddingLeft: insets.left + HORIZONTAL_PADDING,
-          paddingRight: insets.right + HORIZONTAL_PADDING,
         }}
       >
-        <View style={{ gap: SECTION_GAP }}>
-          {sections.map((section, index) => {
+        {/* Hero Carousel - Apple TV+ style featured content */}
+        {showHero && (
+          <TVHeroCarousel items={heroItems} onItemFocus={handleItemFocus} />
+        )}
+
+        <View
+          style={{
+            gap: SECTION_GAP,
+            paddingHorizontal: insets.left + HORIZONTAL_PADDING,
+            paddingTop: showHero ? SECTION_GAP : 0,
+          }}
+        >
+          {/* Skip first section (Continue Watching) when hero is shown since hero displays that content */}
+          {sections.slice(showHero ? 1 : 0).map((section, index) => {
             // Render Streamystats sections after Recently Added sections
             // For default sections: place after Recently Added, before Suggested Movies (if present)
             // For custom sections: place at the very end
             const hasSuggestedMovies =
               !settings?.streamyStatsMovieRecommendations &&
               !settings?.home?.sections;
+            // Adjust index calculation to account for sliced array when hero is shown
+            const displayedSectionsLength =
+              sections.length - (showHero ? 1 : 0);
             const streamystatsIndex =
-              sections.length - 1 - (hasSuggestedMovies ? 1 : 0);
+              displayedSectionsLength - 1 - (hasSuggestedMovies ? 1 : 0);
             const hasStreamystatsContent =
               settings.streamyStatsMovieRecommendations ||
               settings.streamyStatsSeriesRecommendations ||
@@ -727,7 +798,8 @@ export const Home = () => {
 
             if (section.type === "InfiniteScrollingCollectionList") {
               const isHighPriority = section.priority === 1;
-              const isFirstSection = index === 0;
+              // First section only gets preferred focus if hero is not shown
+              const isFirstSection = index === 0 && !showHero;
               return (
                 <View key={index} style={{ gap: SECTION_GAP }}>
                   <InfiniteScrollingCollectionList

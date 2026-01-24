@@ -358,6 +358,11 @@ export default function SettingsTV() {
             value={settings.showHomeBackdrop}
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
           />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.show_hero_carousel")}
+            value={settings.showTVHeroCarousel}
+            onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+          />
 
           {/* User Section */}
           <TVSectionHeader

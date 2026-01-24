@@ -198,10 +198,10 @@ export type Settings = {
   hideVolumeSlider: boolean;
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
-  showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
   // TV-specific settings
   showHomeBackdrop: boolean;
+  showTVHeroCarousel: boolean;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -287,10 +287,10 @@ export const defaultValues: Settings = {
   hideVolumeSlider: false,
   hideBrightnessSlider: false,
   usePopularPlugin: true,
-  showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
   // TV-specific settings
   showHomeBackdrop: true,
+  showTVHeroCarousel: true,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,

@@ -9,7 +9,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { ProgressBar } from "./common/ProgressBar";
 import { WatchedIndicator } from "./WatchedIndicator";
 
-export const TV_LANDSCAPE_WIDTH = 340;
+export const TV_LANDSCAPE_WIDTH = 400;
 
 type ContinueWatchingPosterProps = {
   item: BaseItemDto;
@@ -32,32 +32,32 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       return;
     }
     if (item.Type === "Episode" && useEpisodePoster) {
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80`;
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
     }
     if (item.Type === "Episode") {
       if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-        return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=600&quality=80&tag=${item.ParentThumbImageTag}`;
+        return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
       }
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80`;
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
     }
     if (item.Type === "Movie") {
       if (item.ImageTags?.Thumb) {
-        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=600&quality=80&tag=${item.ImageTags?.Thumb}`;
+        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ImageTags?.Thumb}`;
       }
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80`;
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
     }
     if (item.Type === "Program") {
       if (item.ImageTags?.Thumb) {
-        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=600&quality=80&tag=${item.ImageTags?.Thumb}`;
+        return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ImageTags?.Thumb}`;
       }
-      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80`;
+      return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
     }
 
     if (item.ImageTags?.Thumb) {
-      return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=600&quality=80&tag=${item.ImageTags?.Thumb}`;
+      return `${api?.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ImageTags?.Thumb}`;
     }
 
-    return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80`;
+    return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
   }, [api, item, useEpisodePoster]);
 
   if (!url) {
