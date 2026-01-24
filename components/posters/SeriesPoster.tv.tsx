@@ -6,7 +6,7 @@ import { View } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
-export const TV_POSTER_WIDTH = 210;
+export const TV_POSTER_WIDTH = 260;
 
 type SeriesPosterProps = {
   item: BaseItemDto;
@@ -18,12 +18,12 @@ const SeriesPoster: React.FC<SeriesPosterProps> = ({ item }) => {
 
   const url = useMemo(() => {
     if (item.Type === "Episode") {
-      return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=630&quality=80&tag=${item.SeriesPrimaryImageTag}`;
+      return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=780&quality=80&tag=${item.SeriesPrimaryImageTag}`;
     }
     return getPrimaryImageUrl({
       api,
       item,
-      width: 420, // 2x for quality on large screens
+      width: 520, // 2x for quality on large screens
     });
   }, [api, item]);
 

@@ -218,11 +218,12 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
     <View style={{ overflow: "visible" }} {...props}>
       <Text
         style={{
-          fontSize: TVTypography.body,
-          fontWeight: "600",
+          fontSize: TVTypography.heading,
+          fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 16,
+          marginBottom: 20,
           marginLeft: SCALE_PADDING,
+          letterSpacing: 0.5,
         }}
       >
         {title}

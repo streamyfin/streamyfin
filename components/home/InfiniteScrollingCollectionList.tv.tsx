@@ -28,7 +28,7 @@ import ContinueWatchingPoster, {
 } from "../ContinueWatchingPoster.tv";
 import SeriesPoster from "../posters/SeriesPoster.tv";
 
-const ITEM_GAP = 16;
+const ITEM_GAP = 24;
 // Extra padding to accommodate scale animation (1.05x) and glow shadow
 const SCALE_PADDING = 20;
 
@@ -365,11 +365,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: TVTypography.body,
-          fontWeight: "600",
+          fontSize: TVTypography.heading,
+          fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 16,
+          marginBottom: 20,
           marginLeft: SCALE_PADDING,
+          letterSpacing: 0.5,
         }}
       >
         {title}

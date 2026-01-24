@@ -125,7 +125,8 @@
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
         "hide_remote_session_button": "Hide Remote Session Button",
-        "show_home_backdrop": "Dynamic Home Backdrop"
+        "show_home_backdrop": "Dynamic Home Backdrop",
+        "show_hero_carousel": "Hero Carousel"
       },
       "network": {
         "title": "Network",
