@@ -82,7 +82,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
 
     const handleFocus = useCallback(() => {
       setFocused(true);
-      animateTo(1.08);
+      animateTo(1.1);
       onFocus(item);
     }, [animateTo, onFocus, item]);
 
@@ -110,11 +110,9 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
             borderRadius: 16,
             overflow: "hidden",
             transform: [{ scale }],
-            borderWidth: focused ? 4 : 0,
-            borderColor: "#FFFFFF",
             shadowColor: "#FFFFFF",
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.5 : 0,
+            shadowOpacity: focused ? 0.6 : 0,
             shadowRadius: focused ? 20 : 0,
           }}
         >
