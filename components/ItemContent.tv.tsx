@@ -4,8 +4,8 @@ import type {
   MediaSourceInfo,
   MediaStream,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
@@ -22,7 +22,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
+import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
+import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
 import {
   TVBackdrop,
   TVButton,
@@ -71,7 +73,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
     const typography = useScaledTVTypography();
     const [api] = useAtom(apiAtom);
-    const [_user] = useAtom(userAtom);
+    const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
     const { settings } = useSettings();
     const insets = useSafeAreaInsets();
@@ -80,6 +82,31 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const queryClient = useQueryClient();
 
     const _itemColors = useImageColorsReturn({ item });
+
+    // State for first episode card ref (used for focus guide)
+    const [firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+
+    // Fetch season episodes for episodes
+    const { data: seasonEpisodes = [] } = useQuery({
+      queryKey: ["episodes", item?.SeasonId],
+      queryFn: async () => {
+        if (!api || !user?.Id || !item?.SeriesId || !item?.SeasonId) return [];
+        const res = await getTvShowsApi(api).getEpisodes({
+          seriesId: item.SeriesId,
+          userId: user.Id,
+          seasonId: item.SeasonId,
+          enableUserData: true,
+          fields: ["MediaSources", "Overview"],
+        });
+        return res.data.Items || [];
+      },
+      enabled:
+        !!api &&
+        !!user?.Id &&
+        !!item?.SeriesId &&
+        !!item?.SeasonId &&
+        item?.Type === "Episode",
+    });
 
     const [selectedOptions, setSelectedOptions] = useState<
       SelectedOptions | undefined
@@ -440,6 +467,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       }
     }, [router, item?.SeriesId, item?.ParentIndexNumber]);
 
+    const handleEpisodePress = useCallback(
+      (episode: BaseItemDto) => {
+        const navigation = getItemNavigation(episode, "(home)");
+        router.push(navigation as any);
+      },
+      [router],
+    );
+
     if (!item || !selectedOptions) return null;
 
     return (
@@ -790,6 +825,71 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 firstActorRefSetter={setFirstActorCardRef}
                 upwardFocusDestination={lastOptionButtonRef}
               />
+            )}
+
+            {/* Focus guide: cast → episodes (downward navigation) */}
+            {showVisualCast && firstEpisodeRef && (
+              <TVFocusGuideView
+                destinations={[firstEpisodeRef]}
+                style={{ height: 1, width: "100%" }}
+              />
+            )}
+
+            {/* Season Episodes - Episode only */}
+            {item.Type === "Episode" && seasonEpisodes.length > 1 && (
+              <View style={{ marginBottom: 40 }}>
+                <Text
+                  style={{
+                    fontSize: typography.heading,
+                    fontWeight: "600",
+                    color: "#FFFFFF",
+                    marginBottom: 24,
+                  }}
+                >
+                  {t("item_card.more_from_this_season")}
+                </Text>
+
+                {/* Focus guides - stacked together above the list */}
+                {/* Downward: options → first episode (only when no cast section) */}
+                {!showVisualCast && firstEpisodeRef && (
+                  <TVFocusGuideView
+                    destinations={[firstEpisodeRef]}
+                    style={{ height: 1, width: "100%" }}
+                  />
+                )}
+                {/* Upward: episodes → cast (first actor) or options (last button) */}
+                {(firstActorCardRef || lastOptionButtonRef) && (
+                  <TVFocusGuideView
+                    destinations={
+                      [firstActorCardRef ?? lastOptionButtonRef].filter(
+                        Boolean,
+                      ) as View[]
+                    }
+                    style={{ height: 1, width: "100%" }}
+                  />
+                )}
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginHorizontal: -80, overflow: "visible" }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 80,
+                    paddingVertical: 12,
+                    gap: 24,
+                  }}
+                >
+                  {seasonEpisodes.map((episode, index) => (
+                    <TVEpisodeCard
+                      key={episode.Id}
+                      episode={episode}
+                      onPress={() => handleEpisodePress(episode)}
+                      disabled={episode.Id === item.Id}
+                      refSetter={index === 0 ? setFirstEpisodeRef : undefined}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
             )}
 
             {/* From this Series - Episode only */}
