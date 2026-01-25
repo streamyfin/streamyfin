@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { Animated, Platform, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
@@ -25,6 +25,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
   onPress,
   hasTVPreferredFocus,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05 });
 
@@ -104,7 +105,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
 
         <Text
           style={{
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             fontWeight: "600",
             color: focused ? "#fff" : "rgba(255,255,255,0.9)",
             textAlign: "center",
@@ -118,7 +119,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         {subtitle && (
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: focused
                 ? "rgba(255,255,255,0.8)"
                 : "rgba(255,255,255,0.5)",

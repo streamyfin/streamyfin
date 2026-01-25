@@ -126,7 +126,12 @@
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
         "hide_remote_session_button": "Hide Remote Session Button",
         "show_home_backdrop": "Dynamic Home Backdrop",
-        "show_hero_carousel": "Hero Carousel"
+        "show_hero_carousel": "Hero Carousel",
+        "text_size": "Text Size",
+        "text_size_small": "Small",
+        "text_size_default": "Default",
+        "text_size_large": "Large",
+        "text_size_extra_large": "Extra Large"
       },
       "network": {
         "title": "Network",

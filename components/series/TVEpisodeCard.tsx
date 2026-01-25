@@ -7,7 +7,7 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -33,6 +33,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   onBlur,
   refSetter,
 }) => {
+  const typography = useScaledTVTypography();
   const api = useAtomValue(apiAtom);
 
   const thumbnailUrl = useMemo(() => {
@@ -112,7 +113,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           {episodeLabel && (
             <Text
               style={{
-                fontSize: TVTypography.callout,
+                fontSize: typography.callout,
                 color: "#9CA3AF",
                 fontWeight: "500",
               }}
@@ -122,14 +123,10 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           )}
           {duration && (
             <>
-              <Text
-                style={{ color: "#6B7280", fontSize: TVTypography.callout }}
-              >
+              <Text style={{ color: "#6B7280", fontSize: typography.callout }}>
                 •
               </Text>
-              <Text
-                style={{ fontSize: TVTypography.callout, color: "#9CA3AF" }}
-              >
+              <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
                 {duration}
               </Text>
             </>
@@ -138,7 +135,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
         <Text
           numberOfLines={2}
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: "#FFFFFF",
             marginTop: 4,
             fontWeight: "500",

@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVActorCardProps {
@@ -19,6 +19,7 @@ export interface TVActorCardProps {
 
 export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
   ({ person, apiBasePath, onPress, hasTVPreferredFocus }, ref) => {
+    const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation({ scaleAmount: 1.08 });
 
@@ -84,7 +85,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
 
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               fontWeight: "600",
               color: focused ? "#fff" : "rgba(255,255,255,0.9)",
               textAlign: "center",
@@ -98,7 +99,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
           {person.Role && (
             <Text
               style={{
-                fontSize: TVTypography.callout,
+                fontSize: typography.callout,
                 color: focused
                   ? "rgba(255,255,255,0.8)"
                   : "rgba(255,255,255,0.5)",

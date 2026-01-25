@@ -37,7 +37,7 @@ import {
   TVTechnicalDetails,
 } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
@@ -69,6 +69,7 @@ interface ItemContentTVProps {
 // Export as both ItemContentTV (for direct requires) and ItemContent (for platform-resolved imports)
 export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
   ({ item, itemWithSources }) => {
+    const typography = useScaledTVTypography();
     const [api] = useAtom(apiAtom);
     const [_user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
@@ -484,7 +485,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               ) : (
                 <Text
                   style={{
-                    fontSize: TVTypography.display,
+                    fontSize: typography.display,
                     fontWeight: "bold",
                     color: "#FFFFFF",
                     marginBottom: 20,
@@ -500,7 +501,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 <View style={{ marginBottom: 16 }}>
                   <Text
                     style={{
-                      fontSize: TVTypography.title,
+                      fontSize: typography.title,
                       color: "#FFFFFF",
                       fontWeight: "600",
                     }}
@@ -509,7 +510,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   </Text>
                   <Text
                     style={{
-                      fontSize: TVTypography.body,
+                      fontSize: typography.body,
                       color: "white",
                       marginTop: 6,
                     }}
@@ -554,7 +555,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   >
                     <Text
                       style={{
-                        fontSize: TVTypography.body,
+                        fontSize: typography.body,
                         color: "#E5E7EB",
                         lineHeight: 32,
                       }}
@@ -587,7 +588,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   />
                   <Text
                     style={{
-                      fontSize: TVTypography.callout,
+                      fontSize: typography.callout,
                       fontWeight: "bold",
                       color: "#000000",
                     }}

@@ -17,7 +17,11 @@ import {
 } from "@/components/tv";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
+import {
+  AudioTranscodeMode,
+  TVTypographyScale,
+  useSettings,
+} from "@/utils/atoms/settings";
 
 export default function SettingsTV() {
   const { t } = useTranslation();
@@ -39,6 +43,8 @@ export default function SettingsTV() {
     settings.subtitleMode || SubtitlePlaybackMode.Default;
   const currentAlignX = settings.mpvSubtitleAlignX ?? "center";
   const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
+  const currentTypographyScale =
+    settings.tvTypographyScale || TVTypographyScale.Default;
 
   // Audio transcoding options
   const audioTranscodeModeOptions: TVOptionItem<AudioTranscodeMode>[] = useMemo(
@@ -130,6 +136,33 @@ export default function SettingsTV() {
     [currentAlignY],
   );
 
+  // Typography scale options
+  const typographyScaleOptions: TVOptionItem<TVTypographyScale>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.appearance.text_size_small"),
+        value: TVTypographyScale.Small,
+        selected: currentTypographyScale === TVTypographyScale.Small,
+      },
+      {
+        label: t("home.settings.appearance.text_size_default"),
+        value: TVTypographyScale.Default,
+        selected: currentTypographyScale === TVTypographyScale.Default,
+      },
+      {
+        label: t("home.settings.appearance.text_size_large"),
+        value: TVTypographyScale.Large,
+        selected: currentTypographyScale === TVTypographyScale.Large,
+      },
+      {
+        label: t("home.settings.appearance.text_size_extra_large"),
+        value: TVTypographyScale.ExtraLarge,
+        selected: currentTypographyScale === TVTypographyScale.ExtraLarge,
+      },
+    ],
+    [t, currentTypographyScale],
+  );
+
   // Get display labels for option buttons
   const audioTranscodeLabel = useMemo(() => {
     const option = audioTranscodeModeOptions.find((o) => o.selected);
@@ -150,6 +183,11 @@ export default function SettingsTV() {
     const option = alignYOptions.find((o) => o.selected);
     return option?.label || "Bottom";
   }, [alignYOptions]);
+
+  const typographyScaleLabel = useMemo(() => {
+    const option = typographyScaleOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.appearance.text_size_default");
+  }, [typographyScaleOptions, t]);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
@@ -344,6 +382,18 @@ export default function SettingsTV() {
 
           {/* Appearance Section */}
           <TVSectionHeader title={t("home.settings.appearance.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.appearance.text_size")}
+            value={typographyScaleLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.appearance.text_size"),
+                options: typographyScaleOptions,
+                onSelect: (value) =>
+                  updateSettings({ tvTypographyScale: value }),
+              })
+            }
+          />
           <TVSettingsToggle
             label={t(
               "home.settings.appearance.merge_next_up_continue_watching",

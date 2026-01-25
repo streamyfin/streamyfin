@@ -29,7 +29,7 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import {
@@ -46,17 +46,22 @@ import { userAtom } from "@/providers/JellyfinProvider";
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
 
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => (
+type Typography = ReturnType<typeof useScaledTVTypography>;
+
+const TVItemCardText: React.FC<{
+  item: BaseItemDto;
+  typography: Typography;
+}> = ({ item, typography }) => (
   <View style={{ marginTop: 12 }}>
     <Text
       numberOfLines={1}
-      style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+      style={{ fontSize: typography.callout, color: "#FFFFFF" }}
     >
       {item.Name}
     </Text>
     <Text
       style={{
-        fontSize: TVTypography.callout - 2,
+        fontSize: typography.callout - 2,
         color: "#9CA3AF",
         marginTop: 2,
       }}
@@ -67,6 +72,7 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => (
 );
 
 export default function WatchlistDetailScreen() {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
@@ -212,11 +218,11 @@ export default function WatchlistDetailScreen() {
               <SeriesPoster item={item} />
             )}
           </TVFocusablePoster>
-          <TVItemCardText item={item} />
+          <TVItemCardText item={item} typography={typography} />
         </View>
       );
     },
-    [router],
+    [router, typography],
   );
 
   const renderItem = useCallback(
@@ -356,7 +362,7 @@ export default function WatchlistDetailScreen() {
           {watchlist.description && (
             <Text
               style={{
-                fontSize: TVTypography.body,
+                fontSize: typography.body,
                 color: "#9CA3AF",
                 marginBottom: 16,
                 textAlign: "center",
@@ -376,9 +382,7 @@ export default function WatchlistDetailScreen() {
               style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
             >
               <Ionicons name='film-outline' size={20} color='#9ca3af' />
-              <Text
-                style={{ fontSize: TVTypography.callout, color: "#9CA3AF" }}
-              >
+              <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
                 {items?.length ?? 0}{" "}
                 {(items?.length ?? 0) === 1
                   ? t("watchlists.item")
@@ -395,18 +399,14 @@ export default function WatchlistDetailScreen() {
                 size={20}
                 color='#9ca3af'
               />
-              <Text
-                style={{ fontSize: TVTypography.callout, color: "#9CA3AF" }}
-              >
+              <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
                 {watchlist.isPublic
                   ? t("watchlists.public")
                   : t("watchlists.private")}
               </Text>
             </View>
             {!isOwner && (
-              <Text
-                style={{ fontSize: TVTypography.callout, color: "#737373" }}
-              >
+              <Text style={{ fontSize: typography.callout, color: "#737373" }}>
                 {t("watchlists.by_owner")}
               </Text>
             )}
@@ -426,7 +426,7 @@ export default function WatchlistDetailScreen() {
             <Ionicons name='film-outline' size={48} color='#4b5563' />
             <Text
               style={{
-                fontSize: TVTypography.body,
+                fontSize: typography.body,
                 color: "#9CA3AF",
                 textAlign: "center",
                 marginTop: 16,

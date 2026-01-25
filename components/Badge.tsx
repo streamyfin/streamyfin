@@ -1,7 +1,7 @@
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View, type ViewProps } from "react-native";
 import { GlassEffectView } from "react-native-glass-effect-view";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { Text } from "./common/Text";
 
 interface Props extends ViewProps {
@@ -16,6 +16,8 @@ export const Badge: React.FC<Props> = ({
   variant = "purple",
   ...props
 }) => {
+  const typography = useScaledTVTypography();
+
   const content = (
     <View style={styles.content}>
       {iconLeft && <View style={styles.iconLeft}>{iconLeft}</View>}
@@ -69,7 +71,7 @@ export const Badge: React.FC<Props> = ({
           {iconLeft && <View style={{ marginRight: 8 }}>{iconLeft}</View>}
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#E5E7EB",
             }}
           >

@@ -16,7 +16,7 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -26,18 +26,23 @@ import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
 
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
+type Typography = ReturnType<typeof useScaledTVTypography>;
+
+const TVItemCardText: React.FC<{
+  item: BaseItemDto;
+  typography: Typography;
+}> = ({ item, typography }) => {
   return (
     <View style={{ marginTop: 12, flexDirection: "column" }}>
       <Text
         numberOfLines={1}
-        style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+        style={{ fontSize: typography.callout, color: "#FFFFFF" }}
       >
         {item.Name}
       </Text>
       <Text
         style={{
-          fontSize: TVTypography.callout,
+          fontSize: typography.callout,
           color: "#9CA3AF",
           marginTop: 2,
         }}
@@ -60,6 +65,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   onItemFocus,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -142,11 +148,11 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
             {item.Type === "Movie" && <MoviePoster item={item} />}
             {item.Type === "Series" && <SeriesPoster item={item} />}
           </TVFocusablePoster>
-          <TVItemCardText item={item} />
+          <TVItemCardText item={item} typography={typography} />
         </View>
       );
     },
-    [handleItemPress, onItemFocus],
+    [handleItemPress, onItemFocus, typography],
   );
 
   if (!isLoading && (!items || items.length === 0)) return null;
@@ -155,7 +161,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
     <View style={{ overflow: "visible" }} {...props}>
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,

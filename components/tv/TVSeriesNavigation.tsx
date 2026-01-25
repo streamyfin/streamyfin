@@ -3,7 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TVSeriesSeasonCard } from "./TVSeriesSeasonCard";
 
 export interface TVSeriesNavigationProps {
@@ -16,6 +16,7 @@ export interface TVSeriesNavigationProps {
 
 export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
   ({ item, seriesImageUrl, seasonImageUrl, onSeriesPress, onSeasonPress }) => {
+    const typography = useScaledTVTypography();
     const { t } = useTranslation();
 
     // Only show for episodes with a series
@@ -27,7 +28,7 @@ export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
       <View style={{ marginBottom: 32 }}>
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
             marginBottom: 24,

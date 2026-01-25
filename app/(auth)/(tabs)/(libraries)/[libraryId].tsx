@@ -42,6 +42,7 @@ import {
   TVFocusablePoster,
   TVItemCardText,
 } from "@/components/tv";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -83,6 +84,7 @@ const Page = () => {
   };
   const { libraryId } = searchParams;
 
+  const typography = useScaledTVTypography();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { width: screenWidth } = useWindowDimensions();
@@ -947,7 +949,7 @@ const Page = () => {
             paddingTop: 100,
           }}
         >
-          <Text style={{ fontSize: 20, color: "#737373" }}>
+          <Text style={{ fontSize: typography.body, color: "#737373" }}>
             {t("library.no_results")}
           </Text>
         </View>

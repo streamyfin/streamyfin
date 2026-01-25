@@ -8,7 +8,7 @@ import { Dimensions, View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 
@@ -19,6 +19,7 @@ interface TVSeriesHeaderProps {
 }
 
 export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
+  const typography = useScaledTVTypography();
   const api = useAtomValue(apiAtom);
 
   const logoUrl = useMemo(() => {
@@ -58,7 +59,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
       ) : (
         <Text
           style={{
-            fontSize: TVTypography.display,
+            fontSize: typography.display,
             fontWeight: "bold",
             color: "#FFFFFF",
             marginBottom: 16,
@@ -80,7 +81,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
         }}
       >
         {yearString && (
-          <Text style={{ color: "white", fontSize: TVTypography.body }}>
+          <Text style={{ color: "white", fontSize: typography.body }}>
             {yearString}
           </Text>
         )}
@@ -123,7 +124,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
           >
             <Text
               style={{
-                fontSize: TVTypography.body,
+                fontSize: typography.body,
                 color: "#E5E7EB",
                 lineHeight: 32,
               }}

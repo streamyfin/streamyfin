@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
 import type {
@@ -27,6 +27,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
   onPress,
   isFirstItem = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { jellyseerrApi, getTitle, getYear } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05 });
@@ -113,7 +114,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
         </View>
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: "#fff",
             fontWeight: "600",
             marginTop: 12,
@@ -125,7 +126,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
         {year && (
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -147,6 +148,7 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
   item,
   onPress,
 }) => {
+  const typography = useScaledTVTypography();
   const { jellyseerrApi } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.08 });
@@ -202,7 +204,7 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
         </View>
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: focused ? "#fff" : "rgba(255,255,255,0.9)",
             fontWeight: "600",
             marginTop: 12,
@@ -230,13 +232,14 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
   isFirstSection = false,
   onItemPress,
 }) => {
+  const typography = useScaledTVTypography();
   if (!items || items.length === 0) return null;
 
   return (
     <View style={{ marginBottom: 24 }}>
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,
@@ -281,13 +284,14 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
   isFirstSection = false,
   onItemPress,
 }) => {
+  const typography = useScaledTVTypography();
   if (!items || items.length === 0) return null;
 
   return (
     <View style={{ marginBottom: 24 }}>
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,
@@ -332,13 +336,14 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
   isFirstSection: _isFirstSection = false,
   onItemPress,
 }) => {
+  const typography = useScaledTVTypography();
   if (!items || items.length === 0) return null;
 
   return (
     <View style={{ marginBottom: 24 }}>
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,

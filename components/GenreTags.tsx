@@ -10,7 +10,7 @@ import {
   type ViewProps,
 } from "react-native";
 import { GlassEffectView } from "react-native-glass-effect-view";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { Text } from "./common/Text";
 
 interface TagProps {
@@ -25,6 +25,9 @@ export const Tag: React.FC<
     textStyle?: StyleProp<TextStyle>;
   } & ViewProps
 > = ({ text, textClass, textStyle, ...props }) => {
+  // Hook must be called at the top level, before any conditional returns
+  const typography = useScaledTVTypography();
+
   if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View>
@@ -60,7 +63,7 @@ export const Tag: React.FC<
             backgroundColor: "rgba(0,0,0,0.3)",
           }}
         >
-          <Text style={{ fontSize: TVTypography.callout, color: "#E5E7EB" }}>
+          <Text style={{ fontSize: typography.callout, color: "#E5E7EB" }}>
             {text}
           </Text>
         </View>

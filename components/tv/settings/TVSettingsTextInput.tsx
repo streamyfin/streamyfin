@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { Animated, Pressable, TextInput } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsTextInputProps {
@@ -23,6 +23,7 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
   secureTextEntry,
   disabled,
 }) => {
+  const typography = useScaledTVTypography();
   const inputRef = useRef<TextInput>(null);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02 });
@@ -56,7 +57,7 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
       >
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: "#9CA3AF",
             marginBottom: 8,
           }}
@@ -74,7 +75,7 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
           autoCapitalize='none'
           autoCorrect={false}
           style={{
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             color: "#FFFFFF",
             backgroundColor: "rgba(255, 255, 255, 0.05)",
             borderRadius: 8,

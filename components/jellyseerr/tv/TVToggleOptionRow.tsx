@@ -2,7 +2,7 @@ import React from "react";
 import { Animated, Pressable, ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 interface ToggleItem {
   id: number;
@@ -21,6 +21,7 @@ const TVToggleChip: React.FC<TVToggleChipProps> = ({
   onToggle,
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
       scaleAmount: 1.08,
@@ -57,7 +58,7 @@ const TVToggleChip: React.FC<TVToggleChipProps> = ({
       >
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: focused ? "#000" : "#fff",
             fontWeight: item.selected || focused ? "600" : "400",
           }}
@@ -82,13 +83,14 @@ export const TVToggleOptionRow: React.FC<TVToggleOptionRowProps> = ({
   onToggle,
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   if (items.length === 0) return null;
 
   return (
     <View style={{ marginBottom: 16 }}>
       <Text
         style={{
-          fontSize: TVTypography.callout,
+          fontSize: typography.callout,
           color: "rgba(255,255,255,0.6)",
           marginBottom: 10,
         }}

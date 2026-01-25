@@ -15,6 +15,7 @@ import { Animated, Easing, FlatList, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -55,6 +56,7 @@ const TVLibraryRow: React.FC<{
 }> = ({ library, isFirst, onPress }) => {
   const [api] = useAtom(apiAtom);
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0.7)).current;
@@ -190,7 +192,7 @@ const TVLibraryRow: React.FC<{
             <Text
               numberOfLines={1}
               style={{
-                fontSize: 32,
+                fontSize: typography.heading,
                 fontWeight: "700",
                 color: "#FFFFFF",
                 textShadowColor: "rgba(0,0,0,0.8)",
@@ -203,7 +205,7 @@ const TVLibraryRow: React.FC<{
             {library.itemCount !== undefined && (
               <Text
                 style={{
-                  fontSize: 18,
+                  fontSize: typography.body,
                   color: "rgba(255,255,255,0.7)",
                   marginTop: 4,
                   textShadowColor: "rgba(0,0,0,0.8)",
@@ -237,6 +239,7 @@ export const TVLibraries: React.FC = () => {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
 
   const { data: userViews, isLoading: viewsLoading } = useQuery({
     queryKey: ["user-views", user?.Id],
@@ -360,7 +363,7 @@ export const TVLibraries: React.FC = () => {
           alignItems: "center",
         }}
       >
-        <Text style={{ fontSize: 20, color: "#737373" }}>
+        <Text style={{ fontSize: typography.body, color: "#737373" }}>
           {t("library.no_libraries_found")}
         </Text>
       </View>

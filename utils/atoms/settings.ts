@@ -134,6 +134,14 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// TV Typography scale presets
+export enum TVTypographyScale {
+  Small = "small",
+  Default = "default",
+  Large = "large",
+  ExtraLarge = "extraLarge",
+}
+
 // Audio transcoding mode - controls how surround audio is handled
 // This controls server-side transcoding behavior for audio streams.
 // MPV decodes via FFmpeg and supports most formats, but mobile devices
@@ -202,6 +210,7 @@ export type Settings = {
   // TV-specific settings
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
+  tvTypographyScale: TVTypographyScale;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -291,6 +300,7 @@ export const defaultValues: Settings = {
   // TV-specific settings
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
+  tvTypographyScale: TVTypographyScale.Default,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,

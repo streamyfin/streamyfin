@@ -3,7 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TVFocusGuideView, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TVActorCard } from "./TVActorCard";
 
 export interface TVCastSectionProps {
@@ -24,6 +24,7 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
     firstActorRefSetter,
     upwardFocusDestination,
   }) => {
+    const typography = useScaledTVTypography();
     const { t } = useTranslation();
 
     if (cast.length === 0) {
@@ -34,7 +35,7 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
       <View style={{ marginBottom: 40 }}>
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
             marginBottom: 24,

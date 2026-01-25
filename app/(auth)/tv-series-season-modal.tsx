@@ -12,12 +12,13 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVCancelButton, TVOptionCard } from "@/components/tv";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import { store } from "@/utils/store";
 
 export default function TVSeriesSeasonModalPage() {
+  const typography = useScaledTVTypography();
   const router = useRouter();
   const modalState = useAtomValue(tvSeriesSeasonModalAtom);
   const { t } = useTranslation();
@@ -103,7 +104,9 @@ export default function TVSeriesSeasonModalPage() {
             trapFocusRight
             style={styles.content}
           >
-            <Text style={styles.title}>{t("item_card.select_season")}</Text>
+            <Text style={[styles.title, { fontSize: typography.callout }]}>
+              {t("item_card.select_season")}
+            </Text>
 
             {isReady && (
               <ScrollView
@@ -164,7 +167,6 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   title: {
-    fontSize: TVTypography.callout,
     fontWeight: "500",
     color: "rgba(255,255,255,0.6)",
     marginBottom: 16,
