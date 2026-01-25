@@ -11,27 +11,28 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
 
 // TV-specific ItemCardText with larger fonts
 const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
+  const typography = useScaledTVTypography();
   return (
     <View style={{ marginTop: 12, flexDirection: "column" }}>
       {item.Type === "Episode" ? (
         <>
           <Text
             numberOfLines={1}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -45,7 +46,7 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         <Text
           numberOfLines={2}
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: "#FFFFFF",
             textAlign: "center",
           }}
@@ -56,14 +57,14 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         <>
           <Text
             numberOfLines={2}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -75,14 +76,14 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         <>
           <Text
             numberOfLines={2}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -94,13 +95,13 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         <>
           <Text
             numberOfLines={2}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -111,7 +112,7 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
       ) : item.Type === "Person" ? (
         <Text
           numberOfLines={2}
-          style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          style={{ fontSize: typography.callout, color: "#FFFFFF" }}
         >
           {item.Name}
         </Text>
@@ -119,13 +120,13 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         <>
           <Text
             numberOfLines={1}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -158,6 +159,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   imageUrlGetter,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
@@ -358,7 +360,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,

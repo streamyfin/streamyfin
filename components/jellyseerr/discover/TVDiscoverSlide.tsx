@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
   type DiscoverEndpoint,
@@ -33,6 +33,7 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
   item,
   isFirstItem = false,
 }) => {
+  const typography = useScaledTVTypography();
   const router = useRouter();
   const { jellyseerrApi, getTitle, getYear } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -130,7 +131,7 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
         </View>
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: "#fff",
             fontWeight: "600",
             marginTop: 12,
@@ -142,7 +143,7 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
         {year && (
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -164,6 +165,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   slide,
   isFirstSlide = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
@@ -232,7 +234,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
     <View style={{ marginBottom: 24 }}>
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,

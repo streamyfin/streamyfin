@@ -1,7 +1,7 @@
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsToggleProps {
@@ -19,6 +19,7 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
   isFirst,
   disabled,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02 });
 
@@ -48,7 +49,7 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
           },
         ]}
       >
-        <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
+        <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
           {label}
         </Text>
         <View

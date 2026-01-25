@@ -11,7 +11,7 @@ import heart from "@/assets/icons/heart.fill.png";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { Colors } from "@/constants/Colors";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const HORIZONTAL_PADDING = 60;
@@ -28,6 +28,7 @@ type FavoriteTypes =
 type EmptyState = Record<FavoriteTypes, boolean>;
 
 export const Favorites = () => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -148,7 +149,7 @@ export const Favorites = () => {
         />
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -160,7 +161,7 @@ export const Favorites = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             color: "#FFFFFF",
           }}
         >

@@ -31,7 +31,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
@@ -206,6 +206,7 @@ export const Controls: FC<Props> = ({
   playMethod,
   transcodeReasons,
 }) => {
+  const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
@@ -973,14 +974,16 @@ export const Controls: FC<Props> = ({
           </View>
 
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>
+            <Text style={[styles.timeText, { fontSize: typography.body }]}>
               {formatTimeString(currentTime, "ms")}
             </Text>
             <View style={styles.timeRight}>
-              <Text style={styles.timeText}>
+              <Text style={[styles.timeText, { fontSize: typography.body }]}>
                 -{formatTimeString(remainingTime, "ms")}
               </Text>
-              <Text style={styles.endsAtText}>
+              <Text
+                style={[styles.endsAtText, { fontSize: typography.callout }]}
+              >
                 {t("player.ends_at")} {getFinishTime()}
               </Text>
             </View>
@@ -1006,12 +1009,18 @@ export const Controls: FC<Props> = ({
           <View style={styles.metadataContainer}>
             {item?.Type === "Episode" && (
               <Text
-                style={styles.subtitleText}
+                style={[styles.subtitleText, { fontSize: typography.body }]}
               >{`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}</Text>
             )}
-            <Text style={styles.titleText}>{item?.Name}</Text>
+            <Text style={[styles.titleText, { fontSize: typography.heading }]}>
+              {item?.Name}
+            </Text>
             {item?.Type === "Movie" && (
-              <Text style={styles.subtitleText}>{item?.ProductionYear}</Text>
+              <Text
+                style={[styles.subtitleText, { fontSize: typography.body }]}
+              >
+                {item?.ProductionYear}
+              </Text>
             )}
           </View>
 
@@ -1110,14 +1119,16 @@ export const Controls: FC<Props> = ({
           </TVFocusGuideView>
 
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>
+            <Text style={[styles.timeText, { fontSize: typography.body }]}>
               {formatTimeString(currentTime, "ms")}
             </Text>
             <View style={styles.timeRight}>
-              <Text style={styles.timeText}>
+              <Text style={[styles.timeText, { fontSize: typography.body }]}>
                 -{formatTimeString(remainingTime, "ms")}
               </Text>
-              <Text style={styles.endsAtText}>
+              <Text
+                style={[styles.endsAtText, { fontSize: typography.callout }]}
+              >
                 {t("player.ends_at")} {getFinishTime()}
               </Text>
             </View>
@@ -1151,11 +1162,9 @@ const styles = StyleSheet.create({
   },
   subtitleText: {
     color: "rgba(255,255,255,0.6)",
-    fontSize: TVTypography.body,
   },
   titleText: {
     color: "#fff",
-    fontSize: TVTypography.heading,
     fontWeight: "bold",
   },
   controlButtonsRow: {
@@ -1218,7 +1227,6 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: "rgba(255,255,255,0.7)",
-    fontSize: TVTypography.body,
   },
   timeRight: {
     flexDirection: "column",
@@ -1226,7 +1234,6 @@ const styles = StyleSheet.create({
   },
   endsAtText: {
     color: "rgba(255,255,255,0.5)",
-    fontSize: TVTypography.callout,
     marginTop: 2,
   },
   // Minimal seek bar styles

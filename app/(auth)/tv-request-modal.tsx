@@ -17,7 +17,7 @@ import { TVRequestOptionRow } from "@/components/jellyseerr/tv/TVRequestOptionRo
 import { TVToggleOptionRow } from "@/components/jellyseerr/tv/TVToggleOptionRow";
 import { TVButton, TVOptionSelector } from "@/components/tv";
 import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
@@ -30,6 +30,7 @@ import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/
 import { store } from "@/utils/store";
 
 export default function TVRequestModalPage() {
+  const typography = useScaledTVTypography();
   const router = useRouter();
   const modalState = useAtomValue(tvRequestModalAtom);
   const { t } = useTranslation();
@@ -336,8 +337,12 @@ export default function TVRequestModalPage() {
             trapFocusRight
             style={styles.content}
           >
-            <Text style={styles.heading}>{t("jellyseerr.advanced")}</Text>
-            <Text style={styles.subtitle}>{modalState.title}</Text>
+            <Text style={[styles.heading, { fontSize: typography.heading }]}>
+              {t("jellyseerr.advanced")}
+            </Text>
+            <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
+              {modalState.title}
+            </Text>
 
             {isDataLoaded && isReady ? (
               <ScrollView
@@ -390,7 +395,12 @@ export default function TVRequestModalPage() {
                     color='#FFFFFF'
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={styles.buttonText}>
+                  <Text
+                    style={[
+                      styles.buttonText,
+                      { fontSize: typography.callout },
+                    ]}
+                  >
                     {t("jellyseerr.request_button")}
                   </Text>
                 </TVButton>
@@ -451,13 +461,11 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   heading: {
-    fontSize: TVTypography.heading,
     fontWeight: "bold",
     color: "#FFFFFF",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: TVTypography.callout,
     color: "rgba(255,255,255,0.6)",
     marginBottom: 24,
   },
@@ -482,7 +490,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   buttonText: {
-    fontSize: TVTypography.callout,
     fontWeight: "bold",
     color: "#FFFFFF",
   },

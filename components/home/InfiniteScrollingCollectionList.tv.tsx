@@ -20,7 +20,7 @@ import MoviePoster, {
   TV_POSTER_WIDTH,
 } from "@/components/posters/MoviePoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import ContinueWatchingPoster, {
@@ -48,22 +48,27 @@ interface Props extends ViewProps {
   parentId?: string;
 }
 
+type Typography = ReturnType<typeof useScaledTVTypography>;
+
 // TV-specific ItemCardText with larger fonts
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
+const TVItemCardText: React.FC<{
+  item: BaseItemDto;
+  typography: Typography;
+}> = ({ item, typography }) => {
   return (
     <View style={{ marginTop: 12, flexDirection: "column" }}>
       {item.Type === "Episode" ? (
         <>
           <Text
             numberOfLines={1}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -77,13 +82,13 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
         <>
           <Text
             numberOfLines={1}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
           >
             {item.Name}
           </Text>
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 2,
             }}
@@ -103,7 +108,8 @@ const TVSeeAllCard: React.FC<{
   disabled?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
-}> = ({ onPress, orientation, disabled, onFocus, onBlur }) => {
+  typography: Typography;
+}> = ({ onPress, orientation, disabled, onFocus, onBlur, typography }) => {
   const { t } = useTranslation();
   const width =
     orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
@@ -137,7 +143,7 @@ const TVSeeAllCard: React.FC<{
           />
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#FFFFFF",
               fontWeight: "600",
             }}
@@ -165,6 +171,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   parentId,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
   const effectivePageSize = Math.max(1, pageSize);
   const hasCalledOnLoaded = useRef(false);
   const router = useRouter();
@@ -343,7 +350,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           >
             {renderPoster()}
           </TVFocusablePoster>
-          <TVItemCardText item={item} />
+          <TVItemCardText item={item} typography={typography} />
         </View>
       );
     },
@@ -354,6 +361,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       handleItemPress,
       handleItemFocus,
       handleItemBlur,
+      typography,
     ],
   );
 
@@ -365,7 +373,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: TVTypography.heading,
+          fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
@@ -380,7 +388,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         <Text
           style={{
             color: "#737373",
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             marginLeft: SCALE_PADDING,
           }}
         >
@@ -421,7 +429,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                     color: "#262626",
                     backgroundColor: "#262626",
                     borderRadius: 6,
-                    fontSize: TVTypography.callout,
+                    fontSize: typography.callout,
                   }}
                   numberOfLines={1}
                 >
@@ -478,6 +486,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                   disabled={disabled}
                   onFocus={handleSeeAllFocus}
                   onBlur={handleItemBlur}
+                  typography={typography}
                 />
               )}
             </View>

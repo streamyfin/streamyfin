@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -44,6 +45,7 @@ export const TVLibraryCard: React.FC<Props> = ({ library }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
 
   const url = useMemo(
     () =>
@@ -148,7 +150,7 @@ export const TVLibraryCard: React.FC<Props> = ({ library }) => {
         <Text
           numberOfLines={1}
           style={{
-            fontSize: 22,
+            fontSize: typography.body,
             fontWeight: "600",
             color: "#FFFFFF",
             marginTop: 12,
@@ -160,7 +162,7 @@ export const TVLibraryCard: React.FC<Props> = ({ library }) => {
         {itemsCount !== undefined && (
           <Text
             style={{
-              fontSize: 14,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginTop: 4,
             }}

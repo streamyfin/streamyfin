@@ -29,7 +29,7 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -142,6 +142,7 @@ const TVSeasonButton: React.FC<{
   onPress: () => void;
   disabled?: boolean;
 }> = ({ seasonName, onPress, disabled = false }) => {
+  const typography = useScaledTVTypography();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -190,7 +191,7 @@ const TVSeasonButton: React.FC<{
         >
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               color: focused ? "#000" : "#FFFFFF",
               fontWeight: "bold",
             }}
@@ -213,6 +214,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   allEpisodes = [],
   isLoading: _isLoading,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -567,7 +569,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 />
                 <Text
                   style={{
-                    fontSize: TVTypography.body,
+                    fontSize: typography.body,
                     fontWeight: "bold",
                     color: "#000000",
                   }}
@@ -591,7 +593,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View style={{ marginTop: 40, overflow: "visible" }}>
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               fontWeight: "600",
               color: "#FFFFFF",
               marginBottom: 16,
@@ -646,7 +648,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               <Text
                 style={{
                   color: "#737373",
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   marginLeft: SCALE_PADDING,
                 }}
               >

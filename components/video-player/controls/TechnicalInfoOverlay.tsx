@@ -15,7 +15,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { useSettings } from "@/utils/atoms/settings";
 import { HEADER_LAYOUT } from "./constants";
@@ -183,6 +183,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
     currentSubtitleIndex,
     currentAudioIndex,
   }) => {
+    const typography = useScaledTVTypography();
     const { settings } = useSettings();
     const insets = useSafeAreaInsets();
     const [info, setInfo] = useState<TechnicalInfo | null>(null);
@@ -277,8 +278,15 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
               : HEADER_LAYOUT.CONTAINER_PADDING + 20,
         };
 
-    const textStyle = Platform.isTV ? styles.infoTextTV : styles.infoText;
-    const reasonStyle = Platform.isTV ? styles.reasonTextTV : styles.reasonText;
+    const textStyle = Platform.isTV
+      ? [
+          styles.infoTextTV,
+          { fontSize: typography.body, lineHeight: typography.body * 1.5 },
+        ]
+      : styles.infoText;
+    const reasonStyle = Platform.isTV
+      ? [styles.reasonTextTV, { fontSize: typography.callout }]
+      : styles.reasonText;
     const boxStyle = Platform.isTV ? styles.infoBoxTV : styles.infoBox;
 
     return (
@@ -383,9 +391,7 @@ const styles = StyleSheet.create({
   },
   infoTextTV: {
     color: "white",
-    fontSize: TVTypography.body,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    lineHeight: TVTypography.body * 1.5,
   },
   warningText: {
     color: "#ff9800",
@@ -396,6 +402,5 @@ const styles = StyleSheet.create({
   },
   reasonTextTV: {
     color: "#fbbf24",
-    fontSize: TVTypography.callout,
   },
 });

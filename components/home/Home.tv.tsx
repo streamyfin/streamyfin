@@ -32,7 +32,7 @@ import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPr
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
 import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
 import { Loader } from "@/components/Loader";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -62,6 +62,7 @@ type Section = InfiniteScrollingCollectionListSection;
 const BACKDROP_DEBOUNCE_MS = 300;
 
 export const Home = () => {
+  const typography = useScaledTVTypography();
   const _router = useRouter();
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
@@ -579,7 +580,7 @@ export const Home = () => {
       >
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -591,7 +592,7 @@ export const Home = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             color: "#FFFFFF",
           }}
         >
@@ -632,7 +633,7 @@ export const Home = () => {
       >
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -644,7 +645,7 @@ export const Home = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             color: "#FFFFFF",
           }}
         >

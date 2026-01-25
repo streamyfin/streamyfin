@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVLogoutButtonProps {
@@ -15,6 +15,7 @@ export const TVLogoutButton: React.FC<TVLogoutButtonProps> = ({
   disabled,
 }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05 });
 
@@ -49,7 +50,7 @@ export const TVLogoutButton: React.FC<TVLogoutButtonProps> = ({
         >
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               fontWeight: "bold",
               color: "#FFFFFF",
             }}

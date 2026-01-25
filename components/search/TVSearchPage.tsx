@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
@@ -27,6 +27,7 @@ const SCALE_PADDING = 20;
 
 // Loading skeleton for TV
 const TVLoadingSkeleton: React.FC = () => {
+  const typography = useScaledTVTypography();
   const itemWidth = 210;
   return (
     <View style={{ overflow: "visible" }}>
@@ -72,7 +73,7 @@ const TVLoadingSkeleton: React.FC = () => {
                   color: "#262626",
                   backgroundColor: "#262626",
                   borderRadius: 6,
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                 }}
                 numberOfLines={1}
               >
@@ -150,6 +151,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   onJellyseerrPersonPress,
   discoverSliders,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -308,7 +310,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         <View style={{ alignItems: "center", paddingTop: 40 }}>
           <Text
             style={{
-              fontSize: TVTypography.heading,
+              fontSize: typography.heading,
               fontWeight: "bold",
               color: "#FFFFFF",
               marginBottom: 8,
@@ -318,7 +320,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           </Text>
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               color: "rgba(255,255,255,0.6)",
             }}
           >

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVLanguageCardProps {
@@ -15,6 +15,8 @@ export interface TVLanguageCardProps {
 
 export const TVLanguageCard = React.forwardRef<View, TVLanguageCardProps>(
   ({ code, name, selected, hasTVPreferredFocus, onPress }, ref) => {
+    const typography = useScaledTVTypography();
+    const styles = createStyles(typography);
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation({ scaleAmount: 1.05 });
 
@@ -72,26 +74,27 @@ export const TVLanguageCard = React.forwardRef<View, TVLanguageCardProps>(
   },
 );
 
-const styles = StyleSheet.create({
-  languageCard: {
-    width: 120,
-    height: 60,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  languageCardText: {
-    fontSize: TVTypography.callout,
-    fontWeight: "500",
-  },
-  languageCardCode: {
-    fontSize: TVTypography.callout,
-    marginTop: 2,
-  },
-  checkmark: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
-});
+const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
+  StyleSheet.create({
+    languageCard: {
+      width: 120,
+      height: 60,
+      borderRadius: 12,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 12,
+    },
+    languageCardText: {
+      fontSize: typography.callout,
+      fontWeight: "500",
+    },
+    languageCardCode: {
+      fontSize: typography.callout,
+      marginTop: 2,
+    },
+    checkmark: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+    },
+  });

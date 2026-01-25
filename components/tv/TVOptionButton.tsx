@@ -2,7 +2,7 @@ import { BlurView } from "expo-blur";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVOptionButtonProps {
@@ -14,6 +14,7 @@ export interface TVOptionButtonProps {
 
 export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
   ({ label, value, onPress, hasTVPreferredFocus }, ref) => {
+    const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation({ scaleAmount: 1.02, duration: 120 });
 
@@ -50,7 +51,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
             >
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "#444",
                 }}
               >
@@ -58,7 +59,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
               </Text>
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "#000",
                   fontWeight: "500",
                 }}
@@ -88,7 +89,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
               >
                 <Text
                   style={{
-                    fontSize: TVTypography.callout,
+                    fontSize: typography.callout,
                     color: "#bbb",
                   }}
                 >
@@ -96,7 +97,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
                 </Text>
                 <Text
                   style={{
-                    fontSize: TVTypography.callout,
+                    fontSize: typography.callout,
                     color: "#E5E7EB",
                     fontWeight: "500",
                   }}
