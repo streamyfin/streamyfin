@@ -386,6 +386,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return getPrimaryImageUrlById({ api, id: seasonId, width: 300 });
     }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
 
+    // Episode thumbnail URL - 16:9 horizontal image for episode items
+    const episodeThumbnailUrl = useMemo(() => {
+      if (item?.Type !== "Episode" || !api) return null;
+      // Use parent backdrop thumb if available (series/season thumbnail)
+      if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
+        return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
+      }
+      // Fall back to episode's primary image (which is usually 16:9 for episodes)
+      return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
+    }, [api, item]);
+
     // Determine which option button is the last one (for focus guide targeting)
     const lastOptionButton = useMemo(() => {
       const hasSubtitleOption =
@@ -456,36 +467,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               minHeight: SCREEN_HEIGHT * 0.45,
             }}
           >
-            {/* Left side - Poster */}
-            <View
-              style={{
-                width: SCREEN_WIDTH * 0.22,
-                marginRight: 50,
-              }}
-            >
-              <View
-                style={{
-                  aspectRatio: 2 / 3,
-                  borderRadius: 16,
-                  overflow: "hidden",
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 10 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 20,
-                }}
-              >
-                <ItemImage
-                  variant='Primary'
-                  item={item}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                  }}
-                />
-              </View>
-            </View>
-
-            {/* Right side - Content */}
+            {/* Left side - Content */}
             <View style={{ flex: 1, justifyContent: "center" }}>
               {/* Logo or Title */}
               {logoUrl ? (
@@ -732,6 +714,46 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   fillColor='#FFFFFF'
                 />
               )}
+            </View>
+
+            {/* Right side - Poster */}
+            <View
+              style={{
+                width:
+                  item.Type === "Episode"
+                    ? SCREEN_WIDTH * 0.35
+                    : SCREEN_WIDTH * 0.22,
+                marginLeft: 50,
+              }}
+            >
+              <View
+                style={{
+                  aspectRatio: item.Type === "Episode" ? 16 / 9 : 2 / 3,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 20,
+                }}
+              >
+                {item.Type === "Episode" && episodeThumbnailUrl ? (
+                  <Image
+                    source={{ uri: episodeThumbnailUrl }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit='cover'
+                  />
+                ) : (
+                  <ItemImage
+                    variant='Primary'
+                    item={item}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                  />
+                )}
+              </View>
             </View>
           </View>
 
