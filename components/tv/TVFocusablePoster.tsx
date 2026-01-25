@@ -70,8 +70,8 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
             transform: [{ scale }],
             shadowColor,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
+            shadowOpacity: focused ? 0.3 : 0,
+            shadowRadius: focused ? 12 : 0,
           },
           style,
         ]}

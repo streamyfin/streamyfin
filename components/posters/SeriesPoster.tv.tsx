@@ -3,6 +3,10 @@ import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
+import {
+  GlassPosterView,
+  isGlassEffectAvailable,
+} from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -32,6 +36,25 @@ const SeriesPoster: React.FC<SeriesPosterProps> = ({ item }) => {
     return item.ImageBlurHashes?.Primary?.[key];
   }, [item]);
 
+  // Use glass effect on tvOS 26+
+  const useGlass = isGlassEffectAvailable();
+
+  if (useGlass) {
+    return (
+      <GlassPosterView
+        imageUrl={url ?? null}
+        aspectRatio={10 / 15}
+        cornerRadius={24}
+        progress={0}
+        showWatchedIndicator={false}
+        isFocused={false}
+        width={TV_POSTER_WIDTH}
+        style={{ width: TV_POSTER_WIDTH }}
+      />
+    );
+  }
+
+  // Fallback for older tvOS versions
   return (
     <View
       style={{

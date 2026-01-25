@@ -4,6 +4,10 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
+import {
+  GlassPosterView,
+  isGlassEffectAvailable,
+} from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -29,12 +33,32 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
   }, [api, item]);
 
   const progress = item.UserData?.PlayedPercentage || 0;
+  const isWatched = item.UserData?.Played === true;
 
   const blurhash = useMemo(() => {
     const key = item.ImageTags?.Primary as string;
     return item.ImageBlurHashes?.Primary?.[key];
   }, [item]);
 
+  // Use glass effect on tvOS 26+
+  const useGlass = isGlassEffectAvailable();
+
+  if (useGlass) {
+    return (
+      <GlassPosterView
+        imageUrl={url ?? null}
+        aspectRatio={10 / 15}
+        cornerRadius={24}
+        progress={showProgress ? progress : 0}
+        showWatchedIndicator={isWatched}
+        isFocused={false}
+        width={TV_POSTER_WIDTH}
+        style={{ width: TV_POSTER_WIDTH }}
+      />
+    );
+  }
+
+  // Fallback for older tvOS versions
   return (
     <View
       style={{

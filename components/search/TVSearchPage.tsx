@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
+import { TVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
@@ -71,7 +72,7 @@ const TVLoadingSkeleton: React.FC = () => {
                   color: "#262626",
                   backgroundColor: "#262626",
                   borderRadius: 6,
-                  fontSize: 16,
+                  fontSize: TVTypography.callout,
                 }}
                 numberOfLines={1}
               >
@@ -222,7 +223,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       }}
     >
       {/* Search Input */}
-      <View style={{ marginBottom: 24, marginHorizontal: SCALE_PADDING }}>
+      <View style={{ marginBottom: 24, marginHorizontal: SCALE_PADDING + 200 }}>
         <Input
           placeholder={t("search.search")}
           value={search}
@@ -307,7 +308,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         <View style={{ alignItems: "center", paddingTop: 40 }}>
           <Text
             style={{
-              fontSize: 24,
+              fontSize: TVTypography.heading,
               fontWeight: "bold",
               color: "#FFFFFF",
               marginBottom: 8,
@@ -315,7 +316,12 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           >
             {t("search.no_results_found_for")}
           </Text>
-          <Text style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>
+          <Text
+            style={{
+              fontSize: TVTypography.body,
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
             "{debouncedSearch}"
           </Text>
         </View>
