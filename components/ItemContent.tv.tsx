@@ -387,15 +387,16 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return getPrimaryImageUrlById({ api, id: seasonId, width: 300 });
     }, [api, item?.Type, item?.SeasonId, item?.ParentId]);
 
-    // Episode thumbnail URL - 16:9 horizontal image for episode items
+    // Episode thumbnail URL - episode's own primary image (16:9 for episodes)
     const episodeThumbnailUrl = useMemo(() => {
       if (item?.Type !== "Episode" || !api) return null;
-      // Use parent backdrop thumb if available (series/season thumbnail)
-      if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-        return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
-      }
-      // Fall back to episode's primary image (which is usually 16:9 for episodes)
       return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
+    }, [api, item]);
+
+    // Series thumb URL - used when showSeriesPosterOnEpisode setting is enabled
+    const seriesThumbUrl = useMemo(() => {
+      if (item?.Type !== "Episode" || !item.SeriesId || !api) return null;
+      return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=700&quality=80`;
     }, [api, item]);
 
     // Determine which option button is the last one (for focus guide targeting)
@@ -738,9 +739,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   shadowRadius: 20,
                 }}
               >
-                {item.Type === "Episode" && episodeThumbnailUrl ? (
+                {item.Type === "Episode" ? (
                   <Image
-                    source={{ uri: episodeThumbnailUrl }}
+                    source={{
+                      uri:
+                        settings.showSeriesPosterOnEpisode && seriesThumbUrl
+                          ? seriesThumbUrl
+                          : episodeThumbnailUrl!,
+                    }}
                     style={{ width: "100%", height: "100%" }}
                     contentFit='cover'
                   />

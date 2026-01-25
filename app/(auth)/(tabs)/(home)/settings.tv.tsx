@@ -15,6 +15,7 @@ import {
   TVSettingsTextInput,
   TVSettingsToggle,
 } from "@/components/tv";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -31,6 +32,7 @@ export default function SettingsTV() {
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const { showOptions } = useTVOptionModal();
+  const typography = useScaledTVTypography();
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -204,7 +206,7 @@ export default function SettingsTV() {
           {/* Header */}
           <Text
             style={{
-              fontSize: 42,
+              fontSize: typography.title,
               fontWeight: "bold",
               color: "#FFFFFF",
               marginBottom: 8,
@@ -347,7 +349,7 @@ export default function SettingsTV() {
           <Text
             style={{
               color: "#9CA3AF",
-              fontSize: 14,
+              fontSize: typography.callout - 2,
               marginBottom: 16,
               marginLeft: 8,
             }}
@@ -371,7 +373,7 @@ export default function SettingsTV() {
           <Text
             style={{
               color: "#6B7280",
-              fontSize: 12,
+              fontSize: typography.callout - 4,
               marginTop: 8,
               marginLeft: 8,
             }}
@@ -412,6 +414,13 @@ export default function SettingsTV() {
             label={t("home.settings.appearance.show_hero_carousel")}
             value={settings.showTVHeroCarousel}
             onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.show_series_poster_on_episode")}
+            value={settings.showSeriesPosterOnEpisode}
+            onToggle={(value) =>
+              updateSettings({ showSeriesPosterOnEpisode: value })
+            }
           />
 
           {/* User Section */}

@@ -63,16 +63,23 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
 
     const posterUrl = useMemo(() => {
       if (!api) return null;
-      // Try thumb first, then primary
+
+      // For episodes, always use series thumb
+      if (item.Type === "Episode") {
+        if (item.ParentThumbImageTag) {
+          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
+        }
+        if (item.SeriesId) {
+          return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=400&quality=80`;
+        }
+      }
+
+      // For non-episodes, use item's own thumb/primary
       if (item.ImageTags?.Thumb) {
         return `${api.basePath}/Items/${item.Id}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ImageTags.Thumb}`;
       }
       if (item.ImageTags?.Primary) {
         return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=400&quality=80&tag=${item.ImageTags.Primary}`;
-      }
-      // For episodes, use series thumb
-      if (item.Type === "Episode" && item.ParentThumbImageTag) {
-        return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
       }
       return null;
     }, [api, item]);
