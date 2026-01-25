@@ -11,6 +11,7 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVTypography } from "@/constants/TVTypography";
 
 const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
@@ -21,12 +22,19 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
     <View style={{ marginTop: 12, flexDirection: "column" }}>
       {item.Type === "Episode" ? (
         <>
-          <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
           >
             {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
             {" - "}
@@ -36,53 +44,92 @@ const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
       ) : item.Type === "MusicArtist" ? (
         <Text
           numberOfLines={2}
-          style={{ fontSize: 16, color: "#FFFFFF", textAlign: "center" }}
+          style={{
+            fontSize: TVTypography.callout,
+            color: "#FFFFFF",
+            textAlign: "center",
+          }}
         >
           {item.Name}
         </Text>
       ) : item.Type === "MusicAlbum" ? (
         <>
-          <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={2}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
           >
             {item.AlbumArtist || item.Artists?.join(", ")}
           </Text>
         </>
       ) : item.Type === "Audio" ? (
         <>
-          <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={2}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
           <Text
             numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
           >
             {item.Artists?.join(", ") || item.AlbumArtist}
           </Text>
         </>
       ) : item.Type === "Playlist" ? (
         <>
-          <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={2}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
-          <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+          <Text
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
+          >
             {item.ChildCount} tracks
           </Text>
         </>
       ) : item.Type === "Person" ? (
-        <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
+        <Text
+          numberOfLines={2}
+          style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+        >
           {item.Name}
         </Text>
       ) : (
         <>
-          <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+          >
             {item.Name}
           </Text>
-          <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+          <Text
+            style={{
+              fontSize: TVTypography.callout,
+              color: "#9CA3AF",
+              marginTop: 2,
+            }}
+          >
             {item.ProductionYear}
           </Text>
         </>
@@ -311,11 +358,12 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: 22,
-          fontWeight: "600",
+          fontSize: TVTypography.heading,
+          fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 16,
+          marginBottom: 20,
           marginLeft: SCALE_PADDING,
+          letterSpacing: 0.5,
         }}
       >
         {title}

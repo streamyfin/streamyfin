@@ -15,7 +15,13 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FlatList, Platform, useWindowDimensions, View } from "react-native";
+import {
+  FlatList,
+  Platform,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import {
@@ -64,8 +70,9 @@ import {
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 
-const TV_ITEM_GAP = 16;
-const TV_SCALE_PADDING = 20;
+const TV_ITEM_GAP = 20;
+const TV_HORIZONTAL_PADDING = 60;
+const _TV_SCALE_PADDING = 20;
 
 const Page = () => {
   const searchParams = useLocalSearchParams() as {
@@ -223,12 +230,8 @@ const Page = () => {
 
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
-      // Calculate columns based on TV poster width + gap
-      const itemWidth = TV_POSTER_WIDTH + TV_ITEM_GAP;
-      return Math.max(
-        1,
-        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
-      );
+      // TV uses flexWrap, so nrOfCols is just for mobile
+      return 1;
     }
     if (screenWidth < 300) return 2;
     if (screenWidth < 500) return 3;
@@ -394,7 +397,7 @@ const Page = () => {
   );
 
   const renderTVItem = useCallback(
-    ({ item }: { item: BaseItemDto }) => {
+    (item: BaseItemDto) => {
       const handlePress = () => {
         const navTarget = getItemNavigation(item, "(libraries)");
         router.push(navTarget as any);
@@ -402,9 +405,8 @@ const Page = () => {
 
       return (
         <View
+          key={item.Id}
           style={{
-            marginRight: TV_ITEM_GAP,
-            marginBottom: TV_ITEM_GAP,
             width: TV_POSTER_WIDTH,
           }}
         >
@@ -843,15 +845,32 @@ const Page = () => {
 
   // TV return with filter bar
   return (
-    <View style={{ flex: 1 }}>
-      {/* Filter bar - using View instead of ScrollView to avoid focus conflicts */}
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{
+        paddingTop: insets.top + 100,
+        paddingBottom: insets.bottom + 60,
+        paddingHorizontal: insets.left + TV_HORIZONTAL_PADDING,
+      }}
+      onScroll={({ nativeEvent }) => {
+        // Load more when near bottom
+        const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+        const isNearBottom =
+          layoutMeasurement.height + contentOffset.y >=
+          contentSize.height - 500;
+        if (isNearBottom && hasNextPage && !isFetching) {
+          fetchNextPage();
+        }
+      }}
+      scrollEventThrottle={400}
+    >
+      {/* Filter bar */}
       <View
         style={{
           flexDirection: "row",
           flexWrap: "nowrap",
-          marginTop: insets.top + 100,
-          paddingBottom: 8,
-          paddingHorizontal: TV_SCALE_PADDING,
+          justifyContent: "center",
+          paddingBottom: 24,
           gap: 12,
         }}
       >
@@ -918,45 +937,40 @@ const Page = () => {
         />
       </View>
 
-      {/* Grid - using FlatList instead of FlashList to fix focus issues */}
-      <FlatList
-        key={`${orientation}-${nrOfCols}`}
-        ListEmptyComponent={
-          <View className='flex flex-col items-center justify-center h-full'>
-            <Text className='font-bold text-xl text-neutral-500'>
-              {t("library.no_results")}
-            </Text>
-          </View>
-        }
-        contentInsetAdjustmentBehavior='automatic'
-        data={flatData}
-        renderItem={renderTVItem}
-        extraData={[orientation, nrOfCols]}
-        keyExtractor={keyExtractor}
-        numColumns={nrOfCols}
-        removeClippedSubviews={false}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
-          }
-        }}
-        onEndReachedThreshold={1}
-        contentContainerStyle={{
-          paddingBottom: 24,
-          paddingLeft: TV_SCALE_PADDING,
-          paddingRight: TV_SCALE_PADDING,
-          paddingTop: 20,
-        }}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              width: 10,
-              height: 10,
-            }}
-          />
-        )}
-      />
-    </View>
+      {/* Grid with flexWrap */}
+      {flatData.length === 0 ? (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingTop: 100,
+          }}
+        >
+          <Text style={{ fontSize: 20, color: "#737373" }}>
+            {t("library.no_results")}
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: TV_ITEM_GAP,
+          }}
+        >
+          {flatData.map((item) => renderTVItem(item))}
+        </View>
+      )}
+
+      {/* Loading indicator */}
+      {isFetching && (
+        <View style={{ paddingVertical: 20 }}>
+          <Loader />
+        </View>
+      )}
+    </ScrollView>
   );
 };
 

@@ -7,7 +7,9 @@ export type {
   DownloadStartedEvent,
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
-
+// Glass Poster (tvOS 26+)
+export type { GlassPosterViewProps } from "./glass-poster";
+export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
 // MPV Player (iOS + Android)
 export type {
   AudioTrack as MpvAudioTrack,

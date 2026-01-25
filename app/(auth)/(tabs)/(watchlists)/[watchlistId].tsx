@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   RefreshControl,
+  ScrollView,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -28,6 +29,7 @@ import MoviePoster, {
 } from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
 import {
@@ -41,15 +43,24 @@ import {
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { userAtom } from "@/providers/JellyfinProvider";
 
-const TV_ITEM_GAP = 16;
-const TV_SCALE_PADDING = 20;
+const TV_ITEM_GAP = 20;
+const TV_HORIZONTAL_PADDING = 60;
 
 const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => (
   <View style={{ marginTop: 12 }}>
-    <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
+    <Text
+      numberOfLines={1}
+      style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
+    >
       {item.Name}
     </Text>
-    <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
+    <Text
+      style={{
+        fontSize: TVTypography.callout - 2,
+        color: "#9CA3AF",
+        marginTop: 2,
+      }}
+    >
       {item.ProductionYear}
     </Text>
   </View>
@@ -70,14 +81,8 @@ export default function WatchlistDetailScreen() {
     : undefined;
 
   const nrOfCols = useMemo(() => {
-    if (Platform.isTV) {
-      // Calculate columns based on TV poster width + gap
-      const itemWidth = TV_POSTER_WIDTH + TV_ITEM_GAP;
-      return Math.max(
-        1,
-        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
-      );
-    }
+    // TV uses flexWrap, so nrOfCols is just for mobile
+    if (Platform.isTV) return 1;
     if (screenWidth < 300) return 2;
     if (screenWidth < 500) return 3;
     if (screenWidth < 800) return 5;
@@ -185,7 +190,7 @@ export default function WatchlistDetailScreen() {
   );
 
   const renderTVItem = useCallback(
-    ({ item, index }: { item: BaseItemDto; index: number }) => {
+    (item: BaseItemDto, index: number) => {
       const handlePress = () => {
         const navigation = getItemNavigation(item, "(watchlists)");
         router.push(navigation as any);
@@ -193,9 +198,8 @@ export default function WatchlistDetailScreen() {
 
       return (
         <View
+          key={item.Id}
           style={{
-            marginRight: TV_ITEM_GAP,
-            marginBottom: TV_ITEM_GAP,
             width: TV_POSTER_WIDTH,
           }}
         >
@@ -328,6 +332,126 @@ export default function WatchlistDetailScreen() {
     );
   }
 
+  // TV layout with ScrollView + flexWrap
+  if (Platform.isTV) {
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + 100,
+          paddingBottom: insets.bottom + 60,
+          paddingHorizontal: insets.left + TV_HORIZONTAL_PADDING,
+        }}
+      >
+        {/* Header */}
+        <View
+          style={{
+            alignItems: "center",
+            marginBottom: 32,
+            paddingBottom: 24,
+            borderBottomWidth: 1,
+            borderBottomColor: "rgba(255,255,255,0.1)",
+          }}
+        >
+          {watchlist.description && (
+            <Text
+              style={{
+                fontSize: TVTypography.body,
+                color: "#9CA3AF",
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
+              {watchlist.description}
+            </Text>
+          )}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 24,
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Ionicons name='film-outline' size={20} color='#9ca3af' />
+              <Text
+                style={{ fontSize: TVTypography.callout, color: "#9CA3AF" }}
+              >
+                {items?.length ?? 0}{" "}
+                {(items?.length ?? 0) === 1
+                  ? t("watchlists.item")
+                  : t("watchlists.items")}
+              </Text>
+            </View>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Ionicons
+                name={
+                  watchlist.isPublic ? "globe-outline" : "lock-closed-outline"
+                }
+                size={20}
+                color='#9ca3af'
+              />
+              <Text
+                style={{ fontSize: TVTypography.callout, color: "#9CA3AF" }}
+              >
+                {watchlist.isPublic
+                  ? t("watchlists.public")
+                  : t("watchlists.private")}
+              </Text>
+            </View>
+            {!isOwner && (
+              <Text
+                style={{ fontSize: TVTypography.callout, color: "#737373" }}
+              >
+                {t("watchlists.by_owner")}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* Grid with flexWrap */}
+        {!items || items.length === 0 ? (
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingTop: 100,
+            }}
+          >
+            <Ionicons name='film-outline' size={48} color='#4b5563' />
+            <Text
+              style={{
+                fontSize: TVTypography.body,
+                color: "#9CA3AF",
+                textAlign: "center",
+                marginTop: 16,
+              }}
+            >
+              {t("watchlists.empty_watchlist")}
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              gap: TV_ITEM_GAP,
+            }}
+          >
+            {items.map((item, index) => renderTVItem(item, index))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  }
+
+  // Mobile layout with FlashList
   return (
     <FlashList
       key={orientation}
@@ -340,14 +464,13 @@ export default function WatchlistDetailScreen() {
       keyExtractor={keyExtractor}
       contentContainerStyle={{
         paddingBottom: 24,
-        paddingLeft: Platform.isTV ? TV_SCALE_PADDING : insets.left,
-        paddingRight: Platform.isTV ? TV_SCALE_PADDING : insets.right,
-        paddingTop: Platform.isTV ? TV_SCALE_PADDING : 0,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
       }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
-      renderItem={Platform.isTV ? renderTVItem : renderItem}
+      renderItem={renderItem}
       ItemSeparatorComponent={() => (
         <View
           style={{

@@ -15,6 +15,7 @@ import {
   Dimensions,
   Easing,
   FlatList,
+  Platform,
   Pressable,
   View,
 } from "react-native";
@@ -24,6 +25,10 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import {
+  GlassPosterView,
+  isGlassEffectAvailable,
+} from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -53,6 +58,9 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     const [focused, setFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
 
+    // Check if glass effect is available (tvOS 26+)
+    const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
+
     const posterUrl = useMemo(() => {
       if (!api) return null;
       // Try thumb first, then primary
@@ -68,6 +76,8 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       }
       return null;
     }, [api, item]);
+
+    const progress = item.UserData?.PlayedPercentage || 0;
 
     const animateTo = useCallback(
       (value: number) =>
@@ -95,6 +105,31 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       onPress(item);
     }, [onPress, item]);
 
+    // Use glass poster for tvOS 26+
+    if (useGlass) {
+      return (
+        <Pressable
+          onPress={handlePress}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          hasTVPreferredFocus={isFirst}
+          style={{ marginRight: CARD_GAP }}
+        >
+          <GlassPosterView
+            imageUrl={posterUrl}
+            aspectRatio={16 / 9}
+            cornerRadius={16}
+            progress={progress}
+            showWatchedIndicator={false}
+            isFocused={focused}
+            width={CARD_WIDTH}
+            style={{ width: CARD_WIDTH }}
+          />
+        </Pressable>
+      );
+    }
+
+    // Fallback for non-tvOS or older tvOS
     return (
       <Pressable
         onPress={handlePress}
