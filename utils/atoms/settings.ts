@@ -211,6 +211,7 @@ export type Settings = {
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
   tvTypographyScale: TVTypographyScale;
+  showSeriesPosterOnEpisode: boolean;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -301,6 +302,7 @@ export const defaultValues: Settings = {
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,
+  showSeriesPosterOnEpisode: false,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,
