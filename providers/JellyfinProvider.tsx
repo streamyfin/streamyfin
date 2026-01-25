@@ -559,10 +559,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+    SplashScreen.hideAsync();
+  }, []);
 
   useProtectedRoute(user, loaded);
 
