@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
   GlassPosterView,
@@ -188,6 +188,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   items,
   onItemFocus,
 }) => {
+  const typography = useScaledTVTypography();
   const api = useAtomValue(apiAtom);
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -428,6 +429,20 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             height: "40%",
           }}
         />
+        {/* Horizontal gradient for left side text contrast */}
+        <LinearGradient
+          colors={["rgba(0,0,0,0.9)", "rgba(0,0,0,0.6)", "transparent"]}
+          locations={[0, 0.5, 0.85]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: "70%",
+          }}
+        />
       </View>
 
       {/* Content overlay */}
@@ -454,7 +469,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
         ) : (
           <Text
             style={{
-              fontSize: TVTypography.display,
+              fontSize: typography.display,
               fontWeight: "bold",
               color: "#FFFFFF",
               marginBottom: 12,
@@ -469,7 +484,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
         {episodeSubtitle && (
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               color: "rgba(255,255,255,0.9)",
               marginBottom: 12,
             }}
@@ -483,11 +498,11 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
         {activeItem?.Overview && (
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               color: "rgba(255,255,255,0.8)",
               marginBottom: 16,
               maxWidth: SCREEN_WIDTH * 0.5,
-              lineHeight: TVTypography.body * 1.4,
+              lineHeight: typography.body * 1.4,
             }}
             numberOfLines={2}
           >
@@ -507,7 +522,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           {year && (
             <Text
               style={{
-                fontSize: TVTypography.callout,
+                fontSize: typography.callout,
                 color: "rgba(255,255,255,0.8)",
               }}
             >
@@ -517,7 +532,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           {duration && (
             <Text
               style={{
-                fontSize: TVTypography.callout,
+                fontSize: typography.callout,
                 color: "rgba(255,255,255,0.8)",
               }}
             >
@@ -536,7 +551,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             >
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "rgba(255,255,255,0.8)",
                 }}
               >
@@ -572,7 +587,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
               </View>
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "rgba(255,255,255,0.8)",
                 }}
               >
