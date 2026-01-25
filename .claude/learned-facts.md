@@ -33,3 +33,11 @@ This file is auto-imported into CLAUDE.md and loaded at the start of each sessio
 - **Thread-safe state for stop flags**: When using flags like `isStopping` that control loop termination across threads, the setter must be synchronous (`stateQueue.sync`) not async, otherwise the value may not be visible to other threads in time. _(2026-01-22)_
 
 - **TV modals must use navigation pattern**: On TV, never use overlay/absolute-positioned modals (like `TVOptionSelector` at the page level). They don't handle the back button correctly. Always use the navigation-based modal pattern: Jotai atom + hook that calls `router.push()` + page in `app/(auth)/`. Use the existing `useTVOptionModal` hook and `tv-option-modal.tsx` page for option selection. `TVOptionSelector` is only appropriate as a sub-selector *within* a navigation-based modal page. _(2026-01-24)_
+
+- **TV grid layout pattern**: For TV grids, use ScrollView with flexWrap instead of FlatList/FlashList with numColumns. FlatList's numColumns divides width evenly among columns which causes inconsistent item sizing. Use `flexDirection: "row"`, `flexWrap: "wrap"`, `justifyContent: "center"`, and `gap` for spacing. _(2026-01-25)_
+
+- **TV horizontal padding standard**: TV pages should use `TV_HORIZONTAL_PADDING = 60` to match other TV pages like Home, Search, etc. The old `TV_SCALE_PADDING = 20` was too small. _(2026-01-25)_
+
+- **Native SwiftUI view sizing**: When creating Expo native modules with SwiftUI views, the view needs explicit dimensions. Use a `width` prop passed from React Native, set an explicit `.frame(width:height:)` in SwiftUI, and override `intrinsicContentSize` in the ExpoView wrapper to report the correct size to React Native's layout system. Using `.aspectRatio(contentMode: .fit)` alone causes inconsistent sizing. _(2026-01-25)_
+
+- **Streamystats components location**: Streamystats TV components are at `components/home/StreamystatsRecommendations.tv.tsx` and `components/home/StreamystatsPromotedWatchlists.tv.tsx`. The watchlist detail page (which shows items in a grid) is at `app/(auth)/(tabs)/(watchlists)/[watchlistId].tsx`. _(2026-01-25)_
