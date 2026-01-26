@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
@@ -16,6 +17,10 @@ interface TVEpisodeCardProps {
   episode: BaseItemDto;
   hasTVPreferredFocus?: boolean;
   disabled?: boolean;
+  /** When true, the item remains focusable even when disabled (for navigation purposes) */
+  focusableWhenDisabled?: boolean;
+  /** Shows a "Now Playing" badge on the card */
+  isCurrent?: boolean;
   onPress: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -27,6 +32,8 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   episode,
   hasTVPreferredFocus = false,
   disabled = false,
+  focusableWhenDisabled = false,
+  isCurrent = false,
   onPress,
   onFocus,
   onBlur,
@@ -68,11 +75,17 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   }, [episode.ParentIndexNumber, episode.IndexNumber]);
 
   return (
-    <View style={{ width: posterSizes.episode, opacity: disabled ? 0.5 : 1 }}>
+    <View
+      style={{
+        width: posterSizes.episode,
+        opacity: isCurrent ? 0.75 : disabled ? 0.5 : 1,
+      }}
+    >
       <TVFocusablePoster
         onPress={onPress}
         hasTVPreferredFocus={hasTVPreferredFocus}
         disabled={disabled}
+        focusableWhenDisabled={focusableWhenDisabled}
         onFocus={onFocus}
         onBlur={onBlur}
         refSetter={refSetter}
@@ -104,6 +117,35 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           )}
           <WatchedIndicator item={episode} />
           <ProgressBar item={episode} />
+
+          {/* Now Playing badge */}
+          {isCurrent && (
+            <View
+              style={{
+                position: "absolute",
+                top: 12,
+                left: 12,
+                backgroundColor: "#FFFFFF",
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                gap: 6,
+              }}
+            >
+              <Ionicons name='play' size={16} color='#000000' />
+              <Text
+                style={{
+                  color: "#000000",
+                  fontSize: 14,
+                  fontWeight: "700",
+                }}
+              >
+                Now Playing
+              </Text>
+            </View>
+          )}
         </View>
       </TVFocusablePoster>
 
