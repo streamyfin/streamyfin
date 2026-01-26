@@ -200,24 +200,6 @@ export async function hasAccountCredential(
   return stored !== null;
 }
 
-async function _clearAllCredentials(): Promise<void> {
-  const previousServers = getPreviousServers();
-
-  for (const server of previousServers) {
-    for (const account of server.accounts) {
-      const key = credentialKey(server.address, account.userId);
-      await SecureStore.deleteItemAsync(key);
-    }
-  }
-
-  // Clear all accounts from servers
-  const clearedServers = previousServers.map((server) => ({
-    ...server,
-    accounts: [],
-  }));
-  storage.set("previousServers", JSON.stringify(clearedServers));
-}
-
 /**
  * Add or update an account in a server's accounts list.
  */
