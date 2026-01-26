@@ -147,7 +147,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   }, [api, deviceId, headers]);
 
   const pollQuickConnect = useCallback(async () => {
-    if (!api || !secret) return;
+    if (!api || !secret || !jellyfin) return;
 
     try {
       const response = await api.axiosInstance.get(
@@ -169,8 +169,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           );
 
           const { AccessToken, User } = authResponse.data;
-          api.accessToken = AccessToken;
           setUser(User);
+          setApi(jellyfin.createApi(api.basePath, AccessToken));
           storage.set("token", AccessToken);
           storage.set("user", JSON.stringify(User));
           return true;
@@ -186,7 +186,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Error polling Quick Connect:", error);
       throw error;
     }
-  }, [api, secret, headers]);
+  }, [api, secret, headers, jellyfin]);
 
   useEffect(() => {
     (async () => {
