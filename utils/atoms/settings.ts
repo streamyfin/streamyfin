@@ -154,6 +154,9 @@ export enum AudioTranscodeMode {
   AllowAll = "passthrough", // Direct play all audio formats
 }
 
+// MPV cache mode - controls how caching is enabled
+export type MpvCacheMode = "auto" | "yes" | "no";
+
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
@@ -199,6 +202,11 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
+  // MPV buffer/cache settings
+  mpvCacheEnabled?: MpvCacheMode;
+  mpvCacheSeconds?: number;
+  mpvDemuxerMaxBytes?: number; // MB
+  mpvDemuxerMaxBackBytes?: number; // MB
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -290,6 +298,11 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
+  // MPV buffer/cache defaults
+  mpvCacheEnabled: "auto",
+  mpvCacheSeconds: 10,
+  mpvDemuxerMaxBytes: 150, // MB
+  mpvDemuxerMaxBackBytes: 50, // MB
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,

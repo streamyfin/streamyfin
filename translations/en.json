@@ -185,6 +185,16 @@
         "rewind_length": "Rewind Length",
         "seconds_unit": "s"
       },
+      "buffer": {
+        "title": "Buffer Settings",
+        "cache_mode": "Cache Mode",
+        "cache_auto": "Auto",
+        "cache_yes": "Enabled",
+        "cache_no": "Disabled",
+        "buffer_duration": "Buffer Duration",
+        "max_cache_size": "Max Cache Size",
+        "max_backward_cache": "Max Backward Cache"
+      },
       "gesture_controls": {
         "gesture_controls_title": "Gesture Controls",
         "horizontal_swipe_skip": "Horizontal Swipe to Skip",

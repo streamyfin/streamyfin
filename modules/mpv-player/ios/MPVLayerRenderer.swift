@@ -300,7 +300,11 @@ final class MPVLayerRenderer {
         startPosition: Double? = nil,
         externalSubtitles: [String]? = nil,
         initialSubtitleId: Int? = nil,
-        initialAudioId: Int? = nil
+        initialAudioId: Int? = nil,
+        cacheEnabled: String? = nil,
+        cacheSeconds: Int? = nil,
+        demuxerMaxBytes: Int? = nil,
+        demuxerMaxBackBytes: Int? = nil
     ) {
         currentPreset = preset
         currentURL = url
@@ -323,6 +327,21 @@ final class MPVLayerRenderer {
             // Stop previous playback before loading new file
             self.command(handle, ["stop"])
             self.updateHTTPHeaders(headers)
+
+            // Apply cache/buffer settings
+            if let cacheMode = cacheEnabled {
+                self.setProperty(name: "cache", value: cacheMode)
+            }
+            if let cacheSecs = cacheSeconds {
+                self.setProperty(name: "cache-secs", value: String(cacheSecs))
+            }
+            if let maxBytes = demuxerMaxBytes {
+                self.setProperty(name: "demuxer-max-bytes", value: "\(maxBytes)MiB")
+            }
+            if let maxBackBytes = demuxerMaxBackBytes {
+                self.setProperty(name: "demuxer-max-back-bytes", value: "\(maxBackBytes)MiB")
+            }
+
             // Set start position
             if let startPos = startPosition, startPos > 0 {
                 self.setProperty(name: "start", value: String(format: "%.2f", startPos))

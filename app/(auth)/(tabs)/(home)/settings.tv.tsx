@@ -20,6 +20,7 @@ import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
+  type MpvCacheMode,
   TVTypographyScale,
   useSettings,
 } from "@/utils/atoms/settings";
@@ -47,6 +48,7 @@ export default function SettingsTV() {
   const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
   const currentTypographyScale =
     settings.tvTypographyScale || TVTypographyScale.Default;
+  const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
 
   // Audio transcoding options
   const audioTranscodeModeOptions: TVOptionItem<AudioTranscodeMode>[] = useMemo(
@@ -138,6 +140,28 @@ export default function SettingsTV() {
     [currentAlignY],
   );
 
+  // Cache mode options
+  const cacheModeOptions: TVOptionItem<MpvCacheMode>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.buffer.cache_auto"),
+        value: "auto",
+        selected: currentCacheMode === "auto",
+      },
+      {
+        label: t("home.settings.buffer.cache_yes"),
+        value: "yes",
+        selected: currentCacheMode === "yes",
+      },
+      {
+        label: t("home.settings.buffer.cache_no"),
+        value: "no",
+        selected: currentCacheMode === "no",
+      },
+    ],
+    [t, currentCacheMode],
+  );
+
   // Typography scale options
   const typographyScaleOptions: TVOptionItem<TVTypographyScale>[] = useMemo(
     () => [
@@ -190,6 +214,11 @@ export default function SettingsTV() {
     const option = typographyScaleOptions.find((o) => o.selected);
     return option?.label || t("home.settings.appearance.display_size_default");
   }, [typographyScaleOptions, t]);
+
+  const cacheModeLabel = useMemo(() => {
+    const option = cacheModeOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.buffer.cache_auto");
+  }, [cacheModeOptions, t]);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
@@ -381,6 +410,77 @@ export default function SettingsTV() {
             {t("home.settings.subtitles.opensubtitles_get_key") ||
               "Get your free API key at opensubtitles.com/en/consumers"}
           </Text>
+
+          {/* Buffer Settings Section */}
+          <TVSectionHeader title={t("home.settings.buffer.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.buffer.cache_mode")}
+            value={cacheModeLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.buffer.cache_mode"),
+                options: cacheModeOptions,
+                onSelect: (value) => updateSettings({ mpvCacheEnabled: value }),
+              })
+            }
+          />
+          <TVSettingsStepper
+            label={t("home.settings.buffer.buffer_duration")}
+            value={settings.mpvCacheSeconds ?? 10}
+            onDecrease={() => {
+              const newValue = Math.max(
+                5,
+                (settings.mpvCacheSeconds ?? 10) - 5,
+              );
+              updateSettings({ mpvCacheSeconds: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                120,
+                (settings.mpvCacheSeconds ?? 10) + 5,
+              );
+              updateSettings({ mpvCacheSeconds: newValue });
+            }}
+            formatValue={(v) => `${v}s`}
+          />
+          <TVSettingsStepper
+            label={t("home.settings.buffer.max_cache_size")}
+            value={settings.mpvDemuxerMaxBytes ?? 150}
+            onDecrease={() => {
+              const newValue = Math.max(
+                50,
+                (settings.mpvDemuxerMaxBytes ?? 150) - 25,
+              );
+              updateSettings({ mpvDemuxerMaxBytes: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                500,
+                (settings.mpvDemuxerMaxBytes ?? 150) + 25,
+              );
+              updateSettings({ mpvDemuxerMaxBytes: newValue });
+            }}
+            formatValue={(v) => `${v} MB`}
+          />
+          <TVSettingsStepper
+            label={t("home.settings.buffer.max_backward_cache")}
+            value={settings.mpvDemuxerMaxBackBytes ?? 50}
+            onDecrease={() => {
+              const newValue = Math.max(
+                25,
+                (settings.mpvDemuxerMaxBackBytes ?? 50) - 25,
+              );
+              updateSettings({ mpvDemuxerMaxBackBytes: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                200,
+                (settings.mpvDemuxerMaxBackBytes ?? 50) + 25,
+              );
+              updateSettings({ mpvDemuxerMaxBackBytes: newValue });
+            }}
+            formatValue={(v) => `${v} MB`}
+          />
 
           {/* Appearance Section */}
           <TVSectionHeader title={t("home.settings.appearance.title")} />

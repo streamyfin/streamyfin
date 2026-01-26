@@ -29,7 +29,10 @@ public class MpvPlayerModule: Module {
         guard let source = source,
               let urlString = source["url"] as? String,
               let videoURL = URL(string: urlString) else { return }
-        
+
+        // Parse cache config if provided
+        let cacheConfig = source["cacheConfig"] as? [String: Any]
+
         let config = VideoLoadConfig(
           url: videoURL,
           headers: source["headers"] as? [String: String],
@@ -37,9 +40,13 @@ public class MpvPlayerModule: Module {
           startPosition: source["startPosition"] as? Double,
           autoplay: (source["autoplay"] as? Bool) ?? true,
           initialSubtitleId: source["initialSubtitleId"] as? Int,
-          initialAudioId: source["initialAudioId"] as? Int
+          initialAudioId: source["initialAudioId"] as? Int,
+          cacheEnabled: cacheConfig?["enabled"] as? String,
+          cacheSeconds: cacheConfig?["cacheSeconds"] as? Int,
+          demuxerMaxBytes: cacheConfig?["maxBytes"] as? Int,
+          demuxerMaxBackBytes: cacheConfig?["maxBackBytes"] as? Int
         )
-        
+
         view.loadVideo(config: config)
       }
 
