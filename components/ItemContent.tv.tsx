@@ -17,7 +17,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, TVFocusGuideView, View } from "react-native";
+import { Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
@@ -84,7 +84,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const _itemColors = useImageColorsReturn({ item });
 
     // State for first episode card ref (used for focus guide)
-    const [firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
+    const [_firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
 
     // Fetch season episodes for episodes
     const { data: seasonEpisodes = [] } = useQuery({
@@ -163,14 +163,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const { showSubtitleModal } = useTVSubtitleModal();
 
     // State for first actor card ref (used for focus guide)
-    const [firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
+    const [_firstActorCardRef, setFirstActorCardRef] = useState<View | null>(
       null,
     );
 
     // State for last option button ref (used for upward focus guide from cast)
-    const [lastOptionButtonRef, setLastOptionButtonRef] = useState<View | null>(
-      null,
-    );
+    const [_lastOptionButtonRef, setLastOptionButtonRef] =
+      useState<View | null>(null);
 
     // Get available audio tracks
     const audioTracks = useMemo(() => {
@@ -733,14 +732,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 )}
               </View>
 
-              {/* Focus guide to direct navigation from options to cast list */}
-              {fullCast.length > 0 && firstActorCardRef && (
-                <TVFocusGuideView
-                  destinations={[firstActorCardRef]}
-                  style={{ height: 1, width: "100%" }}
-                />
-              )}
-
               {/* Progress bar (if partially watched) */}
               {hasProgress && item.RunTimeTicks != null && (
                 <TVProgressBar
@@ -801,40 +792,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
           {/* Additional info section */}
           <View style={{ marginTop: 40 }}>
-            {/* Cast & Crew (text version) */}
-            <TVCastCrewText
-              director={director}
-              cast={cast}
-              hideCast={showVisualCast}
-            />
-
-            {/* Technical details */}
-            {selectedOptions.mediaSource?.MediaStreams &&
-              selectedOptions.mediaSource.MediaStreams.length > 0 && (
-                <TVTechnicalDetails
-                  mediaStreams={selectedOptions.mediaSource.MediaStreams}
-                />
-              )}
-
-            {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
-            {showVisualCast && (
-              <TVCastSection
-                cast={fullCast}
-                apiBasePath={api?.basePath}
-                onActorPress={handleActorPress}
-                firstActorRefSetter={setFirstActorCardRef}
-                upwardFocusDestination={lastOptionButtonRef}
-              />
-            )}
-
-            {/* Focus guide: cast → episodes (downward navigation) */}
-            {showVisualCast && firstEpisodeRef && (
-              <TVFocusGuideView
-                destinations={[firstEpisodeRef]}
-                style={{ height: 1, width: "100%" }}
-              />
-            )}
-
             {/* Season Episodes - Episode only */}
             {item.Type === "Episode" && seasonEpisodes.length > 1 && (
               <View style={{ marginBottom: 40 }}>
@@ -848,26 +805,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 >
                   {t("item_card.more_from_this_season")}
                 </Text>
-
-                {/* Focus guides - stacked together above the list */}
-                {/* Downward: options → first episode (only when no cast section) */}
-                {!showVisualCast && firstEpisodeRef && (
-                  <TVFocusGuideView
-                    destinations={[firstEpisodeRef]}
-                    style={{ height: 1, width: "100%" }}
-                  />
-                )}
-                {/* Upward: episodes → cast (first actor) or options (last button) */}
-                {(firstActorCardRef || lastOptionButtonRef) && (
-                  <TVFocusGuideView
-                    destinations={
-                      [firstActorCardRef ?? lastOptionButtonRef].filter(
-                        Boolean,
-                      ) as View[]
-                    }
-                    style={{ height: 1, width: "100%" }}
-                  />
-                )}
 
                 <ScrollView
                   horizontal
@@ -900,6 +837,31 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               onSeriesPress={handleSeriesPress}
               onSeasonPress={handleSeasonPress}
             />
+
+            {/* Visual Cast Section - Movies/Series/Episodes with circular actor cards */}
+            {showVisualCast && (
+              <TVCastSection
+                cast={fullCast}
+                apiBasePath={api?.basePath}
+                onActorPress={handleActorPress}
+                firstActorRefSetter={setFirstActorCardRef}
+              />
+            )}
+
+            {/* Cast & Crew (text version - director, etc.) */}
+            <TVCastCrewText
+              director={director}
+              cast={cast}
+              hideCast={showVisualCast}
+            />
+
+            {/* Technical details */}
+            {selectedOptions.mediaSource?.MediaStreams &&
+              selectedOptions.mediaSource.MediaStreams.length > 0 && (
+                <TVTechnicalDetails
+                  mediaStreams={selectedOptions.mediaSource.MediaStreams}
+                />
+              )}
           </View>
         </ScrollView>
       </View>

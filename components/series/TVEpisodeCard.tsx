@@ -68,7 +68,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   }, [episode.ParentIndexNumber, episode.IndexNumber]);
 
   return (
-    <View style={{ width: TV_EPISODE_WIDTH }}>
+    <View style={{ width: TV_EPISODE_WIDTH, opacity: disabled ? 0.5 : 1 }}>
       <TVFocusablePoster
         onPress={onPress}
         hasTVPreferredFocus={hasTVPreferredFocus}
@@ -114,7 +114,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
             <Text
               style={{
                 fontSize: typography.callout,
-                color: "#9CA3AF",
+                color: "#FFFFFF",
                 fontWeight: "500",
               }}
             >
@@ -123,10 +123,10 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
           )}
           {duration && (
             <>
-              <Text style={{ color: "#6B7280", fontSize: typography.callout }}>
+              <Text style={{ color: "#FFFFFF", fontSize: typography.callout }}>
                 •
               </Text>
-              <Text style={{ fontSize: typography.callout, color: "#9CA3AF" }}>
+              <Text style={{ fontSize: typography.callout, color: "#FFFFFF" }}>
                 {duration}
               </Text>
             </>
