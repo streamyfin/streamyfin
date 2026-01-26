@@ -68,18 +68,6 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
           </Text>
         }
       >
-        <ListItem title='Subtitle Scale'>
-          <Stepper
-            value={settings.mpvSubtitleScale ?? 1.0}
-            step={0.1}
-            min={0.5}
-            max={2.0}
-            onUpdate={(value) =>
-              updateSettings({ mpvSubtitleScale: Math.round(value * 10) / 10 })
-            }
-          />
-        </ListItem>
-
         <ListItem title='Vertical Margin'>
           <Stepper
             value={settings.mpvSubtitleMarginY ?? 0}

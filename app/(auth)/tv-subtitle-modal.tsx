@@ -905,8 +905,8 @@ export default function TVSubtitleModal() {
                   <View style={styles.settingRow}>
                     <TVStepperControl
                       value={settings.mpvSubtitleScale ?? 1.0}
-                      min={0.5}
-                      max={2.0}
+                      min={0.1}
+                      max={3.0}
                       step={0.1}
                       formatValue={(v) => `${v.toFixed(1)}x`}
                       onChange={(newValue) => {

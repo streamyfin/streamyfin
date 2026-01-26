@@ -284,26 +284,10 @@ export default function SettingsTV() {
           />
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
-            value={settings.subtitleSize / 100}
-            onDecrease={() => {
-              const newValue = Math.max(0.3, settings.subtitleSize / 100 - 0.1);
-              updateSettings({ subtitleSize: Math.round(newValue * 100) });
-            }}
-            onIncrease={() => {
-              const newValue = Math.min(1.5, settings.subtitleSize / 100 + 0.1);
-              updateSettings({ subtitleSize: Math.round(newValue * 100) });
-            }}
-            formatValue={(v) => `${v.toFixed(1)}x`}
-          />
-
-          {/* MPV Subtitles Section */}
-          <TVSectionHeader title='MPV Subtitle Settings' />
-          <TVSettingsStepper
-            label='Subtitle Scale'
             value={settings.mpvSubtitleScale ?? 1.0}
             onDecrease={() => {
               const newValue = Math.max(
-                0.5,
+                0.1,
                 (settings.mpvSubtitleScale ?? 1.0) - 0.1,
               );
               updateSettings({
@@ -312,7 +296,7 @@ export default function SettingsTV() {
             }}
             onIncrease={() => {
               const newValue = Math.min(
-                2.0,
+                3.0,
                 (settings.mpvSubtitleScale ?? 1.0) + 0.1,
               );
               updateSettings({
