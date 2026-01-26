@@ -7,6 +7,7 @@ import {
   Pressable,
   View,
 } from "react-native";
+import { fontSize, size } from "react-native-responsive-sizes";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 
@@ -86,11 +87,11 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
         <View
           style={{
             backgroundColor: isFocused ? "#2a2a2a" : "#1a1a1a",
-            borderWidth: 2,
+            borderWidth: size(6),
             borderColor: isFocused ? "#FFFFFF" : "transparent",
-            borderRadius: 16,
-            paddingHorizontal: 24,
-            paddingVertical: 20,
+            borderRadius: size(50),
+            paddingHorizontal: size(50),
+            paddingVertical: size(40),
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
@@ -99,7 +100,7 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
           <View style={{ flex: 1 }}>
             <Text
               style={{
-                fontSize: 22,
+                fontSize: fontSize(12),
                 fontWeight: "600",
                 color: "#FFFFFF",
               }}
@@ -110,9 +111,9 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
             {subtitle && (
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: fontSize(10),
                   color: "#9CA3AF",
-                  marginTop: 4,
+                  marginTop: size(12),
                 }}
                 numberOfLines={1}
               >
@@ -121,27 +122,27 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
             )}
           </View>
 
-          <View style={{ marginLeft: 16 }}>
+          <View style={{ marginLeft: size(16) }}>
             {isLoading ? (
               <ActivityIndicator size='small' color={Colors.primary} />
             ) : securityIcon ? (
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
                   name={securityIcon}
-                  size={20}
+                  size={size(60)}
                   color={Colors.primary}
-                  style={{ marginRight: 8 }}
+                  style={{ marginRight: size(16) }}
                 />
                 <Ionicons
                   name='chevron-forward'
-                  size={24}
+                  size={size(48)}
                   color={isFocused ? "#FFFFFF" : "#6B7280"}
                 />
               </View>
             ) : (
               <Ionicons
                 name='chevron-forward'
-                size={24}
+                size={size(48)}
                 color={isFocused ? "#FFFFFF" : "#6B7280"}
               />
             )}

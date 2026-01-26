@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
+import { fontSize, height, size, width } from "react-native-responsive-sizes";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import {
@@ -61,8 +62,8 @@ const TVServerActionCard: React.FC<{
       <Animated.View
         style={{
           transform: [{ scale }],
-          width: 180,
-          height: 90,
+          width: width(25),
+          height: height(15),
           backgroundColor: focused
             ? isDestructive
               ? "#ef4444"
@@ -70,16 +71,16 @@ const TVServerActionCard: React.FC<{
             : isDestructive
               ? "rgba(239, 68, 68, 0.2)"
               : "rgba(255,255,255,0.08)",
-          borderRadius: 14,
+          borderRadius: size(20),
           justifyContent: "center",
           alignItems: "center",
-          paddingHorizontal: 12,
-          gap: 8,
+          paddingHorizontal: size(12),
+          gap: size(8),
         }}
       >
         <Ionicons
           name={icon}
-          size={28}
+          size={size(56)}
           color={
             focused
               ? isDestructive
@@ -92,7 +93,7 @@ const TVServerActionCard: React.FC<{
         />
         <Text
           style={{
-            fontSize: 16,
+            fontSize: fontSize(12),
             color: focused
               ? isDestructive
                 ? "#fff"
@@ -142,26 +143,26 @@ const TVServerActionSheet: React.FC<{
           intensity={80}
           tint='dark'
           style={{
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
+            borderTopLeftRadius: size(24),
+            borderTopRightRadius: size(24),
             overflow: "hidden",
           }}
         >
           <View
             style={{
-              paddingTop: 24,
-              paddingBottom: 50,
+              paddingTop: size(24),
+              paddingBottom: size(50),
               overflow: "visible",
             }}
           >
             {/* Title */}
             <Text
               style={{
-                fontSize: 18,
+                fontSize: fontSize(12),
                 fontWeight: "500",
                 color: "rgba(255,255,255,0.6)",
-                marginBottom: 8,
-                paddingHorizontal: 48,
+                marginBottom: size(12),
+                paddingHorizontal: size(48),
                 textTransform: "uppercase",
                 letterSpacing: 1,
               }}
@@ -175,9 +176,9 @@ const TVServerActionSheet: React.FC<{
               showsHorizontalScrollIndicator={false}
               style={{ overflow: "visible" }}
               contentContainerStyle={{
-                paddingHorizontal: 48,
-                paddingVertical: 10,
-                gap: 12,
+                paddingHorizontal: size(48),
+                paddingVertical: size(10),
+                gap: size(12),
               }}
             >
               <TVServerActionCard
@@ -398,19 +399,19 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
   if (!previousServers.length) return null;
 
   return (
-    <View style={{ marginTop: 32 }}>
+    <View style={{ marginTop: size(100) }}>
       <Text
         style={{
-          fontSize: 24,
+          fontSize: fontSize(12),
           fontWeight: "600",
           color: "#FFFFFF",
-          marginBottom: 16,
+          marginBottom: size(20),
         }}
       >
         {t("server.previous_servers")}
       </Text>
 
-      <View style={{ gap: 12 }}>
+      <View style={{ gap: size(12) }}>
         {previousServers.map((server) => (
           <TVServerCard
             key={server.address}
@@ -437,39 +438,39 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
             backgroundColor: "rgba(0, 0, 0, 0.9)",
             justifyContent: "center",
             alignItems: "center",
-            padding: 80,
+            padding: size(80),
           }}
         >
           <View
             style={{
               backgroundColor: "#1a1a1a",
-              borderRadius: 24,
-              padding: 40,
+              borderRadius: size(24),
+              padding: size(40),
               width: "100%",
-              maxWidth: 700,
+              maxWidth: width(70),
             }}
           >
             <Text
               style={{
-                fontSize: 32,
+                fontSize: fontSize(32),
                 fontWeight: "bold",
                 color: "#FFFFFF",
-                marginBottom: 8,
+                marginBottom: size(8),
               }}
             >
               {t("server.select_account")}
             </Text>
             <Text
               style={{
-                fontSize: 18,
+                fontSize: fontSize(18),
                 color: "#9CA3AF",
-                marginBottom: 32,
+                marginBottom: size(32),
               }}
             >
               {selectedServer?.name || selectedServer?.address}
             </Text>
 
-            <View style={{ gap: 12, marginBottom: 24 }}>
+            <View style={{ gap: size(12), marginBottom: size(24) }}>
               {selectedServer?.accounts.map((account, index) => (
                 <TVAccountCard
                   key={account.userId}
@@ -484,7 +485,7 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
               ))}
             </View>
 
-            <View style={{ gap: 12 }}>
+            <View style={{ gap: size(12) }}>
               <Button
                 onPress={() => {
                   setShowAccountsModal(false);

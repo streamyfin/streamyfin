@@ -144,11 +144,11 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           className={`rounded-2xl items-center justify-center 
             ${colorClasses}
             ${className}`}
-          style={{ paddingVertical: size(20) }}
+          style={{ paddingVertical: size(50) }}
         >
           <Text
             className={`${textColorClass} font-bold`}
-            style={{ fontSize: fontSize(20) }}
+            style={{ fontSize: fontSize(10) }}
           >
             {children}
           </Text>

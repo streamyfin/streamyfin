@@ -601,10 +601,10 @@ export const TVLogin: React.FC = () => {
               }}
             >
               {/* Logo */}
-              <View style={{ alignItems: "center", marginBottom: size(16) }}>
+              <View style={{ alignItems: "center", marginBottom: size(5) }}>
                 <Image
                   source={require("@/assets/images/icon-tvos.png")}
-                  style={{ width: size(300), height: size(300) }}
+                  style={{ width: size(400), height: size(400) }}
                   contentFit='contain'
                 />
               </View>
@@ -623,7 +623,7 @@ export const TVLogin: React.FC = () => {
               </Text>
               <Text
                 style={{
-                  fontSize: fontSize(20),
+                  fontSize: fontSize(10),
                   color: "#9CA3AF",
                   textAlign: "center",
                   marginBottom: size(40),
@@ -634,7 +634,7 @@ export const TVLogin: React.FC = () => {
 
               {/* Server URL Input - extra padding for focus scale */}
               <View
-                style={{ marginBottom: size(24), paddingHorizontal: size(8) }}
+                style={{ marginBottom: size(50), paddingHorizontal: size(300) }}
               >
                 <TVInput
                   placeholder={t("server.server_url_placeholder")}
@@ -650,7 +650,9 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Connect Button */}
-              <View style={{ marginBottom: size(12) }}>
+              <View
+                style={{ marginBottom: size(12), paddingHorizontal: size(270) }}
+              >
                 <Button
                   onPress={() => handleConnect(serverURL)}
                   loading={loadingServerCheck}
@@ -661,7 +663,7 @@ export const TVLogin: React.FC = () => {
               </View>
 
               {/* Previous Servers */}
-              <View style={{ paddingHorizontal: size(8) }}>
+              <View style={{ paddingHorizontal: size(300) }}>
                 <TVPreviousServersList
                   onServerSelect={(s) => handleConnect(s.address)}
                   onQuickLogin={handleQuickLoginWithSavedCredential}
