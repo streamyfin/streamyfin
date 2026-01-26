@@ -816,15 +816,20 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                     gap: 24,
                   }}
                 >
-                  {seasonEpisodes.map((episode, index) => (
-                    <TVEpisodeCard
-                      key={episode.Id}
-                      episode={episode}
-                      onPress={() => handleEpisodePress(episode)}
-                      disabled={episode.Id === item.Id}
-                      refSetter={index === 0 ? setFirstEpisodeRef : undefined}
-                    />
-                  ))}
+                  {seasonEpisodes.map((episode, index) => {
+                    const isCurrentEpisode = episode.Id === item.Id;
+                    return (
+                      <TVEpisodeCard
+                        key={episode.Id}
+                        episode={episode}
+                        onPress={() => handleEpisodePress(episode)}
+                        disabled={isCurrentEpisode}
+                        focusableWhenDisabled={isCurrentEpisode}
+                        isCurrent={isCurrentEpisode}
+                        refSetter={index === 0 ? setFirstEpisodeRef : undefined}
+                      />
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
