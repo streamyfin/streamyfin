@@ -587,6 +587,13 @@ export default function page() {
       autoplay: true,
       initialSubtitleId,
       initialAudioId,
+      // Pass cache/buffer settings from user preferences
+      cacheConfig: {
+        enabled: settings.mpvCacheEnabled,
+        cacheSeconds: settings.mpvCacheSeconds,
+        maxBytes: settings.mpvDemuxerMaxBytes,
+        maxBackBytes: settings.mpvDemuxerMaxBackBytes,
+      },
     };
 
     // Add external subtitles only for online playback
@@ -612,6 +619,10 @@ export default function page() {
     subtitleIndex,
     audioIndex,
     offline,
+    settings.mpvCacheEnabled,
+    settings.mpvCacheSeconds,
+    settings.mpvDemuxerMaxBytes,
+    settings.mpvDemuxerMaxBackBytes,
   ]);
 
   const volumeUpCb = useCallback(async () => {

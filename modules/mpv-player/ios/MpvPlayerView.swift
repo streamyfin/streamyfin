@@ -15,7 +15,12 @@ struct VideoLoadConfig {
 	var initialSubtitleId: Int?
 	/// MPV audio track ID to select on start (1-based, nil to use default)
 	var initialAudioId: Int?
-	
+	/// Cache/buffer settings
+	var cacheEnabled: String?  // "auto", "yes", or "no"
+	var cacheSeconds: Int?     // Seconds of video to buffer
+	var demuxerMaxBytes: Int?  // Max cache size in MB
+	var demuxerMaxBackBytes: Int?  // Max backward cache size in MB
+
 	init(
 		url: URL,
 		headers: [String: String]? = nil,
@@ -23,7 +28,11 @@ struct VideoLoadConfig {
 		startPosition: Double? = nil,
 		autoplay: Bool = true,
 		initialSubtitleId: Int? = nil,
-		initialAudioId: Int? = nil
+		initialAudioId: Int? = nil,
+		cacheEnabled: String? = nil,
+		cacheSeconds: Int? = nil,
+		demuxerMaxBytes: Int? = nil,
+		demuxerMaxBackBytes: Int? = nil
 	) {
 		self.url = url
 		self.headers = headers
@@ -32,6 +41,10 @@ struct VideoLoadConfig {
 		self.autoplay = autoplay
 		self.initialSubtitleId = initialSubtitleId
 		self.initialAudioId = initialAudioId
+		self.cacheEnabled = cacheEnabled
+		self.cacheSeconds = cacheSeconds
+		self.demuxerMaxBytes = demuxerMaxBytes
+		self.demuxerMaxBackBytes = demuxerMaxBackBytes
 	}
 }
 
@@ -151,13 +164,17 @@ class MpvPlayerView: ExpoView {
 			startPosition: config.startPosition,
 			externalSubtitles: config.externalSubtitles,
 			initialSubtitleId: config.initialSubtitleId,
-			initialAudioId: config.initialAudioId
+			initialAudioId: config.initialAudioId,
+			cacheEnabled: config.cacheEnabled,
+			cacheSeconds: config.cacheSeconds,
+			demuxerMaxBytes: config.demuxerMaxBytes,
+			demuxerMaxBackBytes: config.demuxerMaxBackBytes
 		)
-		
+
 		if config.autoplay {
 			play()
 		}
-		
+
 		onLoad(["url": config.url.absoluteString])
 	}
 	
