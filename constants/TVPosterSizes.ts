@@ -9,29 +9,29 @@ import { TVTypographyScale, useSettings } from "@/utils/atoms/settings";
 
 export const TVPosterSizes = {
   /** Portrait posters (movies, series) - 10:15 aspect ratio */
-  poster: 260,
+  poster: 256,
 
   /** Landscape posters (continue watching, thumbs) - 16:9 aspect ratio */
-  landscape: 400,
+  landscape: 396,
 
   /** Episode cards - 16:9 aspect ratio */
-  episode: 340,
+  episode: 336,
 
   /** Hero carousel cards - 16:9 aspect ratio */
-  heroCard: 280,
+  heroCard: 276,
 } as const;
 
 export type TVPosterSizeKey = keyof typeof TVPosterSizes;
 
 /**
- * Poster scale multipliers - much smaller range than typography.
- * Posters are already near-perfect size, only need slight increases at larger settings.
+ * Linear poster size offsets (in pixels) - synchronized with typography scale.
+ * Uses fixed pixel steps for consistent linear scaling across all poster types.
  */
-const posterScaleMultipliers: Record<TVTypographyScale, number> = {
-  [TVTypographyScale.Small]: 0.95,
-  [TVTypographyScale.Default]: 1.0,
-  [TVTypographyScale.Large]: 1.05,
-  [TVTypographyScale.ExtraLarge]: 1.1,
+const posterScaleOffsets: Record<TVTypographyScale, number> = {
+  [TVTypographyScale.Small]: -10,
+  [TVTypographyScale.Default]: 0,
+  [TVTypographyScale.Large]: 10,
+  [TVTypographyScale.ExtraLarge]: 20,
 };
 
 /**
@@ -44,14 +44,14 @@ const posterScaleMultipliers: Record<TVTypographyScale, number> = {
  */
 export const useScaledTVPosterSizes = () => {
   const { settings } = useSettings();
-  const scale =
-    posterScaleMultipliers[settings.tvTypographyScale] ??
-    posterScaleMultipliers[TVTypographyScale.Default];
+  const offset =
+    posterScaleOffsets[settings.tvTypographyScale] ??
+    posterScaleOffsets[TVTypographyScale.Default];
 
   return {
-    poster: Math.round(TVPosterSizes.poster * scale),
-    landscape: Math.round(TVPosterSizes.landscape * scale),
-    episode: Math.round(TVPosterSizes.episode * scale),
-    heroCard: Math.round(TVPosterSizes.heroCard * scale),
+    poster: TVPosterSizes.poster + offset,
+    landscape: TVPosterSizes.landscape + offset,
+    episode: TVPosterSizes.episode + offset,
+    heroCard: TVPosterSizes.heroCard + offset,
   };
 };
