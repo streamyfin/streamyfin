@@ -309,6 +309,10 @@ export const TVLibraries: React.FC = () => {
 
   const handleLibraryPress = useCallback(
     (library: BaseItemDto) => {
+      if (library.CollectionType === "livetv") {
+        router.push("/(auth)/(tabs)/(libraries)/livetv/programs");
+        return;
+      }
       if (library.CollectionType === "music") {
         router.push({
           pathname: `/(auth)/(tabs)/(libraries)/music/[libraryId]/suggestions`,

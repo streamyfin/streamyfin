@@ -717,7 +717,15 @@
     "movies": "Movies",
     "sports": "Sports",
     "for_kids": "For Kids",
-    "news": "News"
+    "news": "News",
+    "tabs": {
+      "programs": "Programs",
+      "guide": "Guide",
+      "channels": "Channels",
+      "recordings": "Recordings",
+      "schedule": "Schedule",
+      "series": "Series"
+    }
   },
   "jellyseerr": {
     "confirm": "Confirm",

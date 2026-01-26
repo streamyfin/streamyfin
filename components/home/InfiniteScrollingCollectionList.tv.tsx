@@ -47,53 +47,71 @@ interface Props extends ViewProps {
 
 type Typography = ReturnType<typeof useScaledTVTypography>;
 
-// TV-specific ItemCardText with larger fonts
+// TV-specific ItemCardText with appropriately sized fonts
 const TVItemCardText: React.FC<{
   item: BaseItemDto;
   typography: Typography;
-}> = ({ item, typography }) => {
+  width?: number;
+}> = ({ item, typography, width }) => {
+  const renderSubtitle = () => {
+    if (item.Type === "Episode") {
+      return (
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: typography.callout,
+            color: "#9CA3AF",
+            marginTop: 4,
+          }}
+        >
+          {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
+          {" - "}
+          {item.SeriesName}
+        </Text>
+      );
+    }
+
+    if (item.Type === "Program") {
+      // For Live TV programs, show channel name
+      const channelName = item.ChannelName;
+      return channelName ? (
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: typography.callout,
+            color: "#9CA3AF",
+            marginTop: 4,
+          }}
+        >
+          {channelName}
+        </Text>
+      ) : null;
+    }
+
+    // Default: show production year
+    return item.ProductionYear ? (
+      <Text
+        numberOfLines={1}
+        style={{
+          fontSize: typography.callout,
+          color: "#9CA3AF",
+          marginTop: 4,
+        }}
+      >
+        {item.ProductionYear}
+      </Text>
+    ) : null;
+  };
+
   return (
-    <View style={{ marginTop: 12, flexDirection: "column" }}>
-      {item.Type === "Episode" ? (
-        <>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
-          >
-            {item.Name}
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={{
-              fontSize: typography.callout,
-              color: "#9CA3AF",
-              marginTop: 2,
-            }}
-          >
-            {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
-            {" - "}
-            {item.SeriesName}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: typography.callout, color: "#FFFFFF" }}
-          >
-            {item.Name}
-          </Text>
-          <Text
-            style={{
-              fontSize: typography.callout,
-              color: "#9CA3AF",
-              marginTop: 2,
-            }}
-          >
-            {item.ProductionYear}
-          </Text>
-        </>
-      )}
+    <View style={{ marginTop: 12, flexDirection: "column", width }}>
+      <Text
+        numberOfLines={1}
+        style={{ fontSize: typography.body, color: "#FFFFFF" }}
+      >
+        {item.Name}
+      </Text>
+      {renderSubtitle()}
     </View>
   );
 };
@@ -287,15 +305,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     } as any);
   }, [router, parentId]);
 
-  const getItemLayout = useCallback(
-    (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: itemWidth + ITEM_GAP,
-      offset: (itemWidth + ITEM_GAP) * index,
-      index,
-    }),
-    [itemWidth],
-  );
-
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => {
       const isFirstItem = isFirstSection && index === 0;
@@ -359,7 +368,11 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           >
             {renderPoster()}
           </TVFocusablePoster>
-          <TVItemCardText item={item} typography={typography} />
+          <TVItemCardText
+            item={item}
+            typography={typography}
+            width={itemWidth}
+          />
         </View>
       );
     },
@@ -462,7 +475,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           maxToRenderPerBatch={3}
           windowSize={5}
           removeClippedSubviews={false}
-          getItemLayout={getItemLayout}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           style={{ overflow: "visible" }}
           contentContainerStyle={{

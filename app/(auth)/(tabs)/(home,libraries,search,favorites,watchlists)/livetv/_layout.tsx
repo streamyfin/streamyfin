@@ -7,7 +7,8 @@ import type {
   ParamListBase,
   TabNavigationState,
 } from "@react-navigation/native";
-import { Stack, withLayoutContext } from "expo-router";
+import { Slot, Stack, withLayoutContext } from "expo-router";
+import { Platform } from "react-native";
 
 const { Navigator } = createMaterialTopTabNavigator();
 
@@ -19,6 +20,17 @@ export const Tab = withLayoutContext<
 >(Navigator);
 
 const Layout = () => {
+  // On TV, skip the Material Top Tab Navigator and render children directly
+  // The TV version handles its own tab navigation internally
+  if (Platform.isTV) {
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Slot />
+      </>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ title: "Live TV" }} />
