@@ -339,10 +339,15 @@ export const Controls: FC<Props> = ({
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(item, settings, {
-        indexes: previousIndexes,
-        source: mediaSource ?? undefined,
-      });
+      } = getDefaultPlaySettings(
+        item,
+        settings,
+        {
+          indexes: previousIndexes,
+          source: mediaSource ?? undefined,
+        },
+        { applyLanguagePreferences: true },
+      );
 
       const queryParams = new URLSearchParams({
         ...(offline && { offline: "true" }),
