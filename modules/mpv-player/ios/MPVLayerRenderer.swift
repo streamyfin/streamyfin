@@ -220,6 +220,8 @@ final class MPVLayerRenderer {
         #endif
 
         // Subtitle and audio settings
+        checkError(mpv_set_option_string(mpv, "sub-scale-with-window", "no"))
+        checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
 
