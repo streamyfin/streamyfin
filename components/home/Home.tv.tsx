@@ -537,11 +537,22 @@ export const Home = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
+  // Determine if hero should be shown (separate setting from backdrop)
+  // We need this early to calculate which sections will actually be rendered
+  const showHero = useMemo(() => {
+    return heroItems && heroItems.length > 0 && settings.showTVHeroCarousel;
+  }, [heroItems, settings.showTVHeroCarousel]);
+
+  // Get sections that will actually be rendered (accounting for hero slicing)
+  const renderedSections = useMemo(() => {
+    return showHero ? sections.slice(1) : sections;
+  }, [sections, showHero]);
+
   const highPrioritySectionKeys = useMemo(() => {
-    return sections
+    return renderedSections
       .filter((s) => s.priority === 1)
       .map((s) => s.queryKey.join("-"));
-  }, [sections]);
+  }, [renderedSections]);
 
   const allHighPriorityLoaded = useMemo(() => {
     return highPrioritySectionKeys.every((key) => loadedSections.has(key));
@@ -661,10 +672,6 @@ export const Home = () => {
       </View>
     );
 
-  // Determine if hero should be shown (separate setting from backdrop)
-  const showHero =
-    heroItems && heroItems.length > 0 && settings.showTVHeroCarousel;
-
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       {/* Dynamic backdrop with crossfade - only shown when hero is disabled */}
@@ -737,7 +744,7 @@ export const Home = () => {
         }}
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
-        {showHero && (
+        {showHero && heroItems && (
           <TVHeroCarousel items={heroItems} onItemFocus={handleItemFocus} />
         )}
 
@@ -749,16 +756,14 @@ export const Home = () => {
           }}
         >
           {/* Skip first section (Continue Watching) when hero is shown since hero displays that content */}
-          {sections.slice(showHero ? 1 : 0).map((section, index) => {
+          {renderedSections.map((section, index) => {
             // Render Streamystats sections after Recently Added sections
             // For default sections: place after Recently Added, before Suggested Movies (if present)
             // For custom sections: place at the very end
             const hasSuggestedMovies =
               !settings?.streamyStatsMovieRecommendations &&
               !settings?.home?.sections;
-            // Adjust index calculation to account for sliced array when hero is shown
-            const displayedSectionsLength =
-              sections.length - (showHero ? 1 : 0);
+            const displayedSectionsLength = renderedSections.length;
             const streamystatsIndex =
               displayedSectionsLength - 1 - (hasSuggestedMovies ? 1 : 0);
             const hasStreamystatsContent =
