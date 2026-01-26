@@ -112,12 +112,22 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
+    // Enable language preference application for TV
+    const playSettingsOptions = useMemo(
+      () => ({ applyLanguagePreferences: true }),
+      [],
+    );
+
     const {
       defaultAudioIndex,
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
+    } = useDefaultPlaySettings(
+      itemWithSources ?? item,
+      settings,
+      playSettingsOptions,
+    );
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
