@@ -75,12 +75,20 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   >(undefined);
 
   // Use itemWithSources for play settings since it has MediaSources data
+  const playSettingsOptions = useMemo(
+    () => ({ applyLanguagePreferences: true }),
+    [],
+  );
   const {
     defaultAudioIndex,
     defaultBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
-  } = useDefaultPlaySettings(itemWithSources ?? item, settings);
+  } = useDefaultPlaySettings(
+    itemWithSources ?? item,
+    settings,
+    playSettingsOptions,
+  );
 
   const logoUrl = useMemo(
     () => (item ? getLogoImageUrlById({ api, item }) : null),
