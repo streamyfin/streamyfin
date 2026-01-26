@@ -11,11 +11,10 @@ import { FlatList, View, type ViewProps } from "react-native";
 
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -66,6 +65,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   ...props
 }) => {
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -129,8 +129,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: TV_POSTER_WIDTH + ITEM_GAP,
-      offset: (TV_POSTER_WIDTH + ITEM_GAP) * index,
+      length: posterSizes.poster + ITEM_GAP,
+      offset: (posterSizes.poster + ITEM_GAP) * index,
       index,
     }),
     [],
@@ -139,7 +139,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   const renderItem = useCallback(
     ({ item }: { item: BaseItemDto }) => {
       return (
-        <View style={{ marginRight: ITEM_GAP, width: TV_POSTER_WIDTH }}>
+        <View style={{ marginRight: ITEM_GAP, width: posterSizes.poster }}>
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
             onFocus={() => onItemFocus?.(item)}
@@ -182,11 +182,11 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
-            <View key={i} style={{ width: TV_POSTER_WIDTH }}>
+            <View key={i} style={{ width: posterSizes.poster }}>
               <View
                 style={{
                   backgroundColor: "#262626",
-                  width: TV_POSTER_WIDTH,
+                  width: posterSizes.poster,
                   aspectRatio: 10 / 15,
                   borderRadius: 12,
                   marginBottom: 8,
@@ -226,6 +226,7 @@ interface StreamystatsPromotedWatchlistsProps extends ViewProps {
 export const StreamystatsPromotedWatchlists: React.FC<
   StreamystatsPromotedWatchlistsProps
 > = ({ enabled = true, onItemFocus, ...props }) => {
+  const posterSizes = useScaledTVPosterSizes();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -316,11 +317,11 @@ export const StreamystatsPromotedWatchlists: React.FC<
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
-            <View key={i} style={{ width: TV_POSTER_WIDTH }}>
+            <View key={i} style={{ width: posterSizes.poster }}>
               <View
                 style={{
                   backgroundColor: "#262626",
-                  width: TV_POSTER_WIDTH,
+                  width: posterSizes.poster,
                   aspectRatio: 10 / 15,
                   borderRadius: 12,
                   marginBottom: 8,

@@ -33,15 +33,14 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import {
   TVFilterButton,
   TVFocusablePoster,
   TVItemCardText,
 } from "@/components/tv";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -85,6 +84,7 @@ const Page = () => {
   const { libraryId } = searchParams;
 
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { width: screenWidth } = useWindowDimensions();
@@ -409,7 +409,7 @@ const Page = () => {
         <View
           key={item.Id}
           style={{
-            width: TV_POSTER_WIDTH,
+            width: posterSizes.poster,
           }}
         >
           <TVFocusablePoster onPress={handlePress}>

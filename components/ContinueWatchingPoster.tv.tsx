@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai";
 import type React from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
@@ -12,8 +13,6 @@ import {
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { ProgressBar } from "./common/ProgressBar";
 import { WatchedIndicator } from "./WatchedIndicator";
-
-export const TV_LANDSCAPE_WIDTH = 400;
 
 type ContinueWatchingPosterProps = {
   item: BaseItemDto;
@@ -30,6 +29,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
   showPlayButton = false,
 }) => {
   const api = useAtomValue(apiAtom);
+  const posterSizes = useScaledTVPosterSizes();
 
   const url = useMemo(() => {
     if (!api) {
@@ -91,7 +91,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     return (
       <View
         style={{
-          width: TV_LANDSCAPE_WIDTH,
+          width: posterSizes.landscape,
           aspectRatio: 16 / 9,
           borderRadius: 24,
         }}
@@ -109,8 +109,8 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
           progress={progress}
           showWatchedIndicator={isWatched}
           isFocused={false}
-          width={TV_LANDSCAPE_WIDTH}
-          style={{ width: TV_LANDSCAPE_WIDTH }}
+          width={posterSizes.landscape}
+          style={{ width: posterSizes.landscape }}
         />
         {showPlayButton && (
           <View
@@ -136,7 +136,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     <View
       style={{
         position: "relative",
-        width: TV_LANDSCAPE_WIDTH,
+        width: posterSizes.landscape,
         aspectRatio: 16 / 9,
         borderRadius: 24,
         overflow: "hidden",

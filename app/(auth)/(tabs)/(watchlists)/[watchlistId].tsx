@@ -24,11 +24,10 @@ import {
 } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -73,6 +72,7 @@ const TVItemCardText: React.FC<{
 
 export default function WatchlistDetailScreen() {
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const { t } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
@@ -206,7 +206,7 @@ export default function WatchlistDetailScreen() {
         <View
           key={item.Id}
           style={{
-            width: TV_POSTER_WIDTH,
+            width: posterSizes.poster,
           }}
         >
           <TVFocusablePoster

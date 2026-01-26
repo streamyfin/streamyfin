@@ -3,14 +3,13 @@ import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-
-export const TV_POSTER_WIDTH = 260;
 
 type SeriesPosterProps = {
   item: BaseItemDto;
@@ -19,17 +18,18 @@ type SeriesPosterProps = {
 
 const SeriesPoster: React.FC<SeriesPosterProps> = ({ item }) => {
   const [api] = useAtom(apiAtom);
+  const posterSizes = useScaledTVPosterSizes();
 
   const url = useMemo(() => {
     if (item.Type === "Episode") {
-      return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=780&quality=80&tag=${item.SeriesPrimaryImageTag}`;
+      return `${api?.basePath}/Items/${item.SeriesId}/Images/Primary?fillHeight=${posterSizes.poster * 3}&quality=80&tag=${item.SeriesPrimaryImageTag}`;
     }
     return getPrimaryImageUrl({
       api,
       item,
-      width: 520, // 2x for quality on large screens
+      width: posterSizes.poster * 2, // 2x for quality on large screens
     });
-  }, [api, item]);
+  }, [api, item, posterSizes.poster]);
 
   const blurhash = useMemo(() => {
     const key = item.ImageTags?.Primary as string;
@@ -48,8 +48,8 @@ const SeriesPoster: React.FC<SeriesPosterProps> = ({ item }) => {
         progress={0}
         showWatchedIndicator={false}
         isFocused={false}
-        width={TV_POSTER_WIDTH}
-        style={{ width: TV_POSTER_WIDTH }}
+        width={posterSizes.poster}
+        style={{ width: posterSizes.poster }}
       />
     );
   }
@@ -58,7 +58,7 @@ const SeriesPoster: React.FC<SeriesPosterProps> = ({ item }) => {
   return (
     <View
       style={{
-        width: TV_POSTER_WIDTH,
+        width: posterSizes.poster,
         aspectRatio: 10 / 15,
         position: "relative",
         borderRadius: 24,

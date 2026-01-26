@@ -142,22 +142,22 @@ export default function SettingsTV() {
   const typographyScaleOptions: TVOptionItem<TVTypographyScale>[] = useMemo(
     () => [
       {
-        label: t("home.settings.appearance.text_size_small"),
+        label: t("home.settings.appearance.display_size_small"),
         value: TVTypographyScale.Small,
         selected: currentTypographyScale === TVTypographyScale.Small,
       },
       {
-        label: t("home.settings.appearance.text_size_default"),
+        label: t("home.settings.appearance.display_size_default"),
         value: TVTypographyScale.Default,
         selected: currentTypographyScale === TVTypographyScale.Default,
       },
       {
-        label: t("home.settings.appearance.text_size_large"),
+        label: t("home.settings.appearance.display_size_large"),
         value: TVTypographyScale.Large,
         selected: currentTypographyScale === TVTypographyScale.Large,
       },
       {
-        label: t("home.settings.appearance.text_size_extra_large"),
+        label: t("home.settings.appearance.display_size_extra_large"),
         value: TVTypographyScale.ExtraLarge,
         selected: currentTypographyScale === TVTypographyScale.ExtraLarge,
       },
@@ -188,7 +188,7 @@ export default function SettingsTV() {
 
   const typographyScaleLabel = useMemo(() => {
     const option = typographyScaleOptions.find((o) => o.selected);
-    return option?.label || t("home.settings.appearance.text_size_default");
+    return option?.label || t("home.settings.appearance.display_size_default");
   }, [typographyScaleOptions, t]);
 
   return (
@@ -385,11 +385,11 @@ export default function SettingsTV() {
           {/* Appearance Section */}
           <TVSectionHeader title={t("home.settings.appearance.title")} />
           <TVSettingsOptionButton
-            label={t("home.settings.appearance.text_size")}
+            label={t("home.settings.appearance.display_size")}
             value={typographyScaleLabel}
             onPress={() =>
               showOptions({
-                title: t("home.settings.appearance.text_size"),
+                title: t("home.settings.appearance.display_size"),
                 options: typographyScaleOptions,
                 onSelect: (value) =>
                   updateSettings({ tvTypographyScale: value }),
