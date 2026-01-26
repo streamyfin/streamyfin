@@ -1039,15 +1039,6 @@ export default function page() {
       if (settings.mpvSubtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
-      if (settings.mpvSubtitleFontSize !== undefined) {
-        await videoRef.current?.setSubtitleFontSize?.(
-          settings.mpvSubtitleFontSize,
-        );
-      }
-      // Apply subtitle size from general settings
-      if (settings.subtitleSize) {
-        await videoRef.current?.setSubtitleFontSize?.(settings.subtitleSize);
-      }
     };
 
     applySubtitleSettings();
