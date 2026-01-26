@@ -593,10 +593,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View style={{ marginTop: 40, overflow: "visible" }}>
           <Text
             style={{
-              fontSize: typography.body,
+              fontSize: typography.heading,
               fontWeight: "600",
               color: "#FFFFFF",
-              marginBottom: 16,
+              marginBottom: 24,
               marginLeft: SCALE_PADDING,
             }}
           >
