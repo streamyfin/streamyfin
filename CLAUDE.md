@@ -142,9 +142,9 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 
 ### TV Component Rendering Pattern
 
-**IMPORTANT**: The `.tv.tsx` file suffix only works for **pages** in the `app/` directory (resolved by Expo Router). It does NOT work for components - Metro bundler doesn't resolve platform-specific suffixes for component imports.
+**IMPORTANT**: The `.tv.tsx` file suffix does NOT work in this project - neither for pages nor components. Metro bundler doesn't resolve platform-specific suffixes. Always use `Platform.isTV` conditional rendering instead.
 
-**Pattern for TV-specific components**:
+**Pattern for TV-specific pages and components**:
 ```typescript
 // In page file (e.g., app/login.tsx)
 import { Platform } from "react-native";
@@ -164,6 +164,7 @@ export default LoginPage;
 - Create separate component files for mobile and TV (e.g., `MyComponent.tsx` and `TVMyComponent.tsx`)
 - Use `Platform.isTV` to conditionally render the appropriate component
 - TV components typically use `TVInput`, `TVServerCard`, and other TV-prefixed components with focus handling
+- **Never use `.tv.tsx` file suffix** - it will not be resolved correctly
 
 ### TV Option Selector Pattern (Dropdowns/Multi-select)
 
