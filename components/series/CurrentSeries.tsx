@@ -4,10 +4,6 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
-
-// Matches `w-28` poster cards (approx 112px wide, 10/15 aspect ratio) + 2 lines of text.
-const POSTER_CAROUSEL_HEIGHT = 220;
-
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { HorizontalScroll } from "../common/HorizontalScroll";
@@ -30,7 +26,7 @@ export const CurrentSeries: React.FC<Props> = ({ item, ...props }) => {
       </Text>
       <HorizontalScroll
         data={[item]}
-        height={POSTER_CAROUSEL_HEIGHT}
+        height={220}
         renderItem={(item, _index) => (
           <TouchableOpacity
             key={item?.Id}

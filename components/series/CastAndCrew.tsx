@@ -9,10 +9,6 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
-
-// Matches `w-28` poster cards (approx 112px wide, 10/15 aspect ratio) + 2 lines of text.
-const POSTER_CAROUSEL_HEIGHT = 220;
-
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { HorizontalScroll } from "../common/HorizontalScroll";
@@ -56,7 +52,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
       <HorizontalScroll
         loading={loading}
         keyExtractor={(i, _idx) => i.Id?.toString() || ""}
-        height={POSTER_CAROUSEL_HEIGHT}
+        height={220}
         data={destinctPeople}
         renderItem={(i) => (
           <TouchableOpacity

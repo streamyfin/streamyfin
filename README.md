@@ -32,7 +32,7 @@
 - 🚀 **Skip Intro / Credits**: Automatically skip intros and credits during playback
 - 🖼️ **Trickplay Images**: Chapter previews with thumbnails when seeking
 - 🎵 **Music Library**: Full support for music playback with playlists and queue management
-- 📺 **Live TV**: Watch and record live television streams
+- 📺 **Live TV**: Watch live television streams
 - 📡 **Chromecast**: Cast your media to any Chromecast-enabled device
 - 🎥 **MPV Player**: Powerful open-source player with wide format support
 
@@ -41,7 +41,7 @@
 - ⭐ **Favorites**: Quick access to your favorite content
 - 📋 **Watchlists**: Create and manage custom watchlists with Streamystats integration
 - 🔖 **Continue Watching**: Pick up right where you left off
-- 🎯 **Next Up**: Smart suggestions for your next episode
+- 🎯 **Next Up**: Suggestions for your next episode
 
 ### ⚙️ Advanced Features
 - 🤖 **Seerr Integration**: Request new media directly in the app
@@ -133,7 +133,6 @@ You can contribute translations directly on our [Crowdin project page](https://c
 1. Use Node.js `>20`
 2. Install dependencies: `bun i && bun run submodule-reload`
 3. Make sure you have Xcode and/or Android Studio installed ([Expo setup guide](https://docs.expo.dev/workflow/android-studio-emulator/))
-   - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `npm run ios:install-metal-toolchain` once
 4. Install the [BiomeJS extension](https://biomejs.dev/) in your IDE
 5. Run `npm run prebuild`
 6. Create an Expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app
@@ -164,7 +163,7 @@ Need assistance or have any questions?
    A: Yes, with full customization including size, color, position, and automatic language selection.
 
 4. **Q: Can I use Streamyfin on Apple TV or Android TV?**  
-   A: Yes, Streamyfin has dedicated TV builds optimized for remote control navigation. Please note that TV platforms are currently in early development and not very stable. Android TV is currently the most reliable platform for testing.
+   A: Yes, Streamyfin has dedicated TV builds, but they are currently in **early development** and may have stability issues.
 
 5. **Q: How do I set up Seerr integration?**  
    A: Go to Settings → Plugins → Seerr, enter your server URL and Jellyfin credentials.
