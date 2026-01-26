@@ -10,6 +10,10 @@ import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import {
+  GlassPosterView,
+  isGlassEffectAvailable,
+} from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -74,6 +78,42 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
     return null;
   }, [episode.ParentIndexNumber, episode.IndexNumber]);
 
+  const progress = episode.UserData?.PlayedPercentage || 0;
+  const isWatched = episode.UserData?.Played === true;
+
+  // Use glass effect on tvOS 26+
+  const useGlass = isGlassEffectAvailable();
+
+  // Now Playing badge component (shared between glass and fallback)
+  const NowPlayingBadge = isCurrent ? (
+    <View
+      style={{
+        position: "absolute",
+        top: 12,
+        left: 12,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 8,
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        gap: 6,
+        zIndex: 10,
+      }}
+    >
+      <Ionicons name='play' size={16} color='#000000' />
+      <Text
+        style={{
+          color: "#000000",
+          fontSize: 14,
+          fontWeight: "700",
+        }}
+      >
+        Now Playing
+      </Text>
+    </View>
+  ) : null;
+
   return (
     <View
       style={{
@@ -90,63 +130,51 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
         onBlur={onBlur}
         refSetter={refSetter}
       >
-        <View
-          style={{
-            width: posterSizes.episode,
-            aspectRatio: 16 / 9,
-            borderRadius: 24,
-            overflow: "hidden",
-            backgroundColor: "#1a1a1a",
-          }}
-        >
-          {thumbnailUrl ? (
-            <Image
-              source={{ uri: thumbnailUrl }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit='cover'
-              cachePolicy='memory-disk'
+        {useGlass ? (
+          <View style={{ position: "relative" }}>
+            <GlassPosterView
+              imageUrl={thumbnailUrl}
+              aspectRatio={16 / 9}
+              cornerRadius={24}
+              progress={progress}
+              showWatchedIndicator={isWatched}
+              isFocused={false}
+              width={posterSizes.episode}
+              style={{ width: posterSizes.episode }}
             />
-          ) : (
-            <View
-              style={{
-                width: "100%",
-                height: "100%",
-                backgroundColor: "#262626",
-              }}
-            />
-          )}
-          <WatchedIndicator item={episode} />
-          <ProgressBar item={episode} />
-
-          {/* Now Playing badge */}
-          {isCurrent && (
-            <View
-              style={{
-                position: "absolute",
-                top: 12,
-                left: 12,
-                backgroundColor: "#FFFFFF",
-                borderRadius: 8,
-                flexDirection: "row",
-                alignItems: "center",
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                gap: 6,
-              }}
-            >
-              <Ionicons name='play' size={16} color='#000000' />
-              <Text
+            {NowPlayingBadge}
+          </View>
+        ) : (
+          <View
+            style={{
+              width: posterSizes.episode,
+              aspectRatio: 16 / 9,
+              borderRadius: 24,
+              overflow: "hidden",
+              backgroundColor: "#1a1a1a",
+            }}
+          >
+            {thumbnailUrl ? (
+              <Image
+                source={{ uri: thumbnailUrl }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+                cachePolicy='memory-disk'
+              />
+            ) : (
+              <View
                 style={{
-                  color: "#000000",
-                  fontSize: 14,
-                  fontWeight: "700",
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "#262626",
                 }}
-              >
-                Now Playing
-              </Text>
-            </View>
-          )}
-        </View>
+              />
+            )}
+            <WatchedIndicator item={episode} />
+            <ProgressBar item={episode} />
+            {NowPlayingBadge}
+          </View>
+        )}
       </TVFocusablePoster>
 
       {/* Episode info below thumbnail */}
