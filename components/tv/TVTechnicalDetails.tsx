@@ -45,7 +45,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
                   marginBottom: 4,
                 }}
               >
-                Video
+                {t("common.video")}
               </Text>
               <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
                 {videoStream.DisplayTitle ||
@@ -64,7 +64,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
                   marginBottom: 4,
                 }}
               >
-                Audio
+                {t("common.audio")}
               </Text>
               <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
                 {audioStream.DisplayTitle ||
