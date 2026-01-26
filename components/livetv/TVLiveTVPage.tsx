@@ -6,6 +6,8 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
+import { TVChannelsGrid } from "@/components/livetv/TVChannelsGrid";
+import { TVLiveTVGuide } from "@/components/livetv/TVLiveTVGuide";
 import { TVLiveTVPlaceholder } from "@/components/livetv/TVLiveTVPlaceholder";
 import { TVTabButton } from "@/components/tv/TVTabButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -200,6 +202,14 @@ export const TVLiveTVPage: React.FC = () => {
       return renderProgramsContent();
     }
 
+    if (activeTab === "guide") {
+      return <TVLiveTVGuide />;
+    }
+
+    if (activeTab === "channels") {
+      return <TVChannelsGrid />;
+    }
+
     // Placeholder for other tabs
     const tab = TABS.find((t) => t.id === activeTab);
     return <TVLiveTVPlaceholder tabName={t(tab?.labelKey || "")} />;
@@ -234,13 +244,13 @@ export const TVLiveTVPage: React.FC = () => {
             gap: 8,
           }}
         >
-          {TABS.map((tab, index) => (
+          {TABS.map((tab) => (
             <TVTabButton
               key={tab.id}
               label={t(tab.labelKey)}
               active={activeTab === tab.id}
               onSelect={() => handleTabSelect(tab.id)}
-              hasTVPreferredFocus={index === 0}
+              hasTVPreferredFocus={activeTab === tab.id}
               switchOnFocus={true}
             />
           ))}

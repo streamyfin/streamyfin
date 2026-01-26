@@ -375,6 +375,12 @@ export const Controls: FC<Props> = ({
     isSeeking,
   });
 
+  // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
+  const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
+
+  // For live TV, determine if we're at the live edge (within 5 seconds of max)
+  const LIVE_EDGE_THRESHOLD = 5000; // 5 seconds in ms
+
   const getFinishTime = () => {
     const now = new Date();
     const finishTime = new Date(now.getTime() + remainingTime);
@@ -540,6 +546,13 @@ export const Controls: FC<Props> = ({
   );
 
   const handleSeekForwardButton = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't seek further
+      controlsInteractionRef.current();
+      return;
+    }
+
     const newPosition = Math.min(max.value, progress.value + 30 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -556,7 +569,14 @@ export const Controls: FC<Props> = ({
     }, 2000);
 
     controlsInteractionRef.current();
-  }, [progress, max, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+  }, [
+    progress,
+    max,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    isLiveTV,
+  ]);
 
   const handleSeekBackwardButton = useCallback(() => {
     const newPosition = Math.max(min.value, progress.value - 30 * 1000);
@@ -579,6 +599,13 @@ export const Controls: FC<Props> = ({
 
   // Progress bar D-pad seeking (10s increments for finer control)
   const handleProgressSeekRight = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't seek further
+      controlsInteractionRef.current();
+      return;
+    }
+
     const newPosition = Math.min(max.value, progress.value + 10 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -595,7 +622,14 @@ export const Controls: FC<Props> = ({
     }, 2000);
 
     controlsInteractionRef.current();
-  }, [progress, max, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+  }, [
+    progress,
+    max,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    isLiveTV,
+  ]);
 
   const handleProgressSeekLeft = useCallback(() => {
     const newPosition = Math.max(min.value, progress.value - 10 * 1000);
@@ -618,6 +652,12 @@ export const Controls: FC<Props> = ({
 
   // Minimal seek mode handlers (only show progress bar, not full controls)
   const handleMinimalSeekRight = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't seek further
+      return;
+    }
+
     const newPosition = Math.min(max.value, progress.value + 10 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -642,6 +682,7 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     updateSeekBubbleTime,
     showMinimalSeek,
+    isLiveTV,
   ]);
 
   const handleMinimalSeekLeft = useCallback(() => {
@@ -691,11 +732,23 @@ export const Controls: FC<Props> = ({
   }, [startMinimalSeekHideTimeout]);
 
   const startContinuousSeekForward = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't start continuous seeking
+      return;
+    }
+
     seekAccelerationRef.current = 1;
 
     handleSeekForwardButton();
 
     continuousSeekRef.current = setInterval(() => {
+      // For live TV, stop continuous seeking when we hit the live edge
+      if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+        stopContinuousSeeking();
+        return;
+      }
+
       const seekAmount =
         CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK *
         seekAccelerationRef.current *
@@ -718,6 +771,8 @@ export const Controls: FC<Props> = ({
     seek,
     calculateTrickplayUrl,
     updateSeekBubbleTime,
+    isLiveTV,
+    stopContinuousSeeking,
   ]);
 
   const startContinuousSeekBackward = useCallback(() => {
@@ -977,16 +1032,18 @@ export const Controls: FC<Props> = ({
             <Text style={[styles.timeText, { fontSize: typography.body }]}>
               {formatTimeString(currentTime, "ms")}
             </Text>
-            <View style={styles.timeRight}>
-              <Text style={[styles.timeText, { fontSize: typography.body }]}>
-                -{formatTimeString(remainingTime, "ms")}
-              </Text>
-              <Text
-                style={[styles.endsAtText, { fontSize: typography.callout }]}
-              >
-                {t("player.ends_at")} {getFinishTime()}
-              </Text>
-            </View>
+            {!isLiveTV && (
+              <View style={styles.timeRight}>
+                <Text style={[styles.timeText, { fontSize: typography.body }]}>
+                  -{formatTimeString(remainingTime, "ms")}
+                </Text>
+                <Text
+                  style={[styles.endsAtText, { fontSize: typography.callout }]}
+                >
+                  {t("player.ends_at")} {getFinishTime()}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -1012,9 +1069,25 @@ export const Controls: FC<Props> = ({
                 style={[styles.subtitleText, { fontSize: typography.body }]}
               >{`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}</Text>
             )}
-            <Text style={[styles.titleText, { fontSize: typography.heading }]}>
-              {item?.Name}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text
+                style={[styles.titleText, { fontSize: typography.heading }]}
+              >
+                {item?.Name}
+              </Text>
+              {isLiveTV && (
+                <View style={styles.liveBadge}>
+                  <Text
+                    style={[
+                      styles.liveBadgeText,
+                      { fontSize: typography.callout },
+                    ]}
+                  >
+                    {t("player.live")}
+                  </Text>
+                </View>
+              )}
+            </View>
             {item?.Type === "Movie" && (
               <Text
                 style={[styles.subtitleText, { fontSize: typography.body }]}
@@ -1122,16 +1195,18 @@ export const Controls: FC<Props> = ({
             <Text style={[styles.timeText, { fontSize: typography.body }]}>
               {formatTimeString(currentTime, "ms")}
             </Text>
-            <View style={styles.timeRight}>
-              <Text style={[styles.timeText, { fontSize: typography.body }]}>
-                -{formatTimeString(remainingTime, "ms")}
-              </Text>
-              <Text
-                style={[styles.endsAtText, { fontSize: typography.callout }]}
-              >
-                {t("player.ends_at")} {getFinishTime()}
-              </Text>
-            </View>
+            {!isLiveTV && (
+              <View style={styles.timeRight}>
+                <Text style={[styles.timeText, { fontSize: typography.body }]}>
+                  -{formatTimeString(remainingTime, "ms")}
+                </Text>
+                <Text
+                  style={[styles.endsAtText, { fontSize: typography.callout }]}
+                >
+                  {t("player.ends_at")} {getFinishTime()}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -1160,11 +1235,26 @@ const styles = StyleSheet.create({
   metadataContainer: {
     marginBottom: 16,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   subtitleText: {
     color: "rgba(255,255,255,0.6)",
   },
   titleText: {
     color: "#fff",
+    fontWeight: "bold",
+  },
+  liveBadge: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  liveBadgeText: {
+    color: "#FFF",
     fontWeight: "bold",
   },
   controlButtonsRow: {

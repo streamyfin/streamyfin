@@ -624,6 +624,7 @@
     "no_links": "No Links"
   },
   "player": {
+    "live": "LIVE",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
@@ -718,6 +719,9 @@
     "sports": "Sports",
     "for_kids": "For Kids",
     "news": "News",
+    "page_of": "Page {{current}} of {{total}}",
+    "no_programs": "No programs available",
+    "no_channels": "No channels available",
     "tabs": {
       "programs": "Programs",
       "guide": "Guide",
