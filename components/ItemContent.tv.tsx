@@ -24,7 +24,7 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
-import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
+import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import {
   TVBackdrop,
   TVButton,
@@ -806,31 +806,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   {t("item_card.more_from_this_season")}
                 </Text>
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginHorizontal: -80, overflow: "visible" }}
-                  contentContainerStyle={{
-                    paddingHorizontal: 80,
-                    paddingVertical: 12,
-                    gap: 24,
-                  }}
-                >
-                  {seasonEpisodes.map((episode, index) => {
-                    const isCurrentEpisode = episode.Id === item.Id;
-                    return (
-                      <TVEpisodeCard
-                        key={episode.Id}
-                        episode={episode}
-                        onPress={() => handleEpisodePress(episode)}
-                        disabled={isCurrentEpisode}
-                        focusableWhenDisabled={isCurrentEpisode}
-                        isCurrent={isCurrentEpisode}
-                        refSetter={index === 0 ? setFirstEpisodeRef : undefined}
-                      />
-                    );
-                  })}
-                </ScrollView>
+                <TVEpisodeList
+                  episodes={seasonEpisodes}
+                  currentEpisodeId={item.Id}
+                  onEpisodePress={handleEpisodePress}
+                  firstEpisodeRefSetter={setFirstEpisodeRef}
+                />
               </View>
             )}
 

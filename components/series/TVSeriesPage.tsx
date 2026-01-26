@@ -27,7 +27,7 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
-import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
+import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -46,7 +46,6 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const HORIZONTAL_PADDING = 80;
 const TOP_PADDING = 140;
 const POSTER_WIDTH_PERCENT = 0.22;
-const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
 
 interface TVSeriesPageProps {
@@ -619,43 +618,17 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             />
           )}
 
-          <ScrollView
-            ref={episodeListRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ overflow: "visible" }}
-            contentContainerStyle={{
-              paddingVertical: SCALE_PADDING,
-              paddingHorizontal: SCALE_PADDING,
-              gap: ITEM_GAP,
-            }}
-          >
-            {episodesForSeason.length > 0 ? (
-              episodesForSeason.map((episode, index) => (
-                <TVEpisodeCard
-                  key={episode.Id}
-                  episode={episode}
-                  onPress={() => handleEpisodePress(episode)}
-                  onFocus={handleEpisodeFocus}
-                  onBlur={handleEpisodeBlur}
-                  disabled={isSeasonModalVisible}
-                  // Pass refSetter to first episode for focus guide destination
-                  // Note: Do NOT use hasTVPreferredFocus on focus guide destinations
-                  refSetter={index === 0 ? setFirstEpisodeRef : undefined}
-                />
-              ))
-            ) : (
-              <Text
-                style={{
-                  color: "#737373",
-                  fontSize: typography.callout,
-                  marginLeft: SCALE_PADDING,
-                }}
-              >
-                {t("item_card.no_episodes_for_this_season")}
-              </Text>
-            )}
-          </ScrollView>
+          <TVEpisodeList
+            episodes={episodesForSeason}
+            disabled={isSeasonModalVisible}
+            onEpisodePress={handleEpisodePress}
+            onFocus={handleEpisodeFocus}
+            onBlur={handleEpisodeBlur}
+            scrollViewRef={episodeListRef}
+            firstEpisodeRefSetter={setFirstEpisodeRef}
+            emptyText={t("item_card.no_episodes_for_this_season")}
+            horizontalPadding={HORIZONTAL_PADDING}
+          />
         </View>
       </ScrollView>
     </View>
