@@ -28,9 +28,8 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -103,6 +102,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const router = useRouter();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
+  const posterSizes = useScaledTVPosterSizes();
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -276,8 +276,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   // List item layout
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: TV_POSTER_WIDTH + ITEM_GAP,
-      offset: (TV_POSTER_WIDTH + ITEM_GAP) * index,
+      length: posterSizes.poster + ITEM_GAP,
+      offset: (posterSizes.poster + ITEM_GAP) * index,
       index,
     }),
     [],
@@ -297,7 +297,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
         >
           <View>
             <MoviePoster item={filmItem} />
-            <View style={{ width: TV_POSTER_WIDTH, marginTop: 8 }}>
+            <View style={{ width: posterSizes.poster, marginTop: 8 }}>
               <ItemCardText item={filmItem} />
             </View>
           </View>

@@ -4,14 +4,13 @@ import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-
-export const TV_POSTER_WIDTH = 260;
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -23,14 +22,15 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
   showProgress = false,
 }) => {
   const [api] = useAtom(apiAtom);
+  const posterSizes = useScaledTVPosterSizes();
 
   const url = useMemo(() => {
     return getPrimaryImageUrl({
       api,
       item,
-      width: 520, // 2x for quality on large screens
+      width: posterSizes.poster * 2, // 2x for quality on large screens
     });
-  }, [api, item]);
+  }, [api, item, posterSizes.poster]);
 
   const progress = item.UserData?.PlayedPercentage || 0;
   const isWatched = item.UserData?.Played === true;
@@ -52,8 +52,8 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
         progress={showProgress ? progress : 0}
         showWatchedIndicator={isWatched}
         isFocused={false}
-        width={TV_POSTER_WIDTH}
-        style={{ width: TV_POSTER_WIDTH }}
+        width={posterSizes.poster}
+        style={{ width: posterSizes.poster }}
       />
     );
   }
@@ -65,7 +65,7 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
         position: "relative",
         borderRadius: 24,
         overflow: "hidden",
-        width: TV_POSTER_WIDTH,
+        width: posterSizes.poster,
         aspectRatio: 10 / 15,
       }}
     >

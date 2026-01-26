@@ -126,11 +126,11 @@
         "show_home_backdrop": "Dynamisk hembakgrund",
         "show_hero_carousel": "Hjältekarusell",
         "show_series_poster_on_episode": "Visa serieaffisch på avsnitt",
-        "text_size": "Textstorlek",
-        "text_size_small": "Liten",
-        "text_size_default": "Standard",
-        "text_size_large": "Stor",
-        "text_size_extra_large": "Extra stor"
+        "display_size": "Visningsstorlek",
+        "display_size_small": "Liten",
+        "display_size_default": "Standard",
+        "display_size_large": "Stor",
+        "display_size_extra_large": "Extra stor"
       },
       "network": {
         "title": "Nätverk",

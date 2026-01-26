@@ -7,11 +7,10 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { runtimeTicksToMinutes } from "@/utils/time";
-
-export const TV_EPISODE_WIDTH = 340;
 
 interface TVEpisodeCardProps {
   episode: BaseItemDto;
@@ -34,6 +33,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   refSetter,
 }) => {
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const api = useAtomValue(apiAtom);
 
   const thumbnailUrl = useMemo(() => {
@@ -68,7 +68,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   }, [episode.ParentIndexNumber, episode.IndexNumber]);
 
   return (
-    <View style={{ width: TV_EPISODE_WIDTH, opacity: disabled ? 0.5 : 1 }}>
+    <View style={{ width: posterSizes.episode, opacity: disabled ? 0.5 : 1 }}>
       <TVFocusablePoster
         onPress={onPress}
         hasTVPreferredFocus={hasTVPreferredFocus}
@@ -79,7 +79,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
       >
         <View
           style={{
-            width: TV_EPISODE_WIDTH,
+            width: posterSizes.episode,
             aspectRatio: 16 / 9,
             borderRadius: 24,
             overflow: "hidden",

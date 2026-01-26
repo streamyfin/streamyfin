@@ -27,15 +27,14 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import {
   TVFilterButton,
   TVFocusablePoster,
   TVItemCardText,
 } from "@/components/tv";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
@@ -60,6 +59,7 @@ const page: React.FC = () => {
   const searchParams = useLocalSearchParams();
   const { collectionId } = searchParams as { collectionId: string };
 
+  const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const navigation = useNavigation();
@@ -153,7 +153,7 @@ const page: React.FC = () => {
   // Calculate columns for TV grid
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
-      const itemWidth = TV_POSTER_WIDTH + TV_ITEM_GAP;
+      const itemWidth = posterSizes.poster + TV_ITEM_GAP;
       return Math.max(
         1,
         Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
@@ -291,7 +291,7 @@ const page: React.FC = () => {
           style={{
             marginRight: TV_ITEM_GAP,
             marginBottom: TV_ITEM_GAP,
-            width: TV_POSTER_WIDTH,
+            width: posterSizes.poster,
           }}
         >
           <TVFocusablePoster onPress={handlePress}>

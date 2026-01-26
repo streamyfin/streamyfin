@@ -2,15 +2,12 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, View, type ViewProps } from "react-native";
-import ContinueWatchingPoster, {
-  TV_LANDSCAPE_WIDTH,
-} from "@/components/ContinueWatchingPoster.tv";
+import ContinueWatchingPoster from "@/components/ContinueWatchingPoster.tv";
 import { Text } from "@/components/common/Text";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
 import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 
 const ITEM_GAP = 16;
@@ -160,6 +157,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   ...props
 }) => {
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
@@ -181,7 +179,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   }, []);
 
   const itemWidth =
-    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+    orientation === "horizontal" ? posterSizes.landscape : posterSizes.poster;
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
@@ -249,8 +247,8 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
           return (
             <View
               style={{
-                width: TV_POSTER_WIDTH,
-                height: TV_POSTER_WIDTH,
+                width: posterSizes.poster,
+                height: posterSizes.poster,
                 borderRadius: 12,
                 overflow: "hidden",
                 backgroundColor: "#1a1a1a",

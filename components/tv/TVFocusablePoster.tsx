@@ -17,6 +17,8 @@ export interface TVFocusablePosterProps {
   onFocus?: () => void;
   onBlur?: () => void;
   disabled?: boolean;
+  /** When true, the item remains focusable even when disabled (for navigation purposes) */
+  focusableWhenDisabled?: boolean;
   /** Setter function for the ref (for focus guide destinations) */
   refSetter?: (ref: View | null) => void;
 }
@@ -31,6 +33,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   onFocus: onFocusProp,
   onBlur: onBlurProp,
   disabled = false,
+  focusableWhenDisabled = false,
   refSetter,
 }) => {
   const [focused, setFocused] = useState(false);
@@ -62,7 +65,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
       }}
       hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
       disabled={disabled}
-      focusable={!disabled}
+      focusable={!disabled || focusableWhenDisabled}
     >
       <Animated.View
         style={[

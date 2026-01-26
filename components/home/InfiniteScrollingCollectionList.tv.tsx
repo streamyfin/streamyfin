@@ -16,16 +16,13 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import MoviePoster from "@/components/posters/MoviePoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
-import ContinueWatchingPoster, {
-  TV_LANDSCAPE_WIDTH,
-} from "../ContinueWatchingPoster.tv";
+import ContinueWatchingPoster from "../ContinueWatchingPoster.tv";
 import SeriesPoster from "../posters/SeriesPoster.tv";
 
 const ITEM_GAP = 24;
@@ -101,6 +98,8 @@ const TVItemCardText: React.FC<{
   );
 };
 
+type PosterSizes = ReturnType<typeof useScaledTVPosterSizes>;
+
 // TV-specific "See All" card for end of lists
 const TVSeeAllCard: React.FC<{
   onPress: () => void;
@@ -109,10 +108,19 @@ const TVSeeAllCard: React.FC<{
   onFocus?: () => void;
   onBlur?: () => void;
   typography: Typography;
-}> = ({ onPress, orientation, disabled, onFocus, onBlur, typography }) => {
+  posterSizes: PosterSizes;
+}> = ({
+  onPress,
+  orientation,
+  disabled,
+  onFocus,
+  onBlur,
+  typography,
+  posterSizes,
+}) => {
   const { t } = useTranslation();
   const width =
-    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+    orientation === "horizontal" ? posterSizes.landscape : posterSizes.poster;
   const aspectRatio = orientation === "horizontal" ? 16 / 9 : 10 / 15;
 
   return (
@@ -172,6 +180,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   ...props
 }) => {
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const effectivePageSize = Math.max(1, pageSize);
   const hasCalledOnLoaded = useRef(false);
   const router = useRouter();
@@ -250,7 +259,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   }, [data]);
 
   const itemWidth =
-    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+    orientation === "horizontal" ? posterSizes.landscape : posterSizes.poster;
 
   const handleItemPress = useCallback(
     (item: BaseItemDto) => {
@@ -487,6 +496,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                   onFocus={handleSeeAllFocus}
                   onBlur={handleItemBlur}
                   typography={typography}
+                  posterSizes={posterSizes}
                 />
               )}
             </View>

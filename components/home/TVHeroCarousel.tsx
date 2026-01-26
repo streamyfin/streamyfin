@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -36,7 +37,6 @@ import { runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.62;
-const CARD_WIDTH = 280;
 const CARD_GAP = 24;
 const CARD_PADDING = 60;
 
@@ -48,12 +48,13 @@ interface TVHeroCarouselProps {
 interface HeroCardProps {
   item: BaseItemDto;
   isFirst: boolean;
+  cardWidth: number;
   onFocus: (item: BaseItemDto) => void;
   onPress: (item: BaseItemDto) => void;
 }
 
 const HeroCard: React.FC<HeroCardProps> = React.memo(
-  ({ item, isFirst, onFocus, onPress }) => {
+  ({ item, isFirst, cardWidth, onFocus, onPress }) => {
     const api = useAtomValue(apiAtom);
     const [focused, setFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
@@ -129,8 +130,8 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
             progress={progress}
             showWatchedIndicator={false}
             isFocused={focused}
-            width={CARD_WIDTH}
-            style={{ width: CARD_WIDTH }}
+            width={cardWidth}
+            style={{ width: cardWidth }}
           />
         </Pressable>
       );
@@ -147,7 +148,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       >
         <Animated.View
           style={{
-            width: CARD_WIDTH,
+            width: cardWidth,
             aspectRatio: 16 / 9,
             borderRadius: 16,
             overflow: "hidden",
@@ -196,6 +197,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   onItemFocus,
 }) => {
   const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const api = useAtomValue(apiAtom);
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -354,11 +356,12 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       <HeroCard
         item={item}
         isFirst={index === 0}
+        cardWidth={posterSizes.heroCard}
         onFocus={handleCardFocus}
         onPress={handleCardPress}
       />
     ),
-    [handleCardFocus, handleCardPress],
+    [handleCardFocus, handleCardPress, posterSizes.heroCard],
   );
 
   // Memoize keyExtractor
