@@ -33,6 +33,7 @@ import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
@@ -374,6 +375,15 @@ export const Controls: FC<Props> = ({
     max,
     isSeeking,
   });
+
+  const { showSkipButton, skipIntro } = useIntroSkipper(
+    item.Id!,
+    currentTime,
+    seek,
+    _play,
+    false,
+    api,
+  );
 
   const getFinishTime = () => {
     const now = new Date();
@@ -1043,6 +1053,12 @@ export const Controls: FC<Props> = ({
               icon='play-skip-forward'
               onPress={handleNextItemButton}
               disabled={false || !nextItem}
+              size={28}
+            />
+            <TVControlButton
+              text='skip intro'
+              onPress={skipIntro}
+              disabled={!showSkipButton}
               size={28}
             />
 

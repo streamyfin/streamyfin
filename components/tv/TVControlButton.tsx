@@ -4,12 +4,14 @@ import {
   Pressable,
   Animated as RNAnimated,
   StyleSheet,
+  Text,
   type View,
 } from "react-native";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVControlButtonProps {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
+  text?: string;
   onPress: () => void;
   onLongPress?: () => void;
   onPressOut?: () => void;
@@ -23,6 +25,7 @@ export interface TVControlButtonProps {
 
 export const TVControlButton: FC<TVControlButtonProps> = ({
   icon,
+  text,
   onPress,
   onLongPress,
   onPressOut,
@@ -63,7 +66,11 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
           },
         ]}
       >
-        <Ionicons name={icon} size={size} color='#fff' />
+        {text ? (
+          <Text style={[styles.text, { fontSize: size * 0.4 }]}>{text}</Text>
+        ) : (
+          <Ionicons name={icon!} size={size} color='#fff' />
+        )}
       </RNAnimated.View>
     </Pressable>
   );
@@ -77,5 +84,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
+  },
+  text: {
+    color: "#fff",
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
