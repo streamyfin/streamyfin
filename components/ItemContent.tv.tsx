@@ -43,6 +43,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -78,6 +79,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const { settings } = useSettings();
     const insets = useSafeAreaInsets();
     const router = useRouter();
+    const { showItemActions } = useTVItemActionModal();
     const { t } = useTranslation();
     const queryClient = useQueryClient();
 
@@ -479,7 +481,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const handleEpisodePress = useCallback(
       (episode: BaseItemDto) => {
         const navigation = getItemNavigation(episode, "(home)");
-        router.push(navigation as any);
+        router.replace(navigation as any);
       },
       [router],
     );
@@ -820,6 +822,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   episodes={seasonEpisodes}
                   currentEpisodeId={item.Id}
                   onEpisodePress={handleEpisodePress}
+                  onEpisodeLongPress={showItemActions}
                   firstEpisodeRefSetter={setFirstEpisodeRef}
                 />
               </View>
