@@ -262,6 +262,7 @@ export default function page() {
     mediaSource: MediaSourceInfo;
     sessionId: string;
     url: string;
+    requiredHttpHeaders?: Record<string, string>;
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
@@ -324,7 +325,7 @@ export default function page() {
             deviceProfile: generateDeviceProfile(),
           });
           if (!res) return null;
-          const { mediaSource, sessionId, url } = res;
+          const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
 
           if (!sessionId || !mediaSource || !url) {
             Alert.alert(
@@ -333,7 +334,7 @@ export default function page() {
             );
             return null;
           }
-          result = { mediaSource, sessionId, url };
+          result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
@@ -601,17 +602,32 @@ export default function page() {
       source.externalSubtitles = externalSubs;
     }
 
-    // Add auth headers only for online streaming (not for local file:// URLs)
-    if (!offline && api?.accessToken) {
-      source.headers = {
-        Authorization: `MediaBrowser Token="${api.accessToken}"`,
-      };
+    // Add headers for online streaming (not for local file:// URLs)
+    if (!offline) {
+      const headers: Record<string, string> = {};
+      const isRemoteStream =
+        mediaSource?.IsRemote && mediaSource?.Protocol === "Http";
+
+      // Add auth header only for Jellyfin API requests (not for external/remote streams)
+      if (api?.accessToken && !isRemoteStream) {
+        headers.Authorization = `MediaBrowser Token="${api.accessToken}"`;
+      }
+
+      // Add any required headers from the media source (e.g., for external/remote streams)
+      if (stream?.requiredHttpHeaders) {
+        Object.assign(headers, stream.requiredHttpHeaders);
+      }
+
+      if (Object.keys(headers).length > 0) {
+        source.headers = headers;
+      }
     }
 
     return source;
   }, [
     stream?.url,
     stream?.mediaSource,
+    stream?.requiredHttpHeaders,
     item?.UserData?.PlaybackPositionTicks,
     playbackPositionFromUrl,
     api?.basePath,
