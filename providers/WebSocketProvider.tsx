@@ -66,7 +66,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const reconnectDelay = 10000;
 
     newWebSocket.onopen = () => {
-      console.log("WebSocket connection opened");
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
       keepAliveInterval = setInterval(() => {

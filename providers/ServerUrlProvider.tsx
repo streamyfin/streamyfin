@@ -34,13 +34,6 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
   const { switchServerUrl } = useJellyfin();
   const { ssid, permissionStatus } = useWifiSSID();
 
-  console.log(
-    "[ServerUrlProvider] ssid:",
-    ssid,
-    "permissionStatus:",
-    permissionStatus,
-  );
-
   const [isUsingLocalUrl, setIsUsingLocalUrl] = useState(false);
   const [effectiveServerUrl, setEffectiveServerUrl] = useState<string | null>(
     null,
@@ -76,13 +69,6 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
 
     const targetUrl = shouldUseLocal ? config!.localUrl : remoteUrl;
 
-    console.log("[ServerUrlProvider] evaluateAndSwitchUrl:", {
-      ssid,
-      shouldUseLocal,
-      targetUrl,
-      config,
-    });
-
     switchServerUrl(targetUrl);
     setIsUsingLocalUrl(shouldUseLocal);
     setEffectiveServerUrl(targetUrl);
@@ -90,7 +76,6 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
 
   // Manual refresh function for when config changes
   const refreshUrlState = useCallback(() => {
-    console.log("[ServerUrlProvider] refreshUrlState called");
     evaluateAndSwitchUrl();
   }, [evaluateAndSwitchUrl]);
 
