@@ -1,8 +1,38 @@
 # CLAUDE.md
 
-@.claude/learned-facts.md
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Learned Facts Index
+
+IMPORTANT: When encountering issues related to these topics, or when implementing new features that touch these areas, prefer retrieval-led reasoning -- read the relevant fact file in `.claude/learned-facts/` before relying on assumptions.
+
+Navigation:
+- `native-bottom-tabs-userouter-conflict` | useRouter() at provider level causes tab switches; use static router import
+- `introsheet-rendering-location` | IntroSheet in IntroSheetProvider affects native bottom tabs via nav state hooks
+- `intro-modal-trigger-location` | Trigger in Home.tsx, not tabs _layout.tsx
+- `tab-folder-naming` | Use underscore prefix: (_home) not (home)
+
+UI/Headers:
+- `macos-header-buttons-fix` | macOS Catalyst: use RNGH Pressable, not RN TouchableOpacity
+- `header-button-locations` | Defined in _layout.tsx, HeaderBackButton, Chromecast, RoundButton, etc.
+- `stack-screen-header-configuration` | Sub-pages need explicit Stack.Screen with headerTransparent + back button
+
+State/Data:
+- `use-network-aware-query-client-limitations` | Object.create breaks private fields; only for invalidateQueries
+- `mark-as-played-flow` | PlayedStatus→useMarkAsPlayed→playbackManager with optimistic updates
+
+Native Modules:
+- `mpv-tvos-player-exit-freeze` | mpv_terminate_destroy deadlocks main thread; use DispatchQueue.global()
+- `mpv-avfoundation-composite-osd-ordering` | MUST follow vo=avfoundation, before hwdec options
+- `thread-safe-state-for-stop-flags` | Stop flags need synchronous setter (stateQueue.sync not async)
+- `native-swiftui-view-sizing` | Need explicit frame + intrinsicContentSize override in ExpoView
+
+TV Platform:
+- `tv-modals-must-use-navigation-pattern` | Use atom+router.push(), never overlay/absolute modals
+- `tv-grid-layout-pattern` | ScrollView+flexWrap, not FlatList numColumns
+- `tv-horizontal-padding-standard` | TV_HORIZONTAL_PADDING=60, not old TV_SCALE_PADDING=20
+- `streamystats-components-location` | components/home/Streamystats*.tv.tsx, watchlists/[watchlistId].tsx
+- `platform-specific-file-suffix-does-not-work` | .tv.tsx doesn't work; use Platform.isTV conditional rendering
 
 ## Project Overview
 
