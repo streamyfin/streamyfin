@@ -44,6 +44,7 @@ import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -108,6 +109,7 @@ const Page = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
+  const { showItemActions } = useTVItemActionModal();
 
   // TV Filter queries
   const { data: tvGenreOptions } = useQuery({
@@ -412,7 +414,10 @@ const Page = () => {
             width: posterSizes.poster,
           }}
         >
-          <TVFocusablePoster onPress={handlePress}>
+          <TVFocusablePoster
+            onPress={handlePress}
+            onLongPress={() => showItemActions(item)}
+          >
             {item.Type === "Movie" && <MoviePoster item={item} />}
             {(item.Type === "Series" || item.Type === "Episode") && (
               <SeriesPoster item={item} />
@@ -425,7 +430,7 @@ const Page = () => {
         </View>
       );
     },
-    [router],
+    [router, showItemActions],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);

@@ -36,6 +36,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -77,6 +78,7 @@ export const Home = () => {
     retryCheck,
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
+  const { showItemActions } = useTVItemActionModal();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
 
   // Dynamic backdrop state with debounce
@@ -745,7 +747,11 @@ export const Home = () => {
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
         {showHero && heroItems && (
-          <TVHeroCarousel items={heroItems} onItemFocus={handleItemFocus} />
+          <TVHeroCarousel
+            items={heroItems}
+            onItemFocus={handleItemFocus}
+            onItemLongPress={showItemActions}
+          />
         )}
 
         <View

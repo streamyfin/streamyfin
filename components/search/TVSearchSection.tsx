@@ -143,6 +143,7 @@ interface TVSearchSectionProps extends ViewProps {
   disabled?: boolean;
   isFirstSection?: boolean;
   onItemPress: (item: BaseItemDto) => void;
+  onItemLongPress?: (item: BaseItemDto) => void;
   imageUrlGetter?: (item: BaseItemDto) => string | undefined;
 }
 
@@ -153,6 +154,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   disabled = false,
   isFirstSection = false,
   onItemPress,
+  onItemLongPress,
   imageUrlGetter,
   ...props
 }) => {
@@ -328,6 +330,9 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
         <View style={{ marginRight: ITEM_GAP, width: actualItemWidth }}>
           <TVFocusablePoster
             onPress={() => onItemPress(item)}
+            onLongPress={
+              onItemLongPress ? () => onItemLongPress(item) : undefined
+            }
             hasTVPreferredFocus={isFirstItem && !disabled}
             onFocus={handleItemFocus}
             onBlur={handleItemBlur}
@@ -344,6 +349,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
       isFirstSection,
       itemWidth,
       onItemPress,
+      onItemLongPress,
       handleItemFocus,
       handleItemBlur,
       disabled,

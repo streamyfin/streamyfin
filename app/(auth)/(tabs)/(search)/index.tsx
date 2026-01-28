@@ -42,6 +42,7 @@ import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
@@ -69,6 +70,7 @@ export default function search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(search)";
 
@@ -607,6 +609,7 @@ export default function search() {
         loading={loading}
         noResults={noResults}
         onItemPress={handleItemPress}
+        onItemLongPress={showItemActions}
         searchType={searchType}
         setSearchType={setSearchType}
         showDiscover={!!jellyseerrApi}

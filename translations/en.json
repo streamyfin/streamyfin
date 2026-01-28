@@ -717,7 +717,9 @@
       "download_x_item": "Download {{item_count}} Items",
       "download_unwatched_only": "Unwatched Only",
       "download_button": "Download"
-    }
+    },
+    "mark_played": "Mark as Watched",
+    "mark_unplayed": "Mark as Unwatched"
   },
   "live_tv": {
     "next": "Next",

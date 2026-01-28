@@ -16,6 +16,8 @@ interface TVEpisodeListProps {
   disabled?: boolean;
   /** Handler when an episode is pressed */
   onEpisodePress: (episode: BaseItemDto) => void;
+  /** Called when any episode is long-pressed */
+  onEpisodeLongPress?: (episode: BaseItemDto) => void;
   /** Called when any episode gains focus */
   onFocus?: () => void;
   /** Called when any episode loses focus */
@@ -35,6 +37,7 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
   currentEpisodeId,
   disabled = false,
   onEpisodePress,
+  onEpisodeLongPress,
   onFocus,
   onBlur,
   scrollViewRef,
@@ -79,6 +82,9 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
             key={episode.Id}
             episode={episode}
             onPress={() => onEpisodePress(episode)}
+            onLongPress={
+              onEpisodeLongPress ? () => onEpisodeLongPress(episode) : undefined
+            }
             onFocus={onFocus}
             onBlur={onBlur}
             disabled={isCurrent || disabled}

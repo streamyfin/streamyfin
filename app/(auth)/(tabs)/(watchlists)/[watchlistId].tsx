@@ -31,6 +31,7 @@ import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import {
   useDeleteWatchlist,
   useRemoveFromWatchlist,
@@ -75,6 +76,7 @@ export default function WatchlistDetailScreen() {
   const posterSizes = useScaledTVPosterSizes();
   const { t } = useTranslation();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { watchlistId } = useLocalSearchParams<{ watchlistId: string }>();
@@ -211,6 +213,7 @@ export default function WatchlistDetailScreen() {
         >
           <TVFocusablePoster
             onPress={handlePress}
+            onLongPress={() => showItemActions(item)}
             hasTVPreferredFocus={index === 0}
           >
             {item.Type === "Movie" && <MoviePoster item={item} />}
@@ -222,7 +225,7 @@ export default function WatchlistDetailScreen() {
         </View>
       );
     },
-    [router, typography],
+    [router, showItemActions, typography],
   );
 
   const renderItem = useCallback(

@@ -21,6 +21,7 @@ import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import ContinueWatchingPoster from "../ContinueWatchingPoster.tv";
 import SeriesPoster from "../posters/SeriesPoster.tv";
@@ -202,6 +203,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const effectivePageSize = Math.max(1, pageSize);
   const hasCalledOnLoaded = useRef(false);
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
 
@@ -362,6 +364,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         <View style={{ marginRight: ITEM_GAP, width: itemWidth }}>
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
+            onLongPress={() => showItemActions(item)}
             hasTVPreferredFocus={isFirstItem}
             onFocus={() => handleItemFocus(item)}
             onBlur={handleItemBlur}
@@ -381,6 +384,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       isFirstSection,
       itemWidth,
       handleItemPress,
+      showItemActions,
       handleItemFocus,
       handleItemBlur,
       typography,

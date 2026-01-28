@@ -10,6 +10,7 @@ import {
 export interface TVFocusablePosterProps {
   children: React.ReactNode;
   onPress: () => void;
+  onLongPress?: () => void;
   hasTVPreferredFocus?: boolean;
   glowColor?: "white" | "purple";
   scaleAmount?: number;
@@ -26,6 +27,7 @@ export interface TVFocusablePosterProps {
 export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   children,
   onPress,
+  onLongPress,
   hasTVPreferredFocus = false,
   glowColor = "white",
   scaleAmount = 1.05,
@@ -53,6 +55,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
     <Pressable
       ref={refSetter}
       onPress={onPress}
+      onLongPress={onLongPress}
       onFocus={() => {
         setFocused(true);
         animateTo(scaleAmount);
