@@ -253,22 +253,19 @@ function Layout() {
           deviceId: getOrSetDeviceId(),
           userId: user.Id,
         })
-        .then((_) => console.log("Posted expo push token"))
         .catch((_) =>
           writeErrorLog("Failed to push expo push token to plugin"),
         );
-    } else console.log("No token available");
+    }
   }, [api, expoPushToken, user]);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
-      console.log("Setting android notification channel 'default'");
       await Notifications?.setNotificationChannelAsync("default", {
         name: "default",
       });
 
       // Create dedicated channel for download notifications
-      console.log("Setting android notification channel 'downloads'");
       await Notifications?.setNotificationChannelAsync("downloads", {
         name: "Downloads",
         importance: Notifications.AndroidImportance.DEFAULT,
