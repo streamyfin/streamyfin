@@ -339,7 +339,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await api
+      // Fire-and-forget: don't block logout on server cleanup
+      api
         ?.delete(`/Streamyfin/device/${deviceId}`)
         .then((_r) => writeInfoLog("Deleted expo push token for device"))
         .catch((_e) =>
