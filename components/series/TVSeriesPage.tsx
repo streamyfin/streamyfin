@@ -509,40 +509,14 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top section - Poster + Content */}
+        {/* Top section - Content + Poster */}
         <View
           style={{
             flexDirection: "row",
             minHeight: SCREEN_HEIGHT * 0.45,
           }}
         >
-          {/* Left side - Poster */}
-          <View
-            style={{
-              width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
-              marginRight: 50,
-            }}
-          >
-            <View
-              style={{
-                aspectRatio: 2 / 3,
-                borderRadius: 16,
-                overflow: "hidden",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.5,
-                shadowRadius: 20,
-              }}
-            >
-              <ItemImage
-                variant='Primary'
-                item={item}
-                style={{ width: "100%", height: "100%" }}
-              />
-            </View>
-          </View>
-
-          {/* Right side - Content */}
+          {/* Left side - Content */}
           <View style={{ flex: 1, justifyContent: "center" }}>
             <TVSeriesHeader item={item} />
 
@@ -587,6 +561,32 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                   disabled={isSeasonModalVisible}
                 />
               )}
+            </View>
+          </View>
+
+          {/* Right side - Poster */}
+          <View
+            style={{
+              width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
+              marginLeft: 50,
+            }}
+          >
+            <View
+              style={{
+                aspectRatio: 2 / 3,
+                borderRadius: 16,
+                overflow: "hidden",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.5,
+                shadowRadius: 20,
+              }}
+            >
+              <ItemImage
+                variant='Primary'
+                item={item}
+                style={{ width: "100%", height: "100%" }}
+              />
             </View>
           </View>
         </View>
