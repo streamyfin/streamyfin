@@ -34,6 +34,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
+import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -229,6 +230,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const { showItemActions } = useTVItemActionModal();
   const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
   const isSeasonModalVisible = seasonModalState !== null;
+
+  // Auto-play theme music (handles fade in/out and cleanup)
+  useTVThemeMusic(item.Id);
 
   // Season state
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);

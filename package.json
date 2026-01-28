@@ -45,6 +45,7 @@
     "expo": "~54.0.31",
     "expo-application": "~7.0.8",
     "expo-asset": "~12.0.12",
+    "expo-av": "^16.0.8",
     "expo-background-task": "~1.0.10",
     "expo-blur": "~15.0.8",
     "expo-brightness": "~14.0.8",

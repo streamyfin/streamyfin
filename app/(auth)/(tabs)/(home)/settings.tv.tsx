@@ -506,6 +506,11 @@ export default function SettingsTV() {
               updateSettings({ showSeriesPosterOnEpisode: value })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.theme_music")}
+            value={settings.tvThemeMusicEnabled}
+            onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
+          />
 
           {/* User Section */}
           <TVSectionHeader

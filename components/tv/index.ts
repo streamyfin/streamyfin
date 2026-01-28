@@ -59,6 +59,7 @@ export type { TVTabButtonProps } from "./TVTabButton";
 export { TVTabButton } from "./TVTabButton";
 export type { TVTechnicalDetailsProps } from "./TVTechnicalDetails";
 export { TVTechnicalDetails } from "./TVTechnicalDetails";
+export { TVThemeMusicIndicator } from "./TVThemeMusicIndicator";
 // Subtitle sheet components
 export type { TVTrackCardProps } from "./TVTrackCard";
 export { TVTrackCard } from "./TVTrackCard";
