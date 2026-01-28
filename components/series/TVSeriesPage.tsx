@@ -29,6 +29,7 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
+import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
@@ -576,6 +577,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                   {playButtonText}
                 </Text>
               </TVFocusableButton>
+
+              <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />
 
               {seasons.length > 1 && (
                 <TVSeasonButton

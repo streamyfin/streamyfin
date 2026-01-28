@@ -6,13 +6,22 @@ import { TVButton } from "./TVButton";
 
 export interface TVFavoriteButtonProps {
   item: BaseItemDto;
+  disabled?: boolean;
 }
 
-export const TVFavoriteButton: React.FC<TVFavoriteButtonProps> = ({ item }) => {
+export const TVFavoriteButton: React.FC<TVFavoriteButtonProps> = ({
+  item,
+  disabled,
+}) => {
   const { isFavorite, toggleFavorite } = useFavorite(item);
 
   return (
-    <TVButton onPress={toggleFavorite} variant='glass' square>
+    <TVButton
+      onPress={toggleFavorite}
+      variant='glass'
+      square
+      disabled={disabled}
+    >
       <Ionicons
         name={isFavorite ? "heart" : "heart-outline"}
         size={28}
