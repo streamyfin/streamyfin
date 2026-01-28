@@ -32,6 +32,7 @@ import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -225,6 +226,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [user] = useAtom(userAtom);
   const { getDownloadedItems, downloadedItems } = useDownload();
   const { showSeasonModal } = useTVSeriesSeasonModal();
+  const { showItemActions } = useTVItemActionModal();
   const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
   const isSeasonModalVisible = seasonModalState !== null;
 
@@ -625,6 +627,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             episodes={episodesForSeason}
             disabled={isSeasonModalVisible}
             onEpisodePress={handleEpisodePress}
+            onEpisodeLongPress={showItemActions}
             onFocus={handleEpisodeFocus}
             onBlur={handleEpisodeBlur}
             scrollViewRef={episodeListRef}

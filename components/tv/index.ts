@@ -43,6 +43,8 @@ export type { TVOptionCardProps } from "./TVOptionCard";
 export { TVOptionCard } from "./TVOptionCard";
 export type { TVOptionItem, TVOptionSelectorProps } from "./TVOptionSelector";
 export { TVOptionSelector } from "./TVOptionSelector";
+export type { TVPlayedButtonProps } from "./TVPlayedButton";
+export { TVPlayedButton } from "./TVPlayedButton";
 export type { TVProgressBarProps } from "./TVProgressBar";
 export { TVProgressBar } from "./TVProgressBar";
 export type { TVRefreshButtonProps } from "./TVRefreshButton";

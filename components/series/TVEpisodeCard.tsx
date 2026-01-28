@@ -26,6 +26,7 @@ interface TVEpisodeCardProps {
   /** Shows a "Now Playing" badge on the card */
   isCurrent?: boolean;
   onPress: () => void;
+  onLongPress?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
   /** Setter function for the ref (for focus guide destinations) */
@@ -39,6 +40,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
   focusableWhenDisabled = false,
   isCurrent = false,
   onPress,
+  onLongPress,
   onFocus,
   onBlur,
   refSetter,
@@ -123,6 +125,7 @@ export const TVEpisodeCard: React.FC<TVEpisodeCardProps> = ({
     >
       <TVFocusablePoster
         onPress={onPress}
+        onLongPress={onLongPress}
         hasTVPreferredFocus={hasTVPreferredFocus}
         disabled={disabled}
         focusableWhenDisabled={focusableWhenDisabled}

@@ -17,6 +17,7 @@ import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
@@ -74,6 +75,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
 
@@ -203,6 +205,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         <View style={{ marginRight: ITEM_GAP, width: posterSizes.poster }}>
           <TVFocusablePoster
             onPress={() => handleItemPress(item)}
+            onLongPress={() => showItemActions(item)}
             onFocus={() => onItemFocus?.(item)}
             hasTVPreferredFocus={false}
           >
@@ -213,7 +216,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         </View>
       );
     },
-    [handleItemPress, onItemFocus, typography],
+    [handleItemPress, showItemActions, onItemFocus, typography],
   );
 
   if (!streamyStatsEnabled) return null;

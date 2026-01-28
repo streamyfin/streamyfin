@@ -106,6 +106,7 @@ interface TVSearchPageProps {
   loading: boolean;
   noResults: boolean;
   onItemPress: (item: BaseItemDto) => void;
+  onItemLongPress?: (item: BaseItemDto) => void;
   // Jellyseerr/Discover props
   searchType: SearchType;
   setSearchType: (type: SearchType) => void;
@@ -138,6 +139,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   loading,
   noResults,
   onItemPress,
+  onItemLongPress,
   searchType,
   setSearchType,
   showDiscover,
@@ -273,6 +275,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
               orientation={section.orientation || "vertical"}
               isFirstSection={index === 0}
               onItemPress={onItemPress}
+              onItemLongPress={onItemLongPress}
               imageUrlGetter={
                 ["artists", "albums", "songs", "playlists"].includes(
                   section.key,

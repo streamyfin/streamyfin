@@ -43,6 +43,7 @@ const CARD_PADDING = 60;
 interface TVHeroCarouselProps {
   items: BaseItemDto[];
   onItemFocus?: (item: BaseItemDto) => void;
+  onItemLongPress?: (item: BaseItemDto) => void;
 }
 
 interface HeroCardProps {
@@ -51,10 +52,11 @@ interface HeroCardProps {
   cardWidth: number;
   onFocus: (item: BaseItemDto) => void;
   onPress: (item: BaseItemDto) => void;
+  onLongPress?: (item: BaseItemDto) => void;
 }
 
 const HeroCard: React.FC<HeroCardProps> = React.memo(
-  ({ item, isFirst, cardWidth, onFocus, onPress }) => {
+  ({ item, isFirst, cardWidth, onFocus, onPress, onLongPress }) => {
     const api = useAtomValue(apiAtom);
     const [focused, setFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
@@ -113,11 +115,16 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       onPress(item);
     }, [onPress, item]);
 
+    const handleLongPress = useCallback(() => {
+      onLongPress?.(item);
+    }, [onLongPress, item]);
+
     // Use glass poster for tvOS 26+
     if (useGlass) {
       return (
         <Pressable
           onPress={handlePress}
+          onLongPress={handleLongPress}
           onFocus={handleFocus}
           onBlur={handleBlur}
           hasTVPreferredFocus={isFirst}
@@ -141,6 +148,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     return (
       <Pressable
         onPress={handlePress}
+        onLongPress={handleLongPress}
         onFocus={handleFocus}
         onBlur={handleBlur}
         hasTVPreferredFocus={isFirst}
@@ -195,6 +203,7 @@ const BACKDROP_DEBOUNCE_MS = 300;
 export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   items,
   onItemFocus,
+  onItemLongPress,
 }) => {
   const typography = useScaledTVTypography();
   const posterSizes = useScaledTVPosterSizes();
@@ -359,9 +368,10 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
         cardWidth={posterSizes.heroCard}
         onFocus={handleCardFocus}
         onPress={handleCardPress}
+        onLongPress={onItemLongPress}
       />
     ),
-    [handleCardFocus, handleCardPress, posterSizes.heroCard],
+    [handleCardFocus, handleCardPress, onItemLongPress, posterSizes.heroCard],
   );
 
   // Memoize keyExtractor

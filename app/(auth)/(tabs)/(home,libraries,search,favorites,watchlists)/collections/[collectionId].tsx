@@ -36,6 +36,7 @@ import {
 } from "@/components/tv";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -65,6 +66,7 @@ const page: React.FC = () => {
   const navigation = useNavigation();
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
+  const { showItemActions } = useTVItemActionModal();
   const { width: screenWidth } = useWindowDimensions();
   const [orientation, _setOrientation] = useState(
     ScreenOrientation.Orientation.PORTRAIT_UP,
@@ -294,7 +296,10 @@ const page: React.FC = () => {
             width: posterSizes.poster,
           }}
         >
-          <TVFocusablePoster onPress={handlePress}>
+          <TVFocusablePoster
+            onPress={handlePress}
+            onLongPress={() => showItemActions(item)}
+          >
             {item.Type === "Movie" && <MoviePoster item={item} />}
             {(item.Type === "Series" || item.Type === "Episode") && (
               <SeriesPoster item={item} />
@@ -307,7 +312,7 @@ const page: React.FC = () => {
         </View>
       );
     },
-    [router],
+    [router, showItemActions],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);

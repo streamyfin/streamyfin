@@ -31,6 +31,7 @@ import { Loader } from "@/components/Loader";
 import MoviePoster from "@/components/posters/MoviePoster.tv";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
@@ -47,10 +48,18 @@ const SCALE_PADDING = 20;
 const TVFocusablePoster: React.FC<{
   children: React.ReactNode;
   onPress: () => void;
+  onLongPress?: () => void;
   hasTVPreferredFocus?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
-}> = ({ children, onPress, hasTVPreferredFocus, onFocus, onBlur }) => {
+}> = ({
+  children,
+  onPress,
+  onLongPress,
+  hasTVPreferredFocus,
+  onFocus,
+  onBlur,
+}) => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -65,6 +74,7 @@ const TVFocusablePoster: React.FC<{
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       onFocus={() => {
         setFocused(true);
         animateTo(1.05);
@@ -100,6 +110,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
   const posterSizes = useScaledTVPosterSizes();
@@ -292,6 +303,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
       <View style={{ marginRight: ITEM_GAP }}>
         <TVFocusablePoster
           onPress={() => handleItemPress(filmItem)}
+          onLongPress={() => showItemActions(filmItem)}
           onFocus={() => setFocusedItem(filmItem)}
           hasTVPreferredFocus={isFirstSection && index === 0}
         >
@@ -304,7 +316,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
         </TVFocusablePoster>
       </View>
     ),
-    [handleItemPress],
+    [handleItemPress, showItemActions],
   );
 
   if (isLoadingActor) {
