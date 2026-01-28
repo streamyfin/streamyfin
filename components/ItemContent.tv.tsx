@@ -47,6 +47,7 @@ import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
+import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -85,6 +86,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const queryClient = useQueryClient();
 
     const _itemColors = useImageColorsReturn({ item });
+
+    // Auto-play theme music (handles fade in/out and cleanup)
+    useTVThemeMusic(item?.Id);
 
     // State for first episode card ref (used for focus guide)
     const [_firstEpisodeRef, setFirstEpisodeRef] = useState<View | null>(null);
