@@ -1,8 +1,11 @@
-# Learned Facts
+# Learned Facts (DEPRECATED)
 
-This file contains facts about the codebase learned from past sessions. These are things Claude got wrong or needed clarification on, stored here to prevent the same mistakes in future sessions.
+> **DEPRECATED**: This file has been replaced by individual fact files in `.claude/learned-facts/`.
+> The compressed index is now inline in `CLAUDE.md` under "Learned Facts Index".
+> New facts should be added as individual files using the `/reflect` command.
+> This file is kept for reference only and is no longer auto-imported.
 
-This file is auto-imported into CLAUDE.md and loaded at the start of each session.
+This file previously contained facts about the codebase learned from past sessions.
 
 ## Facts
 
