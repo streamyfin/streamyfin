@@ -375,6 +375,15 @@ export const Controls: FC<Props> = ({
     isSeeking,
   });
 
+  // Countdown logic - needs to be early so toggleControls can reference it
+  const shouldShowCountdown = useMemo(() => {
+    if (!nextItem) return false;
+    if (item?.Type !== "Episode") return false;
+    return remainingTime > 0 && remainingTime <= 10000;
+  }, [nextItem, item, remainingTime]);
+
+  const isCountdownActive = shouldShowCountdown;
+
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
   const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
 
@@ -760,7 +769,11 @@ export const Controls: FC<Props> = ({
       calculateTrickplayUrl(msToTicks(newPosition));
       updateSeekBubbleTime(newPosition);
 
-      seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
+      seekAccelerationRef.current = Math.min(
+        seekAccelerationRef.current *
+          CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION,
+        CONTROLS_CONSTANTS.LONG_PRESS_MAX_ACCELERATION,
+      );
 
       controlsInteractionRef.current();
     }, CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL);
@@ -792,7 +805,11 @@ export const Controls: FC<Props> = ({
       calculateTrickplayUrl(msToTicks(newPosition));
       updateSeekBubbleTime(newPosition);
 
-      seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
+      seekAccelerationRef.current = Math.min(
+        seekAccelerationRef.current *
+          CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION,
+        CONTROLS_CONSTANTS.LONG_PRESS_MAX_ACCELERATION,
+      );
 
       controlsInteractionRef.current();
     }, CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL);
@@ -826,10 +843,12 @@ export const Controls: FC<Props> = ({
   }, []);
 
   // Callback for up/down D-pad - show controls with play button focused
+  // Skip if countdown is active (card has focus, don't show controls)
   const handleVerticalDpad = useCallback(() => {
+    if (isCountdownActive) return;
     setFocusPlayButton(true);
     setShowControls(true);
-  }, [setShowControls]);
+  }, [setShowControls, isCountdownActive]);
 
   const { isSliding: isRemoteSliding } = useRemoteControl({
     showControls,
@@ -934,12 +953,6 @@ export const Controls: FC<Props> = ({
 
   goToNextItemRef.current = goToNextItem;
 
-  const shouldShowCountdown = useMemo(() => {
-    if (!nextItem) return false;
-    if (item?.Type !== "Episode") return false;
-    return remainingTime > 0 && remainingTime <= 10000;
-  }, [nextItem, item, remainingTime]);
-
   const handleAutoPlayFinish = useCallback(() => {
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
@@ -971,6 +984,9 @@ export const Controls: FC<Props> = ({
           show={shouldShowCountdown}
           isPlaying={isPlaying}
           onFinish={handleAutoPlayFinish}
+          onPlayNext={handleNextItemButton}
+          hasFocus={isCountdownActive}
+          controlsVisible={showControls}
         />
       )}
 
@@ -1101,21 +1117,25 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='play-skip-back'
               onPress={handlePreviousItem}
-              disabled={false || !previousItem}
+              disabled={isCountdownActive || !previousItem}
               size={28}
             />
             <TVControlButton
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
-              disabled={false}
+              disabled={isCountdownActive}
               size={36}
               refSetter={setPlayButtonRef}
-              hasTVPreferredFocus={focusPlayButton && lastOpenedModal === null}
+              hasTVPreferredFocus={
+                !isCountdownActive &&
+                focusPlayButton &&
+                lastOpenedModal === null
+              }
             />
             <TVControlButton
               icon='play-skip-forward'
               onPress={handleNextItemButton}
-              disabled={false || !nextItem}
+              disabled={isCountdownActive || !nextItem}
               size={28}
             />
 
@@ -1125,8 +1145,10 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='volume-high'
                 onPress={handleOpenAudioSheet}
-                disabled={false}
-                hasTVPreferredFocus={!false && lastOpenedModal === "audio"}
+                disabled={isCountdownActive}
+                hasTVPreferredFocus={
+                  !isCountdownActive && lastOpenedModal === "audio"
+                }
                 size={24}
               />
             )}
@@ -1134,17 +1156,21 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
-              disabled={false}
-              hasTVPreferredFocus={!false && lastOpenedModal === "subtitle"}
+              disabled={isCountdownActive}
+              hasTVPreferredFocus={
+                !isCountdownActive && lastOpenedModal === "subtitle"
+              }
               size={24}
             />
 
             {getTechnicalInfo && (
               <TVControlButton
-                icon='information-circle'
+                icon='code-slash'
                 onPress={handleToggleTechnicalInfo}
-                disabled={false}
-                hasTVPreferredFocus={!false && lastOpenedModal === "techInfo"}
+                disabled={isCountdownActive}
+                hasTVPreferredFocus={
+                  !isCountdownActive && lastOpenedModal === "techInfo"
+                }
                 size={24}
               />
             )}
@@ -1187,7 +1213,12 @@ export const Controls: FC<Props> = ({
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
-              hasTVPreferredFocus={lastOpenedModal === null && !focusPlayButton}
+              disabled={isCountdownActive}
+              hasTVPreferredFocus={
+                !isCountdownActive &&
+                lastOpenedModal === null &&
+                !focusPlayButton
+              }
             />
           </TVFocusGuideView>
 
