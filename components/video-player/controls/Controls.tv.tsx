@@ -376,13 +376,26 @@ export const Controls: FC<Props> = ({
   });
 
   // Countdown logic - needs to be early so toggleControls can reference it
-  const shouldShowCountdown = useMemo(() => {
+  const isCountdownActive = useMemo(() => {
     if (!nextItem) return false;
     if (item?.Type !== "Episode") return false;
     return remainingTime > 0 && remainingTime <= 10000;
   }, [nextItem, item, remainingTime]);
 
-  const isCountdownActive = shouldShowCountdown;
+  // Brief delay to ignore focus events when countdown first appears
+  const countdownJustActivatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isCountdownActive) {
+      countdownJustActivatedRef.current = false;
+      return;
+    }
+    countdownJustActivatedRef.current = true;
+    const timeout = setTimeout(() => {
+      countdownJustActivatedRef.current = false;
+    }, 200);
+    return () => clearTimeout(timeout);
+  }, [isCountdownActive]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
   const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
@@ -401,6 +414,8 @@ export const Controls: FC<Props> = ({
   };
 
   const toggleControls = useCallback(() => {
+    // Skip if countdown just became active (ignore initial focus event)
+    if (countdownJustActivatedRef.current) return;
     setShowControls(!showControls);
   }, [showControls, setShowControls]);
 
@@ -843,12 +858,12 @@ export const Controls: FC<Props> = ({
   }, []);
 
   // Callback for up/down D-pad - show controls with play button focused
-  // Skip if countdown is active (card has focus, don't show controls)
   const handleVerticalDpad = useCallback(() => {
-    if (isCountdownActive) return;
+    // Skip if countdown just became active (ignore initial focus event)
+    if (countdownJustActivatedRef.current) return;
     setFocusPlayButton(true);
     setShowControls(true);
-  }, [setShowControls, isCountdownActive]);
+  }, [setShowControls]);
 
   const { isSliding: isRemoteSliding } = useRemoteControl({
     showControls,
@@ -981,7 +996,7 @@ export const Controls: FC<Props> = ({
         <TVNextEpisodeCountdown
           nextItem={nextItem}
           api={api}
-          show={shouldShowCountdown}
+          show={isCountdownActive}
           isPlaying={isPlaying}
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
@@ -1117,13 +1132,12 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='play-skip-back'
               onPress={handlePreviousItem}
-              disabled={isCountdownActive || !previousItem}
+              disabled={!previousItem}
               size={28}
             />
             <TVControlButton
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
-              disabled={isCountdownActive}
               size={36}
               refSetter={setPlayButtonRef}
               hasTVPreferredFocus={
@@ -1135,7 +1149,7 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='play-skip-forward'
               onPress={handleNextItemButton}
-              disabled={isCountdownActive || !nextItem}
+              disabled={!nextItem}
               size={28}
             />
 
@@ -1145,7 +1159,6 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='volume-high'
                 onPress={handleOpenAudioSheet}
-                disabled={isCountdownActive}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "audio"
                 }
@@ -1156,7 +1169,6 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
-              disabled={isCountdownActive}
               hasTVPreferredFocus={
                 !isCountdownActive && lastOpenedModal === "subtitle"
               }
@@ -1167,7 +1179,6 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='code-slash'
                 onPress={handleToggleTechnicalInfo}
-                disabled={isCountdownActive}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "techInfo"
                 }
@@ -1213,7 +1224,6 @@ export const Controls: FC<Props> = ({
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
-              disabled={isCountdownActive}
               hasTVPreferredFocus={
                 !isCountdownActive &&
                 lastOpenedModal === null &&
