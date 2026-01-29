@@ -1,7 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
 
 interface TVSaveAccountToggleProps {
   value: boolean;
@@ -62,7 +61,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
         style={[
           {
             transform: [{ scale }],
-            shadowColor: "#a855f7",
+            shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowRadius: 16,
             elevation: 8,
@@ -97,7 +96,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
               width: 60,
               height: 34,
               borderRadius: 17,
-              backgroundColor: value ? Colors.primary : "#3f3f46",
+              backgroundColor: value ? "#fff" : "#3f3f46",
               justifyContent: "center",
               paddingHorizontal: 3,
             }}
@@ -107,7 +106,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
                 width: 28,
                 height: 28,
                 borderRadius: 14,
-                backgroundColor: "white",
+                backgroundColor: value ? "#000" : "#fff",
                 alignSelf: value ? "flex-end" : "flex-start",
               }}
             />

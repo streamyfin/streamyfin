@@ -466,6 +466,22 @@ function Layout() {
                                     animation: "fade",
                                   }}
                                 />
+                                <Stack.Screen
+                                  name='tv-server-action-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='tv-account-select-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
                               </Stack>
                               <Toaster
                                 duration={4000}

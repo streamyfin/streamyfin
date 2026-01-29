@@ -8,7 +8,6 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
 
 interface TVServerCardProps {
   title: string;
@@ -75,7 +74,7 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
         style={[
           {
             transform: [{ scale }],
-            shadowColor: "#a855f7",
+            shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowRadius: 16,
             elevation: 8,
@@ -123,13 +122,13 @@ export const TVServerCard: React.FC<TVServerCardProps> = ({
 
           <View style={{ marginLeft: 16 }}>
             {isLoading ? (
-              <ActivityIndicator size='small' color={Colors.primary} />
+              <ActivityIndicator size='small' color='#fff' />
             ) : securityIcon ? (
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Ionicons
                   name={securityIcon}
                   size={20}
-                  color={Colors.primary}
+                  color='#fff'
                   style={{ marginRight: 8 }}
                 />
                 <Ionicons
