@@ -75,10 +75,10 @@ const TVSaveButton: React.FC<{
           animatedStyle,
           {
             backgroundColor: focused
-              ? "#a855f7"
+              ? "#fff"
               : disabled
                 ? "#4a4a4a"
-                : "#7c3aed",
+                : "rgba(255,255,255,0.15)",
             paddingHorizontal: 24,
             paddingVertical: 14,
             borderRadius: 10,
@@ -89,11 +89,15 @@ const TVSaveButton: React.FC<{
           },
         ]}
       >
-        <Ionicons name='checkmark' size={20} color='#fff' />
+        <Ionicons
+          name='checkmark'
+          size={20}
+          color={focused ? "#000" : "#fff"}
+        />
         <Text
           style={{
             fontSize: 16,
-            color: "#fff",
+            color: focused ? "#000" : "#fff",
             fontWeight: "600",
           }}
         >

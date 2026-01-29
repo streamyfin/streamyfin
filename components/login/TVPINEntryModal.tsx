@@ -49,7 +49,7 @@ const TVForgotPINButton: React.FC<{
             paddingVertical: 10,
             borderRadius: 8,
             backgroundColor: focused
-              ? "rgba(168, 85, 247, 0.2)"
+              ? "rgba(255, 255, 255, 0.15)"
               : "transparent",
           },
         ]}
@@ -57,7 +57,7 @@ const TVForgotPINButton: React.FC<{
         <Text
           style={{
             fontSize: 16,
-            color: focused ? "#d8b4fe" : "#a855f7",
+            color: focused ? "#fff" : "rgba(255,255,255,0.6)",
             fontWeight: "500",
           }}
         >

@@ -19,13 +19,10 @@ import { Text } from "@/components/common/Text";
 import { TVInput } from "@/components/login/TVInput";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
-import {
-  TVPreviousServersList,
-  TVServerActionSheet,
-} from "@/components/login/TVPreviousServersList";
+import { TVPreviousServersList } from "@/components/login/TVPreviousServersList";
 import { TVSaveAccountModal } from "@/components/login/TVSaveAccountModal";
 import { TVSaveAccountToggle } from "@/components/login/TVSaveAccountToggle";
-import { Colors } from "@/constants/Colors";
+import { useTVServerActionModal } from "@/hooks/useTVServerActionModal";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import {
   type AccountSecurityType,
@@ -78,21 +75,17 @@ const TVBackButton: React.FC<{
           paddingVertical: 8,
           paddingHorizontal: 12,
           borderRadius: 8,
-          backgroundColor: isFocused
-            ? "rgba(168, 85, 247, 0.2)"
-            : "transparent",
-          borderWidth: 2,
-          borderColor: isFocused ? Colors.primary : "transparent",
+          backgroundColor: isFocused ? "#fff" : "rgba(255, 255, 255, 0.15)",
         }}
       >
         <Ionicons
           name='chevron-back'
           size={28}
-          color={isFocused ? "#FFFFFF" : Colors.primary}
+          color={isFocused ? "#000" : "#fff"}
         />
         <Text
           style={{
-            color: isFocused ? "#FFFFFF" : Colors.primary,
+            color: isFocused ? "#000" : "#fff",
             fontSize: 20,
             marginLeft: 4,
           }}
@@ -108,6 +101,7 @@ export const TVLogin: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
+  const { showServerActionModal } = useTVServerActionModal();
   const {
     setServer,
     login,
@@ -152,20 +146,13 @@ export const TVLogin: React.FC = () => {
   const [selectedAccount, setSelectedAccount] =
     useState<SavedServerAccount | null>(null);
 
-  // Server action sheet state
-  const [showServerActionSheet, setShowServerActionSheet] = useState(false);
-  const [actionSheetServer, setActionSheetServer] =
-    useState<SavedServer | null>(null);
+  // Server login trigger state
   const [loginTriggerServer, setLoginTriggerServer] =
     useState<SavedServer | null>(null);
-  const [actionSheetKey, setActionSheetKey] = useState(0);
 
   // Track if any modal is open to disable background focus
   const isAnyModalOpen =
-    showSaveModal ||
-    pinModalVisible ||
-    passwordModalVisible ||
-    showServerActionSheet;
+    showSaveModal || pinModalVisible || passwordModalVisible;
 
   // Auto login from URL params
   useEffect(() => {
@@ -319,48 +306,38 @@ export const TVLogin: React.FC = () => {
     }
   };
 
-  // Server action sheet handlers
+  // Server action sheet handler
   const handleServerAction = (server: SavedServer) => {
-    setActionSheetServer(server);
-    setActionSheetKey((k) => k + 1); // Force remount to reset focus
-    setShowServerActionSheet(true);
-  };
-
-  const handleServerActionLogin = () => {
-    setShowServerActionSheet(false);
-    if (actionSheetServer) {
-      // Trigger the login flow in TVPreviousServersList
-      setLoginTriggerServer(actionSheetServer);
-      // Reset the trigger after a tick to allow re-triggering the same server
-      setTimeout(() => setLoginTriggerServer(null), 0);
-    }
-  };
-
-  const handleServerActionDelete = () => {
-    if (!actionSheetServer) return;
-
-    Alert.alert(
-      t("server.remove_server"),
-      t("server.remove_server_description", {
-        server: actionSheetServer.name || actionSheetServer.address,
-      }),
-      [
-        {
-          text: t("common.cancel"),
-          style: "cancel",
-          onPress: () => setShowServerActionSheet(false),
-        },
-        {
-          text: t("common.delete"),
-          style: "destructive",
-          onPress: async () => {
-            await removeServerFromList(actionSheetServer.address);
-            setShowServerActionSheet(false);
-            setActionSheetServer(null);
-          },
-        },
-      ],
-    );
+    showServerActionModal({
+      server,
+      onLogin: () => {
+        // Trigger the login flow in TVPreviousServersList
+        setLoginTriggerServer(server);
+        // Reset the trigger after a tick to allow re-triggering the same server
+        setTimeout(() => setLoginTriggerServer(null), 0);
+      },
+      onDelete: () => {
+        Alert.alert(
+          t("server.remove_server"),
+          t("server.remove_server_description", {
+            server: server.name || server.address,
+          }),
+          [
+            {
+              text: t("common.cancel"),
+              style: "cancel",
+            },
+            {
+              text: t("common.delete"),
+              style: "destructive",
+              onPress: async () => {
+                await removeServerFromList(server.address);
+              },
+            },
+          ],
+        );
+      },
+    });
   };
 
   const checkUrl = useCallback(async (url: string) => {
@@ -493,7 +470,7 @@ export const TVLogin: React.FC = () => {
                 {serverName ? (
                   <>
                     {`${t("login.login_to_title")} `}
-                    <Text style={{ color: Colors.primary }}>{serverName}</Text>
+                    <Text style={{ color: "#fff" }}>{serverName}</Text>
                   </>
                 ) : (
                   t("login.login_title")
@@ -558,6 +535,7 @@ export const TVLogin: React.FC = () => {
                   onPress={handleLogin}
                   loading={loading}
                   disabled={!credentials.username.trim() || loading}
+                  color='white'
                 >
                   {t("login.login_button")}
                 </Button>
@@ -595,7 +573,7 @@ export const TVLogin: React.FC = () => {
               {/* Logo */}
               <View style={{ alignItems: "center", marginBottom: 16 }}>
                 <Image
-                  source={require("@/assets/images/icon-tvos.png")}
+                  source={require("@/assets/images/icon-ios-plain.png")}
                   style={{ width: 150, height: 150 }}
                   contentFit='contain'
                 />
@@ -645,6 +623,7 @@ export const TVLogin: React.FC = () => {
                   onPress={() => handleConnect(serverURL)}
                   loading={loadingServerCheck}
                   disabled={loadingServerCheck || !serverURL.trim()}
+                  color='white'
                 >
                   {t("server.connect_button")}
                 </Button>
@@ -705,16 +684,6 @@ export const TVLogin: React.FC = () => {
         }}
         onSubmit={handlePasswordSubmit}
         username={selectedAccount?.username || ""}
-      />
-
-      {/* Server Action Sheet */}
-      <TVServerActionSheet
-        key={actionSheetKey}
-        visible={showServerActionSheet}
-        server={actionSheetServer}
-        onLogin={handleServerActionLogin}
-        onDelete={handleServerActionDelete}
-        onClose={() => setShowServerActionSheet(false)}
       />
     </View>
   );

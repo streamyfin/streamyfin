@@ -58,20 +58,25 @@ export const TVInput: React.FC<TVInputProps> = ({
       <Animated.View
         style={{
           transform: [{ scale }],
-          borderRadius: 10,
-          borderWidth: 3,
-          borderColor: isFocused ? "#FFFFFF" : "#333333",
+          borderRadius: 12,
+          backgroundColor: isFocused
+            ? "rgba(255,255,255,0.15)"
+            : "rgba(255,255,255,0.08)",
+          borderWidth: 2,
+          borderColor: isFocused ? "#FFFFFF" : "transparent",
         }}
       >
         <TextInput
           ref={inputRef}
           placeholder={displayPlaceholder}
+          placeholderTextColor='rgba(255,255,255,0.35)'
           allowFontScaling={false}
           style={[
             {
-              height: 68,
-              fontSize: 24,
+              height: 64,
+              fontSize: 22,
               color: "#FFFFFF",
+              paddingHorizontal: 20,
             },
             style,
           ]}

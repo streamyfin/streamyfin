@@ -1,209 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  Animated,
-  Easing,
-  Modal,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
-import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useTVAccountSelectModal } from "@/hooks/useTVAccountSelectModal";
 import {
   deleteAccountCredential,
   getPreviousServers,
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
-import { TVAccountCard } from "./TVAccountCard";
 import { TVServerCard } from "./TVServerCard";
-
-// Action card for server action sheet (Apple TV style)
-const TVServerActionCard: React.FC<{
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  variant?: "default" | "destructive";
-  hasTVPreferredFocus?: boolean;
-  onPress: () => void;
-}> = ({ label, icon, variant = "default", hasTVPreferredFocus, onPress }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  const isDestructive = variant === "destructive";
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 180,
-          height: 90,
-          backgroundColor: focused
-            ? isDestructive
-              ? "#ef4444"
-              : "#fff"
-            : isDestructive
-              ? "rgba(239, 68, 68, 0.2)"
-              : "rgba(255,255,255,0.08)",
-          borderRadius: 14,
-          justifyContent: "center",
-          alignItems: "center",
-          paddingHorizontal: 12,
-          gap: 8,
-        }}
-      >
-        <Ionicons
-          name={icon}
-          size={28}
-          color={
-            focused
-              ? isDestructive
-                ? "#fff"
-                : "#000"
-              : isDestructive
-                ? "#ef4444"
-                : "#fff"
-          }
-        />
-        <Text
-          style={{
-            fontSize: 16,
-            color: focused
-              ? isDestructive
-                ? "#fff"
-                : "#000"
-              : isDestructive
-                ? "#ef4444"
-                : "#fff",
-            fontWeight: "600",
-            textAlign: "center",
-          }}
-          numberOfLines={1}
-        >
-          {label}
-        </Text>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-// Server action sheet component (bottom sheet with horizontal scrolling)
-const TVServerActionSheet: React.FC<{
-  visible: boolean;
-  server: SavedServer | null;
-  onLogin: () => void;
-  onDelete: () => void;
-  onClose: () => void;
-}> = ({ visible, server, onLogin, onDelete, onClose }) => {
-  const { t } = useTranslation();
-
-  if (!server) return null;
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType='fade'
-      onRequestClose={onClose}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          justifyContent: "flex-end",
-        }}
-      >
-        <BlurView
-          intensity={80}
-          tint='dark'
-          style={{
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            overflow: "hidden",
-          }}
-        >
-          <View
-            style={{
-              paddingTop: 24,
-              paddingBottom: 50,
-              overflow: "visible",
-            }}
-          >
-            {/* Title */}
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "500",
-                color: "rgba(255,255,255,0.6)",
-                marginBottom: 8,
-                paddingHorizontal: 48,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              {server.name || server.address}
-            </Text>
-
-            {/* Horizontal options */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ overflow: "visible" }}
-              contentContainerStyle={{
-                paddingHorizontal: 48,
-                paddingVertical: 10,
-                gap: 12,
-              }}
-            >
-              <TVServerActionCard
-                label={t("common.login")}
-                icon='log-in-outline'
-                hasTVPreferredFocus
-                onPress={onLogin}
-              />
-              <TVServerActionCard
-                label={t("common.delete")}
-                icon='trash-outline'
-                variant='destructive'
-                onPress={onDelete}
-              />
-              <TVServerActionCard
-                label={t("common.cancel")}
-                icon='close-outline'
-                onPress={onClose}
-              />
-            </ScrollView>
-          </View>
-        </BlurView>
-      </View>
-    </Modal>
-  );
-};
 
 interface TVPreviousServersListProps {
   onServerSelect: (server: SavedServer) => void;
@@ -227,9 +37,6 @@ interface TVPreviousServersListProps {
   disabled?: boolean;
 }
 
-// Export the action sheet for use in parent components
-export { TVServerActionSheet };
-
 export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
   onServerSelect,
   onQuickLogin,
@@ -241,36 +48,15 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
   disabled = false,
 }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
+  const { showAccountSelectModal } = useTVAccountSelectModal();
   const [_previousServers, setPreviousServers] =
     useMMKVString("previousServers");
   const [loadingServer, setLoadingServer] = useState<string | null>(null);
-  const [selectedServer, setSelectedServer] = useState<SavedServer | null>(
-    null,
-  );
-  const [showAccountsModal, setShowAccountsModal] = useState(false);
 
   const previousServers = useMemo(() => {
     return JSON.parse(_previousServers || "[]") as SavedServer[];
   }, [_previousServers]);
-
-  // When parent triggers login via loginServerOverride, execute the login flow
-  useEffect(() => {
-    if (loginServerOverride) {
-      const accountCount = loginServerOverride.accounts?.length || 0;
-
-      if (accountCount === 0) {
-        onServerSelect(loginServerOverride);
-      } else if (accountCount === 1) {
-        handleAccountLogin(
-          loginServerOverride,
-          loginServerOverride.accounts[0],
-        );
-      } else {
-        setSelectedServer(loginServerOverride);
-        setShowAccountsModal(true);
-      }
-    }
-  }, [loginServerOverride]);
 
   const refreshServers = () => {
     const servers = getPreviousServers();
@@ -281,8 +67,6 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
     server: SavedServer,
     account: SavedServerAccount,
   ) => {
-    setShowAccountsModal(false);
-
     switch (account.securityType) {
       case "none":
         if (onQuickLogin) {
@@ -315,6 +99,58 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
     }
   };
 
+  const handleDeleteAccount = async (
+    server: SavedServer,
+    account: SavedServerAccount,
+  ) => {
+    Alert.alert(
+      t("server.remove_saved_login"),
+      t("server.remove_account_description", { username: account.username }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.remove"),
+          style: "destructive",
+          onPress: async () => {
+            await deleteAccountCredential(server.address, account.userId);
+            refreshServers();
+          },
+        },
+      ],
+    );
+  };
+
+  const showAccountSelection = (server: SavedServer) => {
+    showAccountSelectModal({
+      server,
+      onAccountSelect: (account) => handleAccountLogin(server, account),
+      onAddAccount: () => {
+        if (onAddAccount) {
+          onAddAccount(server);
+        }
+      },
+      onDeleteAccount: (account) => handleDeleteAccount(server, account),
+    });
+  };
+
+  // When parent triggers login via loginServerOverride, execute the login flow
+  useEffect(() => {
+    if (loginServerOverride) {
+      const accountCount = loginServerOverride.accounts?.length || 0;
+
+      if (accountCount === 0) {
+        onServerSelect(loginServerOverride);
+      } else if (accountCount === 1) {
+        handleAccountLogin(
+          loginServerOverride,
+          loginServerOverride.accounts[0],
+        );
+      } else {
+        showAccountSelection(loginServerOverride);
+      }
+    }
+  }, [loginServerOverride]);
+
   const handleServerPress = (server: SavedServer) => {
     if (loadingServer) return;
 
@@ -331,8 +167,7 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
     } else if (accountCount === 1) {
       handleAccountLogin(server, server.accounts[0]);
     } else {
-      setSelectedServer(server);
-      setShowAccountsModal(true);
+      showAccountSelection(server);
     }
   };
 
@@ -369,39 +204,13 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
     }
   };
 
-  const handleDeleteAccount = async (account: SavedServerAccount) => {
-    if (!selectedServer) return;
-
-    Alert.alert(
-      t("server.remove_saved_login"),
-      t("server.remove_account_description", { username: account.username }),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("common.remove"),
-          style: "destructive",
-          onPress: async () => {
-            await deleteAccountCredential(
-              selectedServer.address,
-              account.userId,
-            );
-            refreshServers();
-            if (selectedServer.accounts.length <= 1) {
-              setShowAccountsModal(false);
-            }
-          },
-        },
-      ],
-    );
-  };
-
   if (!previousServers.length) return null;
 
   return (
     <View style={{ marginTop: 32 }}>
       <Text
         style={{
-          fontSize: 24,
+          fontSize: typography.heading,
           fontWeight: "600",
           color: "#FFFFFF",
           marginBottom: 16,
@@ -423,90 +232,6 @@ export const TVPreviousServersList: React.FC<TVPreviousServersListProps> = ({
           />
         ))}
       </View>
-
-      {/* TV Account Selection Modal */}
-      <Modal
-        visible={showAccountsModal}
-        transparent
-        animationType='fade'
-        onRequestClose={() => setShowAccountsModal(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0, 0, 0, 0.9)",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 80,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#1a1a1a",
-              borderRadius: 24,
-              padding: 40,
-              width: "100%",
-              maxWidth: 700,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 32,
-                fontWeight: "bold",
-                color: "#FFFFFF",
-                marginBottom: 8,
-              }}
-            >
-              {t("server.select_account")}
-            </Text>
-            <Text
-              style={{
-                fontSize: 18,
-                color: "#9CA3AF",
-                marginBottom: 32,
-              }}
-            >
-              {selectedServer?.name || selectedServer?.address}
-            </Text>
-
-            <View style={{ gap: 12, marginBottom: 24 }}>
-              {selectedServer?.accounts.map((account, index) => (
-                <TVAccountCard
-                  key={account.userId}
-                  account={account}
-                  onPress={() =>
-                    selectedServer &&
-                    handleAccountLogin(selectedServer, account)
-                  }
-                  onLongPress={() => handleDeleteAccount(account)}
-                  hasTVPreferredFocus={index === 0}
-                />
-              ))}
-            </View>
-
-            <View style={{ gap: 12 }}>
-              <Button
-                onPress={() => {
-                  setShowAccountsModal(false);
-                  if (selectedServer && onAddAccount) {
-                    onAddAccount(selectedServer);
-                  }
-                }}
-                color='purple'
-              >
-                {t("server.add_account")}
-              </Button>
-              <Button
-                onPress={() => setShowAccountsModal(false)}
-                color='black'
-                className='bg-neutral-800'
-              >
-                {t("common.cancel")}
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };

@@ -132,7 +132,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       <Animated.View
         style={{
           transform: [{ scale }],
-          shadowColor: color === "black" ? "#ffffff" : "#a855f7",
+          shadowColor: "#ffffff",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: focused ? 0.5 : 0,
           shadowRadius: focused ? 10 : 0,
