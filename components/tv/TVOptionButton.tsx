@@ -10,10 +10,11 @@ export interface TVOptionButtonProps {
   value: string;
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
+  maxWidth?: number;
 }
 
 export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
-  ({ label, value, onPress, hasTVPreferredFocus }, ref) => {
+  ({ label, value, onPress, hasTVPreferredFocus, maxWidth }, ref) => {
     const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation({ scaleAmount: 1.02, duration: 120 });
@@ -47,12 +48,14 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 8,
+                maxWidth,
               }}
             >
               <Text
                 style={{
                   fontSize: typography.callout,
                   color: "#444",
+                  flexShrink: 0,
                 }}
               >
                 {label}
@@ -62,6 +65,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
                   fontSize: typography.callout,
                   color: "#000",
                   fontWeight: "500",
+                  flexShrink: 1,
                 }}
                 numberOfLines={1}
               >
@@ -75,6 +79,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
               style={{
                 borderRadius: 8,
                 overflow: "hidden",
+                maxWidth,
               }}
             >
               <View
@@ -91,6 +96,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
                   style={{
                     fontSize: typography.callout,
                     color: "#bbb",
+                    flexShrink: 0,
                   }}
                 >
                   {label}
@@ -100,6 +106,7 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
                     fontSize: typography.callout,
                     color: "#E5E7EB",
                     fontWeight: "500",
+                    flexShrink: 1,
                   }}
                   numberOfLines={1}
                 >
