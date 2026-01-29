@@ -184,10 +184,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       null,
     );
 
-    // State for last option button ref (used for upward focus guide from cast)
-    const [_lastOptionButtonRef, setLastOptionButtonRef] =
-      useState<View | null>(null);
-
     // Get available audio tracks
     const audioTracks = useMemo(() => {
       const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
@@ -442,25 +438,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=700&quality=80`;
     }, [api, item]);
 
-    // Determine which option button is the last one (for focus guide targeting)
-    const lastOptionButton = useMemo(() => {
-      const hasSubtitleOption =
-        subtitleStreams.length > 0 ||
-        selectedOptions?.subtitleIndex !== undefined;
-      const hasAudioOption = audioTracks.length > 0;
-      const hasMediaSourceOption = mediaSources.length > 1;
-
-      if (hasSubtitleOption) return "subtitle";
-      if (hasAudioOption) return "audio";
-      if (hasMediaSourceOption) return "mediaSource";
-      return "quality";
-    }, [
-      subtitleStreams.length,
-      selectedOptions?.subtitleIndex,
-      audioTracks.length,
-      mediaSources.length,
-    ]);
-
     // Navigation handlers
     const handleActorPress = useCallback(
       (personId: string) => {
@@ -658,21 +635,17 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
               {/* Playback options */}
               <View
                 style={{
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 10,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
                   marginBottom: 24,
                 }}
               >
                 {/* Quality selector */}
                 <TVOptionButton
-                  ref={
-                    lastOptionButton === "quality"
-                      ? setLastOptionButtonRef
-                      : undefined
-                  }
                   label={t("item_card.quality")}
                   value={selectedQualityLabel}
+                  maxWidth={200}
                   onPress={() =>
                     showOptions({
                       title: t("item_card.quality"),
@@ -685,13 +658,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Media source selector (only if multiple sources) */}
                 {mediaSources.length > 1 && (
                   <TVOptionButton
-                    ref={
-                      lastOptionButton === "mediaSource"
-                        ? setLastOptionButtonRef
-                        : undefined
-                    }
                     label={t("item_card.video")}
                     value={selectedMediaSourceLabel}
+                    maxWidth={280}
                     onPress={() =>
                       showOptions({
                         title: t("item_card.video"),
@@ -705,13 +674,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {/* Audio selector */}
                 {audioTracks.length > 0 && (
                   <TVOptionButton
-                    ref={
-                      lastOptionButton === "audio"
-                        ? setLastOptionButtonRef
-                        : undefined
-                    }
                     label={t("item_card.audio")}
                     value={selectedAudioLabel}
+                    maxWidth={280}
                     onPress={() =>
                       showOptions({
                         title: t("item_card.audio"),
@@ -726,13 +691,9 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 {(subtitleStreams.length > 0 ||
                   selectedOptions?.subtitleIndex !== undefined) && (
                   <TVOptionButton
-                    ref={
-                      lastOptionButton === "subtitle"
-                        ? setLastOptionButtonRef
-                        : undefined
-                    }
                     label={t("item_card.subtitles.label")}
                     value={selectedSubtitleLabel}
+                    maxWidth={280}
                     onPress={() =>
                       showSubtitleModal({
                         item,
