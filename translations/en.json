@@ -530,6 +530,7 @@
     }
   },
   "common": {
+    "no_results": "No Results",
     "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Video",
@@ -596,6 +597,7 @@
       "movies": "Movies",
       "series": "Series",
       "boxsets": "Box Sets",
+      "playlists": "Playlists",
       "items": "Items"
     },
     "options": {
