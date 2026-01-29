@@ -3,7 +3,13 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { BlurView } from "expo-blur";
 import { type FC, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Image, StyleSheet, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  Animated as RNAnimated,
+  StyleSheet,
+  View,
+} from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -15,6 +21,7 @@ import Animated, {
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVNextEpisodeCountdownProps {
   nextItem: BaseItemDto;
@@ -22,7 +29,17 @@ export interface TVNextEpisodeCountdownProps {
   show: boolean;
   isPlaying: boolean;
   onFinish: () => void;
+  /** Called when user presses the card to skip to next episode */
+  onPlayNext?: () => void;
+  /** Whether this card should capture focus when visible */
+  hasFocus?: boolean;
+  /** Whether controls are visible - affects card position */
+  controlsVisible?: boolean;
 }
+
+// Position constants
+const BOTTOM_WITH_CONTROLS = 300;
+const BOTTOM_WITHOUT_CONTROLS = 120;
 
 export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   nextItem,
@@ -30,11 +47,19 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   show,
   isPlaying,
   onFinish,
+  onPlayNext,
+  hasFocus = false,
+  controlsVisible = false,
 }) => {
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const progress = useSharedValue(0);
   const onFinishRef = useRef(onFinish);
+  const { focused, handleFocus, handleBlur, animatedStyle } =
+    useTVFocusAnimation({
+      scaleAmount: 1.05,
+      duration: 120,
+    });
 
   onFinishRef.current = onFinish;
 
@@ -45,25 +70,58 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
     quality: 80,
   });
 
+  // Animated position based on controls visibility
+  const bottomPosition = useSharedValue(
+    controlsVisible ? BOTTOM_WITH_CONTROLS : BOTTOM_WITHOUT_CONTROLS,
+  );
+
   useEffect(() => {
-    if (show && isPlaying) {
-      progress.value = 0;
-      progress.value = withTiming(
-        1,
-        {
-          duration: 8000,
-          easing: Easing.linear,
-        },
-        (finished) => {
-          if (finished && onFinishRef.current) {
-            runOnJS(onFinishRef.current)();
-          }
-        },
-      );
-    } else {
+    const target = controlsVisible
+      ? BOTTOM_WITH_CONTROLS
+      : BOTTOM_WITHOUT_CONTROLS;
+    bottomPosition.value = withTiming(target, {
+      duration: 300,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [controlsVisible, bottomPosition]);
+
+  const containerAnimatedStyle = useAnimatedStyle(() => ({
+    bottom: bottomPosition.value,
+  }));
+
+  // Progress animation - pause/resume without resetting
+  const prevShowRef = useRef(false);
+
+  useEffect(() => {
+    const justStartedShowing = show && !prevShowRef.current;
+    prevShowRef.current = show;
+
+    if (!show) {
       cancelAnimation(progress);
       progress.value = 0;
+      return;
     }
+
+    if (justStartedShowing) {
+      progress.value = 0;
+    }
+
+    if (!isPlaying) {
+      cancelAnimation(progress);
+      return;
+    }
+
+    // Resume from current position
+    const remainingDuration = (1 - progress.value) * 8000;
+    progress.value = withTiming(
+      1,
+      { duration: remainingDuration, easing: Easing.linear },
+      (finished) => {
+        if (finished) {
+          runOnJS(onFinishRef.current)();
+        }
+      },
+    );
   }, [show, isPlaying, progress]);
 
   const progressStyle = useAnimatedStyle(() => ({
@@ -75,36 +133,49 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   if (!show) return null;
 
   return (
-    <View style={styles.container} pointerEvents='none'>
-      <BlurView intensity={80} tint='dark' style={styles.blur}>
-        <View style={styles.innerContainer}>
-          {imageUrl && (
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.thumbnail}
-              resizeMode='cover'
-            />
-          )}
+    <Animated.View
+      style={[styles.container, containerAnimatedStyle]}
+      pointerEvents='box-none'
+    >
+      <Pressable
+        onPress={onPlayNext}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        hasTVPreferredFocus={hasFocus}
+        focusable={true}
+      >
+        <RNAnimated.View style={[animatedStyle, focused && styles.focusedCard]}>
+          <BlurView intensity={80} tint='dark' style={styles.blur}>
+            <View style={styles.innerContainer}>
+              {imageUrl && (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.thumbnail}
+                  resizeMode='cover'
+                />
+              )}
 
-          <View style={styles.content}>
-            <Text style={styles.label}>{t("player.next_episode")}</Text>
+              <View style={styles.content}>
+                <Text style={styles.label}>{t("player.next_episode")}</Text>
 
-            <Text style={styles.seriesName} numberOfLines={1}>
-              {nextItem.SeriesName}
-            </Text>
+                <Text style={styles.seriesName} numberOfLines={1}>
+                  {nextItem.SeriesName}
+                </Text>
 
-            <Text style={styles.episodeInfo} numberOfLines={1}>
-              S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
-              {nextItem.Name}
-            </Text>
+                <Text style={styles.episodeInfo} numberOfLines={1}>
+                  S{nextItem.ParentIndexNumber}E{nextItem.IndexNumber} -{" "}
+                  {nextItem.Name}
+                </Text>
 
-            <View style={styles.progressContainer}>
-              <Animated.View style={[styles.progressBar, progressStyle]} />
+                <View style={styles.progressContainer}>
+                  <Animated.View style={[styles.progressBar, progressStyle]} />
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
-      </BlurView>
-    </View>
+          </BlurView>
+        </RNAnimated.View>
+      </Pressable>
+    </Animated.View>
   );
 };
 
@@ -112,9 +183,14 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({
     container: {
       position: "absolute",
-      bottom: 180,
       right: 80,
       zIndex: 100,
+    },
+    focusedCard: {
+      shadowColor: "#fff",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.6,
+      shadowRadius: 16,
     },
     blur: {
       borderRadius: 16,
