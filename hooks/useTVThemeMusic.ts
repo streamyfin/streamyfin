@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Audio as AudioType } from "expo-av";
 import { Audio } from "expo-av";
 import { useAtom } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Platform } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -63,12 +63,60 @@ function fadeVolume(
   return { promise, cancel };
 }
 
+// --- Module-level singleton state ---
+let sharedSound: AudioType.Sound | null = null;
+let currentSongId: string | null = null;
+let ownerCount = 0;
+let activeFade: { cancel: () => void } | null = null;
+let cleanupPromise: Promise<void> | null = null;
+
+/** Fade out, stop, and unload the shared sound. */
+async function teardownSharedSound(): Promise<void> {
+  const sound = sharedSound;
+  if (!sound) return;
+
+  activeFade?.cancel();
+  activeFade = null;
+
+  try {
+    const status = await sound.getStatusAsync();
+    if (status.isLoaded) {
+      const currentVolume = status.volume ?? TARGET_VOLUME;
+      const fade = fadeVolume(sound, currentVolume, 0, FADE_OUT_DURATION);
+      activeFade = fade;
+      await fade.promise;
+      activeFade = null;
+      await sound.stopAsync();
+      await sound.unloadAsync();
+    }
+  } catch {
+    try {
+      await sound.unloadAsync();
+    } catch {
+      // ignore
+    }
+  }
+
+  if (sharedSound === sound) {
+    sharedSound = null;
+    currentSongId = null;
+  }
+}
+
+/** Begin cleanup idempotently; returns the shared promise. */
+function beginCleanup(): Promise<void> {
+  if (!cleanupPromise) {
+    cleanupPromise = teardownSharedSound().finally(() => {
+      cleanupPromise = null;
+    });
+  }
+  return cleanupPromise;
+}
+
 export function useTVThemeMusic(itemId: string | undefined) {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { settings } = useSettings();
-  const soundRef = useRef<AudioType.Sound | null>(null);
-  const fadeRef = useRef<{ cancel: () => void } | null>(null);
 
   const enabled =
     Platform.isTV &&
@@ -99,12 +147,30 @@ export function useTVThemeMusic(itemId: string | undefined) {
     }
 
     const themeItem = themeSongs.Items[0];
+    const songId = themeItem.Id!;
 
+    ownerCount++;
     let mounted = true;
-    const sound = new Audio.Sound();
-    soundRef.current = sound;
 
-    const loadAndPlay = async () => {
+    const startPlayback = async () => {
+      // If the same song is already playing, keep it going
+      if (currentSongId === songId && sharedSound) {
+        return;
+      }
+
+      // If a different song is playing (or cleanup is in progress), tear it down first
+      if (sharedSound || cleanupPromise) {
+        activeFade?.cancel();
+        activeFade = null;
+        await beginCleanup();
+      }
+
+      if (!mounted) return;
+
+      const sound = new Audio.Sound();
+      sharedSound = sound;
+      currentSongId = songId;
+
       try {
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
@@ -125,55 +191,42 @@ export function useTVThemeMusic(itemId: string | undefined) {
         });
         const url = `${api.basePath}/Audio/${themeItem.Id}/universal?${params.toString()}`;
         await sound.loadAsync({ uri: url });
-        if (!mounted) {
+
+        if (!mounted || sharedSound !== sound) {
           await sound.unloadAsync();
           return;
         }
+
         await sound.setIsLoopingAsync(true);
         await sound.setVolumeAsync(0);
         await sound.playAsync();
-        if (mounted) {
-          // Fade in
+
+        if (mounted && sharedSound === sound) {
           const fade = fadeVolume(sound, 0, TARGET_VOLUME, FADE_IN_DURATION);
-          fadeRef.current = fade;
+          activeFade = fade;
           await fade.promise;
+          activeFade = null;
         }
       } catch (e) {
         console.warn("Theme music playback error:", e);
       }
     };
 
-    loadAndPlay();
+    startPlayback();
 
-    // Cleanup: fade out then unload
+    // Cleanup: decrement owner count, defer teardown check
     return () => {
       mounted = false;
-      // Cancel any in-progress fade
-      fadeRef.current?.cancel();
-      fadeRef.current = null;
+      ownerCount--;
 
-      const cleanupSound = async () => {
-        try {
-          const status = await sound.getStatusAsync();
-          if (status.isLoaded) {
-            const currentVolume = status.volume ?? TARGET_VOLUME;
-            const fade = fadeVolume(sound, currentVolume, 0, FADE_OUT_DURATION);
-            await fade.promise;
-            await sound.stopAsync();
-            await sound.unloadAsync();
-          }
-        } catch {
-          // Sound may already be unloaded
-          try {
-            await sound.unloadAsync();
-          } catch {
-            // ignore
-          }
+      // Defer the check so React can finish processing both unmount + mount
+      // in the same commit. If another instance mounts (same song), ownerCount
+      // will be back to >0 and we skip teardown entirely.
+      setTimeout(() => {
+        if (ownerCount === 0) {
+          beginCleanup();
         }
-      };
-
-      cleanupSound();
-      soundRef.current = null;
+      }, 0);
     };
   }, [enabled, themeSongs, api]);
 }
