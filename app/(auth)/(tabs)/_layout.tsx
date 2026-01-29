@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { Colors } from "@/constants/Colors";
+import { useTVBackHandler } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 
@@ -35,6 +36,9 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
+
+  // Handle TV back button - prevent app exit when at root
+  useTVBackHandler();
 
   return (
     <View style={{ flex: 1 }}>
