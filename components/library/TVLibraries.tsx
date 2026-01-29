@@ -103,6 +103,8 @@ const TVLibraryRow: React.FC<{
       return t("library.item_types.series");
     if (library.CollectionType === "boxsets")
       return t("library.item_types.boxsets");
+    if (library.CollectionType === "playlists")
+      return t("library.item_types.playlists");
     if (library.CollectionType === "music")
       return t("library.item_types.items");
     return t("library.item_types.items");
@@ -258,8 +260,7 @@ export const TVLibraries: React.FC = () => {
       userViews
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
         .filter((l) => l.CollectionType !== "books")
-        .filter((l) => l.CollectionType !== "music")
-        .filter((l) => l.CollectionType !== "playlists") || [],
+        .filter((l) => l.CollectionType !== "music") || [],
     [userViews, settings?.hiddenLibraries],
   );
 
@@ -273,6 +274,10 @@ export const TVLibraries: React.FC = () => {
           if (library.CollectionType === "movies") itemType = "Movie";
           else if (library.CollectionType === "tvshows") itemType = "Series";
           else if (library.CollectionType === "boxsets") itemType = "BoxSet";
+          else if (library.CollectionType === "playlists")
+            itemType = "Playlist";
+
+          const isPlaylistsLib = library.CollectionType === "playlists";
 
           // Fetch count
           const countResponse = await getItemsApi(api!).getItems({
@@ -281,6 +286,7 @@ export const TVLibraries: React.FC = () => {
             recursive: true,
             limit: 0,
             includeItemTypes: itemType ? [itemType as any] : undefined,
+            ...(isPlaylistsLib ? { mediaTypes: ["Video"] } : {}),
           });
 
           // Fetch preview items with backdrops
@@ -292,6 +298,7 @@ export const TVLibraries: React.FC = () => {
             sortBy: ["Random"],
             includeItemTypes: itemType ? [itemType as any] : undefined,
             imageTypes: ["Backdrop"],
+            ...(isPlaylistsLib ? { mediaTypes: ["Video"] } : {}),
           });
 
           return {

@@ -11,6 +11,7 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
@@ -70,10 +71,12 @@ import {
 } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
 const _TV_SCALE_PADDING = 20;
+const TV_PLAYLIST_SQUARE_SIZE = 180;
 
 const Page = () => {
   const searchParams = useLocalSearchParams() as {
@@ -288,6 +291,8 @@ const Page = () => {
         itemType = "Video";
       } else if (library.CollectionType === "musicvideos") {
         itemType = "MusicVideo";
+      } else if (library.CollectionType === "playlists") {
+        itemType = "Playlist";
       }
 
       const response = await getItemsApi(api).getItems({
@@ -307,6 +312,9 @@ const Page = () => {
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year, 10)),
         includeItemTypes: itemType ? [itemType] : undefined,
+        ...(Platform.isTV && library.CollectionType === "playlists"
+          ? { mediaTypes: ["Video"] }
+          : {}),
       });
 
       return response.data || null;
@@ -403,9 +411,69 @@ const Page = () => {
   const renderTVItem = useCallback(
     (item: BaseItemDto) => {
       const handlePress = () => {
+        if (item.Type === "Playlist") {
+          router.push({
+            pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+            params: { libraryId: item.Id! },
+          });
+          return;
+        }
         const navTarget = getItemNavigation(item, "(libraries)");
         router.push(navTarget as any);
       };
+
+      // Special rendering for Playlist items (square thumbnails)
+      if (item.Type === "Playlist") {
+        const playlistImageUrl = getPrimaryImageUrl({
+          api,
+          item,
+          width: TV_PLAYLIST_SQUARE_SIZE * 2,
+        });
+
+        return (
+          <View
+            key={item.Id}
+            style={{
+              width: TV_PLAYLIST_SQUARE_SIZE,
+              alignItems: "center",
+            }}
+          >
+            <TVFocusablePoster
+              onPress={handlePress}
+              onLongPress={() => showItemActions(item)}
+            >
+              <View
+                style={{
+                  width: TV_PLAYLIST_SQUARE_SIZE,
+                  aspectRatio: 1,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  backgroundColor: "#1a1a1a",
+                }}
+              >
+                <Image
+                  source={playlistImageUrl ? { uri: playlistImageUrl } : null}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit='cover'
+                  cachePolicy='memory-disk'
+                />
+              </View>
+            </TVFocusablePoster>
+            <View style={{ marginTop: 12, alignItems: "center" }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: typography.callout,
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                }}
+              >
+                {item.Name}
+              </Text>
+            </View>
+          </View>
+        );
+      }
 
       return (
         <View
@@ -430,7 +498,7 @@ const Page = () => {
         </View>
       );
     },
-    [router, showItemActions],
+    [router, showItemActions, api, typography],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
