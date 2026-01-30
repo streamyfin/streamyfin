@@ -250,7 +250,7 @@ export const Home = () => {
         deduped.push(item);
       }
 
-      return deduped.slice(0, 8);
+      return deduped.slice(0, 15);
     },
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
@@ -539,9 +539,14 @@ export const Home = () => {
   }, [heroItems, settings.showTVHeroCarousel]);
 
   // Get sections that will actually be rendered (accounting for hero slicing)
+  // When hero is shown, skip the first sections since hero already displays that content
+  // - If mergeNextUpAndContinueWatching: skip 1 section (combined Continue & Next Up)
+  // - Otherwise: skip 2 sections (separate Continue Watching + Next Up)
   const renderedSections = useMemo(() => {
-    return showHero ? sections.slice(1) : sections;
-  }, [sections, showHero]);
+    if (!showHero) return sections;
+    const sectionsToSkip = settings.mergeNextUpAndContinueWatching ? 1 : 2;
+    return sections.slice(sectionsToSkip);
+  }, [sections, showHero, settings.mergeNextUpAndContinueWatching]);
 
   if (!isConnected || serverConnected !== true) {
     let title = "";
