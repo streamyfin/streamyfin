@@ -24,9 +24,7 @@ import {
 } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -45,31 +43,6 @@ import { userAtom } from "@/providers/JellyfinProvider";
 
 const TV_ITEM_GAP = 20;
 const TV_HORIZONTAL_PADDING = 60;
-
-type Typography = ReturnType<typeof useScaledTVTypography>;
-
-const TVItemCardText: React.FC<{
-  item: BaseItemDto;
-  typography: Typography;
-}> = ({ item, typography }) => (
-  <View style={{ marginTop: 12 }}>
-    <Text
-      numberOfLines={1}
-      style={{ fontSize: typography.callout, color: "#FFFFFF" }}
-    >
-      {item.Name}
-    </Text>
-    <Text
-      style={{
-        fontSize: typography.callout - 2,
-        color: "#9CA3AF",
-        marginTop: 2,
-      }}
-    >
-      {item.ProductionYear}
-    </Text>
-  </View>
-);
 
 export default function WatchlistDetailScreen() {
   const typography = useScaledTVTypography();
@@ -205,27 +178,18 @@ export default function WatchlistDetailScreen() {
       };
 
       return (
-        <View
+        <TVPosterCard
           key={item.Id}
-          style={{
-            width: posterSizes.poster,
-          }}
-        >
-          <TVFocusablePoster
-            onPress={handlePress}
-            onLongPress={() => showItemActions(item)}
-            hasTVPreferredFocus={index === 0}
-          >
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {(item.Type === "Series" || item.Type === "Episode") && (
-              <SeriesPoster item={item} />
-            )}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} typography={typography} />
-        </View>
+          item={item}
+          orientation='vertical'
+          onPress={handlePress}
+          onLongPress={() => showItemActions(item)}
+          hasTVPreferredFocus={index === 0}
+          width={posterSizes.poster}
+        />
       );
     },
-    [router, showItemActions, typography],
+    [router, showItemActions, posterSizes.poster],
   );
 
   const renderItem = useCallback(

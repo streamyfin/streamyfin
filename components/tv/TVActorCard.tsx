@@ -21,7 +21,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
   ({ person, apiBasePath, onPress, hasTVPreferredFocus }, ref) => {
     const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =
-      useTVFocusAnimation({ scaleAmount: 1.08 });
+      useTVFocusAnimation();
 
     const imageUrl = person.Id
       ? `${apiBasePath}/Items/${person.Id}/Images/Primary?fillWidth=280&fillHeight=280&quality=90`

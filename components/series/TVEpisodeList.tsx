@@ -1,12 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import React from "react";
+import React, { useCallback } from "react";
 import { ScrollView, View } from "react-native";
-import { Text } from "@/components/common/Text";
-import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
-import { useScaledTVTypography } from "@/constants/TVTypography";
-
-const LIST_GAP = 24;
-const VERTICAL_PADDING = 12;
+import { TVHorizontalList } from "@/components/tv/TVHorizontalList";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
 
 interface TVEpisodeListProps {
   episodes: BaseItemDto[];
@@ -28,7 +24,7 @@ interface TVEpisodeListProps {
   firstEpisodeRefSetter?: (ref: View | null) => void;
   /** Text to show when episodes array is empty */
   emptyText?: string;
-  /** Horizontal padding for the list content (default: 80) */
+  /** Horizontal padding for the list content */
   horizontalPadding?: number;
 }
 
@@ -43,57 +39,51 @@ export const TVEpisodeList: React.FC<TVEpisodeListProps> = ({
   scrollViewRef,
   firstEpisodeRefSetter,
   emptyText,
-  horizontalPadding = 80,
+  horizontalPadding,
 }) => {
-  const typography = useScaledTVTypography();
+  const renderItem = useCallback(
+    ({ item: episode, index }: { item: BaseItemDto; index: number }) => {
+      const isCurrent = currentEpisodeId
+        ? episode.Id === currentEpisodeId
+        : false;
+      return (
+        <TVPosterCard
+          item={episode}
+          orientation='horizontal'
+          onPress={() => onEpisodePress(episode)}
+          onLongPress={
+            onEpisodeLongPress ? () => onEpisodeLongPress(episode) : undefined
+          }
+          onFocus={onFocus}
+          onBlur={onBlur}
+          disabled={isCurrent || disabled}
+          focusableWhenDisabled={isCurrent}
+          isCurrent={isCurrent}
+          refSetter={index === 0 ? firstEpisodeRefSetter : undefined}
+        />
+      );
+    },
+    [
+      currentEpisodeId,
+      disabled,
+      firstEpisodeRefSetter,
+      onBlur,
+      onEpisodeLongPress,
+      onEpisodePress,
+      onFocus,
+    ],
+  );
 
-  if (episodes.length === 0 && emptyText) {
-    return (
-      <Text
-        style={{
-          color: "#737373",
-          fontSize: typography.callout,
-          marginLeft: 20,
-        }}
-      >
-        {emptyText}
-      </Text>
-    );
-  }
+  const keyExtractor = useCallback((episode: BaseItemDto) => episode.Id!, []);
 
   return (
-    <ScrollView
-      ref={scrollViewRef as React.RefObject<ScrollView>}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ marginHorizontal: -horizontalPadding, overflow: "visible" }}
-      contentContainerStyle={{
-        paddingHorizontal: horizontalPadding,
-        paddingVertical: VERTICAL_PADDING,
-        gap: LIST_GAP,
-      }}
-    >
-      {episodes.map((episode, index) => {
-        const isCurrent = currentEpisodeId
-          ? episode.Id === currentEpisodeId
-          : false;
-        return (
-          <TVEpisodeCard
-            key={episode.Id}
-            episode={episode}
-            onPress={() => onEpisodePress(episode)}
-            onLongPress={
-              onEpisodeLongPress ? () => onEpisodeLongPress(episode) : undefined
-            }
-            onFocus={onFocus}
-            onBlur={onBlur}
-            disabled={isCurrent || disabled}
-            focusableWhenDisabled={isCurrent}
-            isCurrent={isCurrent}
-            refSetter={index === 0 ? firstEpisodeRefSetter : undefined}
-          />
-        );
-      })}
-    </ScrollView>
+    <TVHorizontalList
+      data={episodes}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
+      emptyText={emptyText}
+      scrollViewRef={scrollViewRef}
+      horizontalPadding={horizontalPadding}
+    />
   );
 };

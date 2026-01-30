@@ -34,13 +34,8 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import {
-  TVFilterButton,
-  TVFocusablePoster,
-  TVItemCardText,
-} from "@/components/tv";
+import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
@@ -476,26 +471,14 @@ const Page = () => {
       }
 
       return (
-        <View
+        <TVPosterCard
           key={item.Id}
-          style={{
-            width: posterSizes.poster,
-          }}
-        >
-          <TVFocusablePoster
-            onPress={handlePress}
-            onLongPress={() => showItemActions(item)}
-          >
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {(item.Type === "Series" || item.Type === "Episode") && (
-              <SeriesPoster item={item} />
-            )}
-            {item.Type !== "Movie" &&
-              item.Type !== "Series" &&
-              item.Type !== "Episode" && <MoviePoster item={item} />}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} />
-        </View>
+          item={item}
+          orientation='vertical'
+          onPress={handlePress}
+          onLongPress={() => showItemActions(item)}
+          width={posterSizes.poster}
+        />
       );
     },
     [router, showItemActions, api, typography],

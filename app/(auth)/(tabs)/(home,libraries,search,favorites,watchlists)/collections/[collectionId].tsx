@@ -27,13 +27,8 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import {
-  TVFilterButton,
-  TVFocusablePoster,
-  TVItemCardText,
-} from "@/components/tv";
+import { TVFilterButton } from "@/components/tv";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -293,26 +288,19 @@ const page: React.FC = () => {
           style={{
             marginRight: TV_ITEM_GAP,
             marginBottom: TV_ITEM_GAP,
-            width: posterSizes.poster,
           }}
         >
-          <TVFocusablePoster
+          <TVPosterCard
+            item={item}
+            orientation='vertical'
             onPress={handlePress}
             onLongPress={() => showItemActions(item)}
-          >
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {(item.Type === "Series" || item.Type === "Episode") && (
-              <SeriesPoster item={item} />
-            )}
-            {item.Type !== "Movie" &&
-              item.Type !== "Series" &&
-              item.Type !== "Episode" && <MoviePoster item={item} />}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} />
+            width={posterSizes.poster}
+          />
         </View>
       );
     },
-    [router, showItemActions],
+    [router, showItemActions, posterSizes.poster],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);

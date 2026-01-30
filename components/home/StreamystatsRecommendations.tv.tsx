@@ -11,10 +11,8 @@ import { FlatList, View, type ViewProps } from "react-native";
 
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import MoviePoster from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -23,11 +21,6 @@ import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsRecommendationsIdsResponse } from "@/utils/streamystats/types";
 
-const ITEM_GAP = 16;
-const SCALE_PADDING = 20;
-
-type Typography = ReturnType<typeof useScaledTVTypography>;
-
 interface Props extends ViewProps {
   title: string;
   type: "Movie" | "Series";
@@ -35,31 +28,6 @@ interface Props extends ViewProps {
   enabled?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
 }
-
-const TVItemCardText: React.FC<{
-  item: BaseItemDto;
-  typography: Typography;
-}> = ({ item, typography }) => {
-  return (
-    <View style={{ marginTop: 12, flexDirection: "column" }}>
-      <Text
-        numberOfLines={1}
-        style={{ fontSize: typography.callout, color: "#FFFFFF" }}
-      >
-        {item.Name}
-      </Text>
-      <Text
-        style={{
-          fontSize: typography.callout,
-          color: "#9CA3AF",
-          marginTop: 2,
-        }}
-      >
-        {item.ProductionYear}
-      </Text>
-    </View>
-  );
-};
 
 export const StreamystatsRecommendations: React.FC<Props> = ({
   title,
@@ -70,7 +38,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   ...props
 }) => {
   const typography = useScaledTVTypography();
-  const posterSizes = useScaledTVPosterSizes();
+  const sizes = useScaledTVSizes();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -192,31 +160,29 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: posterSizes.poster + ITEM_GAP,
-      offset: (posterSizes.poster + ITEM_GAP) * index,
+      length: sizes.posters.poster + sizes.gaps.item,
+      offset: (sizes.posters.poster + sizes.gaps.item) * index,
       index,
     }),
-    [],
+    [sizes],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: BaseItemDto }) => {
       return (
-        <View style={{ marginRight: ITEM_GAP, width: posterSizes.poster }}>
-          <TVFocusablePoster
+        <View style={{ marginRight: sizes.gaps.item }}>
+          <TVPosterCard
+            item={item}
+            orientation='vertical'
             onPress={() => handleItemPress(item)}
             onLongPress={() => showItemActions(item)}
             onFocus={() => onItemFocus?.(item)}
-            hasTVPreferredFocus={false}
-          >
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {item.Type === "Series" && <SeriesPoster item={item} />}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} typography={typography} />
+            width={sizes.posters.poster}
+          />
         </View>
       );
     },
-    [handleItemPress, showItemActions, onItemFocus, typography],
+    [sizes, handleItemPress, showItemActions, onItemFocus],
   );
 
   if (!streamyStatsEnabled) return null;
@@ -231,7 +197,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.scale,
           letterSpacing: 0.5,
         }}
       >
@@ -242,17 +208,17 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         <View
           style={{
             flexDirection: "row",
-            gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
-            paddingVertical: SCALE_PADDING,
+            gap: sizes.gaps.item,
+            paddingHorizontal: sizes.padding.scale,
+            paddingVertical: sizes.padding.scale,
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
-            <View key={i} style={{ width: posterSizes.poster }}>
+            <View key={i} style={{ width: sizes.posters.poster }}>
               <View
                 style={{
                   backgroundColor: "#262626",
-                  width: posterSizes.poster,
+                  width: sizes.posters.poster,
                   aspectRatio: 10 / 15,
                   borderRadius: 12,
                   marginBottom: 8,
@@ -275,8 +241,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           getItemLayout={getItemLayout}
           style={{ overflow: "visible" }}
           contentContainerStyle={{
-            paddingVertical: SCALE_PADDING,
-            paddingHorizontal: SCALE_PADDING,
+            paddingVertical: sizes.padding.scale,
+            paddingHorizontal: sizes.padding.scale,
           }}
         />
       )}

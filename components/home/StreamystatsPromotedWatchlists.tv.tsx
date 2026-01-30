@@ -11,10 +11,9 @@ import { FlatList, View, type ViewProps } from "react-native";
 
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import MoviePoster from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -23,35 +22,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
-const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
-
-type Typography = ReturnType<typeof useScaledTVTypography>;
-
-const TVItemCardText: React.FC<{
-  item: BaseItemDto;
-  typography: Typography;
-}> = ({ item, typography }) => {
-  return (
-    <View style={{ marginTop: 12, flexDirection: "column" }}>
-      <Text
-        numberOfLines={1}
-        style={{ fontSize: typography.callout, color: "#FFFFFF" }}
-      >
-        {item.Name}
-      </Text>
-      <Text
-        style={{
-          fontSize: typography.callout,
-          color: "#9CA3AF",
-          marginTop: 2,
-        }}
-      >
-        {item.ProductionYear}
-      </Text>
-    </View>
-  );
-};
 
 interface WatchlistSectionProps extends ViewProps {
   watchlist: StreamystatsWatchlist;
@@ -67,6 +38,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const posterSizes = useScaledTVPosterSizes();
+  const sizes = useScaledTVSizes();
+  const ITEM_GAP = sizes.gaps.item;
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -135,27 +108,31 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
       offset: (posterSizes.poster + ITEM_GAP) * index,
       index,
     }),
-    [],
+    [posterSizes.poster, ITEM_GAP],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: BaseItemDto }) => {
       return (
-        <View style={{ marginRight: ITEM_GAP, width: posterSizes.poster }}>
-          <TVFocusablePoster
+        <View style={{ marginRight: ITEM_GAP }}>
+          <TVPosterCard
+            item={item}
+            orientation='vertical'
             onPress={() => handleItemPress(item)}
             onLongPress={() => showItemActions(item)}
             onFocus={() => onItemFocus?.(item)}
-            hasTVPreferredFocus={false}
-          >
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {item.Type === "Series" && <SeriesPoster item={item} />}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} typography={typography} />
+            width={posterSizes.poster}
+          />
         </View>
       );
     },
-    [handleItemPress, showItemActions, onItemFocus, typography],
+    [
+      ITEM_GAP,
+      posterSizes.poster,
+      handleItemPress,
+      showItemActions,
+      onItemFocus,
+    ],
   );
 
   if (!isLoading && (!items || items.length === 0)) return null;
@@ -230,6 +207,8 @@ export const StreamystatsPromotedWatchlists: React.FC<
   StreamystatsPromotedWatchlistsProps
 > = ({ enabled = true, onItemFocus, ...props }) => {
   const posterSizes = useScaledTVPosterSizes();
+  const sizes = useScaledTVSizes();
+  const ITEM_GAP = sizes.gaps.item;
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
