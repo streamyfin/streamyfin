@@ -101,9 +101,7 @@ export function useRemoteControl({
 
     // Handle play/pause button press on TV remote
     if (evt.eventType === "playPause") {
-      if (togglePlay) {
-        togglePlay();
-      }
+      togglePlay?.();
       onInteraction?.();
       return;
     }
@@ -134,6 +132,11 @@ export function useRemoteControl({
 
     // Handle D-pad when controls are hidden
     if (!showControls) {
+      // Ignore select/enter events - let the native Pressable handle them
+      // This prevents controls from showing when pressing buttons like skip intro
+      if (evt.eventType === "select" || evt.eventType === "enter") {
+        return;
+      }
       // Minimal seek mode for left/right
       if (evt.eventType === "left" && onMinimalSeekLeft) {
         onMinimalSeekLeft();

@@ -29,16 +29,24 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
+import {
+  TVControlButton,
+  TVNextEpisodeCountdown,
+  TVSkipSegmentCard,
+} from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useCreditSkipper } from "@/hooks/useCreditSkipper";
+import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import type { TechnicalInfo } from "@/modules/mpv-player";
+import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -83,6 +91,7 @@ interface Props {
   getTechnicalInfo?: () => Promise<TechnicalInfo>;
   playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
   transcodeReasons?: string[];
+  downloadedFiles?: DownloadedItem[];
 }
 
 const TV_SEEKBAR_HEIGHT = 14;
@@ -206,6 +215,7 @@ export const Controls: FC<Props> = ({
   getTechnicalInfo,
   playMethod,
   transcodeReasons,
+  downloadedFiles,
 }) => {
   const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
@@ -391,12 +401,44 @@ export const Controls: FC<Props> = ({
     seek,
   });
 
+  // Skip intro/credits hooks
+  // Note: hooks expect seek callback that takes ms, and seek prop already expects ms
+  const offline = useOfflineMode();
+  const { showSkipButton, skipIntro } = useIntroSkipper(
+    item.Id!,
+    currentTime,
+    seek,
+    _play,
+    offline,
+    api,
+    downloadedFiles,
+  );
+
+  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
+    useCreditSkipper(
+      item.Id!,
+      currentTime,
+      seek,
+      _play,
+      offline,
+      api,
+      downloadedFiles,
+      max.value,
+    );
+
   // Countdown logic - needs to be early so toggleControls can reference it
   const isCountdownActive = useMemo(() => {
     if (!nextItem) return false;
     if (item?.Type !== "Episode") return false;
     return remainingTime > 0 && remainingTime <= 10000;
   }, [nextItem, item, remainingTime]);
+
+  // Whether any skip card is visible - used to prevent focus conflicts
+  const isSkipCardVisible =
+    (showSkipButton && !isCountdownActive) ||
+    (showSkipCreditButton &&
+      (hasContentAfterCredits || !nextItem) &&
+      !isCountdownActive);
 
   // Brief delay to ignore focus events when countdown first appears
   const countdownJustActivatedRef = useRef(false);
@@ -412,6 +454,41 @@ export const Controls: FC<Props> = ({
     }, 200);
     return () => clearTimeout(timeout);
   }, [isCountdownActive]);
+
+  // Brief delay to ignore focus events when skip card first appears
+  const skipCardJustActivatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isSkipCardVisible) {
+      skipCardJustActivatedRef.current = false;
+      return;
+    }
+    skipCardJustActivatedRef.current = true;
+    const timeout = setTimeout(() => {
+      skipCardJustActivatedRef.current = false;
+    }, 200);
+    return () => clearTimeout(timeout);
+  }, [isSkipCardVisible]);
+
+  // Brief delay to ignore focus events after pressing skip button
+  const skipJustPressedRef = useRef(false);
+
+  // Wrapper to prevent focus events after skip actions
+  const handleSkipWithDelay = useCallback((skipFn: () => void) => {
+    skipJustPressedRef.current = true;
+    skipFn();
+    setTimeout(() => {
+      skipJustPressedRef.current = false;
+    }, 500);
+  }, []);
+
+  const handleSkipIntro = useCallback(() => {
+    handleSkipWithDelay(skipIntro);
+  }, [handleSkipWithDelay, skipIntro]);
+
+  const handleSkipCredit = useCallback(() => {
+    handleSkipWithDelay(skipCredit);
+  }, [handleSkipWithDelay, skipCredit]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
   const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
@@ -430,8 +507,12 @@ export const Controls: FC<Props> = ({
   };
 
   const toggleControls = useCallback(() => {
-    // Skip if countdown just became active (ignore initial focus event)
-    if (countdownJustActivatedRef.current) return;
+    // Skip if countdown or skip card just became active (ignore initial focus event)
+    const shouldIgnore =
+      countdownJustActivatedRef.current ||
+      skipCardJustActivatedRef.current ||
+      skipJustPressedRef.current;
+    if (shouldIgnore) return;
     setShowControls(!showControls);
   }, [showControls, setShowControls]);
 
@@ -457,10 +538,6 @@ export const Controls: FC<Props> = ({
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     setSeekBubbleTime({ hours, minutes, seconds });
-  }, []);
-
-  const handleBack = useCallback(() => {
-    // No longer needed since modals are screen-based
   }, []);
 
   // Show minimal seek bar (only progress bar, no buttons)
@@ -491,16 +568,6 @@ export const Controls: FC<Props> = ({
 
   // Start the minimal seek bar hide timeout
   const startMinimalSeekHideTimeout = useCallback(() => {
-    if (minimalSeekBarTimeoutRef.current) {
-      clearTimeout(minimalSeekBarTimeoutRef.current);
-    }
-    minimalSeekBarTimeoutRef.current = setTimeout(() => {
-      setShowMinimalSeekBar(false);
-    }, 2500);
-  }, []);
-
-  // Reset minimal seek bar timeout (call on each seek action)
-  const _resetMinimalSeekTimeout = useCallback(() => {
     if (minimalSeekBarTimeoutRef.current) {
       clearTimeout(minimalSeekBarTimeoutRef.current);
     }
@@ -875,8 +942,12 @@ export const Controls: FC<Props> = ({
 
   // Callback for up/down D-pad - show controls with play button focused
   const handleVerticalDpad = useCallback(() => {
-    // Skip if countdown just became active (ignore initial focus event)
-    if (countdownJustActivatedRef.current) return;
+    // Skip if countdown or skip card just became active (ignore initial focus event)
+    const shouldIgnore =
+      countdownJustActivatedRef.current ||
+      skipCardJustActivatedRef.current ||
+      skipJustPressedRef.current;
+    if (shouldIgnore) return;
     setFocusPlayButton(true);
     setShowControls(true);
   }, [setShowControls]);
@@ -885,7 +956,6 @@ export const Controls: FC<Props> = ({
     showControls,
     toggleControls,
     togglePlay,
-    onBack: handleBack,
     isProgressBarFocused,
     onSeekLeft: handleProgressSeekLeft,
     onSeekRight: handleProgressSeekRight,
@@ -1007,6 +1077,33 @@ export const Controls: FC<Props> = ({
           currentSubtitleIndex={subtitleIndex}
         />
       )}
+
+      {/* Skip intro card */}
+      <TVSkipSegmentCard
+        show={showSkipButton && !isCountdownActive}
+        onPress={handleSkipIntro}
+        type='intro'
+        hasFocus={showSkipButton && !isCountdownActive}
+        controlsVisible={showControls}
+      />
+
+      {/* Skip credits card - show when there's content after credits, OR no next episode */}
+      <TVSkipSegmentCard
+        show={
+          showSkipCreditButton &&
+          (hasContentAfterCredits || !nextItem) &&
+          !isCountdownActive
+        }
+        onPress={handleSkipCredit}
+        type='credits'
+        hasFocus={
+          showSkipCreditButton &&
+          (hasContentAfterCredits || !nextItem) &&
+          !isCountdownActive &&
+          !showSkipButton
+        }
+        controlsVisible={showControls}
+      />
 
       {nextItem && (
         <TVNextEpisodeCountdown
@@ -1280,6 +1377,7 @@ export const Controls: FC<Props> = ({
               refSetter={setProgressBarRef}
               hasTVPreferredFocus={
                 !isCountdownActive &&
+                !isSkipCardVisible &&
                 lastOpenedModal === null &&
                 !focusPlayButton
               }
