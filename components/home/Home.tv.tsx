@@ -53,7 +53,6 @@ type InfiniteScrollingCollectionListSection = {
   queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
-  priority?: 1 | 2;
   parentId?: string;
 };
 
@@ -79,7 +78,6 @@ export const Home = () => {
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
   const { showItemActions } = useTVItemActionModal();
-  const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
 
   // Dynamic backdrop state with debounce
   const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
@@ -383,7 +381,6 @@ export const Home = () => {
             type: "InfiniteScrollingCollectionList",
             orientation: "horizontal",
             pageSize: 10,
-            priority: 1,
           },
         ]
       : [
@@ -403,7 +400,6 @@ export const Home = () => {
             type: "InfiniteScrollingCollectionList",
             orientation: "horizontal",
             pageSize: 10,
-            priority: 1,
           },
           {
             title: t("home.next_up"),
@@ -421,13 +417,12 @@ export const Home = () => {
             type: "InfiniteScrollingCollectionList",
             orientation: "horizontal",
             pageSize: 10,
-            priority: 1,
           },
         ];
 
     const ss: Section[] = [
       ...firstSections,
-      ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
+      ...latestMediaViews,
       ...(!settings?.streamyStatsMovieRecommendations
         ? [
             {
@@ -446,7 +441,6 @@ export const Home = () => {
               type: "InfiniteScrollingCollectionList" as const,
               orientation: "vertical" as const,
               pageSize: 10,
-              priority: 2 as const,
             },
           ]
         : []),
@@ -531,7 +525,6 @@ export const Home = () => {
         type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
         pageSize,
-        priority: index < 2 ? 1 : 2,
       });
     });
     return ss;
@@ -549,24 +542,6 @@ export const Home = () => {
   const renderedSections = useMemo(() => {
     return showHero ? sections.slice(1) : sections;
   }, [sections, showHero]);
-
-  const highPrioritySectionKeys = useMemo(() => {
-    return renderedSections
-      .filter((s) => s.priority === 1)
-      .map((s) => s.queryKey.join("-"));
-  }, [renderedSections]);
-
-  const allHighPriorityLoaded = useMemo(() => {
-    return highPrioritySectionKeys.every((key) => loadedSections.has(key));
-  }, [highPrioritySectionKeys, loadedSections]);
-
-  const markSectionLoaded = useCallback(
-    (queryKey: (string | undefined | null)[]) => {
-      const key = queryKey.join("-");
-      setLoadedSections((prev) => new Set(prev).add(key));
-    },
-    [],
-  );
 
   if (!isConnected || serverConnected !== true) {
     let title = "";
@@ -785,7 +760,6 @@ export const Home = () => {
                         "home.settings.plugins.streamystats.recommended_movies",
                       )}
                       type='Movie'
-                      enabled={allHighPriorityLoaded}
                       onItemFocus={handleItemFocus}
                     />
                   )}
@@ -795,13 +769,11 @@ export const Home = () => {
                         "home.settings.plugins.streamystats.recommended_series",
                       )}
                       type='Series'
-                      enabled={allHighPriorityLoaded}
                       onItemFocus={handleItemFocus}
                     />
                   )}
                   {settings.streamyStatsPromotedWatchlists && (
                     <StreamystatsPromotedWatchlists
-                      enabled={allHighPriorityLoaded}
                       onItemFocus={handleItemFocus}
                     />
                   )}
@@ -809,7 +781,6 @@ export const Home = () => {
               ) : null;
 
             if (section.type === "InfiniteScrollingCollectionList") {
-              const isHighPriority = section.priority === 1;
               // First section only gets preferred focus if hero is not shown
               const isFirstSection = index === 0 && !showHero;
               return (
@@ -821,12 +792,6 @@ export const Home = () => {
                     orientation={section.orientation}
                     hideIfEmpty
                     pageSize={section.pageSize}
-                    enabled={isHighPriority || allHighPriorityLoaded}
-                    onLoaded={
-                      isHighPriority
-                        ? () => markSectionLoaded(section.queryKey)
-                        : undefined
-                    }
                     isFirstSection={isFirstSection}
                     onItemFocus={handleItemFocus}
                     parentId={section.parentId}
