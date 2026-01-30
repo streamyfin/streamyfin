@@ -1,14 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
-import { Animated, Platform, Pressable, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Animated, Easing, Platform, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
-import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVSeriesSeasonCardProps {
   title: string;
@@ -16,6 +16,8 @@ export interface TVSeriesSeasonCardProps {
   imageUrl: string | null;
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
+  /** Setter function for the ref (for focus guide destinations) */
+  refSetter?: (ref: View | null) => void;
 }
 
 export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
@@ -24,13 +26,24 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
   imageUrl,
   onPress,
   hasTVPreferredFocus,
+  refSetter,
 }) => {
   const typography = useScaledTVTypography();
-  const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.05 });
+  const sizes = useScaledTVSizes();
+  const [focused, setFocused] = useState(false);
 
   // Check if glass effect is available (tvOS 26+)
   const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
+
+  // Scale animation for focus (only used when NOT using glass effect)
+  const scale = useRef(new Animated.Value(1)).current;
+  const animateTo = (value: number) =>
+    Animated.timing(scale, {
+      toValue: value,
+      duration: 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
 
   const renderPoster = () => {
     if (useGlass) {
@@ -42,8 +55,8 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
           progress={0}
           showWatchedIndicator={false}
           isFocused={focused}
-          width={210}
-          style={{ width: 210, marginBottom: 14 }}
+          width={sizes.posters.poster}
+          style={{ width: sizes.posters.poster }}
         />
       );
     }
@@ -51,14 +64,11 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
     return (
       <View
         style={{
-          width: 210,
+          width: sizes.posters.poster,
           aspectRatio: 10 / 15,
           borderRadius: 24,
           overflow: "hidden",
           backgroundColor: "rgba(255,255,255,0.1)",
-          marginBottom: 14,
-          borderWidth: focused ? 3 : 0,
-          borderColor: "#fff",
         }}
       >
         {imageUrl ? (
@@ -83,33 +93,45 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
   };
 
   return (
-    <Pressable
-      onPress={onPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={[
-          animatedStyle,
-          {
-            width: 210,
-            shadowColor: "#fff",
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: useGlass ? 0 : focused ? 0.5 : 0,
-            shadowRadius: useGlass ? 0 : focused ? 20 : 0,
-          },
-        ]}
+    <View style={{ width: sizes.posters.poster }}>
+      <Pressable
+        ref={refSetter}
+        onPress={onPress}
+        onFocus={() => {
+          setFocused(true);
+          // Only animate scale when not using glass effect (glass handles its own focus visual)
+          if (!useGlass) {
+            animateTo(1.05);
+          }
+        }}
+        onBlur={() => {
+          setFocused(false);
+          if (!useGlass) {
+            animateTo(1);
+          }
+        }}
+        hasTVPreferredFocus={hasTVPreferredFocus}
       >
-        {renderPoster()}
+        <Animated.View
+          style={{
+            // Only apply scale transform when not using glass effect
+            transform: useGlass ? undefined : [{ scale }],
+            // Only apply shadow glow when not using glass (glass has its own glow)
+            shadowColor: useGlass ? undefined : "#ffffff",
+            shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
+            shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
+            shadowRadius: useGlass ? undefined : focused ? 12 : 0,
+          }}
+        >
+          {renderPoster()}
+        </Animated.View>
+      </Pressable>
 
+      <View style={{ marginTop: 12 }}>
         <Text
           style={{
             fontSize: typography.body,
-            fontWeight: "600",
-            color: focused ? "#fff" : "rgba(255,255,255,0.9)",
-            textAlign: "center",
-            marginBottom: 4,
+            color: "#FFFFFF",
           }}
           numberOfLines={2}
         >
@@ -120,17 +142,15 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
           <Text
             style={{
               fontSize: typography.callout,
-              color: focused
-                ? "rgba(255,255,255,0.8)"
-                : "rgba(255,255,255,0.5)",
-              textAlign: "center",
+              color: "#9CA3AF",
+              marginTop: 4,
             }}
             numberOfLines={1}
           >
             {subtitle}
           </Text>
         )}
-      </Animated.View>
-    </Pressable>
+      </View>
+    </View>
   );
 };
