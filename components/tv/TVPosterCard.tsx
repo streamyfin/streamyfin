@@ -133,15 +133,15 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
     // Horizontal orientation: prefer thumbs/backdrops for landscape images
     if (orientation === "horizontal") {
-      // Episode: prefer episode's own primary image, fall back to parent thumb
+      // Episode: prefer series thumb image for consistent look (like hero section)
       if (item.Type === "Episode") {
-        // First try episode's own primary image
-        if (item.ImageTags?.Primary) {
-          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
-        }
-        // Fall back to parent thumb if episode has no image
+        // First try parent/series thumb (horizontal series artwork)
         if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
           return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
+        }
+        // Fall back to episode's own primary image
+        if (item.ImageTags?.Primary) {
+          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
         }
         // Last resort: try primary without tag
         return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=700&quality=80`;
