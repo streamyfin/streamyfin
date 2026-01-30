@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -38,7 +38,6 @@ interface Props extends ViewProps {
   pageSize?: number;
   onPressSeeAll?: () => void;
   enabled?: boolean;
-  onLoaded?: () => void;
   isFirstSection?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
   parentId?: string;
@@ -120,7 +119,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   hideIfEmpty = false,
   pageSize = 10,
   enabled = true,
-  onLoaded,
   isFirstSection = false,
   onItemFocus,
   parentId,
@@ -131,7 +129,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const sizes = useScaledTVSizes();
   const ITEM_GAP = sizes.gaps.item;
   const effectivePageSize = Math.max(1, pageSize);
-  const hasCalledOnLoaded = useRef(false);
   const router = useRouter();
   const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
@@ -158,37 +155,24 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     setFocusedCount((c) => c + 1);
   }, []);
 
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    isSuccess,
-  } = useInfiniteQuery({
-    queryKey: queryKey,
-    queryFn: ({ pageParam = 0, ...context }) =>
-      queryFn({ ...context, queryKey, pageParam }),
-    getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length < effectivePageSize) {
-        return undefined;
-      }
-      return allPages.reduce((acc, page) => acc + page.length, 0);
-    },
-    initialPageParam: 0,
-    staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
-    enabled,
-  });
-
-  useEffect(() => {
-    if (isSuccess && !hasCalledOnLoaded.current && onLoaded) {
-      hasCalledOnLoaded.current = true;
-      onLoaded();
-    }
-  }, [isSuccess, onLoaded]);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: queryKey,
+      queryFn: ({ pageParam = 0, ...context }) =>
+        queryFn({ ...context, queryKey, pageParam }),
+      getNextPageParam: (lastPage, allPages) => {
+        if (lastPage.length < effectivePageSize) {
+          return undefined;
+        }
+        return allPages.reduce((acc, page) => acc + page.length, 0);
+      },
+      initialPageParam: 0,
+      staleTime: 60 * 1000,
+      refetchInterval: 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      enabled,
+    });
 
   const { t } = useTranslation();
 
