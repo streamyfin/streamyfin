@@ -17,6 +17,7 @@ import {
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { APP_LANGUAGES } from "@/i18n";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
@@ -49,6 +50,7 @@ export default function SettingsTV() {
   const currentTypographyScale =
     settings.tvTypographyScale || TVTypographyScale.Default;
   const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
+  const currentLanguage = settings.preferedLanguage;
 
   // Audio transcoding options
   const audioTranscodeModeOptions: TVOptionItem<AudioTranscodeMode>[] = useMemo(
@@ -189,6 +191,23 @@ export default function SettingsTV() {
     [t, currentTypographyScale],
   );
 
+  // Language options
+  const languageOptions: TVOptionItem<string | undefined>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.languages.system"),
+        value: undefined,
+        selected: !currentLanguage,
+      },
+      ...APP_LANGUAGES.map((lang) => ({
+        label: lang.label,
+        value: lang.value,
+        selected: currentLanguage === lang.value,
+      })),
+    ],
+    [t, currentLanguage],
+  );
+
   // Get display labels for option buttons
   const audioTranscodeLabel = useMemo(() => {
     const option = audioTranscodeModeOptions.find((o) => o.selected);
@@ -219,6 +238,12 @@ export default function SettingsTV() {
     const option = cacheModeOptions.find((o) => o.selected);
     return option?.label || t("home.settings.buffer.cache_auto");
   }, [cacheModeOptions, t]);
+
+  const languageLabel = useMemo(() => {
+    if (!currentLanguage) return t("home.settings.languages.system");
+    const option = APP_LANGUAGES.find((l) => l.value === currentLanguage);
+    return option?.label || t("home.settings.languages.system");
+  }, [currentLanguage, t]);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
@@ -477,6 +502,18 @@ export default function SettingsTV() {
                 options: typographyScaleOptions,
                 onSelect: (value) =>
                   updateSettings({ tvTypographyScale: value }),
+              })
+            }
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.languages.app_language")}
+            value={languageLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.languages.app_language"),
+                options: languageOptions,
+                onSelect: (value) =>
+                  updateSettings({ preferedLanguage: value }),
               })
             }
           />
