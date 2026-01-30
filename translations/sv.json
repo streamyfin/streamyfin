@@ -42,7 +42,9 @@
     "accounts_count": "{{count}} konton",
     "select_account": "Välj konto",
     "add_account": "Lägg till konto",
-    "remove_account_description": "Detta kommer att ta bort de sparade uppgifterna för {{username}}."
+    "remove_account_description": "Detta kommer att ta bort de sparade uppgifterna för {{username}}.",
+    "remove_server": "Ta bort server",
+    "remove_server_description": "Detta kommer att ta bort {{server}} och alla sparade konton från din lista."
   },
   "save_account": {
     "title": "Spara konto",
@@ -130,7 +132,8 @@
         "display_size_small": "Liten",
         "display_size_default": "Standard",
         "display_size_large": "Stor",
-        "display_size_extra_large": "Extra stor"
+        "display_size_extra_large": "Extra stor",
+        "theme_music": "Temamusik"
       },
       "network": {
         "title": "Nätverk",
@@ -182,6 +185,16 @@
         "forward_skip_length": "Framåthoppsintervall",
         "rewind_length": "Bakåthoppsintervall",
         "seconds_unit": "s"
+      },
+      "buffer": {
+        "title": "Bufferinställningar",
+        "cache_mode": "Cacheläge",
+        "cache_auto": "Auto",
+        "cache_yes": "Aktiverad",
+        "cache_no": "Inaktiverad",
+        "buffer_duration": "Buffertlängd",
+        "max_cache_size": "Max cachestorlek",
+        "max_backward_cache": "Max bakåtcache"
       },
       "gesture_controls": {
         "gesture_controls_title": "Gestkontroller",
@@ -265,7 +278,23 @@
         "subtitle_font": "Typsnitt för undertexter",
         "ksplayer_title": "KSPlayer-inställningar",
         "hardware_decode": "Hårdvaruavkodning",
-        "hardware_decode_description": "Använd hårdvaruacceleration för videoavkodning. Inaktivera om du upplever uppspelningsproblem."
+        "hardware_decode_description": "Använd hårdvaruacceleration för videoavkodning. Inaktivera om du upplever uppspelningsproblem.",
+        "opensubtitles_title": "OpenSubtitles",
+        "opensubtitles_hint": "Ange din OpenSubtitles API-nyckel för att aktivera klientbaserad undertextsökning som reserv när din Jellyfin-server inte har en undertextleverantör konfigurerad.",
+        "opensubtitles_api_key": "API-nyckel",
+        "opensubtitles_api_key_placeholder": "Ange API-nyckel...",
+        "opensubtitles_get_key": "Skaffa din gratis API-nyckel på opensubtitles.com/en/consumers",
+        "mpv_subtitle_scale": "Undertextskala",
+        "mpv_subtitle_margin_y": "Vertikal marginal",
+        "mpv_subtitle_align_x": "Horisontell justering",
+        "mpv_subtitle_align_y": "Vertikal justering",
+        "align": {
+          "left": "Vänster",
+          "center": "Mitten",
+          "right": "Höger",
+          "top": "Toppen",
+          "bottom": "Botten"
+        }
       },
       "vlc_subtitles": {
         "title": "VLC undertextsinställningar",
@@ -501,6 +530,7 @@
     }
   },
   "common": {
+    "no_results": "Inga resultat",
     "select": "Välj",
     "no_trailer_available": "Ingen trailer tillgänglig",
     "video": "Video",
@@ -568,6 +598,7 @@
       "movies": "Filmer",
       "series": "Serier",
       "boxsets": "Box Set",
+      "playlists": "Spellistor",
       "items": "Artiklar"
     },
     "options": {
@@ -607,6 +638,7 @@
     "no_links": "Inga Länkar"
   },
   "player": {
+    "live": "LIVE",
     "error": "Fel",
     "failed_to_get_stream_url": "Kunde inte hämta stream-URL",
     "an_error_occured_while_playing_the_video": "Ett fel uppstod vid uppspelning av videon. Kontrollera loggarna i inställningarna.",
@@ -625,7 +657,14 @@
     "downloaded_file_yes": "Ja",
     "downloaded_file_no": "Nej",
     "downloaded_file_cancel": "Avbryt",
+    "swipe_down_settings": "Svep nedåt för inställningar",
+    "ends_at": "slutar",
+    "search_subtitles": "Sök undertexter",
+    "subtitle_tracks": "Spår",
+    "subtitle_search": "Sök & ladda ner",
     "download": "Ladda ner",
+    "subtitle_download_hint": "Nedladdade undertexter sparas i ditt bibliotek",
+    "using_jellyfin_server": "Använder Jellyfin-server",
     "language": "Språk",
     "results": "Resultat",
     "searching": "Söker...",
@@ -633,8 +672,9 @@
     "no_subtitle_provider": "Ingen undertextleverantör konfigurerad på servern",
     "no_subtitles_found": "Inga undertexter hittades",
     "add_opensubtitles_key_hint": "Lägg till OpenSubtitles API-nyckel i inställningar för klientsidesökning som reserv",
-    "ends_at": "slutar",
-    "settings": "Inställningar"
+    "settings": "Inställningar",
+    "skip_intro": "Hoppa över intro",
+    "skip_credits": "Hoppa över eftertexter"
   },
   "item_card": {
     "next_up": "Näst på tur",
@@ -683,7 +723,13 @@
       "download_x_item": "Ladda Ner {{item_count}} Objekt",
       "download_unwatched_only": "Endast Osedda",
       "download_button": "Ladda ner"
-    }
+    },
+    "mark_played": "Markera som sedd",
+    "mark_unplayed": "Markera som osedd",
+    "resume_playback": "Återuppta uppspelning",
+    "resume_playback_description": "Vill du fortsätta där du slutade eller börja om från början?",
+    "play_from_start": "Spela från början",
+    "continue_from": "Fortsätt från {{time}}"
   },
   "live_tv": {
     "next": "Nästa",
@@ -694,7 +740,18 @@
     "movies": "Filmer",
     "sports": "Sport",
     "for_kids": "För barn",
-    "news": "Nyheter"
+    "news": "Nyheter",
+    "page_of": "Sida {{current}} av {{total}}",
+    "no_programs": "Inga program tillgängliga",
+    "no_channels": "Inga kanaler tillgängliga",
+    "tabs": {
+      "programs": "Program",
+      "guide": "Guide",
+      "channels": "Kanaler",
+      "recordings": "Inspelningar",
+      "schedule": "Schema",
+      "series": "Serier"
+    }
   },
   "jellyseerr": {
     "confirm": "Bekräfta",
@@ -741,6 +798,10 @@
     "unknown_user": "Okänd användare",
     "select": "Välj",
     "request_all": "Begär alla",
+    "request_seasons": "Begär säsonger",
+    "select_seasons": "Välj säsonger",
+    "request_selected": "Begär valda",
+    "n_selected": "{{count}} valda",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Seerr-servern uppfyller inte minimikrav för version! Vänligen uppdatera till minst 2.0.0",
       "jellyseerr_test_failed": "Seerr test misslyckades. Försök igen.",
