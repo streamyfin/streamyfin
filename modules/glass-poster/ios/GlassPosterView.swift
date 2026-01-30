@@ -104,6 +104,8 @@ struct GlassPosterView: View {
             image
               .resizable()
               .aspectRatio(contentMode: .fill)
+              .frame(width: width, height: height)
+              .clipped()
           case .failure:
             placeholderView
           @unknown default:
