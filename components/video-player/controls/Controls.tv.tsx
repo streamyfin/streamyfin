@@ -45,6 +45,7 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
+import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
@@ -373,6 +374,21 @@ export const Controls: FC<Props> = ({
     progress,
     max,
     isSeeking,
+  });
+
+  // Chapter navigation hook
+  const {
+    hasChapters,
+    hasPreviousChapter,
+    hasNextChapter,
+    goToPreviousChapter,
+    goToNextChapter,
+    chapterPositions,
+  } = useChapterNavigation({
+    chapters: item.Chapters,
+    progress,
+    maxMs,
+    seek,
   });
 
   // Countdown logic - needs to be early so toggleControls can reference it
@@ -1038,23 +1054,44 @@ export const Controls: FC<Props> = ({
             <View
               style={[styles.progressBarContainer, styles.minimalProgressGlow]}
             >
-              <View style={[styles.progressTrack, styles.minimalProgressTrack]}>
-                <Animated.View
-                  style={[
-                    styles.cacheProgress,
-                    useAnimatedStyle(() => ({
-                      width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
-                    })),
-                  ]}
-                />
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    useAnimatedStyle(() => ({
-                      width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
-                    })),
-                  ]}
-                />
+              <View style={styles.minimalProgressTrackWrapper}>
+                <View
+                  style={[styles.progressTrack, styles.minimalProgressTrack]}
+                >
+                  <Animated.View
+                    style={[
+                      styles.cacheProgress,
+                      useAnimatedStyle(() => ({
+                        width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
+                      })),
+                    ]}
+                  />
+                  <Animated.View
+                    style={[
+                      styles.progressFill,
+                      useAnimatedStyle(() => ({
+                        width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
+                      })),
+                    ]}
+                  />
+                </View>
+                {/* Chapter markers */}
+                {chapterPositions.length > 0 && (
+                  <View
+                    style={styles.minimalChapterMarkersContainer}
+                    pointerEvents='none'
+                  >
+                    {chapterPositions.map((position, index) => (
+                      <View
+                        key={`minimal-chapter-marker-${index}`}
+                        style={[
+                          styles.minimalChapterMarker,
+                          { left: `${position}%` },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
           </View>
@@ -1135,6 +1172,14 @@ export const Controls: FC<Props> = ({
               disabled={!previousItem}
               size={28}
             />
+            {hasChapters && (
+              <TVControlButton
+                icon='play-back'
+                onPress={goToPreviousChapter}
+                disabled={!hasPreviousChapter}
+                size={24}
+              />
+            )}
             <TVControlButton
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
@@ -1146,6 +1191,14 @@ export const Controls: FC<Props> = ({
                 lastOpenedModal === null
               }
             />
+            {hasChapters && (
+              <TVControlButton
+                icon='play-forward'
+                onPress={goToNextChapter}
+                disabled={!hasNextChapter}
+                size={24}
+              />
+            )}
             <TVControlButton
               icon='play-skip-forward'
               onPress={handleNextItemButton}
@@ -1221,6 +1274,7 @@ export const Controls: FC<Props> = ({
               progress={effectiveProgress}
               max={max}
               cacheProgress={cacheProgress}
+              chapterPositions={chapterPositions}
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
@@ -1310,7 +1364,7 @@ const styles = StyleSheet.create({
   },
   trickplayBubbleContainer: {
     position: "absolute",
-    bottom: 170,
+    bottom: 190,
     left: 0,
     right: 0,
     zIndex: 20,
@@ -1391,5 +1445,25 @@ const styles = StyleSheet.create({
   minimalProgressTrack: {
     // Brighter track like focused state
     backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  minimalProgressTrackWrapper: {
+    position: "relative",
+    height: TV_SEEKBAR_HEIGHT,
+  },
+  minimalChapterMarkersContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  minimalChapterMarker: {
+    position: "absolute",
+    width: 2,
+    height: TV_SEEKBAR_HEIGHT + 5,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 1,
+    transform: [{ translateX: -1 }],
   },
 });

@@ -33,6 +33,7 @@ import { CONTROLS_CONSTANTS } from "./constants";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
+import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
@@ -209,6 +210,21 @@ export const Controls: FC<Props> = ({
     progress,
     max,
     isSeeking,
+  });
+
+  // Chapter navigation hook
+  const {
+    hasChapters,
+    hasPreviousChapter,
+    hasNextChapter,
+    goToPreviousChapter,
+    goToNextChapter,
+    chapterPositions,
+  } = useChapterNavigation({
+    chapters: item.Chapters,
+    progress,
+    maxMs,
+    seek,
   });
 
   const toggleControls = useCallback(() => {
@@ -526,6 +542,11 @@ export const Controls: FC<Props> = ({
               togglePlay={togglePlay}
               handleSkipBackward={handleSkipBackward}
               handleSkipForward={handleSkipForward}
+              hasChapters={hasChapters}
+              hasPreviousChapter={hasPreviousChapter}
+              hasNextChapter={hasNextChapter}
+              goToPreviousChapter={goToPreviousChapter}
+              goToNextChapter={goToNextChapter}
             />
           </Animated.View>
           <Animated.View
@@ -560,6 +581,7 @@ export const Controls: FC<Props> = ({
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
               time={isSliding || showRemoteBubble ? time : remoteTime}
+              chapterPositions={chapterPositions}
             />
           </Animated.View>
         </>

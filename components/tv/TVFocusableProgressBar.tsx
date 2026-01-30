@@ -19,6 +19,8 @@ export interface TVFocusableProgressBarProps {
   max: SharedValue<number>;
   /** Cache progress value (SharedValue) in milliseconds */
   cacheProgress?: SharedValue<number>;
+  /** Chapter positions as percentages (0-100) for tick marks */
+  chapterPositions?: number[];
   /** Callback when the progress bar receives focus */
   onFocus?: () => void;
   /** Callback when the progress bar loses focus */
@@ -41,6 +43,7 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
       progress,
       max,
       cacheProgress,
+      chapterPositions = [],
       onFocus,
       onBlur,
       refSetter,
@@ -81,20 +84,36 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
               focused && styles.animatedContainerFocused,
             ]}
           >
-            <View
-              style={[
-                styles.progressTrack,
-                focused && styles.progressTrackFocused,
-              ]}
-            >
-              {cacheProgress && (
+            <View style={styles.progressTrackWrapper}>
+              <View
+                style={[
+                  styles.progressTrack,
+                  focused && styles.progressTrackFocused,
+                ]}
+              >
+                {cacheProgress && (
+                  <ReanimatedView
+                    style={[styles.cacheProgress, cacheProgressStyle]}
+                  />
+                )}
                 <ReanimatedView
-                  style={[styles.cacheProgress, cacheProgressStyle]}
+                  style={[styles.progressFill, progressFillStyle]}
                 />
+              </View>
+              {/* Chapter markers - positioned outside track to extend above */}
+              {chapterPositions.length > 0 && (
+                <View
+                  style={styles.chapterMarkersContainer}
+                  pointerEvents='none'
+                >
+                  {chapterPositions.map((position, index) => (
+                    <View
+                      key={`chapter-marker-${index}`}
+                      style={[styles.chapterMarker, { left: `${position}%` }]}
+                    />
+                  ))}
+                </View>
               )}
-              <ReanimatedView
-                style={[styles.progressFill, progressFillStyle]}
-              />
             </View>
           </Animated.View>
         </Pressable>
@@ -121,6 +140,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 12,
   },
+  progressTrackWrapper: {
+    position: "relative",
+    height: PROGRESS_BAR_HEIGHT,
+  },
   progressTrack: {
     height: PROGRESS_BAR_HEIGHT,
     backgroundColor: "rgba(255,255,255,0.2)",
@@ -146,5 +169,21 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#fff",
     borderRadius: 8,
+  },
+  chapterMarkersContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  chapterMarker: {
+    position: "absolute",
+    width: 2,
+    height: PROGRESS_BAR_HEIGHT + 5,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 1,
+    transform: [{ translateX: -1 }],
   },
 });
