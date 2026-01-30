@@ -26,11 +26,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { Loader } from "@/components/Loader";
-import MoviePoster from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVItemCardText } from "@/components/tv/TVItemCardText";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -43,7 +41,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const HORIZONTAL_PADDING = 80;
 const TOP_PADDING = 140;
 const ACTOR_IMAGE_SIZE = 250;
-const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
 
 interface TVActorPageProps {
@@ -59,6 +56,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const from = (segments as string[])[2] || "(home)";
   const posterSizes = useScaledTVPosterSizes();
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
+  const ITEM_GAP = sizes.gaps.item;
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -243,19 +242,15 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const renderMovieItem = useCallback(
     ({ item: filmItem, index }: { item: BaseItemDto; index: number }) => (
       <View style={{ marginRight: ITEM_GAP }}>
-        <TVFocusablePoster
+        <TVPosterCard
+          item={filmItem}
+          orientation='vertical'
           onPress={() => handleItemPress(filmItem)}
           onLongPress={() => showItemActions(filmItem)}
           onFocus={() => setFocusedItem(filmItem)}
           hasTVPreferredFocus={index === 0}
-        >
-          <View>
-            <MoviePoster item={filmItem} />
-            <View style={{ width: posterSizes.poster }}>
-              <TVItemCardText item={filmItem} />
-            </View>
-          </View>
-        </TVFocusablePoster>
+          width={posterSizes.poster}
+        />
       </View>
     ),
     [handleItemPress, showItemActions, posterSizes.poster],
@@ -265,19 +260,15 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const renderSeriesItem = useCallback(
     ({ item: filmItem, index }: { item: BaseItemDto; index: number }) => (
       <View style={{ marginRight: ITEM_GAP }}>
-        <TVFocusablePoster
+        <TVPosterCard
+          item={filmItem}
+          orientation='vertical'
           onPress={() => handleItemPress(filmItem)}
           onLongPress={() => showItemActions(filmItem)}
           onFocus={() => setFocusedItem(filmItem)}
           hasTVPreferredFocus={movies.length === 0 && index === 0}
-        >
-          <View>
-            <SeriesPoster item={filmItem} />
-            <View style={{ width: posterSizes.poster }}>
-              <TVItemCardText item={filmItem} />
-            </View>
-          </View>
-        </TVFocusablePoster>
+          width={posterSizes.poster}
+        />
       </View>
     ),
     [handleItemPress, showItemActions, posterSizes.poster, movies.length],

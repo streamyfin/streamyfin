@@ -57,7 +57,7 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
             width: 56,
             height: 32,
             borderRadius: 16,
-            backgroundColor: value ? "#34C759" : "#4B5563",
+            backgroundColor: value ? "#FFFFFF" : "#4B5563",
             justifyContent: "center",
             paddingHorizontal: 2,
           }}
@@ -67,7 +67,7 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
               width: 28,
               height: 28,
               borderRadius: 14,
-              backgroundColor: "#FFFFFF",
+              backgroundColor: value ? "#000000" : "#FFFFFF",
               alignSelf: value ? "flex-end" : "flex-start",
             }}
           />

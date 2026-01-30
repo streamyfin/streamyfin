@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { type ScaledTVSizes, useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -36,9 +36,6 @@ import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById"
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const HERO_HEIGHT = SCREEN_HEIGHT * 0.62;
-const CARD_GAP = 24;
-const CARD_PADDING = 60;
 
 interface TVHeroCarouselProps {
   items: BaseItemDto[];
@@ -49,14 +46,14 @@ interface TVHeroCarouselProps {
 interface HeroCardProps {
   item: BaseItemDto;
   isFirst: boolean;
-  cardWidth: number;
+  sizes: ScaledTVSizes;
   onFocus: (item: BaseItemDto) => void;
   onPress: (item: BaseItemDto) => void;
   onLongPress?: (item: BaseItemDto) => void;
 }
 
 const HeroCard: React.FC<HeroCardProps> = React.memo(
-  ({ item, isFirst, cardWidth, onFocus, onPress, onLongPress }) => {
+  ({ item, isFirst, sizes, onFocus, onPress, onLongPress }) => {
     const api = useAtomValue(apiAtom);
     const [focused, setFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
@@ -87,8 +84,6 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       return null;
     }, [api, item]);
 
-    const progress = item.UserData?.PlayedPercentage || 0;
-
     const animateTo = useCallback(
       (value: number) =>
         Animated.timing(scale, {
@@ -102,9 +97,9 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
 
     const handleFocus = useCallback(() => {
       setFocused(true);
-      animateTo(1.1);
+      animateTo(sizes.animation.focusScale);
       onFocus(item);
-    }, [animateTo, onFocus, item]);
+    }, [animateTo, onFocus, item, sizes.animation.focusScale]);
 
     const handleBlur = useCallback(() => {
       setFocused(false);
@@ -120,7 +115,8 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     }, [onLongPress, item]);
 
     // Use glass poster for tvOS 26+
-    if (useGlass) {
+    if (useGlass && posterUrl) {
+      const progress = item.UserData?.PlayedPercentage || 0;
       return (
         <Pressable
           onPress={handlePress}
@@ -128,17 +124,17 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
           onFocus={handleFocus}
           onBlur={handleBlur}
           hasTVPreferredFocus={isFirst}
-          style={{ marginRight: CARD_GAP }}
+          style={{ marginRight: sizes.gaps.item }}
         >
           <GlassPosterView
             imageUrl={posterUrl}
             aspectRatio={16 / 9}
-            cornerRadius={16}
+            cornerRadius={24}
             progress={progress}
             showWatchedIndicator={false}
             isFocused={focused}
-            width={cardWidth}
-            style={{ width: cardWidth }}
+            width={sizes.posters.episode}
+            style={{ width: sizes.posters.episode }}
           />
         </Pressable>
       );
@@ -152,13 +148,13 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
         onFocus={handleFocus}
         onBlur={handleBlur}
         hasTVPreferredFocus={isFirst}
-        style={{ marginRight: CARD_GAP }}
+        style={{ marginRight: sizes.gaps.item }}
       >
         <Animated.View
           style={{
-            width: cardWidth,
+            width: sizes.posters.episode,
             aspectRatio: 16 / 9,
-            borderRadius: 16,
+            borderRadius: 24,
             overflow: "hidden",
             transform: [{ scale }],
             shadowColor: "#FFFFFF",
@@ -206,7 +202,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   onItemLongPress,
 }) => {
   const typography = useScaledTVTypography();
-  const posterSizes = useScaledTVPosterSizes();
+  const sizes = useScaledTVSizes();
   const api = useAtomValue(apiAtom);
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -365,13 +361,13 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       <HeroCard
         item={item}
         isFirst={index === 0}
-        cardWidth={posterSizes.heroCard}
+        sizes={sizes}
         onFocus={handleCardFocus}
         onPress={handleCardPress}
         onLongPress={onItemLongPress}
       />
     ),
-    [handleCardFocus, handleCardPress, onItemLongPress, posterSizes.heroCard],
+    [handleCardFocus, handleCardPress, onItemLongPress, sizes],
   );
 
   // Memoize keyExtractor
@@ -379,8 +375,10 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
 
   if (items.length === 0) return null;
 
+  const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
+
   return (
-    <View style={{ height: HERO_HEIGHT, width: "100%" }}>
+    <View style={{ height: heroHeight, width: "100%" }}>
       {/* Backdrop layers with crossfade */}
       <View
         style={{
@@ -469,8 +467,8 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       <View
         style={{
           position: "absolute",
-          left: insets.left + CARD_PADDING,
-          right: insets.right + CARD_PADDING,
+          left: insets.left + sizes.padding.horizontal,
+          right: insets.right + sizes.padding.horizontal,
           bottom: 40,
         }}
       >
@@ -624,7 +622,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           keyExtractor={keyExtractor}
           showsHorizontalScrollIndicator={false}
           style={{ overflow: "visible" }}
-          contentContainerStyle={{ paddingVertical: 12 }}
+          contentContainerStyle={{ paddingVertical: sizes.gaps.small }}
           renderItem={renderHeroCard}
           removeClippedSubviews={false}
           initialNumToRender={8}

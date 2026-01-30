@@ -151,7 +151,7 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
   const typography = useScaledTVTypography();
   const { jellyseerrApi } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.08 });
+    useTVFocusAnimation();
 
   const posterUrl = item.profilePath
     ? jellyseerrApi?.imageProxy(item.profilePath, "w185")

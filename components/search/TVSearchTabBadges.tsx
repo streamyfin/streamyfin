@@ -23,7 +23,7 @@ const TVSearchTabBadge: React.FC<TVSearchTabBadgeProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.08, duration: 150 });
+    useTVFocusAnimation({ duration: 150 });
 
   // Design language: white for focused/selected, transparent white for unfocused
   const getBackgroundColor = () => {

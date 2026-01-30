@@ -59,7 +59,7 @@ struct GlassPosterView: View {
     .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     .focusable()
     .focused($isInternallyFocused)
-    .scaleEffect(isCurrentlyFocused ? 1.08 : 1.0)
+    .scaleEffect(isCurrentlyFocused ? 1.05 : 1.0)
     .animation(.easeOut(duration: 0.15), value: isCurrentlyFocused)
   }
   #endif
@@ -87,7 +87,7 @@ struct GlassPosterView: View {
       }
     }
     .frame(width: width, height: height)
-    .scaleEffect(isFocused ? 1.08 : 1.0)
+    .scaleEffect(isFocused ? 1.05 : 1.0)
     .animation(.easeOut(duration: 0.15), value: isFocused)
   }
 

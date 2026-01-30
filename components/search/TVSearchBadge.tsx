@@ -17,7 +17,7 @@ export const TVSearchBadge: React.FC<TVSearchBadgeProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.08, duration: 150 });
+    useTVFocusAnimation({ duration: 150 });
 
   return (
     <Pressable
