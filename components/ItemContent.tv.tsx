@@ -17,7 +17,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Dimensions, ScrollView, View } from "react-native";
+import { Alert, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
@@ -54,7 +54,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
-import { runtimeTicksToMinutes } from "@/utils/time";
+import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -156,21 +156,59 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       defaultMediaSource,
     ]);
 
+    const navigateToPlayer = useCallback(
+      (playbackPosition: string) => {
+        if (!item || !selectedOptions) return;
+
+        const queryParams = new URLSearchParams({
+          itemId: item.Id!,
+          audioIndex: selectedOptions.audioIndex?.toString() ?? "",
+          subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
+          mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
+          bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+          playbackPosition,
+          offline: isOffline ? "true" : "false",
+        });
+
+        router.push(`/player/direct-player?${queryParams.toString()}`);
+      },
+      [item, selectedOptions, isOffline, router],
+    );
+
     const handlePlay = () => {
       if (!item || !selectedOptions) return;
 
-      const queryParams = new URLSearchParams({
-        itemId: item.Id!,
-        audioIndex: selectedOptions.audioIndex?.toString() ?? "",
-        subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
-        mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
-        bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
-        playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-        offline: isOffline ? "true" : "false",
-      });
+      const hasPlaybackProgress =
+        (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
 
-      router.push(`/player/direct-player?${queryParams.toString()}`);
+      if (hasPlaybackProgress) {
+        Alert.alert(
+          t("item_card.resume_playback"),
+          t("item_card.resume_playback_description"),
+          [
+            {
+              text: t("common.cancel"),
+              style: "cancel",
+            },
+            {
+              text: t("item_card.play_from_start"),
+              onPress: () => navigateToPlayer("0"),
+            },
+            {
+              text: t("item_card.continue_from", {
+                time: formatDuration(item.UserData?.PlaybackPositionTicks),
+              }),
+              onPress: () =>
+                navigateToPlayer(
+                  item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                ),
+              isPreferred: true,
+            },
+          ],
+        );
+      } else {
+        navigateToPlayer("0");
+      }
     };
 
     // TV Option Modal hook for quality, audio, media source selectors

@@ -1198,6 +1198,7 @@ export default function page() {
                   getTechnicalInfo={getTechnicalInfo}
                   playMethod={playMethod}
                   transcodeReasons={transcodeReasons}
+                  downloadedFiles={downloadedFiles}
                 />
               ) : (
                 <Controls

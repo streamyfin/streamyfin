@@ -671,7 +671,9 @@
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
-    "settings": "Settings"
+    "settings": "Settings",
+    "skip_intro": "Skip Intro",
+    "skip_credits": "Skip Credits"
   },
   "item_card": {
     "next_up": "Next Up",
@@ -722,7 +724,11 @@
       "download_button": "Download"
     },
     "mark_played": "Mark as Watched",
-    "mark_unplayed": "Mark as Unwatched"
+    "mark_unplayed": "Mark as Unwatched",
+    "resume_playback": "Resume Playback",
+    "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
+    "play_from_start": "Play from Start",
+    "continue_from": "Continue from {{time}}"
   },
   "live_tv": {
     "next": "Next",

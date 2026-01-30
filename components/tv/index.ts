@@ -53,6 +53,8 @@ export type { TVSeriesNavigationProps } from "./TVSeriesNavigation";
 export { TVSeriesNavigation } from "./TVSeriesNavigation";
 export type { TVSeriesSeasonCardProps } from "./TVSeriesSeasonCard";
 export { TVSeriesSeasonCard } from "./TVSeriesSeasonCard";
+export type { TVSkipSegmentCardProps } from "./TVSkipSegmentCard";
+export { TVSkipSegmentCard } from "./TVSkipSegmentCard";
 export type { TVSubtitleResultCardProps } from "./TVSubtitleResultCard";
 export { TVSubtitleResultCard } from "./TVSubtitleResultCard";
 export type { TVTabButtonProps } from "./TVTabButton";
