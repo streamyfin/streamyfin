@@ -9,7 +9,6 @@ const withTVUserManagement = (config) => {
     // The entitlement is needed for TVUserManager.currentUserIdentifier to work
     config.modResults["com.apple.developer.user-management"] = [
       "runs-as-current-user",
-      "get-current-user",
     ];
 
     console.log("[withTVUserManagement] Added user-management entitlement");
