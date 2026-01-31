@@ -21,16 +21,23 @@ if (Platform.OS === "ios" && Platform.isTV) {
 
 /**
  * Check if the native glass effect is available (tvOS 26+)
+ * NOTE: Glass effect is currently disabled for performance reasons.
+ * The native module rebuilds views on every focus change which causes lag.
+ * Re-enable by uncommenting the native module check below.
  */
 export function isGlassEffectAvailable(): boolean {
-  if (!GlassPosterNativeModule) {
-    return false;
-  }
-  try {
-    return GlassPosterNativeModule.isGlassEffectAvailable();
-  } catch {
-    return false;
-  }
+  // Glass effect disabled - using JS-based focus effects instead
+  return false;
+
+  // Original implementation (re-enable when glass effect is optimized):
+  // if (!GlassPosterNativeModule) {
+  //   return false;
+  // }
+  // try {
+  //   return GlassPosterNativeModule.isGlassEffectAvailable();
+  // } catch {
+  //   return false;
+  // }
 }
 
 export default GlassPosterNativeModule;

@@ -69,6 +69,8 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
           borderRadius: 24,
           overflow: "hidden",
           backgroundColor: "rgba(255,255,255,0.1)",
+          borderWidth: 2,
+          borderColor: focused ? "#FFFFFF" : "transparent",
         }}
       >
         {imageUrl ? (

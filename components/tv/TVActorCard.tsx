@@ -56,8 +56,8 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.1)",
               marginBottom: 14,
-              borderWidth: focused ? 3 : 0,
-              borderColor: "#fff",
+              borderWidth: 2,
+              borderColor: focused ? "#FFFFFF" : "transparent",
             }}
           >
             {imageUrl ? (

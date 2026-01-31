@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -134,26 +134,15 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
 
-  // Track focus within section for item focus/blur callbacks
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
-  const [_focusedCount, setFocusedCount] = useState(0);
 
+  // Pass through focus callbacks without tracking internal state
   const handleItemFocus = useCallback(
     (item: BaseItemDto) => {
-      setFocusedCount((c) => c + 1);
       onItemFocus?.(item);
     },
     [onItemFocus],
   );
-
-  const handleItemBlur = useCallback(() => {
-    setFocusedCount((c) => Math.max(0, c - 1));
-  }, []);
-
-  // Focus handler for See All card (doesn't need item parameter)
-  const handleSeeAllFocus = useCallback(() => {
-    setFocusedCount((c) => c + 1);
-  }, []);
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery({
@@ -234,7 +223,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             onLongPress={() => showItemActions(item)}
             hasTVPreferredFocus={isFirstItem}
             onFocus={() => handleItemFocus(item)}
-            onBlur={handleItemBlur}
             width={itemWidth}
           />
         </View>
@@ -247,7 +235,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       handleItemPress,
       showItemActions,
       handleItemFocus,
-      handleItemBlur,
       ITEM_GAP,
     ],
   );
@@ -370,8 +357,6 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                   onPress={handleSeeAllPress}
                   orientation={orientation}
                   disabled={disabled}
-                  onFocus={handleSeeAllFocus}
-                  onBlur={handleItemBlur}
                   typography={typography}
                   posterSizes={posterSizes}
                 />

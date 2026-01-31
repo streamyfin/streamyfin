@@ -1,5 +1,24 @@
 import SwiftUI
 
+/// Wrapper view that observes state changes from GlassPosterState
+/// This allows SwiftUI to efficiently update only the changed properties
+/// instead of rebuilding the entire view hierarchy on every prop change.
+struct GlassPosterViewWrapper: View {
+  @ObservedObject var state: GlassPosterState
+
+  var body: some View {
+    GlassPosterView(
+      imageUrl: state.imageUrl,
+      aspectRatio: state.aspectRatio,
+      cornerRadius: state.cornerRadius,
+      progress: state.progress,
+      showWatchedIndicator: state.showWatchedIndicator,
+      isFocused: state.isFocused,
+      width: state.width
+    )
+  }
+}
+
 /// SwiftUI view with tvOS 26 Liquid Glass effect
 struct GlassPosterView: View {
   var imageUrl: String? = nil
@@ -35,7 +54,7 @@ struct GlassPosterView: View {
     #endif
   }
 
-  // MARK: - tvOS 26+ Glass Effect
+  // MARK: - tvOS 26+ Content (glass effect disabled for now)
 
   #if os(tvOS)
   @available(tvOS 26.0, *)
@@ -44,6 +63,10 @@ struct GlassPosterView: View {
       // Image content
       imageContent
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+
+      // White border on focus
+      RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        .stroke(Color.white, lineWidth: isCurrentlyFocused ? 4 : 0)
 
       // Progress bar overlay
       if progress > 0 {
@@ -56,7 +79,6 @@ struct GlassPosterView: View {
       }
     }
     .frame(width: width, height: height)
-    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     .focusable()
     .focused($isInternallyFocused)
     .scaleEffect(isCurrentlyFocused ? 1.05 : 1.0)
@@ -72,9 +94,9 @@ struct GlassPosterView: View {
       imageContent
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
 
-      // Subtle overlay for depth
+      // White border on focus
       RoundedRectangle(cornerRadius: cornerRadius)
-        .fill(.ultraThinMaterial.opacity(0.15))
+        .stroke(Color.white, lineWidth: isFocused ? 4 : 0)
 
       // Progress bar overlay
       if progress > 0 {
