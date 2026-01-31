@@ -29,6 +29,7 @@ import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
   type AccountSecurityType,
+  addAccountToServer,
   addServerToList,
   deleteAccountCredential,
   getAccountCredential,
@@ -287,6 +288,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               savedAt: Date.now(),
               securityType,
               pinHash,
+              primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
             });
           }
 
@@ -400,6 +402,17 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         storage.set("token", credential.token);
         storage.set("user", JSON.stringify(response.data));
 
+        // Update account info (in case user changed their avatar)
+        if (response.data.PrimaryImageTag !== credential.primaryImageTag) {
+          addAccountToServer(serverUrl, credential.serverName, {
+            userId: credential.userId,
+            username: credential.username,
+            securityType: credential.securityType,
+            savedAt: credential.savedAt,
+            primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+          });
+        }
+
         // Refresh plugin settings
         await refreshStreamyfinPluginSettings();
       } catch (error) {
@@ -451,11 +464,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         storage.set("serverUrl", serverUrl);
         storage.set("token", auth.data.AccessToken);
 
-        // Update the saved credential with new token
+        // Update the saved credential with new token and image tag
         await updateAccountToken(
           serverUrl,
           auth.data.User.Id || "",
           auth.data.AccessToken,
+          auth.data.User.PrimaryImageTag ?? undefined,
         );
 
         // Refresh plugin settings
@@ -542,6 +556,19 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
                 username: storedUser.Name,
                 savedAt: Date.now(),
                 securityType: "none",
+                primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+              });
+            } else if (
+              response.data.PrimaryImageTag !==
+              existingCredential.primaryImageTag
+            ) {
+              // Update image tag if it has changed
+              addAccountToServer(serverUrl, existingCredential.serverName, {
+                userId: existingCredential.userId,
+                username: existingCredential.username,
+                securityType: existingCredential.securityType,
+                savedAt: existingCredential.savedAt,
+                primaryImageTag: response.data.PrimaryImageTag ?? undefined,
               });
             }
           }
