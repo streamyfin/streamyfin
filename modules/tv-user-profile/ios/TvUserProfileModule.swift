@@ -35,27 +35,6 @@ public class TvUserProfileModule: Module {
       #endif
     }
 
-    // Present the system user picker
-    AsyncFunction("presentUserPicker") { () -> Bool in
-      #if os(tvOS)
-      return await withCheckedContinuation { continuation in
-        DispatchQueue.main.async {
-          self.userManager.presentProfilePreferencePanel { error in
-            if let error = error {
-              print("[TvUserProfile] Error presenting user picker: \(error)")
-              continuation.resume(returning: false)
-            } else {
-              print("[TvUserProfile] User picker presented, new ID: \(self.userManager.currentUserIdentifier ?? "nil")")
-              continuation.resume(returning: true)
-            }
-          }
-        }
-      }
-      #else
-      return false
-      #endif
-    }
-
     OnCreate {
       #if os(tvOS)
       self.setupProfileObserver()
