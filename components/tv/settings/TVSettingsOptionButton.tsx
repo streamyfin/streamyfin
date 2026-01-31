@@ -47,6 +47,7 @@ export const TVSettingsOptionButton: React.FC<TVSettingsOptionButtonProps> = ({
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
+            opacity: disabled ? 0.4 : 1,
           },
         ]}
       >

@@ -65,3 +65,6 @@ export { TVThemeMusicIndicator } from "./TVThemeMusicIndicator";
 // Subtitle sheet components
 export type { TVTrackCardProps } from "./TVTrackCard";
 export { TVTrackCard } from "./TVTrackCard";
+// User switching
+export type { TVUserCardProps } from "./TVUserCard";
+export { TVUserCard } from "./TVUserCard";

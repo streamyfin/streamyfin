@@ -389,6 +389,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const response = await getUserApi(apiInstance).getCurrentUser();
 
+        // Clear React Query cache to prevent data from previous account lingering
+        queryClient.clear();
+        storage.remove("REACT_QUERY_OFFLINE_CACHE");
+
         // Token is valid, update state
         setApi(apiInstance);
         setUser(response.data);
@@ -437,6 +441,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const auth = await apiInstance.authenticateUserByName(username, password);
 
       if (auth.data.AccessToken && auth.data.User) {
+        // Clear React Query cache to prevent data from previous account lingering
+        queryClient.clear();
+        storage.remove("REACT_QUERY_OFFLINE_CACHE");
+
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));
         setApi(jellyfin.createApi(serverUrl, auth.data.AccessToken));
