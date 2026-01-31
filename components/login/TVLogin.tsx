@@ -390,12 +390,28 @@ export const TVLogin: React.FC = () => {
     pinCode?: string,
   ) => {
     setShowSaveModal(false);
-    if (pendingLogin) {
-      await performLogin(pendingLogin.username, pendingLogin.password, {
-        saveAccount: true,
-        securityType,
-        pinCode,
-      });
+
+    if (pendingLogin && currentServer) {
+      setLoading(true);
+      try {
+        await login(pendingLogin.username, pendingLogin.password, serverName, {
+          saveAccount: true,
+          securityType,
+          pinCode,
+        });
+      } catch (error) {
+        if (error instanceof Error) {
+          Alert.alert(t("login.connection_failed"), error.message);
+        } else {
+          Alert.alert(
+            t("login.connection_failed"),
+            t("login.an_unexpected_error_occured"),
+          );
+        }
+      } finally {
+        setLoading(false);
+        setPendingLogin(null);
+      }
     }
   };
 
