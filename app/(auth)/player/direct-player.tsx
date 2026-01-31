@@ -57,8 +57,8 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
-import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { generateDeviceProfile } from "../../../utils/profiles/native";
 
 export default function page() {
   const videoRef = useRef<MpvPlayerViewRef>(null);

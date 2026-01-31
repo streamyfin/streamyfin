@@ -7,22 +7,24 @@ import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
 import { getSubtitleProfiles } from "./subtitles";
 
-/**
- * @typedef {"ios" | "android"} PlatformType
- * @typedef {"mpv"} PlayerType
- * @typedef {"auto" | "stereo" | "5.1" | "passthrough"} AudioTranscodeModeType
- *
- * @typedef {Object} ProfileOptions
- * @property {PlatformType} [platform] - Target platform
- * @property {PlayerType} [player] - Video player being used (MPV only)
- * @property {AudioTranscodeModeType} [audioMode] - Audio transcoding mode
- */
+export type PlatformType = "ios" | "android";
+export type PlayerType = "mpv";
+export type AudioTranscodeModeType = "auto" | "stereo" | "5.1" | "passthrough";
+
+export interface ProfileOptions {
+  /** Target platform */
+  platform?: PlatformType;
+  /** Video player being used */
+  player?: PlayerType;
+  /** Audio transcoding mode */
+  audioMode?: AudioTranscodeModeType;
+}
 
 /**
  * Audio direct play profiles for standalone audio items in MPV player.
  * These define which audio file formats can be played directly without transcoding.
  */
-const getAudioDirectPlayProfile = (platform) => {
+const getAudioDirectPlayProfile = (platform: PlatformType) => {
   if (platform === "ios") {
     // iOS audio formats supported by MPV
     return {
@@ -44,7 +46,7 @@ const getAudioDirectPlayProfile = (platform) => {
  * Audio codec profiles for standalone audio items in MPV player.
  * These define codec constraints for audio file playback.
  */
-const getAudioCodecProfile = (platform) => {
+const getAudioCodecProfile = (platform: PlatformType) => {
   if (platform === "ios") {
     // iOS audio codec constraints for MPV
     return {
@@ -66,12 +68,11 @@ const getAudioCodecProfile = (platform) => {
  * MPV (via FFmpeg) can decode all audio codecs including TrueHD and DTS-HD MA.
  * The audioMode setting only controls the maximum channel count - MPV will
  * decode and downmix as needed.
- *
- * @param {PlatformType} platform
- * @param {AudioTranscodeModeType} audioMode
- * @returns {{ directPlayCodec: string, maxAudioChannels: string }}
  */
-const getVideoAudioCodecs = (platform, audioMode) => {
+const getVideoAudioCodecs = (
+  platform: PlatformType,
+  audioMode: AudioTranscodeModeType,
+): { directPlayCodec: string; maxAudioChannels: string } => {
   // Base codecs
   const baseCodecs = "aac,mp3,flac,opus,vorbis";
 
@@ -120,12 +121,9 @@ const getVideoAudioCodecs = (platform, audioMode) => {
 
 /**
  * Generates a device profile for Jellyfin playback.
- *
- * @param {ProfileOptions} [options] - Profile configuration options
- * @returns {Object} Jellyfin device profile
  */
-export const generateDeviceProfile = (options = {}) => {
-  const platform = options.platform || Platform.OS;
+export const generateDeviceProfile = (options: ProfileOptions = {}) => {
+  const platform = (options.platform || Platform.OS) as PlatformType;
   const audioMode = options.audioMode || "auto";
 
   const { directPlayCodec, maxAudioChannels } = getVideoAudioCodecs(
