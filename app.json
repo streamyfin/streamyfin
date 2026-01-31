@@ -76,6 +76,7 @@
       "expo-router",
       "expo-font",
       "./plugins/withExcludeMedia3Dash.js",
+      "./plugins/withTVUserManagement.js",
       [
         "expo-build-properties",
         {

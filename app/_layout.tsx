@@ -11,7 +11,6 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
-
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
