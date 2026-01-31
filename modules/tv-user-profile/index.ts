@@ -8,7 +8,6 @@ interface TvUserProfileModuleEvents {
 interface TvUserProfileModuleType {
   getCurrentProfileId(): string | null;
   isProfileSwitchingSupported(): boolean;
-  presentUserPicker(): Promise<boolean>;
   addListener<K extends keyof TvUserProfileModuleEvents>(
     eventName: K,
     listener: TvUserProfileModuleEvents[K],
@@ -78,26 +77,8 @@ export function addProfileChangeListener(
   return () => subscription.remove();
 }
 
-/**
- * Present the system user picker panel.
- * Returns true if successful, false otherwise.
- */
-export async function presentUserPicker(): Promise<boolean> {
-  if (!TvUserProfileModule) {
-    return false;
-  }
-
-  try {
-    return await TvUserProfileModule.presentUserPicker();
-  } catch (error) {
-    console.error("[TvUserProfile] Error presenting user picker:", error);
-    return false;
-  }
-}
-
 export default {
   getCurrentProfileId,
   isProfileSwitchingSupported,
   addProfileChangeListener,
-  presentUserPicker,
 };
