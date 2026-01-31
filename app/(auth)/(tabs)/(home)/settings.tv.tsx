@@ -24,6 +24,7 @@ import { APP_LANGUAGES } from "@/i18n";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
+  InactivityTimeout,
   type MpvCacheMode,
   TVTypographyScale,
   useSettings,
@@ -300,6 +301,57 @@ export default function SettingsTV() {
     [t, currentLanguage],
   );
 
+  // Inactivity timeout options (TV security feature)
+  const currentInactivityTimeout =
+    settings.inactivityTimeout ?? InactivityTimeout.Disabled;
+
+  const inactivityTimeoutOptions: TVOptionItem<InactivityTimeout>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.security.inactivity_timeout.disabled"),
+        value: InactivityTimeout.Disabled,
+        selected: currentInactivityTimeout === InactivityTimeout.Disabled,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.1_minute"),
+        value: InactivityTimeout.OneMinute,
+        selected: currentInactivityTimeout === InactivityTimeout.OneMinute,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.5_minutes"),
+        value: InactivityTimeout.FiveMinutes,
+        selected: currentInactivityTimeout === InactivityTimeout.FiveMinutes,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.15_minutes"),
+        value: InactivityTimeout.FifteenMinutes,
+        selected: currentInactivityTimeout === InactivityTimeout.FifteenMinutes,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.30_minutes"),
+        value: InactivityTimeout.ThirtyMinutes,
+        selected: currentInactivityTimeout === InactivityTimeout.ThirtyMinutes,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.1_hour"),
+        value: InactivityTimeout.OneHour,
+        selected: currentInactivityTimeout === InactivityTimeout.OneHour,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.4_hours"),
+        value: InactivityTimeout.FourHours,
+        selected: currentInactivityTimeout === InactivityTimeout.FourHours,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.24_hours"),
+        value: InactivityTimeout.TwentyFourHours,
+        selected:
+          currentInactivityTimeout === InactivityTimeout.TwentyFourHours,
+      },
+    ],
+    [t, currentInactivityTimeout],
+  );
+
   // Get display labels for option buttons
   const audioTranscodeLabel = useMemo(() => {
     const option = audioTranscodeModeOptions.find((o) => o.selected);
@@ -337,6 +389,13 @@ export default function SettingsTV() {
     return option?.label || t("home.settings.languages.system");
   }, [currentLanguage, t]);
 
+  const inactivityTimeoutLabel = useMemo(() => {
+    const option = inactivityTimeoutOptions.find((o) => o.selected);
+    return (
+      option?.label || t("home.settings.security.inactivity_timeout.disabled")
+    );
+  }, [inactivityTimeoutOptions, t]);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <View style={{ flex: 1 }}>
@@ -369,6 +428,21 @@ export default function SettingsTV() {
             onPress={handleSwitchUser}
             disabled={!hasOtherAccounts || isAnyModalOpen}
             isFirst
+          />
+
+          {/* Security Section */}
+          <TVSectionHeader title={t("home.settings.security.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.security.inactivity_timeout.title")}
+            value={inactivityTimeoutLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.security.inactivity_timeout.title"),
+                options: inactivityTimeoutOptions,
+                onSelect: (value) =>
+                  updateSettings({ inactivityTimeout: value }),
+              })
+            }
           />
 
           {/* Audio Section */}

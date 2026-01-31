@@ -481,6 +481,21 @@
         "error_deleting_files": "Error Deleting Files",
         "background_downloads_enabled": "Background downloads enabled",
         "background_downloads_disabled": "Background downloads disabled"
+      },
+      "security": {
+        "title": "Security",
+        "inactivity_timeout": {
+          "title": "Inactivity Timeout",
+          "description": "Auto logout after inactivity",
+          "disabled": "Disabled",
+          "1_minute": "1 minute",
+          "5_minutes": "5 minutes",
+          "15_minutes": "15 minutes",
+          "30_minutes": "30 minutes",
+          "1_hour": "1 hour",
+          "4_hours": "4 hours",
+          "24_hours": "24 hours"
+        }
       }
     },
     "sessions": {
