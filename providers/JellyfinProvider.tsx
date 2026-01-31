@@ -66,6 +66,7 @@ interface JellyfinContextValue {
   ) => Promise<void>;
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
+  stopQuickConnectPolling: () => void;
   loginWithSavedCredential: (
     serverUrl: string,
     userId: string,
@@ -148,6 +149,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [api, deviceId, headers]);
 
+  const stopQuickConnectPolling = useCallback(() => {
+    setIsPolling(false);
+    setSecret(null);
+  }, []);
+
   const pollQuickConnect = useCallback(async () => {
     if (!api || !secret || !jellyfin) return;
 
@@ -180,10 +186,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
       return false;
     } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 400) {
-        setIsPolling(false);
-        setSecret(null);
-        throw new Error("The code has expired. Please try again.");
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 400 || error.response?.status === 404) {
+          setIsPolling(false);
+          setSecret(null);
+          if (error.response?.status === 400) {
+            throw new Error("The code has expired. Please try again.");
+          }
+          return false;
+        }
       }
       console.error("Error polling Quick Connect:", error);
       throw error;
@@ -591,6 +602,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       loginMutation.mutateAsync({ username, password, serverName, options }),
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
+    stopQuickConnectPolling,
     loginWithSavedCredential: (serverUrl, userId) =>
       loginWithSavedCredentialMutation.mutateAsync({ serverUrl, userId }),
     loginWithPassword: (serverUrl, username, password) =>
