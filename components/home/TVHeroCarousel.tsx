@@ -157,6 +157,8 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
             borderRadius: 24,
             overflow: "hidden",
             transform: [{ scale }],
+            borderWidth: 2,
+            borderColor: focused ? "#FFFFFF" : "transparent",
             shadowColor: "#FFFFFF",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,

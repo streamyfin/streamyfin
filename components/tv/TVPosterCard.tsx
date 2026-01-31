@@ -397,6 +397,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             aspectRatio,
             borderRadius: 24,
             backgroundColor: "#1a1a1a",
+            borderWidth: 2,
+            borderColor: focused ? "#FFFFFF" : "transparent",
           }}
         />
       );
@@ -432,6 +434,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           borderRadius: 24,
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
+          borderWidth: 2,
+          borderColor: focused ? "#FFFFFF" : "transparent",
         }}
       >
         <Image
