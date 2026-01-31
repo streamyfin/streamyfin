@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
+import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVLogoutButton,
@@ -17,6 +19,7 @@ import {
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
 import { APP_LANGUAGES } from "@/i18n";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -25,21 +28,110 @@ import {
   TVTypographyScale,
   useSettings,
 } from "@/utils/atoms/settings";
+import {
+  getPreviousServers,
+  type SavedServer,
+  type SavedServerAccount,
+} from "@/utils/secureCredentials";
 
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
-  const { logout } = useJellyfin();
+  const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const { showOptions } = useTVOptionModal();
+  const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
     settings.openSubtitlesApiKey || "",
   );
+
+  // PIN/Password modal state for user switching
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [selectedServer, setSelectedServer] = useState<SavedServer | null>(
+    null,
+  );
+  const [selectedAccount, setSelectedAccount] =
+    useState<SavedServerAccount | null>(null);
+
+  // Track if any modal is open to disable background focus
+  const isAnyModalOpen = pinModalVisible || passwordModalVisible;
+
+  // Get current server and other accounts
+  const currentServer = useMemo(() => {
+    if (!api?.basePath) return null;
+    const servers = getPreviousServers();
+    return servers.find((s) => s.address === api.basePath) || null;
+  }, [api?.basePath]);
+
+  const otherAccounts = useMemo(() => {
+    if (!currentServer || !user?.Id) return [];
+    return currentServer.accounts.filter(
+      (account) => account.userId !== user.Id,
+    );
+  }, [currentServer, user?.Id]);
+
+  const hasOtherAccounts = otherAccounts.length > 0;
+
+  // Handle account selection from modal
+  const handleAccountSelect = (account: SavedServerAccount) => {
+    if (!currentServer) return;
+
+    if (account.securityType === "none") {
+      // Direct login with saved credential
+      loginWithSavedCredential(currentServer.address, account.userId);
+    } else if (account.securityType === "pin") {
+      // Show PIN modal
+      setSelectedServer(currentServer);
+      setSelectedAccount(account);
+      setPinModalVisible(true);
+    } else if (account.securityType === "password") {
+      // Show password modal
+      setSelectedServer(currentServer);
+      setSelectedAccount(account);
+      setPasswordModalVisible(true);
+    }
+  };
+
+  // Handle successful PIN entry
+  const handlePinSuccess = async () => {
+    setPinModalVisible(false);
+    if (selectedServer && selectedAccount) {
+      await loginWithSavedCredential(
+        selectedServer.address,
+        selectedAccount.userId,
+      );
+    }
+    setSelectedServer(null);
+    setSelectedAccount(null);
+  };
+
+  // Handle password submission
+  const handlePasswordSubmit = async (password: string) => {
+    if (selectedServer && selectedAccount) {
+      await loginWithPassword(
+        selectedServer.address,
+        selectedAccount.username,
+        password,
+      );
+    }
+    setPasswordModalVisible(false);
+    setSelectedServer(null);
+    setSelectedAccount(null);
+  };
+
+  // Handle switch user button press
+  const handleSwitchUser = () => {
+    if (!currentServer || !user?.Id) return;
+    showUserSwitchModal(currentServer, user.Id, {
+      onAccountSelect: handleAccountSelect,
+    });
+  };
 
   const currentAudioTranscode =
     settings.audioTranscodeMode || AudioTranscodeMode.Auto;
@@ -269,6 +361,16 @@ export default function SettingsTV() {
             {t("home.settings.settings_title")}
           </Text>
 
+          {/* Account Section */}
+          <TVSectionHeader title={t("home.settings.switch_user.account")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.switch_user.switch_user")}
+            value={user?.Name || "-"}
+            onPress={handleSwitchUser}
+            disabled={!hasOtherAccounts || isAnyModalOpen}
+            isFirst
+          />
+
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
           <TVSettingsOptionButton
@@ -282,7 +384,6 @@ export default function SettingsTV() {
                   updateSettings({ audioTranscodeMode: value }),
               })
             }
-            isFirst
           />
 
           {/* Subtitles Section */}
@@ -570,6 +671,37 @@ export default function SettingsTV() {
           </View>
         </ScrollView>
       </View>
+
+      {/* PIN Entry Modal */}
+      <TVPINEntryModal
+        visible={pinModalVisible}
+        onClose={() => {
+          setPinModalVisible(false);
+          setSelectedAccount(null);
+          setSelectedServer(null);
+        }}
+        onSuccess={handlePinSuccess}
+        onForgotPIN={() => {
+          setPinModalVisible(false);
+          setSelectedAccount(null);
+          setSelectedServer(null);
+        }}
+        serverUrl={selectedServer?.address || ""}
+        userId={selectedAccount?.userId || ""}
+        username={selectedAccount?.username || ""}
+      />
+
+      {/* Password Entry Modal */}
+      <TVPasswordEntryModal
+        visible={passwordModalVisible}
+        onClose={() => {
+          setPasswordModalVisible(false);
+          setSelectedAccount(null);
+          setSelectedServer(null);
+        }}
+        onSubmit={handlePasswordSubmit}
+        username={selectedAccount?.username || ""}
+      />
     </View>
   );
 }

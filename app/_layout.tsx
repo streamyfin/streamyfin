@@ -488,6 +488,14 @@ function Layout() {
                                     animation: "fade",
                                   }}
                                 />
+                                <Stack.Screen
+                                  name='(auth)/tv-user-switch-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
                               </Stack>
                               <Toaster
                                 duration={4000}

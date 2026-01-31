@@ -112,6 +112,12 @@
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log Out",
+      "switch_user": {
+        "title": "Switch User",
+        "account": "Account",
+        "switch_user": "Switch User",
+        "current": "current"
+      },
       "categories": {
         "title": "Categories"
       },
