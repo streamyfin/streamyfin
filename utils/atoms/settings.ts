@@ -154,6 +154,18 @@ export enum AudioTranscodeMode {
   AllowAll = "passthrough", // Direct play all audio formats
 }
 
+// Inactivity timeout for TV - auto logout after period of no activity
+export enum InactivityTimeout {
+  Disabled = 0,
+  OneMinute = 60000,
+  FiveMinutes = 300000,
+  FifteenMinutes = 900000,
+  ThirtyMinutes = 1800000,
+  OneHour = 3600000,
+  FourHours = 14400000,
+  TwentyFourHours = 86400000,
+}
+
 // MPV cache mode - controls how caching is enabled
 export type MpvCacheMode = "auto" | "yes" | "no";
 
@@ -234,6 +246,8 @@ export type Settings = {
   audioTranscodeMode: AudioTranscodeMode;
   // OpenSubtitles API key for client-side subtitle fetching
   openSubtitlesApiKey?: string;
+  // TV-only: Inactivity timeout for auto-logout
+  inactivityTimeout: InactivityTimeout;
 };
 
 export interface Lockable<T> {
@@ -329,6 +343,8 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // TV-only: Inactivity timeout (disabled by default)
+  inactivityTimeout: InactivityTimeout.Disabled,
 };
 
 const loadSettings = (): Partial<Settings> => {
