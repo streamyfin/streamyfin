@@ -558,8 +558,6 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 </Text>
               </TVFocusableButton>
 
-              <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />
-
               {seasons.length > 1 && (
                 <TVSeasonButton
                   seasonName={selectedSeasonName}
@@ -567,6 +565,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                   disabled={isSeasonModalVisible}
                 />
               )}
+
+              <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />
             </View>
           </View>
 
