@@ -5,8 +5,8 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import { generateDownloadProfile } from "@/utils/profiles/download";
-import type { AudioTranscodeModeType } from "@/utils/profiles/native";
+import { generateDownloadProfile } from "../../profiles/download";
+import type { AudioTranscodeModeType } from "../../profiles/native";
 
 interface StreamResult {
   url: string;

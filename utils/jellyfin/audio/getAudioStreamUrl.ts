@@ -1,7 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import trackPlayerProfile from "@/utils/profiles/trackplayer";
+import trackPlayerProfile from "../../profiles/trackplayer";
 
 export interface AudioStreamResult {
   url: string;
