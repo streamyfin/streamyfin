@@ -67,6 +67,7 @@ class MpvPlayerView: ExpoView {
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
+	private var appStateObserver: NSObjectProtocol?
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -114,6 +115,17 @@ class MpvPlayerView: ExpoView {
 		} catch {
 			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
 		}
+
+		// Pause playback when app enters background on tvOS
+		#if os(tvOS)
+		appStateObserver = NotificationCenter.default.addObserver(
+			forName: UIApplication.didEnterBackgroundNotification,
+			object: nil,
+			queue: .main
+		) { [weak self] _ in
+			self?.pause()
+		}
+		#endif
 	}
 
 	override func layoutSubviews() {
@@ -325,6 +337,9 @@ class MpvPlayerView: ExpoView {
 	}
 
 	deinit {
+		if let observer = appStateObserver {
+			NotificationCenter.default.removeObserver(observer)
+		}
 		#if os(tvOS)
 		resetDisplayCriteria()
 		#endif
