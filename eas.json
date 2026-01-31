@@ -81,6 +81,9 @@
       "channel": "0.52.0",
       "env": {
         "EXPO_TV": "1"
+      },
+      "ios": {
+        "credentialsSource": "local"
       }
     }
   },
