@@ -231,7 +231,12 @@ export default function page() {
             setDownloadedItem(data);
           }
         } else {
-          const res = await getUserLibraryApi(api!).getItem({
+          // Guard against api being null (e.g., during logout)
+          if (!api) {
+            setItemStatus({ isLoading: false, isError: false });
+            return;
+          }
+          const res = await getUserLibraryApi(api).getItem({
             itemId,
             userId: user?.Id,
           });
