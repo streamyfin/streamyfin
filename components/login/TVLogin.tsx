@@ -37,6 +37,7 @@ export const TVLogin: React.FC = () => {
     login,
     removeServer,
     initiateQuickConnect,
+    stopQuickConnectPolling,
     loginWithSavedCredential,
     loginWithPassword,
   } = useJellyfin();
@@ -113,6 +114,13 @@ export const TVLogin: React.FC = () => {
       }
     }
   }, []);
+
+  // Stop Quick Connect polling when leaving the login page
+  useEffect(() => {
+    return () => {
+      stopQuickConnectPolling();
+    };
+  }, [stopQuickConnectPolling]);
 
   // Auto login from URL params
   useEffect(() => {
