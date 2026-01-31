@@ -6,9 +6,9 @@ import type {
 
 export type TVAccountSelectModalState = {
   server: SavedServer;
-  onAccountSelect: (account: SavedServerAccount) => void;
+  onAccountAction: (account: SavedServerAccount) => void;
   onAddAccount: () => void;
-  onDeleteAccount: (account: SavedServerAccount) => void;
+  onDeleteServer: () => void;
 } | null;
 
 export const tvAccountSelectModalAtom = atom<TVAccountSelectModalState>(null);

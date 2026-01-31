@@ -168,7 +168,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - **TV Typography**: Use `TVTypography` from `@/components/tv/TVTypography` for all text on TV. It provides consistent font sizes optimized for TV viewing distance.
 - **TV Button Sizing**: Ensure buttons placed next to each other have the same size for visual consistency.
 - **TV Focus Scale Padding**: Add sufficient padding around focusable items in tables/rows/columns/lists. The focus scale animation (typically 1.05x) will clip against parent containers without proper padding. Use `overflow: "visible"` on containers and add padding to prevent clipping.
-- **TV Modals**: Never use overlay/absolute-positioned modals on TV as they don't handle the back button correctly. Instead, use the navigation-based modal pattern: create a Jotai atom for state, a hook that sets the atom and calls `router.push()`, and a page file in `app/(auth)/` that reads the atom and clears it on unmount. You must also add a `Stack.Screen` entry in `app/_layout.tsx` with `presentation: "transparentModal"` and `animation: "fade"` for the modal to render correctly as an overlay. See `useTVRequestModal` + `tv-request-modal.tsx` for reference.
+- **TV Modals**: Never use React Native's `Modal` component or overlay/absolute-positioned modals for full-screen modals on TV. Use the navigation-based modal pattern instead. **See [docs/tv-modal-guide.md](docs/tv-modal-guide.md) for detailed documentation.**
 
 ### TV Component Rendering Pattern
 
@@ -196,98 +196,9 @@ export default LoginPage;
 - TV components typically use `TVInput`, `TVServerCard`, and other TV-prefixed components with focus handling
 - **Never use `.tv.tsx` file suffix** - it will not be resolved correctly
 
-### TV Option Selector Pattern (Dropdowns/Multi-select)
+### TV Option Selectors and Focus Management
 
-For dropdown/select components on TV, use a **bottom sheet with horizontal scrolling**. This pattern is ideal for TV because:
-- Horizontal scrolling is natural for TV remotes (left/right D-pad)
-- Bottom sheet takes minimal screen space
-- Focus-based navigation works reliably
-
-**Key implementation details:**
-
-1. **Use absolute positioning instead of Modal** - React Native's `Modal` breaks the TV focus chain. Use an absolutely positioned `View` overlay instead:
-```typescript
-<View style={{
-  position: "absolute",
-  top: 0, left: 0, right: 0, bottom: 0,
-  backgroundColor: "rgba(0, 0, 0, 0.5)",
-  justifyContent: "flex-end",
-  zIndex: 1000,
-}}>
-  <BlurView intensity={80} tint="dark" style={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
-    {/* Content */}
-  </BlurView>
-</View>
-```
-
-2. **Horizontal ScrollView with focusable cards**:
-```typescript
-<ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  style={{ overflow: "visible" }}
-  contentContainerStyle={{ paddingHorizontal: 48, paddingVertical: 10, gap: 12 }}
->
-  {options.map((option, index) => (
-    <TVOptionCard
-      key={index}
-      hasTVPreferredFocus={index === selectedIndex}
-      onPress={() => { onSelect(option.value); onClose(); }}
-      // ...
-    />
-  ))}
-</ScrollView>
-```
-
-3. **Focus handling on cards** - Use `Pressable` with `onFocus`/`onBlur` and `hasTVPreferredFocus`:
-```typescript
-<Pressable
-  onPress={onPress}
-  onFocus={() => { setFocused(true); animateTo(1.05); }}
-  onBlur={() => { setFocused(false); animateTo(1); }}
-  hasTVPreferredFocus={hasTVPreferredFocus}
->
-  <Animated.View style={{ transform: [{ scale }], backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.08)" }}>
-    <Text style={{ color: focused ? "#000" : "#fff" }}>{label}</Text>
-  </Animated.View>
-</Pressable>
-```
-
-4. **Add padding for scale animations** - When items scale on focus, add enough padding (`overflow: "visible"` + `paddingVertical`) so scaled items don't clip.
-
-**Reference implementation**: See `TVOptionSelector` and `TVOptionCard` in `components/ItemContent.tv.tsx`
-
-### TV Focus Management for Overlays/Modals
-
-**CRITICAL**: When displaying overlays (bottom sheets, modals, dialogs) on TV, you must explicitly disable focus on all background elements. Without this, the TV focus engine will rapidly switch between overlay and background elements, causing a focus loop that freezes navigation.
-
-**Solution**: Add a `disabled` prop to every focusable component and pass `disabled={isModalOpen}` when an overlay is visible:
-
-```typescript
-// 1. Track modal state
-const [openModal, setOpenModal] = useState<ModalType | null>(null);
-const isModalOpen = openModal !== null;
-
-// 2. Each focusable component accepts disabled prop
-const TVFocusableButton: React.FC<{
-  onPress: () => void;
-  disabled?: boolean;
-}> = ({ onPress, disabled }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    focusable={!disabled}
-    hasTVPreferredFocus={isFirst && !disabled}
-  >
-    {/* content */}
-  </Pressable>
-);
-
-// 3. Pass disabled to all background components when modal is open
-<TVFocusableButton onPress={handlePress} disabled={isModalOpen} />
-```
-
-**Reference implementation**: See `settings.tv.tsx` for complete example with `TVSettingsOptionButton`, `TVSettingsToggle`, `TVSettingsStepper`, etc.
+For dropdown/select components, bottom sheets, and overlay focus management on TV, see [docs/tv-modal-guide.md](docs/tv-modal-guide.md).
 
 ### TV Focus Flickering Between Zones (Lists with Headers)
 

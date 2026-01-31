@@ -249,14 +249,16 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
             {/* Password Input */}
             {isReady && (
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>{t("login.password")}</Text>
+                <Text style={styles.inputLabel}>
+                  {t("login.password_placeholder")}
+                </Text>
                 <TVPasswordInput
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
                     setError(null);
                   }}
-                  placeholder={t("login.password")}
+                  placeholder={t("login.password_placeholder")}
                   onSubmitEditing={handleSubmit}
                   hasTVPreferredFocus
                 />

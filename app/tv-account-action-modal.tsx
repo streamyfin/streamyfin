@@ -13,11 +13,11 @@ import {
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { tvServerActionModalAtom } from "@/utils/atoms/tvServerActionModal";
+import { tvAccountActionModalAtom } from "@/utils/atoms/tvAccountActionModal";
 import { store } from "@/utils/store";
 
 // Action card component
-const TVServerActionCard: React.FC<{
+const TVAccountActionCard: React.FC<{
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   variant?: "default" | "destructive";
@@ -54,8 +54,8 @@ const TVServerActionCard: React.FC<{
       <Animated.View
         style={{
           transform: [{ scale }],
-          width: 180,
-          height: 90,
+          flexDirection: "row",
+          height: 60,
           backgroundColor: focused
             ? isDestructive
               ? "#ef4444"
@@ -66,13 +66,13 @@ const TVServerActionCard: React.FC<{
           borderRadius: 14,
           justifyContent: "center",
           alignItems: "center",
-          paddingHorizontal: 12,
-          gap: 8,
+          paddingHorizontal: 24,
+          gap: 12,
         }}
       >
         <Ionicons
           name={icon}
-          size={28}
+          size={22}
           color={
             focused
               ? isDestructive
@@ -94,7 +94,6 @@ const TVServerActionCard: React.FC<{
                 ? "#ef4444"
                 : "#fff",
             fontWeight: "600",
-            textAlign: "center",
           }}
           numberOfLines={1}
         >
@@ -105,10 +104,10 @@ const TVServerActionCard: React.FC<{
   );
 };
 
-export default function TVServerActionModalPage() {
+export default function TVAccountActionModalPage() {
   const typography = useScaledTVTypography();
   const router = useRouter();
-  const modalState = useAtomValue(tvServerActionModalAtom);
+  const modalState = useAtomValue(tvAccountActionModalAtom);
   const { t } = useTranslation();
 
   const [isReady, setIsReady] = useState(false);
@@ -138,7 +137,7 @@ export default function TVServerActionModalPage() {
     const timer = setTimeout(() => setIsReady(true), 100);
     return () => {
       clearTimeout(timer);
-      store.set(tvServerActionModalAtom, null);
+      store.set(tvAccountActionModalAtom, null);
     };
   }, [overlayOpacity, sheetTranslateY]);
 
@@ -149,10 +148,6 @@ export default function TVServerActionModalPage() {
 
   const handleDelete = () => {
     modalState?.onDelete();
-    router.back();
-  };
-
-  const handleClose = () => {
     router.back();
   };
 
@@ -196,16 +191,27 @@ export default function TVServerActionModalPage() {
               overflow: "visible",
             }}
           >
-            {/* Title */}
+            {/* Account username as title */}
+            <Text
+              style={{
+                fontSize: typography.heading,
+                fontWeight: "600",
+                color: "#FFFFFF",
+                marginBottom: 4,
+                paddingHorizontal: 48,
+              }}
+            >
+              {modalState.account.username}
+            </Text>
+
+            {/* Server name as subtitle */}
             <Text
               style={{
                 fontSize: typography.callout,
                 fontWeight: "500",
                 color: "rgba(255,255,255,0.6)",
-                marginBottom: 8,
+                marginBottom: 16,
                 paddingHorizontal: 48,
-                textTransform: "uppercase",
-                letterSpacing: 1,
               }}
             >
               {modalState.server.name || modalState.server.address}
@@ -223,22 +229,17 @@ export default function TVServerActionModalPage() {
                   gap: 12,
                 }}
               >
-                <TVServerActionCard
+                <TVAccountActionCard
                   label={t("common.login")}
                   icon='log-in-outline'
                   hasTVPreferredFocus
                   onPress={handleLogin}
                 />
-                <TVServerActionCard
+                <TVAccountActionCard
                   label={t("common.delete")}
                   icon='trash-outline'
                   variant='destructive'
                   onPress={handleDelete}
-                />
-                <TVServerActionCard
-                  label={t("common.cancel")}
-                  icon='close-outline'
-                  onPress={handleClose}
                 />
               </ScrollView>
             )}

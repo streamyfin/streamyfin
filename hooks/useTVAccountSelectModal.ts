@@ -9,9 +9,9 @@ import { store } from "@/utils/store";
 
 interface ShowAccountSelectModalParams {
   server: SavedServer;
-  onAccountSelect: (account: SavedServerAccount) => void;
+  onAccountAction: (account: SavedServerAccount) => void;
   onAddAccount: () => void;
-  onDeleteAccount: (account: SavedServerAccount) => void;
+  onDeleteServer: () => void;
 }
 
 export const useTVAccountSelectModal = () => {
@@ -21,9 +21,9 @@ export const useTVAccountSelectModal = () => {
     (params: ShowAccountSelectModalParams) => {
       store.set(tvAccountSelectModalAtom, {
         server: params.server,
-        onAccountSelect: params.onAccountSelect,
+        onAccountAction: params.onAccountAction,
         onAddAccount: params.onAddAccount,
-        onDeleteAccount: params.onDeleteAccount,
+        onDeleteServer: params.onDeleteServer,
       });
       router.push("/tv-account-select-modal");
     },
