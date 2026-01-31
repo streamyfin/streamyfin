@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import { Image } from "expo-image";
+import React, { useState } from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { getUserImageUrl } from "@/utils/jellyfin/image/getUserImageUrl";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 
 export interface TVUserIconProps {
@@ -12,16 +14,29 @@ export interface TVUserIconProps {
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
   disabled?: boolean;
+  serverAddress?: string;
+  userId?: string;
+  primaryImageTag?: string;
 }
 
 export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
   (
-    { username, securityType, onPress, hasTVPreferredFocus, disabled = false },
+    {
+      username,
+      securityType,
+      onPress,
+      hasTVPreferredFocus,
+      disabled = false,
+      serverAddress,
+      userId,
+      primaryImageTag,
+    },
     ref,
   ) => {
     const typography = useScaledTVTypography();
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation();
+    const [imageError, setImageError] = useState(false);
 
     const getSecurityIcon = (): keyof typeof Ionicons.glyphMap => {
       switch (securityType) {
@@ -35,6 +50,16 @@ export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
     };
 
     const hasSecurityProtection = securityType !== "none";
+
+    const imageUrl =
+      serverAddress && userId && primaryImageTag && !imageError
+        ? getUserImageUrl({
+            serverAddress,
+            userId,
+            primaryImageTag,
+            width: 280,
+          })
+        : null;
 
     return (
       <Pressable
@@ -52,6 +77,7 @@ export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
             {
               alignItems: "center",
               width: 160,
+              overflow: "visible",
               shadowColor: "#fff",
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: focused ? 0.5 : 0,
@@ -76,13 +102,22 @@ export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
                 alignItems: "center",
               }}
             >
-              <Ionicons
-                name='person'
-                size={56}
-                color={
-                  focused ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)"
-                }
-              />
+              {imageUrl ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: 140, height: 140 }}
+                  contentFit='cover'
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <Ionicons
+                  name='person'
+                  size={56}
+                  color={
+                    focused ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)"
+                  }
+                />
+              )}
             </View>
 
             {/* Security badge */}

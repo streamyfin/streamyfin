@@ -1,6 +1,6 @@
 import { t } from "i18next";
-import React from "react";
-import { ScrollView, View } from "react-native";
+import React, { useEffect } from "react";
+import { BackHandler, Platform, ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import type {
@@ -19,6 +19,18 @@ interface TVUserSelectionScreenProps {
   disabled?: boolean;
 }
 
+// TV event handler with fallback for non-TV platforms
+let useTVEventHandler: (callback: (evt: any) => void) => void;
+if (Platform.isTV) {
+  try {
+    useTVEventHandler = require("react-native").useTVEventHandler;
+  } catch {
+    useTVEventHandler = () => {};
+  }
+} else {
+  useTVEventHandler = () => {};
+}
+
 export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
   server,
   onUserSelect,
@@ -30,6 +42,32 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
 
   const accounts = server.accounts || [];
   const hasAccounts = accounts.length > 0;
+
+  // Handle TV remote back/menu button
+  useTVEventHandler((evt) => {
+    if (!evt || disabled) return;
+    if (evt.eventType === "menu" || evt.eventType === "back") {
+      onChangeServer();
+    }
+  });
+
+  // Handle Android TV back button
+  useEffect(() => {
+    if (!Platform.isTV) return;
+
+    const handleBackPress = () => {
+      if (disabled) return false;
+      onChangeServer();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [onChangeServer, disabled]);
 
   return (
     <ScrollView
@@ -113,6 +151,9 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
               onPress={() => onUserSelect(account)}
               hasTVPreferredFocus={index === 0}
               disabled={disabled}
+              serverAddress={server.address}
+              userId={account.userId}
+              primaryImageTag={account.primaryImageTag}
             />
           ))}
 
