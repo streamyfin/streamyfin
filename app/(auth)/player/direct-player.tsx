@@ -45,8 +45,8 @@ import {
 } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
+import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
 import { useSettings } from "@/utils/atoms/settings";
@@ -104,6 +104,9 @@ export default function page() {
   // Call directly instead of useMemo - the function reference doesn't change
   // when data updates, only when the provider initializes
   const downloadedFiles = downloadUtils.getDownloadedItems();
+
+  // Inactivity timer controls (TV only)
+  const { pauseInactivityTimer, resumeInactivityTimer } = useInactivity();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -421,7 +424,9 @@ export default function page() {
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     revalidateProgressCache();
-  }, [videoRef, reportPlaybackStopped, progress]);
+    // Resume inactivity timer when leaving player (TV only)
+    resumeInactivityTimer();
+  }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
 
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
@@ -729,6 +734,8 @@ export default function page() {
         setIsPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
+        // Pause inactivity timer during playback (TV only)
+        pauseInactivityTimer();
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -740,6 +747,8 @@ export default function page() {
 
       if (isPaused) {
         setIsPlaying(false);
+        // Resume inactivity timer when paused (TV only)
+        resumeInactivityTimer();
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -753,7 +762,13 @@ export default function page() {
         setIsBuffering(isLoading);
       }
     },
-    [playbackManager, item?.Id, progress],
+    [
+      playbackManager,
+      item?.Id,
+      progress,
+      pauseInactivityTimer,
+      resumeInactivityTimer,
+    ],
   );
 
   /** PiP handler for MPV */

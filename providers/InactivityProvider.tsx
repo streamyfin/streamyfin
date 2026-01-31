@@ -16,6 +16,8 @@ const INACTIVITY_LAST_ACTIVITY_KEY = "INACTIVITY_LAST_ACTIVITY";
 
 interface InactivityContextValue {
   resetInactivityTimer: () => void;
+  pauseInactivityTimer: () => void;
+  resumeInactivityTimer: () => void;
 }
 
 const InactivityContext = createContext<InactivityContextValue | undefined>(
@@ -29,6 +31,7 @@ const InactivityContext = createContext<InactivityContextValue | undefined>(
  * Features:
  * - Tracks last activity timestamp (persisted to MMKV)
  * - Resets timer on any focus change (via resetInactivityTimer)
+ * - Pauses timer during video playback (via pauseInactivityTimer/resumeInactivityTimer)
  * - Handles app backgrounding: logs out immediately if timeout exceeded while away
  * - No-op on mobile platforms
  */
@@ -39,6 +42,7 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   const { logout } = useJellyfin();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const isPausedRef = useRef(false);
 
   const timeoutMs = settings.inactivityTimeout ?? InactivityTimeout.Disabled;
   const isEnabled = Platform.isTV && timeoutMs > 0;
@@ -61,7 +65,7 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
 
   const startTimer = useCallback(
     (remainingMs?: number) => {
-      if (!isEnabled) return;
+      if (!isEnabled || isPausedRef.current) return;
 
       clearTimer();
 
@@ -75,8 +79,25 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
   );
 
   const resetInactivityTimer = useCallback(() => {
+    if (!isEnabled || isPausedRef.current) return;
+
+    updateLastActivity();
+    startTimer();
+  }, [isEnabled, updateLastActivity, startTimer]);
+
+  const pauseInactivityTimer = useCallback(() => {
     if (!isEnabled) return;
 
+    isPausedRef.current = true;
+    clearTimer();
+    // Update last activity so when we resume, we start fresh
+    updateLastActivity();
+  }, [isEnabled, clearTimer, updateLastActivity]);
+
+  const resumeInactivityTimer = useCallback(() => {
+    if (!isEnabled) return;
+
+    isPausedRef.current = false;
     updateLastActivity();
     startTimer();
   }, [isEnabled, updateLastActivity, startTimer]);
@@ -92,7 +113,14 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
       const isNowActive = nextAppState === "active";
 
       if (wasBackground && isNowActive) {
-        // App returned to foreground - check if timeout exceeded
+        // App returned to foreground
+        // If paused (e.g., video playing), don't check timeout
+        if (isPausedRef.current) {
+          appStateRef.current = nextAppState;
+          return;
+        }
+
+        // Check if timeout exceeded
         const lastActivity = getLastActivity();
         const elapsed = Date.now() - lastActivity;
 
@@ -130,6 +158,9 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
+    // Don't start timer if paused
+    if (isPausedRef.current) return;
+
     // Check if we should logout based on last activity
     const lastActivity = getLastActivity();
     const elapsed = Date.now() - lastActivity;
@@ -151,7 +182,7 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
 
   // Reset activity on initial mount when enabled
   useEffect(() => {
-    if (isEnabled) {
+    if (isEnabled && !isPausedRef.current) {
       updateLastActivity();
       startTimer();
     }
@@ -159,6 +190,8 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
 
   const contextValue: InactivityContextValue = {
     resetInactivityTimer,
+    pauseInactivityTimer,
+    resumeInactivityTimer,
   };
 
   return (
@@ -169,16 +202,18 @@ export const InactivityProvider: React.FC<{ children: ReactNode }> = ({
 };
 
 /**
- * Hook to access the inactivity reset function.
- * Returns a no-op function if not within the provider (safe on mobile).
+ * Hook to access the inactivity timer controls.
+ * Returns no-op functions if not within the provider (safe on mobile).
  */
 export const useInactivity = (): InactivityContextValue => {
   const context = useContext(InactivityContext);
 
-  // Return a no-op if not within provider (e.g., on mobile)
+  // Return no-ops if not within provider (e.g., on mobile)
   if (!context) {
     return {
       resetInactivityTimer: () => {},
+      pauseInactivityTimer: () => {},
+      resumeInactivityTimer: () => {},
     };
   }
 
