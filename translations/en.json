@@ -4,6 +4,9 @@
     "error_title": "Error",
     "login_title": "Log In",
     "login_to_title": "Log in to",
+    "select_user": "Select a user to log in",
+    "add_user_to_login": "Add a user to log in",
+    "add_user": "Add User",
     "username_placeholder": "Username",
     "password_placeholder": "Password",
     "login_button": "Log In",
@@ -44,7 +47,11 @@
     "add_account": "Add Account",
     "remove_account_description": "This will remove the saved credentials for {{username}}.",
     "remove_server": "Remove Server",
-    "remove_server_description": "This will remove {{server}} and all saved accounts from your list."
+    "remove_server_description": "This will remove {{server}} and all saved accounts from your list.",
+    "select_your_server": "Select Your Server",
+    "add_server_to_get_started": "Add a server to get started",
+    "add_server": "Add Server",
+    "change_server": "Change Server"
   },
   "save_account": {
     "title": "Save Account",
@@ -115,7 +122,7 @@
       "switch_user": {
         "title": "Switch User",
         "account": "Account",
-        "switch_user": "Switch User",
+        "switch_user": "Switch User on This Server",
         "current": "current"
       },
       "categories": {

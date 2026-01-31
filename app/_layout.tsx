@@ -473,7 +473,7 @@ function Layout() {
                                   }}
                                 />
                                 <Stack.Screen
-                                  name='tv-server-action-modal'
+                                  name='tv-account-action-modal'
                                   options={{
                                     headerShown: false,
                                     presentation: "transparentModal",
