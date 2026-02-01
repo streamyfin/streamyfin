@@ -568,6 +568,7 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -701,7 +702,10 @@
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
     "settings": "Settings",
     "skip_intro": "Skip Intro",
-    "skip_credits": "Skip Credits"
+    "skip_credits": "Skip Credits",
+    "stopPlayback": "Stop Playback",
+    "stopPlayingTitle": "Stop playing \"{{title}}\"?",
+    "stopPlayingConfirm": "Are you sure you want to stop playback?"
   },
   "item_card": {
     "next_up": "Next Up",
