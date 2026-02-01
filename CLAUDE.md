@@ -95,6 +95,7 @@ bun run ios:install-metal-toolchain  # Fix "missing Metal Toolchain" build error
 **State Management**:
 - Global state uses Jotai atoms in `utils/atoms/`
 - `settingsAtom` in `utils/atoms/settings.ts` for app settings
+  - **IMPORTANT**: When adding a setting to the settings atom, ensure it's toggleable in the settings view (either TV or mobile, depending on the feature scope)
 - `apiAtom` and `userAtom` in `providers/JellyfinProvider.tsx` for auth state
 - Server state uses React Query with `@tanstack/react-query`
 
@@ -158,6 +159,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 - Handle both mobile and TV navigation patterns
 - Use existing atoms, hooks, and utilities before creating new ones
 - Use Conventional Commits: `feat(scope):`, `fix(scope):`, `chore(scope):`
+- **Translations**: When adding a translation key to a Text component, ensure the key exists in both `translations/en.json` and `translations/sv.json`. Before adding new keys, check if an existing key already covers the use case.
 
 ## Platform Considerations
 
