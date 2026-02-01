@@ -1,12 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { type FC, useEffect, useRef } from "react";
+import type { FC } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Pressable,
-  Animated as RNAnimated,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Pressable, Animated as RNAnimated, StyleSheet } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -20,8 +16,6 @@ export interface TVSkipSegmentCardProps {
   show: boolean;
   onPress: () => void;
   type: "intro" | "credits";
-  /** Whether this card should capture focus when visible */
-  hasFocus?: boolean;
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
 }
@@ -34,29 +28,14 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
   show,
   onPress,
   type,
-  hasFocus = false,
   controlsVisible = false,
 }) => {
   const { t } = useTranslation();
-  const pressableRef = useRef<View>(null);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
       scaleAmount: 1.1,
       duration: 120,
     });
-
-  // Programmatically request focus when card appears with hasFocus=true
-  useEffect(() => {
-    if (!show || !hasFocus || !pressableRef.current) return;
-
-    const timer = setTimeout(() => {
-      // Use setNativeProps to trigger focus update on tvOS
-      (pressableRef.current as any)?.setNativeProps?.({
-        hasTVPreferredFocus: true,
-      });
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [show, hasFocus]);
 
   // Animated position based on controls visibility
   const bottomPosition = useSharedValue(
@@ -88,11 +67,10 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
       pointerEvents='box-none'
     >
       <Pressable
-        ref={pressableRef}
         onPress={onPress}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        hasTVPreferredFocus={hasFocus}
+        hasTVPreferredFocus={true}
       >
         <RNAnimated.View
           style={[

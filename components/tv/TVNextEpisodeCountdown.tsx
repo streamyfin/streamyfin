@@ -31,8 +31,6 @@ export interface TVNextEpisodeCountdownProps {
   onFinish: () => void;
   /** Called when user presses the card to skip to next episode */
   onPlayNext?: () => void;
-  /** Whether this card should capture focus when visible */
-  hasFocus?: boolean;
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
 }
@@ -48,7 +46,6 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   isPlaying,
   onFinish,
   onPlayNext,
-  hasFocus = false,
   controlsVisible = false,
 }) => {
   const typography = useScaledTVTypography();
@@ -141,7 +138,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
         onPress={onPlayNext}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        hasTVPreferredFocus={hasFocus}
+        hasTVPreferredFocus={true}
         focusable={true}
       >
         <RNAnimated.View style={[animatedStyle, focused && styles.focusedCard]}>
