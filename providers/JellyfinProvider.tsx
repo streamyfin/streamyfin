@@ -427,14 +427,33 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         // Refresh plugin settings
         await refreshStreamyfinPluginSettings();
       } catch (error) {
-        // Token is invalid/expired - remove it
-        if (
-          axios.isAxiosError(error) &&
-          (error.response?.status === 401 || error.response?.status === 403)
-        ) {
-          await deleteAccountCredential(serverUrl, userId);
-          throw new Error(t("server.session_expired"));
+        // Check for axios error
+        if (axios.isAxiosError(error)) {
+          // Token is invalid/expired - remove it
+          if (
+            error.response?.status === 401 ||
+            error.response?.status === 403
+          ) {
+            await deleteAccountCredential(serverUrl, userId);
+            throw new Error(t("server.session_expired"));
+          }
+
+          // Network error - server not reachable (no response means server didn't respond)
+          if (!error.response) {
+            throw new Error(t("home.server_unreachable"));
+          }
         }
+
+        // Check for network error by message pattern (fallback detection)
+        if (
+          error instanceof Error &&
+          (error.message.toLowerCase().includes("network") ||
+            error.message.toLowerCase().includes("econnrefused") ||
+            error.message.toLowerCase().includes("timeout"))
+        ) {
+          throw new Error(t("home.server_unreachable"));
+        }
+
         throw error;
       }
     },

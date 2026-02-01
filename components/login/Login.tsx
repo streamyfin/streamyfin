@@ -72,22 +72,24 @@ export const Login: React.FC = () => {
     password: string;
   } | null>(null);
 
+  // Handle URL params for server connection
   useEffect(() => {
     (async () => {
       if (_apiUrl) {
         await setServer({
           address: _apiUrl,
         });
-
-        setTimeout(() => {
-          if (_username && _password) {
-            setCredentials({ username: _username, password: _password });
-            login(_username, _password);
-          }
-        }, 0);
       }
     })();
-  }, [_apiUrl, _username, _password]);
+  }, [_apiUrl]);
+
+  // Handle auto-login when api is ready and credentials are provided via URL params
+  useEffect(() => {
+    if (api?.basePath && _apiUrl && _username && _password) {
+      setCredentials({ username: _username, password: _password });
+      login(_username, _password);
+    }
+  }, [api?.basePath, _apiUrl, _username, _password]);
 
   useEffect(() => {
     navigation.setOptions({

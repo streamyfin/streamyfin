@@ -122,19 +122,21 @@ export const TVLogin: React.FC = () => {
     };
   }, [stopQuickConnectPolling]);
 
-  // Auto login from URL params
+  // Handle URL params for server connection
   useEffect(() => {
     (async () => {
       if (_apiUrl) {
         await setServer({ address: _apiUrl });
-        setTimeout(() => {
-          if (_username && _password) {
-            login(_username, _password);
-          }
-        }, 0);
       }
     })();
-  }, [_apiUrl, _username, _password]);
+  }, [_apiUrl]);
+
+  // Handle auto-login when api is ready and credentials are provided via URL params
+  useEffect(() => {
+    if (api?.basePath && _apiUrl && _username && _password) {
+      login(_username, _password);
+    }
+  }, [api?.basePath, _apiUrl, _username, _password]);
 
   // Update header
   useEffect(() => {
@@ -263,10 +265,19 @@ export const TVLogin: React.FC = () => {
         setLoading(true);
         try {
           await loginWithSavedCredential(currentServer.address, account.userId);
-        } catch {
-          Alert.alert(
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : t("server.session_expired");
+          const isSessionExpired = errorMessage.includes(
             t("server.session_expired"),
-            t("server.please_login_again"),
+          );
+          Alert.alert(
+            isSessionExpired
+              ? t("server.session_expired")
+              : t("login.connection_failed"),
+            isSessionExpired ? t("server.please_login_again") : errorMessage,
             [
               {
                 text: t("common.ok"),
@@ -301,10 +312,17 @@ export const TVLogin: React.FC = () => {
           currentServer.address,
           selectedAccount.userId,
         );
-      } catch {
-        Alert.alert(
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t("server.session_expired");
+        const isSessionExpired = errorMessage.includes(
           t("server.session_expired"),
-          t("server.please_login_again"),
+        );
+        Alert.alert(
+          isSessionExpired
+            ? t("server.session_expired")
+            : t("login.connection_failed"),
+          isSessionExpired ? t("server.please_login_again") : errorMessage,
         );
       } finally {
         setLoading(false);
