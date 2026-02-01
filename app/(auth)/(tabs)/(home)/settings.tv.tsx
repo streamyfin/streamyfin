@@ -2,7 +2,7 @@ import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
@@ -80,12 +80,26 @@ export default function SettingsTV() {
   const hasOtherAccounts = otherAccounts.length > 0;
 
   // Handle account selection from modal
-  const handleAccountSelect = (account: SavedServerAccount) => {
+  const handleAccountSelect = async (account: SavedServerAccount) => {
     if (!currentServer) return;
 
     if (account.securityType === "none") {
       // Direct login with saved credential
-      loginWithSavedCredential(currentServer.address, account.userId);
+      try {
+        await loginWithSavedCredential(currentServer.address, account.userId);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t("server.session_expired");
+        const isSessionExpired = errorMessage.includes(
+          t("server.session_expired"),
+        );
+        Alert.alert(
+          isSessionExpired
+            ? t("server.session_expired")
+            : t("login.connection_failed"),
+          isSessionExpired ? t("server.please_login_again") : errorMessage,
+        );
+      }
     } else if (account.securityType === "pin") {
       // Show PIN modal
       setSelectedServer(currentServer);
@@ -103,10 +117,24 @@ export default function SettingsTV() {
   const handlePinSuccess = async () => {
     setPinModalVisible(false);
     if (selectedServer && selectedAccount) {
-      await loginWithSavedCredential(
-        selectedServer.address,
-        selectedAccount.userId,
-      );
+      try {
+        await loginWithSavedCredential(
+          selectedServer.address,
+          selectedAccount.userId,
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t("server.session_expired");
+        const isSessionExpired = errorMessage.includes(
+          t("server.session_expired"),
+        );
+        Alert.alert(
+          isSessionExpired
+            ? t("server.session_expired")
+            : t("login.connection_failed"),
+          isSessionExpired ? t("server.please_login_again") : errorMessage,
+        );
+      }
     }
     setSelectedServer(null);
     setSelectedAccount(null);
