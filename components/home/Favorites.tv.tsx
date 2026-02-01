@@ -178,8 +178,6 @@ export const Favorites = () => {
       contentContainerStyle={{
         paddingTop: insets.top + TOP_PADDING,
         paddingBottom: insets.bottom + 60,
-        paddingLeft: insets.left + HORIZONTAL_PADDING,
-        paddingRight: insets.right + HORIZONTAL_PADDING,
       }}
     >
       <View style={{ gap: SECTION_GAP }}>

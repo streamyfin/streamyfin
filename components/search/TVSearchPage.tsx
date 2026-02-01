@@ -222,12 +222,15 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       contentContainerStyle={{
         paddingTop: insets.top + TOP_PADDING,
         paddingBottom: insets.bottom + 60,
-        paddingLeft: insets.left + HORIZONTAL_PADDING,
-        paddingRight: insets.right + HORIZONTAL_PADDING,
       }}
     >
       {/* Search Input */}
-      <View style={{ marginBottom: 24, marginHorizontal: SCALE_PADDING + 200 }}>
+      <View
+        style={{
+          marginBottom: 24,
+          marginHorizontal: HORIZONTAL_PADDING + 200,
+        }}
+      >
         <Input
           placeholder={t("search.search")}
           value={search}
@@ -247,7 +250,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
 
       {/* Search Type Tab Badges */}
       {showDiscover && (
-        <View style={{ marginHorizontal: SCALE_PADDING }}>
+        <View style={{ marginHorizontal: HORIZONTAL_PADDING }}>
           <TVSearchTabBadges
             searchType={searchType}
             setSearchType={setSearchType}

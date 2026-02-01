@@ -273,7 +273,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
       >
@@ -293,9 +293,13 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
         removeClippedSubviews={false}
         getItemLayout={getItemLayout}
         style={{ overflow: "visible" }}
+        contentInset={{
+          left: sizes.padding.horizontal,
+          right: sizes.padding.horizontal,
+        }}
+        contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
         contentContainerStyle={{
           paddingVertical: SCALE_PADDING,
-          paddingHorizontal: SCALE_PADDING,
         }}
       />
     </View>
