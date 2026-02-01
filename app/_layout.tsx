@@ -63,7 +63,17 @@ import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
+import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
+} from "react-native-reanimated";
 import { Toaster } from "sonner-native";
+
+// Disable strict mode warnings for reading shared values during render
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
