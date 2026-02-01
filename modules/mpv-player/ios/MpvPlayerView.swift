@@ -319,6 +319,18 @@ class MpvPlayerView: ExpoView {
 		renderer?.setSubtitleFontSize(size)
 	}
 
+	func setSubtitleBackgroundColor(_ color: String) {
+		renderer?.setSubtitleBackgroundColor(color)
+	}
+
+	func setSubtitleBorderStyle(_ style: String) {
+		renderer?.setSubtitleBorderStyle(style)
+	}
+
+	func setSubtitleAssOverride(_ mode: String) {
+		renderer?.setSubtitleAssOverride(mode)
+	}
+
 	// MARK: - Video Scaling
 
 	func setZoomedToFill(_ zoomed: Bool) {

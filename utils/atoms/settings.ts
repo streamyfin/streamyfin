@@ -214,6 +214,8 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
+  mpvSubtitleBackgroundEnabled?: boolean;
+  mpvSubtitleBackgroundOpacity?: number; // 0-100
   // MPV buffer/cache settings
   mpvCacheEnabled?: MpvCacheMode;
   mpvCacheSeconds?: number;
@@ -313,6 +315,8 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
+  mpvSubtitleBackgroundEnabled: false,
+  mpvSubtitleBackgroundOpacity: 75,
   // MPV buffer/cache defaults
   mpvCacheEnabled: "auto",
   mpvCacheSeconds: 10,
