@@ -206,7 +206,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
   const api = useAtomValue(apiAtom);
-  const insets = useSafeAreaInsets();
+  const _insets = useSafeAreaInsets();
   const router = useRouter();
 
   // Active item for featured display (debounced)
@@ -465,13 +465,14 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
         />
       </View>
 
-      {/* Content overlay */}
+      {/* Content overlay - text elements with padding */}
       <View
         style={{
           position: "absolute",
-          left: insets.left + sizes.padding.horizontal,
-          right: insets.right + sizes.padding.horizontal,
-          bottom: 40,
+          left: sizes.padding.horizontal,
+          right: sizes.padding.horizontal,
+          bottom:
+            40 + sizes.posters.episode * (9 / 16) + sizes.gaps.small * 2 + 20,
         }}
       >
         {/* Logo or Title */}
@@ -536,7 +537,6 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             flexDirection: "row",
             alignItems: "center",
             gap: 16,
-            marginBottom: 20,
           }}
         >
           {year && (
@@ -616,14 +616,28 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             </View>
           )}
         </View>
+      </View>
 
-        {/* Thumbnail carousel */}
+      {/* Thumbnail carousel - edge-to-edge */}
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 40,
+        }}
+      >
         <FlatList
           horizontal
           data={heroItems}
           keyExtractor={keyExtractor}
           showsHorizontalScrollIndicator={false}
           style={{ overflow: "visible" }}
+          contentInset={{
+            left: sizes.padding.horizontal,
+            right: sizes.padding.horizontal,
+          }}
+          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{ paddingVertical: sizes.gaps.small }}
           renderItem={renderHeroCard}
           removeClippedSubviews={false}
