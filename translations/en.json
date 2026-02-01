@@ -705,7 +705,8 @@
     "skip_credits": "Skip Credits",
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
-    "stopPlayingConfirm": "Are you sure you want to stop playback?"
+    "stopPlayingConfirm": "Are you sure you want to stop playback?",
+    "downloaded": "Downloaded"
   },
   "item_card": {
     "next_up": "Next Up",

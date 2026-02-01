@@ -195,7 +195,8 @@ final class MPVLayerRenderer {
         // CRITICAL: This option MUST be set immediately after vo=avfoundation, before hwdec options.
         // On tvOS, moving this elsewhere causes the app to freeze when exiting the player.
         // - iOS: "yes" for PiP subtitle support (subtitles baked into video)
-        // - tvOS: "no" to prevent gray tint + frame drops with subtitles
+        // - tvOS: "no" - composite OSD breaks subtitle rendering entirely on tvOS
+        //         Note: This means subtitle styling (background colors) won't work on tvOS
         #if os(tvOS)
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "no"))
         #else
@@ -820,7 +821,22 @@ final class MPVLayerRenderer {
     func setSubtitleFontSize(_ size: Int) {
         setProperty(name: "sub-font-size", value: String(size))
     }
-    
+
+    func setSubtitleBackgroundColor(_ color: String) {
+        setProperty(name: "sub-back-color", value: color)
+    }
+
+    func setSubtitleBorderStyle(_ style: String) {
+        // "outline-and-shadow" (default) or "background-box" (enables background color)
+        setProperty(name: "sub-border-style", value: style)
+    }
+
+    func setSubtitleAssOverride(_ mode: String) {
+        // Controls whether to override ASS subtitle styles
+        // "no" = keep ASS styles, "force" = override with user settings
+        setProperty(name: "sub-ass-override", value: mode)
+    }
+
     // MARK: - Audio Track Controls
     
     func getAudioTracks() -> [[String: Any]] {

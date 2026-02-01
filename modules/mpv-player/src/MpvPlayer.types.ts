@@ -95,6 +95,11 @@ export interface MpvPlayerViewRef {
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleFontSize: (size: number) => Promise<void>;
+  setSubtitleBackgroundColor: (color: string) => Promise<void>;
+  setSubtitleBorderStyle: (
+    style: "outline-and-shadow" | "background-box",
+  ) => Promise<void>;
+  setSubtitleAssOverride: (mode: "no" | "force") => Promise<void>;
   // Audio controls
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;
