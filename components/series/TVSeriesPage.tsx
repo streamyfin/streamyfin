@@ -252,11 +252,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 
-  // Scroll back to start when episode list loses focus
+  // Track focus count for episode list
   useEffect(() => {
-    if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      episodeListRef.current?.scrollTo({ x: 0, animated: true });
-    }
     prevFocusedCount.current = focusedCount;
   }, [focusedCount]);
 
