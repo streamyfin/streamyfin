@@ -41,11 +41,8 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 
-  // When section loses all focus, scroll back to start
+  // Track focus count for section
   useEffect(() => {
-    if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }
     prevFocusedCount.current = focusedCount;
   }, [focusedCount]);
 
