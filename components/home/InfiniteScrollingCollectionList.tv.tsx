@@ -251,7 +251,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
       >
@@ -263,7 +263,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           style={{
             color: "#737373",
             fontSize: typography.callout,
-            marginLeft: SCALE_PADDING,
+            marginLeft: sizes.padding.horizontal,
           }}
         >
           {t("home.no_items")}
@@ -329,9 +329,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           removeClippedSubviews={false}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           style={{ overflow: "visible" }}
+          contentInset={{
+            left: sizes.padding.horizontal,
+            right: sizes.padding.horizontal,
+          }}
+          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
             paddingVertical: SCALE_PADDING,
-            paddingHorizontal: SCALE_PADDING,
           }}
           ListFooterComponent={
             <View

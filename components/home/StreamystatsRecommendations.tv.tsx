@@ -197,7 +197,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
-          marginLeft: sizes.padding.scale,
+          marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
       >
@@ -240,9 +240,13 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           removeClippedSubviews={false}
           getItemLayout={getItemLayout}
           style={{ overflow: "visible" }}
+          contentInset={{
+            left: sizes.padding.horizontal,
+            right: sizes.padding.horizontal,
+          }}
+          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
             paddingVertical: sizes.padding.scale,
-            paddingHorizontal: sizes.padding.scale,
           }}
         />
       )}

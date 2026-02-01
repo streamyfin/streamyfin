@@ -737,7 +737,6 @@ export const Home = () => {
         <View
           style={{
             gap: SECTION_GAP,
-            paddingHorizontal: insets.left + HORIZONTAL_PADDING,
             paddingTop: showHero ? SECTION_GAP : 0,
           }}
         >

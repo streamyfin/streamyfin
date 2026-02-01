@@ -145,7 +145,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
       >
@@ -188,9 +188,13 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           removeClippedSubviews={false}
           getItemLayout={getItemLayout}
           style={{ overflow: "visible" }}
+          contentInset={{
+            left: sizes.padding.horizontal,
+            right: sizes.padding.horizontal,
+          }}
+          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
             paddingVertical: SCALE_PADDING,
-            paddingHorizontal: SCALE_PADDING,
           }}
         />
       )}
