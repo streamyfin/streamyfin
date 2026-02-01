@@ -256,20 +256,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   useEffect(() => {
     if (prevFocusedCount.current > 0 && focusedCount === 0) {
       episodeListRef.current?.scrollTo({ x: 0, animated: true });
-      // Scroll page back to top when leaving episode section
-      mainScrollRef.current?.scrollTo({ y: 0, animated: true });
     }
     prevFocusedCount.current = focusedCount;
   }, [focusedCount]);
 
   const handleEpisodeFocus = useCallback(() => {
-    setFocusedCount((c) => {
-      // Scroll page down when first episode receives focus
-      if (c === 0) {
-        mainScrollRef.current?.scrollTo({ y: 200, animated: true });
-      }
-      return c + 1;
-    });
+    setFocusedCount((c) => c + 1);
   }, []);
 
   const handleEpisodeBlur = useCallback(() => {
