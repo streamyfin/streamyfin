@@ -659,8 +659,30 @@ export default function TVSubtitleModal() {
 
           // Do NOT close modal - user can see and select the new track
         } else if (downloadResult.type === "local" && downloadResult.path) {
+          // Notify parent that a local subtitle was downloaded
           modalState?.onLocalSubtitleDownloaded?.(downloadResult.path);
-          handleClose(); // Only close for local downloads
+
+          // Check if component is still mounted after callback
+          if (!isMountedRef.current) return;
+
+          // Refresh tracks to include the newly downloaded subtitle
+          if (modalState?.refreshSubtitleTracks) {
+            const newTracks = await modalState.refreshSubtitleTracks();
+
+            // Check if component is still mounted after fetching tracks
+            if (!isMountedRef.current) return;
+
+            // Update atom with new tracks
+            store.set(tvSubtitleModalAtom, {
+              ...modalState,
+              subtitleTracks: newTracks,
+            });
+            // Switch to tracks tab to show the new subtitle
+            setActiveTab("tracks");
+          } else {
+            // No refreshSubtitleTracks available (e.g., from player), just close
+            handleClose();
+          }
         }
       } catch (error) {
         console.error("Failed to download subtitle:", error);
@@ -685,13 +707,17 @@ export default function TVSubtitleModal() {
       value: -1,
       selected: currentSubtitleIndex === -1,
       setTrack: () => modalState?.onDisableSubtitles?.(),
+      isLocal: false,
     };
     const options = subtitleTracks.map((track: Track) => ({
       label: track.name,
-      sublabel: undefined as string | undefined,
+      sublabel: track.isLocal
+        ? t("player.downloaded") || "Downloaded"
+        : (undefined as string | undefined),
       value: track.index,
       selected: track.index === currentSubtitleIndex,
       setTrack: track.setTrack,
+      isLocal: track.isLocal ?? false,
     }));
     return [noneOption, ...options];
   }, [subtitleTracks, currentSubtitleIndex, t, modalState]);
