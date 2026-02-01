@@ -426,69 +426,28 @@ export const Controls: FC<Props> = ({
       max.value,
     );
 
-  // Countdown logic - needs to be early so toggleControls can reference it
+  // Countdown logic
   const isCountdownActive = useMemo(() => {
     if (!nextItem) return false;
     if (item?.Type !== "Episode") return false;
     return remainingTime > 0 && remainingTime <= 10000;
   }, [nextItem, item, remainingTime]);
 
-  // Whether any skip card is visible - used to prevent focus conflicts
-  const isSkipCardVisible =
-    (showSkipButton && !isCountdownActive) ||
-    (showSkipCreditButton &&
+  // Simple boolean - when skip cards or countdown are visible, they have focus
+  const isSkipOrCountdownVisible = useMemo(() => {
+    const skipIntroVisible = showSkipButton && !isCountdownActive;
+    const skipCreditsVisible =
+      showSkipCreditButton &&
       (hasContentAfterCredits || !nextItem) &&
-      !isCountdownActive);
-
-  // Brief delay to ignore focus events when countdown first appears
-  const countdownJustActivatedRef = useRef(false);
-
-  useEffect(() => {
-    if (!isCountdownActive) {
-      countdownJustActivatedRef.current = false;
-      return;
-    }
-    countdownJustActivatedRef.current = true;
-    const timeout = setTimeout(() => {
-      countdownJustActivatedRef.current = false;
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [isCountdownActive]);
-
-  // Brief delay to ignore focus events when skip card first appears
-  const skipCardJustActivatedRef = useRef(false);
-
-  useEffect(() => {
-    if (!isSkipCardVisible) {
-      skipCardJustActivatedRef.current = false;
-      return;
-    }
-    skipCardJustActivatedRef.current = true;
-    const timeout = setTimeout(() => {
-      skipCardJustActivatedRef.current = false;
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [isSkipCardVisible]);
-
-  // Brief delay to ignore focus events after pressing skip button
-  const skipJustPressedRef = useRef(false);
-
-  // Wrapper to prevent focus events after skip actions
-  const handleSkipWithDelay = useCallback((skipFn: () => void) => {
-    skipJustPressedRef.current = true;
-    skipFn();
-    setTimeout(() => {
-      skipJustPressedRef.current = false;
-    }, 500);
-  }, []);
-
-  const handleSkipIntro = useCallback(() => {
-    handleSkipWithDelay(skipIntro);
-  }, [handleSkipWithDelay, skipIntro]);
-
-  const handleSkipCredit = useCallback(() => {
-    handleSkipWithDelay(skipCredit);
-  }, [handleSkipWithDelay, skipCredit]);
+      !isCountdownActive;
+    return skipIntroVisible || skipCreditsVisible || isCountdownActive;
+  }, [
+    showSkipButton,
+    showSkipCreditButton,
+    hasContentAfterCredits,
+    nextItem,
+    isCountdownActive,
+  ]);
 
   // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
   const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
@@ -507,14 +466,9 @@ export const Controls: FC<Props> = ({
   };
 
   const toggleControls = useCallback(() => {
-    // Skip if countdown or skip card just became active (ignore initial focus event)
-    const shouldIgnore =
-      countdownJustActivatedRef.current ||
-      skipCardJustActivatedRef.current ||
-      skipJustPressedRef.current;
-    if (shouldIgnore) return;
+    if (isSkipOrCountdownVisible) return; // Skip/countdown has focus, don't toggle
     setShowControls(!showControls);
-  }, [showControls, setShowControls]);
+  }, [showControls, setShowControls, isSkipOrCountdownVisible]);
 
   const [showSeekBubble, setShowSeekBubble] = useState(false);
   const [seekBubbleTime, setSeekBubbleTime] = useState({
@@ -942,18 +896,22 @@ export const Controls: FC<Props> = ({
 
   // Callback for up/down D-pad - show controls with play button focused
   const handleVerticalDpad = useCallback(() => {
-    // Skip if countdown or skip card just became active (ignore initial focus event)
-    const shouldIgnore =
-      countdownJustActivatedRef.current ||
-      skipCardJustActivatedRef.current ||
-      skipJustPressedRef.current;
-    if (shouldIgnore) return;
+    if (isSkipOrCountdownVisible) return; // Skip/countdown has focus, don't show controls
     setFocusPlayButton(true);
     setShowControls(true);
+  }, [setShowControls, isSkipOrCountdownVisible]);
+
+  const hideControls = useCallback(() => {
+    setShowControls(false);
+    setFocusPlayButton(false);
   }, [setShowControls]);
 
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
   const { isSliding: isRemoteSliding } = useRemoteControl({
-    showControls,
+    showControls: showControls,
     toggleControls,
     togglePlay,
     isProgressBarFocused,
@@ -966,15 +924,13 @@ export const Controls: FC<Props> = ({
     onLongSeekRightStart: handleDpadLongSeekForward,
     onLongSeekStop: stopContinuousSeeking,
     onVerticalDpad: handleVerticalDpad,
+    onHideControls: hideControls,
+    onBack: handleBack,
+    videoTitle: item?.Name ?? undefined,
   });
 
-  const hideControls = useCallback(() => {
-    setShowControls(false);
-    setFocusPlayButton(false);
-  }, [setShowControls]);
-
   const { handleControlsInteraction } = useControlsTimeout({
-    showControls,
+    showControls: showControls,
     isSliding: isRemoteSliding,
     episodeView: false,
     onHideControls: hideControls,
@@ -1081,9 +1037,8 @@ export const Controls: FC<Props> = ({
       {/* Skip intro card */}
       <TVSkipSegmentCard
         show={showSkipButton && !isCountdownActive}
-        onPress={handleSkipIntro}
+        onPress={skipIntro}
         type='intro'
-        hasFocus={showSkipButton && !isCountdownActive}
         controlsVisible={showControls}
       />
 
@@ -1094,14 +1049,8 @@ export const Controls: FC<Props> = ({
           (hasContentAfterCredits || !nextItem) &&
           !isCountdownActive
         }
-        onPress={handleSkipCredit}
+        onPress={skipCredit}
         type='credits'
-        hasFocus={
-          showSkipCreditButton &&
-          (hasContentAfterCredits || !nextItem) &&
-          !isCountdownActive &&
-          !showSkipButton
-        }
         controlsVisible={showControls}
       />
 
@@ -1113,7 +1062,6 @@ export const Controls: FC<Props> = ({
           isPlaying={isPlaying}
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
-          hasFocus={isCountdownActive}
           controlsVisible={showControls}
         />
       )}
@@ -1215,7 +1163,7 @@ export const Controls: FC<Props> = ({
 
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
-        pointerEvents={showControls && !false ? "auto" : "none"}
+        pointerEvents={showControls ? "auto" : "none"}
       >
         <View
           style={[
@@ -1375,12 +1323,7 @@ export const Controls: FC<Props> = ({
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
-              hasTVPreferredFocus={
-                !isCountdownActive &&
-                !isSkipCardVisible &&
-                lastOpenedModal === null &&
-                !focusPlayButton
-              }
+              hasTVPreferredFocus={false}
             />
           </TVFocusGuideView>
 

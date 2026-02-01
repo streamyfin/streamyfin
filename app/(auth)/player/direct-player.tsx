@@ -43,6 +43,10 @@ import {
   type MpvPlayerViewRef,
   type MpvVideoSource,
 } from "@/modules";
+import {
+  isNativeTVControlsAvailable,
+  TVPlayerControlsView,
+} from "@/modules/tv-player-controls";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
@@ -1189,37 +1193,87 @@ export default function page() {
               item &&
               !isPipMode &&
               (Platform.isTV ? (
-                <TVControls
-                  mediaSource={stream?.mediaSource}
-                  item={item}
-                  togglePlay={togglePlay}
-                  isPlaying={isPlaying}
-                  isSeeking={isSeeking}
-                  progress={progress}
-                  cacheProgress={cacheProgress}
-                  isBuffering={isBuffering}
-                  showControls={showControls}
-                  setShowControls={setShowControls}
-                  play={play}
-                  pause={pause}
-                  seek={seek}
-                  audioIndex={currentAudioIndex}
-                  subtitleIndex={currentSubtitleIndex}
-                  onAudioIndexChange={handleAudioIndexChange}
-                  onSubtitleIndexChange={handleSubtitleIndexChange}
-                  previousItem={previousItem}
-                  nextItem={nextItem}
-                  goToPreviousItem={goToPreviousItem}
-                  goToNextItem={goToNextItem}
-                  onRefreshSubtitleTracks={handleRefreshSubtitleTracks}
-                  addSubtitleFile={addSubtitleFile}
-                  showTechnicalInfo={showTechnicalInfo}
-                  onToggleTechnicalInfo={handleToggleTechnicalInfo}
-                  getTechnicalInfo={getTechnicalInfo}
-                  playMethod={playMethod}
-                  transcodeReasons={transcodeReasons}
-                  downloadedFiles={downloadedFiles}
-                />
+                // TV Controls: Use native SwiftUI controls if enabled and available, otherwise JS controls
+                settings.useNativeTVControls &&
+                isNativeTVControlsAvailable() ? (
+                  <TVPlayerControlsView
+                    isPlaying={isPlaying}
+                    progress={progress.value}
+                    duration={item.RunTimeTicks ? item.RunTimeTicks / 10000 : 0}
+                    cacheProgress={cacheProgress.value}
+                    isBuffering={isBuffering}
+                    title={item.Name ?? ""}
+                    subtitle={
+                      item.Type === "Episode"
+                        ? `${item.SeriesName} - S${item.ParentIndexNumber} E${item.IndexNumber}`
+                        : undefined
+                    }
+                    isLiveTV={
+                      item.Type === "Program" || item.Type === "TvChannel"
+                    }
+                    visible={showControls}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                    }}
+                    onPlayPause={togglePlay}
+                    onSeek={(e) => seek(e.nativeEvent.positionMs)}
+                    onSkipForward={() => {
+                      const newPos = Math.min(
+                        (item.RunTimeTicks ?? 0) / 10000,
+                        progress.value + 30000,
+                      );
+                      progress.value = newPos;
+                      seek(newPos);
+                    }}
+                    onSkipBackward={() => {
+                      const newPos = Math.max(0, progress.value - 10000);
+                      progress.value = newPos;
+                      seek(newPos);
+                    }}
+                    // Audio/subtitle settings will be handled in future iteration
+                    // These would need the same modal hooks as the JS controls
+                    onBack={() => router.back()}
+                    onVisibilityChange={(e) =>
+                      setShowControls(e.nativeEvent.visible)
+                    }
+                  />
+                ) : (
+                  <TVControls
+                    mediaSource={stream?.mediaSource}
+                    item={item}
+                    togglePlay={togglePlay}
+                    isPlaying={isPlaying}
+                    isSeeking={isSeeking}
+                    progress={progress}
+                    cacheProgress={cacheProgress}
+                    isBuffering={isBuffering}
+                    showControls={showControls}
+                    setShowControls={setShowControls}
+                    play={play}
+                    pause={pause}
+                    seek={seek}
+                    audioIndex={currentAudioIndex}
+                    subtitleIndex={currentSubtitleIndex}
+                    onAudioIndexChange={handleAudioIndexChange}
+                    onSubtitleIndexChange={handleSubtitleIndexChange}
+                    previousItem={previousItem}
+                    nextItem={nextItem}
+                    goToPreviousItem={goToPreviousItem}
+                    goToNextItem={goToNextItem}
+                    onRefreshSubtitleTracks={handleRefreshSubtitleTracks}
+                    addSubtitleFile={addSubtitleFile}
+                    showTechnicalInfo={showTechnicalInfo}
+                    onToggleTechnicalInfo={handleToggleTechnicalInfo}
+                    getTechnicalInfo={getTechnicalInfo}
+                    playMethod={playMethod}
+                    transcodeReasons={transcodeReasons}
+                    downloadedFiles={downloadedFiles}
+                  />
+                )
               ) : (
                 <Controls
                   mediaSource={stream?.mediaSource}
