@@ -7,6 +7,7 @@ import type {
 import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
+import { File } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
@@ -50,6 +51,7 @@ import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
@@ -243,9 +245,16 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       null,
     );
 
+    // State to trigger refresh of local subtitles list
+    const [localSubtitlesRefreshKey, setLocalSubtitlesRefreshKey] = useState(0);
+
+    // Starting index for local (client-downloaded) subtitles
+    const LOCAL_SUBTITLE_INDEX_START = -100;
+
     // Convert MediaStream[] to Track[] for the modal (with setTrack callbacks)
+    // Also includes locally downloaded subtitles from OpenSubtitles
     const subtitleTracksForModal = useMemo((): Track[] => {
-      return subtitleStreams.map((stream) => ({
+      const tracks: Track[] = subtitleStreams.map((stream) => ({
         name:
           stream.DisplayTitle ||
           `${stream.Language || "Unknown"} (${stream.Codec})`,
@@ -254,7 +263,37 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           handleSubtitleChangeRef.current?.(stream.Index ?? -1);
         },
       }));
-    }, [subtitleStreams]);
+
+      // Add locally downloaded subtitles (from OpenSubtitles)
+      if (item?.Id) {
+        const localSubs = getSubtitlesForItem(item.Id);
+        let localIdx = 0;
+        for (const localSub of localSubs) {
+          // Verify file still exists (cache may have been cleared)
+          const subtitleFile = new File(localSub.filePath);
+          if (!subtitleFile.exists) {
+            continue;
+          }
+
+          const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
+          tracks.push({
+            name: localSub.name,
+            index: localIndex,
+            isLocal: true,
+            localPath: localSub.filePath,
+            setTrack: () => {
+              // For ItemContent (outside player), just update the selected index
+              // The actual subtitle will be loaded when playback starts
+              handleSubtitleChangeRef.current?.(localIndex);
+            },
+          });
+          localIdx++;
+        }
+      }
+
+      return tracks;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subtitleStreams, item?.Id, localSubtitlesRefreshKey]);
 
     // Get available media sources
     const mediaSources = useMemo(() => {
@@ -346,6 +385,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       }
     }, [item?.Id, queryClient]);
 
+    // Handle local subtitle download - trigger refresh of subtitle tracks
+    const handleLocalSubtitleDownloaded = useCallback((_path: string) => {
+      // Increment the refresh key to trigger re-computation of subtitleTracksForModal
+      setLocalSubtitlesRefreshKey((prev) => prev + 1);
+    }, []);
+
     // Refresh subtitle tracks by fetching fresh item data from Jellyfin
     const refreshSubtitleTracks = useCallback(async (): Promise<Track[]> => {
       if (!api || !item?.Id) return [];
@@ -373,7 +418,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
           ) ?? [];
 
         // Convert to Track[] with setTrack callbacks
-        return streams.map((stream) => ({
+        const tracks: Track[] = streams.map((stream) => ({
           name:
             stream.DisplayTitle ||
             `${stream.Language || "Unknown"} (${stream.Codec})`,
@@ -382,6 +427,30 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             handleSubtitleChangeRef.current?.(stream.Index ?? -1);
           },
         }));
+
+        // Add locally downloaded subtitles
+        if (item?.Id) {
+          const localSubs = getSubtitlesForItem(item.Id);
+          let localIdx = 0;
+          for (const localSub of localSubs) {
+            const subtitleFile = new File(localSub.filePath);
+            if (!subtitleFile.exists) continue;
+
+            const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
+            tracks.push({
+              name: localSub.name,
+              index: localIndex,
+              isLocal: true,
+              localPath: localSub.filePath,
+              setTrack: () => {
+                handleSubtitleChangeRef.current?.(localIndex);
+              },
+            });
+            localIdx++;
+          }
+        }
+
+        return tracks;
       } catch (error) {
         console.error("Failed to refresh subtitle tracks:", error);
         return [];
@@ -399,13 +468,30 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const selectedSubtitleLabel = useMemo(() => {
       if (selectedOptions?.subtitleIndex === -1)
         return t("item_card.subtitles.none");
+
+      // Check if it's a local subtitle (negative index starting at -100)
+      if (
+        selectedOptions?.subtitleIndex !== undefined &&
+        selectedOptions.subtitleIndex <= LOCAL_SUBTITLE_INDEX_START
+      ) {
+        const localTrack = subtitleTracksForModal.find(
+          (t) => t.index === selectedOptions.subtitleIndex,
+        );
+        return localTrack?.name || t("item_card.subtitles.label");
+      }
+
       const track = subtitleStreams.find(
         (t) => t.Index === selectedOptions?.subtitleIndex,
       );
       return (
         track?.DisplayTitle || track?.Language || t("item_card.subtitles.label")
       );
-    }, [subtitleStreams, selectedOptions?.subtitleIndex, t]);
+    }, [
+      subtitleStreams,
+      subtitleTracksForModal,
+      selectedOptions?.subtitleIndex,
+      t,
+    ]);
 
     const selectedMediaSourceLabel = useMemo(() => {
       const source = selectedOptions?.mediaSource;
@@ -742,6 +828,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                         onDisableSubtitles: () => handleSubtitleChange(-1),
                         onServerSubtitleDownloaded:
                           handleServerSubtitleDownloaded,
+                        onLocalSubtitleDownloaded:
+                          handleLocalSubtitleDownloaded,
                         refreshSubtitleTracks,
                       })
                     }

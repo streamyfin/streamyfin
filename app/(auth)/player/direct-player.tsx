@@ -10,6 +10,7 @@ import {
   getPlaystateApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
+import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -49,6 +50,7 @@ import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
+import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -1075,6 +1077,28 @@ export default function page() {
       if (settings.mpvSubtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
+      // Apply subtitle background (iOS only - doesn't work on tvOS due to composite OSD limitation)
+      // mpv uses #RRGGBBAA format (alpha last, same as CSS)
+      if (settings.mpvSubtitleBackgroundEnabled) {
+        const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
+        const alphaHex = Math.round((opacity / 100) * 255)
+          .toString(16)
+          .padStart(2, "0")
+          .toUpperCase();
+        // Enable background-box mode (required for sub-back-color to work)
+        await videoRef.current?.setSubtitleBorderStyle?.("background-box");
+        await videoRef.current?.setSubtitleBackgroundColor?.(
+          `#000000${alphaHex}`,
+        );
+        // Force override ASS subtitle styles so background shows on styled subtitles
+        await videoRef.current?.setSubtitleAssOverride?.("force");
+      } else {
+        // Restore default outline-and-shadow style
+        await videoRef.current?.setSubtitleBorderStyle?.("outline-and-shadow");
+        await videoRef.current?.setSubtitleBackgroundColor?.("#00000000");
+        // Restore default ASS behavior (keep original styles)
+        await videoRef.current?.setSubtitleAssOverride?.("no");
+      }
     };
 
     applySubtitleSettings();
@@ -1093,6 +1117,28 @@ export default function page() {
 
     applyInitialPlaybackSpeed();
   }, [isVideoLoaded, initialPlaybackSpeed]);
+
+  // TV only: Pre-load locally downloaded subtitles when video loads
+  // This adds them to MPV's track list without auto-selecting them
+  useEffect(() => {
+    if (!Platform.isTV || !isVideoLoaded || !videoRef.current || !itemId)
+      return;
+
+    const preloadLocalSubtitles = async () => {
+      const localSubs = getSubtitlesForItem(itemId);
+      for (const sub of localSubs) {
+        // Verify file still exists (cache may have been cleared)
+        const subtitleFile = new File(sub.filePath);
+        if (!subtitleFile.exists) {
+          continue;
+        }
+        // Add subtitle file to MPV without selecting it (select: false)
+        await videoRef.current?.addSubtitleFile?.(sub.filePath, false);
+      }
+    };
+
+    preloadLocalSubtitles();
+  }, [isVideoLoaded, itemId]);
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
