@@ -56,9 +56,15 @@ import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { Appearance } from "react-native";
+import { Appearance, LogBox } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+// Suppress harmless tvOS warning from react-native-gesture-handler
+if (Platform.isTV) {
+  LogBox.ignoreLogs(["HoverGestureHandler is not supported on tvOS"]);
+}
+
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { store as jotaiStore, store } from "@/utils/store";
