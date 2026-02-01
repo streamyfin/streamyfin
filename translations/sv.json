@@ -540,6 +540,7 @@
     "none": "Ingen",
     "track": "Spår",
     "cancel": "Avbryt",
+    "stop": "Stoppa",
     "delete": "Ta bort",
     "ok": "OK",
     "remove": "Radera",
@@ -674,7 +675,10 @@
     "add_opensubtitles_key_hint": "Lägg till OpenSubtitles API-nyckel i inställningar för klientsidesökning som reserv",
     "settings": "Inställningar",
     "skip_intro": "Hoppa över intro",
-    "skip_credits": "Hoppa över eftertexter"
+    "skip_credits": "Hoppa över eftertexter",
+    "stopPlayback": "Stoppa uppspelning",
+    "stopPlayingTitle": "Sluta spela \"{{title}}\"?",
+    "stopPlayingConfirm": "Är du säker på att du vill stoppa uppspelningen?"
   },
   "item_card": {
     "next_up": "Näst på tur",
