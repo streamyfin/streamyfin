@@ -79,14 +79,12 @@ export function useTVBackHandler() {
     if (isOnHomeRoot) {
       // On home tab root - disable interception to allow app exit
       if (lastMenuKeyState.current !== false) {
-        console.log("[useTVBackHandler] On home root - enabling app exit");
         TVEventControl.disableTVMenuKey();
         lastMenuKeyState.current = false;
       }
     } else {
       // On other screens - enable interception to handle navigation
       if (lastMenuKeyState.current !== true) {
-        console.log("[useTVBackHandler] Not on home - intercepting menu key");
         TVEventControl.enableTVMenuKey();
         lastMenuKeyState.current = true;
       }
@@ -98,33 +96,23 @@ export function useTVBackHandler() {
     if (!evt) return;
     if (evt.eventType === "menu" || evt.eventType === "back") {
       // If on home root, let the default behavior happen (app exit)
-      // This shouldn't fire since we disabled menu key interception
       if (isOnHomeRoot) {
-        console.log("[useTVBackHandler] On home root, allowing exit");
         return;
       }
 
-      console.log("[useTVBackHandler] Menu pressed:", {
-        currentTab,
-        atTabRoot,
-      });
-
-      // If at tab root level (but not home)
+      // If at tab root level (but not home), navigate to home
       if (atTabRoot) {
-        console.log("[useTVBackHandler] At tab root, navigating to home");
         router.navigate("/(auth)/(tabs)/(home)");
         return;
       }
 
       // Not at tab root - go back in the stack
       if (navigation.canGoBack()) {
-        console.log("[useTVBackHandler] Going back in navigation stack");
         navigation.goBack();
         return;
       }
 
       // Fallback: navigate to home
-      console.log("[useTVBackHandler] Fallback: navigating to home");
       router.navigate("/(auth)/(tabs)/(home)");
     }
   });
@@ -167,9 +155,6 @@ export function useTVBackHandler() {
  */
 export function enableTVMenuKeyInterception() {
   if (Platform.isTV && TVEventControl) {
-    console.log(
-      "[enableTVMenuKeyInterception] Enabling TV menu key interception",
-    );
     TVEventControl.enableTVMenuKey();
   }
 }
