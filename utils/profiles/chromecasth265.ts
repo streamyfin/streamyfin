@@ -12,7 +12,14 @@ export const chromecasth265: DeviceProfile = {
     },
     {
       Type: "Audio",
-      Codec: "aac,mp3,flac,opus,vorbis",
+      Codec: "aac,mp3,flac,opus,vorbis", // Force transcode if audio has more than 2 channels (5.1, 7.1, etc)
+      Conditions: [
+        {
+          Condition: "LessThanEqual",
+          Property: "AudioChannels",
+          Value: "2",
+        },
+      ],
     },
   ],
   ContainerProfiles: [],

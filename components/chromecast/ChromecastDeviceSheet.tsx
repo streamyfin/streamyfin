@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import type { Device } from "react-native-google-cast";
+import { useCastSession, useRemoteMediaClient } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -19,9 +20,6 @@ interface ChromecastDeviceSheetProps {
   onDisconnect: () => Promise<void>;
   volume?: number;
   onVolumeChange?: (volume: number) => Promise<void>;
-  showTechnicalInfo?: boolean;
-  connectionQuality?: "excellent" | "good" | "fair" | "poor";
-  bitrate?: number;
 }
 
 export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
@@ -31,18 +29,33 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   onDisconnect,
   volume = 0.5,
   onVolumeChange,
-  showTechnicalInfo = false,
-  connectionQuality = "good",
-  bitrate,
 }) => {
   const insets = useSafeAreaInsets();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const volumeValue = useSharedValue(volume * 100);
+  const minimumValue = useSharedValue(0);
+  const maximumValue = useSharedValue(100);
+  const castSession = useCastSession();
+  const remoteMediaClient = useRemoteMediaClient();
 
-  // Sync volume slider with prop changes
+  // Sync volume slider with prop changes (updates from physical buttons)
   useEffect(() => {
     volumeValue.value = volume * 100;
   }, [volume, volumeValue]);
+
+  // Poll for volume updates when sheet is visible to catch physical button changes
+  useEffect(() => {
+    if (!visible || !remoteMediaClient) return;
+
+    // Request status update to get latest volume from device
+    const interval = setInterval(() => {
+      remoteMediaClient.requestStatus().catch(() => {
+        // Ignore errors - device might be disconnected
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [visible, remoteMediaClient]);
 
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
@@ -57,8 +70,19 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   };
 
   const handleVolumeComplete = async (value: number) => {
-    if (onVolumeChange) {
-      await onVolumeChange(value / 100);
+    const newVolume = value / 100;
+    try {
+      // Use CastSession.setVolume for DEVICE volume control
+      // This works even when no media is playing, unlike setStreamVolume
+      if (castSession) {
+        castSession.setVolume(newVolume);
+        console.log("[Volume] Set device volume via CastSession:", newVolume);
+      } else if (onVolumeChange) {
+        // Fallback to prop method if session not available
+        await onVolumeChange(newVolume);
+      }
+    } catch (error) {
+      console.error("[Volume] Error setting volume:", error);
     }
   };
 
@@ -120,61 +144,7 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                 {device?.friendlyName || device?.deviceId || "Unknown Device"}
               </Text>
             </View>
-
-            {/* Connection Quality */}
-            <View style={{ marginBottom: 20 }}>
-              <Text style={{ color: "#999", fontSize: 12, marginBottom: 8 }}>
-                Connection Quality
-              </Text>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-              >
-                <View
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    backgroundColor:
-                      connectionQuality === "excellent"
-                        ? "#10b981"
-                        : connectionQuality === "good"
-                          ? "#fbbf24"
-                          : connectionQuality === "fair"
-                            ? "#f97316"
-                            : "#ef4444",
-                  }}
-                />
-                <Text
-                  style={{
-                    color:
-                      connectionQuality === "excellent"
-                        ? "#10b981"
-                        : connectionQuality === "good"
-                          ? "#fbbf24"
-                          : connectionQuality === "fair"
-                            ? "#f97316"
-                            : "#ef4444",
-                    fontSize: 14,
-                    fontWeight: "600",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {connectionQuality}
-                </Text>
-              </View>
-              {bitrate && (
-                <Text style={{ color: "#999", fontSize: 12, marginTop: 4 }}>
-                  Bitrate: {(bitrate / 1000000).toFixed(1)} Mbps
-                  {connectionQuality === "poor" &&
-                    " (Low bitrate may cause buffering)"}
-                  {connectionQuality === "fair" && " (Moderate quality)"}
-                  {connectionQuality === "good" && " (Good quality)"}
-                  {connectionQuality === "excellent" && " (Maximum quality)"}
-                </Text>
-              )}
-            </View>
-
-            {device?.deviceId && showTechnicalInfo && (
+            {device?.deviceId && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={{ color: "#999", fontSize: 12, marginBottom: 4 }}>
                   Device ID
@@ -183,11 +153,10 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                   style={{ color: "white", fontSize: 14 }}
                   numberOfLines={1}
                 >
-                  {device.deviceId}
+                  {device?.deviceId}
                 </Text>
               </View>
             )}
-
             {/* Volume control */}
             <View style={{ marginBottom: 24 }}>
               <View
@@ -211,8 +180,8 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                   <Slider
                     style={{ width: "100%", height: 40 }}
                     progress={volumeValue}
-                    minimumValue={useSharedValue(0)}
-                    maximumValue={useSharedValue(100)}
+                    minimumValue={minimumValue}
+                    maximumValue={maximumValue}
                     theme={{
                       disableMinTrackTintColor: "#333",
                       maximumTrackTintColor: "#333",
@@ -231,13 +200,11 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                     }}
                     onSlidingComplete={handleVolumeComplete}
                     panHitSlop={{ top: 20, bottom: 20, left: 0, right: 0 }}
-                    disable={false}
                   />
                 </View>
                 <Ionicons name='volume-high' size={20} color='#999' />
               </View>
             </View>
-
             {/* Disconnect button */}
             <Pressable
               onPress={handleDisconnect}
@@ -253,7 +220,12 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                 opacity: isDisconnecting ? 0.5 : 1,
               }}
             >
-              <Ionicons name='power' size={20} color='white' />
+              <Ionicons
+                name='power'
+                size={20}
+                color='white'
+                style={{ marginTop: 2 }}
+              />
               <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
                 {isDisconnecting ? "Disconnecting..." : "Stop Casting"}
               </Text>

@@ -51,13 +51,28 @@
   },
   "casting_player": {
     "buffering": "Buffering...",
+    "changing_audio": "Changing audio...",
+    "changing_subtitles": "Changing subtitles...",
     "season_episode_format": "Season {{season}} • Episode {{episode}}",
     "connection_quality": {
       "excellent": "Excellent",
       "good": "Good",
       "fair": "Fair",
-      "poor": "Poor"
-    }
+      "poor": "Poor",
+      "disconnected": "Disconnected"
+    },
+    "error_title": "Chromecast Error",
+    "error_description": "Something went wrong with the cast session",
+    "retry": "Try Again",
+    "critical_error_title": "Multiple Errors Detected",
+    "critical_error_description": "Chromecast encountered multiple errors. Please disconnect and try casting again.",
+    "track_changed": "Track changed successfully",
+    "audio_track_changed": "Audio track changed",
+    "subtitle_track_changed": "Subtitle track changed",
+    "seeking": "Seeking...",
+    "seeking_error": "Failed to seek",
+    "load_failed": "Failed to load media",
+    "load_retry": "Retrying media load..."
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
