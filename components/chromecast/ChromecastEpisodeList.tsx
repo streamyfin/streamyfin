@@ -7,8 +7,8 @@ import { Ionicons } from "@expo/vector-icons";
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
-import React, { useEffect, useRef } from "react";
-import { FlatList, Modal, Pressable, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { truncateTitle } from "@/utils/casting/helpers";
@@ -33,10 +33,47 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
+
+  // Get unique seasons from episodes
+  const seasons = useMemo(() => {
+    const seasonSet = new Set<number>();
+    for (const ep of episodes) {
+      if (ep.ParentIndexNumber !== undefined && ep.ParentIndexNumber !== null) {
+        seasonSet.add(ep.ParentIndexNumber);
+      }
+    }
+    return Array.from(seasonSet).sort((a, b) => a - b);
+  }, [episodes]);
+
+  // Filter episodes by selected season and exclude virtual episodes
+  const filteredEpisodes = useMemo(() => {
+    let eps = episodes;
+
+    // Filter by season if selected
+    if (selectedSeason !== null) {
+      eps = eps.filter((ep) => ep.ParentIndexNumber === selectedSeason);
+    }
+
+    // Filter out virtual episodes (episodes without actual video files)
+    // LocationType === "Virtual" means the episode doesn't have a media file
+    eps = eps.filter((ep) => ep.LocationType !== "Virtual");
+
+    return eps;
+  }, [episodes, selectedSeason]);
+
+  // Set initial season to current episode's season
+  useEffect(() => {
+    if (currentItem?.ParentIndexNumber !== undefined) {
+      setSelectedSeason(currentItem.ParentIndexNumber);
+    }
+  }, [currentItem]);
 
   useEffect(() => {
-    if (visible && currentItem && episodes.length > 0) {
-      const currentIndex = episodes.findIndex((ep) => ep.Id === currentItem.Id);
+    if (visible && currentItem && filteredEpisodes.length > 0) {
+      const currentIndex = filteredEpisodes.findIndex(
+        (ep) => ep.Id === currentItem.Id,
+      );
       if (currentIndex !== -1 && flatListRef.current) {
         // Delay to ensure FlatList is rendered
         setTimeout(() => {
@@ -48,7 +85,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
         }, 300);
       }
     }
-  }, [visible, currentItem, episodes]);
+  }, [visible, currentItem, filteredEpisodes]);
 
   const renderEpisode = ({ item }: { item: BaseItemDto }) => {
     const isCurrentEpisode = item.Id === currentItem?.Id;
@@ -125,6 +162,15 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             </Text>
           )}
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            {item.ParentIndexNumber !== undefined &&
+              item.IndexNumber !== undefined && (
+                <Text
+                  style={{ color: "#a855f7", fontSize: 11, fontWeight: "600" }}
+                >
+                  S{String(item.ParentIndexNumber).padStart(2, "0")}:E
+                  {String(item.IndexNumber).padStart(2, "0")}
+                </Text>
+              )}
             {item.ProductionYear && (
               <Text style={{ color: "#666", fontSize: 11 }}>
                 {item.ProductionYear}
@@ -176,27 +222,66 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
           {/* Header */}
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
               paddingHorizontal: 16,
               paddingVertical: 12,
               borderBottomWidth: 1,
               borderBottomColor: "#333",
             }}
           >
-            <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
-              Episodes
-            </Text>
-            <Pressable onPress={onClose} style={{ padding: 8 }}>
-              <Ionicons name='close' size={24} color='white' />
-            </Pressable>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: seasons.length > 1 ? 12 : 0,
+              }}
+            >
+              <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
+                Episodes
+              </Text>
+              <Pressable onPress={onClose} style={{ padding: 8 }}>
+                <Ionicons name='close' size={24} color='white' />
+              </Pressable>
+            </View>
+
+            {/* Season selector */}
+            {seasons.length > 1 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
+                {seasons.map((season) => (
+                  <Pressable
+                    key={season}
+                    onPress={() => setSelectedSeason(season)}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor:
+                        selectedSeason === season ? "#a855f7" : "#1a1a1a",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 14,
+                        fontWeight: selectedSeason === season ? "600" : "400",
+                      }}
+                    >
+                      Season {season}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
           </View>
 
           {/* Episode list */}
           <FlatList
             ref={flatListRef}
-            data={episodes}
+            data={filteredEpisodes}
             renderItem={renderEpisode}
             keyExtractor={(item) => item.Id || ""}
             contentContainerStyle={{

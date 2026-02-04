@@ -4,56 +4,109 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
+import {
+  MediaPlayerState,
+  useCastDevice,
+  useMediaStatus,
+  useRemoteMediaClient,
+} from "react-native-google-cast";
 import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { useCasting } from "@/hooks/useCasting";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import {
-  formatTime,
-  getPosterUrl,
-  getProtocolIcon,
-  getProtocolName,
-} from "@/utils/casting/helpers";
+import { formatTime, getPosterUrl } from "@/utils/casting/helpers";
 import { CASTING_CONSTANTS } from "@/utils/casting/types";
 
 export const CastingMiniPlayer: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const insets = useSafeAreaInsets();
-  const {
-    isConnected,
-    protocol,
-    currentItem,
-    currentDevice,
-    progress,
-    duration,
-    isPlaying,
-    togglePlayPause,
-  } = useCasting(null);
+  const castDevice = useCastDevice();
+  const mediaStatus = useMediaStatus();
+  const remoteMediaClient = useRemoteMediaClient();
 
-  if (!isConnected || !currentItem || !protocol) {
+  const currentItem = useMemo(() => {
+    return mediaStatus?.mediaInfo?.customData as BaseItemDto | undefined;
+  }, [mediaStatus?.mediaInfo?.customData]);
+
+  // Live progress state that updates every second when playing
+  const [liveProgress, setLiveProgress] = useState(
+    mediaStatus?.streamPosition || 0,
+  );
+
+  // Sync live progress with mediaStatus and poll every second when playing
+  useEffect(() => {
+    if (mediaStatus?.streamPosition) {
+      setLiveProgress(mediaStatus.streamPosition);
+    }
+
+    // Update every second when playing
+    const interval = setInterval(() => {
+      if (
+        mediaStatus?.playerState === MediaPlayerState.PLAYING &&
+        mediaStatus?.streamPosition !== undefined
+      ) {
+        setLiveProgress((prev) => prev + 1);
+      } else if (mediaStatus?.streamPosition !== undefined) {
+        // Sync with actual position when paused/buffering
+        setLiveProgress(mediaStatus.streamPosition);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [mediaStatus?.playerState, mediaStatus?.streamPosition]);
+
+  const progress = liveProgress * 1000; // Convert to ms
+  const duration = (mediaStatus?.mediaInfo?.streamDuration || 0) * 1000;
+  const isPlaying = mediaStatus?.playerState === MediaPlayerState.PLAYING;
+
+  // For episodes, use season poster; for other content, use item poster
+  const posterUrl = useMemo(() => {
+    if (!api?.basePath || !currentItem) return null;
+
+    if (
+      currentItem.Type === "Episode" &&
+      currentItem.SeriesId &&
+      currentItem.ParentIndexNumber
+    ) {
+      // Build season poster URL using SeriesId and season number
+      return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96&tag=${currentItem.SeasonId}`;
+    }
+
+    // For non-episodes, use item's own poster
+    return getPosterUrl(
+      api.basePath,
+      currentItem.Id,
+      currentItem.ImageTags?.Primary,
+      80,
+      120,
+    );
+  }, [api?.basePath, currentItem]);
+
+  if (!castDevice || !currentItem || !mediaStatus) {
     return null;
   }
 
-  const posterUrl = getPosterUrl(
-    api?.basePath,
-    currentItem.Id,
-    currentItem.ImageTags?.Primary,
-    80,
-    120,
-  );
-
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
   const protocolColor = "#a855f7"; // Streamyfin purple
-  const TAB_BAR_HEIGHT = 49; // Standard tab bar height
+  const TAB_BAR_HEIGHT = 80; // Standard tab bar height
 
   const handlePress = () => {
     router.push("/casting-player");
+  };
+
+  const handleTogglePlayPause = (e: any) => {
+    e.stopPropagation();
+    if (isPlaying) {
+      remoteMediaClient?.pause();
+    } else {
+      remoteMediaClient?.play();
+    }
   };
 
   return (
@@ -141,11 +194,7 @@ export const CastingMiniPlayer: React.FC = () => {
                 marginTop: 2,
               }}
             >
-              <Ionicons
-                name={getProtocolIcon(protocol)}
-                size={12}
-                color={protocolColor}
-              />
+              <Ionicons name='tv' size={12} color={protocolColor} />
               <Text
                 style={{
                   color: protocolColor,
@@ -153,7 +202,7 @@ export const CastingMiniPlayer: React.FC = () => {
                 }}
                 numberOfLines={1}
               >
-                {currentDevice?.name || getProtocolName(protocol)}
+                {castDevice.friendlyName || "Chromecast"}
               </Text>
               <Text
                 style={{
@@ -167,17 +216,7 @@ export const CastingMiniPlayer: React.FC = () => {
           </View>
 
           {/* Play/Pause button */}
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              if (isConnected && protocol) {
-                togglePlayPause();
-              }
-            }}
-            style={{
-              padding: 8,
-            }}
-          >
+          <Pressable onPress={handleTogglePlayPause} style={{ padding: 8 }}>
             <Ionicons
               name={isPlaying ? "pause" : "play"}
               size={28}

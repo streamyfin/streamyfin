@@ -30,8 +30,6 @@ interface ChromecastSettingsMenuProps {
   onSubtitleTrackChange: (track: SubtitleTrack | null) => void;
   playbackSpeed: number;
   onPlaybackSpeedChange: (speed: number) => void;
-  showTechnicalInfo: boolean;
-  onToggleTechnicalInfo: () => void;
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -51,8 +49,6 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
   onSubtitleTrackChange,
   playbackSpeed,
   onPlaybackSpeedChange,
-  showTechnicalInfo,
-  onToggleTechnicalInfo,
 }) => {
   const insets = useSafeAreaInsets();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -316,50 +312,6 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                 ))}
               </View>
             )}
-
-            {/* Technical Info Toggle */}
-            <Pressable
-              onPress={onToggleTechnicalInfo}
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: "#333",
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
-                <Ionicons name='information-circle' size={20} color='white' />
-                <Text
-                  style={{ color: "white", fontSize: 16, fontWeight: "500" }}
-                >
-                  Show Technical Info
-                </Text>
-              </View>
-              <View
-                style={{
-                  width: 50,
-                  height: 30,
-                  borderRadius: 15,
-                  backgroundColor: showTechnicalInfo ? "#a855f7" : "#333",
-                  justifyContent: "center",
-                  alignItems: showTechnicalInfo ? "flex-end" : "flex-start",
-                  padding: 2,
-                }}
-              >
-                <View
-                  style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 13,
-                    backgroundColor: "white",
-                  }}
-                />
-              </View>
-            </Pressable>
           </ScrollView>
         </Pressable>
       </Pressable>
