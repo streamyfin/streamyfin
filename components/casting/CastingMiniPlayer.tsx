@@ -8,20 +8,27 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
-import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Dimensions, Pressable, View } from "react-native";
+import { Slider } from "react-native-awesome-slider";
 import {
   MediaPlayerState,
   useCastDevice,
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated, {
+  SlideInDown,
+  SlideOutDown,
+  useSharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { formatTime, getPosterUrl } from "@/utils/casting/helpers";
 import { CASTING_CONSTANTS } from "@/utils/casting/types";
+import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export const CastingMiniPlayer: React.FC = () => {
   const api = useAtomValue(apiAtom);
@@ -33,6 +40,23 @@ export const CastingMiniPlayer: React.FC = () => {
   const currentItem = useMemo(() => {
     return mediaStatus?.mediaInfo?.customData as BaseItemDto | undefined;
   }, [mediaStatus?.mediaInfo?.customData]);
+
+  // Trickplay support - pass currentItem as BaseItemDto or empty object
+  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
+    currentItem || ({} as BaseItemDto),
+  );
+  const [trickplayTime, setTrickplayTime] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+  const [scrubPercentage, setScrubPercentage] = useState(0);
+  const isScrubbing = useRef(false);
+
+  // Slider shared values
+  const sliderProgress = useSharedValue(0);
+  const sliderMin = useSharedValue(0);
+  const sliderMax = useSharedValue(100);
 
   // Live progress state that updates every second when playing
   const [liveProgress, setLiveProgress] = useState(
@@ -65,6 +89,20 @@ export const CastingMiniPlayer: React.FC = () => {
   const duration = (mediaStatus?.mediaInfo?.streamDuration || 0) * 1000;
   const isPlaying = mediaStatus?.playerState === MediaPlayerState.PLAYING;
 
+  // Update slider max value when duration changes
+  useEffect(() => {
+    if (duration > 0) {
+      sliderMax.value = duration;
+    }
+  }, [duration, sliderMax]);
+
+  // Sync slider progress with live progress (when not scrubbing)
+  useEffect(() => {
+    if (!isScrubbing.current && progress >= 0) {
+      sliderProgress.value = progress;
+    }
+  }, [progress, sliderProgress]);
+
   // For episodes, use season poster; for other content, use item poster
   const posterUrl = useMemo(() => {
     if (!api?.basePath || !currentItem) return null;
@@ -88,11 +126,19 @@ export const CastingMiniPlayer: React.FC = () => {
     );
   }, [api?.basePath, currentItem]);
 
-  if (!castDevice || !currentItem || !mediaStatus) {
+  // Hide mini player when:
+  // - No cast device connected
+  // - No media info (currentItem)
+  // - No media status
+  // - Media is stopped (IDLE state)
+  // - Media is unknown state
+  const playerState = mediaStatus?.playerState;
+  const isMediaStopped = playerState === MediaPlayerState.IDLE;
+
+  if (!castDevice || !currentItem || !mediaStatus || isMediaStopped) {
     return null;
   }
 
-  const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
   const protocolColor = "#a855f7"; // Streamyfin purple
   const TAB_BAR_HEIGHT = 80; // Standard tab bar height
 
@@ -124,29 +170,188 @@ export const CastingMiniPlayer: React.FC = () => {
         zIndex: 100,
       }}
     >
-      <Pressable onPress={handlePress}>
-        {/* Progress bar */}
-        <View
-          style={{
-            height: 3,
-            backgroundColor: "#333",
+      {/* Interactive progress slider with trickplay */}
+      <View style={{ paddingHorizontal: 8, paddingTop: 4 }}>
+        <Slider
+          style={{ width: "100%", height: 20 }}
+          progress={sliderProgress}
+          minimumValue={sliderMin}
+          maximumValue={sliderMax}
+          theme={{
+            maximumTrackTintColor: "#333",
+            minimumTrackTintColor: protocolColor,
+            bubbleBackgroundColor: protocolColor,
+            bubbleTextColor: "#fff",
           }}
-        >
-          <View
-            style={{
-              height: "100%",
-              width: `${progressPercent}%`,
-              backgroundColor: protocolColor,
-            }}
-          />
-        </View>
+          onSlidingStart={() => {
+            isScrubbing.current = true;
+          }}
+          onValueChange={(value) => {
+            // Calculate trickplay preview
+            const progressInTicks = msToTicks(value);
+            calculateTrickplayUrl(progressInTicks);
 
+            // Update time display for trickplay bubble
+            const progressInSeconds = Math.floor(
+              ticksToSeconds(progressInTicks),
+            );
+            const hours = Math.floor(progressInSeconds / 3600);
+            const minutes = Math.floor((progressInSeconds % 3600) / 60);
+            const seconds = progressInSeconds % 60;
+            setTrickplayTime({ hours, minutes, seconds });
+
+            // Track scrub percentage for bubble positioning
+            if (duration > 0) {
+              setScrubPercentage(value / duration);
+            }
+          }}
+          onSlidingComplete={(value) => {
+            isScrubbing.current = false;
+            // Seek to the position (value is in milliseconds, convert to seconds)
+            const positionSeconds = value / 1000;
+            if (remoteMediaClient && duration > 0) {
+              remoteMediaClient
+                .seek({ position: positionSeconds })
+                .catch((error) => {
+                  console.error("[Mini Player] Seek error:", error);
+                });
+            }
+          }}
+          renderBubble={() => {
+            // Calculate bubble position with edge clamping
+            const screenWidth = Dimensions.get("window").width;
+            const sliderPadding = 8;
+            const thumbWidth = 10; // matches thumbWidth prop on Slider
+            const sliderWidth = screenWidth - sliderPadding * 2;
+            // Adjust thumb position to account for thumb width affecting travel range
+            const effectiveTrackWidth = sliderWidth - thumbWidth;
+            const thumbPosition =
+              thumbWidth / 2 + scrubPercentage * effectiveTrackWidth;
+
+            if (!trickPlayUrl || !trickplayInfo) {
+              // Show simple time bubble when no trickplay
+              const timeBubbleWidth = 70;
+              const minLeft = -thumbPosition;
+              const maxLeft = sliderWidth - thumbPosition - timeBubbleWidth;
+              const centeredLeft = -timeBubbleWidth / 2;
+              const clampedLeft = Math.max(
+                minLeft,
+                Math.min(maxLeft, centeredLeft),
+              );
+
+              return (
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 12,
+                    left: clampedLeft,
+                    backgroundColor: protocolColor,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 4,
+                  }}
+                >
+                  <Text
+                    style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}
+                  >
+                    {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
+                      trickplayTime.minutes < 10
+                        ? `0${trickplayTime.minutes}`
+                        : trickplayTime.minutes
+                    }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                  </Text>
+                </View>
+              );
+            }
+
+            const { x, y, url } = trickPlayUrl;
+            const tileWidth = 140; // Smaller preview for mini player
+            const tileHeight = tileWidth / (trickplayInfo.aspectRatio ?? 1.78);
+
+            // Calculate clamped position for trickplay preview
+            const minLeft = -thumbPosition;
+            const maxLeft = sliderWidth - thumbPosition - tileWidth;
+            const centeredLeft = -tileWidth / 2;
+            const clampedLeft = Math.max(
+              minLeft,
+              Math.min(maxLeft, centeredLeft),
+            );
+
+            return (
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 12,
+                  left: clampedLeft,
+                  width: tileWidth,
+                  alignItems: "center",
+                }}
+              >
+                {/* Trickplay image preview */}
+                <View
+                  style={{
+                    width: tileWidth,
+                    height: tileHeight,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                    backgroundColor: "#1a1a1a",
+                  }}
+                >
+                  <Image
+                    cachePolicy='memory-disk'
+                    style={{
+                      width: tileWidth * (trickplayInfo.data?.TileWidth ?? 1),
+                      height:
+                        (tileWidth / (trickplayInfo.aspectRatio ?? 1.78)) *
+                        (trickplayInfo.data?.TileHeight ?? 1),
+                      transform: [
+                        { translateX: -x * tileWidth },
+                        { translateY: -y * tileHeight },
+                      ],
+                    }}
+                    source={{ uri: url }}
+                    contentFit='cover'
+                  />
+                </View>
+                {/* Time overlay */}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 2,
+                    left: 2,
+                    backgroundColor: "rgba(0, 0, 0, 0.7)",
+                    paddingHorizontal: 4,
+                    paddingVertical: 1,
+                    borderRadius: 3,
+                  }}
+                >
+                  <Text
+                    style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}
+                  >
+                    {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
+                      trickplayTime.minutes < 10
+                        ? `0${trickplayTime.minutes}`
+                        : trickplayTime.minutes
+                    }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                  </Text>
+                </View>
+              </View>
+            );
+          }}
+          sliderHeight={3}
+          thumbWidth={10}
+          panHitSlop={{ top: 20, bottom: 20, left: 5, right: 5 }}
+        />
+      </View>
+
+      <Pressable onPress={handlePress}>
         {/* Content */}
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             padding: 12,
+            paddingTop: 6,
             gap: 12,
           }}
         >

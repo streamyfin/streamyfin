@@ -9,13 +9,21 @@ import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
+import { Slider } from "react-native-awesome-slider";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import GoogleCast, {
   CastState,
   MediaPlayerState,
+  MediaStreamType,
   useCastDevice,
   useCastState,
   useMediaStatus,
@@ -34,6 +42,7 @@ import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettin
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
 import { useCasting } from "@/hooks/useCasting";
+import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import {
@@ -44,6 +53,12 @@ import {
   truncateTitle,
 } from "@/utils/casting/helpers";
 import type { CastProtocol } from "@/utils/casting/types";
+import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
+import { chromecast } from "@/utils/profiles/chromecast";
+import { chromecasth265 } from "@/utils/profiles/chromecasth265";
+import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -56,7 +71,24 @@ export default function CastingPlayerScreen() {
   const castState = useCastState();
   const mediaStatus = useMediaStatus();
   const castDevice = useCastDevice();
-  useRemoteMediaClient(); // Keep connection active
+  // Keep hook active for connection - used by remoteMediaClient from useCasting
+  useRemoteMediaClient();
+
+  // Shared values for progress slider (must be initialized before any early returns)
+  const sliderProgress = useSharedValue(0);
+  const sliderMin = useSharedValue(0);
+  const sliderMax = useSharedValue(100);
+  const isScrubbing = useRef(false);
+
+  // Trickplay time display
+  const [trickplayTime, setTrickplayTime] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+
+  // Track scrub percentage for trickplay bubble positioning
+  const [scrubPercentage, setScrubPercentage] = useState(0);
 
   // Live progress tracking - update every second
   const [liveProgress, setLiveProgress] = useState(0);
@@ -161,13 +193,31 @@ export default function CastingPlayerScreen() {
   const isBuffering = mediaStatus?.playerState === MediaPlayerState.BUFFERING;
   const currentDevice = castDevice?.friendlyName ?? null;
 
+  // Trickplay for seeking preview - use fetched item with full data
+  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
+    fetchedItem ?? ({} as BaseItemDto),
+  );
+
+  // Update slider max when duration changes
+  useEffect(() => {
+    if (duration > 0) {
+      sliderMax.value = duration * 1000; // Convert to milliseconds
+    }
+  }, [duration, sliderMax]);
+
+  // Update slider progress when not scrubbing
+  useEffect(() => {
+    if (!isScrubbing.current && progress > 0) {
+      sliderProgress.value = progress * 1000; // Convert to milliseconds
+    }
+  }, [progress, sliderProgress]);
+
   // Only use casting controls if we have a current item to avoid "No session" errors
   const castingControls = useCasting(currentItem);
   const {
     togglePlayPause,
     skipForward,
     skipBackward,
-    stop,
     setVolume,
     volume,
     remoteMediaClient,
@@ -177,7 +227,6 @@ export default function CastingPlayerScreen() {
         togglePlayPause: async () => {},
         skipForward: async () => {},
         skipBackward: async () => {},
-        stop: async () => {},
         setVolume: async () => {},
         volume: 1,
         remoteMediaClient: null,
@@ -199,6 +248,128 @@ export default function CastingPlayerScreen() {
     number | null
   >(null);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
+
+  // Function to reload media with new audio/subtitle/quality settings
+  const reloadWithSettings = useCallback(
+    async (options: {
+      audioIndex?: number;
+      subtitleIndex?: number | null;
+      bitrateValue?: number;
+    }) => {
+      if (!api || !user?.Id || !currentItem?.Id || !remoteMediaClient) {
+        console.warn("[Casting Player] Cannot reload - missing required data");
+        return;
+      }
+
+      try {
+        // Save current playback position
+        const currentPosition = mediaStatus?.streamPosition ?? 0;
+        console.log(
+          "[Casting Player] Reloading stream at position:",
+          currentPosition,
+        );
+
+        // Get new stream URL with updated settings
+        const enableH265 = settings.enableH265ForChromecast;
+        const data = await getStreamUrl({
+          api,
+          item: currentItem,
+          deviceProfile: enableH265 ? chromecasth265 : chromecast,
+          startTimeTicks: Math.floor(currentPosition * 10000000), // Convert seconds to ticks
+          userId: user.Id,
+          audioStreamIndex:
+            options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
+          subtitleStreamIndex: options.subtitleIndex ?? undefined,
+          maxStreamingBitrate: options.bitrateValue,
+        });
+
+        if (!data?.url) {
+          console.error("[Casting Player] Failed to get stream URL");
+          return;
+        }
+
+        console.log("[Casting Player] Reloading with new URL:", data.url);
+
+        // Reload media with new URL
+        await remoteMediaClient.loadMedia({
+          mediaInfo: {
+            contentId: currentItem.Id,
+            contentUrl: data.url,
+            contentType: "video/mp4",
+            streamType: MediaStreamType.BUFFERED,
+            streamDuration: currentItem.RunTimeTicks
+              ? currentItem.RunTimeTicks / 10000000
+              : undefined,
+            customData: currentItem,
+            metadata:
+              currentItem.Type === "Episode"
+                ? {
+                    type: "tvShow",
+                    title: currentItem.Name || "",
+                    episodeNumber: currentItem.IndexNumber || 0,
+                    seasonNumber: currentItem.ParentIndexNumber || 0,
+                    seriesTitle: currentItem.SeriesName || "",
+                    images: [
+                      {
+                        url: getParentBackdropImageUrl({
+                          api,
+                          item: currentItem,
+                          quality: 90,
+                          width: 2000,
+                        })!,
+                      },
+                    ],
+                  }
+                : currentItem.Type === "Movie"
+                  ? {
+                      type: "movie",
+                      title: currentItem.Name || "",
+                      subtitle: currentItem.Overview || "",
+                      images: [
+                        {
+                          url: getPrimaryImageUrl({
+                            api,
+                            item: currentItem,
+                            quality: 90,
+                            width: 2000,
+                          })!,
+                        },
+                      ],
+                    }
+                  : {
+                      type: "generic",
+                      title: currentItem.Name || "",
+                      subtitle: currentItem.Overview || "",
+                      images: [
+                        {
+                          url: getPrimaryImageUrl({
+                            api,
+                            item: currentItem,
+                            quality: 90,
+                            width: 2000,
+                          })!,
+                        },
+                      ],
+                    },
+          },
+          startTime: currentPosition, // Resume at same position
+        });
+
+        console.log("[Casting Player] Stream reloaded successfully");
+      } catch (error) {
+        console.error("[Casting Player] Failed to reload stream:", error);
+      }
+    },
+    [
+      api,
+      user?.Id,
+      currentItem,
+      remoteMediaClient,
+      mediaStatus?.streamPosition,
+      settings.enableH265ForChromecast,
+      selectedAudioTrackIndex,
+    ],
+  );
 
   // Fetch season data for season poster
   useEffect(() => {
@@ -315,6 +486,9 @@ export default function CastingPlayerScreen() {
   }, [currentItem?.MediaSources, currentItem?.MediaStreams, currentItem?.Id]);
 
   // Auto-select stereo audio track for better Chromecast compatibility
+  // Note: This only updates the UI state. The actual audio track change requires
+  // regenerating the stream URL, which would be disruptive on initial load.
+  // The user can manually switch audio tracks if needed.
   useEffect(() => {
     if (!remoteMediaClient || !mediaStatus?.mediaInfo) return;
 
@@ -322,23 +496,26 @@ export default function CastingPlayerScreen() {
       (t) => t.index === selectedAudioTrackIndex,
     );
 
-    // If current track is 5.1+ audio, try to switch to stereo
+    // If current track is 5.1+ audio, suggest stereo in the UI
     if (currentTrack && (currentTrack.channels || 0) > 2) {
       const stereoTrack = availableAudioTracks.find((t) => t.channels === 2);
       if (stereoTrack && stereoTrack.index !== selectedAudioTrackIndex) {
         console.log(
-          "[Audio] Switching from 5.1 to stereo for better compatibility:",
+          "[Audio] Note: 5.1 audio detected. Stereo available:",
           currentTrack.displayTitle,
           "->",
           stereoTrack.displayTitle,
         );
+        // Auto-select stereo in UI (user can manually trigger reload)
         setSelectedAudioTrackIndex(stereoTrack.index);
-        remoteMediaClient
-          .setActiveTrackIds([stereoTrack.index])
-          .catch(console.error);
       }
     }
-  }, [mediaStatus?.mediaInfo, availableAudioTracks, remoteMediaClient]);
+  }, [
+    mediaStatus?.mediaInfo,
+    availableAudioTracks,
+    remoteMediaClient,
+    selectedAudioTrackIndex,
+  ]);
 
   // Fetch episodes for TV shows
   useEffect(() => {
@@ -398,10 +575,6 @@ export default function CastingPlayerScreen() {
   const translateY = useSharedValue(0);
   const context = useSharedValue({ y: 0 });
 
-  // Progress bar swipe gesture
-  const progressGestureContext = useSharedValue({ startValue: 0 });
-  const isSeeking = useSharedValue(false);
-
   const dismissModal = useCallback(() => {
     // Navigate immediately without animation to prevent crashes
     if (router.canGoBack()) {
@@ -438,47 +611,6 @@ export default function CastingPlayerScreen() {
       } else {
         // Spring back to position
         translateY.value = withSpring(0);
-      }
-    });
-
-  // Progress bar pan gesture for seeking
-  const progressPanGesture = Gesture.Pan()
-    .onBegin(() => {
-      isSeeking.value = true;
-      progressGestureContext.value = { startValue: liveProgress };
-    })
-    .onUpdate((event) => {
-      if (!duration) return;
-      // Calculate seek delta based on screen width (more sensitive)
-      const deltaSeconds = event.translationX / 5; // Adjust sensitivity
-      const newPosition = Math.max(
-        0,
-        Math.min(
-          duration,
-          progressGestureContext.value.startValue + deltaSeconds,
-        ),
-      );
-      // Update live progress for immediate UI feedback (must use runOnJS)
-      runOnJS(setLiveProgress)(newPosition);
-    })
-    .onEnd((event) => {
-      isSeeking.value = false;
-      // Calculate final position from gesture context
-      if (remoteMediaClient && duration) {
-        const deltaSeconds = event.translationX / 5;
-        const finalPosition = Math.max(
-          0,
-          Math.min(
-            duration,
-            progressGestureContext.value.startValue + deltaSeconds,
-          ),
-        );
-        // Use runOnJS to call the async function
-        runOnJS((pos: number) => {
-          remoteMediaClient.seek({ position: pos }).catch((error) => {
-            console.error("[Casting Player] Seek error:", error);
-          });
-        })(finalPosition);
       }
     });
 
@@ -527,11 +659,6 @@ export default function CastingPlayerScreen() {
     seasonData?.ImageTags?.Primary,
     currentItem?.ImageTags?.Primary,
   ]);
-
-  const progressPercent = useMemo(
-    () => (duration > 0 ? (progress / duration) * 100 : 0),
-    [progress, duration],
-  );
 
   const protocolColor = "#a855f7"; // Streamyfin purple
 
@@ -605,6 +732,7 @@ export default function CastingPlayerScreen() {
       <Stack.Screen
         options={{
           headerShown: false,
+          title: "",
           presentation: "fullScreenModal",
           animation: "slide_from_bottom",
         }}
@@ -697,7 +825,7 @@ export default function CastingPlayerScreen() {
             <Text
               style={{
                 color: "white",
-                fontSize: 25,
+                fontSize: 20,
                 fontWeight: "700",
                 textAlign: "center",
                 marginBottom: 6,
@@ -947,15 +1075,16 @@ export default function CastingPlayerScreen() {
                 <Ionicons name='play-skip-forward' size={22} color='white' />
               </Pressable>
 
-              {/* Stop casting button */}
+              {/* Stop playback button - stops media but stays connected to Chromecast */}
               <Pressable
                 onPress={async () => {
                   try {
-                    // End the casting session and stop the receiver
-                    const sessionManager = GoogleCast.getSessionManager();
-                    await sessionManager.endCurrentSession(true);
+                    // Stop the current media playback (don't disconnect from Chromecast)
+                    if (remoteMediaClient) {
+                      await remoteMediaClient.stop();
+                    }
 
-                    // Navigate back
+                    // Navigate back/close the player (mini player will disappear since no media is playing)
                     if (router.canGoBack()) {
                       router.back();
                     } else {
@@ -963,10 +1092,10 @@ export default function CastingPlayerScreen() {
                     }
                   } catch (error) {
                     console.error(
-                      "[Casting Player] Error disconnecting:",
+                      "[Casting Player] Error stopping playback:",
                       error,
                     );
-                    // Try to navigate anyway
+                    // Navigate anyway
                     if (router.canGoBack()) {
                       router.back();
                     } else {
@@ -999,46 +1128,195 @@ export default function CastingPlayerScreen() {
               zIndex: 98,
             }}
           >
-            {/* Progress slider - interactive with pan gesture and tap */}
-            <View style={{ marginBottom: 16, marginTop: 8 }}>
-              <GestureDetector gesture={progressPanGesture}>
-                <Pressable
-                  onPress={(e) => {
-                    if (!remoteMediaClient || !duration) return;
-                    // Get the layout to calculate percentage
-                    e.currentTarget.measure(
-                      (_x, _y, width, _height, pageX, _pageY) => {
-                        const touchX = e.nativeEvent.pageX - pageX;
-                        const percentage = Math.max(
-                          0,
-                          Math.min(1, touchX / width),
-                        );
-                        const newPosition = percentage * duration;
-                        remoteMediaClient
-                          .seek({ position: newPosition })
-                          .catch(console.error);
-                      },
+            {/* Progress slider with trickplay preview */}
+            <View style={{ marginTop: 8, height: 40 }}>
+              <Slider
+                style={{ width: "100%", height: 40 }}
+                progress={sliderProgress}
+                minimumValue={sliderMin}
+                maximumValue={sliderMax}
+                theme={{
+                  maximumTrackTintColor: "#333",
+                  minimumTrackTintColor: protocolColor,
+                  bubbleBackgroundColor: protocolColor,
+                  bubbleTextColor: "#fff",
+                }}
+                onSlidingStart={() => {
+                  isScrubbing.current = true;
+                }}
+                onValueChange={(value) => {
+                  // Calculate trickplay preview
+                  const progressInTicks = msToTicks(value);
+                  calculateTrickplayUrl(progressInTicks);
+
+                  // Update time display for trickplay bubble
+                  const progressInSeconds = Math.floor(
+                    ticksToSeconds(progressInTicks),
+                  );
+                  const hours = Math.floor(progressInSeconds / 3600);
+                  const minutes = Math.floor((progressInSeconds % 3600) / 60);
+                  const seconds = progressInSeconds % 60;
+                  setTrickplayTime({ hours, minutes, seconds });
+
+                  // Track scrub percentage for bubble positioning
+                  const durationMs = duration * 1000;
+                  if (durationMs > 0) {
+                    setScrubPercentage(value / durationMs);
+                  }
+                }}
+                onSlidingComplete={(value) => {
+                  isScrubbing.current = false;
+                  // Seek to the position (value is in milliseconds, convert to seconds)
+                  const positionSeconds = value / 1000;
+                  if (remoteMediaClient && duration > 0) {
+                    remoteMediaClient
+                      .seek({ position: positionSeconds })
+                      .catch((error) => {
+                        console.error("[Casting Player] Seek error:", error);
+                      });
+                  }
+                }}
+                renderBubble={() => {
+                  // Calculate bubble position with edge clamping
+                  const screenWidth = Dimensions.get("window").width;
+                  const containerPadding = 20; // left/right padding of slider container (matches style)
+                  const thumbWidth = 16; // matches thumbWidth prop on Slider
+                  const sliderWidth = screenWidth - containerPadding * 2;
+                  // Adjust thumb position to account for thumb width affecting travel range
+                  const effectiveTrackWidth = sliderWidth - thumbWidth;
+                  const thumbPosition =
+                    thumbWidth / 2 + scrubPercentage * effectiveTrackWidth;
+
+                  if (!trickPlayUrl || !trickplayInfo) {
+                    // Show simple time bubble when no trickplay
+                    const timeBubbleWidth = 80;
+                    // Clamp position so bubble stays on screen
+                    // minLeft prevents going off left edge, maxLeft prevents going off right edge
+                    const minLeft = -thumbPosition;
+                    const maxLeft =
+                      sliderWidth - thumbPosition - timeBubbleWidth;
+                    const centeredLeft = -timeBubbleWidth / 2;
+                    const clampedLeft = Math.max(
+                      minLeft,
+                      Math.min(maxLeft, centeredLeft),
                     );
-                  }}
-                >
-                  <View
-                    style={{
-                      height: 6,
-                      backgroundColor: "#333",
-                      borderRadius: 3,
-                      overflow: "hidden",
-                    }}
-                  >
+
+                    return (
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 20,
+                          left: clampedLeft,
+                          backgroundColor: protocolColor,
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "#fff",
+                            fontSize: 14,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
+                            trickplayTime.minutes < 10
+                              ? `0${trickplayTime.minutes}`
+                              : trickplayTime.minutes
+                          }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                        </Text>
+                      </View>
+                    );
+                  }
+
+                  const { x, y, url } = trickPlayUrl;
+                  const tileWidth = 220; // Larger preview for casting player
+                  const tileHeight =
+                    tileWidth / (trickplayInfo.aspectRatio ?? 1.78);
+
+                  // Calculate clamped position for trickplay preview
+                  // minLeft: furthest left (when thumb is at left edge)
+                  // maxLeft: furthest right (when thumb is at right edge)
+                  const minLeft = -thumbPosition;
+                  const maxLeft = sliderWidth - thumbPosition - tileWidth;
+                  const centeredLeft = -tileWidth / 2;
+                  const clampedLeft = Math.max(
+                    minLeft,
+                    Math.min(maxLeft, centeredLeft),
+                  );
+
+                  return (
                     <View
                       style={{
-                        height: "100%",
-                        width: `${progressPercent}%`,
-                        backgroundColor: protocolColor,
+                        position: "absolute",
+                        bottom: 20,
+                        left: clampedLeft,
+                        width: tileWidth,
+                        alignItems: "center",
                       }}
-                    />
-                  </View>
-                </Pressable>
-              </GestureDetector>
+                    >
+                      {/* Trickplay image preview */}
+                      <View
+                        style={{
+                          width: tileWidth,
+                          height: tileHeight,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          backgroundColor: "#1a1a1a",
+                        }}
+                      >
+                        <Image
+                          cachePolicy='memory-disk'
+                          style={{
+                            width:
+                              tileWidth * (trickplayInfo.data?.TileWidth ?? 1),
+                            height:
+                              (tileWidth /
+                                (trickplayInfo.aspectRatio ?? 1.78)) *
+                              (trickplayInfo.data?.TileHeight ?? 1),
+                            transform: [
+                              { translateX: -x * tileWidth },
+                              { translateY: -y * tileHeight },
+                            ],
+                          }}
+                          source={{ uri: url }}
+                          contentFit='cover'
+                        />
+                      </View>
+                      {/* Time overlay */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 4,
+                          left: 4,
+                          backgroundColor: "rgba(0, 0, 0, 0.7)",
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "#fff",
+                            fontSize: 12,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
+                            trickplayTime.minutes < 10
+                              ? `0${trickplayTime.minutes}`
+                              : trickplayTime.minutes
+                          }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }}
+                sliderHeight={6}
+                thumbWidth={16}
+                panHitSlop={{ top: 30, bottom: 30, left: 10, right: 10 }}
+              />
             </View>
 
             {/* Time display */}
@@ -1162,9 +1440,11 @@ export default function CastingPlayerScreen() {
             }
             onDisconnect={async () => {
               try {
-                await stop();
+                // End the casting session and disconnect completely
+                const sessionManager = GoogleCast.getSessionManager();
+                await sessionManager.endCurrentSession(true);
                 setShowDeviceSheet(false);
-                // Close player immediately after stopping
+                // Close player immediately after disconnecting
                 setTimeout(() => {
                   if (router.canGoBack()) {
                     router.back();
@@ -1173,7 +1453,10 @@ export default function CastingPlayerScreen() {
                   }
                 }, 100);
               } catch (error) {
-                console.error("[Casting Player] Error stopping:", error);
+                console.error(
+                  "[Casting Player] Error disconnecting from Chromecast:",
+                  error,
+                );
               }
             }}
             volume={volume}
@@ -1206,8 +1489,9 @@ export default function CastingPlayerScreen() {
             })}
             selectedMediaSource={availableMediaSources[0] || null}
             onMediaSourceChange={(source) => {
-              // TODO: Requires reloading media with new source URL
+              // Reload stream with new bitrate
               console.log("Changed media source:", source);
+              reloadWithSettings({ bitrateValue: source.bitrate });
             }}
             audioTracks={availableAudioTracks}
             selectedAudioTrack={
@@ -1219,10 +1503,8 @@ export default function CastingPlayerScreen() {
             }
             onAudioTrackChange={(track) => {
               setSelectedAudioTrackIndex(track.index);
-              // Set active tracks using RemoteMediaClient
-              remoteMediaClient
-                ?.setActiveTrackIds([track.index])
-                .catch(console.error);
+              // Reload stream with new audio track
+              reloadWithSettings({ audioIndex: track.index });
             }}
             subtitleTracks={availableSubtitleTracks}
             selectedSubtitleTrack={
@@ -1234,14 +1516,8 @@ export default function CastingPlayerScreen() {
             }
             onSubtitleTrackChange={(track) => {
               setSelectedSubtitleTrackIndex(track?.index ?? null);
-              if (track) {
-                remoteMediaClient
-                  ?.setActiveTrackIds([track.index])
-                  .catch(console.error);
-              } else {
-                // Disable subtitles
-                remoteMediaClient?.setActiveTrackIds([]).catch(console.error);
-              }
+              // Reload stream with new subtitle track
+              reloadWithSettings({ subtitleIndex: track?.index ?? null });
             }}
             playbackSpeed={currentPlaybackSpeed}
             onPlaybackSpeedChange={(speed) => {
