@@ -3,18 +3,21 @@ import type { PlaybackProgressInfo } from "@jellyfin/sdk/lib/generated-client/mo
 import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import GoogleCast, {
   CastButton,
   CastContext,
+  CastState,
   useCastDevice,
+  useCastState,
   useDevices,
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { ChromecastConnectionMenu } from "./chromecast/ChromecastConnectionMenu";
 import { RoundButton } from "./RoundButton";
 
 export function Chromecast({
@@ -25,12 +28,17 @@ export function Chromecast({
 }) {
   const _client = useRemoteMediaClient();
   const _castDevice = useCastDevice();
+  const castState = useCastState();
   const devices = useDevices();
   const _sessionManager = GoogleCast.getSessionManager();
   const discoveryManager = GoogleCast.getDiscoveryManager();
   const mediaStatus = useMediaStatus();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+
+  // Connection menu state
+  const [showConnectionMenu, setShowConnectionMenu] = useState(false);
+  const isConnected = castState === CastState.CONNECTED;
 
   const lastReportedProgressRef = useRef(0);
   const discoveryAttempts = useRef(0);
@@ -148,59 +156,92 @@ export function Chromecast({
     [Platform.OS],
   );
 
+  // Handle press - show connection menu when connected, otherwise show cast dialog
+  const handlePress = useCallback(() => {
+    if (isConnected) {
+      if (mediaStatus?.currentItemId) {
+        // Media is playing - navigate to full player
+        router.push("/casting-player");
+      } else {
+        // Connected but no media - show connection menu
+        setShowConnectionMenu(true);
+      }
+    } else {
+      // Not connected - show cast dialog
+      CastContext.showCastDialog();
+    }
+  }, [isConnected, mediaStatus?.currentItemId]);
+
+  // Handle disconnect from Chromecast
+  const handleDisconnect = useCallback(async () => {
+    try {
+      const sessionManager = GoogleCast.getSessionManager();
+      await sessionManager.endCurrentSession(true);
+    } catch (error) {
+      console.error("[Chromecast] Disconnect error:", error);
+    }
+  }, []);
+
   if (Platform.OS === "ios") {
     return (
-      <Pressable
-        className='mr-4'
-        onPress={() => {
-          if (mediaStatus?.currentItemId) {
-            router.push("/casting-player");
-          } else {
-            CastContext.showCastDialog();
-          }
-        }}
-        {...props}
-      >
-        <AndroidCastButton />
-        <Feather name='cast' size={22} color={"white"} />
-      </Pressable>
+      <>
+        <Pressable className='mr-4' onPress={handlePress} {...props}>
+          <AndroidCastButton />
+          <Feather
+            name='cast'
+            size={22}
+            color={isConnected ? "#a855f7" : "white"}
+          />
+        </Pressable>
+        <ChromecastConnectionMenu
+          visible={showConnectionMenu}
+          onClose={() => setShowConnectionMenu(false)}
+          onDisconnect={handleDisconnect}
+        />
+      </>
     );
   }
 
   if (background === "transparent")
     return (
-      <RoundButton
-        size='large'
-        className='mr-2'
-        background={false}
-        onPress={() => {
-          if (mediaStatus?.currentItemId) {
-            router.replace("/casting-player" as any);
-          } else {
-            CastContext.showCastDialog();
-          }
-        }}
-        {...props}
-      >
-        <AndroidCastButton />
-        <Feather name='cast' size={22} color={"white"} />
-      </RoundButton>
+      <>
+        <RoundButton
+          size='large'
+          className='mr-2'
+          background={false}
+          onPress={handlePress}
+          {...props}
+        >
+          <AndroidCastButton />
+          <Feather
+            name='cast'
+            size={22}
+            color={isConnected ? "#a855f7" : "white"}
+          />
+        </RoundButton>
+        <ChromecastConnectionMenu
+          visible={showConnectionMenu}
+          onClose={() => setShowConnectionMenu(false)}
+          onDisconnect={handleDisconnect}
+        />
+      </>
     );
 
   return (
-    <RoundButton
-      size='large'
-      onPress={() => {
-        if (mediaStatus?.currentItemId) {
-          router.push("/casting-player");
-        } else {
-          CastContext.showCastDialog();
-        }
-      }}
-      {...props}
-    >
-      <AndroidCastButton />
-      <Feather name='cast' size={22} color={"white"} />
-    </RoundButton>
+    <>
+      <RoundButton size='large' onPress={handlePress} {...props}>
+        <AndroidCastButton />
+        <Feather
+          name='cast'
+          size={22}
+          color={isConnected ? "#a855f7" : "white"}
+        />
+      </RoundButton>
+      <ChromecastConnectionMenu
+        visible={showConnectionMenu}
+        onClose={() => setShowConnectionMenu(false)}
+        onDisconnect={handleDisconnect}
+      />
+    </>
   );
 }

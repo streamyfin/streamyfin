@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
+  MediaPlayerState,
   MediaStreamType,
   PlayServicesState,
   useMediaStatus,
@@ -120,9 +121,14 @@ export const PlayButton: React.FC<Props> = ({
       },
       async (selectedIndex: number | undefined) => {
         if (!api) return;
-        const currentTitle = mediaStatus?.mediaInfo?.metadata?.title;
+        // Compare item IDs AND check if media is actually playing (not stopped/idle)
+        const currentContentId = mediaStatus?.mediaInfo?.contentId;
+        const isMediaActive =
+          mediaStatus?.playerState === MediaPlayerState.PLAYING ||
+          mediaStatus?.playerState === MediaPlayerState.PAUSED ||
+          mediaStatus?.playerState === MediaPlayerState.BUFFERING;
         const isOpeningCurrentlyPlayingMedia =
-          currentTitle && currentTitle === item?.Name;
+          isMediaActive && currentContentId && currentContentId === item?.Id;
 
         switch (selectedIndex) {
           case 0:
