@@ -94,6 +94,7 @@ export enum Endpoints {
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
   DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
+  MEDIA = "/media",
 }
 
 export type DiscoverEndpoint =
@@ -258,6 +259,41 @@ export class JellyseerrApi {
         `${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}/decline`,
       )
       .then(({ data }) => data);
+  }
+
+  async deleteSeerr(requestId: number): Promise<boolean> {
+    return this.axios
+      ?.delete(`${Endpoints.API_V1 + Endpoints.REQUEST}/${requestId}`)
+      .then(({ data }) => data);
+  }
+
+  async deleteMedia(mediaId: number): Promise<boolean> {
+    return this.axios
+      ?.delete(`${Endpoints.API_V1 + Endpoints.MEDIA}/${mediaId}/file`)
+      .then(({ data }) => data);
+  }
+
+  async deleteItem(requestId?: number, mediaId?: number): Promise<boolean> {
+    if (!requestId && !mediaId) return false;
+
+    if (mediaId) {
+      try {
+        await this.deleteMedia(mediaId);
+      } catch (e: any) {
+        if (e?.response?.status === 409) await this.deleteMedia(mediaId);
+        else throw e;
+      }
+    }
+
+    if (requestId) {
+      try {
+        await this.deleteSeerr(requestId);
+      } catch (e: any) {
+        if (e?.response?.status !== 404) throw e;
+      }
+    }
+
+    return true;
   }
 
   async requests(
