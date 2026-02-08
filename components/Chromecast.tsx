@@ -156,6 +156,8 @@ export function Chromecast({
     user?.Id,
     mediaStatus?.streamPosition,
     mediaStatus?.mediaInfo?.contentId,
+    mediaStatus?.playerState,
+    mediaStatus?.mediaInfo?.contentUrl,
   ]);
 
   // Android requires the cast button to be present for startDiscovery to work

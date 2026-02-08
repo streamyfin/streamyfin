@@ -286,11 +286,11 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
                           track.language ||
                           t("casting_player.unknown")}
                       </Text>
-                      {track.codec && (
+                      {(track.codec || track.isForced) && (
                         <Text
                           style={{ color: "#999", fontSize: 13, marginTop: 2 }}
                         >
-                          {track.codec.toUpperCase()}
+                          {track.codec ? track.codec.toUpperCase() : ""}
                           {track.isForced && ` • ${t("casting_player.forced")}`}
                         </Text>
                       )}

@@ -63,27 +63,41 @@ export const CastingMiniPlayer: React.FC = () => {
     mediaStatus?.streamPosition || 0,
   );
 
+  // Track baseline for elapsed-time computation
+  const baselinePositionRef = useRef(mediaStatus?.streamPosition || 0);
+  const baselineTimestampRef = useRef(Date.now());
+
   // Sync live progress with mediaStatus and poll every second when playing
   useEffect(() => {
-    if (mediaStatus?.streamPosition) {
+    // Resync baseline whenever mediaStatus reports a new position
+    if (mediaStatus?.streamPosition !== undefined) {
+      baselinePositionRef.current = mediaStatus.streamPosition;
+      baselineTimestampRef.current = Date.now();
       setLiveProgress(mediaStatus.streamPosition);
     }
 
-    // Update every second when playing
+    // Update based on elapsed real time when playing
     const interval = setInterval(() => {
-      if (
-        mediaStatus?.playerState === MediaPlayerState.PLAYING &&
-        mediaStatus?.streamPosition !== undefined
-      ) {
-        setLiveProgress((prev) => prev + 1);
+      if (mediaStatus?.playerState === MediaPlayerState.PLAYING) {
+        const elapsed =
+          ((Date.now() - baselineTimestampRef.current) *
+            (mediaStatus.playbackRate || 1)) /
+          1000;
+        setLiveProgress(baselinePositionRef.current + elapsed);
       } else if (mediaStatus?.streamPosition !== undefined) {
         // Sync with actual position when paused/buffering
+        baselinePositionRef.current = mediaStatus.streamPosition;
+        baselineTimestampRef.current = Date.now();
         setLiveProgress(mediaStatus.streamPosition);
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [mediaStatus?.playerState, mediaStatus?.streamPosition]);
+  }, [
+    mediaStatus?.playerState,
+    mediaStatus?.streamPosition,
+    mediaStatus?.playbackRate,
+  ]);
 
   const progress = liveProgress * 1000; // Convert to ms
   const duration = (mediaStatus?.mediaInfo?.streamDuration || 0) * 1000;
@@ -425,7 +439,13 @@ export const CastingMiniPlayer: React.FC = () => {
           </View>
 
           {/* Play/Pause button */}
-          <Pressable onPress={handleTogglePlayPause} style={{ padding: 8 }}>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              handleTogglePlayPause();
+            }}
+            style={{ padding: 8 }}
+          >
             <Ionicons
               name={isPlaying ? "pause" : "play"}
               size={28}

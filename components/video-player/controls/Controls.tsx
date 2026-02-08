@@ -124,6 +124,12 @@ export const Controls: FC<Props> = ({
   // Ref to track pending play timeout for cleanup and cancellation
   const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Mutable ref tracking isPlaying to avoid stale closures in seekMs timeout
+  const playingRef = useRef(isPlaying);
+  useEffect(() => {
+    playingRef.current = isPlaying;
+  }, [isPlaying]);
+
   // Clean up timeout on unmount
   useEffect(() => {
     return () => {
@@ -346,15 +352,15 @@ export const Controls: FC<Props> = ({
       seek(timeInSeconds * 1000);
       // Brief delay ensures the seek operation completes before resuming playback
       // Without this, playback may resume from the old position
-      // Only resume if currently playing to avoid overriding user pause
-      if (isPlaying) {
-        playTimeoutRef.current = setTimeout(() => {
+      // Read latest isPlaying from ref to avoid stale closure
+      playTimeoutRef.current = setTimeout(() => {
+        if (playingRef.current) {
           play();
-          playTimeoutRef.current = null;
-        }, 200);
-      }
+        }
+        playTimeoutRef.current = null;
+      }, 200);
     },
-    [seek, play, isPlaying],
+    [seek, play],
   );
 
   // Use unified segment skipper for all segment types

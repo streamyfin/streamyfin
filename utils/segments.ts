@@ -185,38 +185,31 @@ const fetchLegacySegments = async (
   const introSegments: MediaTimeSegment[] = [];
   const creditSegments: MediaTimeSegment[] = [];
 
-  try {
-    const [introRes, creditRes] = await Promise.allSettled([
-      api.axiosInstance.get<IntroTimestamps>(
-        `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
-        { headers: getAuthHeaders(api) },
-      ),
-      api.axiosInstance.get<CreditTimestamps>(
-        `${api.basePath}/Episode/${itemId}/Timestamps`,
-        { headers: getAuthHeaders(api) },
-      ),
-    ]);
+  const [introRes, creditRes] = await Promise.allSettled([
+    api.axiosInstance.get<IntroTimestamps>(
+      `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
+      { headers: getAuthHeaders(api) },
+    ),
+    api.axiosInstance.get<CreditTimestamps>(
+      `${api.basePath}/Episode/${itemId}/Timestamps`,
+      { headers: getAuthHeaders(api) },
+    ),
+  ]);
 
-    if (introRes.status === "fulfilled" && introRes.value.data.Valid) {
-      introSegments.push({
-        startTime: introRes.value.data.IntroStart,
-        endTime: introRes.value.data.IntroEnd,
-        text: "Intro",
-      });
-    }
+  if (introRes.status === "fulfilled" && introRes.value.data.Valid) {
+    introSegments.push({
+      startTime: introRes.value.data.IntroStart,
+      endTime: introRes.value.data.IntroEnd,
+      text: "Intro",
+    });
+  }
 
-    if (
-      creditRes.status === "fulfilled" &&
-      creditRes.value.data.Credits.Valid
-    ) {
-      creditSegments.push({
-        startTime: creditRes.value.data.Credits.Start,
-        endTime: creditRes.value.data.Credits.End,
-        text: "Credits",
-      });
-    }
-  } catch (error) {
-    console.error("Failed to fetch legacy segments", error);
+  if (creditRes.status === "fulfilled" && creditRes.value.data.Credits.Valid) {
+    creditSegments.push({
+      startTime: creditRes.value.data.Credits.Start,
+      endTime: creditRes.value.data.Credits.End,
+      text: "Credits",
+    });
   }
 
   return {

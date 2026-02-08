@@ -3,22 +3,22 @@
  */
 
 export const CHROMECAST_CONSTANTS = {
-  // Timing
-  PROGRESS_REPORT_INTERVAL: 10, // seconds
-  CONTROLS_TIMEOUT: 5000, // ms
-  BUFFERING_THRESHOLD: 10, // seconds of buffer before hiding indicator
-  NEXT_EPISODE_COUNTDOWN_START: 30, // seconds before end
-  CONNECTION_CHECK_INTERVAL: 5000, // ms
+  // Timing (all milliseconds for consistency)
+  PROGRESS_REPORT_INTERVAL_MS: 10_000,
+  CONTROLS_TIMEOUT_MS: 5_000,
+  BUFFERING_THRESHOLD_MS: 10_000,
+  NEXT_EPISODE_COUNTDOWN_MS: 30_000,
+  CONNECTION_CHECK_INTERVAL_MS: 5_000,
 
   // UI
   POSTER_WIDTH: 300,
   POSTER_HEIGHT: 450,
   MINI_PLAYER_HEIGHT: 80,
-  SKIP_FORWARD_TIME: 15, // seconds (overridden by settings)
-  SKIP_BACKWARD_TIME: 15, // seconds (overridden by settings)
+  SKIP_FORWARD_SECS: 15, // overridden by settings
+  SKIP_BACKWARD_SECS: 15, // overridden by settings
 
   // Animation
-  ANIMATION_DURATION: 300, // ms
+  ANIMATION_DURATION_MS: 300,
   BLUR_RADIUS: 10,
 } as const;
 
@@ -31,13 +31,12 @@ export const CONNECTION_QUALITY = {
 
 export type ConnectionQuality = keyof typeof CONNECTION_QUALITY;
 
+export type PlaybackState = "playing" | "paused" | "stopped" | "buffering";
+
 export interface ChromecastPlayerState {
   isConnected: boolean;
   deviceName: string | null;
-  isPlaying: boolean;
-  isPaused: boolean;
-  isStopped: boolean;
-  isBuffering: boolean;
+  playbackState: PlaybackState;
   progress: number; // milliseconds
   duration: number; // milliseconds
   volume: number; // 0-1
@@ -57,10 +56,7 @@ export interface ChromecastSegmentData {
 export const DEFAULT_CHROMECAST_STATE: ChromecastPlayerState = {
   isConnected: false,
   deviceName: null,
-  isPlaying: false,
-  isPaused: false,
-  isStopped: true,
-  isBuffering: false,
+  playbackState: "stopped",
   progress: 0,
   duration: 0,
   volume: 1,

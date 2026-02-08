@@ -50,7 +50,7 @@ export const calculateEndingTime = (
  * Determine connection quality based on bitrate
  */
 export const getConnectionQuality = (bitrate?: number): ConnectionQuality => {
-  if (!bitrate) return "good";
+  if (bitrate == null) return "good";
   const mbps = bitrate / 1000000;
 
   if (mbps >= 15) return "excellent";
