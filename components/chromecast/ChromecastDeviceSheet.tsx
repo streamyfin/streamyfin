@@ -278,13 +278,18 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                       onSlidingStart={() => {
                         isSliding.current = true;
                       }}
-                      onValueChange={(value) => {
+                      onValueChange={async (value) => {
                         volumeValue.value = value;
                         handleVolumeChange(value);
                         // Unmute when adjusting volume
                         if (isMuted) {
                           setIsMuted(false);
-                          castSession?.setMute(false);
+                          try {
+                            await castSession?.setMute(false);
+                          } catch (error) {
+                            console.error("[Volume] Failed to unmute:", error);
+                            setIsMuted(true); // Rollback on failure
+                          }
                         }
                       }}
                       onSlidingComplete={(value) => {

@@ -21,6 +21,11 @@ export const buildCastMediaInfo = ({
   streamUrl: string;
   api: Api;
 }) => {
+  if (!item.Id) {
+    throw new Error("Missing item.Id for media load — cannot build contentId");
+  }
+
+  const itemId: string = item.Id;
   const streamDuration = item.RunTimeTicks
     ? item.RunTimeTicks / 10000000
     : undefined;
@@ -74,7 +79,7 @@ export const buildCastMediaInfo = ({
           };
 
   return {
-    contentId: item.Id,
+    contentId: itemId,
     contentUrl: streamUrl,
     contentType: "video/mp4",
     streamType: MediaStreamType.BUFFERED,

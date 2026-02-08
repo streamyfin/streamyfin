@@ -78,6 +78,8 @@ export const useChromecastSegments = (
   }, [segmentData]);
 
   // Check which segment we're currently in
+  // currentProgressMs is in milliseconds; isWithinSegment() converts ms→seconds internally
+  // before comparing with segment times (which are in seconds from the autoskip API)
   const currentSegment = useMemo(() => {
     if (isWithinSegment(currentProgressMs, segments.intro)) {
       return { type: "intro" as const, segment: segments.intro };

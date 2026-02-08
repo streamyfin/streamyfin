@@ -36,7 +36,6 @@ export const useCasting = (item: BaseItemDto | null) => {
 
   // Local state
   const [state, setState] = useState<CastPlayerState>(DEFAULT_CAST_STATE);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastReportedProgressRef = useRef(0);
   const volumeDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -125,6 +124,9 @@ export const useCasting = (item: BaseItemDto | null) => {
     // Report playback start when media begins (only once per item)
     const currentState = stateRef.current;
     if (hasReportedStartRef.current !== item.Id && currentState.progress > 0) {
+      // Set synchronously before async call to prevent race condition duplicates
+      hasReportedStartRef.current = item.Id || null;
+
       playStateApi
         .reportPlaybackStart({
           playbackStartInfo: {
@@ -137,10 +139,9 @@ export const useCasting = (item: BaseItemDto | null) => {
             PlaySessionId: mediaStatus?.mediaInfo?.contentId,
           },
         })
-        .then(() => {
-          hasReportedStartRef.current = item.Id || null;
-        })
         .catch((error) => {
+          // Revert on failure so it can be retried
+          hasReportedStartRef.current = null;
           console.error("[useCasting] Failed to report playback start:", error);
         });
     }
@@ -217,7 +218,12 @@ export const useCasting = (item: BaseItemDto | null) => {
 
   const pause = useCallback(async () => {
     if (activeProtocol === "chromecast") {
-      await client?.pause();
+      try {
+        await client?.pause();
+      } catch (error) {
+        console.error("[useCasting] Error pausing:", error);
+        throw error;
+      }
     }
     // Future: Add pause control for other protocols
   }, [client, activeProtocol]);
@@ -244,8 +250,9 @@ export const useCasting = (item: BaseItemDto | null) => {
       // Additional validation for Chromecast
       if (activeProtocol === "chromecast") {
         // state.duration is in ms, positionSeconds is in seconds - compare in same unit
+        // Only clamp when duration is known (> 0) to avoid forcing seeks to 0
         const durationSeconds = state.duration / 1000;
-        if (positionSeconds > durationSeconds) {
+        if (durationSeconds > 0 && positionSeconds > durationSeconds) {
           console.warn(
             "[useCasting] Seek position exceeds duration, clamping:",
             positionSeconds,
@@ -281,31 +288,35 @@ export const useCasting = (item: BaseItemDto | null) => {
   // Stop and disconnect
   const stop = useCallback(
     async (onStopComplete?: () => void) => {
-      if (activeProtocol === "chromecast") {
-        await client?.stop();
-      }
-      // Future: Add stop control for other protocols
+      try {
+        if (activeProtocol === "chromecast") {
+          await client?.stop();
+        }
+        // Future: Add stop control for other protocols
 
-      // Report stop to Jellyfin
-      if (api && item?.Id && user?.Id) {
-        const playStateApi = getPlaystateApi(api);
-        await playStateApi.reportPlaybackStopped({
-          playbackStopInfo: {
-            ItemId: item.Id,
-            PositionTicks: state.progress * 10000,
-          },
-        });
-      }
+        // Report stop to Jellyfin
+        if (api && item?.Id && user?.Id) {
+          const playStateApi = getPlaystateApi(api);
+          await playStateApi.reportPlaybackStopped({
+            playbackStopInfo: {
+              ItemId: item.Id,
+              PositionTicks: stateRef.current.progress * 10000,
+            },
+          });
+        }
+      } catch (error) {
+        console.error("[useCasting] Error during stop:", error);
+      } finally {
+        setState(DEFAULT_CAST_STATE);
+        stateRef.current = DEFAULT_CAST_STATE;
 
-      setState(DEFAULT_CAST_STATE);
-      stateRef.current = DEFAULT_CAST_STATE;
-
-      // Call callback after stop completes (e.g., to navigate away)
-      if (onStopComplete) {
-        onStopComplete();
+        // Call callback after stop completes (e.g., to navigate away)
+        if (onStopComplete) {
+          onStopComplete();
+        }
       }
     },
-    [client, api, item?.Id, user?.Id, state.progress, activeProtocol],
+    [client, api, item?.Id, user?.Id, activeProtocol],
   );
 
   // Volume control (debounced to reduce API calls)
@@ -343,11 +354,12 @@ export const useCasting = (item: BaseItemDto | null) => {
       clearTimeout(controlsTimeoutRef.current);
     }
     controlsTimeoutRef.current = setTimeout(() => {
-      if (state.isPlaying) {
+      // Read latest isPlaying from stateRef to avoid stale closure
+      if (stateRef.current.isPlaying) {
         updateState((prev) => ({ ...prev, showControls: false }));
       }
     }, 5000);
-  }, [state.isPlaying, updateState]);
+  }, [updateState]);
 
   const hideControls = useCallback(() => {
     updateState((prev) => ({ ...prev, showControls: false }));
@@ -359,9 +371,6 @@ export const useCasting = (item: BaseItemDto | null) => {
   // Cleanup
   useEffect(() => {
     return () => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }

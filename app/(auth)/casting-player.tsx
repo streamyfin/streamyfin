@@ -96,22 +96,30 @@ export default function CastingPlayerScreen() {
   const [fetchedItem, setFetchedItem] = useState<BaseItemDto | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchItemData = async () => {
       const itemId = mediaStatus?.mediaInfo?.contentId;
       if (!itemId || !api || !user?.Id) return;
 
       try {
-        const res = await getUserLibraryApi(api).getItem({
-          itemId,
-          userId: user.Id,
-        });
-        setFetchedItem(res.data);
+        const res = await getUserLibraryApi(api).getItem(
+          { itemId, userId: user.Id },
+          { signal: controller.signal },
+        );
+        if (!controller.signal.aborted) {
+          setFetchedItem(res.data);
+        }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         console.error("[Casting Player] Failed to fetch item:", error);
       }
     };
 
     fetchItemData();
+
+    return () => controller.abort();
   }, [mediaStatus?.mediaInfo?.contentId, api, user?.Id]);
 
   useEffect(() => {

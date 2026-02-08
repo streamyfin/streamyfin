@@ -36,6 +36,9 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
   const { t } = useTranslation();
   const flatListRef = useRef<FlatList>(null);
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
+  const scrollRetryCountRef = useRef(0);
+  const scrollRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const MAX_SCROLL_RETRIES = 3;
 
   // Get unique seasons from episodes
   const seasons = useMemo(() => {
@@ -72,6 +75,12 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
   }, [currentItem]);
 
   useEffect(() => {
+    // Reset retry counter when visibility or data changes
+    scrollRetryCountRef.current = 0;
+    if (scrollRetryTimeoutRef.current) {
+      clearTimeout(scrollRetryTimeoutRef.current);
+    }
+
     if (visible && currentItem && filteredEpisodes.length > 0) {
       const currentIndex = filteredEpisodes.findIndex(
         (ep) => ep.Id === currentItem.Id,
@@ -85,7 +94,12 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             viewPosition: 0.5, // Center the item
           });
         }, 300);
-        return () => clearTimeout(timeoutId);
+        return () => {
+          clearTimeout(timeoutId);
+          if (scrollRetryTimeoutRef.current) {
+            clearTimeout(scrollRetryTimeoutRef.current);
+          }
+        };
       }
     }
   }, [visible, currentItem, filteredEpisodes]);
@@ -117,26 +131,30 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             backgroundColor: "#1a1a1a",
           }}
         >
-          {api && item.Id && (
-            <Image
-              source={{
-                uri: getPrimaryImageUrl({ api, item }) || undefined,
-              }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit='cover'
-            />
-          )}
-          {(!api || !item.Id) && (
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Ionicons name='film-outline' size={32} color='#333' />
-            </View>
-          )}
+          {(() => {
+            const imageUrl =
+              api && item.Id ? getPrimaryImageUrl({ api, item }) : null;
+            if (imageUrl) {
+              return (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit='cover'
+                />
+              );
+            }
+            return (
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name='film-outline' size={32} color='#333' />
+              </View>
+            );
+          })()}
         </View>
 
         {/* Episode info */}
@@ -150,7 +168,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             }}
             numberOfLines={1}
           >
-            {item.IndexNumber}.{" "}
+            {item.IndexNumber != null ? `${item.IndexNumber}. ` : ""}
             {truncateTitle(item.Name || t("casting_player.unknown"), 30)}
           </Text>
           {item.Overview && (
@@ -295,8 +313,18 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             }}
             showsVerticalScrollIndicator={false}
             onScrollToIndexFailed={(info) => {
-              // Fallback if scroll fails
-              setTimeout(() => {
+              // Bounded retry for scroll failures
+              if (
+                scrollRetryCountRef.current >= MAX_SCROLL_RETRIES ||
+                info.index >= filteredEpisodes.length
+              ) {
+                return;
+              }
+              scrollRetryCountRef.current += 1;
+              if (scrollRetryTimeoutRef.current) {
+                clearTimeout(scrollRetryTimeoutRef.current);
+              }
+              scrollRetryTimeoutRef.current = setTimeout(() => {
                 flatListRef.current?.scrollToIndex({
                   index: info.index,
                   animated: true,

@@ -132,9 +132,10 @@ export const ChromecastConnectionMenu: React.FC<
       if (onDisconnect) {
         await onDisconnect();
       }
-      onClose();
     } catch (error) {
       console.error("[Connection Menu] Disconnect error:", error);
+    } finally {
+      onClose();
     }
   }, [onDisconnect, onClose]);
 
@@ -254,13 +255,13 @@ export const ChromecastConnectionMenu: React.FC<
                     onSlidingStart={() => {
                       isSliding.current = true;
                     }}
-                    onValueChange={(value) => {
+                    onValueChange={async (value) => {
                       volumeValue.value = value;
                       handleVolumeChange(value);
                       if (isMuted) {
                         setIsMuted(false);
                         try {
-                          castSession?.setMute(false);
+                          await castSession?.setMute(false);
                         } catch (error: unknown) {
                           console.error(
                             "[ChromecastConnectionMenu] Failed to unmute:",
