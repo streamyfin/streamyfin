@@ -9,8 +9,9 @@ import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CastState,
   useCastDevice,
-  useCastSession,
+  useCastState,
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
@@ -30,8 +31,8 @@ export const useCasting = (item: BaseItemDto | null) => {
   // Chromecast hooks
   const client = useRemoteMediaClient();
   const castDevice = useCastDevice();
+  const castState = useCastState();
   const mediaStatus = useMediaStatus();
-  const castSession = useCastSession();
 
   // Local state
   const [state, setState] = useState<CastPlayerState>(DEFAULT_CAST_STATE);
@@ -40,9 +41,22 @@ export const useCasting = (item: BaseItemDto | null) => {
   const lastReportedProgressRef = useRef(0);
   const volumeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const hasReportedStartRef = useRef<string | null>(null); // Track which item we reported start for
+  const stateRef = useRef<CastPlayerState>(DEFAULT_CAST_STATE); // Ref for progress reporting without deps
 
-  // Detect which protocol is active
-  const chromecastConnected = castDevice !== null;
+  // Helper to update both state and ref
+  const updateState = useCallback(
+    (updater: (prev: CastPlayerState) => CastPlayerState) => {
+      setState((prev) => {
+        const next = updater(prev);
+        stateRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  // Detect which protocol is active - use CastState for reliable detection
+  const chromecastConnected = castState === CastState.CONNECTED;
   // Future: Add detection for other protocols here
 
   const activeProtocol: CastProtocol | null = chromecastConnected
@@ -54,7 +68,7 @@ export const useCasting = (item: BaseItemDto | null) => {
   // Update current device
   useEffect(() => {
     if (chromecastConnected && castDevice) {
-      setState((prev) => ({
+      updateState((prev) => ({
         ...prev,
         isConnected: true,
         protocol: "chromecast",
@@ -65,7 +79,7 @@ export const useCasting = (item: BaseItemDto | null) => {
         },
       }));
     } else {
-      setState((prev) => ({
+      updateState((prev) => ({
         ...prev,
         isConnected: false,
         protocol: null,
@@ -78,7 +92,7 @@ export const useCasting = (item: BaseItemDto | null) => {
   // Chromecast: Update playback state
   useEffect(() => {
     if (activeProtocol === "chromecast" && mediaStatus) {
-      setState((prev) => ({
+      updateState((prev) => ({
         ...prev,
         isPlaying: mediaStatus.playerState === "playing",
         progress: (mediaStatus.streamPosition || 0) * 1000,
@@ -86,62 +100,40 @@ export const useCasting = (item: BaseItemDto | null) => {
         isBuffering: mediaStatus.playerState === "buffering",
       }));
     }
-  }, [mediaStatus, activeProtocol]);
+  }, [mediaStatus, activeProtocol, updateState]);
 
-  // Chromecast: Sync volume from device (both mediaStatus and CastSession)
+  // Chromecast: Sync volume from mediaStatus
   useEffect(() => {
     if (activeProtocol !== "chromecast") return;
 
     // Sync from mediaStatus when available
     if (mediaStatus?.volume !== undefined) {
-      setState((prev) => ({
+      updateState((prev) => ({
         ...prev,
         volume: mediaStatus.volume,
       }));
     }
-
-    // Also poll CastSession for device volume to catch physical button changes
-    if (castSession) {
-      const volumeInterval = setInterval(() => {
-        castSession
-          .getVolume()
-          .then((deviceVolume) => {
-            if (deviceVolume !== undefined) {
-              setState((prev) => {
-                // Only update if significantly different to avoid jitter
-                if (Math.abs(prev.volume - deviceVolume) > 0.01) {
-                  return { ...prev, volume: deviceVolume };
-                }
-                return prev;
-              });
-            }
-          })
-          .catch(() => {
-            // Ignore errors - device might be disconnected
-          });
-      }, 500); // Check every 500ms
-
-      return () => clearInterval(volumeInterval);
-    }
-  }, [mediaStatus?.volume, castSession, activeProtocol]);
+  }, [mediaStatus?.volume, activeProtocol, updateState]);
 
   // Progress reporting to Jellyfin (matches native player behavior)
+  // Uses stateRef to read current progress/volume without adding them as deps
   useEffect(() => {
     if (!isConnected || !item?.Id || !user?.Id || !api) return;
 
     const playStateApi = getPlaystateApi(api);
 
     // Report playback start when media begins (only once per item)
-    if (hasReportedStartRef.current !== item.Id && state.progress > 0) {
+    const currentState = stateRef.current;
+    if (hasReportedStartRef.current !== item.Id && currentState.progress > 0) {
       playStateApi
         .reportPlaybackStart({
           playbackStartInfo: {
             ItemId: item.Id,
-            PositionTicks: Math.floor(state.progress * 10000),
+            PositionTicks: Math.floor(currentState.progress * 10000),
             PlayMethod:
               activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
-            VolumeLevel: Math.floor(state.volume * 100),
-            IsMuted: state.volume === 0,
+            VolumeLevel: Math.floor(currentState.volume * 100),
+            IsMuted: currentState.volume === 0,
             PlaySessionId: mediaStatus?.mediaInfo?.contentId,
           },
         })
@@ -154,17 +146,18 @@ export const useCasting = (item: BaseItemDto | null) => {
     }
 
     const reportProgress = () => {
+      const s = stateRef.current;
       // Don't report if no meaningful progress or if buffering
-      if (state.progress <= 0 || state.isBuffering) return;
+      if (s.progress <= 0 || s.isBuffering) return;
 
-      const progressMs = Math.floor(state.progress);
+      const progressMs = Math.floor(s.progress);
       const progressTicks = progressMs * 10000; // Convert ms to ticks
       const progressSeconds = Math.floor(progressMs / 1000);
 
       // When paused, always report to keep server in sync
       // When playing, skip if progress hasn't changed significantly (less than 3 seconds)
       if (
-        state.isPlaying &&
+        s.isPlaying &&
         Math.abs(progressSeconds - lastReportedProgressRef.current) < 3
       ) {
         return;
@@ -177,13 +170,11 @@ export const useCasting = (item: BaseItemDto | null) => {
           playbackProgressInfo: {
             ItemId: item.Id,
             PositionTicks: progressTicks,
-            IsPaused: !state.isPlaying,
+            IsPaused: !s.isPlaying,
             PlayMethod:
               activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
-            // Add volume level for server tracking
-            VolumeLevel: Math.floor(state.volume * 100),
-            IsMuted: state.volume === 0,
-            // Include play session ID if available
+            VolumeLevel: Math.floor(s.volume * 100),
+            IsMuted: s.volume === 0,
             PlaySessionId: mediaStatus?.mediaInfo?.contentId,
           },
         })
@@ -192,23 +183,13 @@ export const useCasting = (item: BaseItemDto | null) => {
         });
     };
 
-    // Report immediately on play/pause state change
-    reportProgress();
-
-    // Report every 5 seconds when paused, every 10 seconds when playing
-    const interval = setInterval(
-      reportProgress,
-      state.isPlaying ? 10000 : 5000,
-    );
+    // Report progress on a fixed interval, reading latest state from ref
+    const interval = setInterval(reportProgress, 10000);
     return () => clearInterval(interval);
   }, [
     api,
     item?.Id,
     user?.Id,
-    state.progress,
-    state.isPlaying,
-    state.isBuffering, // Add buffering state to dependencies
-    state.volume,
     isConnected,
     activeProtocol,
     mediaStatus?.mediaInfo?.contentId,
@@ -262,14 +243,16 @@ export const useCasting = (item: BaseItemDto | null) => {
 
       // Additional validation for Chromecast
       if (activeProtocol === "chromecast") {
-        if (positionSeconds > state.duration) {
+        // state.duration is in ms, positionSeconds is in seconds - compare in same unit
+        const durationSeconds = state.duration / 1000;
+        if (positionSeconds > durationSeconds) {
           console.warn(
             "[useCasting] Seek position exceeds duration, clamping:",
             positionSeconds,
             "->",
-            state.duration,
+            durationSeconds,
           );
-          await client?.seek({ position: state.duration });
+          await client?.seek({ position: durationSeconds });
           return;
         }
         await client?.seek({ position: positionSeconds });
@@ -315,6 +298,7 @@ export const useCasting = (item: BaseItemDto | null) => {
       }
 
       setState(DEFAULT_CAST_STATE);
+      stateRef.current = DEFAULT_CAST_STATE;
 
       // Call callback after stop completes (e.g., to navigate away)
       if (onStopComplete) {
@@ -330,7 +314,7 @@ export const useCasting = (item: BaseItemDto | null) => {
       const clampedVolume = Math.max(0, Math.min(1, volume));
 
       // Update UI immediately
-      setState((prev) => ({ ...prev, volume: clampedVolume }));
+      updateState((prev) => ({ ...prev, volume: clampedVolume }));
 
       // Debounce API call
       if (volumeDebounceRef.current) {
@@ -341,35 +325,32 @@ export const useCasting = (item: BaseItemDto | null) => {
         if (activeProtocol === "chromecast" && client && isConnected) {
           // Use setStreamVolume for media stream volume (0.0 - 1.0)
           // Physical volume buttons are handled automatically by the framework
-          await client.setStreamVolume(clampedVolume).catch((error) => {
-            console.log(
-              "[useCasting] Volume set failed (no session):",
-              error.message,
-            );
+          await client.setStreamVolume(clampedVolume).catch(() => {
+            // Ignore errors - session might have ended
           });
         }
         // Future: Add volume control for other protocols
       }, 300);
     },
-    [client, activeProtocol],
+    [client, activeProtocol, isConnected],
   );
 
   // Controls visibility
   const showControls = useCallback(() => {
-    setState((prev) => ({ ...prev, showControls: true }));
+    updateState((prev) => ({ ...prev, showControls: true }));
 
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
     controlsTimeoutRef.current = setTimeout(() => {
       if (state.isPlaying) {
-        setState((prev) => ({ ...prev, showControls: false }));
+        updateState((prev) => ({ ...prev, showControls: false }));
       }
     }, 5000);
-  }, [state.isPlaying]);
+  }, [state.isPlaying, updateState]);
 
   const hideControls = useCallback(() => {
-    setState((prev) => ({ ...prev, showControls: false }));
+    updateState((prev) => ({ ...prev, showControls: false }));
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }

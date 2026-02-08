@@ -92,9 +92,5 @@ export const chromecast: DeviceProfile = {
       Format: "vtt",
       Method: "Encode",
     },
-    {
-      Format: "vtt",
-      Method: "Encode",
-    },
   ],
 };

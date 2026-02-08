@@ -91,9 +91,5 @@ export const chromecasth265: DeviceProfile = {
       Format: "vtt",
       Method: "Encode",
     },
-    {
-      Format: "vtt",
-      Method: "Encode",
-    },
   ],
 };

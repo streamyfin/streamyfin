@@ -33,7 +33,7 @@ export const useSegmentSkipper = ({
 }: UseSegmentSkipperProps): UseSegmentSkipperReturn => {
   const { settings } = useSettings();
   const haptic = useHaptic();
-  const autoSkipTriggeredRef = useRef(false);
+  const autoSkipTriggeredRef = useRef<string | null>(null);
 
   // Get skip mode based on segment type
   const skipMode = (() => {
@@ -63,7 +63,7 @@ export const useSegmentSkipper = ({
   // Skip function with optional haptic feedback
   const skipSegment = useCallback(
     (notifyOrUseHaptics = true) => {
-      if (!currentSegment) return;
+      if (!currentSegment || skipMode === "none") return;
 
       // For Outro segments, prevent seeking past the end
       if (segmentType === "Outro" && totalDuration) {
@@ -78,22 +78,26 @@ export const useSegmentSkipper = ({
         haptic();
       }
     },
-    [currentSegment, segmentType, totalDuration, seek, haptic],
+    [currentSegment, segmentType, totalDuration, seek, haptic, skipMode],
   );
   // Auto-skip logic when mode is 'auto'
   useEffect(() => {
     if (skipMode !== "auto" || isPaused) {
-      autoSkipTriggeredRef.current = false;
       return;
     }
 
-    if (currentSegment && !autoSkipTriggeredRef.current) {
-      autoSkipTriggeredRef.current = true;
+    // Track segment identity to avoid re-triggering on pause/unpause
+    const segmentId = currentSegment
+      ? `${currentSegment.startTime}-${currentSegment.endTime}`
+      : null;
+
+    if (currentSegment && autoSkipTriggeredRef.current !== segmentId) {
+      autoSkipTriggeredRef.current = segmentId;
       skipSegment(false); // Don't trigger haptics for auto-skip
     }
 
     if (!currentSegment) {
-      autoSkipTriggeredRef.current = false;
+      autoSkipTriggeredRef.current = null;
     }
   }, [currentSegment, skipMode, isPaused, skipSegment]);
 

@@ -9,7 +9,6 @@ import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
   MediaPlayerState,
-  MediaStreamType,
   PlayServicesState,
   useMediaStatus,
   useRemoteMediaClient,
@@ -33,8 +32,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
@@ -112,7 +110,11 @@ export const PlayButton: React.FC<Props> = ({
       return;
     }
 
-    const options = ["Chromecast", "Device", "Cancel"];
+    const options = [
+      t("casting_player.chromecast"),
+      t("casting_player.device"),
+      t("casting_player.cancel"),
+    ];
     const cancelButtonIndex = 2;
     showActionSheetWithOptions(
       {
@@ -181,17 +183,6 @@ export const PlayButton: React.FC<Props> = ({
                     subtitleStreamIndex: selectedOptions.subtitleIndex,
                   });
 
-                  console.log("URL: ", data?.url, enableH265);
-                  console.log("[PlayButton] Item before casting:", {
-                    Type: item.Type,
-                    Id: item.Id,
-                    Name: item.Name,
-                    ParentIndexNumber: item.ParentIndexNumber,
-                    IndexNumber: item.IndexNumber,
-                    SeasonId: item.SeasonId,
-                    SeriesId: item.SeriesId,
-                  });
-
                   if (!data?.url) {
                     console.warn("No URL returned from getStreamUrl", data);
                     Alert.alert(
@@ -201,80 +192,16 @@ export const PlayButton: React.FC<Props> = ({
                     return;
                   }
 
-                  // Calculate start time in seconds from playback position
                   const startTimeSeconds =
                     (item?.UserData?.PlaybackPositionTicks ?? 0) / 10000000;
 
-                  // Calculate stream duration in seconds from runtime
-                  const streamDurationSeconds = item.RunTimeTicks
-                    ? item.RunTimeTicks / 10000000
-                    : undefined;
-
-                  console.log("[PlayButton] Loading media with customData:", {
-                    hasCustomData: !!item,
-                    customDataType: item.Type,
-                  });
-
                   client
                     .loadMedia({
-                      mediaInfo: {
-                        contentId: item.Id,
-                        contentUrl: data?.url,
-                        contentType: "video/mp4",
-                        streamType: MediaStreamType.BUFFERED,
-                        streamDuration: streamDurationSeconds,
-                        customData: item,
-                        metadata:
-                          item.Type === "Episode"
-                            ? {
-                                type: "tvShow",
-                                title: item.Name || "",
-                                episodeNumber: item.IndexNumber || 0,
-                                seasonNumber: item.ParentIndexNumber || 0,
-                                seriesTitle: item.SeriesName || "",
-                                images: [
-                                  {
-                                    url: getParentBackdropImageUrl({
-                                      api,
-                                      item,
-                                      quality: 90,
-                                      width: 2000,
-                                    })!,
-                                  },
-                                ],
-                              }
-                            : item.Type === "Movie"
-                              ? {
-                                  type: "movie",
-                                  title: item.Name || "",
-                                  subtitle: item.Overview || "",
-                                  images: [
-                                    {
-                                      url: getPrimaryImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                }
-                              : {
-                                  type: "generic",
-                                  title: item.Name || "",
-                                  subtitle: item.Overview || "",
-                                  images: [
-                                    {
-                                      url: getPrimaryImageUrl({
-                                        api,
-                                        item,
-                                        quality: 90,
-                                        width: 2000,
-                                      })!,
-                                    },
-                                  ],
-                                },
-                      },
+                      mediaInfo: buildCastMediaInfo({
+                        item,
+                        streamUrl: data.url,
+                        api,
+                      }),
                       startTime: startTimeSeconds,
                     })
                     .then(() => {
@@ -285,7 +212,7 @@ export const PlayButton: React.FC<Props> = ({
                       router.push("/casting-player");
                     });
                 } catch (e) {
-                  console.log(e);
+                  console.error("[PlayButton] Cast error:", e);
                 }
               }
             });

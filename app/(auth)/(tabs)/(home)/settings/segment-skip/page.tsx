@@ -96,6 +96,7 @@ export default function SegmentSkipPage() {
         >
           <PlatformDropdown
             groups={skipIntroOptions}
+            disabled={pluginSettings?.skipIntro?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -119,6 +120,7 @@ export default function SegmentSkipPage() {
         >
           <PlatformDropdown
             groups={skipOutroOptions}
+            disabled={pluginSettings?.skipOutro?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -142,6 +144,7 @@ export default function SegmentSkipPage() {
         >
           <PlatformDropdown
             groups={skipRecapOptions}
+            disabled={pluginSettings?.skipRecap?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -165,6 +168,7 @@ export default function SegmentSkipPage() {
         >
           <PlatformDropdown
             groups={skipCommercialOptions}
+            disabled={pluginSettings?.skipCommercial?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -190,6 +194,7 @@ export default function SegmentSkipPage() {
         >
           <PlatformDropdown
             groups={skipPreviewOptions}
+            disabled={pluginSettings?.skipPreview?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>

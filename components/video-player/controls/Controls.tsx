@@ -346,12 +346,15 @@ export const Controls: FC<Props> = ({
       seek(timeInSeconds * 1000);
       // Brief delay ensures the seek operation completes before resuming playback
       // Without this, playback may resume from the old position
-      playTimeoutRef.current = setTimeout(() => {
-        play();
-        playTimeoutRef.current = null;
-      }, 200);
+      // Only resume if currently playing to avoid overriding user pause
+      if (isPlaying) {
+        playTimeoutRef.current = setTimeout(() => {
+          play();
+          playTimeoutRef.current = null;
+        }, 200);
+      }
     },
-    [seek, play],
+    [seek, play, isPlaying],
   );
 
   // Use unified segment skipper for all segment types
@@ -427,7 +430,7 @@ export const Controls: FC<Props> = ({
   );
   const skipIntro = activeSegment?.skipSegment || noop;
   const showSkipCreditButton = activeSegment?.type === "Outro";
-  const skipCredit = outroSkipper.skipSegment;
+  const skipCredit = outroSkipper.skipSegment || noop;
   const hasContentAfterCredits =
     outroSkipper.currentSegment && maxSeconds
       ? outroSkipper.currentSegment.endTime < maxSeconds

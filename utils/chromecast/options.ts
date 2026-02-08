@@ -23,10 +23,10 @@ export const CHROMECAST_CONSTANTS = {
 } as const;
 
 export const CONNECTION_QUALITY = {
-  EXCELLENT: { min: 50, label: "Excellent", icon: "signal" },
-  GOOD: { min: 30, label: "Good", icon: "signal" },
-  FAIR: { min: 15, label: "Fair", icon: "signal" },
-  POOR: { min: 0, label: "Poor", icon: "signal" },
+  EXCELLENT: { min: 50, label: "Excellent", icon: "wifi" }, // min Mbps
+  GOOD: { min: 30, label: "Good", icon: "signal" }, // min Mbps
+  FAIR: { min: 15, label: "Fair", icon: "cellular" }, // min Mbps
+  POOR: { min: 0, label: "Poor", icon: "warning" }, // min Mbps
 } as const;
 
 export type ConnectionQuality = keyof typeof CONNECTION_QUALITY;
@@ -66,5 +66,5 @@ export const DEFAULT_CHROMECAST_STATE: ChromecastPlayerState = {
   volume: 1,
   isMuted: false,
   currentItemId: null,
-  connectionQuality: "EXCELLENT",
+  connectionQuality: "GOOD",
 };

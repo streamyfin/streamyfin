@@ -966,7 +966,7 @@ export default function page() {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
                     t("player.error"),
-                    t("player.an_error_occured_while_playing_the_video"),
+                    t("player.an_error_occurred_while_playing_the_video"),
                   );
                   writeToLog("ERROR", "Video Error", e.nativeEvent);
                 }}

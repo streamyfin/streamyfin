@@ -5,10 +5,11 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { type Device, useCastSession } from "react-native-google-cast";
+import { useCastSession } from "react-native-google-cast";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -16,7 +17,7 @@ import { Text } from "@/components/common/Text";
 interface ChromecastDeviceSheetProps {
   visible: boolean;
   onClose: () => void;
-  device: Device | null;
+  device: { friendlyName?: string } | null;
   onDisconnect: () => Promise<void>;
   volume?: number;
   onVolumeChange?: (volume: number) => Promise<void>;
@@ -31,6 +32,7 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   onVolumeChange,
 }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [displayVolume, setDisplayVolume] = useState(Math.round(volume * 100));
   const volumeValue = useSharedValue(volume * 100);
@@ -76,16 +78,14 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
 
         // Check mute state
         const muteState = await castSession.isMute();
-        if (muteState !== isMuted) {
-          setIsMuted(muteState);
-        }
+        setIsMuted(muteState);
       } catch {
         // Ignore errors - device might be disconnected
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [visible, castSession, displayVolume, volumeValue, isMuted]);
+  }, [visible, castSession, volumeValue]);
 
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
@@ -107,7 +107,6 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
       // This works even when no media is playing, unlike setStreamVolume
       if (castSession) {
         await castSession.setVolume(newVolume);
-        console.log("[Volume] Set device volume via CastSession:", newVolume);
       } else if (onVolumeChange) {
         // Fallback to prop method if session not available
         await onVolumeChange(newVolume);
@@ -153,6 +152,15 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
     }
   }, [castSession, isMuted]);
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (volumeDebounceRef.current) {
+        clearTimeout(volumeDebounceRef.current);
+      }
+    };
+  }, []);
+
   return (
     <Modal
       visible={visible}
@@ -196,7 +204,7 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                 <Text
                   style={{ color: "white", fontSize: 18, fontWeight: "600" }}
                 >
-                  Chromecast
+                  {t("casting_player.chromecast")}
                 </Text>
               </View>
               <Pressable onPress={onClose} style={{ padding: 8 }}>
@@ -208,12 +216,12 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
             <View style={{ padding: 16 }}>
               <View style={{ marginBottom: 20 }}>
                 <Text style={{ color: "#999", fontSize: 12, marginBottom: 4 }}>
-                  Device Name
+                  {t("casting_player.device_name")}
                 </Text>
                 <Text
                   style={{ color: "white", fontSize: 16, fontWeight: "500" }}
                 >
-                  {device?.friendlyName || "Unknown Device"}
+                  {device?.friendlyName || t("casting_player.unknown_device")}
                 </Text>
               </View>
               {/* Volume control */}
@@ -226,9 +234,11 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                     marginBottom: 12,
                   }}
                 >
-                  <Text style={{ color: "#999", fontSize: 12 }}>Volume</Text>
+                  <Text style={{ color: "#999", fontSize: 12 }}>
+                    {t("casting_player.volume")}
+                  </Text>
                   <Text style={{ color: "white", fontSize: 14 }}>
-                    {isMuted ? "Muted" : `${displayVolume}%`}
+                    {isMuted ? t("casting_player.muted") : `${displayVolume}%`}
                   </Text>
                 </View>
                 <View
@@ -317,7 +327,9 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                 <Text
                   style={{ color: "white", fontSize: 16, fontWeight: "600" }}
                 >
-                  {isDisconnecting ? "Disconnecting..." : "Stop Casting"}
+                  {isDisconnecting
+                    ? t("casting_player.disconnecting")
+                    : t("casting_player.stop_casting")}
                 </Text>
               </Pressable>
             </View>

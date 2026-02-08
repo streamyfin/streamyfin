@@ -47,6 +47,7 @@ interface PlatformDropdownProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onOptionSelect?: (value?: any) => void;
+  disabled?: boolean;
   expoUIConfig?: {
     hostStyle?: any;
   };
@@ -197,6 +198,7 @@ const PlatformDropdownComponent = ({
   onOpenChange: controlledOnOpenChange,
   onOptionSelect,
   expoUIConfig,
+  disabled,
   bottomSheetConfig,
 }: PlatformDropdownProps) => {
   const { showModal, hideModal, isVisible } = useGlobalModal();
@@ -231,6 +233,13 @@ const PlatformDropdownComponent = ({
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
   if (Platform.OS === "ios") {
+    if (disabled) {
+      return (
+        <View style={{ opacity: 0.5 }} pointerEvents='none'>
+          {trigger || <Text className='text-white'>Open Menu</Text>}
+        </View>
+      );
+    }
     return (
       <Host style={expoUIConfig?.hostStyle}>
         <ContextMenu>
@@ -353,8 +362,14 @@ const PlatformDropdownComponent = ({
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      {trigger || <Text className='text-white'>Open Menu</Text>}
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.7}
+      disabled={disabled}
+    >
+      <View style={disabled ? { opacity: 0.5 } : undefined}>
+        {trigger || <Text className='text-white'>Open Menu</Text>}
+      </View>
     </TouchableOpacity>
   );
 };
