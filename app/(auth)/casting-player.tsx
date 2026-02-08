@@ -23,7 +23,6 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import GoogleCast, {
   CastState,
   MediaPlayerState,
-  MediaStreamType,
   useCastDevice,
   useCastState,
   useMediaStatus,
@@ -49,12 +48,10 @@ import {
   calculateEndingTime,
   formatTime,
   getPosterUrl,
-  shouldShowNextEpisodeCountdown,
   truncateTitle,
 } from "@/utils/casting/helpers";
+import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
 import type { CastProtocol } from "@/utils/casting/types";
-import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
-import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
@@ -92,35 +89,25 @@ export default function CastingPlayerScreen() {
 
   // Live progress tracking - update every second
   const [liveProgress, setLiveProgress] = useState(0);
+  const lastSyncPositionRef = useRef(0);
+  const lastSyncTimestampRef = useRef(Date.now());
 
   // Fetch full item data from Jellyfin by ID
   const [fetchedItem, setFetchedItem] = useState<BaseItemDto | null>(null);
-  const [_isFetchingItem, setIsFetchingItem] = useState(false);
 
   useEffect(() => {
     const fetchItemData = async () => {
       const itemId = mediaStatus?.mediaInfo?.contentId;
       if (!itemId || !api || !user?.Id) return;
 
-      setIsFetchingItem(true);
       try {
         const res = await getUserLibraryApi(api).getItem({
           itemId,
           userId: user.Id,
         });
-        console.log("[Casting Player] Fetched full item from API:", {
-          Type: res.data.Type,
-          Name: res.data.Name,
-          SeriesName: res.data.SeriesName,
-          SeasonId: res.data.SeasonId,
-          ParentIndexNumber: res.data.ParentIndexNumber,
-          IndexNumber: res.data.IndexNumber,
-        });
         setFetchedItem(res.data);
       } catch (error) {
         console.error("[Casting Player] Failed to fetch item:", error);
-      } finally {
-        setIsFetchingItem(false);
       }
     };
 
@@ -128,18 +115,21 @@ export default function CastingPlayerScreen() {
   }, [mediaStatus?.mediaInfo?.contentId, api, user?.Id]);
 
   useEffect(() => {
-    // Initialize with actual position
-    if (mediaStatus?.streamPosition) {
+    // Sync refs whenever mediaStatus provides a new position
+    if (mediaStatus?.streamPosition !== undefined) {
+      lastSyncPositionRef.current = mediaStatus.streamPosition;
+      lastSyncTimestampRef.current = Date.now();
       setLiveProgress(mediaStatus.streamPosition);
     }
 
-    // Update every second when playing
+    // Update every second when playing, deriving from last sync point
     const interval = setInterval(() => {
       if (
         mediaStatus?.playerState === MediaPlayerState.PLAYING &&
         mediaStatus?.streamPosition !== undefined
       ) {
-        setLiveProgress((prev) => prev + 1);
+        const elapsed = (Date.now() - lastSyncTimestampRef.current) / 1000;
+        setLiveProgress(lastSyncPositionRef.current + elapsed);
       } else if (mediaStatus?.streamPosition !== undefined) {
         // Sync with actual position when paused/buffering
         setLiveProgress(mediaStatus.streamPosition);
@@ -153,7 +143,6 @@ export default function CastingPlayerScreen() {
   const currentItem = useMemo(() => {
     // Priority 1: Use fetched item from API (most reliable)
     if (fetchedItem) {
-      console.log("[Casting Player] Using fetched item from API");
       return fetchedItem;
     }
 
@@ -161,19 +150,12 @@ export default function CastingPlayerScreen() {
     const customData = mediaStatus?.mediaInfo?.customData as BaseItemDto | null;
     if (customData?.Type && customData.Type !== "Movie") {
       // Only use customData if it has a real Type (not default fallback)
-      console.log("[Casting Player] Using customData item:", {
-        Type: customData.Type,
-        Name: customData.Name,
-      });
       return customData;
     }
 
     // Priority 3: Create minimal fallback while loading
     if (mediaStatus?.mediaInfo) {
       const { contentId, metadata } = mediaStatus.mediaInfo;
-      console.log(
-        "[Casting Player] Using minimal fallback item (still loading)",
-      );
       return {
         Id: contentId,
         Name: metadata?.title || "Unknown",
@@ -227,7 +209,7 @@ export default function CastingPlayerScreen() {
         togglePlayPause: async () => {},
         skipForward: async () => {},
         skipBackward: async () => {},
-        setVolume: async () => {},
+        setVolume: () => {},
         volume: 1,
         remoteMediaClient: null,
       };
@@ -264,10 +246,6 @@ export default function CastingPlayerScreen() {
       try {
         // Save current playback position
         const currentPosition = mediaStatus?.streamPosition ?? 0;
-        console.log(
-          "[Casting Player] Reloading stream at position:",
-          currentPosition,
-        );
 
         // Get new stream URL with updated settings
         const enableH265 = settings.enableH265ForChromecast;
@@ -288,74 +266,15 @@ export default function CastingPlayerScreen() {
           return;
         }
 
-        console.log("[Casting Player] Reloading with new URL:", data.url);
-
         // Reload media with new URL
         await remoteMediaClient.loadMedia({
-          mediaInfo: {
-            contentId: currentItem.Id,
-            contentUrl: data.url,
-            contentType: "video/mp4",
-            streamType: MediaStreamType.BUFFERED,
-            streamDuration: currentItem.RunTimeTicks
-              ? currentItem.RunTimeTicks / 10000000
-              : undefined,
-            customData: currentItem,
-            metadata:
-              currentItem.Type === "Episode"
-                ? {
-                    type: "tvShow",
-                    title: currentItem.Name || "",
-                    episodeNumber: currentItem.IndexNumber || 0,
-                    seasonNumber: currentItem.ParentIndexNumber || 0,
-                    seriesTitle: currentItem.SeriesName || "",
-                    images: [
-                      {
-                        url: getParentBackdropImageUrl({
-                          api,
-                          item: currentItem,
-                          quality: 90,
-                          width: 2000,
-                        })!,
-                      },
-                    ],
-                  }
-                : currentItem.Type === "Movie"
-                  ? {
-                      type: "movie",
-                      title: currentItem.Name || "",
-                      subtitle: currentItem.Overview || "",
-                      images: [
-                        {
-                          url: getPrimaryImageUrl({
-                            api,
-                            item: currentItem,
-                            quality: 90,
-                            width: 2000,
-                          })!,
-                        },
-                      ],
-                    }
-                  : {
-                      type: "generic",
-                      title: currentItem.Name || "",
-                      subtitle: currentItem.Overview || "",
-                      images: [
-                        {
-                          url: getPrimaryImageUrl({
-                            api,
-                            item: currentItem,
-                            quality: 90,
-                            width: 2000,
-                          })!,
-                        },
-                      ],
-                    },
-          },
+          mediaInfo: buildCastMediaInfo({
+            item: currentItem,
+            streamUrl: data.url,
+            api,
+          }),
           startTime: currentPosition, // Resume at same position
         });
-
-        console.log("[Casting Player] Stream reloaded successfully");
       } catch (error) {
         console.error("[Casting Player] Failed to reload stream:", error);
       }
@@ -371,6 +290,47 @@ export default function CastingPlayerScreen() {
     ],
   );
 
+  // Load a different episode on the Chromecast
+  const loadEpisode = useCallback(
+    async (episode: BaseItemDto) => {
+      if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
+
+      try {
+        const enableH265 = settings.enableH265ForChromecast;
+        const data = await getStreamUrl({
+          api,
+          item: episode,
+          deviceProfile: enableH265 ? chromecasth265 : chromecast,
+          startTimeTicks: episode.UserData?.PlaybackPositionTicks ?? 0,
+          userId: user.Id,
+        });
+
+        if (!data?.url) {
+          console.error(
+            "[Casting Player] Failed to get stream URL for episode",
+          );
+          return;
+        }
+
+        await remoteMediaClient.loadMedia({
+          mediaInfo: buildCastMediaInfo({
+            item: episode,
+            streamUrl: data.url,
+            api,
+          }),
+          startTime: (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000000,
+        });
+
+        // Reset track selections for new episode
+        setSelectedAudioTrackIndex(null);
+        setSelectedSubtitleTrackIndex(null);
+      } catch (error) {
+        console.error("[Casting Player] Failed to load episode:", error);
+      }
+    },
+    [api, user?.Id, remoteMediaClient, settings.enableH265ForChromecast],
+  );
+
   // Fetch season data for season poster
   useEffect(() => {
     if (
@@ -383,19 +343,10 @@ export default function CastingPlayerScreen() {
 
     const fetchSeasonData = async () => {
       try {
-        console.log(
-          `[Casting Player] Fetching season data for SeasonId: ${currentItem.SeasonId}`,
-        );
         const userLibraryApi = getUserLibraryApi(api);
         const response = await userLibraryApi.getItem({
           itemId: currentItem.SeasonId!,
           userId: user.Id!,
-        });
-        console.log("[Casting Player] Season data fetched:", {
-          Id: response.data.Id,
-          Name: response.data.Name,
-          ImageTags: response.data.ImageTags,
-          ParentPrimaryImageItemId: response.data.ParentPrimaryImageItemId,
         });
         setSeasonData(response.data);
       } catch (error) {
@@ -485,12 +436,16 @@ export default function CastingPlayerScreen() {
     return variants;
   }, [currentItem?.MediaSources, currentItem?.MediaStreams, currentItem?.Id]);
 
+  // Track whether user has manually selected an audio track
+  const [userSelectedAudio, setUserSelectedAudio] = useState(false);
+
   // Auto-select stereo audio track for better Chromecast compatibility
   // Note: This only updates the UI state. The actual audio track change requires
   // regenerating the stream URL, which would be disruptive on initial load.
   // The user can manually switch audio tracks if needed.
   useEffect(() => {
-    if (!remoteMediaClient || !mediaStatus?.mediaInfo) return;
+    if (!remoteMediaClient || !mediaStatus?.mediaInfo || userSelectedAudio)
+      return;
 
     const currentTrack = availableAudioTracks.find(
       (t) => t.index === selectedAudioTrackIndex,
@@ -500,12 +455,6 @@ export default function CastingPlayerScreen() {
     if (currentTrack && (currentTrack.channels || 0) > 2) {
       const stereoTrack = availableAudioTracks.find((t) => t.channels === 2);
       if (stereoTrack && stereoTrack.index !== selectedAudioTrackIndex) {
-        console.log(
-          "[Audio] Note: 5.1 audio detected. Stereo available:",
-          currentTrack.displayTitle,
-          "->",
-          stereoTrack.displayTitle,
-        );
         // Auto-select stereo in UI (user can manually trigger reload)
         setSelectedAudioTrackIndex(stereoTrack.index);
       }
@@ -515,6 +464,7 @@ export default function CastingPlayerScreen() {
     availableAudioTracks,
     remoteMediaClient,
     selectedAudioTrackIndex,
+    userSelectedAudio,
   ]);
 
   // Fetch episodes for TV shows
@@ -562,8 +512,7 @@ export default function CastingPlayerScreen() {
   useEffect(() => {
     if (mediaStatus?.currentItemId && !currentItem) {
       // New media started casting while we're not on the player
-      console.log("[Casting Player] Auto-navigating to player for new cast");
-      router.replace("/casting-player" as any);
+      router.replace("/casting-player" as "/casting-player");
     }
   }, [mediaStatus?.currentItemId, currentItem, router]);
 
@@ -627,23 +576,12 @@ export default function CastingPlayerScreen() {
       // Use ParentPrimaryImageItemId if available, otherwise use season's own ImageTags
       const imageItemId = seasonData.ParentPrimaryImageItemId || seasonData.Id;
       const seasonImageTag = seasonData.ImageTags?.Primary;
-      console.log(
-        `[Casting Player] Using season poster for ${seasonData.Name}`,
-        { imageItemId, seasonImageTag },
-      );
       return seasonImageTag
         ? `${api.basePath}/Items/${imageItemId}/Images/Primary?fillHeight=450&fillWidth=300&quality=96&tag=${seasonImageTag}`
         : `${api.basePath}/Items/${imageItemId}/Images/Primary?fillHeight=450&fillWidth=300&quality=96`;
     }
 
     // Fallback to item poster for non-episodes or if season data not loaded
-    console.log(
-      `[Casting Player] Using fallback poster for ${currentItem.Name}`,
-      {
-        Type: currentItem.Type,
-        hasSeasonData: !!seasonData?.Id,
-      },
-    );
     return getPosterUrl(
       api.basePath,
       currentItem.Id,
@@ -661,12 +599,6 @@ export default function CastingPlayerScreen() {
   ]);
 
   const protocolColor = "#a855f7"; // Streamyfin purple
-
-  const _showNextEpisode = useMemo(() => {
-    if (currentItem?.Type !== "Episode" || !nextEpisode) return false;
-    const remaining = duration - progress;
-    return shouldShowNextEpisodeCountdown(remaining, true, 30);
-  }, [currentItem?.Type, nextEpisode, duration, progress]);
 
   // Redirect if not connected - check CastState like old implementation
   useEffect(() => {
@@ -686,7 +618,7 @@ export default function CastingPlayerScreen() {
 
       return () => clearTimeout(timer);
     }
-  }, [castState]);
+  }, [castState, router]);
 
   // Also redirect if mediaStatus disappears (media ended or stopped)
   useEffect(() => {
@@ -701,7 +633,7 @@ export default function CastingPlayerScreen() {
 
       return () => clearTimeout(timer);
     }
-  }, [castState, mediaStatus]);
+  }, [castState, mediaStatus, router]);
 
   // Show loading while connecting
   if (castState === CastState.CONNECTING) {
@@ -716,7 +648,7 @@ export default function CastingPlayerScreen() {
       >
         <ActivityIndicator size='large' color='#fff' />
         <Text style={{ color: "#fff", marginTop: 16 }}>
-          Connecting to Chromecast...
+          {t("casting_player.connecting")}
         </Text>
       </View>
     );
@@ -795,7 +727,7 @@ export default function CastingPlayerScreen() {
                   fontWeight: "500",
                 }}
               >
-                {currentDevice || "Unknown Device"}
+                {currentDevice || t("casting_player.unknown_device")}
               </Text>
             </Pressable>
 
@@ -831,7 +763,10 @@ export default function CastingPlayerScreen() {
                 marginBottom: 6,
               }}
             >
-              {truncateTitle(currentItem.Name || "Unknown", 50)}
+              {truncateTitle(
+                currentItem.Name || t("casting_player.unknown"),
+                50,
+              )}
             </Text>
 
             {/* Grey episode/season info */}
@@ -1028,13 +963,12 @@ export default function CastingPlayerScreen() {
                   const currentIndex = episodes.findIndex(
                     (ep) => ep.Id === currentItem.Id,
                   );
-                  if (currentIndex > 0 && remoteMediaClient) {
-                    const previousEp = episodes[currentIndex - 1];
-                    console.log("Previous episode:", previousEp.Name);
+                  if (currentIndex > 0) {
+                    await loadEpisode(episodes[currentIndex - 1]);
                   }
                 }}
                 disabled={
-                  episodes.findIndex((ep) => ep.Id === currentItem.Id) === 0
+                  episodes.findIndex((ep) => ep.Id === currentItem.Id) <= 0
                 }
                 style={{
                   flex: 1,
@@ -1045,7 +979,7 @@ export default function CastingPlayerScreen() {
                   justifyContent: "center",
                   alignItems: "center",
                   opacity:
-                    episodes.findIndex((ep) => ep.Id === currentItem.Id) === 0
+                    episodes.findIndex((ep) => ep.Id === currentItem.Id) <= 0
                       ? 0.4
                       : 1,
                 }}
@@ -1056,8 +990,8 @@ export default function CastingPlayerScreen() {
               {/* Next episode button */}
               <Pressable
                 onPress={async () => {
-                  if (nextEpisode && remoteMediaClient) {
-                    console.log("Next episode:", nextEpisode.Name);
+                  if (nextEpisode) {
+                    await loadEpisode(nextEpisode);
                   }
                 }}
                 disabled={!nextEpisode}
@@ -1331,8 +1265,9 @@ export default function CastingPlayerScreen() {
                 {formatTime(progress * 1000)}
               </Text>
               <Text style={{ color: "#999", fontSize: 13 }}>
-                Ending at{" "}
-                {calculateEndingTime(progress * 1000, duration * 1000)}
+                {t("casting_player.ending_at", {
+                  time: calculateEndingTime(progress * 1000, duration * 1000),
+                })}
               </Text>
               <Text style={{ color: "#999", fontSize: 13 }}>
                 {formatTime(duration * 1000)}
@@ -1432,10 +1367,7 @@ export default function CastingPlayerScreen() {
             onClose={() => setShowDeviceSheet(false)}
             device={
               currentDevice && protocol === "chromecast" && castDevice
-                ? ({
-                    deviceId: castDevice.deviceId,
-                    friendlyName: currentDevice,
-                  } as any)
+                ? { friendlyName: currentDevice }
                 : null
             }
             onDisconnect={async () => {
@@ -1461,7 +1393,11 @@ export default function CastingPlayerScreen() {
             }}
             volume={volume}
             onVolumeChange={async (vol) => {
-              setVolume(vol);
+              try {
+                await setVolume(vol);
+              } catch (error) {
+                console.error("[Casting Player] Failed to set volume:", error);
+              }
             }}
           />
 
@@ -1471,10 +1407,9 @@ export default function CastingPlayerScreen() {
             currentItem={currentItem}
             episodes={episodes}
             api={api}
-            onSelectEpisode={(episode) => {
-              // TODO: Load new episode - requires casting new media
-              console.log("Selected episode:", episode.Name);
+            onSelectEpisode={async (episode) => {
               setShowEpisodeList(false);
+              await loadEpisode(episode);
             }}
           />
 
@@ -1489,8 +1424,6 @@ export default function CastingPlayerScreen() {
             })}
             selectedMediaSource={availableMediaSources[0] || null}
             onMediaSourceChange={(source) => {
-              // Reload stream with new bitrate
-              console.log("Changed media source:", source);
               reloadWithSettings({ bitrateValue: source.bitrate });
             }}
             audioTracks={availableAudioTracks}
@@ -1502,6 +1435,7 @@ export default function CastingPlayerScreen() {
                 : availableAudioTracks[0] || null
             }
             onAudioTrackChange={(track) => {
+              setUserSelectedAudio(true);
               setSelectedAudioTrackIndex(track.index);
               // Reload stream with new audio track
               reloadWithSettings({ audioIndex: track.index });

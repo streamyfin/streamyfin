@@ -8,6 +8,7 @@ import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FlatList, Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -32,6 +33,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
   api,
 }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const flatListRef = useRef<FlatList>(null);
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
 
@@ -76,13 +78,14 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
       );
       if (currentIndex !== -1 && flatListRef.current) {
         // Delay to ensure FlatList is rendered
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           flatListRef.current?.scrollToIndex({
             index: currentIndex,
             animated: true,
             viewPosition: 0.5, // Center the item
           });
         }, 300);
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [visible, currentItem, filteredEpisodes]);
@@ -147,7 +150,8 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             }}
             numberOfLines={1}
           >
-            {item.IndexNumber}. {truncateTitle(item.Name || "Unknown", 30)}
+            {item.IndexNumber}.{" "}
+            {truncateTitle(item.Name || t("casting_player.unknown"), 30)}
           </Text>
           {item.Overview && (
             <Text
@@ -178,7 +182,8 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             )}
             {item.RunTimeTicks && (
               <Text style={{ color: "#666", fontSize: 11 }}>
-                {Math.round(item.RunTimeTicks / 600000000)} min
+                {Math.round(item.RunTimeTicks / 600000000)}{" "}
+                {t("casting_player.minutes_short")}
               </Text>
             )}
           </View>
@@ -237,7 +242,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
               }}
             >
               <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
-                Episodes
+                {t("casting_player.episodes")}
               </Text>
               <Pressable onPress={onClose} style={{ padding: 8 }}>
                 <Ionicons name='close' size={24} color='white' />
@@ -270,7 +275,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
                         fontWeight: selectedSeason === season ? "600" : "400",
                       }}
                     >
-                      Season {season}
+                      {t("casting_player.season", { number: season })}
                     </Text>
                   </Pressable>
                 ))}
@@ -283,7 +288,7 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
             ref={flatListRef}
             data={filteredEpisodes}
             renderItem={renderEpisode}
-            keyExtractor={(item) => item.Id || ""}
+            keyExtractor={(item, index) => item.Id || `episode-${index}`}
             contentContainerStyle={{
               padding: 16,
               paddingBottom: insets.bottom + 16,

@@ -4,6 +4,8 @@
  * Architecture allows for future protocols (AirPlay, DLNA, etc.)
  */
 
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+
 export type CastProtocol = "chromecast";
 
 export interface CastDevice {
@@ -16,7 +18,7 @@ export interface CastDevice {
 export interface CastPlayerState {
   isConnected: boolean;
   isPlaying: boolean;
-  currentItem: any | null;
+  currentItem: BaseItemDto | null;
   currentDevice: CastDevice | null;
   protocol: CastProtocol | null;
   progress: number;

@@ -41,6 +41,8 @@ export function Chromecast({
   const isConnected = castState === CastState.CONNECTED;
 
   const lastReportedProgressRef = useRef(0);
+  const playSessionIdRef = useRef<string | null>(null);
+  const lastContentIdRef = useRef<string | null>(null);
   const discoveryAttempts = useRef(0);
   const maxDiscoveryAttempts = 3;
   const hasLoggedDevices = useRef(false);
@@ -121,6 +123,13 @@ export function Chromecast({
     }
 
     const contentId = mediaStatus.mediaInfo.contentId;
+
+    // Generate a new PlaySessionId when the content changes
+    if (contentId !== lastContentIdRef.current) {
+      playSessionIdRef.current = `${contentId}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      lastContentIdRef.current = contentId;
+    }
+
     const positionTicks = Math.floor(streamPosition * 10000000);
     const isPaused = mediaStatus.playerState === "paused";
     const streamUrl = mediaStatus.mediaInfo.contentUrl || "";
@@ -131,7 +140,7 @@ export function Chromecast({
       PositionTicks: positionTicks,
       IsPaused: isPaused,
       PlayMethod: isTranscoding ? "Transcode" : "DirectStream",
-      PlaySessionId: contentId,
+      PlaySessionId: playSessionIdRef.current || contentId,
     };
 
     getPlaystateApi(api)

@@ -6,6 +6,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Modal, Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -24,6 +25,7 @@ export const ChromecastConnectionMenu: React.FC<
   ChromecastConnectionMenuProps
 > = ({ visible, onClose, onDisconnect }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const castDevice = useCastDevice();
   const castSession = useCastSession();
 
@@ -191,10 +193,10 @@ export const ChromecastConnectionMenu: React.FC<
                   <Text
                     style={{ color: "white", fontSize: 16, fontWeight: "600" }}
                   >
-                    {castDevice?.friendlyName || "Chromecast"}
+                    {castDevice?.friendlyName || t("casting_player.chromecast")}
                   </Text>
                   <Text style={{ color: protocolColor, fontSize: 12 }}>
-                    Connected
+                    {t("casting_player.connected")}
                   </Text>
                 </View>
               </View>
@@ -213,9 +215,11 @@ export const ChromecastConnectionMenu: React.FC<
                   marginBottom: 12,
                 }}
               >
-                <Text style={{ color: "#999", fontSize: 12 }}>Volume</Text>
+                <Text style={{ color: "#999", fontSize: 12 }}>
+                  {t("casting_player.volume")}
+                </Text>
                 <Text style={{ color: "white", fontSize: 14 }}>
-                  {isMuted ? "Muted" : `${displayVolume}%`}
+                  {isMuted ? t("casting_player.muted") : `${displayVolume}%`}
                 </Text>
               </View>
               <View
@@ -255,7 +259,15 @@ export const ChromecastConnectionMenu: React.FC<
                       handleVolumeChange(value);
                       if (isMuted) {
                         setIsMuted(false);
-                        castSession?.setMute(false);
+                        try {
+                          castSession?.setMute(false);
+                        } catch (error: unknown) {
+                          console.error(
+                            "[ChromecastConnectionMenu] Failed to unmute:",
+                            error,
+                          );
+                          setIsMuted(true); // Rollback on failure
+                        }
                       }
                     }}
                     onSlidingComplete={handleVolumeComplete}
@@ -288,7 +300,7 @@ export const ChromecastConnectionMenu: React.FC<
                 <Text
                   style={{ color: "white", fontSize: 14, fontWeight: "500" }}
                 >
-                  Disconnect
+                  {t("casting_player.disconnect")}
                 </Text>
               </Pressable>
             </View>

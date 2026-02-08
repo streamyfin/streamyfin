@@ -21,7 +21,8 @@ export const formatTime = (ms: number): string => {
 };
 
 /**
- * Calculate ending time based on current progress and duration
+ * Calculate ending time based on current progress and duration.
+ * Uses locale-aware formatting when available.
  */
 export const calculateEndingTime = (
   currentMs: number,
@@ -29,12 +30,20 @@ export const calculateEndingTime = (
 ): string => {
   const remainingMs = durationMs - currentMs;
   const endTime = new Date(Date.now() + remainingMs);
-  const hours = endTime.getHours();
-  const minutes = endTime.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours % 12 || 12;
 
-  return `${displayHours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  try {
+    return endTime.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    // Fallback for environments without Intl support
+    const hours = endTime.getHours();
+    const minutes = endTime.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
+  }
 };
 
 /**
@@ -76,6 +85,7 @@ export const getPosterUrl = (
  * Truncate title to max length with ellipsis
  */
 export const truncateTitle = (title: string, maxLength: number): string => {
+  if (maxLength < 4) return title.substring(0, maxLength);
   if (title.length <= maxLength) return title;
   return `${title.substring(0, maxLength - 3)}...`;
 };
@@ -110,7 +120,10 @@ export const getProtocolName = (protocol: CastProtocol): string => {
   switch (protocol) {
     case "chromecast":
       return "Chromecast";
-    // Future: Add cases for other protocols
+    default: {
+      const _exhaustive: never = protocol;
+      return String(_exhaustive);
+    }
   }
 };
 
@@ -123,16 +136,23 @@ export const getProtocolIcon = (
   switch (protocol) {
     case "chromecast":
       return "tv";
-    // Future: Add icons for other protocols
+    default: {
+      const _exhaustive: never = protocol;
+      return "tv";
+    }
   }
 };
 
 /**
  * Format episode info (e.g., "S1 E1" or "Episode 1")
+ * @param seasonNumber - Season number
+ * @param episodeNumber - Episode number
+ * @param episodeLabel - Optional label for standalone episode (e.g. translated "Episode")
  */
 export const formatEpisodeInfo = (
   seasonNumber?: number | null,
   episodeNumber?: number | null,
+  episodeLabel = "Episode",
 ): string => {
   if (
     seasonNumber !== undefined &&
@@ -143,7 +163,7 @@ export const formatEpisodeInfo = (
     return `S${seasonNumber} E${episodeNumber}`;
   }
   if (episodeNumber !== undefined && episodeNumber !== null) {
-    return `Episode ${episodeNumber}`;
+    return `${episodeLabel} ${episodeNumber}`;
   }
   return "";
 };

@@ -110,9 +110,10 @@ export const CastingMiniPlayer: React.FC = () => {
     if (
       currentItem.Type === "Episode" &&
       currentItem.SeriesId &&
-      currentItem.ParentIndexNumber
+      currentItem.ParentIndexNumber !== undefined &&
+      currentItem.SeasonId
     ) {
-      // Build season poster URL using SeriesId and season number
+      // Build season poster URL using SeriesId and SeasonId as tag
       return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96&tag=${currentItem.SeasonId}`;
     }
 
@@ -146,12 +147,15 @@ export const CastingMiniPlayer: React.FC = () => {
     router.push("/casting-player");
   };
 
-  const handleTogglePlayPause = (e: any) => {
-    e.stopPropagation();
+  const handleTogglePlayPause = () => {
     if (isPlaying) {
-      remoteMediaClient?.pause();
+      remoteMediaClient?.pause()?.catch((error: unknown) => {
+        console.error("[CastingMiniPlayer] Pause error:", error);
+      });
     } else {
-      remoteMediaClient?.play();
+      remoteMediaClient?.play()?.catch((error: unknown) => {
+        console.error("[CastingMiniPlayer] Play error:", error);
+      });
     }
   };
 
