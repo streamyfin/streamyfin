@@ -114,7 +114,14 @@ export function Chromecast({
 
     // Generate a new PlaySessionId when the content changes
     if (contentId !== lastContentIdRef.current) {
-      playSessionIdRef.current = `${contentId}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const randomBytes = new Uint8Array(7);
+      crypto.getRandomValues(randomBytes);
+      const randomSuffix = Array.from(randomBytes, (b) =>
+        b.toString(36).padStart(2, "0"),
+      )
+        .join("")
+        .substring(0, 9);
+      playSessionIdRef.current = `${contentId}-${Date.now()}-${randomSuffix}`;
       lastContentIdRef.current = contentId;
     }
 
