@@ -40,6 +40,17 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
   const scrollRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const MAX_SCROLL_RETRIES = 3;
 
+  // Cleanup pending retry timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollRetryTimeoutRef.current) {
+        clearTimeout(scrollRetryTimeoutRef.current);
+        scrollRetryTimeoutRef.current = null;
+      }
+      scrollRetryCountRef.current = 0;
+    };
+  }, []);
+
   // Get unique seasons from episodes
   const seasons = useMemo(() => {
     const seasonSet = new Set<number>();
