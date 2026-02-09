@@ -114,14 +114,16 @@ export function Chromecast({
 
     // Generate a new PlaySessionId when the content changes
     if (contentId !== lastContentIdRef.current) {
-      const randomBytes = new Uint8Array(7);
+      const randomBytes = new Uint8Array(16);
       crypto.getRandomValues(randomBytes);
-      const randomSuffix = Array.from(randomBytes, (b) =>
-        b.toString(36).padStart(2, "0"),
-      )
-        .join("")
-        .substring(0, 9);
-      playSessionIdRef.current = `${contentId}-${Date.now()}-${randomSuffix}`;
+      // Format as UUID v4
+      randomBytes[6] = (randomBytes[6] & 0x0f) | 0x40; // Version 4
+      randomBytes[8] = (randomBytes[8] & 0x3f) | 0x80; // Variant 10
+      const uuid = Array.from(randomBytes, (b, i) => {
+        const hex = b.toString(16).padStart(2, "0");
+        return [3, 5, 7, 9].includes(i) ? `-${hex}` : hex;
+      }).join("");
+      playSessionIdRef.current = uuid;
       lastContentIdRef.current = contentId;
     }
 
