@@ -47,11 +47,11 @@ import { useSettings } from "@/utils/atoms/settings";
 import {
   calculateEndingTime,
   formatTime,
+  formatTrickplayTime,
   getPosterUrl,
   truncateTitle,
 } from "@/utils/casting/helpers";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import type { CastProtocol } from "@/utils/casting/types";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { chromecast } from "@/utils/profiles/chromecast";
 import { chromecasth265 } from "@/utils/profiles/chromecasth265";
@@ -180,7 +180,6 @@ export default function CastingPlayerScreen() {
   }, [fetchedItem, mediaStatus?.mediaInfo]);
 
   // Derive state from raw Chromecast hooks
-  const protocol: CastProtocol = "chromecast";
   const progress = liveProgress; // Use live-updating progress
   const duration = mediaStatus?.mediaInfo?.streamDuration ?? 0;
   const isPlaying = mediaStatus?.playerState === MediaPlayerState.PLAYING;
@@ -241,7 +240,7 @@ export default function CastingPlayerScreen() {
   const [selectedSubtitleTrackIndex, setSelectedSubtitleTrackIndex] = useState<
     number | null
   >(null);
-  const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
+  const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
 
   // Function to reload media with new audio/subtitle/quality settings
   const reloadWithSettings = useCallback(
@@ -399,7 +398,11 @@ export default function CastingPlayerScreen() {
       language: stream.Language || "Unknown",
       displayTitle:
         stream.DisplayTitle ||
-        `${stream.Language || "Unknown"}${stream.IsForced ? " (Forced)" : ""}${stream.Title ? ` - ${stream.Title}` : ""}`,
+        [
+          stream.Language || "Unknown",
+          stream.IsForced ? " (Forced)" : "",
+          stream.Title ? ` - ${stream.Title}` : "",
+        ].join(""),
       codec: stream.Codec || "Unknown",
       isForced: stream.IsForced || false,
       isExternal: stream.IsExternal || false,
@@ -450,43 +453,6 @@ export default function CastingPlayerScreen() {
     return variants;
   }, [currentItem?.MediaSources, currentItem?.MediaStreams, currentItem?.Id]);
 
-  // Track whether user has manually selected an audio track
-  const [userSelectedAudio, setUserSelectedAudio] = useState(false);
-
-  // Detect recommended stereo track for Chromecast compatibility.
-  // Does NOT mutate selectedAudioTrackIndex — UI can show a badge instead.
-  // TODO: Use recommendedAudioTrackIndex in UI to show a "stereo recommended" badge
-  const [_recommendedAudioTrackIndex, setRecommendedAudioTrackIndex] = useState<
-    number | null
-  >(null);
-
-  useEffect(() => {
-    if (!remoteMediaClient || !mediaStatus?.mediaInfo || userSelectedAudio) {
-      setRecommendedAudioTrackIndex(null);
-      return;
-    }
-
-    const currentTrack = availableAudioTracks.find(
-      (t) => t.index === selectedAudioTrackIndex,
-    );
-
-    // If current track is 5.1+ audio, recommend stereo alternative
-    if (currentTrack && (currentTrack.channels || 0) > 2) {
-      const stereoTrack = availableAudioTracks.find((t) => t.channels === 2);
-      if (stereoTrack && stereoTrack.index !== selectedAudioTrackIndex) {
-        setRecommendedAudioTrackIndex(stereoTrack.index);
-        return;
-      }
-    }
-    setRecommendedAudioTrackIndex(null);
-  }, [
-    mediaStatus?.mediaInfo,
-    availableAudioTracks,
-    remoteMediaClient,
-    selectedAudioTrackIndex,
-    userSelectedAudio,
-  ]);
-
   // Fetch episodes for TV shows
   useEffect(() => {
     if (currentItem?.Type !== "Episode" || !currentItem.SeriesId || !api)
@@ -532,7 +498,7 @@ export default function CastingPlayerScreen() {
   useEffect(() => {
     if (mediaStatus?.currentItemId && !currentItem) {
       // New media started casting while we're not on the player
-      router.replace("/casting-player" as "/casting-player");
+      router.replace("/casting-player" as const);
     }
   }, [mediaStatus?.currentItemId, currentItem, router]);
 
@@ -907,11 +873,9 @@ export default function CastingPlayerScreen() {
                         fontWeight: "600",
                       }}
                     >
-                      {currentSegment.type === "intro"
-                        ? t("player.skip_intro")
-                        : currentSegment.type === "credits"
-                          ? t("player.skip_outro")
-                          : `Skip ${currentSegment.type}`}
+                      {t(
+                        `player.skip_${currentSegment.type === "credits" ? "outro" : currentSegment.type}`,
+                      )}
                     </Text>
                   </Pressable>
                 )}
@@ -1174,11 +1138,7 @@ export default function CastingPlayerScreen() {
                             fontWeight: "600",
                           }}
                         >
-                          {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
-                            trickplayTime.minutes < 10
-                              ? `0${trickplayTime.minutes}`
-                              : trickplayTime.minutes
-                          }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                          {formatTrickplayTime(trickplayTime)}
                         </Text>
                       </View>
                     );
@@ -1257,11 +1217,7 @@ export default function CastingPlayerScreen() {
                             fontWeight: "600",
                           }}
                         >
-                          {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
-                            trickplayTime.minutes < 10
-                              ? `0${trickplayTime.minutes}`
-                              : trickplayTime.minutes
-                          }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                          {formatTrickplayTime(trickplayTime)}
                         </Text>
                       </View>
                     </View>
@@ -1319,7 +1275,7 @@ export default function CastingPlayerScreen() {
                   color='white'
                   style={{ transform: [{ scaleY: -1 }, { rotate: "180deg" }] }}
                 />
-                {settings?.rewindSkipTime && (
+                {!!settings?.rewindSkipTime && (
                   <Text
                     style={{
                       position: "absolute",
@@ -1364,7 +1320,7 @@ export default function CastingPlayerScreen() {
                 }}
               >
                 <Ionicons name='refresh-outline' size={48} color='white' />
-                {settings?.forwardSkipTime && (
+                {!!settings?.forwardSkipTime && (
                   <Text
                     style={{
                       position: "absolute",
@@ -1383,10 +1339,10 @@ export default function CastingPlayerScreen() {
 
           {/* Modals */}
           <ChromecastDeviceSheet
-            visible={showDeviceSheet && protocol === "chromecast"}
+            visible={showDeviceSheet}
             onClose={() => setShowDeviceSheet(false)}
             device={
-              currentDevice && protocol === "chromecast" && castDevice
+              currentDevice && castDevice
                 ? { friendlyName: currentDevice }
                 : null
             }
@@ -1414,7 +1370,7 @@ export default function CastingPlayerScreen() {
             volume={volume}
             onVolumeChange={async (vol) => {
               try {
-                await setVolume(vol);
+                setVolume(vol);
               } catch (error) {
                 console.error("[Casting Player] Failed to set volume:", error);
               }
@@ -1448,25 +1404,24 @@ export default function CastingPlayerScreen() {
             }}
             audioTracks={availableAudioTracks}
             selectedAudioTrack={
-              selectedAudioTrackIndex !== null
-                ? availableAudioTracks.find(
+              selectedAudioTrackIndex === null
+                ? availableAudioTracks[0] || null
+                : availableAudioTracks.find(
                     (t) => t.index === selectedAudioTrackIndex,
                   ) || null
-                : availableAudioTracks[0] || null
             }
             onAudioTrackChange={(track) => {
-              setUserSelectedAudio(true);
               setSelectedAudioTrackIndex(track.index);
               // Reload stream with new audio track
               reloadWithSettings({ audioIndex: track.index });
             }}
             subtitleTracks={availableSubtitleTracks}
             selectedSubtitleTrack={
-              selectedSubtitleTrackIndex !== null
-                ? availableSubtitleTracks.find(
+              selectedSubtitleTrackIndex === null
+                ? null
+                : availableSubtitleTracks.find(
                     (t) => t.index === selectedSubtitleTrackIndex,
                   ) || null
-                : null
             }
             onSubtitleTrackChange={(track) => {
               setSelectedSubtitleTrackIndex(track?.index ?? null);

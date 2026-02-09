@@ -24,16 +24,7 @@ export interface CastPlayerState {
   progress: number;
   duration: number;
   volume: number;
-  showControls: boolean;
   isBuffering: boolean;
-}
-
-export interface CastSegmentData {
-  intro: { start: number; end: number } | null;
-  credits: { start: number; end: number } | null;
-  recap: { start: number; end: number } | null;
-  commercial: Array<{ start: number; end: number }>;
-  preview: Array<{ start: number; end: number }>;
 }
 
 export interface AudioTrack {
@@ -77,8 +68,5 @@ export const DEFAULT_CAST_STATE: CastPlayerState = {
   progress: 0,
   duration: 0,
   volume: 0.5,
-  showControls: true,
   isBuffering: false,
 };
-
-export type ConnectionQuality = "excellent" | "good" | "fair" | "poor";

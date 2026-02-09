@@ -26,11 +26,11 @@ export function Chromecast({
   background = "transparent",
   ...props
 }) {
-  const _client = useRemoteMediaClient();
-  const _castDevice = useCastDevice();
+  // Hooks called for their side effects (keep Chromecast session active)
+  useRemoteMediaClient();
+  useCastDevice();
   const castState = useCastState();
-  const devices = useDevices();
-  const _sessionManager = GoogleCast.getSessionManager();
+  useDevices();
   const discoveryManager = GoogleCast.getDiscoveryManager();
   const mediaStatus = useMediaStatus();
   const api = useAtomValue(apiAtom);
@@ -46,7 +46,6 @@ export function Chromecast({
   const lastContentIdRef = useRef<string | null>(null);
   const discoveryAttempts = useRef(0);
   const maxDiscoveryAttempts = 3;
-  const hasLoggedDevices = useRef(false);
 
   // Enhanced discovery with retry mechanism - runs once on mount
   useEffect(() => {
@@ -62,7 +61,7 @@ export function Chromecast({
         // Stop any existing discovery first
         try {
           await discoveryManager.stopDiscovery();
-        } catch (_e) {
+        } catch {
           // Ignore errors when stopping
         }
 
@@ -94,25 +93,9 @@ export function Chromecast({
     };
   }, [discoveryManager]); // Only re-run if discoveryManager changes
 
-  // Log device changes for debugging - only once per session
-  useEffect(() => {
-    if (devices.length > 0 && !hasLoggedDevices.current) {
-      console.log(
-        "[Chromecast] Found device(s):",
-        devices.map((d) => d.friendlyName || d.deviceId).join(", "),
-      );
-      hasLoggedDevices.current = true;
-    }
-  }, [devices]);
-
   // Report video progress to Jellyfin server
   useEffect(() => {
-    if (
-      !api ||
-      !user?.Id ||
-      !mediaStatus ||
-      !mediaStatus.mediaInfo?.contentId
-    ) {
+    if (!api || !user?.Id || !mediaStatus?.mediaInfo?.contentId) {
       return;
     }
 
