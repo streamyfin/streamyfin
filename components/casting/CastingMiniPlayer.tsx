@@ -45,9 +45,9 @@ export const CastingMiniPlayer: React.FC = () => {
     return mediaStatus?.mediaInfo?.customData as BaseItemDto | undefined;
   }, [mediaStatus?.mediaInfo?.customData]);
 
-  // Trickplay support - pass currentItem as BaseItemDto or empty object
+  // Trickplay support - pass currentItem as BaseItemDto or null
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
-    currentItem || ({} as BaseItemDto),
+    currentItem || null,
   );
   const [trickplayTime, setTrickplayTime] = useState({
     hours: 0,
@@ -121,7 +121,7 @@ export const CastingMiniPlayer: React.FC = () => {
     }
   }, [progress, sliderProgress]);
 
-  // For episodes, use season poster; for other content, use item poster
+  // For episodes, use series poster; for other content, use item poster
   const posterUrl = useMemo(() => {
     if (!api?.basePath || !currentItem) return null;
 
@@ -131,8 +131,8 @@ export const CastingMiniPlayer: React.FC = () => {
       currentItem.ParentIndexNumber !== undefined &&
       currentItem.SeasonId
     ) {
-      // Build season poster URL using SeriesId and image tag for cache validation
-      const imageTag = currentItem.ImageTags?.Primary || "";
+      // Build series poster URL using SeriesId and series-level image tag
+      const imageTag = currentItem.SeriesPrimaryImageTag || "";
       const tagParam = imageTag ? `&tag=${imageTag}` : "";
       return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96${tagParam}`;
     }

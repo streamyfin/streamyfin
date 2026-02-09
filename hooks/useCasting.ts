@@ -120,8 +120,13 @@ export const useCasting = (item: BaseItemDto | null) => {
     const playStateApi = getPlaystateApi(api);
 
     // Report playback start when media begins (only once per item)
+    // Don't require progress > 0 — playback can legitimately start at position 0
     const currentState = stateRef.current;
-    if (hasReportedStartRef.current !== item.Id && currentState.progress > 0) {
+    const isPlaybackActive =
+      currentState.isPlaying ||
+      mediaStatus?.playerState === "playing" ||
+      currentState.progress > 0;
+    if (hasReportedStartRef.current !== item.Id && isPlaybackActive) {
       // Set synchronously before async call to prevent race condition duplicates
       hasReportedStartRef.current = item.Id || null;
 
@@ -366,8 +371,11 @@ export const useCasting = (item: BaseItemDto | null) => {
     duration: state.duration,
     volume: state.volume,
 
-    // Availability
-    isChromecastAvailable: true, // Always available via react-native-google-cast
+    // Availability - derived from actual cast state
+    isChromecastAvailable:
+      castState === CastState.CONNECTED ||
+      castState === CastState.CONNECTING ||
+      castState === CastState.NOT_CONNECTED,
 
     // Raw clients (for advanced operations)
     remoteMediaClient: client,

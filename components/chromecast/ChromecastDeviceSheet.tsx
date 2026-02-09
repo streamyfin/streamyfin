@@ -45,7 +45,9 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
   const lastSetVolume = useRef(Math.round(volume * 100));
 
   // Sync volume slider with prop changes (updates from physical buttons)
+  // Skip updates while user is actively sliding to avoid overwriting drag
   useEffect(() => {
+    if (isSliding.current) return;
     volumeValue.value = volume * 100;
     setDisplayVolume(Math.round(volume * 100));
   }, [volume, volumeValue]);
@@ -275,13 +277,9 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                         minimumTrackTintColor: isMuted ? "#666" : "#a855f7",
                         bubbleBackgroundColor: "#a855f7",
                       }}
-                      onSlidingStart={() => {
+                      onSlidingStart={async () => {
                         isSliding.current = true;
-                      }}
-                      onValueChange={async (value) => {
-                        volumeValue.value = value;
-                        handleVolumeChange(value);
-                        // Unmute when adjusting volume
+                        // Auto-unmute when user starts adjusting volume
                         if (isMuted && castSession) {
                           setIsMuted(false);
                           try {
@@ -291,6 +289,10 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                             setIsMuted(true); // Rollback on failure
                           }
                         }
+                      }}
+                      onValueChange={(value) => {
+                        volumeValue.value = value;
+                        handleVolumeChange(value);
                       }}
                       onSlidingComplete={(value) => {
                         isSliding.current = false;
