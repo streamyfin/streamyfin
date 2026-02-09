@@ -105,27 +105,27 @@ export const useChromecastSegments = (
 
   // Skip functions
   const skipIntro = useCallback(
-    (seekFn: (positionMs: number) => Promise<void>) => {
+    async (seekFn: (positionMs: number) => Promise<void>): Promise<void> => {
       if (segments.intro) {
-        return seekFn(segments.intro.end * 1000);
+        await seekFn(segments.intro.end * 1000);
       }
     },
     [segments.intro],
   );
 
   const skipCredits = useCallback(
-    (seekFn: (positionMs: number) => Promise<void>) => {
+    async (seekFn: (positionMs: number) => Promise<void>): Promise<void> => {
       if (segments.credits) {
-        return seekFn(segments.credits.end * 1000);
+        await seekFn(segments.credits.end * 1000);
       }
     },
     [segments.credits],
   );
 
   const skipSegment = useCallback(
-    (seekFn: (positionMs: number) => Promise<void>) => {
+    async (seekFn: (positionMs: number) => Promise<void>): Promise<void> => {
       if (currentSegment?.segment) {
-        return seekFn(currentSegment.segment.end * 1000);
+        await seekFn(currentSegment.segment.end * 1000);
       }
     },
     [currentSegment],

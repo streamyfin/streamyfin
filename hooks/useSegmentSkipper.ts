@@ -66,7 +66,11 @@ export const useSegmentSkipper = ({
       if (!currentSegment || skipMode === "none") return;
 
       // For Outro segments, prevent seeking past the end
-      if (segmentType === "Outro" && totalDuration) {
+      if (
+        segmentType === "Outro" &&
+        totalDuration != null &&
+        Number.isFinite(totalDuration)
+      ) {
         const seekTime = Math.min(currentSegment.endTime, totalDuration);
         seek(seekTime);
       } else {

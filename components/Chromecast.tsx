@@ -41,6 +41,7 @@ export function Chromecast({
   const isConnected = castState === CastState.CONNECTED;
 
   const lastReportedProgressRef = useRef(0);
+  const lastReportedPlayerStateRef = useRef<string | null>(null);
   const playSessionIdRef = useRef<string | null>(null);
   const lastContentIdRef = useRef<string | null>(null);
   const discoveryAttempts = useRef(0);
@@ -116,9 +117,13 @@ export function Chromecast({
     }
 
     const streamPosition = mediaStatus.streamPosition || 0;
+    const playerState = mediaStatus.playerState || null;
 
-    // Report every 10 seconds
-    if (Math.abs(streamPosition - lastReportedProgressRef.current) < 10) {
+    // Report every 10 seconds OR immediately when playerState changes (pause/resume)
+    const positionChanged =
+      Math.abs(streamPosition - lastReportedProgressRef.current) >= 10;
+    const stateChanged = playerState !== lastReportedPlayerStateRef.current;
+    if (!positionChanged && !stateChanged) {
       return;
     }
 
@@ -147,6 +152,7 @@ export function Chromecast({
       .reportPlaybackProgress({ playbackProgressInfo: progressInfo })
       .then(() => {
         lastReportedProgressRef.current = streamPosition;
+        lastReportedPlayerStateRef.current = playerState;
       })
       .catch((error) => {
         console.error("Failed to report Chromecast progress:", error);

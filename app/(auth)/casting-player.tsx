@@ -156,8 +156,12 @@ export default function CastingPlayerScreen() {
 
     // Priority 2: Try customData from mediaStatus
     const customData = mediaStatus?.mediaInfo?.customData as BaseItemDto | null;
-    if (customData?.Type && customData.Type !== "Movie") {
-      // Only use customData if it has a real Type (not default fallback)
+    if (
+      customData?.Type &&
+      (customData.ImageTags || customData.MediaSources || customData.Id)
+    ) {
+      // Use customData if it has a real Type AND meaningful metadata
+      // (rules out placeholder objects that lack image tags, media sources, or an ID)
       return customData;
     }
 
@@ -265,7 +269,9 @@ export default function CastingPlayerScreen() {
           userId: user.Id,
           audioStreamIndex:
             options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
-          subtitleStreamIndex: options.subtitleIndex ?? undefined,
+          // null = subtitles off (omit from request), number = specific track
+          subtitleStreamIndex:
+            options.subtitleIndex === null ? undefined : options.subtitleIndex,
           maxStreamingBitrate: options.bitrateValue,
         });
 
@@ -447,26 +453,32 @@ export default function CastingPlayerScreen() {
   // Track whether user has manually selected an audio track
   const [userSelectedAudio, setUserSelectedAudio] = useState(false);
 
-  // Auto-select stereo audio track for better Chromecast compatibility
-  // Note: This only updates the UI state. The actual audio track change requires
-  // regenerating the stream URL, which would be disruptive on initial load.
-  // The user can manually switch audio tracks if needed.
+  // Detect recommended stereo track for Chromecast compatibility.
+  // Does NOT mutate selectedAudioTrackIndex — UI can show a badge instead.
+  // TODO: Use recommendedAudioTrackIndex in UI to show a "stereo recommended" badge
+  const [_recommendedAudioTrackIndex, setRecommendedAudioTrackIndex] = useState<
+    number | null
+  >(null);
+
   useEffect(() => {
-    if (!remoteMediaClient || !mediaStatus?.mediaInfo || userSelectedAudio)
+    if (!remoteMediaClient || !mediaStatus?.mediaInfo || userSelectedAudio) {
+      setRecommendedAudioTrackIndex(null);
       return;
+    }
 
     const currentTrack = availableAudioTracks.find(
       (t) => t.index === selectedAudioTrackIndex,
     );
 
-    // If current track is 5.1+ audio, suggest stereo in the UI
+    // If current track is 5.1+ audio, recommend stereo alternative
     if (currentTrack && (currentTrack.channels || 0) > 2) {
       const stereoTrack = availableAudioTracks.find((t) => t.channels === 2);
       if (stereoTrack && stereoTrack.index !== selectedAudioTrackIndex) {
-        // Auto-select stereo in UI (user can manually trigger reload)
-        setSelectedAudioTrackIndex(stereoTrack.index);
+        setRecommendedAudioTrackIndex(stereoTrack.index);
+        return;
       }
     }
+    setRecommendedAudioTrackIndex(null);
   }, [
     mediaStatus?.mediaInfo,
     availableAudioTracks,

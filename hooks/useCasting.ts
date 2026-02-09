@@ -307,6 +307,7 @@ export const useCasting = (item: BaseItemDto | null) => {
       } catch (error) {
         console.error("[useCasting] Error during stop:", error);
       } finally {
+        hasReportedStartRef.current = null;
         setState(DEFAULT_CAST_STATE);
         stateRef.current = DEFAULT_CAST_STATE;
 

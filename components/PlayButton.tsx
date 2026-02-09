@@ -210,6 +210,9 @@ export const PlayButton: React.FC<Props> = ({
                         return;
                       }
                       router.push("/casting-player");
+                    })
+                    .catch((err) => {
+                      console.error("[PlayButton] loadMedia failed:", err);
                     });
                 } catch (e) {
                   console.error("[PlayButton] Cast error:", e);

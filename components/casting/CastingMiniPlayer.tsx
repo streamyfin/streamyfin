@@ -127,8 +127,9 @@ export const CastingMiniPlayer: React.FC = () => {
       currentItem.ParentIndexNumber !== undefined &&
       currentItem.SeasonId
     ) {
-      // Build season poster URL using SeriesId and SeasonId as tag
-      return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96&tag=${currentItem.SeasonId}`;
+      // Build season poster URL using SeriesId and image tag for cache validation
+      const imageTag = currentItem.ImageTags?.Primary || "";
+      return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96${imageTag ? `&tag=${imageTag}` : ""}`;
     }
 
     // For non-episodes, use item's own poster

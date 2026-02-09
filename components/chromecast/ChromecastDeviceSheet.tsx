@@ -282,10 +282,10 @@ export const ChromecastDeviceSheet: React.FC<ChromecastDeviceSheetProps> = ({
                         volumeValue.value = value;
                         handleVolumeChange(value);
                         // Unmute when adjusting volume
-                        if (isMuted) {
+                        if (isMuted && castSession) {
                           setIsMuted(false);
                           try {
-                            await castSession?.setMute(false);
+                            await castSession.setMute(false);
                           } catch (error) {
                             console.error("[Volume] Failed to unmute:", error);
                             setIsMuted(true); // Rollback on failure

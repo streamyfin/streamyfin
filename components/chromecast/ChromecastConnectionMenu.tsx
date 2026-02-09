@@ -32,6 +32,7 @@ export const ChromecastConnectionMenu: React.FC<
   // Volume state - use refs to avoid triggering re-renders during sliding
   const [displayVolume, setDisplayVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
   const volumeValue = useSharedValue(50);
   const minimumValue = useSharedValue(0);
   const maximumValue = useSharedValue(100);
@@ -55,6 +56,7 @@ export const ChromecastConnectionMenu: React.FC<
           lastSetVolume.current = percent;
         }
         const muted = await castSession.isMute();
+        isMutedRef.current = muted;
         setIsMuted(muted);
       } catch {
         // Ignore errors
@@ -78,7 +80,8 @@ export const ChromecastConnectionMenu: React.FC<
           }
         }
         const muted = await castSession.isMute();
-        if (muted !== isMuted) {
+        if (muted !== isMutedRef.current) {
+          isMutedRef.current = muted;
           setIsMuted(muted);
         }
       } catch {
@@ -87,7 +90,7 @@ export const ChromecastConnectionMenu: React.FC<
     }, 1000); // Poll less frequently
 
     return () => clearInterval(interval);
-  }, [visible, castSession, volumeValue, isMuted]);
+  }, [visible, castSession, volumeValue]);
 
   // Volume change during sliding - update display only, don't call API
   const handleVolumeChange = useCallback((value: number) => {
@@ -120,6 +123,7 @@ export const ChromecastConnectionMenu: React.FC<
     try {
       const newMute = !isMuted;
       await castSession.setMute(newMute);
+      isMutedRef.current = newMute;
       setIsMuted(newMute);
     } catch (error) {
       console.error("[Connection Menu] Mute error:", error);
@@ -259,6 +263,7 @@ export const ChromecastConnectionMenu: React.FC<
                       volumeValue.value = value;
                       handleVolumeChange(value);
                       if (isMuted) {
+                        isMutedRef.current = false;
                         setIsMuted(false);
                         try {
                           await castSession?.setMute(false);
@@ -267,6 +272,7 @@ export const ChromecastConnectionMenu: React.FC<
                             "[ChromecastConnectionMenu] Failed to unmute:",
                             error,
                           );
+                          isMutedRef.current = true;
                           setIsMuted(true); // Rollback on failure
                         }
                       }
