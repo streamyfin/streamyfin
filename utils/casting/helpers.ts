@@ -3,8 +3,6 @@
  * Common utilities for casting protocols
  */
 
-import type { CastProtocol, ConnectionQuality } from "./types";
-
 /**
  * Format milliseconds to HH:MM:SS or MM:SS
  */
@@ -44,19 +42,6 @@ export const calculateEndingTime = (
     const displayHours = hours % 12 || 12;
     return `${displayHours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
   }
-};
-
-/**
- * Determine connection quality based on bitrate
- */
-export const getConnectionQuality = (bitrate?: number): ConnectionQuality => {
-  if (bitrate == null) return "good";
-  const mbps = bitrate / 1000000;
-
-  if (mbps >= 15) return "excellent";
-  if (mbps >= 8) return "good";
-  if (mbps >= 4) return "fair";
-  return "poor";
 };
 
 /**
@@ -103,78 +88,15 @@ export const isWithinSegment = (
 };
 
 /**
- * Format bitrate to human-readable string
+ * Format trickplay time from {hours, minutes, seconds} to display string.
+ * Produces "H:MM:SS" when hours > 0, otherwise "MM:SS".
  */
-export const formatBitrate = (bitrate: number): string => {
-  const mbps = bitrate / 1000000;
-  if (mbps >= 1) {
-    return `${mbps.toFixed(1)} Mbps`;
-  }
-  return `${(bitrate / 1000).toFixed(0)} Kbps`;
-};
-
-/**
- * Get protocol display name
- */
-export const getProtocolName = (protocol: CastProtocol): string => {
-  switch (protocol) {
-    case "chromecast":
-      return "Chromecast";
-    default: {
-      const _exhaustive: never = protocol;
-      return String(_exhaustive);
-    }
-  }
-};
-
-/**
- * Get protocol icon name
- */
-export const getProtocolIcon = (
-  protocol: CastProtocol,
-): "tv" | "logo-apple" => {
-  switch (protocol) {
-    case "chromecast":
-      return "tv";
-    default: {
-      const _exhaustive: never = protocol;
-      return "tv";
-    }
-  }
-};
-
-/**
- * Format episode info (e.g., "S1 E1" or "Episode 1")
- * @param seasonNumber - Season number
- * @param episodeNumber - Episode number
- * @param episodeLabel - Optional label for standalone episode (e.g. translated "Episode")
- */
-export const formatEpisodeInfo = (
-  seasonNumber?: number | null,
-  episodeNumber?: number | null,
-  episodeLabel = "Episode",
-): string => {
-  if (
-    seasonNumber !== undefined &&
-    seasonNumber !== null &&
-    episodeNumber !== undefined &&
-    episodeNumber !== null
-  ) {
-    return `S${seasonNumber} E${episodeNumber}`;
-  }
-  if (episodeNumber !== undefined && episodeNumber !== null) {
-    return `${episodeLabel} ${episodeNumber}`;
-  }
-  return "";
-};
-
-/**
- * Check if we should show next episode countdown
- */
-export const shouldShowNextEpisodeCountdown = (
-  remainingMs: number,
-  hasNextEpisode: boolean,
-  countdownStartSeconds: number,
-): boolean => {
-  return hasNextEpisode && remainingMs <= countdownStartSeconds * 1000;
+export const formatTrickplayTime = (time: {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}): string => {
+  const mm = String(time.minutes).padStart(2, "0");
+  const ss = String(time.seconds).padStart(2, "0");
+  return time.hours > 0 ? `${time.hours}:${mm}:${ss}` : `${mm}:${ss}`;
 };

@@ -26,7 +26,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { formatTime, getPosterUrl } from "@/utils/casting/helpers";
+import {
+  formatTime,
+  formatTrickplayTime,
+  getPosterUrl,
+} from "@/utils/casting/helpers";
 import { CASTING_CONSTANTS } from "@/utils/casting/types";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
@@ -129,7 +133,8 @@ export const CastingMiniPlayer: React.FC = () => {
     ) {
       // Build season poster URL using SeriesId and image tag for cache validation
       const imageTag = currentItem.ImageTags?.Primary || "";
-      return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96${imageTag ? `&tag=${imageTag}` : ""}`;
+      const tagParam = imageTag ? `&tag=${imageTag}` : "";
+      return `${api.basePath}/Items/${currentItem.SeriesId}/Images/Primary?fillHeight=120&fillWidth=80&quality=96${tagParam}`;
     }
 
     // For non-episodes, use item's own poster
@@ -273,11 +278,7 @@ export const CastingMiniPlayer: React.FC = () => {
                   <Text
                     style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}
                   >
-                    {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
-                      trickplayTime.minutes < 10
-                        ? `0${trickplayTime.minutes}`
-                        : trickplayTime.minutes
-                    }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                    {formatTrickplayTime(trickplayTime)}
                   </Text>
                 </View>
               );
@@ -347,11 +348,7 @@ export const CastingMiniPlayer: React.FC = () => {
                   <Text
                     style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}
                   >
-                    {`${trickplayTime.hours > 0 ? `${trickplayTime.hours}:` : ""}${
-                      trickplayTime.minutes < 10
-                        ? `0${trickplayTime.minutes}`
-                        : trickplayTime.minutes
-                    }:${trickplayTime.seconds < 10 ? `0${trickplayTime.seconds}` : trickplayTime.seconds}`}
+                    {formatTrickplayTime(trickplayTime)}
                   </Text>
                 </View>
               </View>

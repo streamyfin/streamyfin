@@ -26,7 +26,6 @@ import { DEFAULT_CAST_STATE } from "@/utils/casting/types";
 export const useCasting = (item: BaseItemDto | null) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  // const { settings } = useSettings(); // TODO: Use for preferences
 
   // Chromecast hooks
   const client = useRemoteMediaClient();
@@ -36,7 +35,6 @@ export const useCasting = (item: BaseItemDto | null) => {
 
   // Local state
   const [state, setState] = useState<CastPlayerState>(DEFAULT_CAST_STATE);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastReportedProgressRef = useRef(0);
   const volumeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const hasReportedStartRef = useRef<string | null>(null); // Track which item we reported start for
@@ -347,34 +345,9 @@ export const useCasting = (item: BaseItemDto | null) => {
     [client, activeProtocol, isConnected],
   );
 
-  // Controls visibility
-  const showControls = useCallback(() => {
-    updateState((prev) => ({ ...prev, showControls: true }));
-
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      // Read latest isPlaying from stateRef to avoid stale closure
-      if (stateRef.current.isPlaying) {
-        updateState((prev) => ({ ...prev, showControls: false }));
-      }
-    }, 5000);
-  }, [updateState]);
-
-  const hideControls = useCallback(() => {
-    updateState((prev) => ({ ...prev, showControls: false }));
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-  }, []);
-
   // Cleanup
   useEffect(() => {
     return () => {
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
       if (volumeDebounceRef.current) {
         clearTimeout(volumeDebounceRef.current);
       }
@@ -395,7 +368,6 @@ export const useCasting = (item: BaseItemDto | null) => {
 
     // Availability
     isChromecastAvailable: true, // Always available via react-native-google-cast
-    // Future: Add availability checks for other protocols
 
     // Raw clients (for advanced operations)
     remoteMediaClient: client,
@@ -409,7 +381,5 @@ export const useCasting = (item: BaseItemDto | null) => {
     skipBackward,
     stop,
     setVolume,
-    showControls,
-    hideControls,
   };
 };
