@@ -121,7 +121,7 @@ export function Chromecast({
       randomBytes[8] = (randomBytes[8] & 0x3f) | 0x80; // Variant 10
       const uuid = Array.from(randomBytes, (b, i) => {
         const hex = b.toString(16).padStart(2, "0");
-        return [3, 5, 7, 9].includes(i) ? `-${hex}` : hex;
+        return [4, 6, 8, 10].includes(i) ? `-${hex}` : hex;
       }).join("");
       playSessionIdRef.current = uuid;
       lastContentIdRef.current = contentId;
@@ -130,7 +130,7 @@ export function Chromecast({
     const positionTicks = Math.floor(streamPosition * 10000000);
     const isPaused = mediaStatus.playerState === "paused";
     const streamUrl = mediaStatus.mediaInfo.contentUrl || "";
-    const isTranscoding = streamUrl.includes("m3u8");
+    const isTranscoding = /m3u8/i.test(streamUrl);
 
     const progressInfo: PlaybackProgressInfo = {
       ItemId: contentId,

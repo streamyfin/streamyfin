@@ -168,10 +168,18 @@ export default function CastingPlayerScreen() {
     // Priority 3: Create minimal fallback while loading
     if (mediaStatus?.mediaInfo) {
       const { contentId, metadata } = mediaStatus.mediaInfo;
+      // Derive type from metadata if available, otherwise omit to avoid
+      // misrepresenting episodes as movies
+      let metadataType: string | undefined;
+      if (metadata?.type === "movie") {
+        metadataType = "Movie";
+      } else if (metadata?.type === "tvShow") {
+        metadataType = "Episode";
+      }
       return {
         Id: contentId,
         Name: metadata?.title || "Unknown",
-        Type: "Movie", // Temporary until API fetch completes
+        ...(metadataType ? { Type: metadataType } : {}),
         ServerId: "",
       } as BaseItemDto;
     }
@@ -188,7 +196,7 @@ export default function CastingPlayerScreen() {
 
   // Trickplay for seeking preview - use fetched item with full data
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
-    fetchedItem ?? ({} as BaseItemDto),
+    fetchedItem ?? null,
   );
 
   // Update slider max when duration changes
@@ -494,13 +502,10 @@ export default function CastingPlayerScreen() {
     api,
   ]);
 
-  // Auto-navigate to player when casting starts (if not already on player screen)
-  useEffect(() => {
-    if (mediaStatus?.currentItemId && !currentItem) {
-      // New media started casting while we're not on the player
-      router.replace("/casting-player" as const);
-    }
-  }, [mediaStatus?.currentItemId, currentItem, router]);
+  // NOTE: Auto-navigation to casting-player is handled by higher-level
+  // components (e.g., CastingMiniPlayer or Chromecast button). We intentionally
+  // do NOT call router.replace("/casting-player") here because this component
+  // IS the casting-player screen — doing so would cause redundant navigation loops.
 
   // Segment detection (skip intro/credits) - use progress in seconds for accurate detection
   const { currentSegment, skipIntro, skipCredits, skipSegment } =
@@ -1275,7 +1280,7 @@ export default function CastingPlayerScreen() {
                   color='white'
                   style={{ transform: [{ scaleY: -1 }, { rotate: "180deg" }] }}
                 />
-                {!!settings?.rewindSkipTime && (
+                {settings?.rewindSkipTime != null && (
                   <Text
                     style={{
                       position: "absolute",
@@ -1320,7 +1325,7 @@ export default function CastingPlayerScreen() {
                 }}
               >
                 <Ionicons name='refresh-outline' size={48} color='white' />
-                {!!settings?.forwardSkipTime && (
+                {settings?.forwardSkipTime != null && (
                   <Text
                     style={{
                       position: "absolute",

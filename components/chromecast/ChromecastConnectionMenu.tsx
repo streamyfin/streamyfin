@@ -108,7 +108,7 @@ export const ChromecastConnectionMenu: React.FC<
 
       try {
         if (castSession) {
-          await castSession.setVolume(value / 100);
+          await castSession.setVolume(rounded / 100);
         }
       } catch (error) {
         console.error("[Connection Menu] Volume error:", error);
@@ -262,7 +262,9 @@ export const ChromecastConnectionMenu: React.FC<
                     onValueChange={async (value) => {
                       volumeValue.value = value;
                       handleVolumeChange(value);
-                      if (isMuted) {
+                      // Unmute when adjusting volume - use ref to avoid
+                      // stale closure and prevent repeated async calls
+                      if (isMutedRef.current) {
                         isMutedRef.current = false;
                         setIsMuted(false);
                         try {
