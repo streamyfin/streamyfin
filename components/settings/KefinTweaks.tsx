@@ -11,12 +11,12 @@ export const KefinTweaksSettings = () => {
   return (
     <View className=''>
       <View className='flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900'>
-        <Text maxFontSizeMultiplier={1.2} className='text-xs text-red-600 mb-2'>
+        <Text className='text-xs text-red-600 mb-2'>
           {t("home.settings.plugins.kefinTweaks.watchlist_enabler")}
         </Text>
 
         <View className='flex flex-row items-center justify-between mt-2'>
-          <Text maxFontSizeMultiplier={1.2} className='text-white'>
+          <Text className='text-white'>
             {isEnabled ? t("Watchlist On") : t("Watchlist Off")}
           </Text>
 

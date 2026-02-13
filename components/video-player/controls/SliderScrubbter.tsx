@@ -102,7 +102,6 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
                 contentFit='cover'
               />
               <Text
-                maxFontSizeMultiplier={1.2}
                 style={{
                   position: "absolute",
                   bottom: 5,
@@ -127,16 +126,10 @@ const SliderScrubber: React.FC<SliderScrubberProps> = ({
         maximumValue={max}
       />
       <View className='flex flex-row items-center justify-between mt-0.5'>
-        <Text
-          maxFontSizeMultiplier={1.2}
-          className='text-[12px] text-neutral-400'
-        >
+        <Text className='text-[12px] text-neutral-400'>
           {formatTimeString(currentTime, "ms")}
         </Text>
-        <Text
-          maxFontSizeMultiplier={1.2}
-          className='text-[12px] text-neutral-400'
-        >
+        <Text className='text-[12px] text-neutral-400'>
           -{formatTimeString(remainingTime, "ms")}
         </Text>
       </View>

@@ -4,7 +4,7 @@ export function Text(props: TextProps) {
   if (Platform.isTV)
     return (
       <RNText
-        maxFontSizeMultiplier={1.3}
+        allowFontScaling={false}
         style={[{ color: "white" }, style]}
         {...otherProps}
       />
@@ -12,7 +12,7 @@ export function Text(props: TextProps) {
 
   return (
     <RNText
-      maxFontSizeMultiplier={1.3}
+      allowFontScaling={false}
       style={[{ color: "white" }, style]}
       {...otherProps}
     />

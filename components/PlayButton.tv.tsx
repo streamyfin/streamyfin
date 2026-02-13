@@ -198,13 +198,10 @@ export const PlayButton: React.FC<Props> = ({
         className='flex flex-row items-center justify-center bg-transparent rounded-xl z-20 h-12 w-full '
       >
         <View className='flex flex-row items-center space-x-2'>
-          <Animated.Text
-            style={[animatedTextStyle, { fontWeight: "bold" }]}
-            maxFontSizeMultiplier={1.2}
-          >
+          <Animated.Text style={[animatedTextStyle, { fontWeight: "bold" }]}>
             {runtimeTicksToMinutes(item?.RunTimeTicks)}
           </Animated.Text>
-          <Animated.Text style={animatedTextStyle} maxFontSizeMultiplier={1.2}>
+          <Animated.Text style={animatedTextStyle}>
             <Ionicons name='play-circle' size={24} />
           </Animated.Text>
         </View>

@@ -19,9 +19,7 @@ const SkipButton: React.FC<SkipButtonProps> = ({
         onPress={onPress}
         className='bg-black/60 rounded-md px-3 py-3 border border-neutral-900'
       >
-        <Text maxFontSizeMultiplier={1.2} className='text-white font-bold'>
-          {buttonText}
-        </Text>
+        <Text className='text-white font-bold'>{buttonText}</Text>
       </TouchableOpacity>
     </View>
   );
