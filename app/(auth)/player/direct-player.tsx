@@ -514,7 +514,7 @@ export default function page() {
     async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
-      const { position, duration, cacheSeconds } = data.nativeEvent;
+      const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
