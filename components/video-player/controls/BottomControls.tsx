@@ -57,6 +57,11 @@ interface BottomControlsProps {
     minutes: number;
     seconds: number;
   };
+
+  // Intro playback props
+  isPlayingIntro?: boolean;
+  skipAllIntros?: () => void;
+  intros?: BaseItemDto[];
 }
 
 export const BottomControls: FC<BottomControlsProps> = ({
@@ -87,6 +92,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
+  isPlayingIntro = false,
+  skipAllIntros,
+  intros = [],
 }) => {
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
@@ -133,6 +141,14 @@ export const BottomControls: FC<BottomControlsProps> = ({
           )}
         </View>
         <View className='flex flex-row space-x-2 shrink-0'>
+          {/* Skip Intro button - shows when playing intro videos */}
+          {isPlayingIntro && intros.length > 0 && skipAllIntros && (
+            <SkipButton
+              showButton={true}
+              onPress={skipAllIntros}
+              buttonText='Skip Intro'
+            />
+          )}
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
