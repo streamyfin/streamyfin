@@ -17,7 +17,7 @@ const JellyfinServerDiscovery: React.FC<Props> = ({ onServerSelect }) => {
   return (
     <View className='mt-2'>
       <Button onPress={startDiscovery} color='black'>
-        <Text maxFontSizeMultiplier={1.2} className='text-white text-center'>
+        <Text className='text-white text-center'>
           {isSearching
             ? t("server.searching")
             : t("server.search_for_local_servers")}

@@ -144,10 +144,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
             ${colorClasses}
             ${className}`}
         >
-          <Text
-            className={`${textColorClass} text-xl font-bold`}
-            ellipsizeMode='tail'
-          >
+          <Text className={`${textColorClass} text-xl font-bold`}>
             {children}
           </Text>
         </View>
@@ -189,7 +186,6 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           ${iconRight ? "mr-2" : ""}
           ${iconLeft ? "ml-2" : ""}
         `}
-            ellipsizeMode='tail'
           >
             {children}
           </Text>

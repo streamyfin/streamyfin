@@ -736,7 +736,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
         >
           <TouchableOpacity onPress={() => navigateToItem(item)}>
             <Animated.Text
-              maxFontSizeMultiplier={1.2}
               style={{
                 color: `rgba(255, 255, 255, ${TEXT_OPACITY})`,
                 fontSize: GENRES_FONT_SIZE,
@@ -802,7 +801,6 @@ export const AppleTVCarousel: React.FC<AppleTVCarouselProps> = ({
             >
               <TouchableOpacity onPress={() => navigateToItem(item)}>
                 <Animated.Text
-                  maxFontSizeMultiplier={1.2}
                   numberOfLines={OVERVIEW_MAX_LINES}
                   style={{
                     color: `rgba(255, 255, 255, ${TEXT_OPACITY * 0.85})`,
