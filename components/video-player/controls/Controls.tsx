@@ -83,6 +83,10 @@ interface Props {
   getTechnicalInfo?: () => Promise<TechnicalInfo>;
   playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
   transcodeReasons?: string[];
+  // Intro playback props
+  isPlayingIntro?: boolean;
+  skipAllIntros?: () => void;
+  intros?: BaseItemDto[];
 }
 
 export const Controls: FC<Props> = ({
@@ -112,6 +116,9 @@ export const Controls: FC<Props> = ({
   getTechnicalInfo,
   playMethod,
   transcodeReasons,
+  isPlayingIntro = false,
+  skipAllIntros,
+  intros = [],
 }) => {
   const offline = useOfflineMode();
   const { settings, updateSettings } = useSettings();
@@ -674,6 +681,9 @@ export const Controls: FC<Props> = ({
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
               time={isSliding || showRemoteBubble ? time : remoteTime}
+              isPlayingIntro={isPlayingIntro}
+              skipAllIntros={skipAllIntros}
+              intros={intros}
             />
           </Animated.View>
         </>
