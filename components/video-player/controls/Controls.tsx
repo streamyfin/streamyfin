@@ -37,6 +37,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SubtitleOffsetSlider } from "./SubtitleOffsetSlider";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
@@ -66,6 +67,11 @@ interface Props {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  // Subtitle offset props
+  showSubtitleOffset: boolean;
+  onToggleSubtitleOffset: (toggle: boolean) => void;
+  subtitleOffset: number;
+  setSubtitleOffset: (offset: number) => void;
   // Technical info props
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
@@ -96,6 +102,10 @@ export const Controls: FC<Props> = ({
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  showSubtitleOffset = false,
+  onToggleSubtitleOffset,
+  subtitleOffset = 0,
+  setSubtitleOffset,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
   getTechnicalInfo,
@@ -503,9 +513,17 @@ export const Controls: FC<Props> = ({
               onZoomToggle={onZoomToggle}
               playbackSpeed={playbackSpeed}
               setPlaybackSpeed={setPlaybackSpeed}
+              onToggleSubtitleOffset={onToggleSubtitleOffset}
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
             />
+            {showSubtitleOffset && (
+              <SubtitleOffsetSlider
+                currentSubtitleOffset={subtitleOffset}
+                setVisibility={onToggleSubtitleOffset}
+                handleSubtitleOffsetChange={setSubtitleOffset}
+              />
+            )}
           </Animated.View>
           <Animated.View
             style={centerAnimatedStyle}
