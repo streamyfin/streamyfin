@@ -25,6 +25,22 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
     setVisibility(false);
   };
 
+  const handleDecrement = () => {
+    subtitleOffset.value = Math.max(
+      subtitleOffset.value - 0.1,
+      minimumValue.value,
+    );
+    handleValueChange(subtitleOffset.value);
+  };
+
+  const handleIncrement = () => {
+    subtitleOffset.value = Math.min(
+      subtitleOffset.value + 0.1,
+      maximumValue.value,
+    );
+    handleValueChange(subtitleOffset.value);
+  };
+
   const handleValueChange = (value: number) => {
     handleSubtitleOffsetChange(value);
   };
@@ -41,21 +57,35 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
         </Text>
         <TouchableOpacity
           onPress={handleClose}
-          className='absolute justify-center right-1'
+          className='absolute justify-center right-0'
         >
           <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
         </TouchableOpacity>
       </View>
-      <Slider
-        style={{ marginTop: 16 }}
-        minimumValue={minimumValue}
-        maximumValue={maximumValue}
-        steps={steps}
-        progress={subtitleOffset}
-        forceSnapToStep={true}
-        onValueChange={handleValueChange}
-        bubble={(val) => `${val.toFixed(1)}s`}
-      ></Slider>
+      <View className='flex flex-row'>
+        <TouchableOpacity
+          onPress={handleDecrement}
+          className='absolute justify-center left-1'
+        >
+          <Ionicons name='remove' size={ICON_SIZES.HEADER} color='white' />
+        </TouchableOpacity>
+        <Slider
+          style={{ marginTop: 10, marginHorizontal: 32 }}
+          minimumValue={minimumValue}
+          maximumValue={maximumValue}
+          steps={steps}
+          progress={subtitleOffset}
+          forceSnapToStep={true}
+          onValueChange={handleValueChange}
+          bubble={(val) => `${val.toFixed(1)}s`}
+        ></Slider>
+        <TouchableOpacity
+          onPress={handleIncrement}
+          className='absolute justify-center right-1'
+        >
+          <Ionicons name='add' size={ICON_SIZES.HEADER} color='white' />
+        </TouchableOpacity>
+      </View>
     </BlurView>
   );
 };
