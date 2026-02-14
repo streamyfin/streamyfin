@@ -713,6 +713,15 @@ final class MPVLayerRenderer {
         commandSync(handle, ["sub-add", url, flag])
     }
     
+    func setSubtitleTimingOffset(_ offset: Double) {
+        guard let handle = mpv else {
+            Logger.shared.log("setSubtitleTimingOffset: mpv handle is nil!", type: "Error")
+            return
+        }
+        Logger.shared.log("setSubtitleTimingOffset: setting sub-delay to \(offset)", type: "Info")
+        setProperty(name: "sub-delay", value: String(offset))
+    }
+    
     // MARK: - Subtitle Positioning
     
     func setSubtitlePosition(_ position: Int) {

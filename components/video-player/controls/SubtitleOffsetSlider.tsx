@@ -53,7 +53,7 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
     >
       <View className='flex flex-row justify-center'>
         <Text className='text-white text-2xl'>
-          Subtitle Offset: {subtitleOffset.value.toFixed(1)}s
+          Subtitle Offset: {currentSubtitleOffset.toFixed(1)}s
         </Text>
         <TouchableOpacity
           onPress={handleClose}

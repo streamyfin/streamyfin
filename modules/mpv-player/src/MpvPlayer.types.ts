@@ -77,6 +77,8 @@ export interface MpvPlayerViewRef {
   disableSubtitles: () => Promise<void>;
   getCurrentSubtitleTrack: () => Promise<number>;
   addSubtitleFile: (url: string, select?: boolean) => Promise<void>;
+  // Subtitle timing offset
+  setSubtitleTimingOffset: (offset: number) => Promise<void>;
   // Subtitle positioning
   setSubtitlePosition: (position: number) => Promise<void>;
   setSubtitleScale: (scale: number) => Promise<void>;

@@ -883,6 +883,17 @@ export default function page() {
     applyInitialPlaybackSpeed();
   }, [isVideoLoaded, initialPlaybackSpeed]);
 
+  // Apply subtitle offset when it changes
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current) return;
+
+    const applySubtitleOffset = async () => {
+      await videoRef.current?.setSubtitleTimingOffset?.(currentSubtitleOffset);
+    };
+
+    applySubtitleOffset();
+  }, [currentSubtitleOffset]);
+
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
     return (

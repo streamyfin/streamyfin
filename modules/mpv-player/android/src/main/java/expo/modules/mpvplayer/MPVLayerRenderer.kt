@@ -422,6 +422,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         MPVLib.command(arrayOf("sub-add", url, flag))
     }
     
+    fun setSubtitleTimingOffset(offset: Double) {
+        Log.i(TAG, "setSubtitleTimingOffset: setting sub-delay to $offset")
+        MPVLib.setPropertyDouble("sub-delay", offset)
+    }
+    
     // MARK: - Subtitle Positioning
     
     fun setSubtitlePosition(position: Int) {
@@ -681,4 +686,5 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         }
     }
 }
+
 

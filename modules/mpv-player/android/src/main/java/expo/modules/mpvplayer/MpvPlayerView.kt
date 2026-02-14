@@ -246,6 +246,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         renderer?.addSubtitleFile(url, select)
     }
     
+    fun setSubtitleTimingOffset(offset: Double) {
+        renderer?.setSubtitleTimingOffset(offset)
+    }
+    
     // MARK: - Subtitle Positioning
     
     fun setSubtitlePosition(position: Int) {

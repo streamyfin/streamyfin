@@ -231,6 +231,10 @@ class MpvPlayerView: ExpoView {
 		renderer?.addSubtitleFile(url: url, select: select)
 	}
 	
+	func setSubtitleTimingOffset(_ offset: Double) {
+		renderer?.setSubtitleTimingOffset(offset)
+	}
+	
 	// MARK: - Audio Track Controls
 	
 	func getAudioTracks() -> [[String: Any]] {
