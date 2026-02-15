@@ -26,23 +26,24 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
   };
 
   const handleDecrement = () => {
-    subtitleOffset.value = Math.max(
-      subtitleOffset.value - 0.1,
+    const newValue = Math.max(
+      currentSubtitleOffset * -1 - 0.1,
       minimumValue.value,
     );
-    handleValueChange(subtitleOffset.value);
+    handleValueChange(newValue);
   };
 
   const handleIncrement = () => {
-    subtitleOffset.value = Math.min(
-      subtitleOffset.value + 0.1,
+    const newValue = Math.min(
+      currentSubtitleOffset * -1 + 0.1,
       maximumValue.value,
     );
-    handleValueChange(subtitleOffset.value);
+    handleValueChange(newValue);
   };
 
   const handleValueChange = (value: number) => {
-    handleSubtitleOffsetChange(value);
+    // Negate the value to match the expected offset direction
+    handleSubtitleOffsetChange(value * -1);
   };
 
   return (
@@ -53,7 +54,7 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
     >
       <View className='flex flex-row justify-center'>
         <Text className='text-white text-2xl'>
-          Subtitle Offset: {currentSubtitleOffset.toFixed(1)}s
+          Subtitle Offset: {(currentSubtitleOffset * -1).toFixed(1)}s
         </Text>
         <TouchableOpacity
           onPress={handleClose}
