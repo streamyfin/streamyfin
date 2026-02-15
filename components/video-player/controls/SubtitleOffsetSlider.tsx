@@ -3,6 +3,7 @@ import { BlurView } from "expo-blur";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { useSharedValue } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ICON_SIZES } from "./constants";
 
 interface SubtitleOffsetSliderProps {
@@ -47,46 +48,48 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
   };
 
   return (
-    <BlurView
-      intensity={100}
-      tint={"dark"}
-      className='absolute top-24 left-6 right-6 flex flex-col p-4'
-    >
-      <View className='flex flex-row justify-center'>
-        <Text className='text-white text-2xl'>
-          Subtitle Offset: {(currentSubtitleOffset * -1).toFixed(1)}s
-        </Text>
-        <TouchableOpacity
-          onPress={handleClose}
-          className='absolute justify-center right-0'
-        >
-          <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
-        </TouchableOpacity>
-      </View>
-      <View className='flex flex-row'>
-        <TouchableOpacity
-          onPress={handleDecrement}
-          className='absolute justify-center left-1'
-        >
-          <Ionicons name='remove' size={ICON_SIZES.HEADER} color='white' />
-        </TouchableOpacity>
-        <Slider
-          style={{ marginTop: 10, marginHorizontal: 32 }}
-          minimumValue={minimumValue}
-          maximumValue={maximumValue}
-          steps={steps}
-          progress={subtitleOffset}
-          forceSnapToStep={true}
-          onValueChange={handleValueChange}
-          bubble={(val) => `${val.toFixed(1)}s`}
-        ></Slider>
-        <TouchableOpacity
-          onPress={handleIncrement}
-          className='absolute justify-center right-1'
-        >
-          <Ionicons name='add' size={ICON_SIZES.HEADER} color='white' />
-        </TouchableOpacity>
-      </View>
-    </BlurView>
+    <SafeAreaView className='flex items-center justify-center w-full'>
+      <BlurView
+        intensity={100}
+        tint={"dark"}
+        className='flex flex-col justify-center p-4 top-12 w-full max-w-3xl min-w-[256px] px-4'
+      >
+        <View className='flex flex-row justify-center'>
+          <Text className='text-white text-xl'>
+            Subtitle Offset: {(currentSubtitleOffset * -1).toFixed(1)}s
+          </Text>
+          <TouchableOpacity
+            onPress={handleClose}
+            className='absolute justify-center right-0'
+          >
+            <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
+          </TouchableOpacity>
+        </View>
+        <View className='flex flex-row'>
+          <TouchableOpacity
+            onPress={handleDecrement}
+            className='absolute justify-center left-1'
+          >
+            <Ionicons name='remove' size={ICON_SIZES.HEADER} color='white' />
+          </TouchableOpacity>
+          <Slider
+            style={{ marginTop: 10, marginHorizontal: 32 }}
+            minimumValue={minimumValue}
+            maximumValue={maximumValue}
+            steps={steps}
+            progress={subtitleOffset}
+            forceSnapToStep={true}
+            onValueChange={handleValueChange}
+            bubble={(val) => `${val.toFixed(1)}s`}
+          ></Slider>
+          <TouchableOpacity
+            onPress={handleIncrement}
+            className='absolute justify-center right-1'
+          >
+            <Ionicons name='add' size={ICON_SIZES.HEADER} color='white' />
+          </TouchableOpacity>
+        </View>
+      </BlurView>
+    </SafeAreaView>
   );
 };
