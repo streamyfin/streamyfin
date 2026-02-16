@@ -67,7 +67,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
       // For episodes, always use series thumb
       if (item.Type === "Episode") {
         if (item.ParentThumbImageTag) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
+          return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
         }
         if (item.SeriesId) {
           return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=400&quality=80`;
