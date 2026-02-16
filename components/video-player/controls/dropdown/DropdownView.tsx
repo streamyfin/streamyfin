@@ -127,11 +127,11 @@ const DropdownView = ({
       });
 
       groups.push({
-        title: "Subtitle Offset",
+        title: "Subtitle Timing Offset",
         options: [
           {
             type: "action" as const,
-            label: "Adjust Subtitle Offset",
+            label: "Adjust Subtitle Timing Offset",
             onPress: () => onToggleSubtitleOffset(true),
           },
         ],
