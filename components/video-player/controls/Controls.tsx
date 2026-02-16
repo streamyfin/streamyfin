@@ -493,6 +493,13 @@ export const Controls: FC<Props> = ({
               transcodeReasons={transcodeReasons}
             />
           )}
+          {showSubtitleOffset && (
+            <SubtitleOffsetSlider
+              currentSubtitleOffset={subtitleOffset}
+              setVisibility={onToggleSubtitleOffset}
+              handleSubtitleOffsetChange={setSubtitleOffset}
+            />
+          )}
           <Animated.View
             style={headerAnimatedStyle}
             pointerEvents={showControls ? "auto" : "none"}
@@ -517,13 +524,6 @@ export const Controls: FC<Props> = ({
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
             />
-            {showSubtitleOffset && (
-              <SubtitleOffsetSlider
-                currentSubtitleOffset={subtitleOffset}
-                setVisibility={onToggleSubtitleOffset}
-                handleSubtitleOffsetChange={setSubtitleOffset}
-              />
-            )}
           </Animated.View>
           <Animated.View
             style={centerAnimatedStyle}

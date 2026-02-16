@@ -60,7 +60,7 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
           </Text>
           <TouchableOpacity
             onPress={handleClose}
-            className='absolute justify-center right-0'
+            className='absolute justify-center right-0 -mr-1 -mt-1'
           >
             <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
           </TouchableOpacity>
@@ -68,7 +68,7 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
         <View className='flex flex-row'>
           <TouchableOpacity
             onPress={handleDecrement}
-            className='absolute justify-center left-1'
+            className='absolute justify-center left-1 h-4 w-4'
           >
             <Ionicons name='remove' size={ICON_SIZES.HEADER} color='white' />
           </TouchableOpacity>
