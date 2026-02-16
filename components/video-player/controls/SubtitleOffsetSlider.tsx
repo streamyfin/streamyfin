@@ -48,19 +48,19 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
   };
 
   return (
-    <SafeAreaView className='flex items-center justify-center w-full'>
+    <SafeAreaView className='absolute inset-0 flex items-center justify-center w-full top-14 z-50'>
       <BlurView
         intensity={100}
         tint={"dark"}
-        className='flex flex-col justify-center p-4 top-12 w-full max-w-3xl min-w-[256px] px-4'
+        className='flex flex-col justify-center p-4 w-full max-w-3xl min-w-[256px] px-4'
       >
         <View className='flex flex-row justify-center'>
           <Text className='text-white text-xl'>
-            Subtitle Offset: {(currentSubtitleOffset * -1).toFixed(1)}s
+            Subtitle Offset: {Number((currentSubtitleOffset * -1).toFixed(1))}s
           </Text>
           <TouchableOpacity
             onPress={handleClose}
-            className='absolute justify-center right-0 -mr-1 -mt-1'
+            className='absolute justify-center right-0'
           >
             <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
           </TouchableOpacity>
@@ -68,7 +68,7 @@ export const SubtitleOffsetSlider: React.FC<SubtitleOffsetSliderProps> = ({
         <View className='flex flex-row'>
           <TouchableOpacity
             onPress={handleDecrement}
-            className='absolute justify-center left-1 h-4 w-4'
+            className='absolute justify-center left-1'
           >
             <Ionicons name='remove' size={ICON_SIZES.HEADER} color='white' />
           </TouchableOpacity>
