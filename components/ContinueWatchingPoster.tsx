@@ -35,8 +35,8 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Episode") {
-      if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-        return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
+      if (item.ParentThumbItemId && item.ParentThumbImageTag) {
+        return `${api?.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
       }
 
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
@@ -63,8 +63,9 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
   }, [item]);
 
-  if (!url)
+  if (!url) {
     return <View className='aspect-video border border-neutral-800 w-44' />;
+  }
 
   return (
     <View

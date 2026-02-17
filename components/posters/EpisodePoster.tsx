@@ -19,7 +19,7 @@ export const EpisodePoster: React.FC<MoviePosterProps> = ({
 
   const url = useMemo(() => {
     if (item.Type === "Episode") {
-      return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
+      return `${api?.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
     }
   }, [item]);
 
