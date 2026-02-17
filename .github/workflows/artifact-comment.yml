@@ -220,7 +220,10 @@ jobs:
                 const jobMappings = {
                   'Android Phone': ['🤖 Build Android APK (Phone)', 'build-android-phone'],
                   'Android TV': ['🤖 Build Android APK (TV)', 'build-android-tv'],  
-                  'iOS Phone': ['🍎 Build iOS IPA (Phone)', 'build-ios-phone']
+                  'iOS': ['🍎 Build iOS IPA (Phone)', 'build-ios-phone'],
+                  'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', 'build-ios-phone-unsigned'],
+                  'tvOS': ['🍎 Build tvOS IPA', 'build-ios-tv'],
+                  'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)', 'build-ios-tv-unsigned']
                 };
                 
                 // Create individual status for each job
@@ -353,10 +356,12 @@ jobs:
 
             // Process each expected build target individually
             const buildTargets = [
-              { name: 'Android Phone', platform: '🤖', device: '📱', statusKey: 'Android Phone', artifactPattern: /android.*phone/i },
-              { name: 'Android TV', platform: '🤖', device: '📺', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
-              { name: 'iOS Phone', platform: '🍎', device: '📱', statusKey: 'iOS Phone', artifactPattern: /ios.*phone/i },
-              { name: 'iOS TV', platform: '🍎', device: '📺', statusKey: 'iOS TV', artifactPattern: /ios.*tv/i }
+              { name: 'Android Phone', platform: '🤖', device: '📱 Phone', statusKey: 'Android Phone', artifactPattern: /android.*phone/i },
+              { name: 'Android TV', platform: '🤖', device: '📺 TV', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
+              { name: 'iOS', platform: '🍎', device: '📱 Phone', statusKey: 'iOS Phone', artifactPattern: /ios.*phone.*ipa(?!.*unsigned)/i },
+              { name: 'iOS Unsigned', platform: '🍎', device: '📱 Phone Unsigned', statusKey: 'iOS Phone Unsigned', artifactPattern: /ios.*phone.*unsigned/i },
+              { name: 'tvOS', platform: '🍎', device: '📺 TV', statusKey: 'tvOS', artifactPattern: /ios.*tv.*ipa(?!.*unsigned)/i },
+              { name: 'tvOS Unsigned', platform: '🍎', device: '📺 TV Unsigned', statusKey: 'tvOS Unsigned', artifactPattern: /ios.*tv.*unsigned/i }
             ];
 
             for (const target of buildTargets) {
@@ -371,16 +376,26 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              // Special case for iOS TV - show as disabled
-              if (target.name === 'iOS TV') {
-                status = '💤 Disabled';
-                downloadLink = '*Disabled for now*';
-              } else if (matchingStatus) {
+              if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
                   const directLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/artifacts/${matchingArtifact.id}`;
                   const fileType = target.name.includes('Android') ? 'APK' : 'IPA';
-                  downloadLink = `[📥 Download ${fileType}](${directLink})`;
+                  
+                  // Format file size
+                  const sizeInMB = (matchingArtifact.size_in_bytes / (1024 * 1024)).toFixed(1);
+                  const sizeInfo = `(${sizeInMB} MB)`;
+                  
+                  // Calculate build duration
+                  let durationInfo = '';
+                  if (matchingStatus.started_at && matchingStatus.completed_at) {
+                    const durationMs = new Date(matchingStatus.completed_at) - new Date(matchingStatus.started_at);
+                    const durationMin = Math.floor(durationMs / 60000);
+                    const durationSec = Math.floor((durationMs % 60000) / 1000);
+                    durationInfo = ` - ${durationMin}m ${durationSec}s`;
+                  }
+                  
+                  downloadLink = `[📥 Download ${fileType}](${directLink}) ${sizeInfo}${durationInfo}`;
                 } else if (matchingStatus.conclusion === 'failure') {
                   status = `❌ [Failed](${matchingStatus.url})`;
                   downloadLink = '*Build failed*';
@@ -408,7 +423,7 @@ jobs:
                 }
               }
 
-              commentBody += `| ${target.platform} ${target.name.split(' ')[0]} | ${target.device} ${target.name.split(' ')[1]} | ${status} | ${downloadLink} |\n`;
+              commentBody += `| ${target.platform} ${target.name} | ${target.device} | ${status} | ${downloadLink} |\n`;
             }
 
             commentBody += `\n`;
