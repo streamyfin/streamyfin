@@ -15,6 +15,8 @@ export type OnProgressEventPayload = {
   position: number;
   duration: number;
   progress: number;
+  /** Seconds of video buffered ahead of current position */
+  cacheSeconds: number;
 };
 
 export type OnErrorEventPayload = {

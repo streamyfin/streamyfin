@@ -449,7 +449,7 @@ export default function page() {
     async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
-      const { position } = data.nativeEvent;
+      const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
@@ -458,6 +458,12 @@ export default function page() {
       }
 
       progress.set(currentTime);
+
+      // Update cache progress (current position + buffered seconds ahead)
+      if (cacheSeconds !== undefined && cacheSeconds > 0) {
+        const cacheEnd = currentTime + cacheSeconds * 1000;
+        cacheProgress.set(cacheEnd);
+      }
 
       // Update URL immediately after seeking, or every 30 seconds during normal playback
       const now = Date.now();
@@ -531,7 +537,11 @@ export default function page() {
       subtitleIndex,
       isTranscoding,
     );
-    const initialAudioId = getMpvAudioId(mediaSource, audioIndex);
+    const initialAudioId = getMpvAudioId(
+      mediaSource,
+      audioIndex,
+      isTranscoding,
+    );
 
     // Calculate start position directly here to avoid timing issues
     const startTicks = playbackPositionFromUrl
