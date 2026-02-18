@@ -307,7 +307,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // MARK: - MPVLayerRenderer.Delegate
     
-    override fun onPositionChanged(position: Double, duration: Double) {
+    override fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double) {
         cachedPosition = position
         cachedDuration = duration
         
@@ -319,7 +319,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         onProgress(mapOf(
             "position" to position,
             "duration" to duration,
-            "progress" to if (duration > 0) position / duration else 0.0
+            "progress" to if (duration > 0) position / duration else 0.0,
+            "cacheSeconds" to cacheSeconds
         ))
     }
     
