@@ -96,13 +96,22 @@ export const PlayButton: React.FC<Props> = ({
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
-      audioIndex: selectedOptions.audioIndex?.toString() ?? "",
-      subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
       playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
       offline: isOffline ? "true" : "false",
     });
+
+    if (selectedOptions.audioIndex !== undefined) {
+      queryParams.set("audioIndex", selectedOptions.audioIndex.toString());
+    }
+
+    if (selectedOptions.subtitleIndex !== undefined) {
+      queryParams.set(
+        "subtitleIndex",
+        selectedOptions.subtitleIndex.toString(),
+      );
+    }
 
     const queryString = queryParams.toString();
 
@@ -292,6 +301,29 @@ export const PlayButton: React.FC<Props> = ({
     t,
   ]);
 
+  const buildOfflineQueryParams = useCallback(
+    (downloadedItem: NonNullable<ReturnType<typeof getDownloadedItemById>>) => {
+      const isTranscoded = downloadedItem.userData?.isTranscoded === true;
+      const audioIdx = isTranscoded
+        ? downloadedItem.userData?.audioStreamIndex
+        : selectedOptions.audioIndex;
+      const subtitleIdx = isTranscoded
+        ? downloadedItem.userData?.subtitleStreamIndex
+        : selectedOptions.subtitleIndex;
+      const params = new URLSearchParams({
+        itemId: item.Id!,
+        offline: "true",
+        playbackPosition:
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      });
+      if (audioIdx !== undefined) params.set("audioIndex", audioIdx.toString());
+      if (subtitleIdx !== undefined)
+        params.set("subtitleIndex", subtitleIdx.toString());
+      return params;
+    },
+    [item, selectedOptions],
+  );
+
   const onPress = useCallback(async () => {
     if (!item) return;
 
@@ -302,20 +334,7 @@ export const PlayButton: React.FC<Props> = ({
 
     // If already in offline mode, play downloaded file directly
     if (isOffline && downloadedItem) {
-      const isTranscoded = downloadedItem.userData?.isTranscoded === true;
-      const queryParams = new URLSearchParams({
-        itemId: item.Id!,
-        offline: "true",
-        audioIndex: isTranscoded
-          ? (downloadedItem.userData?.audioStreamIndex?.toString() ?? "")
-          : (selectedOptions.audioIndex?.toString() ?? ""),
-        subtitleIndex: isTranscoded
-          ? (downloadedItem.userData?.subtitleStreamIndex?.toString() ?? "-1")
-          : (selectedOptions.subtitleIndex?.toString() ?? "-1"),
-        playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-      });
-      goToPlayer(queryParams.toString());
+      goToPlayer(buildOfflineQueryParams(downloadedItem).toString());
       return;
     }
 
@@ -338,23 +357,9 @@ export const PlayButton: React.FC<Props> = ({
                 <Button
                   onPress={() => {
                     hideModal();
-                    const isTranscoded =
-                      downloadedItem.userData?.isTranscoded === true;
-                    const queryParams = new URLSearchParams({
-                      itemId: item.Id!,
-                      offline: "true",
-                      audioIndex: isTranscoded
-                        ? (downloadedItem.userData?.audioStreamIndex?.toString() ??
-                          "")
-                        : (selectedOptions.audioIndex?.toString() ?? ""),
-                      subtitleIndex: isTranscoded
-                        ? (downloadedItem.userData?.subtitleStreamIndex?.toString() ??
-                          "-1")
-                        : (selectedOptions.subtitleIndex?.toString() ?? "-1"),
-                      playbackPosition:
-                        item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-                    });
-                    goToPlayer(queryParams.toString());
+                    goToPlayer(
+                      buildOfflineQueryParams(downloadedItem).toString(),
+                    );
                   }}
                   color='purple'
                 >
@@ -391,23 +396,7 @@ export const PlayButton: React.FC<Props> = ({
             {
               text: t("player.downloaded_file_yes"),
               onPress: () => {
-                const isTranscoded =
-                  downloadedItem.userData?.isTranscoded === true;
-                const queryParams = new URLSearchParams({
-                  itemId: item.Id!,
-                  offline: "true",
-                  audioIndex: isTranscoded
-                    ? (downloadedItem.userData?.audioStreamIndex?.toString() ??
-                      "")
-                    : (selectedOptions.audioIndex?.toString() ?? ""),
-                  subtitleIndex: isTranscoded
-                    ? (downloadedItem.userData?.subtitleStreamIndex?.toString() ??
-                      "-1")
-                    : (selectedOptions.subtitleIndex?.toString() ?? "-1"),
-                  playbackPosition:
-                    item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-                });
-                goToPlayer(queryParams.toString());
+                goToPlayer(buildOfflineQueryParams(downloadedItem).toString());
               },
               isPreferred: true,
             },

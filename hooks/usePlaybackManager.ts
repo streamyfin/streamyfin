@@ -193,12 +193,12 @@ export const usePlaybackManager = ({
           ? localItem.userData
           : {
               ...localItem.userData,
-              ...(playbackProgressInfo.AudioStreamIndex != null && {
-                audioStreamIndex: playbackProgressInfo.AudioStreamIndex,
-              }),
-              ...(playbackProgressInfo.SubtitleStreamIndex != null && {
-                subtitleStreamIndex: playbackProgressInfo.SubtitleStreamIndex,
-              }),
+              audioStreamIndex:
+                playbackProgressInfo.AudioStreamIndex ??
+                localItem.userData.audioStreamIndex,
+              subtitleStreamIndex:
+                playbackProgressInfo.SubtitleStreamIndex ??
+                localItem.userData.subtitleStreamIndex,
             },
       });
       // Force invalidate queries so they refetch from updated local database

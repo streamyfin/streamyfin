@@ -20,13 +20,23 @@ export const useDownloadedFileOpener = () => {
       const queryParams = new URLSearchParams({
         itemId: item.Id,
         offline: "true",
-        audioIndex:
-          downloadedItem?.userData?.audioStreamIndex?.toString() ?? "",
-        subtitleIndex:
-          downloadedItem?.userData?.subtitleStreamIndex?.toString() ?? "-1",
         playbackPosition:
           item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
       });
+
+      if (downloadedItem?.userData?.audioStreamIndex !== undefined) {
+        queryParams.set(
+          "audioIndex",
+          downloadedItem.userData.audioStreamIndex.toString(),
+        );
+      }
+      if (downloadedItem?.userData?.subtitleStreamIndex !== undefined) {
+        queryParams.set(
+          "subtitleIndex",
+          downloadedItem.userData.subtitleStreamIndex.toString(),
+        );
+      }
+
       try {
         router.push(`/player/direct-player?${queryParams.toString()}`);
       } catch (error) {
