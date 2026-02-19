@@ -55,6 +55,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     const [api] = useAtom(apiAtom);
     const isOffline = useOfflineMode();
     const { getDownloadedItemById } = useDownload();
+    const downloadedItem =
+      isOffline && item.Id ? getDownloadedItemById(item.Id) : null;
     const { settings } = useSettings();
     const { orientation } = useOrientation();
     const navigation = useNavigation();
@@ -95,8 +97,6 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
     useEffect(() => {
       // When offline, use the indices stored in userData (the last-used tracks for this file)
       // rather than the server's defaults, so MediaSourceButton reflects what will actually play.
-      const downloadedItem =
-        isOffline && item.Id ? getDownloadedItemById(item.Id) : null;
       const offlineUserData = downloadedItem?.userData;
 
       setSelectedOptions(() => ({
@@ -116,9 +116,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultBitrate,
       defaultSubtitleIndex,
       defaultMediaSource,
-      isOffline,
-      item.Id,
-      getDownloadedItemById,
+      downloadedItem?.userData?.audioStreamIndex,
+      downloadedItem?.userData?.subtitleStreamIndex,
     ]);
 
     useEffect(() => {
