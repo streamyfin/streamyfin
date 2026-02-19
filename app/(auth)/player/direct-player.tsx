@@ -134,7 +134,7 @@ export default function page() {
   const audioIndexFromUrl = audioIndexStr
     ? Number.parseInt(audioIndexStr, 10)
     : undefined;
-  const subtitleIndex = subtitleIndexStr
+  const subtitleIndexFromUrl = subtitleIndexStr
     ? Number.parseInt(subtitleIndexStr, 10)
     : -1;
   const bitrateValue = bitrateValueStr
@@ -160,6 +160,24 @@ export default function page() {
     }
     return undefined;
   }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
+
+  // Resolve subtitle index: use URL param if provided, otherwise use stored index for offline playback
+  const subtitleIndex = useMemo(() => {
+    if (subtitleIndexFromUrl !== undefined) {
+      return subtitleIndexFromUrl;
+    }
+    if (
+      offline &&
+      downloadedItem?.userData?.subtitleStreamIndex !== undefined
+    ) {
+      return downloadedItem.userData.subtitleStreamIndex;
+    }
+    return -1;
+  }, [
+    subtitleIndexFromUrl,
+    offline,
+    downloadedItem?.userData?.subtitleStreamIndex,
+  ]);
 
   // Get the playback speed for this item based on settings
   const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
@@ -406,8 +424,8 @@ export default function page() {
 
     return {
       ItemId: item.Id,
-      AudioStreamIndex: audioIndex ? audioIndex : undefined,
-      SubtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      AudioStreamIndex: audioIndex,
+      SubtitleStreamIndex: subtitleIndex,
       MediaSourceId: mediaSourceId,
       PositionTicks: msToTicks(progress.get()),
       IsPaused: !isPlaying,

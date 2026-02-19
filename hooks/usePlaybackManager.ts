@@ -186,6 +186,20 @@ export const usePlaybackManager = ({
                 : playedPercentage,
           },
         },
+        // Sync selected audio/subtitle tracks so next playback resumes with
+        // the same tracks the user had active — but only for non-transcoded
+        // downloads where the user can freely switch tracks.
+        userData: localItem.userData.isTranscoded
+          ? localItem.userData
+          : {
+              ...localItem.userData,
+              ...(playbackProgressInfo.AudioStreamIndex != null && {
+                audioStreamIndex: playbackProgressInfo.AudioStreamIndex,
+              }),
+              ...(playbackProgressInfo.SubtitleStreamIndex != null && {
+                subtitleStreamIndex: playbackProgressInfo.SubtitleStreamIndex,
+              }),
+            },
       });
       // Force invalidate queries so they refetch from updated local database
       queryClient.invalidateQueries({ queryKey: ["item", itemId] });
