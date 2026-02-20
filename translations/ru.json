@@ -375,7 +375,7 @@
           "home_sections_title": "Показывать на главной",
           "enable_movie_recommendations": "Рекомендации фильмов",
           "enable_series_recommendations": "Рекомендации сериалов",
-          "enable_promoted_watchlists": "Подходящий списки",
+          "enable_promoted_watchlists": "Продвигаемые списки просмотра",
           "hide_watchlists_tab": "Скрыть вкладку со списками",
           "home_sections_hint": "Показывать персонализированные рекомендации и подходящие списки просмотров из Streamystats на главной странице.",
           "recommended_movies": "Рекомендованные фильмы",
@@ -389,7 +389,7 @@
         },
         "kefinTweaks": {
           "watchlist_enabler": "Включить интеграцию со списками просмотра",
-          "watchlist_button": "Изменить инетграцию со списками просмотра"
+          "watchlist_button": "Изменить интеграцию со списками просмотра"
         }
       },
       "storage": {
@@ -480,7 +480,7 @@
         "download_completed_for_item": "{{item}} успешно загружен",
         "download_started_for_item": "Загрузка началась для {{item}}",
         "failed_to_start_download": "Не удалось начать загрузку",
-        "item_already_downloading": "{{item}} уже загружен",
+        "item_already_downloading": "{{item}} уже загружается",
         "all_files_deleted": "Все загрузки удалены",
         "files_deleted_by_type": "{{count}} {{type}} удалён(о)",
         "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и задачи были успешно удалены",
@@ -777,7 +777,7 @@
       "failed_to_remove": "Не удалось удалить из плейлиста",
       "failed_to_create": "Не удалось создать плейлист",
       "delete_playlist": "Удалить плейлист",
-      "delete_confirm": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие не обратимо.",
+      "delete_confirm": "Вы уверены, что хотите удалить \"{{name}}\"? Это действие необратимо.",
       "deleted": "Плейлист удалён",
       "failed_to_delete": "Не удалось удалить плейлист"
     },
@@ -790,7 +790,7 @@
   "watchlists": {
     "title": "Списки просмотров",
     "my_watchlists": "Мои списки",
-    "public_watchlists": "Публичный списки",
+    "public_watchlists": "Публичные списки",
     "create_title": "Создать список",
     "edit_title": "Редактировать список",
     "create_button": "Создать список",
@@ -823,13 +823,13 @@
     "private": "Личный",
     "you": "Ваш",
     "by_owner": "Другим пользователем",
-    "not_found": "Список на найден",
+    "not_found": "Список не найден",
     "delete_confirm_title": "Удалить список",
-    "delete_confirm_message": "Вы уверены, что хотите удалить список \"{{name}}\"? Это действие не обратимо.",
+    "delete_confirm_message": "Вы уверены, что хотите удалить список \"{{name}}\"? Это действие необратимо.",
     "remove_item_title": "Удалить из списка",
     "remove_item_message": "Удалить \"{{name}}\" из списка?",
     "loading": "Загрузка списков...",
-    "no_compatible_watchlists": "Не совместимых списков",
+    "no_compatible_watchlists": "Нет совместимых списков",
     "create_one_first": "Создайте список просмотра с подходящим типом контента"
   },
   "playback_speed": {
