@@ -58,7 +58,7 @@ import { writeToLog } from "@/utils/log";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
-export default function page() {
+export default function Page() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);

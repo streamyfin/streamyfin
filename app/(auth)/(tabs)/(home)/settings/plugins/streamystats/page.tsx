@@ -17,7 +17,7 @@ import { ListItem } from "@/components/list/ListItem";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function Page() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();

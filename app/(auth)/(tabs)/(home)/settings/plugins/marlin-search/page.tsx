@@ -18,7 +18,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function Page() {
   const navigation = useNavigation();
 
   const { t } = useTranslation();

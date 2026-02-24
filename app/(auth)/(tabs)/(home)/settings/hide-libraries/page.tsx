@@ -11,7 +11,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function Page() {
   const { settings, updateSettings, pluginSettings } = useSettings();
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);

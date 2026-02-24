@@ -15,7 +15,7 @@ import { LibraryItemCard } from "@/components/library/LibraryItemCard";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function index() {
+export default function Index() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const queryClient = useQueryClient();

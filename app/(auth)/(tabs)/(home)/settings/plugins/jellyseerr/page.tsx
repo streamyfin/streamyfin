@@ -4,7 +4,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { JellyseerrSettings } from "@/components/settings/Jellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function Page() {
   const { pluginSettings } = useSettings();
   const insets = useSafeAreaInsets();
 

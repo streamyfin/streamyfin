@@ -14,7 +14,6 @@ import { HEADER_LAYOUT } from "./constants";
 type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
 
 interface TechnicalInfoOverlayProps {
-  showControls: boolean;
   visible: boolean;
   getTechnicalInfo: () => Promise<TechnicalInfo>;
   playMethod?: PlayMethod;
@@ -120,13 +119,7 @@ const formatTranscodeReason = (reason: string): string => {
 };
 
 export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
-  ({
-    showControls,
-    visible,
-    getTechnicalInfo,
-    playMethod,
-    transcodeReasons,
-  }) => {
+  ({ visible, getTechnicalInfo, playMethod, transcodeReasons }) => {
     const { settings } = useSettings();
     const insets = useSafeAreaInsets();
     const [info, setInfo] = useState<TechnicalInfo | null>(null);

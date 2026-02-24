@@ -20,7 +20,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { writeToLog } from "@/utils/log";
 
-export default function page() {
+export default function Page() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [_queue, _setQueue] = useAtom(queueAtom);

@@ -8,7 +8,7 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
-export default function page() {
+export default function Page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const _insets = useSafeAreaInsets();

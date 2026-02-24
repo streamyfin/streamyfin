@@ -55,7 +55,7 @@ const exampleSearches = [
   "The Mandalorian",
 ];
 
-export default function search() {
+export default function Search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();

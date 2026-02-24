@@ -14,7 +14,7 @@ import { UserInfo } from "@/components/settings/UserInfo";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 
-export default function settings() {
+export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [_user] = useAtom(userAtom);

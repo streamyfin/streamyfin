@@ -1,10 +1,9 @@
 import { useCallback, useState } from "react";
 import { Platform, RefreshControl, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Favorites } from "@/components/home/Favorites";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 
-export default function favorites() {
+export default function Favorites() {
   const invalidateCache = useInvalidatePlaybackProgressCache();
 
   const [loading, setLoading] = useState(false);

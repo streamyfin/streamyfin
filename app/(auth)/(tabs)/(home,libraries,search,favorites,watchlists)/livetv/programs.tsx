@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
-export default function page() {
+export default function Page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();

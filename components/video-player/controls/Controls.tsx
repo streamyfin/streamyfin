@@ -476,7 +476,6 @@ export const Controls: FC<Props> = ({
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
             <TechnicalInfoOverlay
-              showControls={showControls}
               visible={showTechnicalInfo}
               getTechnicalInfo={getTechnicalInfo}
               playMethod={playMethod}

@@ -23,7 +23,7 @@ import { formatBitrate } from "@/utils/bitrate";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { formatTimeString } from "@/utils/time";
 
-export default function page() {
+export default function Page() {
   const { sessions, isLoading } = useSessions({} as useSessionsProps);
   const { t } = useTranslation();
 
