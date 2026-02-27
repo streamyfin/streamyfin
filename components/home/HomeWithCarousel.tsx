@@ -30,12 +30,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
+import { MediaBarCarousel } from "@/components/home/MediaBarCarousel";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
 import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
+import { useMediaBarContent } from "@/hooks/useMediaBarContent";
+import { useMediaBarPluginPresence } from "@/hooks/useMediaBarPluginPresence";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -83,6 +86,17 @@ export const HomeWithCarousel = () => {
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [scrollY, setScrollY] = useState(0);
+  const { data: isMediaBarPresent } = useMediaBarPluginPresence();
+  const { data: mediaBarContent, isLoading: isMediaBarLoading } =
+    useMediaBarContent({
+      enabled: isMediaBarPresent === true,
+      limit: 12,
+    });
+  const mediaBarItems = mediaBarContent?.items ?? [];
+  const shouldRenderMediaBarCarousel =
+    !Platform.isTV &&
+    isMediaBarPresent === true &&
+    (isMediaBarLoading || mediaBarItems.length > 0);
 
   useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
@@ -558,6 +572,13 @@ export const HomeWithCarousel = () => {
         }}
       >
         <View className='flex flex-col space-y-4'>
+          {shouldRenderMediaBarCarousel && (
+            <MediaBarCarousel
+              items={mediaBarItems}
+              isLoading={isMediaBarLoading}
+              compact
+            />
+          )}
           {sections.map((section, index) => {
             // Render Streamystats sections after Continue Watching and Next Up
             // When merged, they appear after index 0; otherwise after index 1
