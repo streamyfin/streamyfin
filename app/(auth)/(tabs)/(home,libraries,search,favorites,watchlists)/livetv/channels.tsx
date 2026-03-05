@@ -23,7 +23,7 @@ export default function page() {
         limit: 500,
         enableFavoriteSorting: true,
         userId: user?.Id,
-        addCurrentProgram: false,
+        addCurrentProgram: true,
         enableUserData: false,
         enableImageTypes: ["Primary"],
       });
@@ -61,7 +61,20 @@ export default function page() {
                   item={item}
                 />
               </View>
-              <Text className='font-bold'>{item.Name}</Text>
+              <View className='flex-1 justify-center'>
+                <Text className='font-bold' numberOfLines={1}>
+                  {item.Name}
+                </Text>
+                {item.CurrentProgram?.Name ? (
+                  <Text
+                    className='text-xs text-neutral-400'
+                    numberOfLines={1}
+                    style={{ fontStyle: "italic" }}
+                  >
+                    {item.CurrentProgram.Name}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           </TouchableOpacity>
         )}
