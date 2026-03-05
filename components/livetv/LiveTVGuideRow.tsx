@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Dimensions, View } from "react-native";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
+import { EPG_PX_PER_HOUR } from "./constants";
 
 type RealEntry = BaseItemDto & {
   isDummy: false;
@@ -18,8 +19,6 @@ type DummyEntry = {
   endTime: Date;
 };
 type GuideEntry = RealEntry | DummyEntry;
-
-const EPG_PX_PER_HOUR = 200;
 
 const datesToPx = (start: Date, end: Date): number =>
   Math.max(
@@ -43,7 +42,7 @@ export const LiveTVGuideRow = ({
   scrollX?: number;
   isVisible?: boolean;
 }) => {
-  const screenWidth = Dimensions.get("window").width;
+  const _screenWidth = Dimensions.get("window").width;
 
   const referenceTime = useMemo(() => {
     const now = new Date();
@@ -142,15 +141,17 @@ export const LiveTVGuideRow = ({
             <TouchableItemRouter item={channel} key={entry.Id}>
               <View
                 style={{
-                  width: entry.width,
-                  height: "100%",
                   position: "absolute",
-                  left: entry.position,
+                  left: entry.position + 2,
+                  top: 3,
+                  bottom: 3,
+                  width: entry.width - 4,
+                  borderRadius: 6,
                   backgroundColor: isLive
-                    ? "rgba(255, 255, 255, 0.1)"
-                    : "transparent",
+                    ? "rgba(255, 255, 255, 0.14)"
+                    : "rgba(255, 255, 255, 0.05)",
+                  overflow: "hidden",
                 }}
-                className='flex flex-col items-center justify-center border border-neutral-800 overflow-hidden'
               />
             </TouchableItemRouter>
           );
@@ -160,29 +161,26 @@ export const LiveTVGuideRow = ({
           <TouchableItemRouter item={entry} key={entry.Id}>
             <View
               style={{
-                width: entry.width,
-                height: "100%",
                 position: "absolute",
-                left: entry.position,
+                left: entry.position + 2,
+                top: 3,
+                bottom: 3,
+                width: entry.width - 4,
+                borderRadius: 6,
                 backgroundColor: isCurrentlyLive(entry, now)
-                  ? "rgba(255, 255, 255, 0.1)"
-                  : "transparent",
+                  ? "rgba(255, 255, 255, 0.14)"
+                  : "rgba(255, 255, 255, 0.05)",
+                overflow: "hidden",
               }}
-              className='flex flex-col items-center justify-center border border-neutral-800 overflow-hidden'
             >
               <View
                 style={{
                   marginLeft:
-                    entry.width > screenWidth && scrollX > entry.position
-                      ? scrollX - entry.position
-                      : 0,
+                    scrollX > entry.position ? scrollX - entry.position : 0,
                 }}
-                className='px-4 self-start'
+                className='px-3 self-start justify-center flex-1'
               >
-                <Text
-                  numberOfLines={2}
-                  className='text-xs text-start self-start'
-                >
+                <Text numberOfLines={2} className='text-xs text-start'>
                   {entry.Name}
                 </Text>
               </View>

@@ -2,19 +2,39 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
+import { EPG_PX_PER_HOUR } from "@/components/livetv/constants";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const HOUR_HEIGHT = 30;
+const HEADER_GAP = 8;
+const DOT_SIZE = 9;
 const CHANNELS_PER_PAGE = 50;
 const BUFFER_ROWS = 5;
 const CHANNEL_COL_WIDTH = 64;
-const EPG_PX_PER_HOUR = 200;
+
+function makeSyncScrollHandler(
+  selfLock: React.MutableRefObject<boolean>,
+  otherLock: React.MutableRefObject<boolean>,
+  otherRef: React.MutableRefObject<ScrollView | null>,
+  setX: (x: number) => void,
+) {
+  return (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+    const x = e.nativeEvent.contentOffset.x;
+    setX(x);
+    if (selfLock.current) {
+      selfLock.current = false;
+      return;
+    }
+    otherLock.current = true;
+    otherRef.current?.scrollTo({ x, animated: false });
+  };
+}
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
 
@@ -28,11 +48,45 @@ export default function page() {
   const [scrollY, setScrollY] = useState(0);
   const [scrollX, setScrollX] = useState(0);
 
+  const headerScrollRef = useRef<ScrollView>(null);
+  const contentScrollRef = useRef<ScrollView>(null);
+  // Prevent sync feedback loops between the two ScrollViews
+  const syncingHeader = useRef(false);
+  const syncingContent = useRef(false);
+
+  const handleHeaderScroll = useMemo(
+    () =>
+      makeSyncScrollHandler(
+        syncingHeader,
+        syncingContent,
+        contentScrollRef,
+        setScrollX,
+      ),
+    [],
+  );
+
+  const handleContentXScroll = useMemo(
+    () =>
+      makeSyncScrollHandler(
+        syncingContent,
+        syncingHeader,
+        headerScrollRef,
+        setScrollX,
+      ),
+    [],
+  );
+
   // Total width of guide content: hours remaining today × pixels per hour
   const guideContentWidth = useMemo(() => {
     const hoursRemaining = 24 - new Date().getHours();
     return hoursRemaining * EPG_PX_PER_HOUR;
   }, []);
+
+  // Pixel offset of current time from the start of the current hour.
+  // Computed inline (not memoized) so it stays accurate across re-renders.
+  const now = new Date();
+  const nowPosition =
+    ((now.getMinutes() * 60 + now.getSeconds()) / 3600) * EPG_PX_PER_HOUR;
 
   const {
     data: channelPages,
@@ -145,17 +199,25 @@ export default function page() {
         paddingRight: insets.right,
       }}
     >
-      {/* Fixed hour header — lives outside the ScrollView so it never scrolls away */}
-      <View style={{ flexDirection: "row", backgroundColor: "black" }}>
-        <View
-          style={{ width: CHANNEL_COL_WIDTH, height: HOUR_HEIGHT }}
-          className='bg-neutral-800'
-        />
-        <View style={{ flex: 1, overflow: "hidden" }}>
-          <View style={{ transform: [{ translateX: -scrollX }] }}>
-            <HourHeader height={HOUR_HEIGHT} />
-          </View>
-        </View>
+      {/* Fixed hour header — scrollable, synced with content */}
+      <View
+        style={{
+          flexDirection: "row",
+          backgroundColor: "black",
+          marginLeft: CHANNEL_COL_WIDTH,
+        }}
+      >
+        <ScrollView
+          ref={headerScrollRef}
+          horizontal
+          scrollEventThrottle={16}
+          onScroll={handleHeaderScroll}
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
+          style={{ flex: 1 }}
+        >
+          <HourHeader height={HOUR_HEIGHT} />
+        </ScrollView>
       </View>
 
       {/* Vertical scroll — channel images + program rows */}
@@ -163,6 +225,7 @@ export default function page() {
         contentInsetAdjustmentBehavior='never'
         scrollEventThrottle={16}
         onScroll={handleScroll}
+        style={{ marginTop: HEADER_GAP }}
         contentContainerStyle={{ paddingBottom: 16 }}
       >
         <View style={{ flexDirection: "row" }}>
@@ -183,11 +246,12 @@ export default function page() {
           </View>
 
           <ScrollView
+            ref={contentScrollRef}
             nestedScrollEnabled
             horizontal
             style={{ width: screenWidth - CHANNEL_COL_WIDTH }}
             scrollEventThrottle={16}
-            onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
+            onScroll={handleContentXScroll}
           >
             <View style={{ width: guideContentWidth }}>
               {allChannels.map((c, i) => (
@@ -209,6 +273,33 @@ export default function page() {
           </View>
         )}
       </ScrollView>
+
+      {/* Now indicator: only visible while current time is within guide view */}
+      {nowPosition >= scrollX && (
+        <View
+          pointerEvents='none'
+          style={{
+            position: "absolute",
+            left: CHANNEL_COL_WIDTH + nowPosition - scrollX,
+            top: HOUR_HEIGHT + HEADER_GAP,
+            bottom: 0,
+            width: 1,
+            backgroundColor: "rgba(255, 255, 255, 0.3)",
+          }}
+        >
+          <View
+            style={{
+              position: "absolute",
+              top: -(HEADER_GAP + DOT_SIZE / 2),
+              left: -(DOT_SIZE / 2),
+              width: DOT_SIZE,
+              height: DOT_SIZE,
+              borderRadius: 5,
+              backgroundColor: "rgba(255, 255, 255, 0.75)",
+            }}
+          />
+        </View>
+      )}
     </View>
   );
 }
