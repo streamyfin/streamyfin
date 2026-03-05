@@ -4,12 +4,21 @@ import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Dimensions, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Dimensions,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
-import { EPG_PX_PER_HOUR } from "@/components/livetv/constants";
+import {
+  EPG_PX_PER_HOUR,
+  getGuideReferenceTime,
+} from "@/components/livetv/constants";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
 import { Colors } from "@/constants/Colors";
@@ -140,17 +149,19 @@ export default function page() {
     [],
   );
 
-  // Total width of guide content: hours remaining today × pixels per hour
-  const guideContentWidth = useMemo(() => {
-    const hoursRemaining = 24 - new Date().getHours();
-    return hoursRemaining * EPG_PX_PER_HOUR;
+  const scrollToStart = useCallback(() => {
+    headerScrollRef.current?.scrollTo({ x: 0, animated: true });
+    contentScrollRef.current?.scrollTo({ x: 0, animated: true });
   }, []);
 
-  // Pixel offset of current time from the start of the current hour.
+  const guideContentWidth = 24 * EPG_PX_PER_HOUR;
+
+  // Pixel offset of current time from the guide reference time.
   // Computed inline (not memoized) so it stays accurate across re-renders.
   const now = new Date();
   const nowPosition =
-    ((now.getMinutes() * 60 + now.getSeconds()) / 3600) * EPG_PX_PER_HOUR;
+    ((now.getTime() - getGuideReferenceTime().getTime()) / 3600000) *
+    EPG_PX_PER_HOUR;
 
   const {
     data: channelPages,
@@ -195,12 +206,13 @@ export default function page() {
         queryKey: ["livetv", "guide", "programs", channelIds],
         queryFn: async () => {
           const now = new Date();
-          const endOfDay = new Date();
-          endOfDay.setHours(23, 59, 59, 999);
+          const end = new Date(
+            getGuideReferenceTime().getTime() + 24 * 60 * 60 * 1000,
+          );
           const res = await getLiveTvApi(api!).getPrograms({
             getProgramsDto: {
               ChannelIds: channelIds,
-              MaxStartDate: endOfDay.toISOString(),
+              MaxStartDate: end.toISOString(),
               MinEndDate: now.toISOString(),
               ImageTypeLimit: 1,
               EnableImages: false,
@@ -268,9 +280,19 @@ export default function page() {
         style={{
           flexDirection: "row",
           backgroundColor: "black",
-          marginLeft: CHANNEL_COL_WIDTH,
         }}
       >
+        <TouchableOpacity
+          onPress={scrollToStart}
+          style={{
+            width: CHANNEL_COL_WIDTH,
+            height: HOUR_HEIGHT,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name='locate-outline' size={16} color='white' />
+        </TouchableOpacity>
         <ScrollView
           ref={headerScrollRef}
           horizontal

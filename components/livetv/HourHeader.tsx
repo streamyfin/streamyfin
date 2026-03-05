@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { Text } from "../common/Text";
-import { EPG_PX_PER_HOUR } from "./constants";
+import { EPG_PX_PER_HOUR, getGuideReferenceTime } from "./constants";
 
 const LABEL_WIDTH = 56;
 
@@ -12,21 +12,14 @@ const formatTime = (date: Date) =>
   });
 
 export const HourHeader = ({ height }: { height: number }) => {
-  const now = new Date();
-  const currentHour = now.getHours();
-  const hoursRemaining = 24 - currentHour;
-  const totalWidth = hoursRemaining * EPG_PX_PER_HOUR;
+  const referenceTime = getGuideReferenceTime();
+  const totalWidth = 24 * EPG_PX_PER_HOUR;
 
+  // One label every half hour over 24 hours (48 steps + final boundary)
   const labels: { time: Date; x: number }[] = [];
-  for (let i = 0; i <= hoursRemaining; i++) {
-    const hour = new Date(now);
-    hour.setHours(currentHour + i, 0, 0, 0);
-    labels.push({ time: hour, x: i * EPG_PX_PER_HOUR });
-    if (i < hoursRemaining) {
-      const half = new Date(hour);
-      half.setMinutes(30);
-      labels.push({ time: half, x: i * EPG_PX_PER_HOUR + EPG_PX_PER_HOUR / 2 });
-    }
+  for (let i = 0; i <= 48; i++) {
+    const t = new Date(referenceTime.getTime() + i * 30 * 60 * 1000);
+    labels.push({ time: t, x: (i * EPG_PX_PER_HOUR) / 2 });
   }
 
   return (
@@ -45,7 +38,9 @@ export const HourHeader = ({ height }: { height: number }) => {
           }}
         >
           <Text className='text-xs text-neutral-300'>
-            {index === 0 ? ":00" : formatTime(time)}
+            {index === 0
+              ? `:${String(time.getMinutes()).padStart(2, "0")}`
+              : formatTime(time)}
           </Text>
         </View>
       ))}

@@ -1,9 +1,9 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
-import { Dimensions, View } from "react-native";
+import { View } from "react-native";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { EPG_PX_PER_HOUR } from "./constants";
+import { EPG_PX_PER_HOUR, getGuideReferenceTime } from "./constants";
 
 type RealEntry = BaseItemDto & {
   isDummy: false;
@@ -44,17 +44,10 @@ export const LiveTVGuideRow = ({
   isVisible?: boolean;
   onLongPress?: () => void;
 }) => {
-  const _screenWidth = Dimensions.get("window").width;
-
-  const referenceTime = useMemo(() => {
-    const now = new Date();
-    now.setMinutes(0, 0, 0);
-    return now;
-  }, []);
+  const referenceTime = useMemo(() => getGuideReferenceTime(), []);
 
   const programsWithGaps = useMemo((): GuideEntry[] => {
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const endOfDay = new Date(referenceTime.getTime() + 24 * 60 * 60 * 1000);
 
     const channelPrograms = (programs ?? [])
       .filter((p) => p.ChannelId === channel.Id)
