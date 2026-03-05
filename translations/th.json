@@ -652,7 +652,11 @@
     "movies": "Movies",
     "sports": "Sports",
     "for_kids": "For Kids",
-    "news": "News"
+    "news": "News",
+    "programs": "รายการ",
+    "guide": "คู่มือ",
+    "channels": "ช่อง",
+    "recordings": "การบันทึก"
   },
   "jellyseerr": {
     "confirm": "Confirm",

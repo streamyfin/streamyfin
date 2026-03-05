@@ -415,7 +415,11 @@
     "movies": "Filmar",
     "sports": "Sport",
     "for_kids": "For barn",
-    "news": "Nyheiter"
+    "news": "Nyheiter",
+    "programs": "Program",
+    "guide": "Guide",
+    "channels": "Kanalar",
+    "recordings": "Opptak"
   },
   "jellyseerr": {
     "confirm": "Stadfest",

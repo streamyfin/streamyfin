@@ -652,7 +652,11 @@
     "movies": "Films",
     "sports": "Sport",
     "for_kids": "Voor kinderen",
-    "news": "Nieuws"
+    "news": "Nieuws",
+    "programs": "Programma's",
+    "guide": "Gids",
+    "channels": "Kanalen",
+    "recordings": "Opnames"
   },
   "jellyseerr": {
     "confirm": "Bevestig",

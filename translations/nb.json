@@ -415,7 +415,11 @@
     "movies": "Filmer",
     "sports": "Sport",
     "for_kids": "For barn",
-    "news": "Nyheter"
+    "news": "Nyheter",
+    "programs": "Programmer",
+    "guide": "Guide",
+    "channels": "Kanaler",
+    "recordings": "Opptak"
   },
   "jellyseerr": {
     "confirm": "Bekreft",

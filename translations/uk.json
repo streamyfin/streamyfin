@@ -652,7 +652,11 @@
     "movies": "Фільми",
     "sports": "Спорт",
     "for_kids": "Для дітей",
-    "news": "Новини"
+    "news": "Новини",
+    "programs": "Програми",
+    "guide": "Гід",
+    "channels": "Канали",
+    "recordings": "Записи"
   },
   "jellyseerr": {
     "confirm": "Підтвердити",

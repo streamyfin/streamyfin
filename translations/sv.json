@@ -652,7 +652,11 @@
     "movies": "Filmer",
     "sports": "Sport",
     "for_kids": "För barn",
-    "news": "Nyheter"
+    "news": "Nyheter",
+    "programs": "Program",
+    "guide": "Guide",
+    "channels": "Kanaler",
+    "recordings": "Inspelningar"
   },
   "jellyseerr": {
     "confirm": "Bekräfta",

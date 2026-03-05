@@ -419,7 +419,11 @@
     "movies": "電影",
     "sports": "體育",
     "for_kids": "兒童",
-    "news": "新聞"
+    "news": "新聞",
+    "programs": "節目",
+    "guide": "節目表",
+    "channels": "頻道",
+    "recordings": "錄製"
   },
   "jellyseerr": {
     "confirm": "確認",

@@ -652,7 +652,11 @@
     "movies": "Phim",
     "sports": "Thể thao",
     "for_kids": "Dành cho trẻ em",
-    "news": "Tin tức"
+    "news": "Tin tức",
+    "programs": "Chương trình",
+    "guide": "Hướng dẫn",
+    "channels": "Kênh",
+    "recordings": "Ghi hình"
   },
   "jellyseerr": {
     "confirm": "Xác nhận",

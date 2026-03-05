@@ -652,7 +652,11 @@
     "movies": "Movies",
     "sports": "Sports",
     "for_kids": "For Kids",
-    "news": "News"
+    "news": "News",
+    "programs": "프로그램",
+    "guide": "편성표",
+    "channels": "채널",
+    "recordings": "녹화"
   },
   "jellyseerr": {
     "confirm": "Confirm",

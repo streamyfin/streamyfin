@@ -652,7 +652,11 @@
     "movies": "Filme",
     "sports": "Sport",
     "for_kids": "Pt copii",
-    "news": "Știri"
+    "news": "Știri",
+    "programs": "Programe",
+    "guide": "Ghid",
+    "channels": "Canale",
+    "recordings": "Înregistrări"
   },
   "jellyseerr": {
     "confirm": "Confirmă",

@@ -652,7 +652,11 @@
     "movies": "Filmy",
     "sports": "Sporty",
     "for_kids": "Pro děti",
-    "news": "Novinky"
+    "news": "Novinky",
+    "programs": "Pořady",
+    "guide": "Průvodce",
+    "channels": "Kanály",
+    "recordings": "Nahrávky"
   },
   "jellyseerr": {
     "confirm": "Potvrdit",

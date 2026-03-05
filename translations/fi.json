@@ -652,7 +652,11 @@
     "movies": "Elokuvat",
     "sports": "Urheilu",
     "for_kids": "Lapsille",
-    "news": "Uutiset"
+    "news": "Uutiset",
+    "programs": "Ohjelmat",
+    "guide": "Opas",
+    "channels": "Kanavat",
+    "recordings": "Tallenteet"
   },
   "jellyseerr": {
     "confirm": "Vahvista",

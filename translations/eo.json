@@ -415,7 +415,11 @@
     "movies": "Filmoj",
     "sports": "Sportoj",
     "for_kids": "Por Infanoj",
-    "news": "Novaĵoj"
+    "news": "Novaĵoj",
+    "programs": "Programoj",
+    "guide": "Gvidilo",
+    "channels": "Kanaloj",
+    "recordings": "Registradoj"
   },
   "jellyseerr": {
     "confirm": "Konfirmi",

@@ -652,7 +652,11 @@
     "movies": "Filmy",
     "sports": "Sport",
     "for_kids": "Dla dzieci",
-    "news": "Wiadomości"
+    "news": "Wiadomości",
+    "programs": "Programy",
+    "guide": "Przewodnik",
+    "channels": "Kanały",
+    "recordings": "Nagrania"
   },
   "jellyseerr": {
     "confirm": "Potwierdź",

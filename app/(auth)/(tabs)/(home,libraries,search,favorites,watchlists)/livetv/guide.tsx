@@ -85,7 +85,7 @@ export default function page() {
   return (
     <ScrollView
       nestedScrollEnabled
-      contentInsetAdjustmentBehavior='automatic'
+      contentInsetAdjustmentBehavior='never'
       key={"home"}
       contentContainerStyle={{
         paddingLeft: insets.left,

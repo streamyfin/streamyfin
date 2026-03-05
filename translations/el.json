@@ -652,7 +652,11 @@
     "movies": "Ταινίες",
     "sports": "Αθλητισμός",
     "for_kids": "Για Παιδιά",
-    "news": "Νέα"
+    "news": "Νέα",
+    "programs": "Προγράμματα",
+    "guide": "Οδηγός",
+    "channels": "Κανάλια",
+    "recordings": "Εγγραφές"
   },
   "jellyseerr": {
     "confirm": "Επιβεβαίωση",

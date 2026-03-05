@@ -415,7 +415,11 @@
     "movies": "Filma",
     "sports": "Sport",
     "for_kids": "Për fëmijë",
-    "news": "Lajme"
+    "news": "Lajme",
+    "programs": "Programe",
+    "guide": "Udhëzues",
+    "channels": "Kanale",
+    "recordings": "Regjistrime"
   },
   "jellyseerr": {
     "confirm": "Konfirmo",

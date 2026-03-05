@@ -412,7 +412,11 @@
     "movies": "电影",
     "sports": "体育",
     "for_kids": "儿童",
-    "news": "新闻"
+    "news": "新闻",
+    "programs": "节目",
+    "guide": "节目单",
+    "channels": "频道",
+    "recordings": "录制"
   },
   "jellyseerr": {
     "confirm": "确认",

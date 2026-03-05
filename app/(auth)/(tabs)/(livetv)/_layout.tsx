@@ -13,7 +13,7 @@ export default function LiveTVLayout() {
           headerShown: !Platform.isTV,
           title: t("tabs.live_tv"),
           headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
+          headerTransparent: false,
           headerShadowVisible: false,
         }}
       />

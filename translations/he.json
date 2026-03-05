@@ -652,7 +652,11 @@
     "movies": "סרטים",
     "sports": "ספורט",
     "for_kids": "לילדים",
-    "news": "חדשות"
+    "news": "חדשות",
+    "programs": "תוכניות",
+    "guide": "מדריך",
+    "channels": "ערוצים",
+    "recordings": "הקלטות"
   },
   "jellyseerr": {
     "confirm": "אשר",

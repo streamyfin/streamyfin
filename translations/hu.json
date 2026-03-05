@@ -652,7 +652,11 @@
     "movies": "Filmek",
     "sports": "Sport",
     "for_kids": "Gyerekeknek",
-    "news": "Hírek"
+    "news": "Hírek",
+    "programs": "Műsorok",
+    "guide": "Műsorfüzet",
+    "channels": "Csatornák",
+    "recordings": "Felvételek"
   },
   "jellyseerr": {
     "confirm": "Megerősítés",

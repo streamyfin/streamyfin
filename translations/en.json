@@ -652,7 +652,11 @@
     "movies": "Movies",
     "sports": "Sports",
     "for_kids": "For Kids",
-    "news": "News"
+    "news": "News",
+    "programs": "Programs",
+    "guide": "Guide",
+    "channels": "Channels",
+    "recordings": "Recordings"
   },
   "jellyseerr": {
     "confirm": "Confirm",

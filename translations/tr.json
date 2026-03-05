@@ -652,7 +652,11 @@
     "movies": "Filmler",
     "sports": "Spor",
     "for_kids": "Çocuklar İçin",
-    "news": "Haberler"
+    "news": "Haberler",
+    "programs": "Programlar",
+    "guide": "Rehber",
+    "channels": "Kanallar",
+    "recordings": "Kayıtlar"
   },
   "jellyseerr": {
     "confirm": "Onayla",
