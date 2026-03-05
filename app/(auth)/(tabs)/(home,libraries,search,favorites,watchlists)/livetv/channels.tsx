@@ -2,16 +2,18 @@ import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
+import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export default function page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const _insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const { data: channels } = useQuery({
     queryKey: ["livetv", "channels"],
@@ -34,19 +36,34 @@ export default function page() {
       <FlashList
         data={channels?.Items}
         renderItem={({ item }) => (
-          <View className='flex flex-row items-center px-4 mb-2'>
-            <View className='w-22 mr-4 rounded-lg overflow-hidden'>
-              <ItemImage
-                style={{
-                  aspectRatio: "1/1",
-                  width: 60,
-                  borderRadius: 8,
-                }}
-                item={item}
-              />
+          <TouchableOpacity
+            onPress={() => {
+              const params = new URLSearchParams({
+                itemId: item.Id!,
+                audioIndex: "0",
+                subtitleIndex: "-1",
+                mediaSourceId: "",
+                bitrateValue: "",
+                playbackPosition: "0",
+                offline: "false",
+              });
+              router.push(`/player/direct-player?${params.toString()}`);
+            }}
+          >
+            <View className='flex flex-row items-center px-4 mb-2'>
+              <View className='w-22 mr-4 rounded-lg overflow-hidden'>
+                <ItemImage
+                  style={{
+                    aspectRatio: "1/1",
+                    width: 60,
+                    borderRadius: 8,
+                  }}
+                  item={item}
+                />
+              </View>
+              <Text className='font-bold'>{item.Name}</Text>
             </View>
-            <Text className='font-bold'>{item.Name}</Text>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </View>
