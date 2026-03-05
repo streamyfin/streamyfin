@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useNavigation } from "expo-router";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import {
@@ -13,18 +14,28 @@ import RecordingsPage from "../(home,libraries,search,favorites,watchlists)/live
 export default function LiveTV() {
   const [activeTab, setActiveTab] = useState<LiveTVTab>("guide");
   const { t } = useTranslation();
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ marginRight: 8 }}>
+          <LiveTVTabButtons
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            t={t}
+          />
+        </View>
+      ),
+    });
+  }, [activeTab, navigation, t]);
 
   return (
     <View style={{ flex: 1 }}>
-      <View className='px-4 py-2'>
-        <LiveTVTabButtons activeTab={activeTab} onChange={setActiveTab} t={t} />
-      </View>
-      <View style={{ flex: 1 }}>
-        {activeTab === "programs" && <ProgramsPage />}
-        {activeTab === "guide" && <GuidePage />}
-        {activeTab === "channels" && <ChannelsPage />}
-        {activeTab === "recordings" && <RecordingsPage />}
-      </View>
+      {activeTab === "programs" && <ProgramsPage />}
+      {activeTab === "guide" && <GuidePage />}
+      {activeTab === "channels" && <ChannelsPage />}
+      {activeTab === "recordings" && <RecordingsPage />}
     </View>
   );
 }

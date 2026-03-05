@@ -6,6 +6,7 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
+import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { EPG_PX_PER_HOUR } from "@/components/livetv/constants";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
@@ -230,19 +231,29 @@ export default function page() {
       >
         <View style={{ flexDirection: "row" }}>
           <View style={{ width: CHANNEL_COL_WIDTH }}>
-            {allChannels.map((c) => (
-              <View
-                key={c.Id}
-                style={{ width: CHANNEL_COL_WIDTH }}
-                className='h-16 rounded-lg overflow-hidden'
-              >
-                <ItemImage
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit='contain'
-                  item={c}
-                />
-              </View>
-            ))}
+            {allChannels.map((c) => {
+              const currentProgram = (programsByChannel.get(c.Id!) ?? []).find(
+                (p) =>
+                  p.StartDate &&
+                  p.EndDate &&
+                  now >= new Date(p.StartDate) &&
+                  now <= new Date(p.EndDate),
+              );
+              return (
+                <TouchableItemRouter
+                  key={c.Id}
+                  item={currentProgram ?? c}
+                  style={{ width: CHANNEL_COL_WIDTH }}
+                  className='h-16 rounded-lg overflow-hidden'
+                >
+                  <ItemImage
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit='contain'
+                    item={c}
+                  />
+                </TouchableItemRouter>
+              );
+            })}
           </View>
 
           <ScrollView

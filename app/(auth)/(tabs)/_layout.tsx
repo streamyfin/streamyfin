@@ -115,7 +115,7 @@ export default function TabLayout() {
             tabBarItemHidden: !hasLiveTV,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
+                ? (_e) => require("@/assets/icons/tv.png")
                 : (_e) => ({ sfSymbol: "tv.fill" }),
           }}
         />
