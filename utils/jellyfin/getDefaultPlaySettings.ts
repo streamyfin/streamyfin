@@ -48,8 +48,13 @@ export function getDefaultPlaySettings(
 ): PlaySettings {
   const bitrate = settings?.defaultBitrate ?? BITRATES[0];
 
-  // Live TV programs don't have media sources
-  if (item.Type === "Program") {
+  // Live TV channels and programs don't have pre-defined media sources
+  // Note: Jellyfin may return "TvChannel" or "LiveTvChannel" depending on the API endpoint used.
+  if (
+    item.Type === "Program" ||
+    item.Type === "TvChannel" ||
+    item.Type === "LiveTvChannel"
+  ) {
     return { item, bitrate };
   }
 
