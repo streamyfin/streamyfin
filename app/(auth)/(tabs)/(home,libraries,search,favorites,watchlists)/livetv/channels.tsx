@@ -4,7 +4,7 @@ import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
@@ -37,9 +37,19 @@ const ChannelItem: React.FC<{ channel: BaseItemDto }> = ({ channel }) => {
     showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
   }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
 
+  const progress = useMemo(() => {
+    const p = channel.CurrentProgram;
+    if (!p?.StartDate || !p?.EndDate) return null;
+    const start = new Date(p.StartDate).getTime();
+    const end = new Date(p.EndDate).getTime();
+    const now = Date.now();
+    if (now < start || now > end) return null;
+    return Math.min(1, Math.max(0, (now - start) / (end - start)));
+  }, [channel.CurrentProgram]);
+
   return (
     <TouchableOpacity onPress={handlePress} onLongPress={handleLongPress}>
-      <View className='flex flex-row items-center px-4 mb-2'>
+      <View className='flex flex-row items-center px-4 pt-2 pb-1'>
         <View className='w-22 mr-4 rounded-lg overflow-hidden'>
           <ItemImage
             style={{
@@ -72,6 +82,26 @@ const ChannelItem: React.FC<{ channel: BaseItemDto }> = ({ channel }) => {
             style={{ marginRight: 4 }}
           />
         </TouchableOpacity>
+      </View>
+      <View
+        style={{
+          height: 1,
+          backgroundColor: "rgba(255,255,255,0.08)",
+          marginHorizontal: 16,
+          marginBottom: 6,
+          borderRadius: 1,
+        }}
+      >
+        {progress !== null && (
+          <View
+            style={{
+              width: `${progress * 100}%`,
+              height: "100%",
+              backgroundColor: Colors.primary,
+              borderRadius: 1,
+            }}
+          />
+        )}
       </View>
     </TouchableOpacity>
   );
