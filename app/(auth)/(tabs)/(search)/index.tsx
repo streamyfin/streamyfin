@@ -23,6 +23,7 @@ import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Input } from "@/components/common/Input";
+import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
@@ -412,6 +413,17 @@ export default function search() {
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
+  const { data: livetvChannels, isFetching: l13 } = useQuery({
+    queryKey: ["search", "livetv-channels", debouncedSearch],
+    queryFn: () =>
+      jellyfinSearchFn({
+        query: debouncedSearch,
+        types: ["LiveTvChannel"] as BaseItemKind[],
+        signal: abortControllerRef.current?.signal,
+      }),
+    enabled: searchType === "Library" && debouncedSearch.length > 0,
+  });
+
   const noResults = useMemo(() => {
     return !(
       movies?.length ||
@@ -422,7 +434,8 @@ export default function search() {
       artists?.length ||
       albums?.length ||
       songs?.length ||
-      playlists?.length
+      playlists?.length ||
+      livetvChannels?.length
     );
   }, [
     episodes,
@@ -434,11 +447,12 @@ export default function search() {
     albums,
     songs,
     playlists,
+    livetvChannels,
   ]);
 
   const loading = useMemo(() => {
-    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12;
-  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12]);
+    return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12 || l13;
+  }, [l1, l2, l3, l7, l8, l9, l10, l11, l12, l13]);
 
   return (
     <ScrollView
@@ -709,6 +723,36 @@ export default function search() {
                   </TouchableItemRouter>
                 );
               }}
+            />
+            <SearchItemWrapper
+              items={livetvChannels}
+              header={t("tabs.live_tv")}
+              renderItem={(item: BaseItemDto) => (
+                <TouchableItemRouter
+                  key={item.Id}
+                  item={item}
+                  className='flex flex-col w-24 mr-2'
+                >
+                  <View
+                    style={{
+                      width: 84,
+                      height: 84,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      backgroundColor: "#1a1a1a",
+                    }}
+                  >
+                    <ItemImage
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit='contain'
+                      item={item}
+                    />
+                  </View>
+                  <Text numberOfLines={2} className='mt-2 text-xs'>
+                    {item.Name}
+                  </Text>
+                </TouchableItemRouter>
+              )}
             />
             <SearchItemWrapper
               items={playlists}
