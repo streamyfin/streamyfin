@@ -82,6 +82,7 @@ export default function page() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
+  const hasPlaybackStartedRef = useRef(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
@@ -382,13 +383,14 @@ export default function page() {
   ]);
 
   const stop = useCallback(() => {
+    // Pause immediately so MPV doesn't block on network I/O during cleanup
+    videoRef.current?.pause();
     // Update URL with final playback position before stopping
     router.setParams({
       playbackPosition: msToTicks(progress.get()).toString(),
     });
     reportPlaybackStopped();
     setIsPlaybackStopped(true);
-    videoRef.current?.pause();
     revalidateProgressCache();
   }, [videoRef, reportPlaybackStopped, progress]);
 
@@ -398,6 +400,23 @@ export default function page() {
       beforeRemoveListener();
     };
   }, [navigation, stop]);
+
+  // Stall detection: if playback hasn't started within 20 seconds, go back
+  useEffect(() => {
+    if (hasPlaybackStarted) return;
+
+    const stallTimeout = setTimeout(() => {
+      videoRef.current?.pause();
+      reportPlaybackStopped();
+      Alert.alert(
+        t("player.error"),
+        t("player.an_error_occured_while_playing_the_video"),
+        [{ text: "OK", onPress: () => router.back() }],
+      );
+    }, 20000);
+
+    return () => clearTimeout(stallTimeout);
+  }, [hasPlaybackStarted, reportPlaybackStopped, t]);
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
@@ -430,8 +449,10 @@ export default function page() {
   ]);
 
   const lastUrlUpdateTime = useSharedValue(0);
+  const lastProgressReportTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
   const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
+  const PROGRESS_REPORT_INTERVAL = 10000; // Report progress to server every 10 seconds
 
   // Track when seeking ends to update URL immediately
   useAnimatedReaction(
@@ -483,9 +504,12 @@ export default function page() {
 
       if (!item?.Id) return;
 
-      playbackManager.reportPlaybackProgress(
-        currentPlayStateInfo() as PlaybackProgressInfo,
-      );
+      if (now - lastProgressReportTime.get() > PROGRESS_REPORT_INTERVAL) {
+        lastProgressReportTime.value = now;
+        playbackManager.reportPlaybackProgress(
+          currentPlayStateInfo() as PlaybackProgressInfo,
+        );
+      }
     },
     [
       item?.Id,
@@ -697,6 +721,7 @@ export default function page() {
         setIsPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
+        hasPlaybackStartedRef.current = true;
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -718,7 +743,12 @@ export default function page() {
       }
 
       if (isLoading !== undefined) {
-        setIsBuffering(isLoading);
+        // Once playback has started, ignore isLoading: true events.
+        // Live streams regularly fire these during HLS segment fetches,
+        // which would cause the buffering spinner to reappear while playing.
+        if (!isLoading || !hasPlaybackStartedRef.current) {
+          setIsBuffering(isLoading);
+        }
       }
     },
     [playbackManager, item?.Id, progress],
