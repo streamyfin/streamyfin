@@ -112,7 +112,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             (Platform.OS === "ios" ? (
               <View className='flex flex-row items-center pl-2'>
                 <Chromecast.Chromecast width={22} height={22} />
-                {item.Type !== "Program" && (
+                {item.Type !== "Program" && item.Type !== "TvChannel" && (
                   <View className='flex flex-row items-center'>
                     {!Platform.isTV && (
                       <DownloadSingleItem item={itemWithSources} size='large' />
@@ -134,7 +134,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             ) : (
               <View className='flex flex-row items-center space-x-2'>
                 <Chromecast.Chromecast width={22} height={22} />
-                {item.Type !== "Program" && (
+                {item.Type !== "Program" && item.Type !== "TvChannel" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
                       <DownloadSingleItem item={itemWithSources} size='large' />
@@ -190,16 +190,18 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
           headerHeight={headerHeight}
           headerImage={
             <View style={[{ flex: 1 }]}>
-              <ItemImage
-                variant={
-                  item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
-                }
-                item={item}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                }}
-              />
+              {item.Type !== "TvChannel" && (
+                <ItemImage
+                  variant={
+                    item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
+                  }
+                  item={item}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                />
+              )}
             </View>
           }
           logo={
@@ -254,7 +256,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
-            {item.Type !== "Program" && (
+            {item.Type !== "Program" && item.Type !== "TvChannel" && (
               <>
                 {item.Type === "Episode" && !isOffline && (
                   <CurrentSeries item={item} className='mb-2' />
