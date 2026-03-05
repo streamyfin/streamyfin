@@ -656,7 +656,11 @@
     "programs": "תוכניות",
     "guide": "מדריך",
     "channels": "ערוצים",
-    "recordings": "הקלטות"
+    "recordings": "הקלטות",
+    "favorite_add": "הוסף למועדפים",
+    "favorite_remove": "הסר מהמועדפים",
+    "favorite_add_confirm": "להוסיף את \"{{name}}\" למועדפים שלך?",
+    "favorite_remove_confirm": "להסיר את \"{{name}}\" מהמועדפים שלך?"
   },
   "jellyseerr": {
     "confirm": "אשר",

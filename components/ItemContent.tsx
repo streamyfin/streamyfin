@@ -47,10 +47,11 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   itemWithSources?: BaseItemDto | null;
+  channelForFavorite?: BaseItemDto | null;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, itemWithSources }) => {
+  ({ item, itemWithSources, channelForFavorite }) => {
     const [api] = useAtom(apiAtom);
     const isOffline = useOfflineMode();
     const { settings } = useSettings();
@@ -104,6 +105,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultMediaSource,
     ]);
 
+    const favoriteItem = channelForFavorite ?? item;
+
     useEffect(() => {
       if (!Platform.isTV && itemWithSources) {
         navigation.setOptions({
@@ -112,6 +115,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             (Platform.OS === "ios" ? (
               <View className='flex flex-row items-center pl-2'>
                 <Chromecast.Chromecast width={22} height={22} />
+                <AddToFavorites item={favoriteItem} />
                 {item.Type !== "Program" && item.Type !== "TvChannel" && (
                   <View className='flex flex-row items-center'>
                     {!Platform.isTV && (
@@ -121,9 +125,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       !settings.hideRemoteSessionButton && (
                         <PlayInRemoteSessionButton item={item} size='large' />
                       )}
-
                     <PlayedStatus items={[item]} size='large' />
-                    <AddToFavorites item={item} />
                     {settings.streamyStatsServerUrl &&
                       !settings.hideWatchlistsTab && (
                         <AddToWatchlist item={item} />
@@ -134,6 +136,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             ) : (
               <View className='flex flex-row items-center space-x-2'>
                 <Chromecast.Chromecast width={22} height={22} />
+                <AddToFavorites item={favoriteItem} />
                 {item.Type !== "Program" && item.Type !== "TvChannel" && (
                   <View className='flex flex-row items-center space-x-2'>
                     {!Platform.isTV && (
@@ -143,9 +146,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
                       !settings.hideRemoteSessionButton && (
                         <PlayInRemoteSessionButton item={item} size='large' />
                       )}
-
                     <PlayedStatus items={[item]} size='large' />
-                    <AddToFavorites item={item} />
                     {settings.streamyStatsServerUrl &&
                       !settings.hideWatchlistsTab && (
                         <AddToWatchlist item={item} />
@@ -158,6 +159,7 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       }
     }, [
       item,
+      favoriteItem,
       navigation,
       user,
       itemWithSources,

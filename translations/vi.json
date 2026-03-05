@@ -656,7 +656,11 @@
     "programs": "Chương trình",
     "guide": "Hướng dẫn",
     "channels": "Kênh",
-    "recordings": "Ghi hình"
+    "recordings": "Ghi hình",
+    "favorite_add": "Thêm vào yêu thích",
+    "favorite_remove": "Xóa khỏi yêu thích",
+    "favorite_add_confirm": "Thêm \"{{name}}\" vào danh sách yêu thích của bạn?",
+    "favorite_remove_confirm": "Xóa \"{{name}}\" khỏi danh sách yêu thích của bạn?"
   },
   "jellyseerr": {
     "confirm": "Xác nhận",

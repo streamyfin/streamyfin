@@ -656,7 +656,11 @@
     "programs": "รายการ",
     "guide": "คู่มือ",
     "channels": "ช่อง",
-    "recordings": "การบันทึก"
+    "recordings": "การบันทึก",
+    "favorite_add": "เพิ่มในรายการโปรด",
+    "favorite_remove": "ลบออกจากรายการโปรด",
+    "favorite_add_confirm": "เพิ่ม \"{{name}}\" ในรายการโปรดของคุณ?",
+    "favorite_remove_confirm": "ลบ \"{{name}}\" ออกจากรายการโปรดของคุณ?"
   },
   "jellyseerr": {
     "confirm": "Confirm",

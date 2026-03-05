@@ -656,7 +656,11 @@
     "programs": "Програми",
     "guide": "Гід",
     "channels": "Канали",
-    "recordings": "Записи"
+    "recordings": "Записи",
+    "favorite_add": "Додати до улюблених",
+    "favorite_remove": "Видалити з улюблених",
+    "favorite_add_confirm": "Додати \"{{name}}\" до улюблених?",
+    "favorite_remove_confirm": "Видалити \"{{name}}\" з улюблених?"
   },
   "jellyseerr": {
     "confirm": "Підтвердити",

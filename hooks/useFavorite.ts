@@ -125,6 +125,9 @@ export const useFavorite = (item: BaseItemDto) => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemQueryKeyPrefix });
       queryClient.invalidateQueries({ queryKey: ["home", "favorites"] });
+      if (itemRef.current.Type === "TvChannel") {
+        queryClient.invalidateQueries({ queryKey: ["livetv"] });
+      }
     },
   });
 

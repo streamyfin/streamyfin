@@ -656,7 +656,11 @@
     "programs": "Programmi",
     "guide": "Guida",
     "channels": "Canali",
-    "recordings": "Registrazioni"
+    "recordings": "Registrazioni",
+    "favorite_add": "Aggiungi ai preferiti",
+    "favorite_remove": "Rimuovi dai preferiti",
+    "favorite_add_confirm": "Aggiungere \"{{name}}\" ai tuoi preferiti?",
+    "favorite_remove_confirm": "Rimuovere \"{{name}}\" dai tuoi preferiti?"
   },
   "jellyseerr": {
     "confirm": "Conferma",

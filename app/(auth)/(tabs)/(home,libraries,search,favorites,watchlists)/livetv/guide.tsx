@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
@@ -7,9 +8,12 @@ import { ActivityIndicator, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
 import { EPG_PX_PER_HOUR } from "@/components/livetv/constants";
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
+import { Colors } from "@/constants/Colors";
+import { useFavorite } from "@/hooks/useFavorite";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const HOUR_HEIGHT = 30;
@@ -38,6 +42,65 @@ function makeSyncScrollHandler(
 }
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
+
+const ChannelLogoButton: React.FC<{
+  channel: BaseItemDto;
+}> = ({ channel }) => {
+  const { isFavorite, toggleFavorite } = useFavorite(channel);
+  const showFavoriteSheet = useChannelFavoriteSheet();
+
+  const handleLongPress = useCallback(() => {
+    showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
+  }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
+
+  return (
+    <TouchableItemRouter
+      item={channel}
+      onLongPress={handleLongPress}
+      style={{ width: CHANNEL_COL_WIDTH }}
+      className='h-16'
+    >
+      <View style={{ width: "100%", height: "100%" }}>
+        <ItemImage
+          style={{ width: "100%", height: "100%" }}
+          contentFit='contain'
+          item={channel}
+        />
+        {isFavorite && (
+          <View style={{ position: "absolute", bottom: 3, right: 3 }}>
+            <Ionicons name='heart' size={14} color={Colors.primary} />
+          </View>
+        )}
+      </View>
+    </TouchableItemRouter>
+  );
+};
+
+const GuideRowWithFavorite: React.FC<{
+  channel: BaseItemDto;
+  programs: BaseItemDto[] | null;
+  scrollX: number;
+  isVisible: boolean;
+}> = ({ channel, programs, scrollX, isVisible }) => {
+  const { isFavorite, toggleFavorite } = useFavorite(channel);
+  const showFavoriteSheet = useChannelFavoriteSheet();
+
+  const handleLongPress = useCallback(() => {
+    showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
+  }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
+
+  return (
+    <MemoizedLiveTVGuideRow
+      channel={channel}
+      programs={programs}
+      scrollX={scrollX}
+      isVisible={isVisible}
+      onLongPress={handleLongPress}
+    />
+  );
+};
+
+const MemoizedGuideRowWithFavorite = React.memo(GuideRowWithFavorite);
 
 export default function page() {
   const [api] = useAtom(apiAtom);
@@ -103,7 +166,7 @@ export default function page() {
         enableFavoriteSorting: true,
         userId: user?.Id,
         addCurrentProgram: false,
-        enableUserData: false,
+        enableUserData: true,
         enableImageTypes: ["Primary"],
       });
       return res.data;
@@ -231,29 +294,9 @@ export default function page() {
       >
         <View style={{ flexDirection: "row" }}>
           <View style={{ width: CHANNEL_COL_WIDTH }}>
-            {allChannels.map((c) => {
-              const currentProgram = (programsByChannel.get(c.Id!) ?? []).find(
-                (p) =>
-                  p.StartDate &&
-                  p.EndDate &&
-                  now >= new Date(p.StartDate) &&
-                  now <= new Date(p.EndDate),
-              );
-              return (
-                <TouchableItemRouter
-                  key={c.Id}
-                  item={currentProgram ?? c}
-                  style={{ width: CHANNEL_COL_WIDTH }}
-                  className='h-16 rounded-lg overflow-hidden'
-                >
-                  <ItemImage
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit='contain'
-                    item={c}
-                  />
-                </TouchableItemRouter>
-              );
-            })}
+            {allChannels.map((c) => (
+              <ChannelLogoButton key={c.Id} channel={c} />
+            ))}
           </View>
 
           <ScrollView
@@ -266,7 +309,7 @@ export default function page() {
           >
             <View style={{ width: guideContentWidth }}>
               {allChannels.map((c, i) => (
-                <MemoizedLiveTVGuideRow
+                <MemoizedGuideRowWithFavorite
                   key={c.Id}
                   channel={c}
                   programs={programsByChannel.get(c.Id!) ?? null}

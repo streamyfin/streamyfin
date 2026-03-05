@@ -36,11 +36,13 @@ export const LiveTVGuideRow = ({
   programs,
   scrollX = 0,
   isVisible = true,
+  onLongPress,
 }: {
   channel: BaseItemDto;
   programs?: BaseItemDto[] | null;
   scrollX?: number;
   isVisible?: boolean;
+  onLongPress?: () => void;
 }) => {
   const _screenWidth = Dimensions.get("window").width;
 
@@ -138,7 +140,11 @@ export const LiveTVGuideRow = ({
         if (entry.isDummy) {
           const isLive = now >= entry.startTime && now <= entry.endTime;
           return (
-            <TouchableItemRouter item={channel} key={entry.Id}>
+            <TouchableItemRouter
+              item={channel}
+              key={entry.Id}
+              onLongPress={onLongPress}
+            >
               <View
                 style={{
                   position: "absolute",
@@ -158,7 +164,11 @@ export const LiveTVGuideRow = ({
         }
 
         return (
-          <TouchableItemRouter item={entry} key={entry.Id}>
+          <TouchableItemRouter
+            item={entry}
+            key={entry.Id}
+            onLongPress={onLongPress}
+          >
             <View
               style={{
                 position: "absolute",

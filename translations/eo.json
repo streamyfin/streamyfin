@@ -419,7 +419,11 @@
     "programs": "Programoj",
     "guide": "Gvidilo",
     "channels": "Kanaloj",
-    "recordings": "Registradoj"
+    "recordings": "Registradoj",
+    "favorite_add": "Aldoni al favoratoj",
+    "favorite_remove": "Forigi el favoratoj",
+    "favorite_add_confirm": "Aldoni \"{{name}}\" al viaj favoratoj?",
+    "favorite_remove_confirm": "Forigi \"{{name}}\" el viaj favoratoj?"
   },
   "jellyseerr": {
     "confirm": "Konfirmi",

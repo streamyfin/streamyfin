@@ -423,7 +423,11 @@
     "programs": "節目",
     "guide": "節目表",
     "channels": "頻道",
-    "recordings": "錄製"
+    "recordings": "錄製",
+    "favorite_add": "加入收藏",
+    "favorite_remove": "從收藏中移除",
+    "favorite_add_confirm": "將「{{name}}」加入收藏？",
+    "favorite_remove_confirm": "將「{{name}}」從收藏中移除？"
   },
   "jellyseerr": {
     "confirm": "確認",

@@ -656,7 +656,11 @@
     "programs": "Programlar",
     "guide": "Rehber",
     "channels": "Kanallar",
-    "recordings": "Kayıtlar"
+    "recordings": "Kayıtlar",
+    "favorite_add": "Favorilere ekle",
+    "favorite_remove": "Favorilerden kaldır",
+    "favorite_add_confirm": "\"{{name}}\" favorilerinize eklensin mi?",
+    "favorite_remove_confirm": "\"{{name}}\" favorilerinizden kaldırılsın mı?"
   },
   "jellyseerr": {
     "confirm": "Onayla",

@@ -656,7 +656,11 @@
     "programs": "番組",
     "guide": "番組表",
     "channels": "チャンネル",
-    "recordings": "録画"
+    "recordings": "録画",
+    "favorite_add": "お気に入りに追加",
+    "favorite_remove": "お気に入りから削除",
+    "favorite_add_confirm": "\"{{name}}\" をお気に入りに追加しますか？",
+    "favorite_remove_confirm": "\"{{name}}\" をお気に入りから削除しますか？"
   },
   "jellyseerr": {
     "confirm": "確認",

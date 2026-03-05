@@ -656,7 +656,11 @@
     "programs": "Pořady",
     "guide": "Průvodce",
     "channels": "Kanály",
-    "recordings": "Nahrávky"
+    "recordings": "Nahrávky",
+    "favorite_add": "Přidat do oblíbených",
+    "favorite_remove": "Odebrat z oblíbených",
+    "favorite_add_confirm": "Přidat \"{{name}}\" do oblíbených?",
+    "favorite_remove_confirm": "Odebrat \"{{name}}\" z oblíbených?"
   },
   "jellyseerr": {
     "confirm": "Potvrdit",

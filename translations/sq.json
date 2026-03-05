@@ -419,7 +419,11 @@
     "programs": "Programe",
     "guide": "Udhëzues",
     "channels": "Kanale",
-    "recordings": "Regjistrime"
+    "recordings": "Regjistrime",
+    "favorite_add": "Shto te të preferuarat",
+    "favorite_remove": "Hiq nga të preferuarat",
+    "favorite_add_confirm": "Shto \"{{name}}\" te të preferuarat tuaja?",
+    "favorite_remove_confirm": "Hiq \"{{name}}\" nga të preferuarat tuaja?"
   },
   "jellyseerr": {
     "confirm": "Konfirmo",

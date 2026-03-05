@@ -656,7 +656,11 @@
     "programs": "Program",
     "guide": "Guide",
     "channels": "Kanaler",
-    "recordings": "Inspelningar"
+    "recordings": "Inspelningar",
+    "favorite_add": "Lägg till i favoriter",
+    "favorite_remove": "Ta bort från favoriter",
+    "favorite_add_confirm": "Lägg till \"{{name}}\" i dina favoriter?",
+    "favorite_remove_confirm": "Ta bort \"{{name}}\" från dina favoriter?"
   },
   "jellyseerr": {
     "confirm": "Bekräfta",

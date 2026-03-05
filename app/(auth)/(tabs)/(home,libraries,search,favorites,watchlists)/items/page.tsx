@@ -33,6 +33,11 @@ const Page: React.FC = () => {
   // Lazily preload item with full media sources in background
   const { data: itemWithSources } = useItemQuery(id, isOffline, undefined, []);
 
+  // For Program items, fetch the associated channel to get its IsFavorite status
+  const channelId =
+    item?.Type === "Program" ? (item?.ChannelId ?? undefined) : undefined;
+  const { data: channelForFavorite } = useItemQuery(channelId, isOffline);
+
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -102,7 +107,13 @@ const Page: React.FC = () => {
           <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
           <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
         </Animated.View>
-        {item && <ItemContent item={item} itemWithSources={itemWithSources} />}
+        {item && (
+          <ItemContent
+            item={item}
+            itemWithSources={itemWithSources}
+            channelForFavorite={channelForFavorite}
+          />
+        )}
       </View>
     </OfflineModeProvider>
   );

@@ -419,7 +419,11 @@
     "programs": "Programas",
     "guide": "Guia",
     "channels": "Canais",
-    "recordings": "Gravações"
+    "recordings": "Gravações",
+    "favorite_add": "Adicionar aos favoritos",
+    "favorite_remove": "Remover dos favoritos",
+    "favorite_add_confirm": "Adicionar \"{{name}}\" aos seus favoritos?",
+    "favorite_remove_confirm": "Remover \"{{name}}\" dos seus favoritos?"
   },
   "jellyseerr": {
     "confirm": "Confirmar",

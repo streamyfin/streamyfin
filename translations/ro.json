@@ -656,7 +656,11 @@
     "programs": "Programe",
     "guide": "Ghid",
     "channels": "Canale",
-    "recordings": "Înregistrări"
+    "recordings": "Înregistrări",
+    "favorite_add": "Adaugă la favorite",
+    "favorite_remove": "Elimină din favorite",
+    "favorite_add_confirm": "Adăugați \"{{name}}\" la favoritele dvs.?",
+    "favorite_remove_confirm": "Eliminați \"{{name}}\" din favoritele dvs.?"
   },
   "jellyseerr": {
     "confirm": "Confirmă",

@@ -656,7 +656,11 @@
     "programs": "Ohjelmat",
     "guide": "Opas",
     "channels": "Kanavat",
-    "recordings": "Tallenteet"
+    "recordings": "Tallenteet",
+    "favorite_add": "Lisää suosikkeihin",
+    "favorite_remove": "Poista suosikeista",
+    "favorite_add_confirm": "Lisätäänkö \"{{name}}\" suosikkeihisi?",
+    "favorite_remove_confirm": "Poistetaanko \"{{name}}\" suosikeistasi?"
   },
   "jellyseerr": {
     "confirm": "Vahvista",

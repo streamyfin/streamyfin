@@ -656,7 +656,11 @@
     "programs": "Műsorok",
     "guide": "Műsorfüzet",
     "channels": "Csatornák",
-    "recordings": "Felvételek"
+    "recordings": "Felvételek",
+    "favorite_add": "Hozzáadás a kedvencekhez",
+    "favorite_remove": "Eltávolítás a kedvencekből",
+    "favorite_add_confirm": "\"{{name}}\" hozzáadása a kedvenceidhez?",
+    "favorite_remove_confirm": "\"{{name}}\" eltávolítása a kedvenceidből?"
   },
   "jellyseerr": {
     "confirm": "Megerősítés",

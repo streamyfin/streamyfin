@@ -419,7 +419,11 @@
     "programs": "Program",
     "guide": "Guide",
     "channels": "Kanalar",
-    "recordings": "Opptak"
+    "recordings": "Opptak",
+    "favorite_add": "Legg til i favorittar",
+    "favorite_remove": "Fjern frå favorittar",
+    "favorite_add_confirm": "Legg til \"{{name}}\" i favorittane dine?",
+    "favorite_remove_confirm": "Fjern \"{{name}}\" frå favorittane dine?"
   },
   "jellyseerr": {
     "confirm": "Stadfest",

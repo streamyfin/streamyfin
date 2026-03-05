@@ -656,7 +656,11 @@
     "programs": "Programmer",
     "guide": "Guide",
     "channels": "Kanaler",
-    "recordings": "Opptak"
+    "recordings": "Opptak",
+    "favorite_add": "Legg til i favoritter",
+    "favorite_remove": "Fjern fra favoritter",
+    "favorite_add_confirm": "Legg til \"{{name}}\" i favorittene dine?",
+    "favorite_remove_confirm": "Fjern \"{{name}}\" fra favorittene dine?"
   },
   "jellyseerr": {
     "confirm": "Bekreft",
