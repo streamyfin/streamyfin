@@ -128,13 +128,13 @@ export const LiveTVGuideRow = ({
   }, [programs, channel.Id, referenceTime]);
 
   if (!isVisible) {
-    return <View style={{ height: 64 }} />;
+    return <View className='h-16' />;
   }
 
   const now = new Date();
 
   return (
-    <View key={channel.ChannelNumber} className='flex flex-row h-16'>
+    <View className='flex-row h-16'>
       {programsWithGaps.map((entry) => {
         if (entry.isDummy) {
           const isLive = now >= entry.startTime && now <= entry.endTime;
