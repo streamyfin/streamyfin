@@ -16,6 +16,10 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
 import {
+  EPG_FAVORITE_ICON_SIZE,
+  EPG_HEADER_BG,
+  EPG_NOW_INDICATOR_DOT,
+  EPG_NOW_INDICATOR_LINE,
   EPG_PX_PER_HOUR,
   getGuideReferenceTime,
 } from "@/components/livetv/constants";
@@ -77,7 +81,11 @@ const ChannelLogoButton: React.FC<{
         />
         {isFavorite && (
           <View style={{ position: "absolute", bottom: 3, right: 3 }}>
-            <Ionicons name='heart' size={14} color={Colors.primary} />
+            <Ionicons
+              name='heart'
+              size={EPG_FAVORITE_ICON_SIZE}
+              color={Colors.primary}
+            />
           </View>
         )}
       </View>
@@ -279,7 +287,7 @@ export default function page() {
       <View
         style={{
           flexDirection: "row",
-          backgroundColor: "black",
+          backgroundColor: EPG_HEADER_BG,
         }}
       >
         <TouchableOpacity
@@ -360,7 +368,7 @@ export default function page() {
             top: HOUR_HEIGHT + HEADER_GAP,
             bottom: 0,
             width: 1,
-            backgroundColor: "rgba(255, 255, 255, 0.3)",
+            backgroundColor: EPG_NOW_INDICATOR_LINE,
           }}
         >
           <View
@@ -371,7 +379,7 @@ export default function page() {
               width: DOT_SIZE,
               height: DOT_SIZE,
               borderRadius: 5,
-              backgroundColor: "rgba(255, 255, 255, 0.75)",
+              backgroundColor: EPG_NOW_INDICATOR_DOT,
             }}
           />
         </View>

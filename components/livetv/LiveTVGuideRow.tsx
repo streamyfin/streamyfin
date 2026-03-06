@@ -3,7 +3,14 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
-import { EPG_PX_PER_HOUR, getGuideReferenceTime } from "./constants";
+import {
+  EPG_BORDER_COLOR,
+  EPG_BORDER_WIDTH,
+  EPG_CARD_BG_INACTIVE,
+  EPG_CARD_BG_LIVE,
+  EPG_PX_PER_HOUR,
+  getGuideReferenceTime,
+} from "./constants";
 
 type RealEntry = BaseItemDto & {
   isDummy: false;
@@ -25,11 +32,6 @@ const datesToPx = (start: Date, end: Date): number =>
     0,
     ((end.getTime() - start.getTime()) / 60000 / 60) * EPG_PX_PER_HOUR,
   );
-
-const isCurrentlyLive = (program: BaseItemDto, now: Date): boolean => {
-  if (!program.StartDate || !program.EndDate) return false;
-  return now >= new Date(program.StartDate) && now <= new Date(program.EndDate);
-};
 
 export const LiveTVGuideRow = ({
   channel,
@@ -130,28 +132,34 @@ export const LiveTVGuideRow = ({
   return (
     <View className='flex-row h-16'>
       {programsWithGaps.map((entry) => {
+        const live = entry.isDummy
+          ? now >= entry.startTime && now <= entry.endTime
+          : !!entry.StartDate &&
+            !!entry.EndDate &&
+            now >= new Date(entry.StartDate) &&
+            now <= new Date(entry.EndDate);
+
+        const cardStyle = {
+          position: "absolute" as const,
+          left: entry.position + 2,
+          top: 3,
+          bottom: 3,
+          width: entry.width - 4,
+          borderRadius: 6,
+          backgroundColor: live ? EPG_CARD_BG_LIVE : EPG_CARD_BG_INACTIVE,
+          borderWidth: EPG_BORDER_WIDTH,
+          borderColor: EPG_BORDER_COLOR,
+          overflow: "hidden" as const,
+        };
+
         if (entry.isDummy) {
-          const isLive = now >= entry.startTime && now <= entry.endTime;
           return (
             <TouchableItemRouter
               item={channel}
               key={entry.Id}
               onLongPress={onLongPress}
             >
-              <View
-                style={{
-                  position: "absolute",
-                  left: entry.position + 2,
-                  top: 3,
-                  bottom: 3,
-                  width: entry.width - 4,
-                  borderRadius: 6,
-                  backgroundColor: isLive
-                    ? "rgba(255, 255, 255, 0.14)"
-                    : "rgba(255, 255, 255, 0.05)",
-                  overflow: "hidden",
-                }}
-              />
+              <View style={cardStyle} />
             </TouchableItemRouter>
           );
         }
@@ -162,20 +170,7 @@ export const LiveTVGuideRow = ({
             key={entry.Id}
             onLongPress={onLongPress}
           >
-            <View
-              style={{
-                position: "absolute",
-                left: entry.position + 2,
-                top: 3,
-                bottom: 3,
-                width: entry.width - 4,
-                borderRadius: 6,
-                backgroundColor: isCurrentlyLive(entry, now)
-                  ? "rgba(255, 255, 255, 0.14)"
-                  : "rgba(255, 255, 255, 0.05)",
-                overflow: "hidden",
-              }}
-            >
+            <View style={cardStyle}>
               <View
                 style={{
                   marginLeft:

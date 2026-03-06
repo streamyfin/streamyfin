@@ -10,6 +10,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
+import {
+  EPG_BORDER_COLOR,
+  EPG_FAVORITE_ICON_SIZE,
+  EPG_ICON_COLOR_INACTIVE,
+  EPG_PROGRESS_BAR_HEIGHT,
+} from "@/components/livetv/constants";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
@@ -77,16 +83,16 @@ const ChannelItem: React.FC<{ channel: BaseItemDto }> = ({ channel }) => {
         <TouchableOpacity onPress={toggleFavorite} hitSlop={16}>
           <Ionicons
             name={isFavorite ? "heart" : "heart-outline"}
-            size={14}
-            color={isFavorite ? Colors.primary : "#737373"}
+            size={EPG_FAVORITE_ICON_SIZE}
+            color={isFavorite ? Colors.primary : EPG_ICON_COLOR_INACTIVE}
             style={{ marginRight: 4 }}
           />
         </TouchableOpacity>
       </View>
       <View
         style={{
-          height: 1,
-          backgroundColor: "rgba(255,255,255,0.08)",
+          height: EPG_PROGRESS_BAR_HEIGHT,
+          backgroundColor: EPG_BORDER_COLOR,
           marginHorizontal: 16,
           marginBottom: 6,
           borderRadius: 1,
