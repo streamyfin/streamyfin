@@ -2,15 +2,29 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
+import { useFocusEffect } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  InteractionManager,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -32,19 +46,25 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 const HOUR_HEIGHT = 30;
 const HEADER_GAP = 8;
 const DOT_SIZE = 9;
+const ROW_HEIGHT = 64;
 const CHANNELS_PER_PAGE = 50;
-const BUFFER_ROWS = 5;
+const BUFFER_ROWS = 6;
 const CHANNEL_COL_WIDTH = 64;
+
+// Programs are fetched in 6-hour windows and loaded on demand as the user
+// scrolls right. Loading starts 2 hours before the window boundary.
+const WINDOW_HOURS = 6;
+const MAX_WINDOWS = Math.ceil(24 / WINDOW_HOURS); // 4
 
 function makeSyncScrollHandler(
   selfLock: React.MutableRefObject<boolean>,
   otherLock: React.MutableRefObject<boolean>,
   otherRef: React.MutableRefObject<ScrollView | null>,
-  setX: (x: number) => void,
+  scrollXShared: SharedValue<number>,
 ) {
   return (e: { nativeEvent: { contentOffset: { x: number } } }) => {
     const x = e.nativeEvent.contentOffset.x;
-    setX(x);
+    scrollXShared.value = x;
     if (selfLock.current) {
       selfLock.current = false;
       return;
@@ -56,20 +76,17 @@ function makeSyncScrollHandler(
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
 
+// Lightweight — reads isFavorite directly from channel data to avoid the
+// expensive useFavorite hook (useMutation + useEffects) in every visible row.
+// Long-press favorite toggle is available on the guide row to the right.
 const ChannelLogoButton: React.FC<{
   channel: BaseItemDto;
 }> = ({ channel }) => {
-  const { isFavorite, toggleFavorite } = useFavorite(channel);
-  const showFavoriteSheet = useChannelFavoriteSheet();
-
-  const handleLongPress = useCallback(() => {
-    showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
-  }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
+  const isFavorite = channel.UserData?.IsFavorite ?? false;
 
   return (
     <TouchableItemRouter
       item={channel}
-      onLongPress={handleLongPress}
       style={{ width: CHANNEL_COL_WIDTH }}
       className='h-16'
     >
@@ -96,9 +113,8 @@ const ChannelLogoButton: React.FC<{
 const GuideRowWithFavorite: React.FC<{
   channel: BaseItemDto;
   programs: BaseItemDto[] | null;
-  scrollX: number;
-  isVisible: boolean;
-}> = ({ channel, programs, scrollX, isVisible }) => {
+  scrollXShared: SharedValue<number>;
+}> = ({ channel, programs, scrollXShared }) => {
   const { isFavorite, toggleFavorite } = useFavorite(channel);
   const showFavoriteSheet = useChannelFavoriteSheet();
 
@@ -110,14 +126,46 @@ const GuideRowWithFavorite: React.FC<{
     <MemoizedLiveTVGuideRow
       channel={channel}
       programs={programs}
-      scrollX={scrollX}
-      isVisible={isVisible}
+      scrollXShared={scrollXShared}
       onLongPress={handleLongPress}
     />
   );
 };
 
 const MemoizedGuideRowWithFavorite = React.memo(GuideRowWithFavorite);
+
+// While scrolling, only the logo column is visible. EPG content mounts as a
+// cheap placeholder and renders its full content once interactions settle.
+// A 400 ms fallback ensures content appears even during the initial navigation
+// (where the navigation animation itself counts as an active interaction).
+const DeferredGuideRow: React.FC<{
+  channel: BaseItemDto;
+  programs: BaseItemDto[] | null;
+  scrollXShared: SharedValue<number>;
+}> = ({ channel, programs, scrollXShared }) => {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => setReady(true));
+    const fallback = setTimeout(() => setReady(true), 400);
+    return () => {
+      task.cancel();
+      clearTimeout(fallback);
+    };
+  }, []);
+
+  if (!ready) return <View style={{ height: ROW_HEIGHT }} />;
+
+  return (
+    <MemoizedGuideRowWithFavorite
+      channel={channel}
+      programs={programs}
+      scrollXShared={scrollXShared}
+    />
+  );
+};
+
+const MemoizedDeferredGuideRow = React.memo(DeferredGuideRow);
 
 export default function page() {
   const [api] = useAtom(apiAtom);
@@ -127,11 +175,18 @@ export default function page() {
   const screenHeight = Dimensions.get("window").height;
 
   const [scrollY, setScrollY] = useState(0);
-  const [scrollX, setScrollX] = useState(0);
+
+  // Tracks how many 6h time windows have been requested. Starts at 1 and grows
+  // as the user scrolls right. A ref mirrors the state for use in the scroll
+  // handler without stale closure issues.
+  const [loadedWindows, setLoadedWindows] = useState(1);
+  const loadedWindowsRef = useRef(1);
+
+  const scrollXShared = useSharedValue(0);
+  const isFocused = useRef(true);
 
   const headerScrollRef = useRef<ScrollView>(null);
   const contentScrollRef = useRef<ScrollView>(null);
-  // Prevent sync feedback loops between the two ScrollViews
   const syncingHeader = useRef(false);
   const syncingContent = useRef(false);
 
@@ -141,41 +196,81 @@ export default function page() {
         syncingHeader,
         syncingContent,
         contentScrollRef,
-        setScrollX,
+        scrollXShared,
       ),
+    // scrollXShared is a stable ref from useSharedValue
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
-  const handleContentXScroll = useMemo(
-    () =>
-      makeSyncScrollHandler(
-        syncingContent,
-        syncingHeader,
-        headerScrollRef,
-        setScrollX,
-      ),
-    [],
+  // Horizontal content scroll: syncs header + triggers next time window when
+  // the user is 2 hours away from the current data boundary.
+  const handleContentXScroll = useCallback(
+    (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+      if (!isFocused.current) return;
+      const x = e.nativeEvent.contentOffset.x;
+      scrollXShared.value = x;
+
+      if (syncingContent.current) {
+        syncingContent.current = false;
+      } else {
+        syncingHeader.current = true;
+        headerScrollRef.current?.scrollTo({ x, animated: false });
+      }
+
+      const threshold =
+        (loadedWindowsRef.current * WINDOW_HOURS - 2) * EPG_PX_PER_HOUR;
+      if (x > threshold && loadedWindowsRef.current < MAX_WINDOWS) {
+        loadedWindowsRef.current += 1;
+        setLoadedWindows(loadedWindowsRef.current);
+      }
+    },
+    [scrollXShared],
   );
 
   const scrollToStart = useCallback(() => {
+    scrollXShared.value = 0;
     headerScrollRef.current?.scrollTo({ x: 0, animated: true });
     contentScrollRef.current?.scrollTo({ x: 0, animated: true });
-  }, []);
+  }, [scrollXShared]);
 
   const guideContentWidth = 24 * EPG_PX_PER_HOUR;
 
-  // Pixel offset of current time from the guide reference time.
-  // Computed inline (not memoized) so it stays accurate across re-renders.
-  const now = new Date();
-  const nowPosition =
-    ((now.getTime() - getGuideReferenceTime().getTime()) / 3600000) *
-    EPG_PX_PER_HOUR;
+  const referenceTime = useMemo(() => getGuideReferenceTime(), []);
+
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useFocusEffect(
+    useCallback(() => {
+      isFocused.current = true;
+      setNowMs(Date.now());
+      const interval = setInterval(() => setNowMs(Date.now()), 60_000);
+      return () => {
+        isFocused.current = false;
+        clearInterval(interval);
+      };
+    }, []),
+  );
+
+  const nowPosition = useMemo(
+    () => ((nowMs - referenceTime.getTime()) / 3600000) * EPG_PX_PER_HOUR,
+    [nowMs, referenceTime],
+  );
+
+  const nowIndicatorStyle = useAnimatedStyle(() => {
+    const left = CHANNEL_COL_WIDTH + nowPosition - scrollXShared.value;
+    return {
+      left,
+      opacity: left >= CHANNEL_COL_WIDTH ? 1 : 0,
+    };
+  });
 
   const {
     data: channelPages,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isLoading: isLoadingChannels,
   } = useInfiniteQuery({
     queryKey: ["livetv", "guide", "channels"],
     queryFn: async ({ pageParam }: { pageParam: number }) => {
@@ -199,58 +294,89 @@ export default function page() {
       if ((lastPage.Items?.length ?? 0) < CHANNELS_PER_PAGE) return undefined;
       return totalLoaded;
     },
+    staleTime: 3 * 60 * 1000,
   });
 
-  const allChannels = useMemo(
-    () => channelPages?.pages.flatMap((p) => p.Items ?? []) ?? [],
-    [channelPages],
-  );
+  const [allChannels, setAllChannels] = useState<BaseItemDto[]>([]);
 
-  // One program query per channel page, independently cached
+  useEffect(() => {
+    startTransition(() => {
+      setAllChannels(channelPages?.pages.flatMap((p) => p.Items ?? []) ?? []);
+    });
+  }, [channelPages]);
+
+  // One query per (channel page × time window), loaded on demand.
   const programQueries = useQueries({
-    queries: (channelPages?.pages ?? []).map((page) => {
+    queries: (channelPages?.pages ?? []).flatMap((page) => {
       const channelIds = (page.Items ?? []).map((c) => c.Id!).filter(Boolean);
-      return {
-        queryKey: ["livetv", "guide", "programs", channelIds],
-        queryFn: async () => {
-          const now = new Date();
-          const end = new Date(
-            getGuideReferenceTime().getTime() + 24 * 60 * 60 * 1000,
-          );
-          const res = await getLiveTvApi(api!).getPrograms({
-            getProgramsDto: {
-              ChannelIds: channelIds,
-              MaxStartDate: end.toISOString(),
-              MinEndDate: now.toISOString(),
-              ImageTypeLimit: 1,
-              EnableImages: false,
-              SortBy: ["StartDate"],
-              EnableTotalRecordCount: false,
-              EnableUserData: false,
-            },
-          });
-          return res.data.Items ?? [];
-        },
-        enabled: channelIds.length > 0,
-      };
+      return Array.from({ length: loadedWindows }, (_, windowIndex) => {
+        const windowStart = new Date(
+          referenceTime.getTime() + windowIndex * WINDOW_HOURS * 3600000,
+        );
+        const windowEnd = new Date(
+          referenceTime.getTime() + (windowIndex + 1) * WINDOW_HOURS * 3600000,
+        );
+        return {
+          queryKey: ["livetv", "guide", "programs", channelIds, windowIndex],
+          queryFn: async () => {
+            const res = await getLiveTvApi(api!).getPrograms({
+              getProgramsDto: {
+                ChannelIds: channelIds,
+                MinEndDate: windowStart.toISOString(),
+                MaxStartDate: windowEnd.toISOString(),
+                ImageTypeLimit: 1,
+                EnableImages: false,
+                SortBy: ["StartDate"],
+                EnableTotalRecordCount: false,
+                EnableUserData: false,
+              },
+            });
+            return res.data.Items ?? [];
+          },
+          enabled: channelIds.length > 0,
+          staleTime: 2 * 60 * 1000,
+        };
+      });
     }),
   });
 
-  // Group all programs by channelId for O(1) lookup per row
-  const programsByChannel = useMemo(() => {
-    const map = new Map<string, BaseItemDto[]>();
-    for (const query of programQueries) {
-      for (const p of query.data ?? []) {
-        if (!p.ChannelId) continue;
-        if (!map.has(p.ChannelId)) map.set(p.ChannelId, []);
-        map.get(p.ChannelId)!.push(p);
+  // Merge programs from all windows into a per-channel map; deduplicate by ID
+  // since long-running programs can span multiple windows.
+  // Uses startTransition so the JS thread yields to touch events (e.g. tab switches)
+  // before rebuilding the map.
+  const [programsByChannel, setProgramsByChannel] = useState(
+    () => new Map<string, BaseItemDto[]>(),
+  );
+
+  useEffect(() => {
+    startTransition(() => {
+      const map = new Map<string, BaseItemDto[]>();
+      const seen = new Set<string>();
+      for (const query of programQueries) {
+        for (const p of query.data ?? []) {
+          if (!p.ChannelId || !p.Id || seen.has(p.Id)) continue;
+          seen.add(p.Id);
+          if (!map.has(p.ChannelId)) map.set(p.ChannelId, []);
+          map.get(p.ChannelId)!.push(p);
+        }
       }
-    }
-    return map;
+      setProgramsByChannel(map);
+    });
   }, [programQueries]);
 
-  const visibleStart = Math.max(0, Math.floor(scrollY / 64) - BUFFER_ROWS);
-  const visibleEnd = Math.ceil((scrollY + screenHeight) / 64) + BUFFER_ROWS;
+  const visibleStart = Math.max(
+    0,
+    Math.floor(scrollY / ROW_HEIGHT) - BUFFER_ROWS,
+  );
+  const visibleEnd = Math.min(
+    allChannels.length - 1,
+    Math.ceil((scrollY + screenHeight) / ROW_HEIGHT) + BUFFER_ROWS,
+  );
+  const visibleChannels = useMemo(
+    () => allChannels.slice(visibleStart, visibleEnd + 1),
+    [allChannels, visibleStart, visibleEnd],
+  );
+  const totalListHeight = allChannels.length * ROW_HEIGHT;
 
   const handleScroll = useCallback(
     (e: {
@@ -260,6 +386,7 @@ export default function page() {
         layoutMeasurement: { height: number };
       };
     }) => {
+      if (!isFocused.current) return;
       const y = e.nativeEvent.contentOffset.y;
       setScrollY(y);
       const { height: contentHeight } = e.nativeEvent.contentSize;
@@ -314,76 +441,106 @@ export default function page() {
         </ScrollView>
       </View>
 
-      {/* Vertical scroll — channel images + program rows */}
-      <ScrollView
-        contentInsetAdjustmentBehavior='never'
-        scrollEventThrottle={16}
-        onScroll={handleScroll}
-        style={{ marginTop: HEADER_GAP }}
-        contentContainerStyle={{ paddingBottom: 16 }}
-      >
-        <View style={{ flexDirection: "row" }}>
-          <View style={{ width: CHANNEL_COL_WIDTH }}>
-            {allChannels.map((c) => (
-              <ChannelLogoButton key={c.Id} channel={c} />
-            ))}
-          </View>
+      {isLoadingChannels && (
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size='large' />
+        </View>
+      )}
 
-          <ScrollView
-            ref={contentScrollRef}
-            nestedScrollEnabled
-            horizontal
-            style={{ width: screenWidth - CHANNEL_COL_WIDTH }}
-            scrollEventThrottle={16}
-            onScroll={handleContentXScroll}
-          >
-            <View style={{ width: guideContentWidth }}>
-              {allChannels.map((c, i) => (
-                <MemoizedGuideRowWithFavorite
+      {!isLoadingChannels && (
+        <ScrollView
+          contentInsetAdjustmentBehavior='never'
+          scrollEventThrottle={100}
+          onScroll={handleScroll}
+          style={{ marginTop: HEADER_GAP }}
+          contentContainerStyle={{ paddingBottom: 16 }}
+        >
+          <View style={{ flexDirection: "row", height: totalListHeight }}>
+            <View style={{ width: CHANNEL_COL_WIDTH }}>
+              {visibleChannels.map((c, idx) => (
+                <View
                   key={c.Id}
-                  channel={c}
-                  programs={programsByChannel.get(c.Id!) ?? null}
-                  scrollX={scrollX}
-                  isVisible={i >= visibleStart && i <= visibleEnd}
-                />
+                  style={{
+                    position: "absolute",
+                    top: (visibleStart + idx) * ROW_HEIGHT,
+                    left: 0,
+                    right: 0,
+                    height: ROW_HEIGHT,
+                  }}
+                >
+                  <ChannelLogoButton channel={c} />
+                </View>
               ))}
             </View>
-          </ScrollView>
-        </View>
 
-        {isFetchingNextPage && (
-          <View className='py-4 items-center'>
-            <ActivityIndicator />
+            <ScrollView
+              ref={contentScrollRef}
+              nestedScrollEnabled
+              horizontal
+              style={{ width: screenWidth - CHANNEL_COL_WIDTH }}
+              scrollEventThrottle={16}
+              onScroll={handleContentXScroll}
+            >
+              <View
+                style={{ width: guideContentWidth, height: totalListHeight }}
+              >
+                {visibleChannels.map((c, idx) => (
+                  <View
+                    key={c.Id}
+                    style={{
+                      position: "absolute",
+                      top: (visibleStart + idx) * ROW_HEIGHT,
+                      left: 0,
+                      right: 0,
+                      height: ROW_HEIGHT,
+                    }}
+                  >
+                    <MemoizedDeferredGuideRow
+                      channel={c}
+                      programs={programsByChannel.get(c.Id!) ?? null}
+                      scrollXShared={scrollXShared}
+                    />
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
           </View>
-        )}
-      </ScrollView>
 
-      {/* Now indicator: only visible while current time is within guide view */}
-      {nowPosition >= scrollX && (
-        <View
-          pointerEvents='none'
-          style={{
+          {isFetchingNextPage && (
+            <View className='py-4 items-center'>
+              <ActivityIndicator />
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      <Animated.View
+        pointerEvents='none'
+        style={[
+          {
             position: "absolute",
-            left: CHANNEL_COL_WIDTH + nowPosition - scrollX,
             top: HOUR_HEIGHT + HEADER_GAP,
             bottom: 0,
             width: 1,
             backgroundColor: EPG_NOW_INDICATOR_LINE,
+          },
+          nowIndicatorStyle,
+        ]}
+      >
+        <View
+          style={{
+            position: "absolute",
+            top: -(HEADER_GAP + DOT_SIZE / 2),
+            left: -(DOT_SIZE / 2),
+            width: DOT_SIZE,
+            height: DOT_SIZE,
+            borderRadius: 5,
+            backgroundColor: EPG_NOW_INDICATOR_DOT,
           }}
-        >
-          <View
-            style={{
-              position: "absolute",
-              top: -(HEADER_GAP + DOT_SIZE / 2),
-              left: -(DOT_SIZE / 2),
-              width: DOT_SIZE,
-              height: DOT_SIZE,
-              borderRadius: 5,
-              backgroundColor: EPG_NOW_INDICATOR_DOT,
-            }}
-          />
-        </View>
-      )}
+        />
+      </Animated.View>
     </View>
   );
 }

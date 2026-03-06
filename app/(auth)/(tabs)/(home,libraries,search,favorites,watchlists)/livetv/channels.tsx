@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
@@ -116,28 +115,69 @@ const ChannelItem: React.FC<{ channel: BaseItemDto }> = ({ channel }) => {
 export default function page() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const _insets = useSafeAreaInsets();
-
   const { data: channels } = useQuery({
-    queryKey: ["livetv", "channels"],
+    queryKey: ["livetv", "channels", "base"],
     queryFn: async () => {
       const res = await getLiveTvApi(api!).getLiveTvChannels({
         startIndex: 0,
         limit: 500,
         enableFavoriteSorting: true,
         userId: user?.Id,
-        addCurrentProgram: true,
+        addCurrentProgram: false,
         enableUserData: true,
         enableImageTypes: ["Primary"],
       });
       return res.data;
     },
+    staleTime: 3 * 60 * 1000,
   });
+
+  const channelIds = useMemo(
+    () => (channels?.Items ?? []).map((c) => c.Id!).filter(Boolean),
+    [channels],
+  );
+
+  const { data: currentPrograms } = useQuery({
+    queryKey: ["livetv", "channels", "currentPrograms", channelIds],
+    queryFn: async () => {
+      const now = new Date();
+      const res = await getLiveTvApi(api!).getPrograms({
+        getProgramsDto: {
+          ChannelIds: channelIds,
+          MinEndDate: now.toISOString(),
+          MaxStartDate: now.toISOString(),
+          EnableImages: false,
+          EnableTotalRecordCount: false,
+          EnableUserData: false,
+        },
+      });
+      return res.data.Items ?? [];
+    },
+    enabled: channelIds.length > 0,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const programByChannelId = useMemo(() => {
+    const map = new Map<string, BaseItemDto>();
+    for (const p of currentPrograms ?? []) {
+      if (p.ChannelId) map.set(p.ChannelId, p);
+    }
+    return map;
+  }, [currentPrograms]);
+
+  const items = useMemo(
+    () =>
+      (channels?.Items ?? []).map((c) => {
+        const program = c.Id ? programByChannelId.get(c.Id) : undefined;
+        return program ? { ...c, CurrentProgram: program } : c;
+      }),
+    [channels, programByChannelId],
+  );
 
   return (
     <View className='flex flex-1'>
       <FlashList
-        data={channels?.Items}
+        data={items}
         renderItem={({ item }) => <ChannelItem channel={item} />}
       />
     </View>

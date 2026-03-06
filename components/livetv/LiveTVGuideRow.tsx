@@ -1,6 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
 import { View } from "react-native";
+import Animated, {
+  type SharedValue,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import { Text } from "../common/Text";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import {
@@ -33,17 +37,45 @@ const datesToPx = (start: Date, end: Date): number =>
     ((end.getTime() - start.getTime()) / 60000 / 60) * EPG_PX_PER_HOUR,
   );
 
+// Separate component so useAnimatedStyle is called at component level, not inside a loop
+const ProgramCard: React.FC<{
+  entry: RealEntry;
+  cardStyle: object;
+  scrollXShared: SharedValue<number>;
+  onLongPress?: () => void;
+}> = ({ entry, cardStyle, scrollXShared, onLongPress }) => {
+  const textStyle = useAnimatedStyle(() => ({
+    marginLeft:
+      scrollXShared.value > entry.position
+        ? scrollXShared.value - entry.position
+        : 0,
+  }));
+
+  return (
+    <TouchableItemRouter item={entry} onLongPress={onLongPress}>
+      <View style={cardStyle}>
+        <Animated.View
+          style={textStyle}
+          className='px-3 self-start justify-center flex-1'
+        >
+          <Text numberOfLines={2} className='text-xs text-start'>
+            {entry.Name}
+          </Text>
+        </Animated.View>
+      </View>
+    </TouchableItemRouter>
+  );
+};
+
 export const LiveTVGuideRow = ({
   channel,
   programs,
-  scrollX = 0,
-  isVisible = true,
+  scrollXShared,
   onLongPress,
 }: {
   channel: BaseItemDto;
   programs?: BaseItemDto[] | null;
-  scrollX?: number;
-  isVisible?: boolean;
+  scrollXShared: SharedValue<number>;
   onLongPress?: () => void;
 }) => {
   const referenceTime = useMemo(() => getGuideReferenceTime(), []);
@@ -68,9 +100,16 @@ export const LiveTVGuideRow = ({
       const effectiveStart =
         programStart > referenceTime ? programStart : referenceTime;
 
+      // Skip programs fully covered by a previous one
+      if (programEnd <= prevEndTime) continue;
+
+      // Clip start if overlapping with previous program
+      const clippedStart =
+        effectiveStart < prevEndTime ? prevEndTime : effectiveStart;
+
       // Fill gap before this program
-      if (effectiveStart > prevEndTime) {
-        const gapWidth = datesToPx(prevEndTime, effectiveStart);
+      if (clippedStart > prevEndTime) {
+        const gapWidth = datesToPx(prevEndTime, clippedStart);
         if (gapWidth > 0) {
           result.push({
             isDummy: true,
@@ -78,7 +117,7 @@ export const LiveTVGuideRow = ({
             position: datesToPx(referenceTime, prevEndTime),
             Id: `gap-${channel.Id}-${prevEndTime.getTime()}`,
             startTime: new Date(prevEndTime),
-            endTime: new Date(effectiveStart),
+            endTime: new Date(clippedStart),
           });
         }
       }
@@ -86,8 +125,8 @@ export const LiveTVGuideRow = ({
       result.push({
         ...program,
         isDummy: false,
-        width: datesToPx(effectiveStart, programEnd),
-        position: datesToPx(referenceTime, effectiveStart),
+        width: datesToPx(clippedStart, programEnd),
+        position: datesToPx(referenceTime, clippedStart),
       });
 
       if (programEnd > prevEndTime) prevEndTime = new Date(programEnd);
@@ -122,10 +161,6 @@ export const LiveTVGuideRow = ({
 
     return result;
   }, [programs, channel.Id, referenceTime]);
-
-  if (!isVisible) {
-    return <View className='h-16' />;
-  }
 
   const now = new Date();
 
@@ -165,25 +200,13 @@ export const LiveTVGuideRow = ({
         }
 
         return (
-          <TouchableItemRouter
-            item={entry}
+          <ProgramCard
             key={entry.Id}
+            entry={entry}
+            cardStyle={cardStyle}
+            scrollXShared={scrollXShared}
             onLongPress={onLongPress}
-          >
-            <View style={cardStyle}>
-              <View
-                style={{
-                  marginLeft:
-                    scrollX > entry.position ? scrollX - entry.position : 0,
-                }}
-                className='px-3 self-start justify-center flex-1'
-              >
-                <Text numberOfLines={2} className='text-xs text-start'>
-                  {entry.Name}
-                </Text>
-              </View>
-            </View>
-          </TouchableItemRouter>
+          />
         );
       })}
     </View>
