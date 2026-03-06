@@ -8,7 +8,7 @@ import RecordingsPage from "@/app/(auth)/(tabs)/(home,libraries,search,favorites
 import { type LiveTVTab, LiveTVTabButtons } from "./LiveTVTabButtons";
 
 export const LiveTVView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<LiveTVTab>("guide");
+  const [activeTab, setActiveTab] = useState<LiveTVTab>("channels");
   const { t } = useTranslation();
 
   return (

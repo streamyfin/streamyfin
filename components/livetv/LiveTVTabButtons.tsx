@@ -5,8 +5,8 @@ import { Tag } from "@/components/GenreTags";
 export type LiveTVTab = "programs" | "guide" | "channels" | "recordings";
 
 const TABS: { key: LiveTVTab; labelKey: string }[] = [
-  { key: "guide", labelKey: "live_tv.guide" },
   { key: "channels", labelKey: "live_tv.channels" },
+  { key: "guide", labelKey: "live_tv.guide" },
   { key: "programs", labelKey: "live_tv.programs" },
   { key: "recordings", labelKey: "live_tv.recordings" },
 ];
