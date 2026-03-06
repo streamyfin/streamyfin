@@ -1,12 +1,11 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
-import { View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { Text } from "../common/Text";
-import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import {
   EPG_BORDER_COLOR,
   EPG_BORDER_WIDTH,
@@ -40,10 +39,19 @@ const datesToPx = (start: Date, end: Date): number =>
 // Separate component so useAnimatedStyle is called at component level, not inside a loop
 const ProgramCard: React.FC<{
   entry: RealEntry;
-  cardStyle: object;
+  wrapperStyle: object;
+  innerStyle: object;
   scrollXShared: SharedValue<number>;
-  onLongPress?: () => void;
-}> = ({ entry, cardStyle, scrollXShared, onLongPress }) => {
+  onPress: () => void;
+  onLongPress: (item: BaseItemDto) => void;
+}> = ({
+  entry,
+  wrapperStyle,
+  innerStyle,
+  scrollXShared,
+  onPress,
+  onLongPress,
+}) => {
   const textStyle = useAnimatedStyle(() => ({
     marginLeft:
       scrollXShared.value > entry.position
@@ -52,8 +60,12 @@ const ProgramCard: React.FC<{
   }));
 
   return (
-    <TouchableItemRouter item={entry} onLongPress={onLongPress}>
-      <View style={cardStyle}>
+    <TouchableOpacity
+      style={wrapperStyle}
+      onPress={onPress}
+      onLongPress={() => onLongPress(entry)}
+    >
+      <View style={innerStyle}>
         <Animated.View
           style={textStyle}
           className='px-3 self-start justify-center flex-1'
@@ -63,7 +75,7 @@ const ProgramCard: React.FC<{
           </Text>
         </Animated.View>
       </View>
-    </TouchableItemRouter>
+    </TouchableOpacity>
   );
 };
 
@@ -71,12 +83,14 @@ export const LiveTVGuideRow = ({
   channel,
   programs,
   scrollXShared,
+  onPress,
   onLongPress,
 }: {
   channel: BaseItemDto;
   programs?: BaseItemDto[] | null;
   scrollXShared: SharedValue<number>;
-  onLongPress?: () => void;
+  onPress: () => void;
+  onLongPress: (item: BaseItemDto) => void;
 }) => {
   const referenceTime = useMemo(() => getGuideReferenceTime(), []);
 
@@ -174,12 +188,16 @@ export const LiveTVGuideRow = ({
             now >= new Date(entry.StartDate) &&
             now <= new Date(entry.EndDate);
 
-        const cardStyle = {
+        const wrapperStyle = {
           position: "absolute" as const,
           left: entry.position + 2,
           top: 3,
           bottom: 3,
           width: entry.width - 4,
+        };
+
+        const innerStyle = {
+          flex: 1,
           borderRadius: 6,
           backgroundColor: live ? EPG_CARD_BG_LIVE : EPG_CARD_BG_INACTIVE,
           borderWidth: EPG_BORDER_WIDTH,
@@ -189,13 +207,14 @@ export const LiveTVGuideRow = ({
 
         if (entry.isDummy) {
           return (
-            <TouchableItemRouter
-              item={channel}
+            <TouchableOpacity
               key={entry.Id}
-              onLongPress={onLongPress}
+              style={wrapperStyle}
+              onPress={onPress}
+              onLongPress={() => onLongPress(channel)}
             >
-              <View style={cardStyle} />
-            </TouchableItemRouter>
+              <View style={innerStyle} />
+            </TouchableOpacity>
           );
         }
 
@@ -203,8 +222,10 @@ export const LiveTVGuideRow = ({
           <ProgramCard
             key={entry.Id}
             entry={entry}
-            cardStyle={cardStyle}
+            wrapperStyle={wrapperStyle}
+            innerStyle={innerStyle}
             scrollXShared={scrollXShared}
+            onPress={onPress}
             onLongPress={onLongPress}
           />
         );

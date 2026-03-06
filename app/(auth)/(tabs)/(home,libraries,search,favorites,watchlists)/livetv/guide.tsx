@@ -27,7 +27,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import { itemRouter } from "@/components/common/TouchableItemRouter";
 import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
 import {
   EPG_FAVORITE_ICON_SIZE,
@@ -40,6 +40,7 @@ import {
 import { HourHeader } from "@/components/livetv/HourHeader";
 import { LiveTVGuideRow } from "@/components/livetv/LiveTVGuideRow";
 import { Colors } from "@/constants/Colors";
+import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
@@ -76,19 +77,28 @@ function makeSyncScrollHandler(
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
 
-// Lightweight — reads isFavorite directly from channel data to avoid the
-// expensive useFavorite hook (useMutation + useEffects) in every visible row.
-// Long-press favorite toggle is available on the guide row to the right.
 const ChannelLogoButton: React.FC<{
   channel: BaseItemDto;
 }> = ({ channel }) => {
-  const isFavorite = channel.UserData?.IsFavorite ?? false;
+  const router = useRouter();
+  const { isFavorite, toggleFavorite } = useFavorite(channel);
+  const showFavoriteSheet = useChannelFavoriteSheet();
+
+  const handlePress = useCallback(() => {
+    router.push(
+      `/player/direct-player?itemId=${channel.Id}&audioIndex=0&subtitleIndex=-1&mediaSourceId=&bitrateValue=&playbackPosition=0&offline=false`,
+    );
+  }, [channel.Id, router]);
+
+  const handleLongPress = useCallback(() => {
+    showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
+  }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
 
   return (
-    <TouchableItemRouter
-      item={channel}
-      style={{ width: CHANNEL_COL_WIDTH }}
-      className='h-16'
+    <TouchableOpacity
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      style={{ width: CHANNEL_COL_WIDTH, height: ROW_HEIGHT }}
     >
       <View style={{ width: "100%", height: "100%" }}>
         <ItemImage
@@ -106,7 +116,7 @@ const ChannelLogoButton: React.FC<{
           </View>
         )}
       </View>
-    </TouchableItemRouter>
+    </TouchableOpacity>
   );
 };
 
@@ -115,18 +125,27 @@ const GuideRowWithFavorite: React.FC<{
   programs: BaseItemDto[] | null;
   scrollXShared: SharedValue<number>;
 }> = ({ channel, programs, scrollXShared }) => {
-  const { isFavorite, toggleFavorite } = useFavorite(channel);
-  const showFavoriteSheet = useChannelFavoriteSheet();
+  const router = useRouter();
 
-  const handleLongPress = useCallback(() => {
-    showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
-  }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
+  const handlePress = useCallback(() => {
+    router.push(
+      `/player/direct-player?itemId=${channel.Id}&audioIndex=0&subtitleIndex=-1&mediaSourceId=&bitrateValue=&playbackPosition=0&offline=false`,
+    );
+  }, [channel.Id, router]);
+
+  const handleLongPress = useCallback(
+    (item: BaseItemDto) => {
+      router.push(itemRouter(item, "(livetv)") as any);
+    },
+    [router],
+  );
 
   return (
     <MemoizedLiveTVGuideRow
       channel={channel}
       programs={programs}
       scrollXShared={scrollXShared}
+      onPress={handlePress}
       onLongPress={handleLongPress}
     />
   );

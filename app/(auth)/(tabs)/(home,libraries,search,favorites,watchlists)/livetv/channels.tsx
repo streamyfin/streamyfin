@@ -3,12 +3,13 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
+import { useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
-import { useChannelFavoriteSheet } from "@/components/livetv/ChannelFavoriteSheet";
+import { itemRouter } from "@/components/common/TouchableItemRouter";
 import {
   EPG_BORDER_COLOR,
   EPG_FAVORITE_ICON_SIZE,
@@ -22,25 +23,20 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 const ChannelItem: React.FC<{ channel: BaseItemDto }> = ({ channel }) => {
   const router = useRouter();
+  const segments = useSegments();
   const { isFavorite, toggleFavorite } = useFavorite(channel);
-  const showFavoriteSheet = useChannelFavoriteSheet();
 
   const handlePress = useCallback(() => {
-    const params = new URLSearchParams({
-      itemId: channel.Id!,
-      audioIndex: "0",
-      subtitleIndex: "-1",
-      mediaSourceId: "",
-      bitrateValue: "",
-      playbackPosition: "0",
-      offline: "false",
-    });
-    router.push(`/player/direct-player?${params.toString()}`);
+    router.push(
+      `/player/direct-player?itemId=${channel.Id}&audioIndex=0&subtitleIndex=-1&mediaSourceId=&bitrateValue=&playbackPosition=0&offline=false`,
+    );
   }, [channel.Id, router]);
 
   const handleLongPress = useCallback(() => {
-    showFavoriteSheet(channel, !!isFavorite, toggleFavorite);
-  }, [showFavoriteSheet, channel, isFavorite, toggleFavorite]);
+    const target = channel.CurrentProgram ?? channel;
+    const from = (segments as string[])[2] || "(home)";
+    router.push(itemRouter(target, from) as any);
+  }, [channel, segments, router]);
 
   const progress = useMemo(() => {
     const p = channel.CurrentProgram;
