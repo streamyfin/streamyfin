@@ -37,7 +37,7 @@ export async function requestDownloadDirectory(): Promise<{
   // e.g. content://...tree/primary%3AMovies → Movies
   const decoded = decodeURIComponent(uri);
   const name =
-    decoded.split("%3A").pop()?.split("/").pop() ||
+    decoded.split(":").pop()?.split("/").pop() ||
     decoded.split("/").pop() ||
     "Selected Folder";
 

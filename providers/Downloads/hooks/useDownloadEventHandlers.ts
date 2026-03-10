@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import { File } from "expo-file-system";
+import * as FileSystemLegacy from "expo-file-system/legacy";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -255,10 +256,13 @@ export function useDownloadEventHandlers({
             `[COMPLETE] Using pre-downloaded assets: trickplay=${!!trickPlayData}, intro=${!!introSegments}, credits=${!!creditSegments}`,
           );
 
-          // If a custom download path (SAF) is configured, copy to external storage
-          // then remove the app-private copy to avoid doubling storage usage
+          // If a custom download path (SAF) is configured, copy to external storage.
+          // The app-private copy is kept for internal playback (guaranteed to work),
+          // and the SAF copy enables external app access (e.g. VR video players).
+          // After verifying the SAF copy integrity, the app-private copy is removed
+          // to save storage. Note: downloadPath reflects the setting at completion
+          // time, not download-start time.
           let safFilePath: string | undefined;
-          let effectiveFilePath = filePathToUri(event.filePath);
           if (downloadPath?.uri) {
             console.log(
               `[SAF] Copying ${filename}.mp4 to external storage...`,
@@ -270,22 +274,44 @@ export function useDownloadEventHandlers({
               "video/mp4",
             );
             if (safUri) {
-              safFilePath = safUri;
-              effectiveFilePath = safUri;
-              console.log(`[SAF] Successfully copied to: ${safUri}`);
-              // Remove the app-private copy to save storage
+              // Verify the SAF copy size matches before removing the original
               try {
-                const appPrivateFile = new File(filePathToUri(event.filePath));
-                if (appPrivateFile.exists) {
-                  appPrivateFile.delete();
+                const safInfo =
+                  await FileSystemLegacy.getInfoAsync(safUri);
+                const sourceInfo = await FileSystemLegacy.getInfoAsync(
+                  filePathToUri(event.filePath),
+                );
+                if (
+                  safInfo.exists &&
+                  sourceInfo.exists &&
+                  "size" in safInfo &&
+                  "size" in sourceInfo &&
+                  safInfo.size === sourceInfo.size
+                ) {
+                  safFilePath = safUri;
                   console.log(
-                    `[SAF] Removed app-private copy to save storage`,
+                    `[SAF] Copy verified (${safInfo.size} bytes). Removing app-private copy...`,
+                  );
+                  const appPrivateFile = new File(
+                    filePathToUri(event.filePath),
+                  );
+                  if (appPrivateFile.exists) {
+                    appPrivateFile.delete();
+                    console.log(
+                      `[SAF] Removed app-private copy to save storage`,
+                    );
+                  }
+                } else {
+                  safFilePath = safUri;
+                  console.warn(
+                    `[SAF] Size mismatch or missing info — keeping both copies for safety`,
                   );
                 }
-              } catch (cleanupError) {
+              } catch (verifyError) {
+                safFilePath = safUri;
                 console.warn(
-                  `[SAF] Could not remove app-private copy:`,
-                  cleanupError,
+                  `[SAF] Could not verify copy, keeping both:`,
+                  verifyError,
                 );
               }
             } else {
@@ -294,6 +320,15 @@ export function useDownloadEventHandlers({
               );
             }
           }
+
+          // Use SAF path for playback if the app-private copy was removed,
+          // otherwise keep the original file:// path
+          const appPrivateExists = new File(
+            filePathToUri(event.filePath),
+          ).exists;
+          const effectiveFilePath = appPrivateExists
+            ? filePathToUri(event.filePath)
+            : (safFilePath ?? filePathToUri(event.filePath));
 
           const downloadedItem: DownloadedItem = {
             item,

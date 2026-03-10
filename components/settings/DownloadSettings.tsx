@@ -96,6 +96,7 @@ export default function DownloadSettings() {
         />
         <ListItem
           onPress={handleChangeDownloadPath}
+          disabled={isVerifying}
           title={t("home.settings.downloads.change_download_location", {
             defaultValue: "Change Location",
           })}
