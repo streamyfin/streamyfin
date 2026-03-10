@@ -256,7 +256,9 @@ export function useDownloadEventHandlers({
           );
 
           // If a custom download path (SAF) is configured, copy to external storage
+          // then remove the app-private copy to avoid doubling storage usage
           let safFilePath: string | undefined;
+          let effectiveFilePath = filePathToUri(event.filePath);
           if (downloadPath?.uri) {
             console.log(
               `[SAF] Copying ${filename}.mp4 to external storage...`,
@@ -269,7 +271,23 @@ export function useDownloadEventHandlers({
             );
             if (safUri) {
               safFilePath = safUri;
+              effectiveFilePath = safUri;
               console.log(`[SAF] Successfully copied to: ${safUri}`);
+              // Remove the app-private copy to save storage
+              try {
+                const appPrivateFile = new File(filePathToUri(event.filePath));
+                if (appPrivateFile.exists) {
+                  appPrivateFile.delete();
+                  console.log(
+                    `[SAF] Removed app-private copy to save storage`,
+                  );
+                }
+              } catch (cleanupError) {
+                console.warn(
+                  `[SAF] Could not remove app-private copy:`,
+                  cleanupError,
+                );
+              }
             } else {
               console.warn(
                 `[SAF] Failed to copy to external storage, file remains in app storage only`,
@@ -280,7 +298,7 @@ export function useDownloadEventHandlers({
           const downloadedItem: DownloadedItem = {
             item,
             mediaSource,
-            videoFilePath: filePathToUri(event.filePath),
+            videoFilePath: effectiveFilePath,
             videoFileSize,
             videoFileName: `${filename}.mp4`,
             trickPlayData,
