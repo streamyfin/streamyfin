@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  JellyseerrApi,
+  saveJellyseerrCredentials,
+  useJellyseerr,
+} from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { Button } from "../Button";
@@ -43,9 +47,12 @@ export const JellyseerrSettings = () => {
       if (!testResult.isValid) throw new Error("Invalid server url");
       return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
     },
-    onSuccess: (user) => {
-      setJellyseerrUser(user);
+    onSuccess: (jellyseerrUser) => {
+      setJellyseerrUser(jellyseerrUser);
       updateSettings({ jellyseerrServerUrl });
+      if (user?.Name) {
+        saveJellyseerrCredentials(user.Name, jellyseerrPassword || "");
+      }
     },
     onError: () => {
       toast.error(t("jellyseerr.failed_to_login"));

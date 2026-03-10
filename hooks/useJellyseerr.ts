@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
+import * as SecureStore from "expo-secure-store";
 import { atom } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
@@ -64,6 +65,26 @@ interface SearchResults {
 
 const JELLYSEERR_USER = "JELLYSEERR_USER";
 const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
+const JELLYSEERR_CREDENTIALS_KEY = "jellyseerr_credentials";
+
+interface JellyseerrCredentials {
+  username: string;
+  password: string;
+}
+
+export const saveJellyseerrCredentials = async (
+  username: string,
+  password: string,
+): Promise<void> => {
+  await SecureStore.setItemAsync(
+    JELLYSEERR_CREDENTIALS_KEY,
+    JSON.stringify({ username, password }),
+  );
+};
+
+export const clearJellyseerrCredentials = async (): Promise<void> => {
+  await SecureStore.deleteItemAsync(JELLYSEERR_CREDENTIALS_KEY);
+};
 
 export const clearJellyseerrStorageData = () => {
   storage.remove(JELLYSEERR_USER);
@@ -113,6 +134,7 @@ export type TestResult =
 
 export class JellyseerrApi {
   axios: AxiosInstance;
+  private reloginCallback?: () => Promise<void>;
 
   constructor(baseUrl: string) {
     this.axios = axios.create({
@@ -123,6 +145,10 @@ export class JellyseerrApi {
     });
 
     this.setInterceptors();
+  }
+
+  setReloginCallback(callback: () => Promise<void>) {
+    this.reloginCallback = callback;
   }
 
   async test(): Promise<TestResult> {
@@ -386,7 +412,21 @@ export class JellyseerrApi {
       .then(({ data }) => data);
   }
 
+  private static isRefreshing = false;
+  private static queue: Array<{
+    resolve: (value: unknown) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
+
   private setInterceptors() {
+    const flushQueue = (error?: unknown) => {
+      for (const { resolve, reject } of JellyseerrApi.queue) {
+        if (error) reject(error);
+        else resolve(undefined);
+      }
+      JellyseerrApi.queue = [];
+    };
+
     this.axios.interceptors.response.use(
       async (response) => {
         const cookies = response.headers["set-cookie"];
@@ -398,13 +438,40 @@ export class JellyseerrApi {
         }
         return response;
       },
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
         writeErrorLog(
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.response?.status === 403) {
+        const status = error.response?.status;
+        if (status === 401 || status === 403) {
+          if (JellyseerrApi.isRefreshing) {
+            return new Promise((resolve, reject) => {
+              JellyseerrApi.queue.push({ resolve, reject });
+            }).then(() => this.axios.request(error.config!));
+          }
+
+          JellyseerrApi.isRefreshing = true;
+          try {
+            if (this.reloginCallback) {
+              console.log("[Seerr] Session expired, attempting re-login…");
+              await this.reloginCallback();
+              console.log(
+                "[Seerr] Re-login successful, retrying queued requests",
+              );
+              flushQueue();
+              JellyseerrApi.isRefreshing = false;
+              return this.axios.request(error.config!);
+            }
+          } catch (reloginError) {
+            console.warn("[Seerr] Re-login failed:", reloginError);
+            flushQueue(reloginError);
+          }
+          console.warn(
+            "[Seerr] Session expired and re-login not possible, clearing session data",
+          );
           clearJellyseerrStorageData();
+          toast.error(t("session_expired"));
         }
         return Promise.reject(error);
       },
@@ -441,13 +508,26 @@ export const useJellyseerr = () => {
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
     if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
-      return new JellyseerrApi(settings?.jellyseerrServerUrl);
+      const api = new JellyseerrApi(settings?.jellyseerrServerUrl);
+      api.setReloginCallback(async () => {
+        const credStr = await SecureStore.getItemAsync(
+          JELLYSEERR_CREDENTIALS_KEY,
+        );
+        if (!credStr) throw new Error("No stored Seerr credentials");
+        const { username, password } = JSON.parse(
+          credStr,
+        ) as JellyseerrCredentials;
+        const user = await api.login(username, password);
+        setJellyseerrUser(user);
+      });
+      return api;
     }
     return undefined;
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser]);
+  }, [settings?.jellyseerrServerUrl, jellyseerrUser, setJellyseerrUser]);
 
   const clearAllJellyseerData = useCallback(async () => {
     clearJellyseerrStorageData();
+    await clearJellyseerrCredentials();
     setJellyseerrUser(undefined);
     updateSettings({ jellyseerrServerUrl: undefined });
   }, []);

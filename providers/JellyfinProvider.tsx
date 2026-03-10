@@ -23,7 +23,11 @@ import { getDeviceName } from "react-native-device-info";
 import uuid from "react-native-uuid";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
-import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  JellyseerrApi,
+  saveJellyseerrCredentials,
+  useJellyseerr,
+} from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
@@ -296,7 +300,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                jellyseerrApi.login(username, password).then((user) => {
+                  setJellyseerrUser(user);
+                  saveJellyseerrCredentials(username, password);
+                });
               }
             });
           }
