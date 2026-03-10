@@ -10,11 +10,13 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import type { Settings } from "@/utils/atoms/settings";
 import { addDownloadedItem } from "../database";
 import {
   getNotificationContent,
   sendDownloadNotification,
 } from "../notifications";
+import { copyFileToSaf } from "../storagePath";
 import type { DownloadedItem, JobStatus } from "../types";
 import { filePathToUri, generateFilename } from "../utils";
 import {
@@ -34,6 +36,7 @@ interface UseDownloadEventHandlersProps {
   onSuccess?: () => void;
   onDataChange?: () => void;
   api?: Api;
+  downloadPath?: Settings["downloadPath"];
 }
 
 /**
@@ -47,6 +50,7 @@ export function useDownloadEventHandlers({
   onSuccess,
   onDataChange,
   api,
+  downloadPath,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
 
@@ -251,6 +255,28 @@ export function useDownloadEventHandlers({
             `[COMPLETE] Using pre-downloaded assets: trickplay=${!!trickPlayData}, intro=${!!introSegments}, credits=${!!creditSegments}`,
           );
 
+          // If a custom download path (SAF) is configured, copy to external storage
+          let safFilePath: string | undefined;
+          if (downloadPath?.uri) {
+            console.log(
+              `[SAF] Copying ${filename}.mp4 to external storage...`,
+            );
+            const safUri = await copyFileToSaf(
+              filePathToUri(event.filePath),
+              downloadPath.uri,
+              `${filename}.mp4`,
+              "video/mp4",
+            );
+            if (safUri) {
+              safFilePath = safUri;
+              console.log(`[SAF] Successfully copied to: ${safUri}`);
+            } else {
+              console.warn(
+                `[SAF] Failed to copy to external storage, file remains in app storage only`,
+              );
+            }
+          }
+
           const downloadedItem: DownloadedItem = {
             item,
             mediaSource,
@@ -265,6 +291,7 @@ export function useDownloadEventHandlers({
               subtitleStreamIndex: subtitleStreamIndex ?? -1,
               isTranscoded: isTranscoding ?? false,
             },
+            safFilePath,
           };
 
           addDownloadedItem(downloadedItem);
@@ -309,6 +336,7 @@ export function useDownloadEventHandlers({
     onDataChange,
     api,
     t,
+    downloadPath,
   ]);
 
   // Handle download error events

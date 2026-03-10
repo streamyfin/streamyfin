@@ -8,6 +8,7 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
+import DownloadSettings from "@/components/settings/DownloadSettings";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
@@ -104,6 +105,7 @@ export default function settings() {
           </ListGroup>
         </View>
 
+        {!Platform.isTV && <DownloadSettings />}
         {!Platform.isTV && <StorageSettings />}
       </View>
     </ScrollView>

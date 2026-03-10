@@ -58,6 +58,8 @@ export interface DownloadedItem {
   creditSegments?: MediaTimeSegment[];
   /** The user data for the item. */
   userData: UserData;
+  /** The SAF URI if the file was also copied to an external directory (Android only). */
+  safFilePath?: string;
 }
 /**
  * Represents a downloaded Season, containing a map of its episodes.

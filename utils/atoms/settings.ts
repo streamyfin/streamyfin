@@ -211,6 +211,8 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // Download path (Android SAF)
+  downloadPath?: { uri: string; name: string } | null;
 };
 
 export interface Lockable<T> {
@@ -296,6 +298,8 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // Download path (Android SAF)
+  downloadPath: null,
 };
 
 const loadSettings = (): Partial<Settings> => {

@@ -15,6 +15,7 @@ import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHand
 import { useDownloadOperations } from "./Downloads/hooks/useDownloadOperations";
 import type { JobStatus } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 export const processesAtom = atom<JobStatus[]>([]);
 export const downloadsRefreshAtom = atom<number>(0);
@@ -28,6 +29,7 @@ function useDownloadProvider() {
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
   const [refreshKey, setRefreshKey] = useAtom(downloadsRefreshAtom);
   const successHapticFeedback = useHaptic("success");
+  const { settings } = useSettings();
 
   // Track task ID to process ID mapping
   const taskMapRef = useRef<Map<number | string, string>>(new Map());
@@ -107,6 +109,7 @@ function useDownloadProvider() {
     onSuccess: successHapticFeedback,
     onDataChange: triggerRefresh,
     api: api || undefined,
+    downloadPath: settings.downloadPath,
   });
 
   // Get download operation functions

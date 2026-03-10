@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
+import { deleteSafFile } from "./storagePath";
 import type { DownloadedItem } from "./types";
 import { filePathToUri } from "./utils";
 
@@ -70,6 +71,12 @@ export function deleteAllAssociatedFiles(item: DownloadedItem): void {
       } catch (error) {
         console.error("[DELETE] Failed to delete trickplay directory:", error);
       }
+    }
+    // Delete SAF copy if it exists (fire-and-forget since this fn is sync)
+    if (item.safFilePath) {
+      deleteSafFile(item.safFilePath).catch((error) => {
+        console.error("[DELETE] Failed to delete SAF copy:", error);
+      });
     }
   } catch (error) {
     console.error("[DELETE] Error deleting associated files:", error);
