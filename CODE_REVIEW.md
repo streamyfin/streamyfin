@@ -1,3 +1,103 @@
+## Round 2 Review
+
+**Commit:** `db7c7e24` fix(downloads): address code review — SAF URI safety, integrity check, async cleanup  
+**Reviewer:** Jarvis (AI)  
+**Date:** 2026-03-10  
+**Verdict:** ⚠️ **Needs 1 fix** before build — unawaited async calls. Everything else is solid.
+
+---
+
+### Verification of Round 1 Fixes
+
+| # | Issue | Status | Notes |
+|---|-------|--------|-------|
+| 1 | `deleteVideoFile()` crash on SAF URIs | ✅ Fixed | `isSafUri()` guard added, routes to `deleteSafFile()` for `content://` URIs. Clean early return. |
+| 2 | No integrity check before deleting original | ✅ Fixed | `getInfoAsync` on both source and SAF copy, size comparison before delete. Falls back to keeping both copies on mismatch or error. Solid. |
+| 3 | Player handling of `content://` URIs | ✅ Fixed (design change) | `videoFilePath` is now set to the SAF URI **only** when the app-private copy was successfully removed. The player code at `direct-player.tsx:266` receives whatever URI is in `videoFilePath`. VLC on Android does handle `content://` URIs natively, so this should work. The fallback (`safFilePath ?? file://` path) ensures a URI is always present. |
+| 4 | URI name extraction broken (`%3A` vs `:`) | ✅ Fixed | `storagePath.ts:41` now splits on `:` after decoding. Correct. |
+| 5 | `downloadPath` reactivity mid-download | ✅ Addressed | Comment added in event handler noting `downloadPath` reflects setting at completion time. Acceptable for v1. |
+| 6 | Fire-and-forget async SAF delete | ✅ Fixed | `deleteAllAssociatedFiles` is now `async`, awaits `deleteSafFile`. SAF cleanup is also separated: if `safFilePath !== videoFilePath`, it's deleted independently. |
+| 7 | Duplicate filename on repeated SAF copies | ⚠️ Noted | Not directly fixed — Android still appends `(1)`, `(2)` etc. Acceptable as a known limitation for v1. Old SAF copies will accumulate if user re-downloads. |
+| 8 | `isVerifying` state / disabled button | ✅ Fixed | `disabled={isVerifying}` added to the "Change Location" button. Clean. |
+
+**Round 1 score: 7/8 fixed, 1 acknowledged as known limitation.**
+
+---
+
+### 🔴 NEW Issue Found
+
+#### N1. `deleteAllAssociatedFiles` is async but callers don't `await` it
+
+**File:** `providers/Downloads/hooks/useDownloadOperations.ts` — lines 199, 228, 257
+
+`deleteAllAssociatedFiles` was changed from sync to `async` (returning `Promise<void>`), but **all three call sites** still call it without `await`:
+
+```ts
+// Line 199 — deleteFile()
+deleteAllAssociatedFiles(itemToDelete);  // ← not awaited
+
+// Line 228 — deleteAllFiles()
+deleteAllAssociatedFiles(item);  // ← not awaited
+
+// Line 257 — deleteFileByType()
+deleteAllAssociatedFiles(item);  // ← not awaited
+```
+
+**Impact:**
+1. The `try/catch` blocks around these calls **will not catch** promise rejections — they'll become unhandled rejections
+2. `toast.success()` fires immediately, before SAF files are actually deleted
+3. In `deleteAllFiles` and `deleteFileByType`, the `for` loop doesn't wait for each deletion before starting the next, potentially causing race conditions with rapid sequential deletes
+
+**Fix:** Add `await` to all three calls:
+```ts
+await deleteAllAssociatedFiles(itemToDelete);
+```
+
+The containing functions are already `async`, so this is a one-word fix per call site.
+
+---
+
+### Fresh Review Findings (Beyond Round 1)
+
+#### ✅ `FileSystemLegacy.getInfoAsync` on SAF `content://` URIs
+Expo-file-system (v19, SDK 54) supports `content://` URIs in `getInfoAsync` on Android. The `size` field is available when the SAF provider supports it, which is the case for `com.android.externalstorage`. The `"size" in safInfo` guard handles the edge case where it might not be present. **No issue.**
+
+#### ✅ `FileSystemLegacy.copyAsync` with `content://` destination
+`copyAsync({ from: "file://...", to: "content://..." })` is supported in expo-file-system on Android. The native implementation delegates to Android's `ContentResolver.openOutputStream`, which works with SAF URIs. **No issue.**
+
+#### ✅ Race condition in `effectiveFilePath` logic
+The check `new File(filePathToUri(event.filePath)).exists` happens synchronously right after the potential `appPrivateFile.delete()` call. Since this is single-threaded JS and the delete is synchronous (expo-file-system `File.delete()` is sync), there's no race. The `exists` check will correctly reflect whether the file was deleted. **No issue.**
+
+#### ✅ Settings page integration
+`<DownloadSettings />` is imported as a default import, placed correctly before `<StorageSettings />`, wrapped in `{!Platform.isTV && ...}`. Import path resolves. **No issue.**
+
+#### ✅ `useEffect` dependency array
+`downloadPath` is included in the dependency array at line 389. `FileSystemLegacy` is a module-level import (not a closure variable), so it's always the same reference — no stale closure issue. **No issue.**
+
+#### ✅ TypeScript type narrowing
+The `"size" in safInfo && "size" in sourceInfo` checks are proper type narrowing for the `FileInfo` union type (`{ exists: true, size: number, ... } | { exists: false }`). The `exists` check comes first. **No issue.**
+
+#### ⚠️ Minor: `getInfoAsync` on deleted file
+In the `effectiveFilePath` logic (line 323-327), `new File(filePathToUri(event.filePath)).exists` is used to check if the app-private copy still exists. This uses the new `expo-file-system` `File` API, not the legacy API. This is fine and consistent with how `File` is used elsewhere. No concern.
+
+---
+
+### Overall Assessment
+
+The fix commit (`db7c7e24`) is well-crafted. It addresses the critical and major issues from round 1 with appropriate solutions:
+- SAF URI detection via `isSafUri()` is clean and used consistently
+- Integrity verification with size comparison is the right approach
+- The decision to keep `videoFilePath` as the app-private path when available (and only falling back to SAF) is correct
+- Error handling throughout is defensive and appropriate
+
+**The only blocker is N1** — three missing `await` keywords in `useDownloadOperations.ts`. This is a quick fix.
+
+**Verdict: Add `await` to the three `deleteAllAssociatedFiles` calls, then ready to build the APK.**
+
+---
+
+---
+
 # Code Review: Configurable Download Path (SAF)
 
 **Branch:** `feature/configurable-download-path`  
