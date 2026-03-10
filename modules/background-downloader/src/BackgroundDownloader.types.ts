@@ -36,6 +36,7 @@ export interface BackgroundDownloaderModuleType {
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
+  copyToSaf(sourcePath: string, destinationUri: string): Promise<boolean>;
   addListener(
     eventName: string,
     listener: (event: any) => void,

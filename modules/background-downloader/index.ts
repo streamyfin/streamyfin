@@ -15,6 +15,7 @@ export interface BackgroundDownloader {
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
+  copyToSaf(sourcePath: string, destinationUri: string): Promise<boolean>;
 
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
@@ -62,6 +63,16 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   async getActiveDownloads(): Promise<ActiveDownload[]> {
     return await BackgroundDownloaderModule.getActiveDownloads();
+  },
+
+  async copyToSaf(
+    sourcePath: string,
+    destinationUri: string,
+  ): Promise<boolean> {
+    return await BackgroundDownloaderModule.copyToSaf(
+      sourcePath,
+      destinationUri,
+    );
   },
 
   addProgressListener(

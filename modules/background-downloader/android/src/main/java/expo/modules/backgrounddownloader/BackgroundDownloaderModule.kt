@@ -6,9 +6,12 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.util.Log
+import android.net.Uri
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.io.File
+import java.io.FileInputStream
 
 data class DownloadTaskInfo(
   val url: String,
@@ -140,6 +143,42 @@ class BackgroundDownloaderModule : Module() {
         promise.resolve(activeDownloads)
       } catch (e: Exception) {
         promise.reject("ERROR", "Failed to get active downloads: ${e.message}", e)
+      }
+    }
+
+    // Copy a local file into a SAF content URI destination.
+    // This is needed on Android/Quest because JS-level copyAsync can result in 0-byte files.
+    AsyncFunction("copyToSaf") { sourcePath: String, destinationUri: String, promise: Promise ->
+      try {
+        val destUri = Uri.parse(destinationUri)
+        val resolver = context.contentResolver
+
+        // Ensure source exists
+        val sourceFile = File(sourcePath)
+        if (!sourceFile.exists()) {
+          promise.reject("COPY_ERROR", "Source file does not exist: $sourcePath", null)
+          return@AsyncFunction
+        }
+
+        resolver.openOutputStream(destUri, "w").use { output ->
+          if (output == null) {
+            promise.reject("COPY_ERROR", "Failed to open destination output stream: $destinationUri", null)
+            return@AsyncFunction
+          }
+          FileInputStream(sourceFile).use { input ->
+            val buffer = ByteArray(8192)
+            var bytes = input.read(buffer)
+            while (bytes >= 0) {
+              output.write(buffer, 0, bytes)
+              bytes = input.read(buffer)
+            }
+            output.flush()
+          }
+        }
+
+        promise.resolve(true)
+      } catch (e: Exception) {
+        promise.reject("COPY_ERROR", "Failed to copy to SAF: ${e.message}", e)
       }
     }
   }

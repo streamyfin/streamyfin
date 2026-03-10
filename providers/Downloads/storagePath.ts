@@ -1,5 +1,6 @@
 import * as FileSystemLegacy from "expo-file-system/legacy";
 import { Platform } from "react-native";
+import { BackgroundDownloader } from "@/modules";
 
 // SAF APIs are only available through the legacy expo-file-system API
 const { StorageAccessFramework } = FileSystemLegacy;
@@ -72,7 +73,7 @@ export async function verifySafAccess(uri: string): Promise<boolean> {
  * @returns The SAF URI of the created file, or null on failure
  */
 export async function copyFileToSaf(
-  sourceFileUri: string,
+  sourceFilePathOrUri: string,
   safDirectoryUri: string,
   filename: string,
   mimeType = "video/mp4",
@@ -85,14 +86,25 @@ export async function copyFileToSaf(
       mimeType,
     );
 
-    // Use copyAsync to copy content — this operates at the native level
-    // and should handle large files efficiently without loading into JS memory
-    await FileSystemLegacy.copyAsync({
-      from: sourceFileUri,
-      to: safFileUri,
-    });
+    // Normalize source to a plain filesystem path (BackgroundDownloader expects a path)
+    const sourcePath = sourceFilePathOrUri.replace(/^file:\/\//, "");
 
-    console.log(`[SAF] Copied ${filename} to SAF: ${safFileUri}`);
+    // Copy via native background-downloader module (ContentResolver) for Quest compatibility
+    await BackgroundDownloader.copyToSaf(sourcePath, safFileUri);
+
+    // Verify copy isn't a 0-byte placeholder
+    const info = await FileSystemLegacy.getInfoAsync(safFileUri);
+    if (!info.exists || !("size" in info) || info.size <= 0) {
+      console.warn(
+        `[SAF] Copy produced empty file, deleting placeholder: ${safFileUri}`,
+      );
+      await deleteSafFile(safFileUri);
+      return null;
+    }
+
+    console.log(
+      `[SAF] Copied ${filename} to SAF: ${safFileUri} (${info.size} bytes)`,
+    );
     return safFileUri;
   } catch (error) {
     console.error(`[SAF] Failed to copy ${filename} to SAF:`, error);

@@ -80,7 +80,7 @@ export default function DownloadSettings() {
           defaultValue: "Download Location",
         })}
         description={
-          <Text className="text-[#8E8D91] text-xs">
+          <Text className='text-[#8E8D91] text-xs'>
             {t("home.settings.downloads.download_location_description", {
               defaultValue:
                 "Choose where downloads are saved. Use an external folder to access files from other apps (e.g. VR video players).",
@@ -94,6 +94,14 @@ export default function DownloadSettings() {
           })}
           subtitle={currentPath}
         />
+        {settings.downloadPath?.uri && (
+          <ListItem
+            title={t("home.settings.downloads.current_location_path", {
+              defaultValue: "Path",
+            })}
+            subtitle={settings.downloadPath.uri}
+          />
+        )}
         <ListItem
           onPress={handleChangeDownloadPath}
           disabled={isVerifying}
@@ -111,7 +119,7 @@ export default function DownloadSettings() {
         />
         {settings.downloadPath && (
           <ListItem
-            textColor="red"
+            textColor='red'
             onPress={handleResetDownloadPath}
             title={t("home.settings.downloads.reset_download_location", {
               defaultValue: "Reset to Default",

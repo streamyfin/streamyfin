@@ -315,6 +315,7 @@
         "download_location_title": "Download Location",
         "download_location_description": "Choose where downloads are saved. Use an external folder to access files from other apps (e.g. VR video players).",
         "current_location": "Current Location",
+        "current_location_path": "Path",
         "app_storage_default": "App Storage (Private)",
         "change_download_location": "Change Location",
         "reset_download_location": "Reset to Default",

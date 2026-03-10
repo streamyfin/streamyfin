@@ -264,11 +264,9 @@ export function useDownloadEventHandlers({
           // time, not download-start time.
           let safFilePath: string | undefined;
           if (downloadPath?.uri) {
-            console.log(
-              `[SAF] Copying ${filename}.mp4 to external storage...`,
-            );
+            console.log(`[SAF] Copying ${filename}.mp4 to external storage...`);
             const safUri = await copyFileToSaf(
-              filePathToUri(event.filePath),
+              event.filePath,
               downloadPath.uri,
               `${filename}.mp4`,
               "video/mp4",
@@ -276,8 +274,7 @@ export function useDownloadEventHandlers({
             if (safUri) {
               // Verify the SAF copy size matches before removing the original
               try {
-                const safInfo =
-                  await FileSystemLegacy.getInfoAsync(safUri);
+                const safInfo = await FileSystemLegacy.getInfoAsync(safUri);
                 const sourceInfo = await FileSystemLegacy.getInfoAsync(
                   filePathToUri(event.filePath),
                 );
@@ -323,9 +320,8 @@ export function useDownloadEventHandlers({
 
           // Use SAF path for playback if the app-private copy was removed,
           // otherwise keep the original file:// path
-          const appPrivateExists = new File(
-            filePathToUri(event.filePath),
-          ).exists;
+          const appPrivateExists = new File(filePathToUri(event.filePath))
+            .exists;
           const effectiveFilePath = appPrivateExists
             ? filePathToUri(event.filePath)
             : (safFilePath ?? filePathToUri(event.filePath));
