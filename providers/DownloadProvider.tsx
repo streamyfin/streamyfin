@@ -4,6 +4,7 @@ import { atom, useAtom } from "jotai";
 import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 import { Platform } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   getAllDownloadedItems,
   getDownloadedItemById,
@@ -15,7 +16,6 @@ import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHand
 import { useDownloadOperations } from "./Downloads/hooks/useDownloadOperations";
 import type { JobStatus } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
 
 export const processesAtom = atom<JobStatus[]>([]);
 export const downloadsRefreshAtom = atom<number>(0);
