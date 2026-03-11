@@ -94,14 +94,6 @@ export default function DownloadSettings() {
           })}
           subtitle={currentPath}
         />
-        {settings.downloadPath?.uri && (
-          <ListItem
-            title={t("home.settings.downloads.current_location_path", {
-              defaultValue: "Path",
-            })}
-            subtitle={settings.downloadPath.uri}
-          />
-        )}
         <ListItem
           onPress={handleChangeDownloadPath}
           disabled={isVerifying}

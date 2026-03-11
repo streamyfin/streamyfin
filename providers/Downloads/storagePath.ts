@@ -13,6 +13,31 @@ export function isSafUri(uri: string): boolean {
 }
 
 /**
+ * Extract a user-friendly folder path from a SAF directory URI.
+ * Example:
+ * - content://.../tree/primary%3AMovies%2FStreamyfin → Movies/Streamyfin
+ */
+export function getSafDirectoryDisplayPath(uri: string): string | null {
+  if (!isSafUri(uri)) {
+    return null;
+  }
+
+  const decoded = decodeURIComponent(uri);
+  const treePart = decoded.match(/\/tree\/([^?]+)/)?.[1];
+  if (!treePart) {
+    return null;
+  }
+
+  // treePart looks like: primary:Movies/Streamyfin
+  const pathPart = treePart.includes(":")
+    ? treePart.split(":").slice(1).join(":")
+    : treePart;
+
+  const cleaned = pathPart.replace(/\/$/, "");
+  return cleaned || null;
+}
+
+/**
  * Request directory permissions via Android SAF.
  * Opens the system folder picker and returns the selected directory info.
  * Returns null if the user cancelled or on non-Android platforms.
@@ -34,13 +59,7 @@ export async function requestDownloadDirectory(): Promise<{
 
   const uri = permissions.directoryUri;
 
-  // Extract a human-readable name from the SAF URI
-  // e.g. content://...tree/primary%3AMovies → Movies
-  const decoded = decodeURIComponent(uri);
-  const name =
-    decoded.split(":").pop()?.split("/").pop() ||
-    decoded.split("/").pop() ||
-    "Selected Folder";
+  const name = getSafDirectoryDisplayPath(uri) ?? "Selected Folder";
 
   return { uri, name };
 }
@@ -134,5 +153,10 @@ export function getDownloadLocationDisplay(
   if (!downloadPath) {
     return defaultLabel;
   }
-  return downloadPath.name;
+
+  return (
+    getSafDirectoryDisplayPath(downloadPath.uri) ??
+    downloadPath.name ??
+    defaultLabel
+  );
 }
