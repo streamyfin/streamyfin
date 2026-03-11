@@ -31,7 +31,10 @@ bun run typecheck             # TypeScript check
 bun run check                 # BiomeJS check
 bun run lint                  # BiomeJS lint + fix
 bun run format                # BiomeJS format
-bun run test                  # Run all checks (typecheck, lint, format, doctor)
+bun run unit-test             # Run unit tests (Jest)
+bun run unit-test:watch       # Run unit tests in watch mode
+bun run unit-test:coverage    # Run unit tests with coverage
+bun run test                  # Run all checks (typecheck, lint, format, doctor, unit tests)
 
 # iOS-specific
 bun run ios:install-metal-toolchain  # Fix "missing Metal Toolchain" build errors
@@ -45,6 +48,7 @@ bun run ios:install-metal-toolchain  # Fix "missing Metal Toolchain" build error
 - **State Management**: Jotai (global state atoms) + React Query (server state)
 - **API**: Jellyfin SDK (`@jellyfin/sdk`)
 - **Navigation**: Expo Router (file-based)
+- **Testing**: Jest (jest-expo) + React Native Testing Library
 - **Linting/Formatting**: BiomeJS
 - **Storage**: react-native-mmkv
 

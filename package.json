@@ -21,7 +21,10 @@
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
     "doctor": "expo-doctor",
-    "test": "bun run typecheck && bun run lint && bun run format && bun run doctor",
+    "unit-test": "jest",
+    "unit-test:watch": "jest --watch",
+    "unit-test:coverage": "jest --coverage",
+    "test": "bun run typecheck && bun run lint && bun run format && bun run doctor && bun run unit-test",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -119,15 +122,16 @@
     "@biomejs/biome": "2.3.11",
     "@react-native-community/cli": "20.1.1",
     "@react-native-tvos/config-tv": "0.1.4",
+    "@testing-library/react-native": "^13.3.3",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.23",
     "@types/react": "19.1.17",
-    "@types/react-test-renderer": "19.1.0",
     "cross-env": "10.1.0",
     "expo-doctor": "1.17.14",
     "husky": "9.1.7",
+    "jest": "~29.7.0",
+    "jest-expo": "~54.0.17",
     "lint-staged": "16.2.7",
-    "react-test-renderer": "19.2.3",
     "typescript": "5.9.3"
   },
   "expo": {

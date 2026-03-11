@@ -115,6 +115,23 @@ bun ios / bun android
 
 5. Use the Expo app on your mobile device or emulator to run and debug Streamyfin.
 
+### Running Tests
+
+Streamyfin uses [Jest](https://jestjs.io/) with [jest-expo](https://docs.expo.dev/develop/unit-testing/) and [React Native Testing Library](https://oss.callstack.com/react-native-testing-library/) for unit testing.
+
+```bash
+# Run all unit tests
+bun run unit-test
+
+# Run tests in watch mode during development
+bun run unit-test:watch
+
+# Run tests with coverage report
+bun run unit-test:coverage
+```
+
+Place test files in `__tests__/` directories next to the code they test (e.g., `components/__tests__/MyComponent-test.tsx`).
+
 ### Making Changes
 
 1. Stay up to date by syncing with upstream:
@@ -156,7 +173,7 @@ When opening a PR:
 - Follow our [Conventional Commits](https://www.conventionalcommits.org/) style, e.g., `feat: add new playback controls`.
 - Provide a detailed description in the PR body, explaining what, why, and any impacts.
 - Include screenshots or recordings if UI changes are involved.
-- Ensure CI checks are green (lint, type-check, build).
+- Ensure CI checks are green (lint, type-check, build, unit tests).
 - Confirm that the branch is **up to date with `main`** before submission. 
 - Mention if AI-generated code or content was used (see [AI Assistance Disclosure](#ai-assistance-disclosure)).  
 - Do not include secrets, tokens, or production credentials. Redact sensitive data in logs and screenshots.
