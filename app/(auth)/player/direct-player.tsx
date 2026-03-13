@@ -534,6 +534,8 @@ export default function page() {
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
     if (!stream?.url) return undefined;
 
+    if (offline && !item) return undefined;
+
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
@@ -601,6 +603,7 @@ export default function page() {
     stream?.url,
     stream?.mediaSource,
     item?.UserData?.PlaybackPositionTicks,
+    item,
     playbackPositionFromUrl,
     api?.basePath,
     api?.accessToken,
