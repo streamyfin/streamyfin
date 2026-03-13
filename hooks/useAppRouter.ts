@@ -1,6 +1,8 @@
 import { useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+
+const NAVIGATION_DEBOUNCE_MS = 500;
 
 /**
  * Drop-in replacement for expo-router's useRouter that automatically
@@ -18,9 +20,16 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 export function useAppRouter() {
   const router = useRouter();
   const isOffline = useOfflineMode();
+  const isNavigatingRef = useRef(false);
 
   const push = useCallback(
     (href: Parameters<typeof router.push>[0]) => {
+      if (isNavigatingRef.current) return;
+      isNavigatingRef.current = true;
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, NAVIGATION_DEBOUNCE_MS);
+
       if (typeof href === "string") {
         router.push(href as any);
       } else {
