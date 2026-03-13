@@ -252,7 +252,9 @@ class BackgroundDownloaderModule : Module() {
     ))
     
     downloadTasks.remove(taskId)
-    downloadService?.stopDownload()
+    if (downloadQueue.isEmpty()) {
+        downloadService?.stopDownload()
+    }
     
     // Process next item in queue
     processNextInQueue()
@@ -269,7 +271,9 @@ class BackgroundDownloaderModule : Module() {
     ))
     
     downloadTasks.remove(taskId)
-    downloadService?.stopDownload()
+    if (downloadQueue.isEmpty()) {
+        downloadService?.stopDownload()
+    }
     
     // Process next item in queue even on error
     processNextInQueue()
