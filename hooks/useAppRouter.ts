@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
-const NAVIGATION_DEBOUNCE_MS = 500;
+const NAVIGATION_DEBOUNCE_MS = 300;
 
 /**
  * Drop-in replacement for expo-router's useRouter that automatically
