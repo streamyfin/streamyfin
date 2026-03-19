@@ -29,12 +29,12 @@ import GoogleCast, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
@@ -52,9 +52,6 @@ import {
   truncateTitle,
 } from "@/utils/casting/helpers";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
@@ -266,35 +263,22 @@ export default function CastingPlayerScreen() {
         // Save current playback position
         const currentPosition = mediaStatus?.streamPosition ?? 0;
 
-        // Get new stream URL with updated settings
-        const enableH265 = settings.enableH265ForChromecast;
-        const data = await getStreamUrl({
-          api,
-          item: currentItem,
-          deviceProfile: enableH265 ? chromecasth265 : chromecast,
-          startTimeTicks: Math.floor(currentPosition * 10000000), // Convert seconds to ticks
-          userId: user.Id,
-          audioStreamIndex:
-            options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
-          // null = subtitles off (omit from request), number = specific track
-          subtitleStreamIndex:
-            options.subtitleIndex === null ? undefined : options.subtitleIndex,
-          maxStreamingBitrate: options.bitrateValue,
-        });
-
-        if (!data?.url) {
-          console.error("[Casting Player] Failed to get stream URL");
-          return;
-        }
-
-        // Reload media with new URL
+        // Send updated settings to the receiver — it calls getPlaybackInfo itself.
+        const audioStreamIndex =
+          options.audioIndex ?? selectedAudioTrackIndex ?? undefined;
+        const subtitleStreamIndex =
+          options.subtitleIndex === null ? undefined : options.subtitleIndex;
         await remoteMediaClient.loadMedia({
           mediaInfo: buildCastMediaInfo({
             item: currentItem,
-            streamUrl: data.url,
             api,
+            enableH265: settings.enableH265ForChromecast,
+            startTimeTicks: Math.floor(currentPosition * 10000000),
+            audioStreamIndex,
+            subtitleStreamIndex,
+            maxStreamingBitrate: options.bitrateValue,
           }),
-          startTime: currentPosition, // Resume at same position
+          startTime: currentPosition,
         });
       } catch (error) {
         console.error("[Casting Player] Failed to reload stream:", error);
@@ -317,29 +301,15 @@ export default function CastingPlayerScreen() {
       if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
 
       try {
-        const enableH265 = settings.enableH265ForChromecast;
-        const data = await getStreamUrl({
-          api,
-          item: episode,
-          deviceProfile: enableH265 ? chromecasth265 : chromecast,
-          startTimeTicks: episode.UserData?.PlaybackPositionTicks ?? 0,
-          userId: user.Id,
-        });
-
-        if (!data?.url) {
-          console.error(
-            "[Casting Player] Failed to get stream URL for episode",
-          );
-          return;
-        }
-
+        const startTimeTicks = episode.UserData?.PlaybackPositionTicks ?? 0;
         await remoteMediaClient.loadMedia({
           mediaInfo: buildCastMediaInfo({
             item: episode,
-            streamUrl: data.url,
             api,
+            enableH265: settings.enableH265ForChromecast,
+            startTimeTicks,
           }),
-          startTime: (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000000,
+          startTime: startTimeTicks / 10000000,
         });
 
         // Reset track selections for new episode
@@ -545,7 +515,7 @@ export default function CastingPlayerScreen() {
             stiffness: 90,
           },
           () => {
-            runOnJS(dismissModal)();
+            scheduleOnRN(dismissModal);
           },
         );
       } else {

@@ -33,9 +33,6 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -169,46 +166,27 @@ export const PlayButton: React.FC<Props> = ({
                   return;
                 }
 
-                // Get a new URL with the Chromecast device profile
+                // Only send media info, receiver calls getStreamUrl itself to get the stream URL.
                 try {
-                  const data = await getStreamUrl({
-                    api,
-                    item,
-                    deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks ?? 0,
-                    userId: user.Id,
-                    audioStreamIndex: selectedOptions.audioIndex,
-                    maxStreamingBitrate: selectedOptions.bitrate?.value,
-                    mediaSourceId: selectedOptions.mediaSource?.Id,
-                    subtitleStreamIndex: selectedOptions.subtitleIndex,
-                  });
-
-                  if (!data?.url) {
-                    console.warn("No URL returned from getStreamUrl", data);
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast"),
-                    );
-                    return;
-                  }
-
-                  const startTimeSeconds =
-                    (item?.UserData?.PlaybackPositionTicks ?? 0) / 10000000;
+                  const startTimeTicks =
+                    item?.UserData?.PlaybackPositionTicks ?? 0;
 
                   client
                     .loadMedia({
                       mediaInfo: buildCastMediaInfo({
                         item,
-                        streamUrl: data.url,
                         api,
+                        enableH265: enableH265,
+                        startTimeTicks,
+                        audioStreamIndex: selectedOptions.audioIndex,
+                        subtitleStreamIndex: selectedOptions.subtitleIndex,
+                        maxStreamingBitrate: selectedOptions.bitrate?.value,
+                        mediaSourceId: selectedOptions.mediaSource?.Id,
                       }),
-                      startTime: startTimeSeconds,
+                      startTime: startTimeTicks / 10000000,
                     })
                     .then(() => {
-                      // state is already set when reopening current media, so skip it here.
-                      if (isOpeningCurrentlyPlayingMedia) {
-                        return;
-                      }
+                      if (isOpeningCurrentlyPlayingMedia) return;
                       router.push("/casting-player");
                     })
                     .catch((err) => {

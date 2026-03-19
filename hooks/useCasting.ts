@@ -35,7 +35,7 @@ export const useCasting = (item: BaseItemDto | null) => {
 
   // Local state
   const [state, setState] = useState<CastPlayerState>(DEFAULT_CAST_STATE);
-  const lastReportedProgressRef = useRef(0);
+  const _lastReportedProgressRef = useRef(0);
   const volumeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const hasReportedStartRef = useRef<string | null>(null); // Track which item we reported start for
   const stateRef = useRef<CastPlayerState>(DEFAULT_CAST_STATE); // Ref for progress reporting without deps
@@ -111,93 +111,6 @@ export const useCasting = (item: BaseItemDto | null) => {
       }));
     }
   }, [mediaStatus?.volume, activeProtocol, updateState]);
-
-  // Progress reporting to Jellyfin (matches native player behavior)
-  // Uses stateRef to read current progress/volume without adding them as deps
-  useEffect(() => {
-    if (!isConnected || !item?.Id || !user?.Id || !api) return;
-
-    const playStateApi = getPlaystateApi(api);
-
-    // Report playback start when media begins (only once per item)
-    // Don't require progress > 0 — playback can legitimately start at position 0
-    const currentState = stateRef.current;
-    const isPlaybackActive =
-      currentState.isPlaying ||
-      mediaStatus?.playerState === "playing" ||
-      currentState.progress > 0;
-    if (hasReportedStartRef.current !== item.Id && isPlaybackActive) {
-      // Set synchronously before async call to prevent race condition duplicates
-      hasReportedStartRef.current = item.Id || null;
-
-      playStateApi
-        .reportPlaybackStart({
-          playbackStartInfo: {
-            ItemId: item.Id,
-            PositionTicks: Math.floor(currentState.progress * 10000),
-            PlayMethod:
-              activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
-            VolumeLevel: Math.floor(currentState.volume * 100),
-            IsMuted: currentState.volume === 0,
-            PlaySessionId: mediaStatus?.mediaInfo?.contentId,
-          },
-        })
-        .catch((error) => {
-          // Revert on failure so it can be retried
-          hasReportedStartRef.current = null;
-          console.error("[useCasting] Failed to report playback start:", error);
-        });
-    }
-
-    const reportProgress = () => {
-      const s = stateRef.current;
-      // Don't report if no meaningful progress or if buffering
-      if (s.progress <= 0 || s.isBuffering) return;
-
-      const progressMs = Math.floor(s.progress);
-      const progressTicks = progressMs * 10000; // Convert ms to ticks
-      const progressSeconds = Math.floor(progressMs / 1000);
-
-      // When paused, always report to keep server in sync
-      // When playing, skip if progress hasn't changed significantly (less than 3 seconds)
-      if (
-        s.isPlaying &&
-        Math.abs(progressSeconds - lastReportedProgressRef.current) < 3
-      ) {
-        return;
-      }
-
-      lastReportedProgressRef.current = progressSeconds;
-
-      playStateApi
-        .reportPlaybackProgress({
-          playbackProgressInfo: {
-            ItemId: item.Id,
-            PositionTicks: progressTicks,
-            IsPaused: !s.isPlaying,
-            PlayMethod:
-              activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
-            VolumeLevel: Math.floor(s.volume * 100),
-            IsMuted: s.volume === 0,
-            PlaySessionId: mediaStatus?.mediaInfo?.contentId,
-          },
-        })
-        .catch((error) => {
-          console.error("[useCasting] Failed to report progress:", error);
-        });
-    };
-
-    // Report progress on a fixed interval, reading latest state from ref
-    const interval = setInterval(reportProgress, 10000);
-    return () => clearInterval(interval);
-  }, [
-    api,
-    item?.Id,
-    user?.Id,
-    isConnected,
-    activeProtocol,
-    mediaStatus?.mediaInfo?.contentId,
-  ]);
 
   // Play/Pause controls
   const play = useCallback(async () => {

@@ -4,7 +4,10 @@ module.exports = ({ config }) => {
 
     config.plugins.push([
       "react-native-google-cast",
-      { useDefaultExpandedMediaControls: true },
+      {
+        receiverAppId: "E1CD9FD2",
+        useDefaultExpandedMediaControls: true,
+      },
     ]);
   }
 

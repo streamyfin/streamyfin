@@ -1,6 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import type { PlaybackProgressInfo } from "@jellyfin/sdk/lib/generated-client/models";
-import { getPlaystateApi } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -8,6 +6,7 @@ import { Platform } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import GoogleCast, {
   CastButton,
+  CastChannel,
   CastContext,
   CastState,
   useCastDevice,
@@ -35,15 +34,11 @@ export function Chromecast({
   const mediaStatus = useMediaStatus();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-
+  const _sessionManager = GoogleCast.getSessionManager();
   // Connection menu state
   const [showConnectionMenu, setShowConnectionMenu] = useState(false);
   const isConnected = castState === CastState.CONNECTED;
 
-  const lastReportedProgressRef = useRef(0);
-  const lastReportedPlayerStateRef = useRef<string | null>(null);
-  const playSessionIdRef = useRef<string | null>(null);
-  const lastContentIdRef = useRef<string | null>(null);
   const discoveryAttempts = useRef(0);
   const maxDiscoveryAttempts = 3;
 
@@ -93,70 +88,38 @@ export function Chromecast({
     };
   }, [discoveryManager]); // Only re-run if discoveryManager changes
 
-  // Report video progress to Jellyfin server
+  const credentialsSentRef = useRef(false);
+
   useEffect(() => {
-    if (!api || !user?.Id || !mediaStatus?.mediaInfo?.contentId) {
-      return;
+    const subscription = GoogleCast.getSessionManager().onSessionStarted(
+      async () => {
+        if (!api?.basePath || !api?.accessToken || !user?.Id) return;
+        if (credentialsSentRef.current) return;
+
+        credentialsSentRef.current = true;
+        try {
+          const channel = await CastChannel.add("urn:x-cast:streamyfin");
+          channel.sendMessage({
+            serverUrl: api.basePath,
+            accessToken: api.accessToken,
+            userId: user.Id,
+          });
+          await channel.remove();
+        } catch (error) {
+          console.error("[Chromecast] Failed to send credentials:", error);
+          credentialsSentRef.current = false;
+        }
+      },
+    );
+
+    return () => subscription.remove?.();
+  }, [api, user]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      credentialsSentRef.current = false;
     }
-
-    const streamPosition = mediaStatus.streamPosition || 0;
-    const playerState = mediaStatus.playerState || null;
-
-    // Report every 10 seconds OR immediately when playerState changes (pause/resume)
-    const positionChanged =
-      Math.abs(streamPosition - lastReportedProgressRef.current) >= 10;
-    const stateChanged = playerState !== lastReportedPlayerStateRef.current;
-    if (!positionChanged && !stateChanged) {
-      return;
-    }
-
-    const contentId = mediaStatus.mediaInfo.contentId;
-
-    // Generate a new PlaySessionId when the content changes
-    if (contentId !== lastContentIdRef.current) {
-      const randomBytes = new Uint8Array(16);
-      crypto.getRandomValues(randomBytes);
-      // Format as UUID v4
-      randomBytes[6] = (randomBytes[6] & 0x0f) | 0x40; // Version 4
-      randomBytes[8] = (randomBytes[8] & 0x3f) | 0x80; // Variant 10
-      const uuid = Array.from(randomBytes, (b, i) => {
-        const hex = b.toString(16).padStart(2, "0");
-        return [4, 6, 8, 10].includes(i) ? `-${hex}` : hex;
-      }).join("");
-      playSessionIdRef.current = uuid;
-      lastContentIdRef.current = contentId;
-    }
-
-    const positionTicks = Math.floor(streamPosition * 10000000);
-    const isPaused = mediaStatus.playerState === "paused";
-    const streamUrl = mediaStatus.mediaInfo.contentUrl || "";
-    const isTranscoding = /m3u8/i.test(streamUrl);
-
-    const progressInfo: PlaybackProgressInfo = {
-      ItemId: contentId,
-      PositionTicks: positionTicks,
-      IsPaused: isPaused,
-      PlayMethod: isTranscoding ? "Transcode" : "DirectStream",
-      PlaySessionId: playSessionIdRef.current || contentId,
-    };
-
-    getPlaystateApi(api)
-      .reportPlaybackProgress({ playbackProgressInfo: progressInfo })
-      .then(() => {
-        lastReportedProgressRef.current = streamPosition;
-        lastReportedPlayerStateRef.current = playerState;
-      })
-      .catch((error) => {
-        console.error("Failed to report Chromecast progress:", error);
-      });
-  }, [
-    api,
-    user?.Id,
-    mediaStatus?.streamPosition,
-    mediaStatus?.mediaInfo?.contentId,
-    mediaStatus?.playerState,
-    mediaStatus?.mediaInfo?.contentUrl,
-  ]);
+  }, [isConnected]);
 
   // Android requires the cast button to be present for startDiscovery to work
   const AndroidCastButton = useCallback(
@@ -176,16 +139,18 @@ export function Chromecast({
         setShowConnectionMenu(true);
       }
     } else {
+      if (!api?.basePath || !api?.accessToken || !user?.Id) return;
       // Not connected - show cast dialog
       CastContext.showCastDialog();
     }
-  }, [isConnected, mediaStatus?.currentItemId]);
+  }, [isConnected, mediaStatus?.currentItemId, api, user]);
 
   // Handle disconnect from Chromecast
   const handleDisconnect = useCallback(async () => {
     try {
       const sessionManager = GoogleCast.getSessionManager();
       await sessionManager.endCurrentSession(true);
+      console.log("[Chromecast] Disconnected from Chromecast");
     } catch (error) {
       console.error("[Chromecast] Disconnect error:", error);
     }
