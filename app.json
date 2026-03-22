@@ -64,7 +64,13 @@
         {
           "ios": {
             "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "extraPods": [
+              {
+                "name": "MPVKit-GPL",
+                "podspec": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
+              }
+            ]
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64"],
@@ -120,14 +126,7 @@
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
-      [
-        "./plugins/withGitPod.js",
-        {
-          "podName": "MPVKit-GPL",
-          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
-        }
-      ]
+      ["./plugins/withGradleProperties.js"]
     ],
     "experiments": {
       "typedRoutes": true
