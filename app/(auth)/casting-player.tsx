@@ -689,6 +689,8 @@ export default function CastingPlayerScreen() {
     return null;
   }
 
+  const screenWidth = Dimensions.get("window").width;
+
   return (
     <>
       <Stack.Screen
@@ -836,8 +838,8 @@ export default function CastingPlayerScreen() {
             >
               <View
                 style={{
-                  width: 280,
-                  height: 420,
+                  width: screenWidth * 0.55,
+                  height: screenWidth * 0.55 * 1.5,
                   borderRadius: 12,
                   overflow: "hidden",
                   position: "relative",
