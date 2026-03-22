@@ -5,7 +5,11 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getSessionApi,
+  getTvShowsApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -190,6 +194,55 @@ export default function CastingPlayerScreen() {
   const isPlaying = mediaStatus?.playerState === MediaPlayerState.PLAYING;
   const isBuffering = mediaStatus?.playerState === MediaPlayerState.BUFFERING;
   const currentDevice = castDevice?.friendlyName ?? null;
+
+  const isDirectPlay = !mediaStatus?.mediaInfo?.contentUrl?.includes("m3u8");
+
+  const [_actualBitrate, setActualBitrate] = useState<number | null>(null);
+  const [selectedBitrate, setSelectedBitrate] = useState<number | null>(null);
+  const [_bitrateLoading, setBitrateLoading] = useState(true);
+  const [initialMaxBitrate, setInitialMaxBitrate] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!api || !currentItem?.Id || !isPlaying) return;
+
+    setActualBitrate(null);
+    setBitrateLoading(true);
+
+    const fetchSessionBitrate = async () => {
+      try {
+        const { data } = await getSessionApi(api).getSessions();
+        const currentSession = data.find(
+          (s) => s.NowPlayingItem?.Id === currentItem.Id,
+        );
+        const bitrate = currentSession?.TranscodingInfo?.Bitrate;
+        if (bitrate) {
+          setActualBitrate(bitrate);
+          // Only lock in the initial max once per item
+          setInitialMaxBitrate((prev) => (prev === null ? bitrate : prev));
+        } else {
+          setActualBitrate(null);
+        }
+      } catch (error) {
+        console.error(
+          "[Casting Player] Failed to fetch session bitrate:",
+          error,
+        );
+      } finally {
+        setBitrateLoading(false);
+      }
+    };
+
+    // Small delay to let the session establish before querying stream bitrate
+    const timer = setTimeout(fetchSessionBitrate, 1500);
+    return () => clearTimeout(timer);
+  }, [api, currentItem?.Id, selectedBitrate, isPlaying]);
+
+  // Reset initial max bitrate when item changes
+  useEffect(() => {
+    setInitialMaxBitrate(null);
+  }, [currentItem?.Id]);
 
   // Trickplay for seeking preview - use fetched item with full data
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
@@ -390,16 +443,26 @@ export default function CastingPlayerScreen() {
   const availableMediaSources = useMemo(() => {
     // Get the original source bitrate
     const originalBitrate =
-      currentItem?.MediaSources?.[0]?.Bitrate ||
       currentItem?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ||
       20000000; // Default to 20Mbps if unknown
+
+    const maxBitrate = isDirectPlay
+      ? originalBitrate
+      : (initialMaxBitrate ?? originalBitrate);
+
+    // Generate max label based on direct play or transcoding
+    const maxLabel = isDirectPlay
+      ? `Max (${Math.round(originalBitrate / 1000000)} Mb/s)`
+      : initialMaxBitrate
+        ? `Max (${Math.round(initialMaxBitrate / 1000000)} Mb/s)`
+        : `Max (${Math.round(originalBitrate / 1000000)} Mb/s)`;
 
     // Generate bitrate variants
     const variants = [
       {
         id: `${currentItem?.Id}-max`,
-        name: "Max",
-        bitrate: originalBitrate,
+        name: maxLabel,
+        bitrate: maxBitrate,
         container: currentItem?.MediaSources?.[0]?.Container || "mp4",
       },
       {
@@ -429,7 +492,13 @@ export default function CastingPlayerScreen() {
     ];
 
     return variants;
-  }, [currentItem?.MediaSources, currentItem?.MediaStreams, currentItem?.Id]);
+  }, [
+    currentItem?.MediaSources,
+    currentItem?.MediaStreams,
+    currentItem?.Id,
+    isDirectPlay,
+    initialMaxBitrate,
+  ]);
 
   // Fetch episodes for TV shows
   useEffect(() => {
@@ -1369,12 +1438,18 @@ export default function CastingPlayerScreen() {
             onClose={() => setShowSettings(false)}
             item={currentItem}
             mediaSources={availableMediaSources.filter((source) => {
-              const currentBitrate =
-                availableMediaSources[0]?.bitrate || Number.POSITIVE_INFINITY;
-              return (source.bitrate || 0) <= currentBitrate;
+              const ceiling = initialMaxBitrate ?? Number.POSITIVE_INFINITY;
+              return (source.bitrate || 0) <= ceiling;
             })}
-            selectedMediaSource={availableMediaSources[0] || null}
+            selectedMediaSource={
+              selectedBitrate === null
+                ? availableMediaSources[0] || null
+                : availableMediaSources.find(
+                    (s) => s.bitrate === selectedBitrate,
+                  ) || null
+            }
             onMediaSourceChange={(source) => {
+              setSelectedBitrate(source.bitrate ?? null);
               reloadWithSettings({ bitrateValue: source.bitrate });
             }}
             audioTracks={availableAudioTracks}

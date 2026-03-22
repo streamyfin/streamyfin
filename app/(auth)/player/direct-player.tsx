@@ -286,7 +286,7 @@ export default function page() {
           const startTicks = playbackPositionFromUrl
             ? Number.parseInt(playbackPositionFromUrl, 10)
             : (item?.UserData?.PlaybackPositionTicks ?? 0);
-
+          console.log("startTicks", startTicks);
           const res = await getStreamUrl({
             api,
             item,
@@ -533,6 +533,7 @@ export default function page() {
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
     if (!stream?.url) return undefined;
+    if (!offline && !item) return undefined;
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -573,8 +574,9 @@ export default function page() {
     const startTicks = playbackPositionFromUrl
       ? Number.parseInt(playbackPositionFromUrl, 10)
       : (item?.UserData?.PlaybackPositionTicks ?? 0);
-    const startPos = ticksToSeconds(startTicks);
 
+    const startPos = ticksToSeconds(startTicks);
+    console.log("startPos", startPos);
     // Build source config - headers only needed for online streaming
     const source: MpvVideoSource = {
       url: stream.url,
@@ -595,12 +597,13 @@ export default function page() {
         Authorization: `MediaBrowser Token="${api.accessToken}"`,
       };
     }
-
+    console.log("source", source);
     return source;
   }, [
     stream?.url,
     stream?.mediaSource,
     item?.UserData?.PlaybackPositionTicks,
+    item,
     playbackPositionFromUrl,
     api?.basePath,
     api?.accessToken,
