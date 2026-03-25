@@ -10,6 +10,7 @@ enum DownloadError: Error {
 struct DownloadTaskInfo {
   let url: String
   let destinationPath: String?
+  var retryCount: Int = 0
 }
 
 // Separate delegate class to handle URLSession callbacks
@@ -53,8 +54,13 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     didCompleteWithError error: Error?
   ) {
     if let error = error {
-      print("[BackgroundDownloader] Task \(task.taskIdentifier) error: \(error.localizedDescription)")
-      module?.handleError(taskId: task.taskIdentifier, error: error)
+      let nsError = error as NSError
+      
+      // Check for resume data in the error
+      let resumeData = nsError.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
+      
+      print("[BackgroundDownloader] Task \(task.taskIdentifier) error: \(error.localizedDescription), hasResumeData: \(resumeData != nil)")
+      module?.handleError(taskId: task.taskIdentifier, error: error, resumeData: resumeData)
     }
   }
   
@@ -76,6 +82,13 @@ public class BackgroundDownloaderModule: Module {
   private var downloadQueue: [(url: String, destinationPath: String?)] = []
   private var lastProgressTime: [Int: Date] = [:]
   
+  // Resume data storage
+  private var resumeDataStore: [Int: Data] = [:]
+  private var resumeDataByUrl: [String: Data] = [:]
+  private var bytesDownloadedByTask: [Int: Int64] = [:]
+  private let maxRetries = 3
+  private let retryBaseDelay: TimeInterval = 2.0
+  
   public func definition() -> ModuleDefinition {
     Name("BackgroundDownloader")
     
@@ -83,7 +96,9 @@ public class BackgroundDownloaderModule: Module {
       "onDownloadProgress",
       "onDownloadComplete",
       "onDownloadError",
-      "onDownloadStarted"
+      "onDownloadStarted",
+      "onDownloadPaused",
+      "onDownloadResumed"
     )
     
     OnCreate {
@@ -126,6 +141,70 @@ public class BackgroundDownloaderModule: Module {
       return taskId
     }
     
+    AsyncFunction("downloadChunk") { (urlString: String, destinationPath: String, startByte: Int64, endByte: Int64) -> Int64 in
+      guard let url = URL(string: urlString) else {
+        throw DownloadError.invalidURL
+      }
+      
+      var request = URLRequest(url: url)
+      request.httpMethod = "GET"
+      request.timeoutInterval = 60
+      request.setValue("bytes=\(startByte)-\(endByte)", forHTTPHeaderField: "Range")
+      
+      let config = URLSessionConfiguration.ephemeral
+      let session = URLSession(configuration: config)
+      
+      let (data, response) = try await session.data(for: request)
+      
+      guard let httpResponse = response as? HTTPURLResponse else {
+        throw DownloadError.downloadFailed
+      }
+      
+      let statusCode = httpResponse.statusCode
+      let isPartial = statusCode == 206
+      
+      // If a specific range chunk was requested, we MUST receive a 206 Partial Content.
+      // A 200 OK means the server ignored the Range header and is sending the entire file.
+      // Appending the entire file on every chunk request will corrupt the file!
+      if startByte > 0 && !isPartial {
+         throw DownloadError.downloadFailed
+      }
+      
+      if !(200...299).contains(statusCode) {
+        throw DownloadError.downloadFailed
+      }
+      
+      let fileURL = URL(fileURLWithPath: destinationPath)
+      let fileManager = FileManager.default
+      
+      // Ensure directory exists
+      let directory = fileURL.deletingLastPathComponent()
+      if !fileManager.fileExists(atPath: directory.path) {
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+      }
+      
+      // Only append if we are explicitly asking for a chunk > 0.
+      let appendMode = startByte > 0 && fileManager.fileExists(atPath: fileURL.path)
+      
+      if !appendMode {
+        // Create new file (overwriting any existing if startByte is 0)
+        try data.write(to: fileURL)
+      } else {
+        // Append to existing file
+        let fileHandle = try FileHandle(forWritingTo: fileURL)
+        if #available(iOS 13.4, *) {
+          try fileHandle.seekToEnd()
+          try fileHandle.write(contentsOf: data)
+        } else {
+          fileHandle.seekToEndOfFile()
+          fileHandle.write(data)
+        }
+        fileHandle.closeFile()
+      }
+      
+      return Int64(data.count)
+    }
+    
     AsyncFunction("enqueueDownload") { (urlString: String, destinationPath: String?) -> Int in
       // Add to queue
       let wasEmpty = self.downloadQueue.isEmpty
@@ -145,6 +224,8 @@ public class BackgroundDownloaderModule: Module {
         for task in tasks where task.taskIdentifier == taskId {
           task.cancel()
           self.downloadTasks.removeValue(forKey: taskId)
+          self.resumeDataStore.removeValue(forKey: taskId)
+          self.bytesDownloadedByTask.removeValue(forKey: taskId)
         }
       }
     }
@@ -163,6 +244,136 @@ public class BackgroundDownloaderModule: Module {
         }
         self.downloadTasks.removeAll()
       }
+      self.resumeDataStore.removeAll()
+      self.resumeDataByUrl.removeAll()
+      self.bytesDownloadedByTask.removeAll()
+    }
+    
+    AsyncFunction("pauseDownload") { (taskId: Int) in
+      print("[BackgroundDownloader] Pausing download: taskId=\(taskId)")
+      
+      guard let session = self.session else {
+        print("[BackgroundDownloader] No session for pause")
+        return
+      }
+      
+      let tasks = await session.allTasks
+      for task in tasks where task.taskIdentifier == taskId {
+        if let downloadTask = task as? URLSessionDownloadTask {
+          let taskInfo = self.downloadTasks[taskId]
+          let bytesDownloaded = self.bytesDownloadedByTask[taskId] ?? 0
+          
+          downloadTask.cancel(byProducingResumeData: { resumeData in
+            if let resumeData = resumeData {
+              self.resumeDataStore[taskId] = resumeData
+              if let url = taskInfo?.url {
+                self.resumeDataByUrl[url] = resumeData
+              }
+              print("[BackgroundDownloader] Stored resume data (\(resumeData.count) bytes) for taskId=\(taskId)")
+            }
+            
+            self.sendEvent("onDownloadPaused", [
+              "taskId": taskId,
+              "url": taskInfo?.url ?? "",
+              "bytesDownloaded": bytesDownloaded
+            ])
+          })
+          return
+        }
+      }
+      
+      print("[BackgroundDownloader] Task \(taskId) not found for pause")
+    }
+    
+    AsyncFunction("resumeDownload") { (taskId: Int) -> Int in
+      print("[BackgroundDownloader] Resuming download: taskId=\(taskId)")
+      
+      if self.session == nil {
+        self.initializeSession()
+      }
+      
+      guard let session = self.session else {
+        throw DownloadError.downloadFailed
+      }
+      
+      // Try to resume from stored resume data
+      if let resumeData = self.resumeDataStore[taskId] {
+        let newTask = session.downloadTask(withResumeData: resumeData)
+        let newTaskId = newTask.taskIdentifier
+        
+        // Transfer task info to new task ID
+        if let taskInfo = self.downloadTasks[taskId] {
+          self.downloadTasks[newTaskId] = taskInfo
+          self.downloadTasks.removeValue(forKey: taskId)
+        }
+        
+        // Transfer bytes downloaded tracking
+        if let bytes = self.bytesDownloadedByTask[taskId] {
+          self.bytesDownloadedByTask[newTaskId] = bytes
+          self.bytesDownloadedByTask.removeValue(forKey: taskId)
+        }
+        
+        self.resumeDataStore.removeValue(forKey: taskId)
+        
+        newTask.resume()
+        
+        let url = self.downloadTasks[newTaskId]?.url ?? ""
+        self.sendEvent("onDownloadResumed", [
+          "taskId": newTaskId,
+          "url": url,
+          "bytesDownloaded": self.bytesDownloadedByTask[newTaskId] ?? 0
+        ])
+        
+        print("[BackgroundDownloader] Resumed with new taskId=\(newTaskId)")
+        return newTaskId
+      }
+      
+      // No resume data available — try Range-based resume
+      guard let taskInfo = self.downloadTasks[taskId],
+            let destPath = taskInfo.destinationPath else {
+        print("[BackgroundDownloader] No task info or destination for Range resume")
+        throw DownloadError.downloadFailed
+      }
+      
+      let fileManager = FileManager.default
+      let destURL = URL(fileURLWithPath: destPath)
+      var existingBytes: Int64 = 0
+      
+      if fileManager.fileExists(atPath: destPath),
+         let attrs = try? fileManager.attributesOfItem(atPath: destPath),
+         let fileSize = attrs[.size] as? Int64 {
+        existingBytes = fileSize
+      }
+      
+      guard existingBytes > 0, let url = URL(string: taskInfo.url) else {
+        print("[BackgroundDownloader] No partial file for Range resume, restarting")
+        throw DownloadError.downloadFailed
+      }
+      
+      // Create request with Range header
+      var request = URLRequest(url: url)
+      request.httpMethod = "GET"
+      request.timeoutInterval = 300
+      request.setValue("bytes=\(existingBytes)-", forHTTPHeaderField: "Range")
+      
+      let newTask = session.downloadTask(with: request)
+      let newTaskId = newTask.taskIdentifier
+      
+      self.downloadTasks[newTaskId] = taskInfo
+      self.downloadTasks.removeValue(forKey: taskId)
+      self.bytesDownloadedByTask[newTaskId] = existingBytes
+      self.bytesDownloadedByTask.removeValue(forKey: taskId)
+      
+      newTask.resume()
+      
+      self.sendEvent("onDownloadResumed", [
+        "taskId": newTaskId,
+        "url": taskInfo.url,
+        "bytesDownloaded": existingBytes
+      ])
+      
+      print("[BackgroundDownloader] Range-based resume with new taskId=\(newTaskId), from byte \(existingBytes)")
+      return newTaskId
     }
     
     AsyncFunction("getActiveDownloads") { () -> [[String: Any]] in
@@ -206,7 +417,6 @@ public class BackgroundDownloaderModule: Module {
     
     print("[BackgroundDownloader] URLSession initialized with delegate: \(String(describing: self.sessionDelegate))")
     print("[BackgroundDownloader] Session identifier: \(config.identifier ?? "nil")")
-    print("[BackgroundDownloader] Delegate queue: nil (uses default)")
     
     // Verify delegate is connected
     if let session = self.session, session.delegate != nil {
@@ -221,6 +431,9 @@ public class BackgroundDownloaderModule: Module {
     let progress = totalBytes > 0
       ? Double(bytesWritten) / Double(totalBytes)
       : 0.0
+    
+    // Track bytes downloaded for resume support
+    bytesDownloadedByTask[taskId] = bytesWritten
     
     // Throttle progress updates: only send every 500ms
     let lastTime = lastProgressTime[taskId] ?? Date.distantPast
@@ -244,7 +457,9 @@ public class BackgroundDownloaderModule: Module {
     guard let taskInfo = downloadTasks[taskId] else {
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
-        "error": "Download task info not found"
+        "error": "Download task info not found",
+        "isResumable": false,
+        "bytesDownloaded": 0
       ])
       return
     }
@@ -287,6 +502,8 @@ public class BackgroundDownloaderModule: Module {
       
       downloadTasks.removeValue(forKey: taskId)
       lastProgressTime.removeValue(forKey: taskId)
+      resumeDataStore.removeValue(forKey: taskId)
+      bytesDownloadedByTask.removeValue(forKey: taskId)
       
       // Process next item in queue
       Task {
@@ -300,7 +517,9 @@ public class BackgroundDownloaderModule: Module {
     } catch {
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
-        "error": "File operation failed: \(error.localizedDescription)"
+        "error": "File operation failed: \(error.localizedDescription)",
+        "isResumable": false,
+        "bytesDownloaded": bytesDownloadedByTask[taskId] ?? 0
       ])
       
       // Process next item in queue even on error
@@ -314,28 +533,162 @@ public class BackgroundDownloaderModule: Module {
     }
   }
   
-  func handleError(taskId: Int, error: Error) {
-    let isCancelled = (error as NSError).code == NSURLErrorCancelled
+  func handleError(taskId: Int, error: Error, resumeData: Data?) {
+    let nsError = error as NSError
+    let isCancelled = nsError.code == NSURLErrorCancelled
     
-    if !isCancelled {
-      print("[BackgroundDownloader] Task \(taskId) error: \(error.localizedDescription)")
-      
-      self.sendEvent("onDownloadError", [
-        "taskId": taskId,
-        "error": error.localizedDescription
-      ])
+    // If cancelled with resume data, it's a pause — don't treat as error
+    if isCancelled && resumeData != nil {
+      // This was a pause operation, resume data already stored by pauseDownload
+      if resumeData != nil {
+        resumeDataStore[taskId] = resumeData
+      }
+      // Don't process next in queue — this download is paused, not finished
+      return
     }
     
-    downloadTasks.removeValue(forKey: taskId)
+    if isCancelled {
+      // User cancelled — clean up and move on
+      downloadTasks.removeValue(forKey: taskId)
+      lastProgressTime.removeValue(forKey: taskId)
+      resumeDataStore.removeValue(forKey: taskId)
+      bytesDownloadedByTask.removeValue(forKey: taskId)
+      
+      Task {
+        do {
+          _ = try await self.processNextInQueue()
+        } catch {
+          print("[BackgroundDownloader] Error processing next: \(error)")
+        }
+      }
+      return
+    }
+    
+    // Store resume data if available
+    let isResumable = resumeData != nil
+    if let resumeData = resumeData {
+      resumeDataStore[taskId] = resumeData
+      if let url = downloadTasks[taskId]?.url {
+        resumeDataByUrl[url] = resumeData
+      }
+    }
+    
+    // Check if we should auto-retry
+    let currentRetryCount = downloadTasks[taskId]?.retryCount ?? 0
+    let isTransientError = isTransientNetworkError(nsError)
+    
+    if isTransientError && currentRetryCount < maxRetries {
+      // Auto-retry with exponential backoff
+      let delay = retryBaseDelay * pow(2.0, Double(currentRetryCount))
+      downloadTasks[taskId]?.retryCount = currentRetryCount + 1
+      
+      print("[BackgroundDownloader] Auto-retrying task \(taskId) in \(delay)s (attempt \(currentRetryCount + 1)/\(maxRetries))")
+      
+      Task {
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        await self.performRetry(taskId: taskId, resumeData: resumeData)
+      }
+      return
+    }
+    
+    // Max retries exceeded or non-transient error — report to JS
+    print("[BackgroundDownloader] Task \(taskId) error: \(error.localizedDescription), isResumable: \(isResumable)")
+    
+    self.sendEvent("onDownloadError", [
+      "taskId": taskId,
+      "error": error.localizedDescription,
+      "isResumable": isResumable,
+      "bytesDownloaded": bytesDownloadedByTask[taskId] ?? 0
+    ])
+    
+    // Don't clean up task info if resumable — user might want to resume later
+    if !isResumable {
+      downloadTasks.removeValue(forKey: taskId)
+      bytesDownloadedByTask.removeValue(forKey: taskId)
+    }
     lastProgressTime.removeValue(forKey: taskId)
     
-    // Process next item in queue (whether cancelled or errored)
+    // Process next item in queue
     Task {
       do {
         _ = try await self.processNextInQueue()
       } catch {
         print("[BackgroundDownloader] Error processing next: \(error)")
       }
+    }
+  }
+  
+  private func isTransientNetworkError(_ error: NSError) -> Bool {
+    guard error.domain == NSURLErrorDomain else { return false }
+    
+    switch error.code {
+    case NSURLErrorTimedOut,
+         NSURLErrorNetworkConnectionLost,
+         NSURLErrorNotConnectedToInternet,
+         NSURLErrorCannotConnectToHost,
+         NSURLErrorDNSLookupFailed,
+         NSURLErrorInternationalRoamingOff,
+         NSURLErrorCallIsActive,
+         NSURLErrorDataNotAllowed:
+      return true
+    default:
+      return false
+    }
+  }
+  
+  @MainActor
+  private func performRetry(taskId: Int, resumeData: Data?) async {
+    guard let session = self.session else { return }
+    
+    if let resumeData = resumeData {
+      // Resume from resume data
+      let newTask = session.downloadTask(withResumeData: resumeData)
+      let newTaskId = newTask.taskIdentifier
+      
+      // Transfer task info
+      if let taskInfo = downloadTasks[taskId] {
+        downloadTasks[newTaskId] = taskInfo
+        downloadTasks.removeValue(forKey: taskId)
+      }
+      if let bytes = bytesDownloadedByTask[taskId] {
+        bytesDownloadedByTask[newTaskId] = bytes
+        bytesDownloadedByTask.removeValue(forKey: taskId)
+      }
+      resumeDataStore.removeValue(forKey: taskId)
+      
+      newTask.resume()
+      
+      sendEvent("onDownloadResumed", [
+        "taskId": newTaskId,
+        "url": downloadTasks[newTaskId]?.url ?? "",
+        "bytesDownloaded": bytesDownloadedByTask[newTaskId] ?? 0
+      ])
+      
+      print("[BackgroundDownloader] Retried with resume data, new taskId=\(newTaskId)")
+    } else if let taskInfo = downloadTasks[taskId],
+              let url = URL(string: taskInfo.url) {
+      // Restart from scratch
+      var request = URLRequest(url: url)
+      request.httpMethod = "GET"
+      request.timeoutInterval = 300
+      
+      let newTask = session.downloadTask(with: request)
+      let newTaskId = newTask.taskIdentifier
+      
+      downloadTasks[newTaskId] = taskInfo
+      downloadTasks.removeValue(forKey: taskId)
+      bytesDownloadedByTask[newTaskId] = 0
+      bytesDownloadedByTask.removeValue(forKey: taskId)
+      
+      newTask.resume()
+      
+      sendEvent("onDownloadResumed", [
+        "taskId": newTaskId,
+        "url": taskInfo.url,
+        "bytesDownloaded": 0
+      ])
+      
+      print("[BackgroundDownloader] Retried from scratch, new taskId=\(newTaskId)")
     }
   }
   
@@ -394,4 +747,3 @@ public class BackgroundDownloaderModule: Module {
     BackgroundDownloaderModule.backgroundCompletionHandler = handler
   }
 }
-

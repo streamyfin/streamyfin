@@ -9,15 +9,20 @@ import android.util.Log
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlinx.coroutines.*
+import java.io.File
 
 data class DownloadTaskInfo(
   val url: String,
-  val destinationPath: String?
+  val destinationPath: String?,
+  var retryCount: Int = 0
 )
 
 class BackgroundDownloaderModule : Module() {
   companion object {
     private const val TAG = "BackgroundDownloader"
+    private const val MAX_RETRIES = 3
+    private const val RETRY_BASE_DELAY_MS = 2000L
   }
 
   private val context
@@ -29,6 +34,10 @@ class BackgroundDownloaderModule : Module() {
   private var taskIdCounter = 1
   private var downloadService: DownloadService? = null
   private var serviceBound = false
+  
+  // Track bytes downloaded per task for resume support
+  private val bytesDownloadedByTask = mutableMapOf<Int, Long>()
+  private val retryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
   private val serviceConnection = object : ServiceConnection {
     override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -52,7 +61,9 @@ class BackgroundDownloaderModule : Module() {
       "onDownloadProgress",
       "onDownloadComplete",
       "onDownloadError",
-      "onDownloadStarted"
+      "onDownloadStarted",
+      "onDownloadPaused",
+      "onDownloadResumed"
     )
 
     OnCreate {
@@ -61,6 +72,7 @@ class BackgroundDownloaderModule : Module() {
 
     OnDestroy {
       Log.d(TAG, "Module destroyed")
+      retryScope.cancel()
       downloadManager.cancelAllDownloads()
       if (serviceBound) {
         try {
@@ -78,6 +90,59 @@ class BackgroundDownloaderModule : Module() {
         promise.resolve(taskId)
       } catch (e: Exception) {
         promise.reject("DOWNLOAD_ERROR", "Failed to start download: ${e.message}", e)
+      }
+    }
+
+    AsyncFunction("downloadChunk") { urlString: String, destinationPath: String, startByte: Long, endByte: Long, promise: Promise ->
+      try {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        
+        val request = okhttp3.Request.Builder()
+            .url(urlString)
+            .addHeader("Range", "bytes=$startByte-$endByte")
+            .build()
+            
+        val response = client.newCall(request).execute()
+        
+        if (!response.isSuccessful && response.code != 206) {
+            promise.reject("DOWNLOAD_ERROR", "HTTP error: ${response.code}", null)
+            return@AsyncFunction
+        }
+
+        // If a specific range chunk was requested, we MUST receive a 206 Partial Content.
+        // A 200 OK means the server ignored the Range header and is sending the entire file.
+        // Appending the entire file on every chunk request will corrupt the file!
+        if (startByte > 0 && response.code != 206) {
+            promise.reject("DOWNLOAD_ERROR", "Server does not support Range requests. Received HTTP ${response.code} for a partial request.", null)
+            return@AsyncFunction
+        }
+        
+        val body = response.body
+        if (body == null) {
+            promise.reject("DOWNLOAD_ERROR", "Empty response body", null)
+            return@AsyncFunction
+        }
+        
+        val destFile = java.io.File(destinationPath)
+        val destDir = destFile.parentFile
+        if (destDir != null && !destDir.exists()) {
+            destDir.mkdirs()
+        }
+        
+        // Only append if we are explicitly asking for a chunk > 0.
+        // If startByte == 0, we should overwrite the file entirely in case it's a new download or a restart.
+        val appendMode = startByte > 0L && destFile.exists()
+        java.io.FileOutputStream(destFile, appendMode).use { outputStream ->
+            body.byteStream().use { inputStream ->
+                val bytesWritten = inputStream.copyTo(outputStream)
+                promise.resolve(bytesWritten)
+            }
+        }
+      } catch (e: Exception) {
+        promise.reject("DOWNLOAD_ERROR", "Failed to download chunk: ${e.message}", e)
       }
     }
 
@@ -107,6 +172,7 @@ class BackgroundDownloaderModule : Module() {
       Log.d(TAG, "Cancelling download: taskId=$taskId")
       downloadManager.cancelDownload(taskId)
       downloadTasks.remove(taskId)
+      bytesDownloadedByTask.remove(taskId)
       downloadService?.stopDownload()
       
       // Process next item in queue after cancellation
@@ -123,10 +189,94 @@ class BackgroundDownloaderModule : Module() {
 
     Function("cancelAllDownloads") {
       Log.d(TAG, "Cancelling all downloads")
+      retryScope.coroutineContext.cancelChildren()
       downloadManager.cancelAllDownloads()
       downloadTasks.clear()
       downloadQueue.clear()
+      bytesDownloadedByTask.clear()
       stopDownloadService()
+    }
+    
+    Function("pauseDownload") { taskId: Int ->
+      Log.d(TAG, "Pausing download: taskId=$taskId")
+      val taskInfo = downloadTasks[taskId]
+      val bytesDownloaded = bytesDownloadedByTask[taskId] ?: 0L
+      
+      // Cancel the OkHttp call but keep the partial file
+      downloadManager.cancelDownload(taskId)
+      
+      // Don't remove task info — we need it for resume
+      // Don't remove bytesDownloaded — we need it for resume
+      
+      sendEvent("onDownloadPaused", mapOf(
+        "taskId" to taskId,
+        "url" to (taskInfo?.url ?: ""),
+        "bytesDownloaded" to bytesDownloaded
+      ))
+      
+      downloadService?.stopDownload()
+    }
+    
+    AsyncFunction("resumeDownload") { taskId: Int, promise: Promise ->
+      Log.d(TAG, "Resuming download: taskId=$taskId")
+      val taskInfo = downloadTasks[taskId]
+      
+      if (taskInfo == null) {
+        promise.reject("RESUME_ERROR", "No task info found for taskId=$taskId", null)
+        return@AsyncFunction
+      }
+      
+      val destinationPath = taskInfo.destinationPath
+      if (destinationPath == null) {
+        promise.reject("RESUME_ERROR", "No destination path for taskId=$taskId", null)
+        return@AsyncFunction
+      }
+      
+      // Check how many bytes we already have
+      val destFile = File(destinationPath)
+      val existingBytes = if (destFile.exists()) destFile.length() else 0L
+      
+      Log.d(TAG, "Resume from byte: $existingBytes")
+      
+      // Remove old task entry and create new one
+      downloadTasks.remove(taskId)
+      bytesDownloadedByTask.remove(taskId)
+      
+      val newTaskId = taskIdCounter++
+      downloadTasks[newTaskId] = DownloadTaskInfo(
+        url = taskInfo.url,
+        destinationPath = destinationPath
+      )
+      bytesDownloadedByTask[newTaskId] = existingBytes
+      
+      // Start foreground service
+      startDownloadService()
+      downloadService?.startDownload()
+      
+      sendEvent("onDownloadResumed", mapOf(
+        "taskId" to newTaskId,
+        "url" to taskInfo.url,
+        "bytesDownloaded" to existingBytes
+      ))
+      
+      // Start download with resume
+      downloadManager.startDownload(
+        taskId = newTaskId,
+        url = taskInfo.url,
+        destinationPath = destinationPath,
+        resumeFromBytes = existingBytes,
+        onProgress = { bytesWritten, totalBytes ->
+          handleProgress(newTaskId, bytesWritten, totalBytes)
+        },
+        onComplete = { filePath ->
+          handleDownloadComplete(newTaskId, filePath)
+        },
+        onError = { error, partialBytes, isResumable ->
+          handleError(newTaskId, error, partialBytes, isResumable)
+        }
+      )
+      
+      promise.resolve(newTaskId)
     }
 
     AsyncFunction("getActiveDownloads") { promise: Promise ->
@@ -155,6 +305,7 @@ class BackgroundDownloaderModule : Module() {
       url = urlString,
       destinationPath = destinationPath
     )
+    bytesDownloadedByTask[taskId] = 0L
     
     // Start foreground service if not running
     startDownloadService()
@@ -179,8 +330,8 @@ class BackgroundDownloaderModule : Module() {
       onComplete = { filePath ->
         handleDownloadComplete(taskId, filePath)
       },
-      onError = { error ->
-        handleError(taskId, error)
+      onError = { error, partialBytes, isResumable ->
+        handleError(taskId, error, partialBytes, isResumable)
       }
     )
     
@@ -220,6 +371,9 @@ class BackgroundDownloaderModule : Module() {
       0.0
     }
     
+    // Track bytes downloaded for resume
+    bytesDownloadedByTask[taskId] = bytesWritten
+    
     // Update notification
     val taskInfo = downloadTasks[taskId]
     if (taskInfo != null) {
@@ -252,27 +406,113 @@ class BackgroundDownloaderModule : Module() {
     ))
     
     downloadTasks.remove(taskId)
+    bytesDownloadedByTask.remove(taskId)
     downloadService?.stopDownload()
     
     // Process next item in queue
     processNextInQueue()
   }
 
-  private fun handleError(taskId: Int, error: String) {
+  private fun handleError(taskId: Int, error: String, partialBytes: Long, isResumable: Boolean) {
     val taskInfo = downloadTasks[taskId]
     
-    Log.e(TAG, "Download error: taskId=$taskId, error=$error")
+    // Check if we should auto-retry
+    val currentRetryCount = taskInfo?.retryCount ?: 0
+    val isTransientError = isTransientNetworkError(error)
+    
+    if (isTransientError && currentRetryCount < MAX_RETRIES) {
+      val delay = RETRY_BASE_DELAY_MS * (1L shl currentRetryCount) // Exponential backoff
+      downloadTasks[taskId]?.let { it -> 
+        downloadTasks[taskId] = it.copy(retryCount = currentRetryCount + 1)
+      }
+      
+      Log.d(TAG, "Auto-retrying task $taskId in ${delay}ms (attempt ${currentRetryCount + 1}/$MAX_RETRIES)")
+      
+      retryScope.launch {
+        delay(delay)
+        performRetry(taskId)
+      }
+      return
+    }
+    
+    Log.e(TAG, "Download error: taskId=$taskId, error=$error, isResumable=$isResumable")
     
     sendEvent("onDownloadError", mapOf(
       "taskId" to taskId,
-      "error" to error
+      "error" to error,
+      "isResumable" to isResumable,
+      "bytesDownloaded" to partialBytes
     ))
     
-    downloadTasks.remove(taskId)
+    // Don't clean up task info if resumable — user might want to resume later
+    if (!isResumable) {
+      downloadTasks.remove(taskId)
+      bytesDownloadedByTask.remove(taskId)
+    }
     downloadService?.stopDownload()
     
-    // Process next item in queue even on error
+    // Process next item in queue
     processNextInQueue()
+  }
+  
+  private fun isTransientNetworkError(error: String): Boolean {
+    val lowerError = error.lowercase()
+    return lowerError.contains("timeout") ||
+           lowerError.contains("connection") ||
+           lowerError.contains("network") ||
+           lowerError.contains("unreachable") ||
+           lowerError.contains("reset") ||
+           lowerError.contains("broken pipe") ||
+           lowerError.contains("stream was reset")
+  }
+  
+  private fun performRetry(taskId: Int) {
+    val taskInfo = downloadTasks[taskId] ?: return
+    val destinationPath = taskInfo.destinationPath ?: return
+    
+    // Check for partial file
+    val destFile = File(destinationPath)
+    val existingBytes = if (destFile.exists()) destFile.length() else 0L
+    
+    Log.d(TAG, "Retrying download taskId=$taskId from byte $existingBytes")
+    
+    // Remove old task and create new one
+    downloadTasks.remove(taskId)
+    bytesDownloadedByTask.remove(taskId)
+    
+    val newTaskId = taskIdCounter++
+    downloadTasks[newTaskId] = DownloadTaskInfo(
+      url = taskInfo.url,
+      destinationPath = destinationPath,
+      retryCount = taskInfo.retryCount
+    )
+    bytesDownloadedByTask[newTaskId] = existingBytes
+    
+    // Start foreground service if needed
+    startDownloadService()
+    downloadService?.startDownload()
+    
+    sendEvent("onDownloadResumed", mapOf(
+      "taskId" to newTaskId,
+      "url" to taskInfo.url,
+      "bytesDownloaded" to existingBytes
+    ))
+    
+    downloadManager.startDownload(
+      taskId = newTaskId,
+      url = taskInfo.url,
+      destinationPath = destinationPath,
+      resumeFromBytes = existingBytes,
+      onProgress = { bytesWritten, totalBytes ->
+        handleProgress(newTaskId, bytesWritten, totalBytes)
+      },
+      onComplete = { filePath ->
+        handleDownloadComplete(newTaskId, filePath)
+      },
+      onError = { error, partialBytes, isResumable ->
+        handleError(newTaskId, error, partialBytes, isResumable)
+      }
+    )
   }
 
   private fun startDownloadService() {

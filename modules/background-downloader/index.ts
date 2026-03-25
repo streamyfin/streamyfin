@@ -3,7 +3,9 @@ import type {
   ActiveDownload,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
+  DownloadResumedEvent,
   DownloadStartedEvent,
 } from "./src/BackgroundDownloader.types";
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
@@ -14,6 +16,14 @@ export interface BackgroundDownloader {
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
+  pauseDownload(taskId: number): void;
+  resumeDownload(taskId: number): Promise<number>;
+  downloadChunk(
+    urlString: string,
+    destinationPath: string,
+    startByte: number,
+    endByte: number,
+  ): Promise<number>;
   getActiveDownloads(): Promise<ActiveDownload[]>;
 
   addProgressListener(
@@ -30,6 +40,14 @@ export interface BackgroundDownloader {
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
+  ): EventSubscription;
+
+  addPausedListener(
+    listener: (event: DownloadPausedEvent) => void,
+  ): EventSubscription;
+
+  addResumedListener(
+    listener: (event: DownloadResumedEvent) => void,
   ): EventSubscription;
 }
 
@@ -58,6 +76,28 @@ const BackgroundDownloader: BackgroundDownloader = {
 
   cancelAllDownloads(): void {
     BackgroundDownloaderModule.cancelAllDownloads();
+  },
+
+  pauseDownload(taskId: number): void {
+    BackgroundDownloaderModule.pauseDownload(taskId);
+  },
+
+  async resumeDownload(taskId: number): Promise<number> {
+    return await BackgroundDownloaderModule.resumeDownload(taskId);
+  },
+
+  async downloadChunk(
+    urlString: string,
+    destinationPath: string,
+    startByte: number,
+    endByte: number,
+  ): Promise<number> {
+    return await BackgroundDownloaderModule.downloadChunk(
+      urlString,
+      destinationPath,
+      startByte,
+      endByte,
+    );
   },
 
   async getActiveDownloads(): Promise<ActiveDownload[]> {
@@ -96,6 +136,21 @@ const BackgroundDownloader: BackgroundDownloader = {
       listener,
     );
   },
+
+  addPausedListener(
+    listener: (event: DownloadPausedEvent) => void,
+  ): EventSubscription {
+    return BackgroundDownloaderModule.addListener("onDownloadPaused", listener);
+  },
+
+  addResumedListener(
+    listener: (event: DownloadResumedEvent) => void,
+  ): EventSubscription {
+    return BackgroundDownloaderModule.addListener(
+      "onDownloadResumed",
+      listener,
+    );
+  },
 };
 
 export default BackgroundDownloader;
@@ -104,6 +159,8 @@ export type {
   ActiveDownload,
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
+  DownloadResumedEvent,
   DownloadStartedEvent,
 };

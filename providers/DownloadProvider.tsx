@@ -1,7 +1,14 @@
 import * as Application from "expo-application";
 import { Directory, Paths } from "expo-file-system";
 import { atom, useAtom } from "jotai";
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { Platform } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import {
@@ -113,6 +120,10 @@ function useDownloadProvider() {
   const {
     startBackgroundDownload,
     cancelDownload,
+    pauseDownload,
+    resumeDownload,
+    retryDownload,
+    recoverPausedDownloads,
     deleteFile,
     deleteItems,
     deleteAllFiles,
@@ -128,6 +139,11 @@ function useDownloadProvider() {
     onDataChange: triggerRefresh,
   });
 
+  // Recover paused downloads on startup
+  useEffect(() => {
+    recoverPausedDownloads();
+  }, [recoverPausedDownloads]);
+
   return {
     processes,
     startBackgroundDownload,
@@ -140,6 +156,9 @@ function useDownloadProvider() {
     deleteFileByType,
     removeProcess,
     cancelDownload,
+    pauseDownload,
+    resumeDownload,
+    retryDownload,
     getDownloadedItemSize,
     getDownloadedItemById,
     updateDownloadedItem,
@@ -169,6 +188,9 @@ export function useDownload() {
       deleteFileByType: async () => {},
       removeProcess: () => {},
       cancelDownload: async () => {},
+      pauseDownload: async () => {},
+      resumeDownload: async () => {},
+      retryDownload: async () => {},
       triggerRefresh: () => {},
       startDownload: async () => {},
       getDownloadedItemSize: () => 0,

@@ -33,6 +33,15 @@ export {
   getNotificationContent,
   sendDownloadNotification,
 } from "./notifications";
+export type { DownloadResumeState } from "./resumeState";
+// Resume state
+export {
+  clearAllResumeStates,
+  getAllResumeStates,
+  getResumeState,
+  removeResumeState,
+  saveResumeState,
+} from "./resumeState";
 // Types (re-export from existing types.ts)
 export type {
   DownloadedItem,

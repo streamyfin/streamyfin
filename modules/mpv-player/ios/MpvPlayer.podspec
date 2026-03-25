@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
   # Swift/Objective-C compatibility
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'VALID_ARCHS' => 'arm64',
+    'VALID_ARCHS' => 'arm64 x86_64',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     'DEBUG_INFORMATION_FORMAT' => 'dwarf',
     'STRIP_INSTALLED_PRODUCT' => 'YES',

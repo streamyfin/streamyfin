@@ -1,5 +1,5 @@
 import { Platform, StyleSheet, View, type ViewProps } from "react-native";
-import { GlassEffectView } from "react-native-glass-effect-view";
+
 import { Text } from "./common/Text";
 
 interface Props extends ViewProps {
@@ -31,9 +31,7 @@ export const Badge: React.FC<Props> = ({
   if (Platform.OS === "ios") {
     return (
       <View {...props} style={[styles.container, props.style]}>
-        <GlassEffectView style={{ borderRadius: 100 }}>
-          {content}
-        </GlassEffectView>
+        <View style={{ borderRadius: 100 }}>{content}</View>
       </View>
     );
   }

@@ -6,7 +6,9 @@ import { useTranslation } from "react-i18next";
 import type {
   DownloadCompleteEvent,
   DownloadErrorEvent,
+  DownloadPausedEvent,
   DownloadProgressEvent,
+  DownloadResumedEvent,
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
@@ -15,6 +17,7 @@ import {
   getNotificationContent,
   sendDownloadNotification,
 } from "../notifications";
+import { removeResumeState, saveResumeState } from "../resumeState";
 import type { DownloadedItem, JobStatus } from "../types";
 import { filePathToUri, generateFilename } from "../utils";
 import {
@@ -37,7 +40,7 @@ interface UseDownloadEventHandlersProps {
 }
 
 /**
- * Hook to set up download event listeners (progress, complete, error, started)
+ * Hook to set up download event listeners (progress, complete, error, started, paused, resumed)
  */
 export function useDownloadEventHandlers({
   taskMapRef,
@@ -206,6 +209,7 @@ export function useDownloadEventHandlers({
         // Update state (native layer already throttles events to every 500ms)
         updateProcess(processId, {
           progress,
+          status: "downloading",
           bytesDownloaded: event.bytesWritten,
           lastProgressUpdateTime: new Date(),
           speed,
@@ -274,6 +278,9 @@ export function useDownloadEventHandlers({
             progress: 100,
           });
 
+          // Clean up resume state
+          removeResumeState(processId);
+
           const notificationContent = getNotificationContent(item, true, t);
           await sendDownloadNotification(
             notificationContent.title,
@@ -321,30 +328,141 @@ export function useDownloadEventHandlers({
         const process = processes.find((p) => p.id === processId);
         if (!process) return;
 
-        console.error(`Download error for ${processId}:`, event.error);
-
-        updateProcess(processId, { status: "error" });
-
-        // Clean up speed data
-        clearSpeedData(processId);
-
-        const notificationContent = getNotificationContent(
-          process.item,
-          false,
-          t,
-        );
-        await sendDownloadNotification(
-          notificationContent.title,
-          notificationContent.body,
+        console.error(
+          `Download error for ${processId}: ${event.error}, isResumable: ${event.isResumable}`,
         );
 
-        // Remove process after short delay
-        setTimeout(() => {
-          removeProcess(processId);
-        }, 3000);
+        if (event.isResumable) {
+          // Mark as paused instead of error — user can retry
+          updateProcess(processId, {
+            status: "paused",
+            isResumable: true,
+            bytesDownloaded: event.bytesDownloaded,
+          });
+
+          // Save resume state for crash recovery
+          saveResumeState({
+            processId,
+            url: process.inputUrl,
+            destinationPath: process.partialFilePath || "",
+            bytesDownloaded: event.bytesDownloaded,
+            jobStatus: {
+              ...process,
+              status: "paused",
+              isResumable: true,
+              bytesDownloaded: event.bytesDownloaded,
+            },
+            pausedAt: new Date().toISOString(),
+          });
+
+          // Clean up speed data
+          clearSpeedData(processId);
+
+          const notificationContent = getNotificationContent(
+            process.item,
+            false,
+            t,
+          );
+          await sendDownloadNotification(
+            notificationContent.title,
+            `${notificationContent.body} - Tap to resume`,
+          );
+
+          // Don't remove the process — keep it visible for user to retry
+        } else {
+          // Non-resumable error — clean up
+          updateProcess(processId, { status: "error", isResumable: false });
+
+          clearSpeedData(processId);
+
+          const notificationContent = getNotificationContent(
+            process.item,
+            false,
+            t,
+          );
+          await sendDownloadNotification(
+            notificationContent.title,
+            notificationContent.body,
+          );
+
+          // Remove process after short delay
+          setTimeout(() => {
+            removeProcess(processId);
+          }, 3000);
+        }
       },
     );
 
     return () => errorSub.remove();
   }, [taskMapRef, processes, updateProcess, removeProcess, t]);
+
+  // Handle download paused events (from native pause action)
+  useEffect(() => {
+    const pausedSub = BackgroundDownloader.addPausedListener(
+      (event: DownloadPausedEvent) => {
+        let processId = taskMapRef.current.get(event.taskId);
+
+        if (!processId && event.url) {
+          const matchingProcess = processes.find(
+            (p) => p.inputUrl === event.url,
+          );
+          if (matchingProcess) {
+            processId = matchingProcess.id;
+          }
+        }
+
+        if (processId) {
+          updateProcess(processId, {
+            status: "paused",
+            isResumable: true,
+            bytesDownloaded: event.bytesDownloaded,
+          });
+          clearSpeedData(processId);
+          console.log(
+            `[DPL] Download paused: ${processId.slice(0, 8)}... at ${event.bytesDownloaded} bytes`,
+          );
+        }
+      },
+    );
+
+    return () => pausedSub.remove();
+  }, [taskMapRef, updateProcess, processes]);
+
+  // Handle download resumed events (from native resume action)
+  useEffect(() => {
+    const resumedSub = BackgroundDownloader.addResumedListener(
+      (event: DownloadResumedEvent) => {
+        let processId = taskMapRef.current.get(event.taskId);
+
+        if (!processId && event.url) {
+          const matchingProcess = processes.find(
+            (p) => p.inputUrl === event.url,
+          );
+          if (matchingProcess) {
+            processId = matchingProcess.id;
+          }
+        }
+
+        if (processId) {
+          // Update task map with new task ID if it changed
+          taskMapRef.current.set(event.taskId, processId);
+
+          updateProcess(processId, {
+            status: "downloading",
+            isResumable: false,
+            bytesDownloaded: event.bytesDownloaded,
+          });
+
+          // Remove resume state — download is active again
+          removeResumeState(processId);
+
+          console.log(
+            `[DPL] Download resumed: ${processId.slice(0, 8)}... from ${event.bytesDownloaded} bytes`,
+          );
+        }
+      },
+    );
+
+    return () => resumedSub.remove();
+  }, [taskMapRef, updateProcess, processes]);
 }

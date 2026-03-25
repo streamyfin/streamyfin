@@ -1,0 +1,11 @@
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: afbbb2400a265df97c7781fbb9275eba
+Build description path: /Users/bertietryner/Library/Developer/Xcode/DerivedData/Streamyfin-ghxljiiwdavkdrdooibdqxgilhqa/Build/Intermediates.noindex/XCBuildData/afbbb2400a265df97c7781fbb9275eba.xcbuilddata
+error: unable to attach DB: error: accessing build database "/Users/bertietryner/Library/Developer/Xcode/DerivedData/Streamyfin-ghxljiiwdavkdrdooibdqxgilhqa/Build/Intermediates.noindex/XCBuildData/build.db": database is locked Possibly there are two concurrent builds running in the same filesystem location.
+/Users/bertietryner/Desktop/Streamyfin/ios/Pods/Pods.xcodeproj: warning: The iOS Simulator deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 9.0, but the range of supported deployment target versions is 12.0 to 26.2.99. (in target 'SDWebImage-SDWebImage' from project 'Pods')
+warning: Run script build phase 'Create Symlinks to Header Folders' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'RNWorklets' from project 'Pods')
+/Users/bertietryner/Desktop/Streamyfin/ios/Pods/Pods.xcodeproj: warning: The iOS Simulator deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 9.0, but the range of supported deployment target versions is 12.0 to 26.2.99. (in target 'PromisesObjC-FBLPromises_Privacy' from project 'Pods')
+note: Run script build phase '[CP-User] [RN]Check FBReactNativeSpec' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'React-RCTFBReactNativeSpec' from project 'Pods')
+note: Run script build phase 'Bundle React Native code and images' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Streamyfin' from project 'Streamyfin')

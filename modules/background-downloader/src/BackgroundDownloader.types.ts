@@ -16,11 +16,27 @@ export interface DownloadCompleteEvent {
 export interface DownloadErrorEvent {
   taskId: number;
   error: string;
+  /** Whether the download can be resumed from where it stopped */
+  isResumable: boolean;
+  /** Number of bytes successfully downloaded before the error */
+  bytesDownloaded: number;
 }
 
 export interface DownloadStartedEvent {
   taskId: number;
   url: string;
+}
+
+export interface DownloadPausedEvent {
+  taskId: number;
+  url: string;
+  bytesDownloaded: number;
+}
+
+export interface DownloadResumedEvent {
+  taskId: number;
+  url: string;
+  bytesDownloaded: number;
 }
 
 export interface ActiveDownload {
@@ -35,6 +51,14 @@ export interface BackgroundDownloaderModuleType {
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
+  pauseDownload(taskId: number): void;
+  resumeDownload(taskId: number): Promise<number>;
+  downloadChunk(
+    urlString: string,
+    destinationPath: string,
+    startByte: number,
+    endByte: number,
+  ): Promise<number>;
   getActiveDownloads(): Promise<ActiveDownload[]>;
   addListener(
     eventName: string,

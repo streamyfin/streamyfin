@@ -1,0 +1,1 @@
+error: lstat(/Users/bertietryner/Desktop/Streamyfin/ios/build/generated/ios/GlassEffectViewSpec/GlassEffectViewSpec.h): No such file or directory (2) (in target 'ReactCodegen' from project 'Pods')

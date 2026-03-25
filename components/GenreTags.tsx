@@ -8,7 +8,7 @@ import {
   View,
   type ViewProps,
 } from "react-native";
-import { GlassEffectView } from "react-native-glass-effect-view";
+
 import { Text } from "./common/Text";
 
 interface TagProps {
@@ -26,7 +26,7 @@ export const Tag: React.FC<
   if (Platform.OS === "ios") {
     return (
       <View>
-        <GlassEffectView style={styles.glass}>
+        <View style={styles.glass}>
           <View
             style={{
               paddingHorizontal: 8,
@@ -35,7 +35,7 @@ export const Tag: React.FC<
           >
             <Text>{text}</Text>
           </View>
-        </GlassEffectView>
+        </View>
       </View>
     );
   }

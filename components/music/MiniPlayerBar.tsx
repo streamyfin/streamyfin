@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { GlassEffectView } from "react-native-glass-effect-view";
+
 import Animated, {
   Easing,
   Extrapolation,
@@ -244,7 +244,7 @@ export const MiniPlayerBar: React.FC = () => {
       >
         <Animated.View style={[styles.touchable, animatedBarStyle]}>
           {Platform.OS === "ios" ? (
-            <GlassEffectView style={styles.blurContainer}>
+            <View style={styles.blurContainer}>
               <View
                 style={{
                   flex: 1,
@@ -256,7 +256,7 @@ export const MiniPlayerBar: React.FC = () => {
               >
                 {content}
               </View>
-            </GlassEffectView>
+            </View>
           ) : (
             <View style={styles.androidContainer}>{content}</View>
           )}

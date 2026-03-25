@@ -311,7 +311,11 @@
         "disabled": "Disabled"
       },
       "downloads": {
-        "downloads_title": "Downloads"
+        "downloads_title": "Downloads",
+        "local_transcoding_title": "Local Transcoding",
+        "local_transcoding_description": "Download raw files and transcode them on your device to save space. Best for underpowered servers.",
+        "local_transcoding_bitrate": "Transcoding Bitrate",
+        "local_transcoding_codec": "Video Codec"
       },
       "music": {
         "title": "Music",

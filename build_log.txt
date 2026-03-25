@@ -1,0 +1,260 @@
+$ cross-env EXPO_TV=0 expo run:ios --device "iPhone 17 Pro"
+Unexpected devicectl JSON version output from devicectl. Connecting to physical Apple devices may not work as expected.
+› Using --device FB0495D9-15BE-481C-A240-54BC64146F03
+› Planning build
+› Preparing expo-image Pods/libwebp » libwebp-Info.plist
+› Preparing expo-image Pods/libdav1d » libdav1d-Info.plist
+› Preparing react-native-mmkv Pods/MMKVCore » MMKVCore-Info.plist
+› Preparing Pods/ExpoSystemUI-ExpoSystemUI_privacy » ResourceBundle-ExpoSystemUI_privacy-ExpoSystemUI-Info.plist
+› Preparing react-native-bottom-tabs Pods/SwiftUIIntrospect » SwiftUIIntrospect-Info.plist
+› Preparing Pods/ExpoLocalization-ExpoLocalization_privacy » ResourceBundle-ExpoLocalization_privacy-ExpoLocalization-Info.plist
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Preparing Pods/ExpoDevice-ExpoDevice_privacy » ResourceBundle-ExpoDevice_privacy-ExpoDevice-Info.plist
+› Preparing Pods/EXTaskManager-ExpoTaskManager_privacy » ResourceBundle-ExpoTaskManager_privacy-EXTaskManager-Info.plist
+› Preparing Pods/EXNotifications-ExpoNotifications_privacy » ResourceBundle-ExpoNotifications_privacy-EXNotifications-Info.plist
+› Preparing expo-json-utils Pods/EXJSONUtils » EXJSONUtils-Info.plist
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Preparing Pods/EXApplication-ExpoApplication_privacy » ResourceBundle-ExpoApplication_privacy-EXApplication-Info.plist
+› Preparing react-native-ios-utilities Pods/DGSwiftUtilities » DGSwiftUtilities-Info.plist
+› Preparing react-native-udp Pods/CocoaAsyncSocket » CocoaAsyncSocket-Info.plist
+› Preparing expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-Info.plist
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Preparing Pods/google-cast-sdk-GoogleCast » ResourceBundle-GoogleCast-google-cast-sdk-Info.plist
+› Preparing Pods/expo-dev-menu-EXDevMenu » ResourceBundle-EXDevMenu-expo-dev-menu-Info.plist
+› Preparing unimodules-app-loader Pods/UMAppLoader » UMAppLoader-Info.plist
+› Preparing expo-image Pods/SDWebImage-SDWebImage » ResourceBundle-SDWebImage-SDWebImage-Info.plist
+› Preparing Pods/RNDeviceInfo-RNDeviceInfoPrivacyInfo » ResourceBundle-RNDeviceInfoPrivacyInfo-RNDeviceInfo-Info.plist
+› Preparing Pods/PromisesObjC-FBLPromises_Privacy » ResourceBundle-FBLPromises_Privacy-PromisesObjC-Info.plist
+› Preparing react-native-volume-manager Pods/Mute-Mute » ResourceBundle-Mute-Mute-Info.plist
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Preparing expo-image Pods/SDWebImage » SDWebImage-Info.plist
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Preparing Pods/RNSVG-RNSVGFilters » ResourceBundle-RNSVGFilters-RNSVG-Info.plist
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Preparing react-native-google-cast Pods/PromisesObjC » PromisesObjC-Info.plist
+› Preparing react-native-volume-manager Pods/Mute » Mute-Info.plist
+› Preparing Pods/libavif » libavif-Info.plist
+› Preparing react-native-ios-utilities Pods/ComputableLayout » ComputableLayout-Info.plist
+› Preparing react-native-ios-context-menu Pods/ContextMenuAuxiliaryPreview » ContextMenuAuxiliaryPreview-Info.plist
+› Executing react-native Pods/React-Core-prebuilt » [CP-User] [RNDeps] Replace React Native Core for the right configuration, if needed
+› Preparing Pods/expo-dev-launcher-EXDevLauncher » ResourceBundle-EXDevLauncher-expo-dev-launcher-Info.plist
+› Preparing expo-image Pods/SDWebImageSVGCoder » SDWebImageSVGCoder-Info.plist
+› Preparing expo-image Pods/SDWebImageWebPCoder » SDWebImageWebPCoder-Info.plist
+› Preparing expo-image Pods/SDWebImageAVIFCoder » SDWebImageAVIFCoder-Info.plist
+› Preparing react-native-volume-manager Pods/react-native-volume-manager » react-native-volume-manager-Info.plist
+› Preparing react-native-udp Pods/react-native-udp » react-native-udp-Info.plist
+› Preparing @react-native-community/netinfo Pods/react-native-netinfo » react-native-netinfo-Info.plist
+› Executing react-native Pods/React-RCTFBReactNativeSpec » [CP-User] [RN]Check FBReactNativeSpec
+› Preparing react-native-device-info Pods/RNDeviceInfo » RNDeviceInfo-Info.plist
+    Run script build phase 'Create Symlinks to Header Folders' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'ReactCodegen' from project 'Pods')
+› Preparing react-native-background-downloader Pods/react-native-background-downloader » react-native-background-downloader-Info.plist
+› Preparing streamyfin Pods/ReactCodegen » ReactCodegen-Info.plist
+› Preparing react-native-google-cast Pods/react-native-google-cast » react-native-google-cast-Info.plist
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » ComponentDescriptors.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » rngesturehandler_codegenJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » safeareacontextJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » safeareacontext-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » rnworkletsJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » rnworklets-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » rnsvgJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » rnsvg-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » rnscreensJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » rnscreens-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » rnreanimatedJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » rnreanimated-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » rngesturehandler_codegen-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » States.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » ShadowNodes.cpp
+› Compiling streamyfin Pods/ReactCodegen » RNIUtilitiesSpecJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » RNIUtilitiesSpec-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » RNIContextMenuViewSpecJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » RNIContextMenuViewSpec-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » RNCTabViewJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » RNCTabView-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling streamyfin Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling streamyfin Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling streamyfin Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » Props.cpp
+› Compiling streamyfin Pods/ReactCodegen » NitroModulesSpecJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » NitroModulesSpec-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » NativeTrackPlayerSpecJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » NativeTrackPlayerSpec-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » GlassEffectViewSpecJSI-generated.cpp
+› Compiling streamyfin Pods/ReactCodegen » GlassEffectViewSpec-generated.mm
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Compiling streamyfin Pods/ReactCodegen » EventEmitters.cpp
+› Executing streamyfin Pods/ReactCodegen » Create Symlinks to Header Folders
+› Compiling react-native-screens Pods/RNScreens » RNSBottomTabsHostComponentView.mm
+› Compiling streamyfin Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaContext.mm
+› Compiling react-native-track-player Pods/react-native-track-player » TrackPlayer.mm
+› Compiling react-native-pager-view Pods/react-native-pager-view » RNCPagerViewComponentView.mm
+› Compiling react-native-bottom-tabs Pods/react-native-bottom-tabs » RCTBottomAccessoryComponentView.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGCircle.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIBaseView.mm
+› Compiling react-native-ios-context-menu Pods/react-native-ios-context-menu » RNIContextMenuViewManager.mm
+› Compiling react-native-ios-context-menu Pods/react-native-ios-context-menu » RNIContextMenuView.mm
+› Compiling react-native-ios-context-menu Pods/react-native-ios-context-menu » RNIContextMenuButtonViewManager.mm
+› Compiling react-native-ios-context-menu Pods/react-native-ios-context-menu » RNIContextMenuButton.mm
+› Compiling react-native-nitro-modules Pods/NitroModules » NativeNitroModules+NewArch.mm
+› Compiling react-native-gesture-handler Pods/RNGestureHandler » RNGestureHandlerButtonComponentView.mm
+› Compiling react-native-mmkv Pods/NitroMmkv » NitroMmkvAutolinking.mm
+› Compiling react-native-mmkv Pods/NitroMmkv » NitroMmkv-Swift-Cxx-Bridge.cpp
+› Compiling react-native-mmkv Pods/NitroMmkv » NitroMmkv_vers.c
+› Compiling react-native-mmkv Pods/NitroMmkv » MMKVValueChangedListenerRegistry.cpp
+› Compiling react-native-mmkv Pods/NitroMmkv » HybridMMKVSpec.cpp
+› Compiling react-native-mmkv Pods/NitroMmkv » HybridMMKVPlatformContextSpecSwift.cpp
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaViewState.cpp
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaViewShadowNode.cpp
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaViewComponentView.mm
+› Compiling react-native-safe-area-context Pods/react-native-safe-area-context » RNCSafeAreaProviderComponentView.mm
+› Compiling react-native-nitro-modules Pods/NitroModules » NativeNitroModules+OldArch.mm
+› Compiling react-native-mmkv Pods/NitroMmkv » HybridMMKVPlatformContextSpec.cpp
+› Compiling react-native-mmkv Pods/NitroMmkv » HybridMMKVFactorySpec.cpp
+› Compiling react-native-gesture-handler Pods/RNGestureHandler » RNGestureHandlerModule.mm
+› Compiling react-native-mmkv Pods/NitroMmkv » HybridMMKVFactory.cpp
+› Compiling react-native-bottom-tabs Pods/react-native-bottom-tabs » SvgDecoder.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » UIView+RNIPaperHelpers.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIWrapperViewManager.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIWrapperView.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIUtilitiesModule.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIDummyTestViewManager.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIDummyTestView.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIDetachedViewManager.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIDetachedView.mm
+› Compiling react-native-ios-utilities Pods/react-native-ios-utilities » RNIBaseView+KVC.mm
+› Compiling react-native-bottom-tabs Pods/react-native-bottom-tabs » RNCTabViewShadowNode.cpp
+› Compiling react-native-bottom-tabs Pods/react-native-bottom-tabs » RCTTabViewComponentView.mm
+› Compiling react-native-screens Pods/RNScreens » UIViewController+RNScreens.mm
+› Compiling react-native-screens Pods/RNScreens » RNSTabsScreenViewController.mm
+› Compiling react-native-screens Pods/RNScreens » RNSTabBarControllerDelegate.mm
+› Compiling react-native-screens Pods/RNScreens » RNSTabBarController.mm
+› Compiling react-native-screens Pods/RNScreens » RNSTabBarAppearanceCoordinator.mm
+› Compiling react-native-screens Pods/RNScreens » RNSSplitViewScreenShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSSearchBar.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenStackHeaderSubviewShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSScreenStackHeaderSubview.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenStackHeaderConfigShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSScreenStackHeaderConfig.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenStack.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSScreenNavigationContainer.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenFooter.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenContentWrapper.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreenContainer.mm
+› Compiling react-native-screens Pods/RNScreens » RNSScreen.mm
+› Compiling react-native-screens Pods/RNScreens » RNSSafeAreaViewState.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSSafeAreaViewShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSSafeAreaViewComponentView.mm
+› Compiling react-native-screens Pods/RNScreens » RNSModule.mm
+› Compiling react-native-screens Pods/RNScreens » RNSModalScreenShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSModalScreen.mm
+› Compiling react-native-screens Pods/RNScreens » RNSFullWindowOverlayShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSFullWindowOverlay.mm
+› Compiling react-native-screens Pods/RNScreens » RNSConvert.mm
+› Compiling react-native-screens Pods/RNScreens » RNSConversions.mm
+› Compiling react-native-screens Pods/RNScreens » RNSConversions-SplitView.mm
+› Compiling react-native-screens Pods/RNScreens » RNSConversions-Fabric.mm
+› Compiling react-native-screens Pods/RNScreens » RNSConversions-BottomTabs.mm
+› Compiling react-native-screens Pods/RNScreens » RNSBottomTabsShadowNode.cpp
+› Compiling react-native-screens Pods/RNScreens » RNSBottomTabsScreenEventEmitter.mm
+› Compiling react-native-screens Pods/RNScreens » RNSBottomTabsScreenComponentView.mm
+› Compiling react-native-screens Pods/RNScreens » RNSBottomTabsHostEventEmitter.mm
+› Compiling react-native-screens Pods/RNScreens » RNSBottomTabsHostComponentView+RNSImageLoader.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGUse.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGTextPath.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGText.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGTSpan.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGSymbol.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGSvgViewModule.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGSvgView.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGShadowNodes.cpp
+› Compiling react-native-svg Pods/RNSVG » RNSVGRenderableModule.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGRect.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGRadialGradient.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGPattern.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGPath.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGMask.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGMarker.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGLinearGradient.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGLine.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGImageShadowNode.cpp
+› Compiling react-native-svg Pods/RNSVG » RNSVGImage.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGGroup.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGForeignObject.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFilterPrimitive.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFilter.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeOffset.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeMerge.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeGaussianBlur.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeFlood.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeComposite.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeColorMatrix.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGFeBlend.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGEllipse.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGDefs.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGConvert.mm
+› Compiling react-native-svg Pods/RNSVG » RNSVGClipPath.mm
+› Compiling react-native-mmkv Pods/NitroMmkv » HybridMMKV.cpp
+› Compiling react-native-glass-effect-view Pods/GlassEffectView » GlassEffectView.mm
+› Signing   streamyfin Pods/ReactCodegen » ReactCodegen.framework
+› Compiling react-native-worklets Pods/RNWorklets » WorkletsModule.mm
+› Packaging streamyfin Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+
+❌  (modules/mpv-player/ios/MpvPlayerModule.swift:1:8)
+
+> 1 | import ExpoModulesCore
+    |        ^ could not find module 'ExpoModulesCore' for target 'arm64-apple-ios-simulator'; found: x86_64-apple-ios-simulator, at: /Users/bertietryner/Library/Developer/Xcode/DerivedData/Streamyfin-ghxljiiwdavkdrdooibdqxgilhqa/Build/Products/Debug-iphonesimulator/ExpoModulesCore/ExpoModulesCore.swiftmodule
+  2 | 
+  3 | public class MpvPlayerModule: Module {
+  4 |   public func definition() -> ModuleDefinition {
+
+    Run script build phase 'Create Symlinks to Header Folders' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'RNReanimated' from project 'Pods')
+    Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'hermes-engine' from project 'Pods')
+    Run script build phase 'Create Symlinks to Header Folders' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'RNWorklets' from project 'Pods')
+
+› 1 error(s), and 4 warning(s)
+
+CommandError: Failed to build iOS project. "xcodebuild" exited with error code 65.
+error: script "ios" exited with code 1

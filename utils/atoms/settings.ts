@@ -211,6 +211,10 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // Local transcoding (post-download)
+  localTranscodingEnabled: boolean;
+  localTranscodingBitrate: Bitrate;
+  localTranscodingCodec: "libx264" | "libx265";
 };
 
 export interface Lockable<T> {
@@ -296,6 +300,10 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // Local transcoding defaults
+  localTranscodingEnabled: false,
+  localTranscodingBitrate: BITRATES[BITRATES.length - 2], // 10 Mbps as a sane default
+  localTranscodingCodec: "libx264",
 };
 
 const loadSettings = (): Partial<Settings> => {

@@ -20,6 +20,7 @@ export const getDownloadUrl = async ({
   subtitleStreamIndex,
   deviceId,
   audioMode = "auto",
+  isLocalTranscode = false,
 }: {
   api: Api;
   item: BaseItemDto;
@@ -30,6 +31,7 @@ export const getDownloadUrl = async ({
   subtitleStreamIndex: number;
   deviceId: string;
   audioMode?: AudioTranscodeModeType;
+  isLocalTranscode?: boolean;
 }): Promise<{
   url: string | null;
   mediaSource: MediaSourceInfo | null;
@@ -47,8 +49,11 @@ export const getDownloadUrl = async ({
     deviceProfile: generateDeviceProfile({ audioMode }),
   });
 
-  if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {
-    console.log("Downloading item directly");
+  if (
+    isLocalTranscode ||
+    (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl)
+  ) {
+    console.log("Downloading item directly (Local Transcode or Max Bitrate)");
     return {
       url: `${api.basePath}/Items/${item.Id}/Download?api_key=${api.accessToken}`,
       mediaSource: streamDetails?.mediaSource ?? null,

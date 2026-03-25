@@ -11,7 +11,19 @@ export default function ActiveDownloads({ ...props }: ActiveDownloadsProps) {
   const { processes } = useDownload();
 
   // Filter out any invalid processes before rendering
-  const validProcesses = processes?.filter((p) => p?.item?.Id) || [];
+  // Include downloading, paused, resuming, and error (resumable) processes
+  const validProcesses =
+    processes?.filter(
+      (p) =>
+        p?.item?.Id &&
+        (p.status === "downloading" ||
+          p.status === "paused" ||
+          p.status === "resuming" ||
+          p.status === "transcoding" ||
+          (p.status === "error" && p.isResumable) ||
+          p.status === "pending" ||
+          p.status === "queued"),
+    ) || [];
 
   if (validProcesses.length === 0)
     return (

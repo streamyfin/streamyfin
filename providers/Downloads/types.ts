@@ -118,7 +118,10 @@ export type JobStatus = {
     | "error" // The job encountered an error
     | "pending" // The job is waiting to start
     | "completed" // The job has finished downloading
-    | "queued"; // The job is queued to start
+    | "queued" // The job is queued to start
+    | "paused" // The job was paused by the user or network interruption
+    | "resuming" // The job is resuming from a previous state
+    | "transcoding"; // The job is being transcoded locally
   /** Timestamp of when the job was created or last updated */
   timestamp: Date;
   /** The {@link MediaSourceInfo} for the download */
@@ -148,4 +151,18 @@ export type JobStatus = {
   audioStreamIndex?: number;
   /** The subtitle stream index selected for this download */
   subtitleStreamIndex?: number;
+  /** Whether this download can be resumed from where it stopped */
+  isResumable?: boolean;
+  /** The file path for the partial download (for resume) */
+  partialFilePath?: string;
+  /** Local transcoding status */
+  localTranscodeState?: {
+    isLocal: boolean;
+    targetBitratebps: number;
+    targetCodec: "libx264" | "libx265";
+    progress: number; // 0-100
+    timeInMs?: number;
+    durationMs?: number;
+    speed?: number;
+  };
 };
