@@ -313,9 +313,6 @@ export default function CastingPlayerScreen() {
       }
 
       try {
-        // Save current playback position
-        const currentPosition = mediaStatus?.streamPosition ?? 0;
-
         // Send updated settings to the receiver — it calls getPlaybackInfo itself.
         const audioStreamIndex =
           options.audioIndex ?? selectedAudioTrackIndex ?? undefined;
@@ -326,12 +323,10 @@ export default function CastingPlayerScreen() {
             item: currentItem,
             api,
             enableH265: settings.enableH265ForChromecast,
-            startTimeTicks: Math.floor(currentPosition * 10000000),
             audioStreamIndex,
             subtitleStreamIndex,
             maxStreamingBitrate: options.bitrateValue,
           }),
-          startTime: currentPosition,
         });
       } catch (error) {
         console.error("[Casting Player] Failed to reload stream:", error);

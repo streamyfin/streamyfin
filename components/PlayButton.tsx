@@ -183,7 +183,8 @@ export const PlayButton: React.FC<Props> = ({
                         maxStreamingBitrate: selectedOptions.bitrate?.value,
                         mediaSourceId: selectedOptions.mediaSource?.Id,
                       }),
-                      startTime: startTimeTicks / 10000000,
+                      // ticks to Seconds
+                      startTime: Math.floor(startTimeTicks / 10000000),
                     })
                     .then(() => {
                       if (isOpeningCurrentlyPlayingMedia) return;
