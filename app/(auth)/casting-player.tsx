@@ -10,6 +10,7 @@ import {
   getTvShowsApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -45,6 +46,7 @@ import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettin
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
 import { useCasting } from "@/hooks/useCasting";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -56,7 +58,7 @@ import {
   truncateTitle,
 } from "@/utils/casting/helpers";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { msToTicks, secondsToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -243,6 +245,41 @@ export default function CastingPlayerScreen() {
   useEffect(() => {
     setInitialMaxBitrate(null);
   }, [currentItem?.Id]);
+
+  const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();
+  const queryClient = useQueryClient();
+
+  // Updates the progress bar in UI, so it doesnt need manual refresh of the page
+  const updateProgressAndInvalidate = useCallback(
+    (
+      itemId: string,
+      runTimeTicks: number | null | undefined,
+      progressSeconds: number,
+    ) => {
+      const positionTicks = secondsToTicks(progressSeconds);
+      const playedPercentage =
+        runTimeTicks && runTimeTicks > 0
+          ? (positionTicks / runTimeTicks) * 100
+          : 0;
+      queryClient.setQueriesData<BaseItemDto | null | undefined>(
+        { queryKey: ["item", itemId] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            UserData: {
+              ...old.UserData,
+              PlaybackPositionTicks: positionTicks,
+              PlayedPercentage: playedPercentage,
+              Played: playedPercentage >= 90 || (old.UserData?.Played ?? false),
+            },
+          };
+        },
+      );
+      invalidatePlaybackProgressCache();
+    },
+    [invalidatePlaybackProgressCache, queryClient],
+  );
 
   // Trickplay for seeking preview - use fetched item with full data
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
@@ -634,6 +671,14 @@ export default function CastingPlayerScreen() {
     ) {
       // Use setTimeout to avoid state update during render
       const timer = setTimeout(() => {
+        if (currentItem?.Id) {
+          updateProgressAndInvalidate(
+            currentItem.Id,
+            currentItem.RunTimeTicks,
+            progress,
+          );
+          console.log("this is called 1");
+        }
         if (router.canGoBack()) {
           router.back();
         } else {
@@ -643,12 +688,20 @@ export default function CastingPlayerScreen() {
 
       return () => clearTimeout(timer);
     }
-  }, [castState, router]);
+  }, [castState, currentItem, progress, router, updateProgressAndInvalidate]);
 
-  // Also redirect if mediaStatus disappears (media ended or stopped)
+  // Also redirect if mediaStatus disappears (media ended naturally)
   useEffect(() => {
     if (castState === CastState.CONNECTED && !mediaStatus) {
       const timer = setTimeout(() => {
+        if (currentItem?.Id) {
+          updateProgressAndInvalidate(
+            currentItem.Id,
+            currentItem.RunTimeTicks,
+            progress,
+          );
+          console.log("this is called 2");
+        }
         if (router.canGoBack()) {
           router.back();
         } else {
@@ -658,7 +711,14 @@ export default function CastingPlayerScreen() {
 
       return () => clearTimeout(timer);
     }
-  }, [castState, mediaStatus, router]);
+  }, [
+    castState,
+    currentItem,
+    mediaStatus,
+    progress,
+    router,
+    updateProgressAndInvalidate,
+  ]);
 
   // Show loading while connecting
   if (castState === CastState.CONNECTING) {
@@ -1043,6 +1103,15 @@ export default function CastingPlayerScreen() {
                       await remoteMediaClient.stop();
                     }
 
+                    if (currentItem?.Id) {
+                      updateProgressAndInvalidate(
+                        currentItem.Id,
+                        currentItem.RunTimeTicks,
+                        progress,
+                      );
+                      console.log("this is called 3");
+                    }
+
                     // Navigate back/close the player (mini player will disappear since no media is playing)
                     if (router.canGoBack()) {
                       router.back();
@@ -1393,6 +1462,14 @@ export default function CastingPlayerScreen() {
                 const sessionManager = GoogleCast.getSessionManager();
                 await sessionManager.endCurrentSession(true);
                 setShowDeviceSheet(false);
+                if (currentItem?.Id) {
+                  updateProgressAndInvalidate(
+                    currentItem.Id,
+                    currentItem.RunTimeTicks,
+                    progress,
+                  );
+                  console.log("this is called 4");
+                }
                 // Close player immediately after disconnecting
                 setTimeout(() => {
                   if (router.canGoBack()) {
