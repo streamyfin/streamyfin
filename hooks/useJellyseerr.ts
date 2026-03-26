@@ -94,6 +94,8 @@ export enum Endpoints {
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
   DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
+  AUTH_SEERR = "/auth/local",
+  AUTH_ME = "/auth/me",
 }
 
 export type DiscoverEndpoint =
@@ -179,7 +181,10 @@ export class JellyseerrApi {
       });
   }
 
-  async login(username: string, password: string): Promise<JellyseerrUser> {
+  async jellyfinLogin(
+    username: string,
+    password: string,
+  ): Promise<JellyseerrUser> {
     return this.axios
       ?.post<JellyseerrUser>(Endpoints.API_V1 + Endpoints.AUTH_JELLYFIN, {
         username,
@@ -192,6 +197,36 @@ export class JellyseerrApi {
         storage.setAny(JELLYSEERR_USER, user);
         return user;
       });
+  }
+
+  async seerrLogin(email: string, password: string): Promise<JellyseerrUser> {
+    return this.axios
+      ?.post<JellyseerrUser>(Endpoints.API_V1 + Endpoints.AUTH_SEERR, {
+        email,
+        password,
+      })
+      .then(async (response) => {
+        let user = response?.data;
+        if (!user) throw Error("Login failed");
+        user = await this.authMe();
+        return user;
+      });
+  }
+
+  async authMe(): Promise<JellyseerrUser> {
+    return this.axios
+      ?.get<JellyseerrUser>(Endpoints.API_V1 + Endpoints.AUTH_ME)
+      .then((response) => {
+        const user = response?.data;
+        if (!user) throw Error("Auth me failed");
+        storage.setAny(JELLYSEERR_USER, user);
+        return user;
+      });
+  }
+
+  async webLogin(cookies: string[]): Promise<JellyseerrUser> {
+    storage.setAny(JELLYSEERR_COOKIES, cookies);
+    return await this.authMe();
   }
 
   async discoverSettings(): Promise<DiscoverSlider[]> {

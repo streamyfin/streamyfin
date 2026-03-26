@@ -1,7 +1,7 @@
 import { ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DisabledSetting from "@/components/settings/DisabledSetting";
-import { JellyseerrSettings } from "@/components/settings/Jellyseerr";
+import { JellyseerrSettings } from "@/components/settings/jellyseerr/Jellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function page() {
