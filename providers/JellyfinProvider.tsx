@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +33,7 @@ import {
   addServerToList,
   deleteAccountCredential,
   getAccountCredential,
+  getServerCustomHeaders,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
@@ -123,6 +125,56 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }, DeviceId="${deviceId}", Version="0.52.0"`,
     };
   }, [deviceId]);
+
+  // Axios interceptor for custom headers (Cloudflare Zero Trust, Pangolin, etc.)
+  const axiosInterceptorRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!api) return;
+
+    // Eject stale interceptor before registering a new one
+    if (axiosInterceptorRef.current !== null) {
+      api.axiosInstance.interceptors.request.eject(axiosInterceptorRef.current);
+      axiosInterceptorRef.current = null;
+    }
+
+    const serverUrl = api.basePath;
+    const customHeaders = getServerCustomHeaders(serverUrl);
+    const activeHeaders = customHeaders.filter(
+      (h) => h.enabled && h.key.trim(),
+    );
+
+    console.log("[CustomHeaders] Axios interceptor - Server URL:", serverUrl);
+    console.log(
+      "[CustomHeaders] Axios interceptor - Custom headers:",
+      JSON.stringify(customHeaders, null, 2),
+    );
+    console.log(
+      "[CustomHeaders] Axios interceptor - Active headers:",
+      JSON.stringify(activeHeaders, null, 2),
+    );
+
+    if (activeHeaders.length > 0) {
+      axiosInterceptorRef.current = api.axiosInstance.interceptors.request.use(
+        (config) => {
+          console.log(
+            "[CustomHeaders] Injecting headers into request:",
+            config.url,
+          );
+          for (const { key, value } of activeHeaders) {
+            config.headers.set(key, value);
+            console.log(
+              `[CustomHeaders] Set header: ${key} = ${value.substring(0, 10)}...`,
+            );
+          }
+          return config;
+        },
+      );
+      console.log("[CustomHeaders] Axios interceptor registered");
+    } else {
+      console.log("[CustomHeaders] No active headers to inject");
+    }
+  }, [api]);
 
   const initiateQuickConnect = useCallback(async () => {
     if (!api || !deviceId) return;

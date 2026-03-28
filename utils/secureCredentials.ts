@@ -44,6 +44,15 @@ export interface LocalNetworkConfig {
 }
 
 /**
+ * Custom HTTP header for proxy authentication (e.g., Cloudflare Zero Trust, Pangolin).
+ */
+export interface CustomHeader {
+  key: string; // Header name, e.g. "CF-Access-Client-Id"
+  value: string; // Header value
+  enabled: boolean; // Whether to include this header in requests
+}
+
+/**
  * Server with multiple saved accounts.
  */
 export interface SavedServer {
@@ -51,6 +60,7 @@ export interface SavedServer {
   name?: string;
   accounts: SavedServerAccount[];
   localNetworkConfig?: LocalNetworkConfig;
+  customHeaders?: CustomHeader[];
 }
 
 /**
@@ -384,6 +394,43 @@ export function getServerLocalConfig(
   const servers = getPreviousServers();
   const server = servers.find((s) => s.address === serverUrl);
   return server?.localNetworkConfig;
+}
+
+/**
+ * Update custom headers for a server.
+ */
+export function updateServerCustomHeaders(
+  serverUrl: string,
+  headers: CustomHeader[],
+): void {
+  const servers = getPreviousServers();
+  const existingServerIndex = servers.findIndex((s) => s.address === serverUrl);
+
+  if (existingServerIndex >= 0) {
+    // Update existing server
+    servers[existingServerIndex] = {
+      ...servers[existingServerIndex],
+      customHeaders: headers,
+    };
+  } else {
+    // Create new server entry with URL, headers, and empty accounts array
+    servers.push({
+      address: serverUrl,
+      customHeaders: headers,
+      accounts: [],
+    } as SavedServer);
+  }
+
+  storage.set("previousServers", JSON.stringify(servers));
+}
+
+/**
+ * Get custom headers for a server.
+ */
+export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
+  const servers = getPreviousServers();
+  const server = servers.find((s) => s.address === serverUrl);
+  return server?.customHeaders ?? [];
 }
 
 /**

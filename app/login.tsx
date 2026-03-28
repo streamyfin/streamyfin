@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useState } from "react";
@@ -24,10 +24,14 @@ import { PreviousServersList } from "@/components/PreviousServersList";
 import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+import { HEADER_PRESETS } from "@/utils/customHeaderPresets";
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import type {
   AccountSecurityType,
+  CustomHeader,
   SavedServer,
 } from "@/utils/secureCredentials";
+import { updateServerCustomHeaders } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
@@ -36,6 +40,7 @@ const CredentialsSchema = z.object({
 const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
+  const router = useRouter();
   const params = useLocalSearchParams();
   const {
     setServer,
@@ -71,6 +76,10 @@ const Login: React.FC = () => {
     username: string;
     password: string;
   } | null>(null);
+
+  // Advanced section for custom headers on initial connection
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingHeaders, setPendingHeaders] = useState<CustomHeader[]>([]);
 
   /**
    * A way to auto login based on a link
@@ -230,12 +239,30 @@ const Login: React.FC = () => {
   async function checkHttp(baseUrl: string, protocols: string[]) {
     for (const protocol of protocols) {
       try {
-        const response = await fetch(
-          `${protocol}://${baseUrl}/System/Info/Public`,
-          {
-            mode: "cors",
-          },
+        const serverUrl = `${protocol}://${baseUrl}`;
+        const customHeaders = getCustomHeaders(serverUrl);
+
+        console.log("[CustomHeaders] checkHttp - Server URL:", serverUrl);
+        console.log(
+          "[CustomHeaders] checkHttp - Retrieved headers:",
+          JSON.stringify(customHeaders, null, 2),
         );
+
+        const response = await fetch(`${serverUrl}/System/Info/Public`, {
+          mode: "cors",
+          headers: customHeaders,
+        });
+
+        console.log("[CustomHeaders] Response status:", response.status);
+        console.log(
+          "[CustomHeaders] Response headers:",
+          JSON.stringify(
+            Object.fromEntries(response.headers.entries()),
+            null,
+            2,
+          ),
+        );
+
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
           const serverVersion = data.Version?.split(".");
@@ -249,9 +276,19 @@ const Login: React.FC = () => {
             }
           }
           setServerName(data.ServerName || "");
-          return `${protocol}://${baseUrl}`;
+          return serverUrl;
         }
       } catch (e) {
+        console.log(
+          "[CustomHeaders] Fetch error for",
+          `${protocol}://${baseUrl}`,
+          ":",
+          e,
+        );
+        if (e instanceof Error) {
+          console.log("[CustomHeaders] Error message:", e.message);
+          console.log("[CustomHeaders] Error stack:", e.stack);
+        }
         if (e instanceof Error && e.message === "Server too old") {
           throw e;
         }
@@ -275,20 +312,23 @@ const Login: React.FC = () => {
    * - Sets the server address using `setServer` if the connection is successful.
    *
    */
-  const handleConnect = useCallback(async (url: string) => {
-    url = url.trim().replace(/\/$/, "");
-    try {
-      const result = await checkUrl(url);
-      if (result === undefined) {
-        Alert.alert(
-          t("login.connection_failed"),
-          t("login.could_not_connect_to_server"),
-        );
-        return;
-      }
-      await setServer({ address: result });
-    } catch {}
-  }, []);
+  const handleConnect = useCallback(
+    async (url: string) => {
+      url = url.trim().replace(/\/$/, "");
+      try {
+        const result = await checkUrl(url);
+        if (result === undefined) {
+          Alert.alert(
+            t("login.connection_failed"),
+            t("login.could_not_connect_to_server"),
+          );
+          return;
+        }
+        await setServer({ address: result });
+      } catch {}
+    },
+    [pendingHeaders],
+  );
 
   const handleQuickConnect = async () => {
     try {
@@ -496,6 +536,18 @@ const Login: React.FC = () => {
                   )}
                 </Text>
                 <Text className='text-xs text-neutral-400'>{api.basePath}</Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push("/(auth)/(tabs)/(home)/settings/network")
+                  }
+                  className='flex flex-row items-center py-1'
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name='settings-outline' size={14} color='#a855f7' />
+                  <Text className='text-xs text-purple-600 ml-1'>
+                    Configure Custom Headers
+                  </Text>
+                </TouchableOpacity>
                 <Input
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
@@ -610,10 +662,127 @@ const Login: React.FC = () => {
                 textContentType='URL'
                 maxLength={500}
               />
+
+              {/* Advanced section for custom headers */}
+              <TouchableOpacity
+                onPress={() => setShowAdvanced(!showAdvanced)}
+                className='flex flex-row items-center py-2'
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={showAdvanced ? "chevron-down" : "chevron-forward"}
+                  size={16}
+                  color='#a855f7'
+                />
+                <Text className='text-sm text-purple-600 ml-1'>
+                  Advanced (Custom Headers)
+                </Text>
+              </TouchableOpacity>
+
+              {showAdvanced && (
+                <View className='bg-neutral-900 rounded-xl p-3 mb-2'>
+                  <Text className='text-xs text-neutral-400 mb-2'>
+                    Configure headers for Cloudflare Zero Trust, Pangolin, or
+                    other proxy authentication
+                  </Text>
+
+                  {pendingHeaders.length === 0 ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        Alert.alert(
+                          "Add Header Preset",
+                          "Choose a preset or add custom header",
+                          [
+                            ...HEADER_PRESETS.map((preset) => ({
+                              text: preset.label,
+                              onPress: () => setPendingHeaders(preset.headers),
+                            })),
+                            {
+                              text: "Custom Header",
+                              onPress: () =>
+                                setPendingHeaders([
+                                  { key: "", value: "", enabled: true },
+                                ]),
+                            },
+                            { text: "Cancel", style: "cancel" as const },
+                          ],
+                        );
+                      }}
+                      className='bg-neutral-800 rounded-lg p-3'
+                    >
+                      <Text className='text-purple-600 text-center text-sm'>
+                        + Add Header
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View className='gap-2'>
+                      {pendingHeaders.map((header, index) => (
+                        <View key={index} className='gap-1'>
+                          <Input
+                            placeholder='Header name (e.g., CF-Access-Client-Id)'
+                            value={header.key}
+                            onChangeText={(text) => {
+                              const updated = [...pendingHeaders];
+                              updated[index].key = text;
+                              setPendingHeaders(updated);
+                            }}
+                            autoCapitalize='none'
+                            autoCorrect={false}
+                          />
+                          <Input
+                            placeholder='Header value'
+                            value={header.value}
+                            onChangeText={(text) => {
+                              const updated = [...pendingHeaders];
+                              updated[index].value = text;
+                              setPendingHeaders(updated);
+                            }}
+                            autoCapitalize='none'
+                            autoCorrect={false}
+                          />
+                        </View>
+                      ))}
+                      <TouchableOpacity
+                        onPress={() => setPendingHeaders([])}
+                        className='bg-neutral-800 rounded-lg p-2'
+                      >
+                        <Text className='text-red-500 text-center text-xs'>
+                          Clear Headers
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <Button
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
+                  // Save pending headers before connecting
+                  if (pendingHeaders.length > 0 && serverURL) {
+                    // Strip protocol to get just the domain for storage key
+                    const domain = serverURL.replace(/^https?:\/\//, "");
+                    console.log(
+                      "[CustomHeaders] Saving headers for domain:",
+                      domain,
+                    );
+                    console.log(
+                      "[CustomHeaders] Headers:",
+                      JSON.stringify(pendingHeaders, null, 2),
+                    );
+                    // Save with both http and https variants so checkHttp can find them
+                    updateServerCustomHeaders(
+                      `https://${domain}`,
+                      pendingHeaders,
+                    );
+                    updateServerCustomHeaders(
+                      `http://${domain}`,
+                      pendingHeaders,
+                    );
+                  } else {
+                    console.log("[CustomHeaders] No pending headers to save");
+                  }
                   await handleConnect(serverURL);
                 }}
                 className='w-full grow'
