@@ -306,6 +306,7 @@ export default function CastingPlayerScreen() {
     togglePlayPause,
     skipForward,
     skipBackward,
+    stop,
     setVolume,
     volume,
     remoteMediaClient,
@@ -315,6 +316,7 @@ export default function CastingPlayerScreen() {
         togglePlayPause: async () => {},
         skipForward: async () => {},
         skipBackward: async () => {},
+        stop: async () => {},
         setVolume: () => {},
         volume: 1,
         remoteMediaClient: null,
@@ -1459,6 +1461,22 @@ export default function CastingPlayerScreen() {
                     {settings.forwardSkipTime}
                   </Text>
                 )}
+              </Pressable>
+
+              {/* Stop */}
+              <Pressable
+                onPress={() =>
+                  stop(() => {
+                    if (router.canGoBack()) {
+                      router.back();
+                    } else {
+                      router.replace("/(auth)/(tabs)/(home)/");
+                    }
+                  })
+                }
+                style={{ justifyContent: "center", alignItems: "center" }}
+              >
+                <Ionicons name='stop' size={40} color='white' />
               </Pressable>
             </View>
           </View>
