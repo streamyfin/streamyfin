@@ -48,6 +48,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
 import { useSettings } from "@/utils/atoms/settings";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
   getMpvAudioId,
@@ -504,9 +505,35 @@ export default function page() {
     return ticksToSeconds(getInitialPlaybackTicks());
   }, [getInitialPlaybackTicks]);
 
+  /** Prepare metadata for iOS native media controls (Control Center, Lock Screen) */
+  const nowPlayingMetadata = useMemo(() => {
+    if (!item || !api) return undefined;
+
+    const artworkUri = getPrimaryImageUrl({
+      api,
+      item,
+      quality: 90,
+      width: 500,
+    });
+
+    return {
+      title: item.Name || "",
+      artist:
+        item.Type === "Episode"
+          ? item.SeriesName || ""
+          : item.AlbumArtist || "",
+      albumTitle:
+        item.Type === "Episode" && item.SeasonName
+          ? item.SeasonName
+          : undefined,
+      artworkUri: artworkUri || undefined,
+    };
+  }, [item, api]);
+
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
     if (!stream?.url) return undefined;
+    if (!offline && !item) return undefined;
 
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
@@ -547,6 +574,7 @@ export default function page() {
     const startTicks = playbackPositionFromUrl
       ? Number.parseInt(playbackPositionFromUrl, 10)
       : (item?.UserData?.PlaybackPositionTicks ?? 0);
+
     const startPos = ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
@@ -569,12 +597,12 @@ export default function page() {
         Authorization: `MediaBrowser Token="${api.accessToken}"`,
       };
     }
-
     return source;
   }, [
     stream?.url,
     stream?.mediaSource,
     item?.UserData?.PlaybackPositionTicks,
+    item,
     playbackPositionFromUrl,
     api?.basePath,
     api?.accessToken,
@@ -932,6 +960,7 @@ export default function page() {
                 ref={videoRef}
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}
+                nowPlayingMetadata={nowPlayingMetadata}
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onLoad={() => setIsVideoLoaded(true)}
@@ -939,7 +968,7 @@ export default function page() {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
                     t("player.error"),
-                    t("player.an_error_occurred_while_playing_the_video"),
+                    t("player.an_error_occured_while_playing_the_video"),
                   );
                   writeToLog("ERROR", "Video Error", e.nativeEvent);
                 }}

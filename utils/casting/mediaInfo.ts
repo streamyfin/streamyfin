@@ -1,6 +1,10 @@
 /**
  * Shared helper to build Chromecast media metadata.
  * Eliminates duplication between PlayButton, casting-player reloadWithSettings, and loadEpisode.
+ *
+ * The sender passes item info and playback settings in customData.
+ * The receiver calls getPlaybackInfo itself to get the stream URL, so there is
+ * no stream URL, session ID, or transcodingUrl on the sender side.
  */
 
 import type { Api } from "@jellyfin/sdk";
@@ -9,28 +13,30 @@ import { MediaStreamType } from "react-native-google-cast";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
-/**
- * Build a MediaInfo object suitable for `remoteMediaClient.loadMedia()`.
- *
- * NOTE on contentType: Chromecast Default Media Receiver auto-detects HLS/DASH
- * from the URL. Setting contentType to "application/x-mpegurl" or "application/dash+xml"
- * actually BREAKS playback on many receivers. Always use "video/mp4" unless
- * you have a custom receiver that explicitly handles other MIME types.
- */
 export const buildCastMediaInfo = ({
   item,
-  streamUrl,
   api,
   contentType,
   isLive = false,
+  startTimeTicks,
+  audioStreamIndex,
+  subtitleStreamIndex,
+  maxStreamingBitrate,
+  mediaSourceId,
+  enableH265 = false,
 }: {
   item: BaseItemDto;
-  streamUrl: string;
   api: Api;
-  /** Override MIME type. Defaults to "video/mp4" which works for all stream types on Default Media Receiver. */
   contentType?: string;
   /** Set true for live TV streams to use MediaStreamType.LIVE. */
   isLive?: boolean;
+  startTimeTicks?: number;
+  audioStreamIndex?: number;
+  subtitleStreamIndex?: number;
+  maxStreamingBitrate?: number;
+  mediaSourceId?: string | null;
+  /** Pass the user's H265 setting so the receiver chooses the right device profile. */
+  enableH265?: boolean;
 }) => {
   if (!item.Id) {
     throw new Error("Missing item.Id for media load — cannot build contentId");
@@ -81,11 +87,18 @@ export const buildCastMediaInfo = ({
 
   const metadata = buildItemMetadata();
 
-  // Build a slim customData payload with only the fields the casting-player needs.
-  // Sending the full BaseItemDto can exceed the Cast protocol's ~64KB message limit,
-  // especially for movies with many chapters, media sources, and people.
-  const slimCustomData: Partial<BaseItemDto> = {
+  // customData is read by the receiver (for stream init) and by the sender UI
+  // (via mediaStatus.mediaInfo.customData) for displaying item info.
+  const customData: Record<string, unknown> = {
+    // Playback settings — receiver passes these to getPlaybackInfo
     Id: item.Id,
+    startTimeTicks: startTimeTicks ?? 0,
+    audioStreamIndex,
+    subtitleStreamIndex,
+    maxStreamingBitrate,
+    mediaSourceId,
+    enableH265,
+    // Display metadata
     Name: item.Name,
     Type: item.Type,
     SeriesName: item.SeriesName,
@@ -96,7 +109,6 @@ export const buildCastMediaInfo = ({
     ImageTags: item.ImageTags,
     RunTimeTicks: item.RunTimeTicks,
     Overview: item.Overview,
-    MediaStreams: item.MediaStreams,
     MediaSources: item.MediaSources?.map((src) => ({
       Id: src.Id,
       Bitrate: src.Bitrate,
@@ -110,11 +122,13 @@ export const buildCastMediaInfo = ({
 
   return {
     contentId: itemId,
-    contentUrl: streamUrl,
+    // Empty placeholder — the receiver's LOAD interceptor replaces this with
+    // the real stream URL after calling getPlaybackInfo itself.
+    contentUrl: "",
     contentType: contentType || "video/mp4",
     streamType: isLive ? MediaStreamType.LIVE : MediaStreamType.BUFFERED,
     streamDuration,
-    customData: slimCustomData,
+    customData,
     metadata,
   };
 };

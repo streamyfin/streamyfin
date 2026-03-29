@@ -54,6 +54,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     private var _isLoading: Boolean = false
     private var _playbackSpeed: Double = 1.0
     private var isReadyToSeek: Boolean = false
+    private var initialSeekDone: Boolean = false
+    private var pendingStartPosition: Double? = null
 
     // Progress update throttling - CRITICAL for performance!
     // DO NOT REMOVE THIS THROTTLE - it is essential for battery life and CPU efficiency.
@@ -274,6 +276,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         this.initialSubtitleId = initialSubtitleId
         this.initialAudioId = initialAudioId
         
+
+        pendingStartPosition = if(startPosition != null && startPosition > 0) startPosition else null
+        initialSeekDone = false
+
         _isLoading = true
         isReadyToSeek = false
         mainHandler.post { delegate?.onLoadingChanged(true) }
@@ -666,6 +672,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             }
             MPVLib.MPV_EVENT_PLAYBACK_RESTART -> {
                 // Video playback has started/restarted (including after seek)
+                if (!initialSeekDone) {
+                    pendingStartPosition?.let { pos ->
+                        MPVLib.setPropertyDouble("time-pos", pos)
+                        pendingStartPosition = null
+                    }
+                    initialSeekDone = true
+                }
                 _isSeeking = false
                 if (_isLoading) {
                     _isLoading = false

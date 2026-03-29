@@ -5,7 +5,12 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getSessionApi,
+  getTvShowsApi,
+  getUserLibraryApi,
+} from "@jellyfin/sdk/lib/utils/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -29,18 +34,19 @@ import GoogleCast, {
   useRemoteMediaClient,
 } from "react-native-google-cast";
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
 import { useCasting } from "@/hooks/useCasting";
+import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -52,10 +58,7 @@ import {
   truncateTitle,
 } from "@/utils/casting/helpers";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { msToTicks, secondsToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -194,6 +197,90 @@ export default function CastingPlayerScreen() {
   const isBuffering = mediaStatus?.playerState === MediaPlayerState.BUFFERING;
   const currentDevice = castDevice?.friendlyName ?? null;
 
+  const isDirectPlay = !mediaStatus?.mediaInfo?.contentUrl?.includes("m3u8");
+
+  const [_actualBitrate, setActualBitrate] = useState<number | null>(null);
+  const [selectedBitrate, setSelectedBitrate] = useState<number | null>(null);
+  const [_bitrateLoading, setBitrateLoading] = useState(true);
+  const [initialMaxBitrate, setInitialMaxBitrate] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!api || !currentItem?.Id || !isPlaying) return;
+
+    setActualBitrate(null);
+    setBitrateLoading(true);
+
+    const fetchSessionBitrate = async () => {
+      try {
+        const { data } = await getSessionApi(api).getSessions();
+        const currentSession = data.find(
+          (s) => s.NowPlayingItem?.Id === currentItem.Id,
+        );
+        const bitrate = currentSession?.TranscodingInfo?.Bitrate;
+        if (bitrate) {
+          setActualBitrate(bitrate);
+          // Only lock in the initial max once per item
+          setInitialMaxBitrate((prev) => (prev === null ? bitrate : prev));
+        } else {
+          setActualBitrate(null);
+        }
+      } catch (error) {
+        console.error(
+          "[Casting Player] Failed to fetch session bitrate:",
+          error,
+        );
+      } finally {
+        setBitrateLoading(false);
+      }
+    };
+
+    // Small delay to let the session establish before querying stream bitrate
+    const timer = setTimeout(fetchSessionBitrate, 1500);
+    return () => clearTimeout(timer);
+  }, [api, currentItem?.Id, selectedBitrate, isPlaying]);
+
+  // Reset initial max bitrate when item changes
+  useEffect(() => {
+    setInitialMaxBitrate(null);
+  }, [currentItem?.Id]);
+
+  const invalidatePlaybackProgressCache = useInvalidatePlaybackProgressCache();
+  const queryClient = useQueryClient();
+
+  // Updates the progress bar in UI, so it doesnt need manual refresh of the page
+  const updateProgressAndInvalidate = useCallback(
+    (
+      itemId: string,
+      runTimeTicks: number | null | undefined,
+      progressSeconds: number,
+    ) => {
+      const positionTicks = secondsToTicks(progressSeconds);
+      const playedPercentage =
+        runTimeTicks && runTimeTicks > 0
+          ? (positionTicks / runTimeTicks) * 100
+          : 0;
+      queryClient.setQueriesData<BaseItemDto | null | undefined>(
+        { queryKey: ["item", itemId] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            UserData: {
+              ...old.UserData,
+              PlaybackPositionTicks: positionTicks,
+              PlayedPercentage: playedPercentage,
+              Played: playedPercentage >= 90 || (old.UserData?.Played ?? false),
+            },
+          };
+        },
+      );
+      invalidatePlaybackProgressCache();
+    },
+    [invalidatePlaybackProgressCache, queryClient],
+  );
+
   // Trickplay for seeking preview - use fetched item with full data
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
     fetchedItem ?? null,
@@ -219,6 +306,7 @@ export default function CastingPlayerScreen() {
     togglePlayPause,
     skipForward,
     skipBackward,
+    stop,
     setVolume,
     volume,
     remoteMediaClient,
@@ -228,6 +316,7 @@ export default function CastingPlayerScreen() {
         togglePlayPause: async () => {},
         skipForward: async () => {},
         skipBackward: async () => {},
+        stop: async () => {},
         setVolume: () => {},
         volume: 1,
         remoteMediaClient: null,
@@ -250,12 +339,35 @@ export default function CastingPlayerScreen() {
   >(null);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
 
-  // Function to reload media with new audio/subtitle/quality settings
+  // Seed track/bitrate selections from customData once per item (set by PlayButton)
+  const seededItemIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const itemId = (
+      mediaStatus?.mediaInfo?.customData as Record<string, unknown> | null
+    )?.Id as string | undefined;
+    if (!itemId || seededItemIdRef.current === itemId) return;
+
+    const customData = mediaStatus!.mediaInfo!.customData as Record<
+      string,
+      unknown
+    >;
+    seededItemIdRef.current = itemId;
+    if (typeof customData.audioStreamIndex === "number")
+      setSelectedAudioTrackIndex(customData.audioStreamIndex);
+    if (typeof customData.subtitleStreamIndex === "number")
+      setSelectedSubtitleTrackIndex(customData.subtitleStreamIndex);
+    if (typeof customData.maxStreamingBitrate === "number")
+      setSelectedBitrate(customData.maxStreamingBitrate);
+  }, [mediaStatus?.mediaInfo?.customData]);
+
+  // Function to reload media with new audio/subtitle/quality settings.
+  // Callers must pass all current selections — no fallback to state here to
+  // avoid stale closure issues (React state updates are async).
   const reloadWithSettings = useCallback(
     async (options: {
-      audioIndex?: number;
-      subtitleIndex?: number | null;
-      bitrateValue?: number;
+      audioIndex: number | undefined;
+      subtitleIndex: number | null | undefined;
+      bitrateValue: number | undefined;
     }) => {
       if (!api || !user?.Id || !currentItem?.Id || !remoteMediaClient) {
         console.warn("[Casting Player] Cannot reload - missing required data");
@@ -263,38 +375,15 @@ export default function CastingPlayerScreen() {
       }
 
       try {
-        // Save current playback position
-        const currentPosition = mediaStatus?.streamPosition ?? 0;
-
-        // Get new stream URL with updated settings
-        const enableH265 = settings.enableH265ForChromecast;
-        const data = await getStreamUrl({
-          api,
-          item: currentItem,
-          deviceProfile: enableH265 ? chromecasth265 : chromecast,
-          startTimeTicks: Math.floor(currentPosition * 10000000), // Convert seconds to ticks
-          userId: user.Id,
-          audioStreamIndex:
-            options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
-          // null = subtitles off (omit from request), number = specific track
-          subtitleStreamIndex:
-            options.subtitleIndex === null ? undefined : options.subtitleIndex,
-          maxStreamingBitrate: options.bitrateValue,
-        });
-
-        if (!data?.url) {
-          console.error("[Casting Player] Failed to get stream URL");
-          return;
-        }
-
-        // Reload media with new URL
         await remoteMediaClient.loadMedia({
           mediaInfo: buildCastMediaInfo({
             item: currentItem,
-            streamUrl: data.url,
             api,
+            enableH265: settings.enableH265ForChromecast,
+            audioStreamIndex: options.audioIndex,
+            subtitleStreamIndex: options.subtitleIndex ?? undefined,
+            maxStreamingBitrate: options.bitrateValue,
           }),
-          startTime: currentPosition, // Resume at same position
         });
       } catch (error) {
         console.error("[Casting Player] Failed to reload stream:", error);
@@ -305,9 +394,7 @@ export default function CastingPlayerScreen() {
       user?.Id,
       currentItem,
       remoteMediaClient,
-      mediaStatus?.streamPosition,
       settings.enableH265ForChromecast,
-      selectedAudioTrackIndex,
     ],
   );
 
@@ -317,29 +404,15 @@ export default function CastingPlayerScreen() {
       if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
 
       try {
-        const enableH265 = settings.enableH265ForChromecast;
-        const data = await getStreamUrl({
-          api,
-          item: episode,
-          deviceProfile: enableH265 ? chromecasth265 : chromecast,
-          startTimeTicks: episode.UserData?.PlaybackPositionTicks ?? 0,
-          userId: user.Id,
-        });
-
-        if (!data?.url) {
-          console.error(
-            "[Casting Player] Failed to get stream URL for episode",
-          );
-          return;
-        }
-
+        const startTimeTicks = episode.UserData?.PlaybackPositionTicks ?? 0;
         await remoteMediaClient.loadMedia({
           mediaInfo: buildCastMediaInfo({
             item: episode,
-            streamUrl: data.url,
             api,
+            enableH265: settings.enableH265ForChromecast,
+            startTimeTicks,
           }),
-          startTime: (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000000,
+          startTime: startTimeTicks / 10000000,
         });
 
         // Reset track selections for new episode
@@ -420,16 +493,26 @@ export default function CastingPlayerScreen() {
   const availableMediaSources = useMemo(() => {
     // Get the original source bitrate
     const originalBitrate =
-      currentItem?.MediaSources?.[0]?.Bitrate ||
       currentItem?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ||
       20000000; // Default to 20Mbps if unknown
+
+    const maxBitrate = isDirectPlay
+      ? originalBitrate
+      : (initialMaxBitrate ?? originalBitrate);
+
+    // Generate max label based on direct play or transcoding
+    const maxLabel = isDirectPlay
+      ? `Max (${Math.round(originalBitrate / 1000000)} Mb/s)`
+      : initialMaxBitrate
+        ? `Max (${Math.round(initialMaxBitrate / 1000000)} Mb/s)`
+        : `Max (${Math.round(originalBitrate / 1000000)} Mb/s)`;
 
     // Generate bitrate variants
     const variants = [
       {
         id: `${currentItem?.Id}-max`,
-        name: "Max",
-        bitrate: originalBitrate,
+        name: maxLabel,
+        bitrate: maxBitrate,
         container: currentItem?.MediaSources?.[0]?.Container || "mp4",
       },
       {
@@ -459,7 +542,13 @@ export default function CastingPlayerScreen() {
     ];
 
     return variants;
-  }, [currentItem?.MediaSources, currentItem?.MediaStreams, currentItem?.Id]);
+  }, [
+    currentItem?.MediaSources,
+    currentItem?.MediaStreams,
+    currentItem?.Id,
+    isDirectPlay,
+    initialMaxBitrate,
+  ]);
 
   // Fetch episodes for TV shows
   useEffect(() => {
@@ -545,7 +634,7 @@ export default function CastingPlayerScreen() {
             stiffness: 90,
           },
           () => {
-            runOnJS(dismissModal)();
+            scheduleOnRN(dismissModal);
           },
         );
       } else {
@@ -600,6 +689,14 @@ export default function CastingPlayerScreen() {
     ) {
       // Use setTimeout to avoid state update during render
       const timer = setTimeout(() => {
+        if (currentItem?.Id) {
+          updateProgressAndInvalidate(
+            currentItem.Id,
+            currentItem.RunTimeTicks,
+            progress,
+          );
+          console.log("this is called 1");
+        }
         if (router.canGoBack()) {
           router.back();
         } else {
@@ -609,12 +706,20 @@ export default function CastingPlayerScreen() {
 
       return () => clearTimeout(timer);
     }
-  }, [castState, router]);
+  }, [castState, currentItem, progress, router, updateProgressAndInvalidate]);
 
-  // Also redirect if mediaStatus disappears (media ended or stopped)
+  // Also redirect if mediaStatus disappears (media ended naturally)
   useEffect(() => {
     if (castState === CastState.CONNECTED && !mediaStatus) {
       const timer = setTimeout(() => {
+        if (currentItem?.Id) {
+          updateProgressAndInvalidate(
+            currentItem.Id,
+            currentItem.RunTimeTicks,
+            progress,
+          );
+          console.log("this is called 2");
+        }
         if (router.canGoBack()) {
           router.back();
         } else {
@@ -624,7 +729,14 @@ export default function CastingPlayerScreen() {
 
       return () => clearTimeout(timer);
     }
-  }, [castState, mediaStatus, router]);
+  }, [
+    castState,
+    currentItem,
+    mediaStatus,
+    progress,
+    router,
+    updateProgressAndInvalidate,
+  ]);
 
   // Show loading while connecting
   if (castState === CastState.CONNECTING) {
@@ -649,6 +761,8 @@ export default function CastingPlayerScreen() {
   if (castState !== CastState.CONNECTED || !mediaStatus || !currentItem) {
     return null;
   }
+
+  const screenWidth = Dimensions.get("window").width;
 
   return (
     <>
@@ -797,8 +911,8 @@ export default function CastingPlayerScreen() {
             >
               <View
                 style={{
-                  width: 280,
-                  height: 420,
+                  width: screenWidth * 0.55,
+                  height: screenWidth * 0.55 * 1.5,
                   borderRadius: 12,
                   overflow: "hidden",
                   position: "relative",
@@ -1005,6 +1119,15 @@ export default function CastingPlayerScreen() {
                     // Stop the current media playback (don't disconnect from Chromecast)
                     if (remoteMediaClient) {
                       await remoteMediaClient.stop();
+                    }
+
+                    if (currentItem?.Id) {
+                      updateProgressAndInvalidate(
+                        currentItem.Id,
+                        currentItem.RunTimeTicks,
+                        progress,
+                      );
+                      console.log("this is called 3");
                     }
 
                     // Navigate back/close the player (mini player will disappear since no media is playing)
@@ -1339,6 +1462,22 @@ export default function CastingPlayerScreen() {
                   </Text>
                 )}
               </Pressable>
+
+              {/* Stop */}
+              <Pressable
+                onPress={() =>
+                  stop(() => {
+                    if (router.canGoBack()) {
+                      router.back();
+                    } else {
+                      router.replace("/(auth)/(tabs)/(home)/");
+                    }
+                  })
+                }
+                style={{ justifyContent: "center", alignItems: "center" }}
+              >
+                <Ionicons name='stop' size={40} color='white' />
+              </Pressable>
             </View>
           </View>
 
@@ -1357,6 +1496,14 @@ export default function CastingPlayerScreen() {
                 const sessionManager = GoogleCast.getSessionManager();
                 await sessionManager.endCurrentSession(true);
                 setShowDeviceSheet(false);
+                if (currentItem?.Id) {
+                  updateProgressAndInvalidate(
+                    currentItem.Id,
+                    currentItem.RunTimeTicks,
+                    progress,
+                  );
+                  console.log("this is called 4");
+                }
                 // Close player immediately after disconnecting
                 setTimeout(() => {
                   if (router.canGoBack()) {
@@ -1399,13 +1546,23 @@ export default function CastingPlayerScreen() {
             onClose={() => setShowSettings(false)}
             item={currentItem}
             mediaSources={availableMediaSources.filter((source) => {
-              const currentBitrate =
-                availableMediaSources[0]?.bitrate || Number.POSITIVE_INFINITY;
-              return (source.bitrate || 0) <= currentBitrate;
+              const ceiling = initialMaxBitrate ?? Number.POSITIVE_INFINITY;
+              return (source.bitrate || 0) <= ceiling;
             })}
-            selectedMediaSource={availableMediaSources[0] || null}
+            selectedMediaSource={
+              selectedBitrate === null
+                ? availableMediaSources[0] || null
+                : availableMediaSources.find(
+                    (s) => s.bitrate === selectedBitrate,
+                  ) || null
+            }
             onMediaSourceChange={(source) => {
-              reloadWithSettings({ bitrateValue: source.bitrate });
+              setSelectedBitrate(source.bitrate ?? null);
+              reloadWithSettings({
+                audioIndex: selectedAudioTrackIndex ?? undefined,
+                subtitleIndex: selectedSubtitleTrackIndex,
+                bitrateValue: source.bitrate,
+              });
             }}
             audioTracks={availableAudioTracks}
             selectedAudioTrack={
@@ -1417,8 +1574,11 @@ export default function CastingPlayerScreen() {
             }
             onAudioTrackChange={(track) => {
               setSelectedAudioTrackIndex(track.index);
-              // Reload stream with new audio track
-              reloadWithSettings({ audioIndex: track.index });
+              reloadWithSettings({
+                audioIndex: track.index,
+                subtitleIndex: selectedSubtitleTrackIndex,
+                bitrateValue: selectedBitrate ?? undefined,
+              });
             }}
             subtitleTracks={availableSubtitleTracks}
             selectedSubtitleTrack={
@@ -1430,8 +1590,11 @@ export default function CastingPlayerScreen() {
             }
             onSubtitleTrackChange={(track) => {
               setSelectedSubtitleTrackIndex(track?.index ?? null);
-              // Reload stream with new subtitle track
-              reloadWithSettings({ subtitleIndex: track?.index ?? null });
+              reloadWithSettings({
+                audioIndex: selectedAudioTrackIndex ?? undefined,
+                subtitleIndex: track?.index ?? null,
+                bitrateValue: selectedBitrate ?? undefined,
+              });
             }}
             playbackSpeed={currentPlaybackSpeed}
             onPlaybackSpeedChange={(speed) => {
