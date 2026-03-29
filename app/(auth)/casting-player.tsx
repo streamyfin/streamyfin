@@ -337,12 +337,35 @@ export default function CastingPlayerScreen() {
   >(null);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
 
-  // Function to reload media with new audio/subtitle/quality settings
+  // Seed track/bitrate selections from customData once per item (set by PlayButton)
+  const seededItemIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const itemId = (
+      mediaStatus?.mediaInfo?.customData as Record<string, unknown> | null
+    )?.Id as string | undefined;
+    if (!itemId || seededItemIdRef.current === itemId) return;
+
+    const customData = mediaStatus!.mediaInfo!.customData as Record<
+      string,
+      unknown
+    >;
+    seededItemIdRef.current = itemId;
+    if (typeof customData.audioStreamIndex === "number")
+      setSelectedAudioTrackIndex(customData.audioStreamIndex);
+    if (typeof customData.subtitleStreamIndex === "number")
+      setSelectedSubtitleTrackIndex(customData.subtitleStreamIndex);
+    if (typeof customData.maxStreamingBitrate === "number")
+      setSelectedBitrate(customData.maxStreamingBitrate);
+  }, [mediaStatus?.mediaInfo?.customData]);
+
+  // Function to reload media with new audio/subtitle/quality settings.
+  // Callers must pass all current selections — no fallback to state here to
+  // avoid stale closure issues (React state updates are async).
   const reloadWithSettings = useCallback(
     async (options: {
-      audioIndex?: number;
-      subtitleIndex?: number | null;
-      bitrateValue?: number;
+      audioIndex: number | undefined;
+      subtitleIndex: number | null | undefined;
+      bitrateValue: number | undefined;
     }) => {
       if (!api || !user?.Id || !currentItem?.Id || !remoteMediaClient) {
         console.warn("[Casting Player] Cannot reload - missing required data");
@@ -350,18 +373,13 @@ export default function CastingPlayerScreen() {
       }
 
       try {
-        // Send updated settings to the receiver — it calls getPlaybackInfo itself.
-        const audioStreamIndex =
-          options.audioIndex ?? selectedAudioTrackIndex ?? undefined;
-        const subtitleStreamIndex =
-          options.subtitleIndex === null ? undefined : options.subtitleIndex;
         await remoteMediaClient.loadMedia({
           mediaInfo: buildCastMediaInfo({
             item: currentItem,
             api,
             enableH265: settings.enableH265ForChromecast,
-            audioStreamIndex,
-            subtitleStreamIndex,
+            audioStreamIndex: options.audioIndex,
+            subtitleStreamIndex: options.subtitleIndex ?? undefined,
             maxStreamingBitrate: options.bitrateValue,
           }),
         });
@@ -374,9 +392,7 @@ export default function CastingPlayerScreen() {
       user?.Id,
       currentItem,
       remoteMediaClient,
-      mediaStatus?.streamPosition,
       settings.enableH265ForChromecast,
-      selectedAudioTrackIndex,
     ],
   );
 
@@ -1524,7 +1540,11 @@ export default function CastingPlayerScreen() {
             }
             onMediaSourceChange={(source) => {
               setSelectedBitrate(source.bitrate ?? null);
-              reloadWithSettings({ bitrateValue: source.bitrate });
+              reloadWithSettings({
+                audioIndex: selectedAudioTrackIndex ?? undefined,
+                subtitleIndex: selectedSubtitleTrackIndex,
+                bitrateValue: source.bitrate,
+              });
             }}
             audioTracks={availableAudioTracks}
             selectedAudioTrack={
@@ -1536,8 +1556,11 @@ export default function CastingPlayerScreen() {
             }
             onAudioTrackChange={(track) => {
               setSelectedAudioTrackIndex(track.index);
-              // Reload stream with new audio track
-              reloadWithSettings({ audioIndex: track.index });
+              reloadWithSettings({
+                audioIndex: track.index,
+                subtitleIndex: selectedSubtitleTrackIndex,
+                bitrateValue: selectedBitrate ?? undefined,
+              });
             }}
             subtitleTracks={availableSubtitleTracks}
             selectedSubtitleTrack={
@@ -1549,8 +1572,11 @@ export default function CastingPlayerScreen() {
             }
             onSubtitleTrackChange={(track) => {
               setSelectedSubtitleTrackIndex(track?.index ?? null);
-              // Reload stream with new subtitle track
-              reloadWithSettings({ subtitleIndex: track?.index ?? null });
+              reloadWithSettings({
+                audioIndex: selectedAudioTrackIndex ?? undefined,
+                subtitleIndex: track?.index ?? null,
+                bitrateValue: selectedBitrate ?? undefined,
+              });
             }}
             playbackSpeed={currentPlaybackSpeed}
             onPlaybackSpeedChange={(speed) => {
