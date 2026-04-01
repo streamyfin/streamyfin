@@ -5,7 +5,7 @@ import type {
 import { getPlaystateApi, getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -134,6 +134,20 @@ export const usePlaybackManager = ({
     return adjacentItems[2];
   }, [adjacentItems, item]);
 
+  const invalidateLocalPlaybackQueries = useCallback(
+    (itemId: string, seriesId?: string) => {
+      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
+      queryClient.invalidateQueries({ queryKey: ["episodes"] });
+      queryClient.invalidateQueries({ queryKey: ["AllEpisodes"] });
+      queryClient.invalidateQueries({ queryKey: ["adjacentItems"] });
+
+      if (seriesId) {
+        queryClient.invalidateQueries({ queryKey: ["series", seriesId] });
+      }
+    },
+    [queryClient],
+  );
+
   /**
    * Reports playback progress.
    *
@@ -187,9 +201,10 @@ export const usePlaybackManager = ({
           },
         },
       });
-      // Force invalidate queries so they refetch from updated local database
-      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
-      queryClient.invalidateQueries({ queryKey: ["episodes"] });
+      invalidateLocalPlaybackQueries(
+        itemId,
+        localItem.item.SeriesId ?? undefined,
+      );
     }
 
     // Handle remote state update if online
@@ -230,9 +245,10 @@ export const usePlaybackManager = ({
           },
         },
       });
-      // Force invalidate queries so they refetch from updated local database
-      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
-      queryClient.invalidateQueries({ queryKey: ["episodes"] });
+      invalidateLocalPlaybackQueries(
+        itemId,
+        localItem.item.SeriesId ?? undefined,
+      );
     }
 
     // Handle remote state update if online
@@ -275,9 +291,10 @@ export const usePlaybackManager = ({
           },
         },
       });
-      // Force invalidate queries so they refetch from updated local database
-      queryClient.invalidateQueries({ queryKey: ["item", itemId] });
-      queryClient.invalidateQueries({ queryKey: ["episodes"] });
+      invalidateLocalPlaybackQueries(
+        itemId,
+        localItem.item.SeriesId ?? undefined,
+      );
     }
 
     // Handle remote state update if online

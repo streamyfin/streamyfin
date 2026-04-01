@@ -381,24 +381,6 @@ export default function page() {
     revalidateProgressCache,
   ]);
 
-  const stop = useCallback(() => {
-    // Update URL with final playback position before stopping
-    router.setParams({
-      playbackPosition: msToTicks(progress.get()).toString(),
-    });
-    reportPlaybackStopped();
-    setIsPlaybackStopped(true);
-    videoRef.current?.pause();
-    revalidateProgressCache();
-  }, [videoRef, reportPlaybackStopped, progress]);
-
-  useEffect(() => {
-    const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
-    return () => {
-      beforeRemoveListener();
-    };
-  }, [navigation, stop]);
-
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
     | undefined => {
@@ -428,6 +410,46 @@ export default function page() {
     isPlaying,
     isMuted,
   ]);
+
+  const persistOfflinePlaybackProgress = useCallback(() => {
+    if (!offline || !item?.Id) return;
+
+    const progressInfo: PlaybackProgressInfo = currentPlayStateInfo() ?? {
+      ItemId: item.Id,
+      PositionTicks: msToTicks(progress.get()),
+      IsPaused: true,
+      CanSeek: true,
+      RepeatMode: RepeatMode.RepeatNone,
+      PlaybackOrder: PlaybackOrder.Default,
+    };
+
+    void playbackManager.reportPlaybackProgress(progressInfo);
+  }, [offline, item?.Id, currentPlayStateInfo, progress, playbackManager]);
+
+  const stop = useCallback(() => {
+    persistOfflinePlaybackProgress();
+    // Update URL with final playback position before stopping
+    router.setParams({
+      playbackPosition: msToTicks(progress.get()).toString(),
+    });
+    reportPlaybackStopped();
+    setIsPlaybackStopped(true);
+    videoRef.current?.pause();
+    revalidateProgressCache();
+  }, [
+    videoRef,
+    reportPlaybackStopped,
+    persistOfflinePlaybackProgress,
+    progress,
+    revalidateProgressCache,
+  ]);
+
+  useEffect(() => {
+    const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
+    return () => {
+      beforeRemoveListener();
+    };
+  }, [navigation, stop]);
 
   const lastUrlUpdateTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);

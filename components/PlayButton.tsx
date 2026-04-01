@@ -299,14 +299,15 @@ export const PlayButton: React.FC<Props> = ({
 
     // Check if item is downloaded
     const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
+    const downloadedPlaybackPosition =
+      downloadedItem?.item.UserData?.PlaybackPositionTicks?.toString() ?? "0";
 
     // If already in offline mode, play downloaded file directly
     if (isOffline && downloadedItem) {
       const queryParams = new URLSearchParams({
         itemId: item.Id!,
         offline: "true",
-        playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+        playbackPosition: downloadedPlaybackPosition,
       });
       goToPlayer(queryParams.toString());
       return;
@@ -334,8 +335,7 @@ export const PlayButton: React.FC<Props> = ({
                     const queryParams = new URLSearchParams({
                       itemId: item.Id!,
                       offline: "true",
-                      playbackPosition:
-                        item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                      playbackPosition: downloadedPlaybackPosition,
                     });
                     goToPlayer(queryParams.toString());
                   }}
@@ -377,8 +377,7 @@ export const PlayButton: React.FC<Props> = ({
                 const queryParams = new URLSearchParams({
                   itemId: item.Id!,
                   offline: "true",
-                  playbackPosition:
-                    item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+                  playbackPosition: downloadedPlaybackPosition,
                 });
                 goToPlayer(queryParams.toString());
               },
