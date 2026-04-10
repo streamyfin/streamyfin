@@ -4,25 +4,28 @@ import { TVTypographyScale, useSettings } from "@/utils/atoms/settings";
  * TV Typography Scale
  *
  * Consistent text sizes for TV interface components.
- * These sizes are optimized for TV viewing distance.
+ * Design values are for 1920×1080 and scaled proportionally
+ * to the actual viewport via scaleSize().
  */
 
+import { scaleSize } from "@/utils/scaleSize";
+
 export const TVTypography = {
-  /** Hero titles, movie/show names - 70px */
-  display: 70,
+  /** Hero titles, movie/show names */
+  display: scaleSize(70),
 
-  /** Episode series name, major headings - 42px */
-  title: 42,
+  /** Episode series name, major headings */
+  title: scaleSize(42),
 
-  /** Section headers (Cast, Technical Details, From this Series) - 32px */
-  heading: 32,
+  /** Section headers (Cast, Technical Details, From this Series) */
+  heading: scaleSize(32),
 
-  /** Overview, actor names, card titles, metadata - 20px */
-  body: 20,
+  /** Overview, actor names, card titles, metadata */
+  body: scaleSize(40),
 
-  /** Secondary text, labels, subtitles - 16px */
-  callout: 16,
-} as const;
+  /** Secondary text, labels, subtitles */
+  callout: scaleSize(26),
+};
 
 export type TVTypographyKey = keyof typeof TVTypography;
 
