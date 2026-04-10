@@ -7,7 +7,7 @@ import { Bitrate } from "@/components/BitrateSelector";
 import {
   type AudioTranscodeModeType,
   generateDeviceProfile,
-} from "@/utils/profiles/native";
+} from "../../profiles/native";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
 export const getDownloadUrl = async ({

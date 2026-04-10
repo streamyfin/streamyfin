@@ -47,10 +47,10 @@ const TVSubmitButton: React.FC<{
           animatedStyle,
           {
             backgroundColor: focused
-              ? "#a855f7"
+              ? "#fff"
               : isDisabled
                 ? "#4a4a4a"
-                : "#7c3aed",
+                : "rgba(255,255,255,0.15)",
             paddingHorizontal: 24,
             paddingVertical: 14,
             borderRadius: 10,
@@ -64,14 +64,18 @@ const TVSubmitButton: React.FC<{
         ]}
       >
         {loading ? (
-          <ActivityIndicator size='small' color='#fff' />
+          <ActivityIndicator size='small' color={focused ? "#000" : "#fff"} />
         ) : (
           <>
-            <Ionicons name='log-in-outline' size={20} color='#fff' />
+            <Ionicons
+              name='log-in-outline'
+              size={20}
+              color={focused ? "#000" : "#fff"}
+            />
             <Text
               style={{
                 fontSize: 16,
-                color: "#fff",
+                color: focused ? "#000" : "#fff",
                 fontWeight: "600",
               }}
             >
@@ -119,7 +123,7 @@ const TVPasswordInput: React.FC<{
             backgroundColor: "#1F2937",
             borderRadius: 12,
             borderWidth: 2,
-            borderColor: focused ? "#6366F1" : "#374151",
+            borderColor: focused ? "#fff" : "#374151",
             paddingHorizontal: 16,
             paddingVertical: 14,
           },
@@ -245,14 +249,16 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
             {/* Password Input */}
             {isReady && (
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>{t("login.password")}</Text>
+                <Text style={styles.inputLabel}>
+                  {t("login.password_placeholder")}
+                </Text>
                 <TVPasswordInput
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
                     setError(null);
                   }}
-                  placeholder={t("login.password")}
+                  placeholder={t("login.password_placeholder")}
                   onSubmitEditing={handleSubmit}
                   hasTVPreferredFocus
                 />

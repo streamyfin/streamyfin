@@ -20,7 +20,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVButton, TVOptionSelector } from "@/components/tv";
 import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type {
   QualityProfile,
@@ -51,6 +51,7 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
   onClose,
   onRequested,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
@@ -389,7 +390,7 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
             >
               <Text
                 style={{
-                  fontSize: TVTypography.heading,
+                  fontSize: typography.heading,
                   fontWeight: "bold",
                   color: "#FFFFFF",
                   marginBottom: 8,
@@ -399,7 +400,7 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
               </Text>
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "rgba(255,255,255,0.6)",
                   marginBottom: 24,
                 }}
@@ -473,7 +474,7 @@ export const TVRequestModal: React.FC<TVRequestModalProps> = ({
                   />
                   <Text
                     style={{
-                      fontSize: TVTypography.callout,
+                      fontSize: typography.callout,
                       fontWeight: "bold",
                       color: "#FFFFFF",
                     }}

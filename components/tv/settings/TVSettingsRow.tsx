@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsRowProps {
@@ -22,6 +22,7 @@ export const TVSettingsRow: React.FC<TVSettingsRowProps> = ({
   showChevron = true,
   disabled,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02 });
 
@@ -51,13 +52,13 @@ export const TVSettingsRow: React.FC<TVSettingsRowProps> = ({
           },
         ]}
       >
-        <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
+        <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
           {label}
         </Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#9CA3AF",
               marginRight: showChevron ? 12 : 0,
             }}

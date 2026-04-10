@@ -166,13 +166,13 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           disabled={pluginSettings?.subtitleSize?.locked}
         >
           <Stepper
-            value={settings.subtitleSize / 100}
+            value={settings.mpvSubtitleScale ?? 1.0}
             disabled={pluginSettings?.subtitleSize?.locked}
             step={0.1}
-            min={0.3}
-            max={1.5}
+            min={0.1}
+            max={3.0}
             onUpdate={(value) =>
-              updateSettings({ subtitleSize: Math.round(value * 100) })
+              updateSettings({ mpvSubtitleScale: Math.round(value * 10) / 10 })
             }
           />
         </ListItem>

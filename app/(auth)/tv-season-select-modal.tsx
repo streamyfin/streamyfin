@@ -16,7 +16,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
@@ -162,6 +162,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
 };
 
 export default function TVSeasonSelectModalPage() {
+  const typography = useScaledTVTypography();
   const router = useRouter();
   const modalState = useAtomValue(tvSeasonSelectModalAtom);
   const { t } = useTranslation();
@@ -305,8 +306,12 @@ export default function TVSeasonSelectModalPage() {
             trapFocusRight
             style={styles.content}
           >
-            <Text style={styles.heading}>{t("jellyseerr.select_seasons")}</Text>
-            <Text style={styles.subtitle}>{modalState.title}</Text>
+            <Text style={[styles.heading, { fontSize: typography.heading }]}>
+              {t("jellyseerr.select_seasons")}
+            </Text>
+            <Text style={[styles.subtitle, { fontSize: typography.callout }]}>
+              {modalState.title}
+            </Text>
 
             {/* Season cards horizontal scroll */}
             <ScrollView
@@ -343,7 +348,9 @@ export default function TVSeasonSelectModalPage() {
                   color='#FFFFFF'
                   style={{ marginRight: 8 }}
                 />
-                <Text style={styles.buttonText}>
+                <Text
+                  style={[styles.buttonText, { fontSize: typography.callout }]}
+                >
                   {t("jellyseerr.request_selected")}
                   {selectedSeasons.size > 0 && ` (${selectedSeasons.size})`}
                 </Text>
@@ -377,13 +384,11 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   heading: {
-    fontSize: TVTypography.heading,
     fontWeight: "bold",
     color: "#FFFFFF",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: TVTypography.callout,
     color: "rgba(255,255,255,0.6)",
     marginBottom: 24,
   },
@@ -413,7 +418,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   seasonTitle: {
-    fontSize: TVTypography.callout,
     fontWeight: "600",
     marginBottom: 4,
   },
@@ -436,7 +440,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   buttonText: {
-    fontSize: TVTypography.callout,
     fontWeight: "bold",
     color: "#FFFFFF",
   },

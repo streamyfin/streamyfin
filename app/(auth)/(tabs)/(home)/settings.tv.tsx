@@ -2,9 +2,11 @@ import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
+import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVLogoutButton,
@@ -15,23 +17,150 @@ import {
   TVSettingsTextInput,
   TVSettingsToggle,
 } from "@/components/tv";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
+import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
+import { APP_LANGUAGES } from "@/i18n";
 import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
+import {
+  AudioTranscodeMode,
+  InactivityTimeout,
+  type MpvCacheMode,
+  TVTypographyScale,
+  useSettings,
+} from "@/utils/atoms/settings";
+import {
+  getPreviousServers,
+  type SavedServer,
+  type SavedServerAccount,
+} from "@/utils/secureCredentials";
 
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
-  const { logout } = useJellyfin();
+  const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
   const { showOptions } = useTVOptionModal();
+  const { showUserSwitchModal } = useTVUserSwitchModal();
+  const typography = useScaledTVTypography();
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
     settings.openSubtitlesApiKey || "",
   );
+
+  // PIN/Password modal state for user switching
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [selectedServer, setSelectedServer] = useState<SavedServer | null>(
+    null,
+  );
+  const [selectedAccount, setSelectedAccount] =
+    useState<SavedServerAccount | null>(null);
+
+  // Track if any modal is open to disable background focus
+  const isAnyModalOpen = pinModalVisible || passwordModalVisible;
+
+  // Get current server and other accounts
+  const currentServer = useMemo(() => {
+    if (!api?.basePath) return null;
+    const servers = getPreviousServers();
+    return servers.find((s) => s.address === api.basePath) || null;
+  }, [api?.basePath]);
+
+  const otherAccounts = useMemo(() => {
+    if (!currentServer || !user?.Id) return [];
+    return currentServer.accounts.filter(
+      (account) => account.userId !== user.Id,
+    );
+  }, [currentServer, user?.Id]);
+
+  const hasOtherAccounts = otherAccounts.length > 0;
+
+  // Handle account selection from modal
+  const handleAccountSelect = async (account: SavedServerAccount) => {
+    if (!currentServer) return;
+
+    if (account.securityType === "none") {
+      // Direct login with saved credential
+      try {
+        await loginWithSavedCredential(currentServer.address, account.userId);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t("server.session_expired");
+        const isSessionExpired = errorMessage.includes(
+          t("server.session_expired"),
+        );
+        Alert.alert(
+          isSessionExpired
+            ? t("server.session_expired")
+            : t("login.connection_failed"),
+          isSessionExpired ? t("server.please_login_again") : errorMessage,
+        );
+      }
+    } else if (account.securityType === "pin") {
+      // Show PIN modal
+      setSelectedServer(currentServer);
+      setSelectedAccount(account);
+      setPinModalVisible(true);
+    } else if (account.securityType === "password") {
+      // Show password modal
+      setSelectedServer(currentServer);
+      setSelectedAccount(account);
+      setPasswordModalVisible(true);
+    }
+  };
+
+  // Handle successful PIN entry
+  const handlePinSuccess = async () => {
+    setPinModalVisible(false);
+    if (selectedServer && selectedAccount) {
+      try {
+        await loginWithSavedCredential(
+          selectedServer.address,
+          selectedAccount.userId,
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t("server.session_expired");
+        const isSessionExpired = errorMessage.includes(
+          t("server.session_expired"),
+        );
+        Alert.alert(
+          isSessionExpired
+            ? t("server.session_expired")
+            : t("login.connection_failed"),
+          isSessionExpired ? t("server.please_login_again") : errorMessage,
+        );
+      }
+    }
+    setSelectedServer(null);
+    setSelectedAccount(null);
+  };
+
+  // Handle password submission
+  const handlePasswordSubmit = async (password: string) => {
+    if (selectedServer && selectedAccount) {
+      await loginWithPassword(
+        selectedServer.address,
+        selectedAccount.username,
+        password,
+      );
+    }
+    setPasswordModalVisible(false);
+    setSelectedServer(null);
+    setSelectedAccount(null);
+  };
+
+  // Handle switch user button press
+  const handleSwitchUser = () => {
+    if (!currentServer || !user?.Id) return;
+    showUserSwitchModal(currentServer, user.Id, {
+      onAccountSelect: handleAccountSelect,
+    });
+  };
 
   const currentAudioTranscode =
     settings.audioTranscodeMode || AudioTranscodeMode.Auto;
@@ -39,6 +168,10 @@ export default function SettingsTV() {
     settings.subtitleMode || SubtitlePlaybackMode.Default;
   const currentAlignX = settings.mpvSubtitleAlignX ?? "center";
   const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
+  const currentTypographyScale =
+    settings.tvTypographyScale || TVTypographyScale.Default;
+  const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
+  const currentLanguage = settings.preferedLanguage;
 
   // Audio transcoding options
   const audioTranscodeModeOptions: TVOptionItem<AudioTranscodeMode>[] = useMemo(
@@ -130,6 +263,123 @@ export default function SettingsTV() {
     [currentAlignY],
   );
 
+  // Cache mode options
+  const cacheModeOptions: TVOptionItem<MpvCacheMode>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.buffer.cache_auto"),
+        value: "auto",
+        selected: currentCacheMode === "auto",
+      },
+      {
+        label: t("home.settings.buffer.cache_yes"),
+        value: "yes",
+        selected: currentCacheMode === "yes",
+      },
+      {
+        label: t("home.settings.buffer.cache_no"),
+        value: "no",
+        selected: currentCacheMode === "no",
+      },
+    ],
+    [t, currentCacheMode],
+  );
+
+  // Typography scale options
+  const typographyScaleOptions: TVOptionItem<TVTypographyScale>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.appearance.display_size_small"),
+        value: TVTypographyScale.Small,
+        selected: currentTypographyScale === TVTypographyScale.Small,
+      },
+      {
+        label: t("home.settings.appearance.display_size_default"),
+        value: TVTypographyScale.Default,
+        selected: currentTypographyScale === TVTypographyScale.Default,
+      },
+      {
+        label: t("home.settings.appearance.display_size_large"),
+        value: TVTypographyScale.Large,
+        selected: currentTypographyScale === TVTypographyScale.Large,
+      },
+      {
+        label: t("home.settings.appearance.display_size_extra_large"),
+        value: TVTypographyScale.ExtraLarge,
+        selected: currentTypographyScale === TVTypographyScale.ExtraLarge,
+      },
+    ],
+    [t, currentTypographyScale],
+  );
+
+  // Language options
+  const languageOptions: TVOptionItem<string | undefined>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.languages.system"),
+        value: undefined,
+        selected: !currentLanguage,
+      },
+      ...APP_LANGUAGES.map((lang) => ({
+        label: lang.label,
+        value: lang.value,
+        selected: currentLanguage === lang.value,
+      })),
+    ],
+    [t, currentLanguage],
+  );
+
+  // Inactivity timeout options (TV security feature)
+  const currentInactivityTimeout =
+    settings.inactivityTimeout ?? InactivityTimeout.Disabled;
+
+  const inactivityTimeoutOptions: TVOptionItem<InactivityTimeout>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.security.inactivity_timeout.disabled"),
+        value: InactivityTimeout.Disabled,
+        selected: currentInactivityTimeout === InactivityTimeout.Disabled,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.1_minute"),
+        value: InactivityTimeout.OneMinute,
+        selected: currentInactivityTimeout === InactivityTimeout.OneMinute,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.5_minutes"),
+        value: InactivityTimeout.FiveMinutes,
+        selected: currentInactivityTimeout === InactivityTimeout.FiveMinutes,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.15_minutes"),
+        value: InactivityTimeout.FifteenMinutes,
+        selected: currentInactivityTimeout === InactivityTimeout.FifteenMinutes,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.30_minutes"),
+        value: InactivityTimeout.ThirtyMinutes,
+        selected: currentInactivityTimeout === InactivityTimeout.ThirtyMinutes,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.1_hour"),
+        value: InactivityTimeout.OneHour,
+        selected: currentInactivityTimeout === InactivityTimeout.OneHour,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.4_hours"),
+        value: InactivityTimeout.FourHours,
+        selected: currentInactivityTimeout === InactivityTimeout.FourHours,
+      },
+      {
+        label: t("home.settings.security.inactivity_timeout.24_hours"),
+        value: InactivityTimeout.TwentyFourHours,
+        selected:
+          currentInactivityTimeout === InactivityTimeout.TwentyFourHours,
+      },
+    ],
+    [t, currentInactivityTimeout],
+  );
+
   // Get display labels for option buttons
   const audioTranscodeLabel = useMemo(() => {
     const option = audioTranscodeModeOptions.find((o) => o.selected);
@@ -151,6 +401,29 @@ export default function SettingsTV() {
     return option?.label || "Bottom";
   }, [alignYOptions]);
 
+  const typographyScaleLabel = useMemo(() => {
+    const option = typographyScaleOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.appearance.display_size_default");
+  }, [typographyScaleOptions, t]);
+
+  const cacheModeLabel = useMemo(() => {
+    const option = cacheModeOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.buffer.cache_auto");
+  }, [cacheModeOptions, t]);
+
+  const languageLabel = useMemo(() => {
+    if (!currentLanguage) return t("home.settings.languages.system");
+    const option = APP_LANGUAGES.find((l) => l.value === currentLanguage);
+    return option?.label || t("home.settings.languages.system");
+  }, [currentLanguage, t]);
+
+  const inactivityTimeoutLabel = useMemo(() => {
+    const option = inactivityTimeoutOptions.find((o) => o.selected);
+    return (
+      option?.label || t("home.settings.security.inactivity_timeout.disabled")
+    );
+  }, [inactivityTimeoutOptions, t]);
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
       <View style={{ flex: 1 }}>
@@ -166,7 +439,7 @@ export default function SettingsTV() {
           {/* Header */}
           <Text
             style={{
-              fontSize: 42,
+              fontSize: typography.title,
               fontWeight: "bold",
               color: "#FFFFFF",
               marginBottom: 8,
@@ -174,6 +447,31 @@ export default function SettingsTV() {
           >
             {t("home.settings.settings_title")}
           </Text>
+
+          {/* Account Section */}
+          <TVSectionHeader title={t("home.settings.switch_user.account")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.switch_user.switch_user")}
+            value={user?.Name || "-"}
+            onPress={handleSwitchUser}
+            disabled={!hasOtherAccounts || isAnyModalOpen}
+            isFirst
+          />
+
+          {/* Security Section */}
+          <TVSectionHeader title={t("home.settings.security.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.security.inactivity_timeout.title")}
+            value={inactivityTimeoutLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.security.inactivity_timeout.title"),
+                options: inactivityTimeoutOptions,
+                onSelect: (value) =>
+                  updateSettings({ inactivityTimeout: value }),
+              })
+            }
+          />
 
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
@@ -188,7 +486,6 @@ export default function SettingsTV() {
                   updateSettings({ audioTranscodeMode: value }),
               })
             }
-            isFirst
           />
 
           {/* Subtitles Section */}
@@ -215,26 +512,10 @@ export default function SettingsTV() {
           />
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
-            value={settings.subtitleSize / 100}
-            onDecrease={() => {
-              const newValue = Math.max(0.3, settings.subtitleSize / 100 - 0.1);
-              updateSettings({ subtitleSize: Math.round(newValue * 100) });
-            }}
-            onIncrease={() => {
-              const newValue = Math.min(1.5, settings.subtitleSize / 100 + 0.1);
-              updateSettings({ subtitleSize: Math.round(newValue * 100) });
-            }}
-            formatValue={(v) => `${v.toFixed(1)}x`}
-          />
-
-          {/* MPV Subtitles Section */}
-          <TVSectionHeader title='MPV Subtitle Settings' />
-          <TVSettingsStepper
-            label='Subtitle Scale'
             value={settings.mpvSubtitleScale ?? 1.0}
             onDecrease={() => {
               const newValue = Math.max(
-                0.5,
+                0.1,
                 (settings.mpvSubtitleScale ?? 1.0) - 0.1,
               );
               updateSettings({
@@ -243,7 +524,7 @@ export default function SettingsTV() {
             }}
             onIncrease={() => {
               const newValue = Math.min(
-                2.0,
+                3.0,
                 (settings.mpvSubtitleScale ?? 1.0) + 0.1,
               );
               updateSettings({
@@ -309,7 +590,7 @@ export default function SettingsTV() {
           <Text
             style={{
               color: "#9CA3AF",
-              fontSize: 14,
+              fontSize: typography.callout - 2,
               marginBottom: 16,
               marginLeft: 8,
             }}
@@ -333,7 +614,7 @@ export default function SettingsTV() {
           <Text
             style={{
               color: "#6B7280",
-              fontSize: 12,
+              fontSize: typography.callout - 4,
               marginTop: 8,
               marginLeft: 8,
             }}
@@ -342,8 +623,103 @@ export default function SettingsTV() {
               "Get your free API key at opensubtitles.com/en/consumers"}
           </Text>
 
+          {/* Buffer Settings Section */}
+          <TVSectionHeader title={t("home.settings.buffer.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.buffer.cache_mode")}
+            value={cacheModeLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.buffer.cache_mode"),
+                options: cacheModeOptions,
+                onSelect: (value) => updateSettings({ mpvCacheEnabled: value }),
+              })
+            }
+          />
+          <TVSettingsStepper
+            label={t("home.settings.buffer.buffer_duration")}
+            value={settings.mpvCacheSeconds ?? 10}
+            onDecrease={() => {
+              const newValue = Math.max(
+                5,
+                (settings.mpvCacheSeconds ?? 10) - 5,
+              );
+              updateSettings({ mpvCacheSeconds: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                120,
+                (settings.mpvCacheSeconds ?? 10) + 5,
+              );
+              updateSettings({ mpvCacheSeconds: newValue });
+            }}
+            formatValue={(v) => `${v}s`}
+          />
+          <TVSettingsStepper
+            label={t("home.settings.buffer.max_cache_size")}
+            value={settings.mpvDemuxerMaxBytes ?? 150}
+            onDecrease={() => {
+              const newValue = Math.max(
+                50,
+                (settings.mpvDemuxerMaxBytes ?? 150) - 25,
+              );
+              updateSettings({ mpvDemuxerMaxBytes: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                500,
+                (settings.mpvDemuxerMaxBytes ?? 150) + 25,
+              );
+              updateSettings({ mpvDemuxerMaxBytes: newValue });
+            }}
+            formatValue={(v) => `${v} MB`}
+          />
+          <TVSettingsStepper
+            label={t("home.settings.buffer.max_backward_cache")}
+            value={settings.mpvDemuxerMaxBackBytes ?? 50}
+            onDecrease={() => {
+              const newValue = Math.max(
+                25,
+                (settings.mpvDemuxerMaxBackBytes ?? 50) - 25,
+              );
+              updateSettings({ mpvDemuxerMaxBackBytes: newValue });
+            }}
+            onIncrease={() => {
+              const newValue = Math.min(
+                200,
+                (settings.mpvDemuxerMaxBackBytes ?? 50) + 25,
+              );
+              updateSettings({ mpvDemuxerMaxBackBytes: newValue });
+            }}
+            formatValue={(v) => `${v} MB`}
+          />
+
           {/* Appearance Section */}
           <TVSectionHeader title={t("home.settings.appearance.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.appearance.display_size")}
+            value={typographyScaleLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.appearance.display_size"),
+                options: typographyScaleOptions,
+                onSelect: (value) =>
+                  updateSettings({ tvTypographyScale: value }),
+              })
+            }
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.languages.app_language")}
+            value={languageLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.languages.app_language"),
+                options: languageOptions,
+                onSelect: (value) =>
+                  updateSettings({ preferedLanguage: value }),
+              })
+            }
+          />
           <TVSettingsToggle
             label={t(
               "home.settings.appearance.merge_next_up_continue_watching",
@@ -357,6 +733,23 @@ export default function SettingsTV() {
             label={t("home.settings.appearance.show_home_backdrop")}
             value={settings.showHomeBackdrop}
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.show_hero_carousel")}
+            value={settings.showTVHeroCarousel}
+            onToggle={(value) => updateSettings({ showTVHeroCarousel: value })}
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.show_series_poster_on_episode")}
+            value={settings.showSeriesPosterOnEpisode}
+            onToggle={(value) =>
+              updateSettings({ showSeriesPosterOnEpisode: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.theme_music")}
+            value={settings.tvThemeMusicEnabled}
+            onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
           />
 
           {/* User Section */}
@@ -380,6 +773,37 @@ export default function SettingsTV() {
           </View>
         </ScrollView>
       </View>
+
+      {/* PIN Entry Modal */}
+      <TVPINEntryModal
+        visible={pinModalVisible}
+        onClose={() => {
+          setPinModalVisible(false);
+          setSelectedAccount(null);
+          setSelectedServer(null);
+        }}
+        onSuccess={handlePinSuccess}
+        onForgotPIN={() => {
+          setPinModalVisible(false);
+          setSelectedAccount(null);
+          setSelectedServer(null);
+        }}
+        serverUrl={selectedServer?.address || ""}
+        userId={selectedAccount?.userId || ""}
+        username={selectedAccount?.username || ""}
+      />
+
+      {/* Password Entry Modal */}
+      <TVPasswordEntryModal
+        visible={passwordModalVisible}
+        onClose={() => {
+          setPasswordModalVisible(false);
+          setSelectedAccount(null);
+          setSelectedServer(null);
+        }}
+        onSubmit={handlePasswordSubmit}
+        username={selectedAccount?.username || ""}
+      />
     </View>
   );
 }

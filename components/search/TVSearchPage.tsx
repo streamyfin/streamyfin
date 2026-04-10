@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
@@ -26,6 +27,7 @@ const SCALE_PADDING = 20;
 
 // Loading skeleton for TV
 const TVLoadingSkeleton: React.FC = () => {
+  const typography = useScaledTVTypography();
   const itemWidth = 210;
   return (
     <View style={{ overflow: "visible" }}>
@@ -71,7 +73,7 @@ const TVLoadingSkeleton: React.FC = () => {
                   color: "#262626",
                   backgroundColor: "#262626",
                   borderRadius: 6,
-                  fontSize: 16,
+                  fontSize: typography.callout,
                 }}
                 numberOfLines={1}
               >
@@ -104,6 +106,7 @@ interface TVSearchPageProps {
   loading: boolean;
   noResults: boolean;
   onItemPress: (item: BaseItemDto) => void;
+  onItemLongPress?: (item: BaseItemDto) => void;
   // Jellyseerr/Discover props
   searchType: SearchType;
   setSearchType: (type: SearchType) => void;
@@ -136,6 +139,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   loading,
   noResults,
   onItemPress,
+  onItemLongPress,
   searchType,
   setSearchType,
   showDiscover,
@@ -149,6 +153,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   onJellyseerrPersonPress,
   discoverSliders,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -217,12 +222,15 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       contentContainerStyle={{
         paddingTop: insets.top + TOP_PADDING,
         paddingBottom: insets.bottom + 60,
-        paddingLeft: insets.left + HORIZONTAL_PADDING,
-        paddingRight: insets.right + HORIZONTAL_PADDING,
       }}
     >
       {/* Search Input */}
-      <View style={{ marginBottom: 24, marginHorizontal: SCALE_PADDING }}>
+      <View
+        style={{
+          marginBottom: 24,
+          marginHorizontal: HORIZONTAL_PADDING + 200,
+        }}
+      >
         <Input
           placeholder={t("search.search")}
           value={search}
@@ -242,7 +250,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
 
       {/* Search Type Tab Badges */}
       {showDiscover && (
-        <View style={{ marginHorizontal: SCALE_PADDING }}>
+        <View style={{ marginHorizontal: HORIZONTAL_PADDING }}>
           <TVSearchTabBadges
             searchType={searchType}
             setSearchType={setSearchType}
@@ -270,6 +278,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
               orientation={section.orientation || "vertical"}
               isFirstSection={index === 0}
               onItemPress={onItemPress}
+              onItemLongPress={onItemLongPress}
               imageUrlGetter={
                 ["artists", "albums", "songs", "playlists"].includes(
                   section.key,
@@ -307,7 +316,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         <View style={{ alignItems: "center", paddingTop: 40 }}>
           <Text
             style={{
-              fontSize: 24,
+              fontSize: typography.heading,
               fontWeight: "bold",
               color: "#FFFFFF",
               marginBottom: 8,
@@ -315,7 +324,12 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           >
             {t("search.no_results_found_for")}
           </Text>
-          <Text style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>
+          <Text
+            style={{
+              fontSize: typography.body,
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
             "{debouncedSearch}"
           </Text>
         </View>

@@ -134,6 +134,14 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// TV Typography scale presets
+export enum TVTypographyScale {
+  Small = "small",
+  Default = "default",
+  Large = "large",
+  ExtraLarge = "extraLarge",
+}
+
 // Audio transcoding mode - controls how surround audio is handled
 // This controls server-side transcoding behavior for audio streams.
 // MPV decodes via FFmpeg and supports most formats, but mobile devices
@@ -145,6 +153,21 @@ export enum AudioTranscodeMode {
   Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
   AllowAll = "passthrough", // Direct play all audio formats
 }
+
+// Inactivity timeout for TV - auto logout after period of no activity
+export enum InactivityTimeout {
+  Disabled = 0,
+  OneMinute = 60000,
+  FiveMinutes = 300000,
+  FifteenMinutes = 900000,
+  ThirtyMinutes = 1800000,
+  OneHour = 3600000,
+  FourHours = 14400000,
+  TwentyFourHours = 86400000,
+}
+
+// MPV cache mode - controls how caching is enabled
+export type MpvCacheMode = "auto" | "yes" | "no";
 
 export type Settings = {
   home?: Home | null;
@@ -191,6 +214,13 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
+  mpvSubtitleBackgroundEnabled?: boolean;
+  mpvSubtitleBackgroundOpacity?: number; // 0-100
+  // MPV buffer/cache settings
+  mpvCacheEnabled?: MpvCacheMode;
+  mpvCacheSeconds?: number;
+  mpvDemuxerMaxBytes?: number; // MB
+  mpvDemuxerMaxBackBytes?: number; // MB
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -198,10 +228,13 @@ export type Settings = {
   hideVolumeSlider: boolean;
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
-  showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
   // TV-specific settings
   showHomeBackdrop: boolean;
+  showTVHeroCarousel: boolean;
+  tvTypographyScale: TVTypographyScale;
+  showSeriesPosterOnEpisode: boolean;
+  tvThemeMusicEnabled: boolean;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -215,6 +248,8 @@ export type Settings = {
   audioTranscodeMode: AudioTranscodeMode;
   // OpenSubtitles API key for client-side subtitle fetching
   openSubtitlesApiKey?: string;
+  // TV-only: Inactivity timeout for auto-logout
+  inactivityTimeout: InactivityTimeout;
 };
 
 export interface Lockable<T> {
@@ -280,6 +315,13 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
+  mpvSubtitleBackgroundEnabled: false,
+  mpvSubtitleBackgroundOpacity: 75,
+  // MPV buffer/cache defaults
+  mpvCacheEnabled: "auto",
+  mpvCacheSeconds: 10,
+  mpvDemuxerMaxBytes: 150, // MB
+  mpvDemuxerMaxBackBytes: 50, // MB
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
@@ -287,10 +329,13 @@ export const defaultValues: Settings = {
   hideVolumeSlider: false,
   hideBrightnessSlider: false,
   usePopularPlugin: true,
-  showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
   // TV-specific settings
   showHomeBackdrop: true,
+  showTVHeroCarousel: true,
+  tvTypographyScale: TVTypographyScale.Default,
+  showSeriesPosterOnEpisode: false,
+  tvThemeMusicEnabled: true,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,
@@ -302,6 +347,8 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // TV-only: Inactivity timeout (disabled by default)
+  inactivityTimeout: InactivityTimeout.Disabled,
 };
 
 const loadSettings = (): Partial<Settings> => {

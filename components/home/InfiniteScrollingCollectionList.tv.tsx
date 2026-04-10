@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -16,19 +16,15 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVTypography } from "@/constants/TVTypography";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
-import ContinueWatchingPoster, {
-  TV_LANDSCAPE_WIDTH,
-} from "../ContinueWatchingPoster.tv";
-import SeriesPoster from "../posters/SeriesPoster.tv";
 
-const ITEM_GAP = 16;
 // Extra padding to accommodate scale animation (1.05x) and glow shadow
 const SCALE_PADDING = 20;
 
@@ -42,59 +38,13 @@ interface Props extends ViewProps {
   pageSize?: number;
   onPressSeeAll?: () => void;
   enabled?: boolean;
-  onLoaded?: () => void;
   isFirstSection?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
   parentId?: string;
 }
 
-// TV-specific ItemCardText with larger fonts
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
-  return (
-    <View style={{ marginTop: 12, flexDirection: "column" }}>
-      {item.Type === "Episode" ? (
-        <>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
-          >
-            {item.Name}
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={{
-              fontSize: TVTypography.callout,
-              color: "#9CA3AF",
-              marginTop: 2,
-            }}
-          >
-            {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
-            {" - "}
-            {item.SeriesName}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
-          >
-            {item.Name}
-          </Text>
-          <Text
-            style={{
-              fontSize: TVTypography.callout,
-              color: "#9CA3AF",
-              marginTop: 2,
-            }}
-          >
-            {item.ProductionYear}
-          </Text>
-        </>
-      )}
-    </View>
-  );
-};
+type Typography = ReturnType<typeof useScaledTVTypography>;
+type PosterSizes = ReturnType<typeof useScaledTVPosterSizes>;
 
 // TV-specific "See All" card for end of lists
 const TVSeeAllCard: React.FC<{
@@ -103,10 +53,20 @@ const TVSeeAllCard: React.FC<{
   disabled?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
-}> = ({ onPress, orientation, disabled, onFocus, onBlur }) => {
+  typography: Typography;
+  posterSizes: PosterSizes;
+}> = ({
+  onPress,
+  orientation,
+  disabled,
+  onFocus,
+  onBlur,
+  typography,
+  posterSizes,
+}) => {
   const { t } = useTranslation();
   const width =
-    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+    orientation === "horizontal" ? posterSizes.episode : posterSizes.poster;
   const aspectRatio = orientation === "horizontal" ? 16 / 9 : 10 / 15;
 
   return (
@@ -137,7 +97,7 @@ const TVSeeAllCard: React.FC<{
           />
           <Text
             style={{
-              fontSize: TVTypography.callout,
+              fontSize: typography.callout,
               color: "#FFFFFF",
               fontWeight: "600",
             }}
@@ -159,70 +119,49 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   hideIfEmpty = false,
   pageSize = 10,
   enabled = true,
-  onLoaded,
   isFirstSection = false,
   onItemFocus,
   parentId,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
+  const sizes = useScaledTVSizes();
+  const ITEM_GAP = sizes.gaps.item;
   const effectivePageSize = Math.max(1, pageSize);
-  const hasCalledOnLoaded = useRef(false);
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
 
-  // Track focus within section for item focus/blur callbacks
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
-  const [_focusedCount, setFocusedCount] = useState(0);
 
+  // Pass through focus callbacks without tracking internal state
   const handleItemFocus = useCallback(
     (item: BaseItemDto) => {
-      setFocusedCount((c) => c + 1);
       onItemFocus?.(item);
     },
     [onItemFocus],
   );
 
-  const handleItemBlur = useCallback(() => {
-    setFocusedCount((c) => Math.max(0, c - 1));
-  }, []);
-
-  // Focus handler for See All card (doesn't need item parameter)
-  const handleSeeAllFocus = useCallback(() => {
-    setFocusedCount((c) => c + 1);
-  }, []);
-
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-    isSuccess,
-  } = useInfiniteQuery({
-    queryKey: queryKey,
-    queryFn: ({ pageParam = 0, ...context }) =>
-      queryFn({ ...context, queryKey, pageParam }),
-    getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length < effectivePageSize) {
-        return undefined;
-      }
-      return allPages.reduce((acc, page) => acc + page.length, 0);
-    },
-    initialPageParam: 0,
-    staleTime: 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
-    enabled,
-  });
-
-  useEffect(() => {
-    if (isSuccess && !hasCalledOnLoaded.current && onLoaded) {
-      hasCalledOnLoaded.current = true;
-      onLoaded();
-    }
-  }, [isSuccess, onLoaded]);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: queryKey,
+      queryFn: ({ pageParam = 0, ...context }) =>
+        queryFn({ ...context, queryKey, pageParam }),
+      getNextPageParam: (lastPage, allPages) => {
+        if (lastPage.length < effectivePageSize) {
+          return undefined;
+        }
+        return allPages.reduce((acc, page) => acc + page.length, 0);
+      },
+      initialPageParam: 0,
+      staleTime: 60 * 1000,
+      refetchInterval: 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      enabled,
+    });
 
   const { t } = useTranslation();
 
@@ -243,7 +182,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   }, [data]);
 
   const itemWidth =
-    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+    orientation === "horizontal" ? posterSizes.episode : posterSizes.poster;
 
   const handleItemPress = useCallback(
     (item: BaseItemDto) => {
@@ -271,79 +210,21 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     } as any);
   }, [router, parentId]);
 
-  const getItemLayout = useCallback(
-    (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: itemWidth + ITEM_GAP,
-      offset: (itemWidth + ITEM_GAP) * index,
-      index,
-    }),
-    [itemWidth],
-  );
-
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => {
       const isFirstItem = isFirstSection && index === 0;
-      const isHorizontal = orientation === "horizontal";
-
-      const renderPoster = () => {
-        if (item.Type === "Episode" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Episode" && !isHorizontal) {
-          return <SeriesPoster item={item} />;
-        }
-        if (item.Type === "Movie" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Movie" && !isHorizontal) {
-          return <MoviePoster item={item} />;
-        }
-        if (item.Type === "Series" && !isHorizontal) {
-          return <SeriesPoster item={item} />;
-        }
-        if (item.Type === "Series" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Program") {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "BoxSet" && !isHorizontal) {
-          return <MoviePoster item={item} />;
-        }
-        if (item.Type === "BoxSet" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Playlist" && !isHorizontal) {
-          return <MoviePoster item={item} />;
-        }
-        if (item.Type === "Playlist" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Video" && !isHorizontal) {
-          return <MoviePoster item={item} />;
-        }
-        if (item.Type === "Video" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        // Default fallback
-        return isHorizontal ? (
-          <ContinueWatchingPoster item={item} />
-        ) : (
-          <MoviePoster item={item} />
-        );
-      };
 
       return (
-        <View style={{ marginRight: ITEM_GAP, width: itemWidth }}>
-          <TVFocusablePoster
+        <View style={{ marginRight: ITEM_GAP }}>
+          <TVPosterCard
+            item={item}
+            orientation={orientation}
             onPress={() => handleItemPress(item)}
+            onLongPress={() => showItemActions(item)}
             hasTVPreferredFocus={isFirstItem}
             onFocus={() => handleItemFocus(item)}
-            onBlur={handleItemBlur}
-          >
-            {renderPoster()}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} />
+            width={itemWidth}
+          />
         </View>
       );
     },
@@ -352,8 +233,9 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       isFirstSection,
       itemWidth,
       handleItemPress,
+      showItemActions,
       handleItemFocus,
-      handleItemBlur,
+      ITEM_GAP,
     ],
   );
 
@@ -365,11 +247,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: TVTypography.body,
-          fontWeight: "600",
+          fontSize: typography.heading,
+          fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: 20,
+          marginLeft: sizes.padding.horizontal,
+          letterSpacing: 0.5,
         }}
       >
         {title}
@@ -379,8 +262,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
         <Text
           style={{
             color: "#737373",
-            fontSize: TVTypography.callout,
-            marginLeft: SCALE_PADDING,
+            fontSize: typography.callout,
+            marginLeft: sizes.padding.horizontal,
           }}
         >
           {t("home.no_items")}
@@ -420,7 +303,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                     color: "#262626",
                     backgroundColor: "#262626",
                     borderRadius: 6,
-                    fontSize: TVTypography.callout,
+                    fontSize: typography.callout,
                   }}
                   numberOfLines={1}
                 >
@@ -444,12 +327,15 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           maxToRenderPerBatch={3}
           windowSize={5}
           removeClippedSubviews={false}
-          getItemLayout={getItemLayout}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           style={{ overflow: "visible" }}
+          contentInset={{
+            left: sizes.padding.horizontal,
+            right: sizes.padding.horizontal,
+          }}
+          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
             paddingVertical: SCALE_PADDING,
-            paddingHorizontal: SCALE_PADDING,
           }}
           ListFooterComponent={
             <View
@@ -475,8 +361,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                   onPress={handleSeeAllPress}
                   orientation={orientation}
                   disabled={disabled}
-                  onFocus={handleSeeAllFocus}
-                  onBlur={handleItemBlur}
+                  typography={typography}
+                  posterSizes={posterSizes}
                 />
               )}
             </View>

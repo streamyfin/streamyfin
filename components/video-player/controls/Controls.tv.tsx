@@ -13,7 +13,12 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, TVFocusGuideView, View } from "react-native";
+import {
+  StyleSheet,
+  TVFocusGuideView,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -24,22 +29,31 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { TVControlButton, TVNextEpisodeCountdown } from "@/components/tv";
+import {
+  TVControlButton,
+  TVNextEpisodeCountdown,
+  TVSkipSegmentCard,
+} from "@/components/tv";
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useCreditSkipper } from "@/hooks/useCreditSkipper";
+import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import type { TechnicalInfo } from "@/modules/mpv-player";
+import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
+import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
@@ -77,10 +91,101 @@ interface Props {
   getTechnicalInfo?: () => Promise<TechnicalInfo>;
   playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
   transcodeReasons?: string[];
+  downloadedFiles?: DownloadedItem[];
 }
 
 const TV_SEEKBAR_HEIGHT = 14;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
+
+// Trickplay bubble positioning constants
+const TV_TRICKPLAY_SCALE = 2;
+const TV_TRICKPLAY_BUBBLE_BASE_WIDTH = CONTROLS_CONSTANTS.TILE_WIDTH * 1.5;
+const TV_TRICKPLAY_BUBBLE_WIDTH =
+  TV_TRICKPLAY_BUBBLE_BASE_WIDTH * TV_TRICKPLAY_SCALE;
+const TV_TRICKPLAY_INTERNAL_OFFSET = 62 * TV_TRICKPLAY_SCALE;
+const TV_TRICKPLAY_CENTERING_OFFSET = 98 * TV_TRICKPLAY_SCALE;
+const TV_TRICKPLAY_RIGHT_PADDING = 150;
+const TV_TRICKPLAY_FADE_DURATION = 200;
+
+interface TVTrickplayBubbleProps {
+  trickPlayUrl: {
+    x: number;
+    y: number;
+    url: string;
+  } | null;
+  trickplayInfo: {
+    aspectRatio?: number;
+    data: {
+      TileWidth?: number;
+      TileHeight?: number;
+    };
+  } | null;
+  time: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
+  progress: SharedValue<number>;
+  max: SharedValue<number>;
+  progressBarWidth: number;
+  visible: boolean;
+}
+
+const TVTrickplayBubblePositioned: FC<TVTrickplayBubbleProps> = ({
+  trickPlayUrl,
+  trickplayInfo,
+  time,
+  progress,
+  max,
+  progressBarWidth,
+  visible,
+}) => {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, {
+      duration: TV_TRICKPLAY_FADE_DURATION,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [visible, opacity]);
+
+  const minX = TV_TRICKPLAY_INTERNAL_OFFSET;
+  const maxX =
+    progressBarWidth -
+    TV_TRICKPLAY_BUBBLE_WIDTH +
+    TV_TRICKPLAY_INTERNAL_OFFSET +
+    TV_TRICKPLAY_RIGHT_PADDING;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const progressPercent = max.value > 0 ? progress.value / max.value : 0;
+
+    const xPosition = Math.max(
+      minX,
+      Math.min(
+        maxX,
+        progressPercent * progressBarWidth -
+          TV_TRICKPLAY_BUBBLE_WIDTH / 2 +
+          TV_TRICKPLAY_CENTERING_OFFSET,
+      ),
+    );
+
+    return {
+      transform: [{ translateX: xPosition }],
+      opacity: opacity.value,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.trickplayBubblePositioned, animatedStyle]}>
+      <TrickplayBubble
+        trickPlayUrl={trickPlayUrl}
+        trickplayInfo={trickplayInfo}
+        time={time}
+        imageScale={TV_TRICKPLAY_SCALE}
+      />
+    </Animated.View>
+  );
+};
 
 export const Controls: FC<Props> = ({
   item,
@@ -110,9 +215,19 @@ export const Controls: FC<Props> = ({
   getTechnicalInfo,
   playMethod,
   transcodeReasons,
+  downloadedFiles,
 }) => {
+  const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { t } = useTranslation();
+
+  // Calculate progress bar width (matches the padding used in bottomInner)
+  const progressBarWidth = useMemo(() => {
+    const leftPadding = Math.max(insets.left, 48);
+    const rightPadding = Math.max(insets.right, 48);
+    return screenWidth - leftPadding - rightPadding;
+  }, [screenWidth, insets.left, insets.right]);
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
   const router = useRouter();
@@ -271,6 +386,75 @@ export const Controls: FC<Props> = ({
     isSeeking,
   });
 
+  // Chapter navigation hook
+  const {
+    hasChapters,
+    hasPreviousChapter,
+    hasNextChapter,
+    goToPreviousChapter,
+    goToNextChapter,
+    chapterPositions,
+  } = useChapterNavigation({
+    chapters: item.Chapters,
+    progress,
+    maxMs,
+    seek,
+  });
+
+  // Skip intro/credits hooks
+  // Note: hooks expect seek callback that takes ms, and seek prop already expects ms
+  const offline = useOfflineMode();
+  const { showSkipButton, skipIntro } = useIntroSkipper(
+    item.Id!,
+    currentTime,
+    seek,
+    _play,
+    offline,
+    api,
+    downloadedFiles,
+  );
+
+  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
+    useCreditSkipper(
+      item.Id!,
+      currentTime,
+      seek,
+      _play,
+      offline,
+      api,
+      downloadedFiles,
+      max.value,
+    );
+
+  // Countdown logic
+  const isCountdownActive = useMemo(() => {
+    if (!nextItem) return false;
+    if (item?.Type !== "Episode") return false;
+    return remainingTime > 0 && remainingTime <= 10000;
+  }, [nextItem, item, remainingTime]);
+
+  // Simple boolean - when skip cards or countdown are visible, they have focus
+  const isSkipOrCountdownVisible = useMemo(() => {
+    const skipIntroVisible = showSkipButton && !isCountdownActive;
+    const skipCreditsVisible =
+      showSkipCreditButton &&
+      (hasContentAfterCredits || !nextItem) &&
+      !isCountdownActive;
+    return skipIntroVisible || skipCreditsVisible || isCountdownActive;
+  }, [
+    showSkipButton,
+    showSkipCreditButton,
+    hasContentAfterCredits,
+    nextItem,
+    isCountdownActive,
+  ]);
+
+  // Live TV detection - check for both Program (when playing from guide) and TvChannel (when playing from channels)
+  const isLiveTV = item?.Type === "Program" || item?.Type === "TvChannel";
+
+  // For live TV, determine if we're at the live edge (within 5 seconds of max)
+  const LIVE_EDGE_THRESHOLD = 5000; // 5 seconds in ms
+
   const getFinishTime = () => {
     const now = new Date();
     const finishTime = new Date(now.getTime() + remainingTime);
@@ -282,8 +466,9 @@ export const Controls: FC<Props> = ({
   };
 
   const toggleControls = useCallback(() => {
+    if (isSkipOrCountdownVisible) return; // Skip/countdown has focus, don't toggle
     setShowControls(!showControls);
-  }, [showControls, setShowControls]);
+  }, [showControls, setShowControls, isSkipOrCountdownVisible]);
 
   const [showSeekBubble, setShowSeekBubble] = useState(false);
   const [seekBubbleTime, setSeekBubbleTime] = useState({
@@ -307,10 +492,6 @@ export const Controls: FC<Props> = ({
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     setSeekBubbleTime({ hours, minutes, seconds });
-  }, []);
-
-  const handleBack = useCallback(() => {
-    // No longer needed since modals are screen-based
   }, []);
 
   // Show minimal seek bar (only progress bar, no buttons)
@@ -341,16 +522,6 @@ export const Controls: FC<Props> = ({
 
   // Start the minimal seek bar hide timeout
   const startMinimalSeekHideTimeout = useCallback(() => {
-    if (minimalSeekBarTimeoutRef.current) {
-      clearTimeout(minimalSeekBarTimeoutRef.current);
-    }
-    minimalSeekBarTimeoutRef.current = setTimeout(() => {
-      setShowMinimalSeekBar(false);
-    }, 2500);
-  }, []);
-
-  // Reset minimal seek bar timeout (call on each seek action)
-  const _resetMinimalSeekTimeout = useCallback(() => {
     if (minimalSeekBarTimeoutRef.current) {
       clearTimeout(minimalSeekBarTimeoutRef.current);
     }
@@ -436,6 +607,13 @@ export const Controls: FC<Props> = ({
   );
 
   const handleSeekForwardButton = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't seek further
+      controlsInteractionRef.current();
+      return;
+    }
+
     const newPosition = Math.min(max.value, progress.value + 30 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -452,7 +630,14 @@ export const Controls: FC<Props> = ({
     }, 2000);
 
     controlsInteractionRef.current();
-  }, [progress, max, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+  }, [
+    progress,
+    max,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    isLiveTV,
+  ]);
 
   const handleSeekBackwardButton = useCallback(() => {
     const newPosition = Math.max(min.value, progress.value - 30 * 1000);
@@ -475,6 +660,13 @@ export const Controls: FC<Props> = ({
 
   // Progress bar D-pad seeking (10s increments for finer control)
   const handleProgressSeekRight = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't seek further
+      controlsInteractionRef.current();
+      return;
+    }
+
     const newPosition = Math.min(max.value, progress.value + 10 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -491,7 +683,14 @@ export const Controls: FC<Props> = ({
     }, 2000);
 
     controlsInteractionRef.current();
-  }, [progress, max, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+  }, [
+    progress,
+    max,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    isLiveTV,
+  ]);
 
   const handleProgressSeekLeft = useCallback(() => {
     const newPosition = Math.max(min.value, progress.value - 10 * 1000);
@@ -514,6 +713,12 @@ export const Controls: FC<Props> = ({
 
   // Minimal seek mode handlers (only show progress bar, not full controls)
   const handleMinimalSeekRight = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't seek further
+      return;
+    }
+
     const newPosition = Math.min(max.value, progress.value + 10 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -538,6 +743,7 @@ export const Controls: FC<Props> = ({
     calculateTrickplayUrl,
     updateSeekBubbleTime,
     showMinimalSeek,
+    isLiveTV,
   ]);
 
   const handleMinimalSeekLeft = useCallback(() => {
@@ -587,11 +793,23 @@ export const Controls: FC<Props> = ({
   }, [startMinimalSeekHideTimeout]);
 
   const startContinuousSeekForward = useCallback(() => {
+    // For live TV, check if we're already at the live edge
+    if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+      // Already at live edge, don't start continuous seeking
+      return;
+    }
+
     seekAccelerationRef.current = 1;
 
     handleSeekForwardButton();
 
     continuousSeekRef.current = setInterval(() => {
+      // For live TV, stop continuous seeking when we hit the live edge
+      if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
+        stopContinuousSeeking();
+        return;
+      }
+
       const seekAmount =
         CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK *
         seekAccelerationRef.current *
@@ -603,7 +821,11 @@ export const Controls: FC<Props> = ({
       calculateTrickplayUrl(msToTicks(newPosition));
       updateSeekBubbleTime(newPosition);
 
-      seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
+      seekAccelerationRef.current = Math.min(
+        seekAccelerationRef.current *
+          CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION,
+        CONTROLS_CONSTANTS.LONG_PRESS_MAX_ACCELERATION,
+      );
 
       controlsInteractionRef.current();
     }, CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL);
@@ -614,6 +836,8 @@ export const Controls: FC<Props> = ({
     seek,
     calculateTrickplayUrl,
     updateSeekBubbleTime,
+    isLiveTV,
+    stopContinuousSeeking,
   ]);
 
   const startContinuousSeekBackward = useCallback(() => {
@@ -633,7 +857,11 @@ export const Controls: FC<Props> = ({
       calculateTrickplayUrl(msToTicks(newPosition));
       updateSeekBubbleTime(newPosition);
 
-      seekAccelerationRef.current *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
+      seekAccelerationRef.current = Math.min(
+        seekAccelerationRef.current *
+          CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION,
+        CONTROLS_CONSTANTS.LONG_PRESS_MAX_ACCELERATION,
+      );
 
       controlsInteractionRef.current();
     }, CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL);
@@ -668,15 +896,24 @@ export const Controls: FC<Props> = ({
 
   // Callback for up/down D-pad - show controls with play button focused
   const handleVerticalDpad = useCallback(() => {
+    if (isSkipOrCountdownVisible) return; // Skip/countdown has focus, don't show controls
     setFocusPlayButton(true);
     setShowControls(true);
+  }, [setShowControls, isSkipOrCountdownVisible]);
+
+  const hideControls = useCallback(() => {
+    setShowControls(false);
+    setFocusPlayButton(false);
   }, [setShowControls]);
 
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
   const { isSliding: isRemoteSliding } = useRemoteControl({
-    showControls,
+    showControls: showControls,
     toggleControls,
     togglePlay,
-    onBack: handleBack,
     isProgressBarFocused,
     onSeekLeft: handleProgressSeekLeft,
     onSeekRight: handleProgressSeekRight,
@@ -687,15 +924,13 @@ export const Controls: FC<Props> = ({
     onLongSeekRightStart: handleDpadLongSeekForward,
     onLongSeekStop: stopContinuousSeeking,
     onVerticalDpad: handleVerticalDpad,
+    onHideControls: hideControls,
+    onBack: handleBack,
+    videoTitle: item?.Name ?? undefined,
   });
 
-  const hideControls = useCallback(() => {
-    setShowControls(false);
-    setFocusPlayButton(false);
-  }, [setShowControls]);
-
   const { handleControlsInteraction } = useControlsTimeout({
-    showControls,
+    showControls: showControls,
     isSliding: isRemoteSliding,
     episodeView: false,
     onHideControls: hideControls,
@@ -775,12 +1010,6 @@ export const Controls: FC<Props> = ({
 
   goToNextItemRef.current = goToNextItem;
 
-  const shouldShowCountdown = useMemo(() => {
-    if (!nextItem) return false;
-    if (item?.Type !== "Episode") return false;
-    return remainingTime > 0 && remainingTime <= 10000;
-  }, [nextItem, item, remainingTime]);
-
   const handleAutoPlayFinish = useCallback(() => {
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
@@ -805,13 +1034,35 @@ export const Controls: FC<Props> = ({
         />
       )}
 
+      {/* Skip intro card */}
+      <TVSkipSegmentCard
+        show={showSkipButton && !isCountdownActive}
+        onPress={skipIntro}
+        type='intro'
+        controlsVisible={showControls}
+      />
+
+      {/* Skip credits card - show when there's content after credits, OR no next episode */}
+      <TVSkipSegmentCard
+        show={
+          showSkipCreditButton &&
+          (hasContentAfterCredits || !nextItem) &&
+          !isCountdownActive
+        }
+        onPress={skipCredit}
+        type='credits'
+        controlsVisible={showControls}
+      />
+
       {nextItem && (
         <TVNextEpisodeCountdown
           nextItem={nextItem}
           api={api}
-          show={shouldShowCountdown}
+          show={isCountdownActive}
           isPlaying={isPlaying}
           onFinish={handleAutoPlayFinish}
+          onPlayNext={handleNextItemButton}
+          controlsVisible={showControls}
         />
       )}
 
@@ -831,61 +1082,88 @@ export const Controls: FC<Props> = ({
             },
           ]}
         >
-          {showSeekBubble && (
-            <View style={styles.trickplayBubbleContainer}>
-              <TrickplayBubble
-                trickPlayUrl={trickPlayUrl}
-                trickplayInfo={trickplayInfo}
-                time={seekBubbleTime}
-              />
-            </View>
-          )}
+          <View style={styles.trickplayBubbleContainer}>
+            <TVTrickplayBubblePositioned
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              time={seekBubbleTime}
+              progress={effectiveProgress}
+              max={max}
+              progressBarWidth={progressBarWidth}
+              visible={showSeekBubble}
+            />
+          </View>
 
           {/* Same padding as TVFocusableProgressBar for alignment */}
           <View style={styles.minimalProgressWrapper}>
             <View
               style={[styles.progressBarContainer, styles.minimalProgressGlow]}
             >
-              <View style={[styles.progressTrack, styles.minimalProgressTrack]}>
-                <Animated.View
-                  style={[
-                    styles.cacheProgress,
-                    useAnimatedStyle(() => ({
-                      width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
-                    })),
-                  ]}
-                />
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    useAnimatedStyle(() => ({
-                      width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
-                    })),
-                  ]}
-                />
+              <View style={styles.minimalProgressTrackWrapper}>
+                <View
+                  style={[styles.progressTrack, styles.minimalProgressTrack]}
+                >
+                  <Animated.View
+                    style={[
+                      styles.cacheProgress,
+                      useAnimatedStyle(() => ({
+                        width: `${max.value > 0 ? (cacheProgress.value / max.value) * 100 : 0}%`,
+                      })),
+                    ]}
+                  />
+                  <Animated.View
+                    style={[
+                      styles.progressFill,
+                      useAnimatedStyle(() => ({
+                        width: `${max.value > 0 ? (effectiveProgress.value / max.value) * 100 : 0}%`,
+                      })),
+                    ]}
+                  />
+                </View>
+                {/* Chapter markers */}
+                {chapterPositions.length > 0 && (
+                  <View
+                    style={styles.minimalChapterMarkersContainer}
+                    pointerEvents='none'
+                  >
+                    {chapterPositions.map((position, index) => (
+                      <View
+                        key={`minimal-chapter-marker-${index}`}
+                        style={[
+                          styles.minimalChapterMarker,
+                          { left: `${position}%` },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
           </View>
 
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>
+            <Text style={[styles.timeText, { fontSize: typography.body }]}>
               {formatTimeString(currentTime, "ms")}
             </Text>
-            <View style={styles.timeRight}>
-              <Text style={styles.timeText}>
-                -{formatTimeString(remainingTime, "ms")}
-              </Text>
-              <Text style={styles.endsAtText}>
-                {t("player.ends_at")} {getFinishTime()}
-              </Text>
-            </View>
+            {!isLiveTV && (
+              <View style={styles.timeRight}>
+                <Text style={[styles.timeText, { fontSize: typography.body }]}>
+                  -{formatTimeString(remainingTime, "ms")}
+                </Text>
+                <Text
+                  style={[styles.endsAtText, { fontSize: typography.callout }]}
+                >
+                  {t("player.ends_at")} {getFinishTime()}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
 
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
-        pointerEvents={showControls && !false ? "auto" : "none"}
+        pointerEvents={showControls ? "auto" : "none"}
       >
         <View
           style={[
@@ -901,12 +1179,34 @@ export const Controls: FC<Props> = ({
           <View style={styles.metadataContainer}>
             {item?.Type === "Episode" && (
               <Text
-                style={styles.subtitleText}
+                style={[styles.subtitleText, { fontSize: typography.body }]}
               >{`${item.SeriesName} - ${item.SeasonName} Episode ${item.IndexNumber}`}</Text>
             )}
-            <Text style={styles.titleText}>{item?.Name}</Text>
+            <View style={styles.titleRow}>
+              <Text
+                style={[styles.titleText, { fontSize: typography.heading }]}
+              >
+                {item?.Name}
+              </Text>
+              {isLiveTV && (
+                <View style={styles.liveBadge}>
+                  <Text
+                    style={[
+                      styles.liveBadgeText,
+                      { fontSize: typography.callout },
+                    ]}
+                  >
+                    {t("player.live")}
+                  </Text>
+                </View>
+              )}
+            </View>
             {item?.Type === "Movie" && (
-              <Text style={styles.subtitleText}>{item?.ProductionYear}</Text>
+              <Text
+                style={[styles.subtitleText, { fontSize: typography.body }]}
+              >
+                {item?.ProductionYear}
+              </Text>
             )}
           </View>
 
@@ -914,21 +1214,40 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='play-skip-back'
               onPress={handlePreviousItem}
-              disabled={false || !previousItem}
+              disabled={!previousItem}
               size={28}
             />
+            {hasChapters && (
+              <TVControlButton
+                icon='play-back'
+                onPress={goToPreviousChapter}
+                disabled={!hasPreviousChapter}
+                size={24}
+              />
+            )}
             <TVControlButton
               icon={isPlaying ? "pause" : "play"}
               onPress={handlePlayPauseButton}
-              disabled={false}
               size={36}
               refSetter={setPlayButtonRef}
-              hasTVPreferredFocus={focusPlayButton && lastOpenedModal === null}
+              hasTVPreferredFocus={
+                !isCountdownActive &&
+                focusPlayButton &&
+                lastOpenedModal === null
+              }
             />
+            {hasChapters && (
+              <TVControlButton
+                icon='play-forward'
+                onPress={goToNextChapter}
+                disabled={!hasNextChapter}
+                size={24}
+              />
+            )}
             <TVControlButton
               icon='play-skip-forward'
               onPress={handleNextItemButton}
-              disabled={false || !nextItem}
+              disabled={!nextItem}
               size={28}
             />
 
@@ -938,8 +1257,9 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='volume-high'
                 onPress={handleOpenAudioSheet}
-                disabled={false}
-                hasTVPreferredFocus={!false && lastOpenedModal === "audio"}
+                hasTVPreferredFocus={
+                  !isCountdownActive && lastOpenedModal === "audio"
+                }
                 size={24}
               />
             )}
@@ -947,31 +1267,35 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
-              disabled={false}
-              hasTVPreferredFocus={!false && lastOpenedModal === "subtitle"}
+              hasTVPreferredFocus={
+                !isCountdownActive && lastOpenedModal === "subtitle"
+              }
               size={24}
             />
 
             {getTechnicalInfo && (
               <TVControlButton
-                icon='information-circle'
+                icon='code-slash'
                 onPress={handleToggleTechnicalInfo}
-                disabled={false}
-                hasTVPreferredFocus={!false && lastOpenedModal === "techInfo"}
+                hasTVPreferredFocus={
+                  !isCountdownActive && lastOpenedModal === "techInfo"
+                }
                 size={24}
               />
             )}
           </View>
 
-          {showSeekBubble && (
-            <View style={styles.trickplayBubbleContainer}>
-              <TrickplayBubble
-                trickPlayUrl={trickPlayUrl}
-                trickplayInfo={trickplayInfo}
-                time={seekBubbleTime}
-              />
-            </View>
-          )}
+          <View style={styles.trickplayBubbleContainer}>
+            <TVTrickplayBubblePositioned
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              time={seekBubbleTime}
+              progress={effectiveProgress}
+              max={max}
+              progressBarWidth={progressBarWidth}
+              visible={showSeekBubble}
+            />
+          </View>
 
           {/* Bidirectional focus guides - stacked together per docs */}
           {/* Downward: play button → progress bar */}
@@ -995,25 +1319,30 @@ export const Controls: FC<Props> = ({
               progress={effectiveProgress}
               max={max}
               cacheProgress={cacheProgress}
+              chapterPositions={chapterPositions}
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
-              hasTVPreferredFocus={lastOpenedModal === null && !focusPlayButton}
+              hasTVPreferredFocus={false}
             />
           </TVFocusGuideView>
 
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>
+            <Text style={[styles.timeText, { fontSize: typography.body }]}>
               {formatTimeString(currentTime, "ms")}
             </Text>
-            <View style={styles.timeRight}>
-              <Text style={styles.timeText}>
-                -{formatTimeString(remainingTime, "ms")}
-              </Text>
-              <Text style={styles.endsAtText}>
-                {t("player.ends_at")} {getFinishTime()}
-              </Text>
-            </View>
+            {!isLiveTV && (
+              <View style={styles.timeRight}>
+                <Text style={[styles.timeText, { fontSize: typography.body }]}>
+                  -{formatTimeString(remainingTime, "ms")}
+                </Text>
+                <Text
+                  style={[styles.endsAtText, { fontSize: typography.callout }]}
+                >
+                  {t("player.ends_at")} {getFinishTime()}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Animated.View>
@@ -1042,13 +1371,26 @@ const styles = StyleSheet.create({
   metadataContainer: {
     marginBottom: 16,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   subtitleText: {
     color: "rgba(255,255,255,0.6)",
-    fontSize: TVTypography.body,
   },
   titleText: {
     color: "#fff",
-    fontSize: TVTypography.heading,
+    fontWeight: "bold",
+  },
+  liveBadge: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  liveBadgeText: {
+    color: "#FFF",
     fontWeight: "bold",
   },
   controlButtonsRow: {
@@ -1063,11 +1405,14 @@ const styles = StyleSheet.create({
   },
   trickplayBubbleContainer: {
     position: "absolute",
-    bottom: 120,
+    bottom: 190,
     left: 0,
     right: 0,
-    alignItems: "center",
     zIndex: 20,
+  },
+  trickplayBubblePositioned: {
+    position: "absolute",
+    bottom: 0,
   },
   focusGuide: {
     height: 1,
@@ -1108,7 +1453,6 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: "rgba(255,255,255,0.7)",
-    fontSize: TVTypography.body,
   },
   timeRight: {
     flexDirection: "column",
@@ -1116,7 +1460,6 @@ const styles = StyleSheet.create({
   },
   endsAtText: {
     color: "rgba(255,255,255,0.5)",
-    fontSize: TVTypography.callout,
     marginTop: 2,
   },
   // Minimal seek bar styles
@@ -1143,5 +1486,25 @@ const styles = StyleSheet.create({
   minimalProgressTrack: {
     // Brighter track like focused state
     backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  minimalProgressTrackWrapper: {
+    position: "relative",
+    height: TV_SEEKBAR_HEIGHT,
+  },
+  minimalChapterMarkersContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  minimalChapterMarker: {
+    position: "absolute",
+    width: 2,
+    height: TV_SEEKBAR_HEIGHT + 5,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    borderRadius: 1,
+    transform: [{ translateX: -1 }],
   },
 });

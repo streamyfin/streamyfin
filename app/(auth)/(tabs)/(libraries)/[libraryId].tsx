@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -12,23 +11,14 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { BlurView } from "expo-blur";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Animated,
-  Easing,
   FlatList,
   Platform,
-  Pressable,
   ScrollView,
   useWindowDimensions,
   View,
@@ -44,13 +34,14 @@ import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
 import { ItemPoster } from "@/components/posters/ItemPoster";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVFilterButton, TVFocusablePoster } from "@/components/tv";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import {
@@ -74,280 +65,13 @@ import {
   yearFilterAtom,
 } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
+import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
-const TV_ITEM_GAP = 16;
-const TV_SCALE_PADDING = 20;
-
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => (
-  <View style={{ marginTop: 12 }}>
-    <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
-      {item.Name}
-    </Text>
-    <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
-      {item.ProductionYear}
-    </Text>
-  </View>
-);
-
-// TV Filter Types and Components
-type TVFilterModalType =
-  | "genre"
-  | "year"
-  | "tags"
-  | "sortBy"
-  | "sortOrder"
-  | "filterBy"
-  | null;
-
-interface TVFilterOption<T> {
-  label: string;
-  value: T;
-  selected: boolean;
-}
-
-const TVFilterOptionCard: React.FC<{
-  label: string;
-  selected: boolean;
-  hasTVPreferredFocus?: boolean;
-  onPress: () => void;
-}> = ({ label, selected, hasTVPreferredFocus, onPress }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          width: 160,
-          height: 75,
-          backgroundColor: focused
-            ? "#fff"
-            : selected
-              ? "rgba(255,255,255,0.2)"
-              : "rgba(255,255,255,0.08)",
-          borderRadius: 14,
-          justifyContent: "center",
-          alignItems: "center",
-          paddingHorizontal: 12,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 16,
-            color: focused ? "#000" : "#fff",
-            fontWeight: focused || selected ? "600" : "400",
-            textAlign: "center",
-          }}
-          numberOfLines={2}
-        >
-          {label}
-        </Text>
-        {selected && !focused && (
-          <View style={{ position: "absolute", top: 8, right: 8 }}>
-            <Ionicons
-              name='checkmark'
-              size={16}
-              color='rgba(255,255,255,0.8)'
-            />
-          </View>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-const TVFilterButton: React.FC<{
-  label: string;
-  value: string;
-  onPress: () => void;
-  hasTVPreferredFocus?: boolean;
-  disabled?: boolean;
-  hasActiveFilter?: boolean;
-}> = ({
-  label,
-  value,
-  onPress,
-  hasTVPreferredFocus,
-  disabled,
-  hasActiveFilter,
-}) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 120,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.04);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
-      disabled={disabled}
-      focusable={!disabled}
-    >
-      <Animated.View style={{ transform: [{ scale }] }}>
-        <View
-          style={{
-            backgroundColor: focused
-              ? "#fff"
-              : hasActiveFilter
-                ? "rgba(255, 255, 255, 0.25)"
-                : "rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            borderWidth: hasActiveFilter && !focused ? 1 : 0,
-            borderColor: "rgba(255, 255, 255, 0.4)",
-          }}
-        >
-          {label ? (
-            <Text style={{ fontSize: 14, color: focused ? "#444" : "#bbb" }}>
-              {label}
-            </Text>
-          ) : null}
-          <Text
-            style={{
-              fontSize: 14,
-              color: focused ? "#000" : "#FFFFFF",
-              fontWeight: "500",
-            }}
-            numberOfLines={1}
-          >
-            {value}
-          </Text>
-        </View>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-const TVFilterSelector = <T,>({
-  visible,
-  title,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: TVFilterOption<T>[];
-  onSelect: (value: T) => void;
-  onClose: () => void;
-}) => {
-  // Track initial focus index - only set once when modal opens
-  const initialFocusIndexRef = useRef<number | null>(null);
-
-  // Calculate initial focus index only once when visible becomes true
-  if (visible && initialFocusIndexRef.current === null) {
-    const idx = options.findIndex((o) => o.selected);
-    initialFocusIndexRef.current = idx >= 0 ? idx : 0;
-  }
-
-  // Reset when modal closes
-  if (!visible) {
-    initialFocusIndexRef.current = null;
-    return null;
-  }
-
-  const initialFocusIndex = initialFocusIndexRef.current ?? 0;
-
-  return (
-    <View
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        justifyContent: "flex-end",
-        zIndex: 1000,
-      }}
-    >
-      <BlurView
-        intensity={80}
-        tint='dark'
-        style={{
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          overflow: "hidden",
-        }}
-      >
-        <View style={{ paddingVertical: 24 }}>
-          <Text
-            style={{
-              fontSize: 20,
-              fontWeight: "600",
-              color: "#fff",
-              paddingHorizontal: 48,
-              marginBottom: 16,
-            }}
-          >
-            {title}
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ overflow: "visible" }}
-            contentContainerStyle={{
-              paddingHorizontal: 48,
-              paddingVertical: 10,
-              gap: 12,
-            }}
-          >
-            {options.map((option, index) => (
-              <TVFilterOptionCard
-                key={String(option.value)}
-                label={option.label}
-                selected={option.selected}
-                hasTVPreferredFocus={index === initialFocusIndex}
-                onPress={() => {
-                  onSelect(option.value);
-                  onClose();
-                }}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      </BlurView>
-    </View>
-  );
-};
+const TV_ITEM_GAP = 20;
+const TV_HORIZONTAL_PADDING = 60;
+const _TV_SCALE_PADDING = 20;
+const TV_PLAYLIST_SQUARE_SIZE = 180;
 
 const Page = () => {
   const searchParams = useLocalSearchParams() as {
@@ -358,6 +82,8 @@ const Page = () => {
   };
   const { libraryId } = searchParams;
 
+  const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const { width: screenWidth } = useWindowDimensions();
@@ -380,13 +106,8 @@ const Page = () => {
 
   const { t } = useTranslation();
   const router = useRouter();
-
-  // TV Filter modal state
-  const [openFilterModal, setOpenFilterModal] =
-    useState<TVFilterModalType>(null);
-  const isFilterModalOpen = openFilterModal !== null;
-
-  const isFiltersDisabled = isFilterModalOpen;
+  const { showOptions } = useTVOptionModal();
+  const { showItemActions } = useTVItemActionModal();
 
   // TV Filter queries
   const { data: tvGenreOptions } = useQuery({
@@ -511,12 +232,8 @@ const Page = () => {
 
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
-      // Calculate columns based on TV poster width + gap
-      const itemWidth = TV_POSTER_WIDTH + TV_ITEM_GAP;
-      return Math.max(
-        1,
-        Math.floor((screenWidth - TV_SCALE_PADDING * 2) / itemWidth),
-      );
+      // TV uses flexWrap, so nrOfCols is just for mobile
+      return 1;
     }
     if (screenWidth < 300) return 2;
     if (screenWidth < 500) return 3;
@@ -569,6 +286,8 @@ const Page = () => {
         itemType = "Video";
       } else if (library.CollectionType === "musicvideos") {
         itemType = "MusicVideo";
+      } else if (library.CollectionType === "playlists") {
+        itemType = "Playlist";
       }
 
       const response = await getItemsApi(api).getItems({
@@ -588,6 +307,9 @@ const Page = () => {
         tags: selectedTags,
         years: selectedYears.map((year) => Number.parseInt(year, 10)),
         includeItemTypes: itemType ? [itemType] : undefined,
+        ...(Platform.isTV && library.CollectionType === "playlists"
+          ? { mediaTypes: ["Video"] }
+          : {}),
       });
 
       return response.data || null;
@@ -682,34 +404,84 @@ const Page = () => {
   );
 
   const renderTVItem = useCallback(
-    ({ item }: { item: BaseItemDto }) => {
+    (item: BaseItemDto) => {
       const handlePress = () => {
+        if (item.Type === "Playlist") {
+          router.push({
+            pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+            params: { libraryId: item.Id! },
+          });
+          return;
+        }
         const navTarget = getItemNavigation(item, "(libraries)");
         router.push(navTarget as any);
       };
 
+      // Special rendering for Playlist items (square thumbnails)
+      if (item.Type === "Playlist") {
+        const playlistImageUrl = getPrimaryImageUrl({
+          api,
+          item,
+          width: TV_PLAYLIST_SQUARE_SIZE * 2,
+        });
+
+        return (
+          <View
+            key={item.Id}
+            style={{
+              width: TV_PLAYLIST_SQUARE_SIZE,
+              alignItems: "center",
+            }}
+          >
+            <TVFocusablePoster
+              onPress={handlePress}
+              onLongPress={() => showItemActions(item)}
+            >
+              <View
+                style={{
+                  width: TV_PLAYLIST_SQUARE_SIZE,
+                  aspectRatio: 1,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  backgroundColor: "#1a1a1a",
+                }}
+              >
+                <Image
+                  source={playlistImageUrl ? { uri: playlistImageUrl } : null}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit='cover'
+                  cachePolicy='memory-disk'
+                />
+              </View>
+            </TVFocusablePoster>
+            <View style={{ marginTop: 12, alignItems: "center" }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: typography.callout,
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                }}
+              >
+                {item.Name}
+              </Text>
+            </View>
+          </View>
+        );
+      }
+
       return (
-        <View
-          style={{
-            marginRight: TV_ITEM_GAP,
-            marginBottom: TV_ITEM_GAP,
-            width: TV_POSTER_WIDTH,
-          }}
-        >
-          <TVFocusablePoster onPress={handlePress} disabled={isFilterModalOpen}>
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {(item.Type === "Series" || item.Type === "Episode") && (
-              <SeriesPoster item={item} />
-            )}
-            {item.Type !== "Movie" &&
-              item.Type !== "Series" &&
-              item.Type !== "Episode" && <MoviePoster item={item} />}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} />
-        </View>
+        <TVPosterCard
+          key={item.Id}
+          item={item}
+          orientation='vertical'
+          onPress={handlePress}
+          onLongPress={() => showItemActions(item)}
+          width={posterSizes.poster}
+        />
       );
     },
-    [router, isFilterModalOpen],
+    [router, showItemActions, api, typography],
   );
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
@@ -912,7 +684,7 @@ const Page = () => {
 
   // TV Filter options - with "All" option for clearable filters
   const tvGenreFilterOptions = useMemo(
-    (): TVFilterOption<string>[] => [
+    (): TVOptionItem<string>[] => [
       {
         label: t("library.filters.all"),
         value: "__all__",
@@ -928,7 +700,7 @@ const Page = () => {
   );
 
   const tvYearFilterOptions = useMemo(
-    (): TVFilterOption<string>[] => [
+    (): TVOptionItem<string>[] => [
       {
         label: t("library.filters.all"),
         value: "__all__",
@@ -944,7 +716,7 @@ const Page = () => {
   );
 
   const tvTagFilterOptions = useMemo(
-    (): TVFilterOption<string>[] => [
+    (): TVOptionItem<string>[] => [
       {
         label: t("library.filters.all"),
         value: "__all__",
@@ -960,7 +732,7 @@ const Page = () => {
   );
 
   const tvSortByOptions = useMemo(
-    (): TVFilterOption<SortByOption>[] =>
+    (): TVOptionItem<SortByOption>[] =>
       sortOptions.map((option) => ({
         label: option.value,
         value: option.key,
@@ -970,7 +742,7 @@ const Page = () => {
   );
 
   const tvSortOrderOptions = useMemo(
-    (): TVFilterOption<SortOrderOption>[] =>
+    (): TVOptionItem<SortOrderOption>[] =>
       sortOrderOptions.map((option) => ({
         label: option.value,
         value: option.key,
@@ -980,7 +752,7 @@ const Page = () => {
   );
 
   const tvFilterByOptions = useMemo(
-    (): TVFilterOption<string>[] => [
+    (): TVOptionItem<string>[] => [
       {
         label: t("library.filters.all"),
         value: "__all__",
@@ -995,56 +767,88 @@ const Page = () => {
     [filterBy, generalFilters, t],
   );
 
-  // TV Filter handlers
-  const handleGenreSelect = useCallback(
-    (value: string) => {
-      if (value === "__all__") {
-        setSelectedGenres([]);
-      } else if (selectedGenres.includes(value)) {
-        setSelectedGenres(selectedGenres.filter((g) => g !== value));
-      } else {
-        setSelectedGenres([...selectedGenres, value]);
-      }
-    },
-    [selectedGenres, setSelectedGenres],
-  );
+  // TV Filter handlers using navigation-based modal
+  const handleShowGenreFilter = useCallback(() => {
+    showOptions({
+      title: t("library.filters.genres"),
+      options: tvGenreFilterOptions,
+      onSelect: (value: string) => {
+        if (value === "__all__") {
+          setSelectedGenres([]);
+        } else if (selectedGenres.includes(value)) {
+          setSelectedGenres(selectedGenres.filter((g) => g !== value));
+        } else {
+          setSelectedGenres([...selectedGenres, value]);
+        }
+      },
+    });
+  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setSelectedGenres]);
 
-  const handleYearSelect = useCallback(
-    (value: string) => {
-      if (value === "__all__") {
-        setSelectedYears([]);
-      } else if (selectedYears.includes(value)) {
-        setSelectedYears(selectedYears.filter((y) => y !== value));
-      } else {
-        setSelectedYears([...selectedYears, value]);
-      }
-    },
-    [selectedYears, setSelectedYears],
-  );
+  const handleShowYearFilter = useCallback(() => {
+    showOptions({
+      title: t("library.filters.years"),
+      options: tvYearFilterOptions,
+      onSelect: (value: string) => {
+        if (value === "__all__") {
+          setSelectedYears([]);
+        } else if (selectedYears.includes(value)) {
+          setSelectedYears(selectedYears.filter((y) => y !== value));
+        } else {
+          setSelectedYears([...selectedYears, value]);
+        }
+      },
+    });
+  }, [showOptions, t, tvYearFilterOptions, selectedYears, setSelectedYears]);
 
-  const handleTagSelect = useCallback(
-    (value: string) => {
-      if (value === "__all__") {
-        setSelectedTags([]);
-      } else if (selectedTags.includes(value)) {
-        setSelectedTags(selectedTags.filter((t) => t !== value));
-      } else {
-        setSelectedTags([...selectedTags, value]);
-      }
-    },
-    [selectedTags, setSelectedTags],
-  );
+  const handleShowTagFilter = useCallback(() => {
+    showOptions({
+      title: t("library.filters.tags"),
+      options: tvTagFilterOptions,
+      onSelect: (value: string) => {
+        if (value === "__all__") {
+          setSelectedTags([]);
+        } else if (selectedTags.includes(value)) {
+          setSelectedTags(selectedTags.filter((tag) => tag !== value));
+        } else {
+          setSelectedTags([...selectedTags, value]);
+        }
+      },
+    });
+  }, [showOptions, t, tvTagFilterOptions, selectedTags, setSelectedTags]);
 
-  const handleFilterBySelect = useCallback(
-    (value: string) => {
-      if (value === "__all__") {
-        _setFilterBy([]);
-      } else {
-        setFilter([value as FilterByOption]);
-      }
-    },
-    [setFilter, _setFilterBy],
-  );
+  const handleShowSortByFilter = useCallback(() => {
+    showOptions({
+      title: t("library.filters.sort_by"),
+      options: tvSortByOptions,
+      onSelect: (value: SortByOption) => {
+        setSortBy([value]);
+      },
+    });
+  }, [showOptions, t, tvSortByOptions, setSortBy]);
+
+  const handleShowSortOrderFilter = useCallback(() => {
+    showOptions({
+      title: t("library.filters.sort_order"),
+      options: tvSortOrderOptions,
+      onSelect: (value: SortOrderOption) => {
+        setSortOrder([value]);
+      },
+    });
+  }, [showOptions, t, tvSortOrderOptions, setSortOrder]);
+
+  const handleShowFilterByFilter = useCallback(() => {
+    showOptions({
+      title: t("library.filters.filter_by"),
+      options: tvFilterByOptions,
+      onSelect: (value: string) => {
+        if (value === "__all__") {
+          _setFilterBy([]);
+        } else {
+          setFilter([value as FilterByOption]);
+        }
+      },
+    });
+  }, [showOptions, t, tvFilterByOptions, setFilter, _setFilterBy]);
 
   const insets = useSafeAreaInsets();
 
@@ -1097,185 +901,134 @@ const Page = () => {
     );
   }
 
-  // TV return with filter overlays - filter bar outside FlatList to fix focus boundary issues
+  // TV return with filter bar
   return (
-    <View style={{ flex: 1 }}>
-      {/* Background content - disabled when modal is open */}
-      <View
-        style={{ flex: 1, opacity: isFilterModalOpen ? 0.3 : 1 }}
-        focusable={!isFilterModalOpen}
-        isTVSelectable={!isFilterModalOpen}
-        pointerEvents={isFilterModalOpen ? "none" : "auto"}
-        accessibilityElementsHidden={isFilterModalOpen}
-        importantForAccessibility={
-          isFilterModalOpen ? "no-hide-descendants" : "auto"
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{
+        paddingTop: insets.top + 100,
+        paddingBottom: insets.bottom + 60,
+        paddingHorizontal: insets.left + TV_HORIZONTAL_PADDING,
+      }}
+      onScroll={({ nativeEvent }) => {
+        // Load more when near bottom
+        const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+        const isNearBottom =
+          layoutMeasurement.height + contentOffset.y >=
+          contentSize.height - 500;
+        if (isNearBottom && hasNextPage && !isFetching) {
+          fetchNextPage();
         }
+      }}
+      scrollEventThrottle={400}
+    >
+      {/* Filter bar */}
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "nowrap",
+          justifyContent: "center",
+          paddingBottom: 24,
+          gap: 12,
+        }}
       >
-        {/* Filter bar - using View instead of ScrollView to avoid focus conflicts */}
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "nowrap",
-            marginTop: insets.top + 100,
-            paddingBottom: 8,
-            paddingHorizontal: TV_SCALE_PADDING,
-            gap: 12,
-          }}
-        >
-          {hasActiveFilters && (
-            <TVFilterButton
-              label=''
-              value={t("library.filters.reset")}
-              onPress={resetAllFilters}
-              disabled={isFiltersDisabled}
-              hasActiveFilter
-            />
-          )}
+        {hasActiveFilters && (
           <TVFilterButton
-            label={t("library.filters.genres")}
-            value={
-              selectedGenres.length > 0
-                ? `${selectedGenres.length} selected`
-                : t("library.filters.all")
-            }
-            onPress={() => setOpenFilterModal("genre")}
-            hasTVPreferredFocus={!hasActiveFilters}
-            disabled={isFiltersDisabled}
-            hasActiveFilter={selectedGenres.length > 0}
+            label=''
+            value={t("library.filters.reset")}
+            onPress={resetAllFilters}
+            hasActiveFilter
           />
-          <TVFilterButton
-            label={t("library.filters.years")}
-            value={
-              selectedYears.length > 0
-                ? `${selectedYears.length} selected`
-                : t("library.filters.all")
-            }
-            onPress={() => setOpenFilterModal("year")}
-            disabled={isFiltersDisabled}
-            hasActiveFilter={selectedYears.length > 0}
-          />
-          <TVFilterButton
-            label={t("library.filters.tags")}
-            value={
-              selectedTags.length > 0
-                ? `${selectedTags.length} selected`
-                : t("library.filters.all")
-            }
-            onPress={() => setOpenFilterModal("tags")}
-            disabled={isFiltersDisabled}
-            hasActiveFilter={selectedTags.length > 0}
-          />
-          <TVFilterButton
-            label={t("library.filters.sort_by")}
-            value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}
-            onPress={() => setOpenFilterModal("sortBy")}
-            disabled={isFiltersDisabled}
-          />
-          <TVFilterButton
-            label={t("library.filters.sort_order")}
-            value={
-              sortOrderOptions.find((o) => o.key === sortOrder[0])?.value || ""
-            }
-            onPress={() => setOpenFilterModal("sortOrder")}
-            disabled={isFiltersDisabled}
-          />
-          <TVFilterButton
-            label={t("library.filters.filter_by")}
-            value={
-              filterBy.length > 0
-                ? generalFilters.find((o) => o.key === filterBy[0])?.value || ""
-                : t("library.filters.all")
-            }
-            onPress={() => setOpenFilterModal("filterBy")}
-            disabled={isFiltersDisabled}
-            hasActiveFilter={filterBy.length > 0}
-          />
-        </View>
-
-        {/* Grid - using FlatList instead of FlashList to fix focus issues */}
-        <FlatList
-          key={`${orientation}-${nrOfCols}`}
-          ListEmptyComponent={
-            <View className='flex flex-col items-center justify-center h-full'>
-              <Text className='font-bold text-xl text-neutral-500'>
-                {t("library.no_results")}
-              </Text>
-            </View>
+        )}
+        <TVFilterButton
+          label={t("library.filters.genres")}
+          value={
+            selectedGenres.length > 0
+              ? `${selectedGenres.length} selected`
+              : t("library.filters.all")
           }
-          contentInsetAdjustmentBehavior='automatic'
-          data={flatData}
-          renderItem={renderTVItem}
-          extraData={[orientation, nrOfCols, isFilterModalOpen]}
-          keyExtractor={keyExtractor}
-          numColumns={nrOfCols}
-          removeClippedSubviews={false}
-          onEndReached={() => {
-            if (hasNextPage) {
-              fetchNextPage();
-            }
-          }}
-          onEndReachedThreshold={1}
-          contentContainerStyle={{
-            paddingBottom: 24,
-            paddingLeft: TV_SCALE_PADDING,
-            paddingRight: TV_SCALE_PADDING,
-            paddingTop: 20,
-          }}
-          ItemSeparatorComponent={() => (
-            <View
-              style={{
-                width: 10,
-                height: 10,
-              }}
-            />
-          )}
+          onPress={handleShowGenreFilter}
+          hasTVPreferredFocus={!hasActiveFilters}
+          hasActiveFilter={selectedGenres.length > 0}
+        />
+        <TVFilterButton
+          label={t("library.filters.years")}
+          value={
+            selectedYears.length > 0
+              ? `${selectedYears.length} selected`
+              : t("library.filters.all")
+          }
+          onPress={handleShowYearFilter}
+          hasActiveFilter={selectedYears.length > 0}
+        />
+        <TVFilterButton
+          label={t("library.filters.tags")}
+          value={
+            selectedTags.length > 0
+              ? `${selectedTags.length} selected`
+              : t("library.filters.all")
+          }
+          onPress={handleShowTagFilter}
+          hasActiveFilter={selectedTags.length > 0}
+        />
+        <TVFilterButton
+          label={t("library.filters.sort_by")}
+          value={sortOptions.find((o) => o.key === sortBy[0])?.value || ""}
+          onPress={handleShowSortByFilter}
+        />
+        <TVFilterButton
+          label={t("library.filters.sort_order")}
+          value={
+            sortOrderOptions.find((o) => o.key === sortOrder[0])?.value || ""
+          }
+          onPress={handleShowSortOrderFilter}
+        />
+        <TVFilterButton
+          label={t("library.filters.filter_by")}
+          value={
+            filterBy.length > 0
+              ? generalFilters.find((o) => o.key === filterBy[0])?.value || ""
+              : t("library.filters.all")
+          }
+          onPress={handleShowFilterByFilter}
+          hasActiveFilter={filterBy.length > 0}
         />
       </View>
 
-      {/* TV Filter Overlays */}
-      <TVFilterSelector
-        visible={openFilterModal === "genre"}
-        title={t("library.filters.genres")}
-        options={tvGenreFilterOptions}
-        onSelect={handleGenreSelect}
-        onClose={() => setOpenFilterModal(null)}
-      />
-      <TVFilterSelector
-        visible={openFilterModal === "year"}
-        title={t("library.filters.years")}
-        options={tvYearFilterOptions}
-        onSelect={handleYearSelect}
-        onClose={() => setOpenFilterModal(null)}
-      />
-      <TVFilterSelector
-        visible={openFilterModal === "tags"}
-        title={t("library.filters.tags")}
-        options={tvTagFilterOptions}
-        onSelect={handleTagSelect}
-        onClose={() => setOpenFilterModal(null)}
-      />
-      <TVFilterSelector
-        visible={openFilterModal === "sortBy"}
-        title={t("library.filters.sort_by")}
-        options={tvSortByOptions}
-        onSelect={(value) => setSortBy([value])}
-        onClose={() => setOpenFilterModal(null)}
-      />
-      <TVFilterSelector
-        visible={openFilterModal === "sortOrder"}
-        title={t("library.filters.sort_order")}
-        options={tvSortOrderOptions}
-        onSelect={(value) => setSortOrder([value])}
-        onClose={() => setOpenFilterModal(null)}
-      />
-      <TVFilterSelector
-        visible={openFilterModal === "filterBy"}
-        title={t("library.filters.filter_by")}
-        options={tvFilterByOptions}
-        onSelect={handleFilterBySelect}
-        onClose={() => setOpenFilterModal(null)}
-      />
-    </View>
+      {/* Grid with flexWrap */}
+      {flatData.length === 0 ? (
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingTop: 100,
+          }}
+        >
+          <Text style={{ fontSize: typography.body, color: "#737373" }}>
+            {t("library.no_results")}
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: TV_ITEM_GAP,
+          }}
+        >
+          {flatData.map((item) => renderTVItem(item))}
+        </View>
+      )}
+
+      {/* Loading indicator */}
+      {isFetching && (
+        <View style={{ paddingVertical: 20 }}>
+          <Loader />
+        </View>
+      )}
+    </ScrollView>
   );
 };
 

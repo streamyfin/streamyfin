@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, BackHandler, Platform } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
 
 // TV event handler with fallback for non-TV platforms
@@ -23,6 +23,10 @@ interface UseRemoteControlProps {
   disableSeeking?: boolean;
   /** Callback for back/menu button press (tvOS: menu, Android TV: back) */
   onBack?: () => void;
+  /** Callback to hide controls (called on back press when controls are visible) */
+  onHideControls?: () => void;
+  /** Title of the video being played (shown in exit confirmation) */
+  videoTitle?: string;
   /** Whether the progress bar currently has focus */
   isProgressBarFocused?: boolean;
   /** Callback for seeking left when progress bar is focused */
@@ -69,6 +73,8 @@ export function useRemoteControl({
   toggleControls,
   togglePlay,
   onBack,
+  onHideControls,
+  videoTitle,
   isProgressBarFocused,
   onSeekLeft,
   onSeekRight,
@@ -87,23 +93,80 @@ export function useRemoteControl({
   const [isSliding] = useState(false);
   const [time] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
+  // Use refs to avoid stale closures in BackHandler
+  const showControlsRef = useRef(showControls);
+  const onHideControlsRef = useRef(onHideControls);
+  const onBackRef = useRef(onBack);
+  const videoTitleRef = useRef(videoTitle);
+
+  useEffect(() => {
+    showControlsRef.current = showControls;
+    onHideControlsRef.current = onHideControls;
+    onBackRef.current = onBack;
+    videoTitleRef.current = videoTitle;
+  }, [showControls, onHideControls, onBack, videoTitle]);
+
+  // Handle hardware back button (works on both Android TV and tvOS)
+  useEffect(() => {
+    if (!Platform.isTV) return;
+
+    const handleBackPress = () => {
+      if (showControlsRef.current && onHideControlsRef.current) {
+        // Controls are visible - just hide them
+        onHideControlsRef.current();
+        return true; // Prevent default back navigation
+      }
+      if (onBackRef.current) {
+        // Controls are hidden - show confirmation before exiting
+        Alert.alert(
+          "Stop Playback",
+          videoTitleRef.current
+            ? `Stop playing "${videoTitleRef.current}"?`
+            : "Are you sure you want to stop playback?",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Stop", style: "destructive", onPress: onBackRef.current },
+          ],
+        );
+        return true; // Prevent default back navigation
+      }
+      return false; // Let default back navigation happen
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress,
+    );
+
+    return () => subscription.remove();
+  }, []);
+
   // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
     if (!evt) return;
 
-    // Handle back/menu button press (tvOS: menu, Android TV: back)
-    if (evt.eventType === "menu" || evt.eventType === "back") {
-      if (onBack) {
-        onBack();
+    // Back/menu is handled by BackHandler above, but keep this for tvOS menu button
+    if (evt.eventType === "menu") {
+      if (showControls && onHideControls) {
+        onHideControls();
+      } else if (onBack) {
+        Alert.alert(
+          "Stop Playback",
+          videoTitle
+            ? `Stop playing "${videoTitle}"?`
+            : "Are you sure you want to stop playback?",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Stop", style: "destructive", onPress: onBack },
+          ],
+        );
       }
       return;
     }
 
     // Handle play/pause button press on TV remote
     if (evt.eventType === "playPause") {
-      if (togglePlay) {
-        togglePlay();
-      }
+      togglePlay?.();
       onInteraction?.();
       return;
     }
@@ -134,6 +197,11 @@ export function useRemoteControl({
 
     // Handle D-pad when controls are hidden
     if (!showControls) {
+      // Ignore select/enter events - let the native Pressable handle them
+      // This prevents controls from showing when pressing buttons like skip intro
+      if (evt.eventType === "select" || evt.eventType === "enter") {
+        return;
+      }
       // Minimal seek mode for left/right
       if (evt.eventType === "left" && onMinimalSeekLeft) {
         onMinimalSeekLeft();
@@ -151,8 +219,8 @@ export function useRemoteControl({
         onVerticalDpad();
         return;
       }
-      // For other D-pad presses, show full controls
-      toggleControls();
+      // Ignore all other events (focus/blur, swipes, etc.)
+      // User can press up/down to show controls
       return;
     }
 

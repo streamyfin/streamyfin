@@ -27,11 +27,14 @@ import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
-import { TVEpisodeCard } from "@/components/series/TVEpisodeCard";
+import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
-import { TVTypography } from "@/constants/TVTypography";
+import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
+import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -46,7 +49,6 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const HORIZONTAL_PADDING = 80;
 const TOP_PADDING = 140;
 const POSTER_WIDTH_PERCENT = 0.22;
-const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
 
 interface TVSeriesPageProps {
@@ -142,6 +144,7 @@ const TVSeasonButton: React.FC<{
   onPress: () => void;
   disabled?: boolean;
 }> = ({ seasonName, onPress, disabled = false }) => {
+  const typography = useScaledTVTypography();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -190,7 +193,7 @@ const TVSeasonButton: React.FC<{
         >
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               color: focused ? "#000" : "#FFFFFF",
               fontWeight: "bold",
             }}
@@ -213,6 +216,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   allEpisodes = [],
   isLoading: _isLoading,
 }) => {
+  const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -223,8 +227,12 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [user] = useAtom(userAtom);
   const { getDownloadedItems, downloadedItems } = useDownload();
   const { showSeasonModal } = useTVSeriesSeasonModal();
+  const { showItemActions } = useTVItemActionModal();
   const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
   const isSeasonModalVisible = seasonModalState !== null;
+
+  // Auto-play theme music (handles fade in/out and cleanup)
+  useTVThemeMusic(item.Id);
 
   // Season state
   const [seasonIndexState, setSeasonIndexState] = useAtom(seasonIndexAtom);
@@ -244,24 +252,13 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 
-  // Scroll back to start when episode list loses focus
+  // Track focus count for episode list
   useEffect(() => {
-    if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      episodeListRef.current?.scrollTo({ x: 0, animated: true });
-      // Scroll page back to top when leaving episode section
-      mainScrollRef.current?.scrollTo({ y: 0, animated: true });
-    }
     prevFocusedCount.current = focusedCount;
   }, [focusedCount]);
 
   const handleEpisodeFocus = useCallback(() => {
-    setFocusedCount((c) => {
-      // Scroll page down when first episode receives focus
-      if (c === 0) {
-        mainScrollRef.current?.scrollTo({ y: 200, animated: true });
-      }
-      return c + 1;
-    });
+    setFocusedCount((c) => c + 1);
   }, []);
 
   const handleEpisodeBlur = useCallback(() => {
@@ -293,6 +290,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       return response.data.Items || [];
     },
     staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id && !!item.Id),
   });
 
@@ -345,7 +343,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
       });
       return res.data.Items || [];
     },
-    staleTime: isOffline ? Infinity : 0,
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline ? 60 * 1000 : undefined,
     enabled: isOffline
       ? !!item.Id && selectedSeasonNumber !== null
       : !!api && !!user?.Id && !!item.Id && !!selectedSeasonId,
@@ -505,40 +504,14 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top section - Poster + Content */}
+        {/* Top section - Content + Poster */}
         <View
           style={{
             flexDirection: "row",
             minHeight: SCREEN_HEIGHT * 0.45,
           }}
         >
-          {/* Left side - Poster */}
-          <View
-            style={{
-              width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
-              marginRight: 50,
-            }}
-          >
-            <View
-              style={{
-                aspectRatio: 2 / 3,
-                borderRadius: 16,
-                overflow: "hidden",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.5,
-                shadowRadius: 20,
-              }}
-            >
-              <ItemImage
-                variant='Primary'
-                item={item}
-                style={{ width: "100%", height: "100%" }}
-              />
-            </View>
-          </View>
-
-          {/* Right side - Content */}
+          {/* Left side - Content */}
           <View style={{ flex: 1, justifyContent: "center" }}>
             <TVSeriesHeader item={item} />
 
@@ -565,7 +538,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 />
                 <Text
                   style={{
-                    fontSize: TVTypography.body,
+                    fontSize: typography.body,
                     fontWeight: "bold",
                     color: "#000000",
                   }}
@@ -581,6 +554,34 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                   disabled={isSeasonModalVisible}
                 />
               )}
+
+              <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />
+            </View>
+          </View>
+
+          {/* Right side - Poster */}
+          <View
+            style={{
+              width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
+              marginLeft: 50,
+            }}
+          >
+            <View
+              style={{
+                aspectRatio: 2 / 3,
+                borderRadius: 16,
+                overflow: "hidden",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.5,
+                shadowRadius: 20,
+              }}
+            >
+              <ItemImage
+                variant='Primary'
+                item={item}
+                style={{ width: "100%", height: "100%" }}
+              />
             </View>
           </View>
         </View>
@@ -589,10 +590,10 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         <View style={{ marginTop: 40, overflow: "visible" }}>
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.heading,
               fontWeight: "600",
               color: "#FFFFFF",
-              marginBottom: 16,
+              marginBottom: 24,
               marginLeft: SCALE_PADDING,
             }}
           >
@@ -615,43 +616,18 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             />
           )}
 
-          <ScrollView
-            ref={episodeListRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ overflow: "visible" }}
-            contentContainerStyle={{
-              paddingVertical: SCALE_PADDING,
-              paddingHorizontal: SCALE_PADDING,
-              gap: ITEM_GAP,
-            }}
-          >
-            {episodesForSeason.length > 0 ? (
-              episodesForSeason.map((episode, index) => (
-                <TVEpisodeCard
-                  key={episode.Id}
-                  episode={episode}
-                  onPress={() => handleEpisodePress(episode)}
-                  onFocus={handleEpisodeFocus}
-                  onBlur={handleEpisodeBlur}
-                  disabled={isSeasonModalVisible}
-                  // Pass refSetter to first episode for focus guide destination
-                  // Note: Do NOT use hasTVPreferredFocus on focus guide destinations
-                  refSetter={index === 0 ? setFirstEpisodeRef : undefined}
-                />
-              ))
-            ) : (
-              <Text
-                style={{
-                  color: "#737373",
-                  fontSize: TVTypography.callout,
-                  marginLeft: SCALE_PADDING,
-                }}
-              >
-                {t("item_card.no_episodes_for_this_season")}
-              </Text>
-            )}
-          </ScrollView>
+          <TVEpisodeList
+            episodes={episodesForSeason}
+            disabled={isSeasonModalVisible}
+            onEpisodePress={handleEpisodePress}
+            onEpisodeLongPress={showItemActions}
+            onFocus={handleEpisodeFocus}
+            onBlur={handleEpisodeBlur}
+            scrollViewRef={episodeListRef}
+            firstEpisodeRefSetter={setFirstEpisodeRef}
+            emptyText={t("item_card.no_episodes_for_this_season")}
+            horizontalPadding={HORIZONTAL_PADDING}
+          />
         </View>
       </ScrollView>
     </View>

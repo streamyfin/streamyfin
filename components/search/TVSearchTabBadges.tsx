@@ -2,6 +2,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 type SearchType = "Library" | "Discover";
 
@@ -20,8 +21,9 @@ const TVSearchTabBadge: React.FC<TVSearchTabBadgeProps> = ({
   hasTVPreferredFocus = false,
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.08, duration: 150 });
+    useTVFocusAnimation({ duration: 150 });
 
   // Design language: white for focused/selected, transparent white for unfocused
   const getBackgroundColor = () => {
@@ -61,7 +63,7 @@ const TVSearchTabBadge: React.FC<TVSearchTabBadgeProps> = ({
       >
         <Text
           style={{
-            fontSize: 16,
+            fontSize: typography.callout,
             color: getTextColor(),
             fontWeight: isSelected || focused ? "600" : "400",
           }}

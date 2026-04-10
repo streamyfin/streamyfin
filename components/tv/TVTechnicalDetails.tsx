@@ -3,7 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 export interface TVTechnicalDetailsProps {
   mediaStreams: MediaStream[];
@@ -11,6 +11,7 @@ export interface TVTechnicalDetailsProps {
 
 export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
   ({ mediaStreams }) => {
+    const typography = useScaledTVTypography();
     const { t } = useTranslation();
 
     const videoStream = mediaStreams.find((s) => s.Type === "Video");
@@ -24,7 +25,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
       <View style={{ marginBottom: 32 }}>
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
             marginBottom: 20,
@@ -37,16 +38,16 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
             <View>
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
                   marginBottom: 4,
                 }}
               >
-                Video
+                {t("common.video")}
               </Text>
-              <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
+              <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
                 {videoStream.DisplayTitle ||
                   `${videoStream.Codec?.toUpperCase()} ${videoStream.Width}x${videoStream.Height}`}
               </Text>
@@ -56,16 +57,16 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
             <View>
               <Text
                 style={{
-                  fontSize: TVTypography.callout,
+                  fontSize: typography.callout,
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
                   marginBottom: 4,
                 }}
               >
-                Audio
+                {t("common.audio")}
               </Text>
-              <Text style={{ fontSize: TVTypography.body, color: "#FFFFFF" }}>
+              <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
                 {audioStream.DisplayTitle ||
                   `${audioStream.Codec?.toUpperCase()} ${audioStream.Channels}ch`}
               </Text>

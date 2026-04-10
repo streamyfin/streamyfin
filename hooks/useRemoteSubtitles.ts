@@ -7,7 +7,12 @@ import { useMutation } from "@tanstack/react-query";
 import { Directory, File, Paths } from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { useCallback, useMemo } from "react";
+import { Platform } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import {
+  addDownloadedSubtitle,
+  type DownloadedSubtitle,
+} from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import {
   OpenSubtitlesApi,
@@ -185,32 +190,70 @@ export function useRemoteSubtitles({
 
   /**
    * Download subtitle via OpenSubtitles API (returns local file path)
+   *
+   * On TV: Downloads to cache directory and persists metadata in MMKV
+   * On mobile: Downloads to cache directory (ephemeral, no persistence)
+   *
+   * Uses a flat filename structure with itemId prefix to avoid tvOS permission issues
    */
   const downloadOpenSubtitles = useCallback(
-    async (fileId: number): Promise<string> => {
+    async (
+      fileId: number,
+      result: SubtitleSearchResult,
+    ): Promise<{ path: string; subtitle?: DownloadedSubtitle }> => {
       if (!openSubtitlesApi) {
         throw new Error("OpenSubtitles API key not configured");
       }
 
       // Get download link
       const response = await openSubtitlesApi.download(fileId);
+      const originalFileName = response.file_name || `subtitle_${fileId}.srt`;
 
-      // Download to cache directory
-      const fileName = response.file_name || `subtitle_${fileId}.srt`;
-      const subtitlesDir = new Directory(Paths.cache, "subtitles");
+      // Use cache directory for both platforms (tvOS has permission issues with documents)
+      // TV: Uses itemId prefix for organization and persists metadata
+      // Mobile: Simple filename, no persistence
+      const subtitlesDir = new Directory(Paths.cache, "streamyfin-subtitles");
 
       // Ensure directory exists
       if (!subtitlesDir.exists) {
-        subtitlesDir.create({ intermediates: true });
+        subtitlesDir.create();
       }
+
+      // TV: Prefix filename with itemId for organization
+      // Mobile: Use original filename
+      const fileName = Platform.isTV
+        ? `${itemId}_${originalFileName}`
+        : originalFileName;
 
       // Create file and download
       const destination = new File(subtitlesDir, fileName);
+
+      // Delete existing file if it exists (re-download)
+      if (destination.exists) {
+        destination.delete();
+      }
+
       await File.downloadFileAsync(response.link, destination);
 
-      return destination.uri;
+      // TV: Persist metadata for future sessions
+      if (Platform.isTV) {
+        const subtitleMetadata: DownloadedSubtitle = {
+          id: result.id,
+          itemId,
+          filePath: destination.uri,
+          name: result.name,
+          language: result.language,
+          format: result.format,
+          source: "opensubtitles",
+          downloadedAt: Date.now(),
+        };
+        addDownloadedSubtitle(subtitleMetadata);
+        return { path: destination.uri, subtitle: subtitleMetadata };
+      }
+
+      return { path: destination.uri };
     },
-    [openSubtitlesApi],
+    [openSubtitlesApi, itemId],
   );
 
   /**
@@ -257,8 +300,11 @@ export function useRemoteSubtitles({
         return { type: "server" as const };
       }
       if (result.fileId) {
-        const localPath = await downloadOpenSubtitles(result.fileId);
-        return { type: "local" as const, path: localPath };
+        const { path, subtitle } = await downloadOpenSubtitles(
+          result.fileId,
+          result,
+        );
+        return { type: "local" as const, path, subtitle };
       }
       throw new Error("Invalid subtitle result");
     },

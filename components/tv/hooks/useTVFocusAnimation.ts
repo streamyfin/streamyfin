@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { Animated, Easing } from "react-native";
+import { useInactivity } from "@/providers/InactivityProvider";
 
 export interface UseTVFocusAnimationOptions {
   scaleAmount?: number;
@@ -24,6 +25,7 @@ export const useTVFocusAnimation = ({
 }: UseTVFocusAnimationOptions = {}): UseTVFocusAnimationReturn => {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
+  const { resetInactivityTimer } = useInactivity();
 
   const animateTo = useCallback(
     (value: number) => {
@@ -40,8 +42,9 @@ export const useTVFocusAnimation = ({
   const handleFocus = useCallback(() => {
     setFocused(true);
     animateTo(scaleAmount);
+    resetInactivityTimer();
     onFocus?.();
-  }, [animateTo, scaleAmount, onFocus]);
+  }, [animateTo, scaleAmount, resetInactivityTimer, onFocus]);
 
   const handleBlur = useCallback(() => {
     setFocused(false);

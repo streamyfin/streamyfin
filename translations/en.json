@@ -4,6 +4,9 @@
     "error_title": "Error",
     "login_title": "Log In",
     "login_to_title": "Log in to",
+    "select_user": "Select a user to log in",
+    "add_user_to_login": "Add a user to log in",
+    "add_user": "Add User",
     "username_placeholder": "Username",
     "password_placeholder": "Password",
     "login_button": "Log In",
@@ -44,7 +47,11 @@
     "add_account": "Add Account",
     "remove_account_description": "This will remove the saved credentials for {{username}}.",
     "remove_server": "Remove Server",
-    "remove_server_description": "This will remove {{server}} and all saved accounts from your list."
+    "remove_server_description": "This will remove {{server}} and all saved accounts from your list.",
+    "select_your_server": "Select Your Server",
+    "add_server_to_get_started": "Add a server to get started",
+    "add_server": "Add Server",
+    "change_server": "Change Server"
   },
   "save_account": {
     "title": "Save Account",
@@ -112,6 +119,12 @@
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log Out",
+      "switch_user": {
+        "title": "Switch User",
+        "account": "Account",
+        "switch_user": "Switch User on This Server",
+        "current": "current"
+      },
       "categories": {
         "title": "Categories"
       },
@@ -125,7 +138,15 @@
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
         "hide_remote_session_button": "Hide Remote Session Button",
-        "show_home_backdrop": "Dynamic Home Backdrop"
+        "show_home_backdrop": "Dynamic Home Backdrop",
+        "show_hero_carousel": "Hero Carousel",
+        "show_series_poster_on_episode": "Show Series Poster on Episodes",
+        "theme_music": "Theme Music",
+        "display_size": "Display Size",
+        "display_size_small": "Small",
+        "display_size_default": "Default",
+        "display_size_large": "Large",
+        "display_size_extra_large": "Extra Large"
       },
       "network": {
         "title": "Network",
@@ -177,6 +198,16 @@
         "forward_skip_length": "Forward Skip Length",
         "rewind_length": "Rewind Length",
         "seconds_unit": "s"
+      },
+      "buffer": {
+        "title": "Buffer Settings",
+        "cache_mode": "Cache Mode",
+        "cache_auto": "Auto",
+        "cache_yes": "Enabled",
+        "cache_no": "Disabled",
+        "buffer_duration": "Buffer Duration",
+        "max_cache_size": "Max Cache Size",
+        "max_backward_cache": "Max Backward Cache"
       },
       "gesture_controls": {
         "gesture_controls_title": "Gesture Controls",
@@ -450,6 +481,21 @@
         "error_deleting_files": "Error Deleting Files",
         "background_downloads_enabled": "Background downloads enabled",
         "background_downloads_disabled": "Background downloads disabled"
+      },
+      "security": {
+        "title": "Security",
+        "inactivity_timeout": {
+          "title": "Inactivity Timeout",
+          "description": "Auto logout after inactivity",
+          "disabled": "Disabled",
+          "1_minute": "1 minute",
+          "5_minutes": "5 minutes",
+          "15_minutes": "15 minutes",
+          "30_minutes": "30 minutes",
+          "1_hour": "1 hour",
+          "4_hours": "4 hours",
+          "24_hours": "24 hours"
+        }
       }
     },
     "sessions": {
@@ -512,6 +558,7 @@
     }
   },
   "common": {
+    "no_results": "No Results",
     "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Video",
@@ -521,6 +568,7 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -578,6 +626,7 @@
       "movies": "Movies",
       "series": "Series",
       "boxsets": "Box Sets",
+      "playlists": "Playlists",
       "items": "Items"
     },
     "options": {
@@ -617,6 +666,7 @@
     "no_links": "No Links"
   },
   "player": {
+    "live": "LIVE",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
@@ -650,7 +700,13 @@
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
-    "settings": "Settings"
+    "settings": "Settings",
+    "skip_intro": "Skip Intro",
+    "skip_credits": "Skip Credits",
+    "stopPlayback": "Stop Playback",
+    "stopPlayingTitle": "Stop playing \"{{title}}\"?",
+    "stopPlayingConfirm": "Are you sure you want to stop playback?",
+    "downloaded": "Downloaded"
   },
   "item_card": {
     "next_up": "Next Up",
@@ -660,6 +716,7 @@
     "seasons": "Seasons",
     "season": "Season",
     "from_this_series": "From This Series",
+    "more_from_this_season": "More from this Season",
     "view_series": "View Series",
     "view_season": "View Season",
     "select_season": "Select Season",
@@ -698,7 +755,13 @@
       "download_x_item": "Download {{item_count}} Items",
       "download_unwatched_only": "Unwatched Only",
       "download_button": "Download"
-    }
+    },
+    "mark_played": "Mark as Watched",
+    "mark_unplayed": "Mark as Unwatched",
+    "resume_playback": "Resume Playback",
+    "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
+    "play_from_start": "Play from Start",
+    "continue_from": "Continue from {{time}}"
   },
   "live_tv": {
     "next": "Next",
@@ -709,7 +772,18 @@
     "movies": "Movies",
     "sports": "Sports",
     "for_kids": "For Kids",
-    "news": "News"
+    "news": "News",
+    "page_of": "Page {{current}} of {{total}}",
+    "no_programs": "No programs available",
+    "no_channels": "No channels available",
+    "tabs": {
+      "programs": "Programs",
+      "guide": "Guide",
+      "channels": "Channels",
+      "recordings": "Recordings",
+      "schedule": "Schedule",
+      "series": "Series"
+    }
   },
   "jellyseerr": {
     "confirm": "Confirm",

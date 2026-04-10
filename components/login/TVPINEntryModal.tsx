@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,8 +12,6 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
-import { useTVFocusAnimation } from "@/components/tv";
 import { verifyAccountPIN } from "@/utils/secureCredentials";
 
 interface TVPINEntryModalProps {
@@ -25,40 +24,122 @@ interface TVPINEntryModalProps {
   username: string;
 }
 
-// Forgot PIN Button
-const TVForgotPINButton: React.FC<{
+// Number pad button
+const NumberPadButton: React.FC<{
+  value: string;
   onPress: () => void;
-  label: string;
   hasTVPreferredFocus?: boolean;
-}> = ({ onPress, label, hasTVPreferredFocus = false }) => {
-  const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.05, duration: 120 });
+  isBackspace?: boolean;
+  disabled?: boolean;
+}> = ({ value, onPress, hasTVPreferredFocus, isBackspace, disabled }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 100,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
 
   return (
     <Pressable
       onPress={onPress}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.1);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
       hasTVPreferredFocus={hasTVPreferredFocus}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={[
-          animatedStyle,
+          styles.numberButton,
           {
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            borderRadius: 8,
-            backgroundColor: focused
-              ? "rgba(168, 85, 247, 0.2)"
-              : "transparent",
+            transform: [{ scale }],
+            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.1)",
           },
         ]}
+      >
+        {isBackspace ? (
+          <Ionicons
+            name='backspace-outline'
+            size={28}
+            color={focused ? "#000" : "#fff"}
+          />
+        ) : (
+          <Text
+            style={[styles.numberText, { color: focused ? "#000" : "#fff" }]}
+          >
+            {value}
+          </Text>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+};
+
+// PIN dot indicator
+const PinDot: React.FC<{ filled: boolean; error: boolean }> = ({
+  filled,
+  error,
+}) => (
+  <View
+    style={[
+      styles.pinDot,
+      filled && styles.pinDotFilled,
+      error && styles.pinDotError,
+    ]}
+  />
+);
+
+// Forgot PIN link
+const ForgotPINLink: React.FC<{
+  onPress: () => void;
+  label: string;
+}> = ({ onPress, label }) => {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const animateTo = (v: number) =>
+    Animated.timing(scale, {
+      toValue: v,
+      duration: 100,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onFocus={() => {
+        setFocused(true);
+        animateTo(1.05);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        animateTo(1);
+      }}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderRadius: 8,
+          backgroundColor: focused ? "rgba(255,255,255,0.15)" : "transparent",
+        }}
       >
         <Text
           style={{
             fontSize: 16,
-            color: focused ? "#d8b4fe" : "#a855f7",
-            fontWeight: "500",
+            color: focused ? "#fff" : "rgba(255,255,255,0.5)",
           }}
         >
           {label}
@@ -80,23 +161,21 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
   const { t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
   const [pinCode, setPinCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const pinInputRef = useRef<TVPinInputRef>(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(200)).current;
+  const contentScale = useRef(new Animated.Value(0.9)).current;
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      // Reset state when opening
       setPinCode("");
-      setError(null);
+      setError(false);
       setIsVerifying(false);
 
       overlayOpacity.setValue(0);
-      sheetTranslateY.setValue(200);
+      contentScale.setValue(0.9);
 
       Animated.parallel([
         Animated.timing(overlayOpacity, {
@@ -105,32 +184,19 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(sheetTranslateY, {
-          toValue: 0,
+        Animated.timing(contentScale, {
+          toValue: 1,
           duration: 300,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start();
-    }
-  }, [visible, overlayOpacity, sheetTranslateY]);
 
-  useEffect(() => {
-    if (visible) {
       const timer = setTimeout(() => setIsReady(true), 100);
       return () => clearTimeout(timer);
     }
     setIsReady(false);
-  }, [visible]);
-
-  useEffect(() => {
-    if (visible && isReady) {
-      const timer = setTimeout(() => {
-        pinInputRef.current?.focus();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [visible, isReady]);
+  }, [visible, overlayOpacity, contentScale]);
 
   const shake = () => {
     Animated.sequence([
@@ -157,31 +223,40 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
     ]).start();
   };
 
-  const handlePinChange = async (value: string) => {
-    setPinCode(value);
-    setError(null);
+  const handleNumberPress = async (num: string) => {
+    if (isVerifying || pinCode.length >= 4) return;
+
+    setError(false);
+    const newPin = pinCode + num;
+    setPinCode(newPin);
 
     // Auto-verify when 4 digits entered
-    if (value.length === 4) {
+    if (newPin.length === 4) {
       setIsVerifying(true);
       try {
-        const isValid = await verifyAccountPIN(serverUrl, userId, value);
+        const isValid = await verifyAccountPIN(serverUrl, userId, newPin);
         if (isValid) {
           onSuccess();
           setPinCode("");
         } else {
-          setError(t("pin.invalid_pin"));
+          setError(true);
           shake();
-          setPinCode("");
+          setTimeout(() => setPinCode(""), 300);
         }
       } catch {
-        setError(t("pin.invalid_pin"));
+        setError(true);
         shake();
-        setPinCode("");
+        setTimeout(() => setPinCode(""), 300);
       } finally {
         setIsVerifying(false);
       }
     }
+  };
+
+  const handleBackspace = () => {
+    if (isVerifying) return;
+    setError(false);
+    setPinCode((prev) => prev.slice(0, -1));
   };
 
   const handleForgotPIN = () => {
@@ -204,11 +279,11 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
       <Animated.View
         style={[
-          styles.sheetContainer,
-          { transform: [{ translateY: sheetTranslateY }] },
+          styles.contentContainer,
+          { transform: [{ scale: contentScale }] },
         ]}
       >
-        <BlurView intensity={80} tint='dark' style={styles.blurContainer}>
+        <BlurView intensity={60} tint='dark' style={styles.blurContainer}>
           <TVFocusGuideView
             autoFocus
             trapFocusUp
@@ -218,44 +293,103 @@ export const TVPINEntryModal: React.FC<TVPINEntryModalProps> = ({
             style={styles.content}
           >
             {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>{t("pin.enter_pin")}</Text>
-              <Text style={styles.subtitle}>
-                {t("pin.enter_pin_for", { username })}
-              </Text>
-            </View>
+            <Text style={styles.title}>{t("pin.enter_pin")}</Text>
+            <Text style={styles.subtitle}>{username}</Text>
 
-            {/* PIN Input */}
+            {/* PIN Dots */}
+            <Animated.View
+              style={[
+                styles.pinDotsContainer,
+                { transform: [{ translateX: shakeAnimation }] },
+              ]}
+            >
+              {[0, 1, 2, 3].map((i) => (
+                <PinDot key={i} filled={pinCode.length > i} error={error} />
+              ))}
+            </Animated.View>
+
+            {/* Number Pad */}
             {isReady && (
-              <Animated.View
-                style={[
-                  styles.pinContainer,
-                  { transform: [{ translateX: shakeAnimation }] },
-                ]}
-              >
-                <TVPinInput
-                  ref={pinInputRef}
-                  value={pinCode}
-                  onChangeText={handlePinChange}
-                  length={4}
-                  autoFocus
-                />
-                {error && <Text style={styles.errorText}>{error}</Text>}
-                {isVerifying && (
-                  <Text style={styles.verifyingText}>
-                    {t("common.verifying")}
-                  </Text>
-                )}
-              </Animated.View>
+              <View style={styles.numberPad}>
+                {/* Row 1: 1-3 */}
+                <View style={styles.numberRow}>
+                  <NumberPadButton
+                    value='1'
+                    onPress={() => handleNumberPress("1")}
+                    hasTVPreferredFocus
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value='2'
+                    onPress={() => handleNumberPress("2")}
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value='3'
+                    onPress={() => handleNumberPress("3")}
+                    disabled={isVerifying}
+                  />
+                </View>
+                {/* Row 2: 4-6 */}
+                <View style={styles.numberRow}>
+                  <NumberPadButton
+                    value='4'
+                    onPress={() => handleNumberPress("4")}
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value='5'
+                    onPress={() => handleNumberPress("5")}
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value='6'
+                    onPress={() => handleNumberPress("6")}
+                    disabled={isVerifying}
+                  />
+                </View>
+                {/* Row 3: 7-9 */}
+                <View style={styles.numberRow}>
+                  <NumberPadButton
+                    value='7'
+                    onPress={() => handleNumberPress("7")}
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value='8'
+                    onPress={() => handleNumberPress("8")}
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value='9'
+                    onPress={() => handleNumberPress("9")}
+                    disabled={isVerifying}
+                  />
+                </View>
+                {/* Row 4: empty, 0, backspace */}
+                <View style={styles.numberRow}>
+                  <View style={styles.numberButtonPlaceholder} />
+                  <NumberPadButton
+                    value='0'
+                    onPress={() => handleNumberPress("0")}
+                    disabled={isVerifying}
+                  />
+                  <NumberPadButton
+                    value=''
+                    onPress={handleBackspace}
+                    isBackspace
+                    disabled={isVerifying || pinCode.length === 0}
+                  />
+                </View>
+              </View>
             )}
 
             {/* Forgot PIN */}
             {isReady && onForgotPIN && (
               <View style={styles.forgotContainer}>
-                <TVForgotPINButton
+                <ForgotPINLink
                   onPress={handleForgotPIN}
                   label={t("pin.forgot_pin")}
-                  hasTVPreferredFocus
                 />
               </View>
             )}
@@ -273,55 +407,81 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 1000,
   },
-  sheetContainer: {
+  contentContainer: {
     width: "100%",
+    maxWidth: 400,
   },
   blurContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     overflow: "hidden",
   },
   content: {
-    paddingTop: 24,
-    paddingBottom: 50,
-    overflow: "visible",
-  },
-  header: {
-    paddingHorizontal: 48,
-    marginBottom: 24,
+    padding: 40,
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 4,
+    marginBottom: 8,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: "rgba(255,255,255,0.6)",
+    marginBottom: 32,
+    textAlign: "center",
   },
-  pinContainer: {
-    paddingHorizontal: 48,
+  pinDotsContainer: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 32,
+  },
+  pinDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.4)",
+    backgroundColor: "transparent",
+  },
+  pinDotFilled: {
+    backgroundColor: "#fff",
+    borderColor: "#fff",
+  },
+  pinDotError: {
+    borderColor: "#ef4444",
+    backgroundColor: "#ef4444",
+  },
+  numberPad: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  numberRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  numberButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
   },
-  errorText: {
-    color: "#ef4444",
-    fontSize: 14,
-    marginTop: 16,
-    textAlign: "center",
+  numberButtonPlaceholder: {
+    width: 72,
+    height: 72,
   },
-  verifyingText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 14,
-    marginTop: 16,
-    textAlign: "center",
+  numberText: {
+    fontSize: 28,
+    fontWeight: "600",
   },
   forgotContainer: {
-    alignItems: "center",
+    marginTop: 8,
   },
 });

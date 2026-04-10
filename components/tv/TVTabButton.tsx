@@ -1,7 +1,7 @@
 import React from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVTabButtonProps {
@@ -21,6 +21,7 @@ export const TVTabButton: React.FC<TVTabButtonProps> = ({
   switchOnFocus = false,
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
       scaleAmount: 1.05,
@@ -56,7 +57,7 @@ export const TVTabButton: React.FC<TVTabButtonProps> = ({
       >
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: focused ? "#000" : "#fff",
             fontWeight: focused || active ? "600" : "400",
           }}

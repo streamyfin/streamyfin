@@ -88,6 +88,58 @@ export class OpenSubtitlesApiError extends Error {
 }
 
 /**
+ * Mapping between ISO 639-1 (2-letter) and ISO 639-2B (3-letter) language codes
+ */
+const ISO_639_MAPPING: Record<string, string> = {
+  en: "eng",
+  es: "spa",
+  fr: "fre",
+  de: "ger",
+  it: "ita",
+  pt: "por",
+  ru: "rus",
+  ja: "jpn",
+  ko: "kor",
+  zh: "chi",
+  ar: "ara",
+  pl: "pol",
+  nl: "dut",
+  sv: "swe",
+  no: "nor",
+  da: "dan",
+  fi: "fin",
+  tr: "tur",
+  cs: "cze",
+  el: "gre",
+  he: "heb",
+  hu: "hun",
+  ro: "rum",
+  th: "tha",
+  vi: "vie",
+  id: "ind",
+  ms: "may",
+  bg: "bul",
+  hr: "hrv",
+  sk: "slo",
+  sl: "slv",
+  uk: "ukr",
+};
+
+// Reverse mapping: 3-letter to 2-letter
+const ISO_639_REVERSE: Record<string, string> = Object.fromEntries(
+  Object.entries(ISO_639_MAPPING).map(([k, v]) => [v, k]),
+);
+
+/**
+ * Convert ISO 639-2B (3-letter) to ISO 639-1 (2-letter) language code
+ * OpenSubtitles REST API uses 2-letter codes
+ */
+function toIso6391(code: string): string {
+  if (code.length === 2) return code;
+  return ISO_639_REVERSE[code.toLowerCase()] || code;
+}
+
+/**
  * OpenSubtitles API client for direct subtitle fetching
  */
 export class OpenSubtitlesApi {
@@ -138,7 +190,7 @@ export class OpenSubtitlesApi {
     const queryParams = new URLSearchParams();
 
     if (params.imdbId) {
-      // Ensure IMDB ID has correct format (with "tt" prefix)
+      // Ensure IMDB ID has "tt" prefix
       const imdbId = params.imdbId.startsWith("tt")
         ? params.imdbId
         : `tt${params.imdbId}`;
@@ -151,7 +203,12 @@ export class OpenSubtitlesApi {
       queryParams.set("year", params.year.toString());
     }
     if (params.languages) {
-      queryParams.set("languages", params.languages);
+      // Convert 3-letter codes to 2-letter codes (API uses ISO 639-1)
+      const lang =
+        params.languages.length === 3
+          ? toIso6391(params.languages)
+          : params.languages;
+      queryParams.set("languages", lang);
     }
     if (params.seasonNumber !== undefined) {
       queryParams.set("season_number", params.seasonNumber.toString());
@@ -180,49 +237,17 @@ export class OpenSubtitlesApi {
 }
 
 /**
+ * Convert ISO 639-2B (3-letter) to ISO 639-1 (2-letter) language code
+ * Exported for external use
+ */
+export { toIso6391 };
+
+/**
  * Convert ISO 639-1 (2-letter) to ISO 639-2B (3-letter) language code
- * OpenSubtitles uses ISO 639-2B codes
  */
 export function toIso6392B(code: string): string {
-  const mapping: Record<string, string> = {
-    en: "eng",
-    es: "spa",
-    fr: "fre",
-    de: "ger",
-    it: "ita",
-    pt: "por",
-    ru: "rus",
-    ja: "jpn",
-    ko: "kor",
-    zh: "chi",
-    ar: "ara",
-    pl: "pol",
-    nl: "dut",
-    sv: "swe",
-    no: "nor",
-    da: "dan",
-    fi: "fin",
-    tr: "tur",
-    cs: "cze",
-    el: "gre",
-    he: "heb",
-    hu: "hun",
-    ro: "rum",
-    th: "tha",
-    vi: "vie",
-    id: "ind",
-    ms: "may",
-    bg: "bul",
-    hr: "hrv",
-    sk: "slo",
-    sl: "slv",
-    uk: "ukr",
-  };
-
-  // If already 3 letters, return as-is
   if (code.length === 3) return code;
-
-  return mapping[code.toLowerCase()] || code;
+  return ISO_639_MAPPING[code.toLowerCase()] || code;
 }
 
 /**

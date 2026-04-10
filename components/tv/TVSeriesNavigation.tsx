@@ -3,7 +3,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TVSeriesSeasonCard } from "./TVSeriesSeasonCard";
 
 export interface TVSeriesNavigationProps {
@@ -16,6 +17,8 @@ export interface TVSeriesNavigationProps {
 
 export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
   ({ item, seriesImageUrl, seasonImageUrl, onSeriesPress, onSeasonPress }) => {
+    const typography = useScaledTVTypography();
+    const sizes = useScaledTVSizes();
     const { t } = useTranslation();
 
     // Only show for episodes with a series
@@ -24,13 +27,14 @@ export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
     }
 
     return (
-      <View style={{ marginBottom: 32 }}>
+      <View style={{ marginBottom: sizes.gaps.section }}>
         <Text
           style={{
-            fontSize: TVTypography.heading,
-            fontWeight: "600",
+            fontSize: typography.heading,
+            fontWeight: "700",
             color: "#FFFFFF",
-            marginBottom: 24,
+            marginBottom: 20,
+            letterSpacing: 0.5,
           }}
         >
           {t("item_card.from_this_series") || "From this Series"}
@@ -38,11 +42,14 @@ export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -80, overflow: "visible" }}
+          style={{
+            marginHorizontal: -sizes.padding.horizontal,
+            overflow: "visible",
+          }}
           contentContainerStyle={{
-            paddingHorizontal: 80,
-            paddingVertical: 12,
-            gap: 24,
+            paddingHorizontal: sizes.padding.horizontal,
+            paddingVertical: sizes.padding.scale,
+            gap: sizes.gaps.item,
           }}
         >
           {/* Series card */}

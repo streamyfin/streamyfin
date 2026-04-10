@@ -3,7 +3,6 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { Colors } from "@/constants/Colors";
 import type { SavedServerAccount } from "@/utils/secureCredentials";
 
 interface TVAccountCardProps {
@@ -85,7 +84,7 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
         style={[
           {
             transform: [{ scale }],
-            shadowColor: "#a855f7",
+            shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowRadius: 16,
             elevation: 8,
@@ -143,7 +142,7 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
           </View>
 
           {/* Security Icon */}
-          <Ionicons name={getSecurityIcon()} size={24} color={Colors.primary} />
+          <Ionicons name={getSecurityIcon()} size={24} color='#fff' />
         </View>
       </Animated.View>
     </Pressable>

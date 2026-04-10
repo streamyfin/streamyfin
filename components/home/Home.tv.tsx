@@ -30,19 +30,21 @@ import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
+import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
 import { Loader } from "@/components/Loader";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
-// Reduced gap since sections have internal padding for scale animations
-const SECTION_GAP = 10;
+// Generous gap between sections for Apple TV+ aesthetic
+const SECTION_GAP = 24;
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -51,7 +53,6 @@ type InfiniteScrollingCollectionListSection = {
   queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
-  priority?: 1 | 2;
   parentId?: string;
 };
 
@@ -61,6 +62,7 @@ type Section = InfiniteScrollingCollectionListSection;
 const BACKDROP_DEBOUNCE_MS = 300;
 
 export const Home = () => {
+  const typography = useScaledTVTypography();
   const _router = useRouter();
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
@@ -75,7 +77,7 @@ export const Home = () => {
     retryCheck,
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
-  const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
+  const { showItemActions } = useTVItemActionModal();
 
   // Dynamic backdrop state with debounce
   const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
@@ -201,6 +203,58 @@ export const Home = () => {
     },
     enabled: !!api && !!user?.Id,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  // Fetch hero items (Continue Watching + Next Up combined)
+  const { data: heroItems } = useQuery({
+    queryKey: ["home", "heroItems", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const [resumeResponse, nextUpResponse] = await Promise.all([
+        getItemsApi(api).getResumeItems({
+          userId: user.Id,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          includeItemTypes: ["Movie", "Series", "Episode"],
+          fields: ["Overview"],
+          startIndex: 0,
+          limit: 10,
+        }),
+        getTvShowsApi(api).getNextUp({
+          userId: user.Id,
+          startIndex: 0,
+          limit: 10,
+          fields: ["Overview"],
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          enableResumable: false,
+        }),
+      ]);
+
+      const resumeItems = resumeResponse.data.Items || [];
+      const nextUpItems = nextUpResponse.data.Items || [];
+
+      // Combine, sort by recent activity, and dedupe
+      const combined = [...resumeItems, ...nextUpItems];
+      const sorted = combined.sort((a, b) => {
+        const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
+        const dateB = b.UserData?.LastPlayedDate || b.DateCreated || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+
+      const seen = new Set<string>();
+      const deduped: BaseItemDto[] = [];
+      for (const item of sorted) {
+        if (!item.Id || seen.has(item.Id)) continue;
+        seen.add(item.Id);
+        deduped.push(item);
+      }
+
+      return deduped.slice(0, 15);
+    },
+    enabled: !!api && !!user?.Id,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   const userViews = useMemo(
@@ -327,7 +381,6 @@ export const Home = () => {
             type: "InfiniteScrollingCollectionList",
             orientation: "horizontal",
             pageSize: 10,
-            priority: 1,
           },
         ]
       : [
@@ -347,7 +400,6 @@ export const Home = () => {
             type: "InfiniteScrollingCollectionList",
             orientation: "horizontal",
             pageSize: 10,
-            priority: 1,
           },
           {
             title: t("home.next_up"),
@@ -365,13 +417,12 @@ export const Home = () => {
             type: "InfiniteScrollingCollectionList",
             orientation: "horizontal",
             pageSize: 10,
-            priority: 1,
           },
         ];
 
     const ss: Section[] = [
       ...firstSections,
-      ...latestMediaViews.map((s) => ({ ...s, priority: 2 as const })),
+      ...latestMediaViews,
       ...(!settings?.streamyStatsMovieRecommendations
         ? [
             {
@@ -390,7 +441,6 @@ export const Home = () => {
               type: "InfiniteScrollingCollectionList" as const,
               orientation: "vertical" as const,
               pageSize: 10,
-              priority: 2 as const,
             },
           ]
         : []),
@@ -475,7 +525,6 @@ export const Home = () => {
         type: "InfiniteScrollingCollectionList",
         orientation: section?.orientation || "vertical",
         pageSize,
-        priority: index < 2 ? 1 : 2,
       });
     });
     return ss;
@@ -483,23 +532,21 @@ export const Home = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
-  const highPrioritySectionKeys = useMemo(() => {
-    return sections
-      .filter((s) => s.priority === 1)
-      .map((s) => s.queryKey.join("-"));
-  }, [sections]);
+  // Determine if hero should be shown (separate setting from backdrop)
+  // We need this early to calculate which sections will actually be rendered
+  const showHero = useMemo(() => {
+    return heroItems && heroItems.length > 0 && settings.showTVHeroCarousel;
+  }, [heroItems, settings.showTVHeroCarousel]);
 
-  const allHighPriorityLoaded = useMemo(() => {
-    return highPrioritySectionKeys.every((key) => loadedSections.has(key));
-  }, [highPrioritySectionKeys, loadedSections]);
-
-  const markSectionLoaded = useCallback(
-    (queryKey: (string | undefined | null)[]) => {
-      const key = queryKey.join("-");
-      setLoadedSections((prev) => new Set(prev).add(key));
-    },
-    [],
-  );
+  // Get sections that will actually be rendered (accounting for hero slicing)
+  // When hero is shown, skip the first sections since hero already displays that content
+  // - If mergeNextUpAndContinueWatching: skip 1 section (combined Continue & Next Up)
+  // - Otherwise: skip 2 sections (separate Continue Watching + Next Up)
+  const renderedSections = useMemo(() => {
+    if (!showHero) return sections;
+    const sectionsToSkip = settings.mergeNextUpAndContinueWatching ? 1 : 2;
+    return sections.slice(sectionsToSkip);
+  }, [sections, showHero, settings.mergeNextUpAndContinueWatching]);
 
   if (!isConnected || serverConnected !== true) {
     let title = "";
@@ -526,7 +573,7 @@ export const Home = () => {
       >
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -538,7 +585,7 @@ export const Home = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             color: "#FFFFFF",
           }}
         >
@@ -579,7 +626,7 @@ export const Home = () => {
       >
         <Text
           style={{
-            fontSize: TVTypography.heading,
+            fontSize: typography.heading,
             fontWeight: "bold",
             marginBottom: 8,
             color: "#FFFFFF",
@@ -591,7 +638,7 @@ export const Home = () => {
           style={{
             textAlign: "center",
             opacity: 0.7,
-            fontSize: TVTypography.body,
+            fontSize: typography.body,
             color: "#FFFFFF",
           }}
         >
@@ -609,82 +656,101 @@ export const Home = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000000" }}>
-      {/* Dynamic backdrop with crossfade */}
-      <View
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-        }}
-      >
-        {/* Layer 0 */}
-        <Animated.View
+      {/* Dynamic backdrop with crossfade - only shown when hero is disabled */}
+      {!showHero && settings.showHomeBackdrop && (
+        <View
           style={{
             position: "absolute",
-            width: "100%",
-            height: "100%",
-            opacity: layer0Opacity,
-          }}
-        >
-          {layer0Url && (
-            <Image
-              source={{ uri: layer0Url }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit='cover'
-            />
-          )}
-        </Animated.View>
-        {/* Layer 1 */}
-        <Animated.View
-          style={{
-            position: "absolute",
-            width: "100%",
-            height: "100%",
-            opacity: layer1Opacity,
-          }}
-        >
-          {layer1Url && (
-            <Image
-              source={{ uri: layer1Url }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit='cover'
-            />
-          )}
-        </Animated.View>
-        {/* Gradient overlays for readability */}
-        <LinearGradient
-          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
-          locations={[0, 0.4, 1]}
-          style={{
-            position: "absolute",
+            top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            height: "100%",
           }}
-        />
-      </View>
+        >
+          {/* Layer 0 */}
+          <Animated.View
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              opacity: layer0Opacity,
+            }}
+          >
+            {layer0Url && (
+              <Image
+                source={{ uri: layer0Url }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+              />
+            )}
+          </Animated.View>
+          {/* Layer 1 */}
+          <Animated.View
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              opacity: layer1Opacity,
+            }}
+          >
+            {layer1Url && (
+              <Image
+                source={{ uri: layer1Url }}
+                style={{ width: "100%", height: "100%" }}
+                contentFit='cover'
+              />
+            )}
+          </Animated.View>
+          {/* Gradient overlays for readability */}
+          <LinearGradient
+            colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
+            locations={[0, 0.4, 1]}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "100%",
+            }}
+          />
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + TOP_PADDING,
+          paddingTop: showHero ? 0 : insets.top + TOP_PADDING,
           paddingBottom: insets.bottom + 60,
-          paddingLeft: insets.left + HORIZONTAL_PADDING,
-          paddingRight: insets.right + HORIZONTAL_PADDING,
         }}
       >
-        <View style={{ gap: SECTION_GAP }}>
-          {sections.map((section, index) => {
-            // Render Streamystats sections after Continue Watching and Next Up
-            // When merged, they appear after index 0; otherwise after index 1
-            const streamystatsIndex = settings.mergeNextUpAndContinueWatching
-              ? 0
-              : 1;
+        {/* Hero Carousel - Apple TV+ style featured content */}
+        {showHero && heroItems && (
+          <TVHeroCarousel
+            items={heroItems}
+            onItemFocus={handleItemFocus}
+            onItemLongPress={showItemActions}
+          />
+        )}
+
+        <View
+          style={{
+            gap: SECTION_GAP,
+            paddingTop: showHero ? SECTION_GAP : 0,
+          }}
+        >
+          {/* Skip first section (Continue Watching) when hero is shown since hero displays that content */}
+          {renderedSections.map((section, index) => {
+            // Render Streamystats sections after Recently Added sections
+            // For default sections: place after Recently Added, before Suggested Movies (if present)
+            // For custom sections: place at the very end
+            const hasSuggestedMovies =
+              !settings?.streamyStatsMovieRecommendations &&
+              !settings?.home?.sections;
+            const displayedSectionsLength = renderedSections.length;
+            const streamystatsIndex =
+              displayedSectionsLength - 1 - (hasSuggestedMovies ? 1 : 0);
             const hasStreamystatsContent =
               settings.streamyStatsMovieRecommendations ||
               settings.streamyStatsSeriesRecommendations ||
@@ -698,7 +764,6 @@ export const Home = () => {
                         "home.settings.plugins.streamystats.recommended_movies",
                       )}
                       type='Movie'
-                      enabled={allHighPriorityLoaded}
                       onItemFocus={handleItemFocus}
                     />
                   )}
@@ -708,13 +773,11 @@ export const Home = () => {
                         "home.settings.plugins.streamystats.recommended_series",
                       )}
                       type='Series'
-                      enabled={allHighPriorityLoaded}
                       onItemFocus={handleItemFocus}
                     />
                   )}
                   {settings.streamyStatsPromotedWatchlists && (
                     <StreamystatsPromotedWatchlists
-                      enabled={allHighPriorityLoaded}
                       onItemFocus={handleItemFocus}
                     />
                   )}
@@ -722,8 +785,8 @@ export const Home = () => {
               ) : null;
 
             if (section.type === "InfiniteScrollingCollectionList") {
-              const isHighPriority = section.priority === 1;
-              const isFirstSection = index === 0;
+              // First section only gets preferred focus if hero is not shown
+              const isFirstSection = index === 0 && !showHero;
               return (
                 <View key={index} style={{ gap: SECTION_GAP }}>
                   <InfiniteScrollingCollectionList
@@ -733,12 +796,6 @@ export const Home = () => {
                     orientation={section.orientation}
                     hideIfEmpty
                     pageSize={section.pageSize}
-                    enabled={isHighPriority || allHighPriorityLoaded}
-                    onLoaded={
-                      isHighPriority
-                        ? () => markSectionLoaded(section.queryKey)
-                        : undefined
-                    }
                     isFirstSection={isFirstSection}
                     onItemFocus={handleItemFocus}
                     parentId={section.parentId}

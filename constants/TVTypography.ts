@@ -1,3 +1,5 @@
+import { TVTypographyScale, useSettings } from "@/utils/atoms/settings";
+
 /**
  * TV Typography Scale
  *
@@ -23,3 +25,29 @@ export const TVTypography = {
 } as const;
 
 export type TVTypographyKey = keyof typeof TVTypography;
+
+const scaleMultipliers: Record<TVTypographyScale, number> = {
+  [TVTypographyScale.Small]: 0.85,
+  [TVTypographyScale.Default]: 1.0,
+  [TVTypographyScale.Large]: 1.2,
+  [TVTypographyScale.ExtraLarge]: 1.4,
+};
+
+/**
+ * Hook that returns scaled TV typography values based on user settings.
+ * Use this instead of the static TVTypography constant for dynamic scaling.
+ */
+export const useScaledTVTypography = () => {
+  const { settings } = useSettings();
+  const scale =
+    scaleMultipliers[settings.tvTypographyScale] ??
+    scaleMultipliers[TVTypographyScale.Default];
+
+  return {
+    display: Math.round(TVTypography.display * scale),
+    title: Math.round(TVTypography.title * scale),
+    heading: Math.round(TVTypography.heading * scale),
+    body: Math.round(TVTypography.body * scale),
+    callout: Math.round(TVTypography.callout * scale),
+  };
+};

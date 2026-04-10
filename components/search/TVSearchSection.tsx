@@ -2,94 +2,14 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, View, type ViewProps } from "react-native";
-import ContinueWatchingPoster, {
-  TV_LANDSCAPE_WIDTH,
-} from "@/components/ContinueWatchingPoster.tv";
 import { Text } from "@/components/common/Text";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
 import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
-const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
-
-// TV-specific ItemCardText with larger fonts
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
-  return (
-    <View style={{ marginTop: 12, flexDirection: "column" }}>
-      {item.Type === "Episode" ? (
-        <>
-          <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
-            {item.Name}
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
-          >
-            {`S${item.ParentIndexNumber?.toString()}:E${item.IndexNumber?.toString()}`}
-            {" - "}
-            {item.SeriesName}
-          </Text>
-        </>
-      ) : item.Type === "MusicArtist" ? (
-        <Text
-          numberOfLines={2}
-          style={{ fontSize: 16, color: "#FFFFFF", textAlign: "center" }}
-        >
-          {item.Name}
-        </Text>
-      ) : item.Type === "MusicAlbum" ? (
-        <>
-          <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
-            {item.Name}
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
-          >
-            {item.AlbumArtist || item.Artists?.join(", ")}
-          </Text>
-        </>
-      ) : item.Type === "Audio" ? (
-        <>
-          <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
-            {item.Name}
-          </Text>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}
-          >
-            {item.Artists?.join(", ") || item.AlbumArtist}
-          </Text>
-        </>
-      ) : item.Type === "Playlist" ? (
-        <>
-          <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
-            {item.Name}
-          </Text>
-          <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
-            {item.ChildCount} tracks
-          </Text>
-        </>
-      ) : item.Type === "Person" ? (
-        <Text numberOfLines={2} style={{ fontSize: 16, color: "#FFFFFF" }}>
-          {item.Name}
-        </Text>
-      ) : (
-        <>
-          <Text numberOfLines={1} style={{ fontSize: 16, color: "#FFFFFF" }}>
-            {item.Name}
-          </Text>
-          <Text style={{ fontSize: 14, color: "#9CA3AF", marginTop: 2 }}>
-            {item.ProductionYear}
-          </Text>
-        </>
-      )}
-    </View>
-  );
-};
 
 interface TVSearchSectionProps extends ViewProps {
   title: string;
@@ -98,6 +18,7 @@ interface TVSearchSectionProps extends ViewProps {
   disabled?: boolean;
   isFirstSection?: boolean;
   onItemPress: (item: BaseItemDto) => void;
+  onItemLongPress?: (item: BaseItemDto) => void;
   imageUrlGetter?: (item: BaseItemDto) => string | undefined;
 }
 
@@ -108,18 +29,20 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   disabled = false,
   isFirstSection = false,
   onItemPress,
+  onItemLongPress,
   imageUrlGetter,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
+  const posterSizes = useScaledTVPosterSizes();
+  const sizes = useScaledTVSizes();
+  const ITEM_GAP = sizes.gaps.item;
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
 
-  // When section loses all focus, scroll back to start
+  // Track focus count for section
   useEffect(() => {
-    if (prevFocusedCount.current > 0 && focusedCount === 0) {
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }
     prevFocusedCount.current = focusedCount;
   }, [focusedCount]);
 
@@ -132,7 +55,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   }, []);
 
   const itemWidth =
-    orientation === "horizontal" ? TV_LANDSCAPE_WIDTH : TV_POSTER_WIDTH;
+    orientation === "horizontal" ? posterSizes.landscape : posterSizes.poster;
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
@@ -140,155 +63,186 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
       offset: (itemWidth + ITEM_GAP) * index,
       index,
     }),
-    [itemWidth],
+    [itemWidth, ITEM_GAP],
   );
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => {
       const isFirstItem = isFirstSection && index === 0;
-      const isHorizontal = orientation === "horizontal";
 
-      const renderPoster = () => {
-        // Music Artist - circular avatar
-        if (item.Type === "MusicArtist") {
-          const imageUrl = imageUrlGetter?.(item);
-          return (
-            <View
-              style={{
-                width: 160,
-                height: 160,
-                borderRadius: 80,
-                overflow: "hidden",
-                backgroundColor: "#1a1a1a",
-              }}
+      // Special handling for MusicArtist (circular avatar)
+      if (item.Type === "MusicArtist") {
+        const imageUrl = imageUrlGetter?.(item);
+        return (
+          <View style={{ marginRight: ITEM_GAP, width: 160 }}>
+            <TVFocusablePoster
+              onPress={() => onItemPress(item)}
+              onLongPress={
+                onItemLongPress ? () => onItemLongPress(item) : undefined
+              }
+              hasTVPreferredFocus={isFirstItem && !disabled}
+              onFocus={handleItemFocus}
+              onBlur={handleItemBlur}
+              disabled={disabled}
             >
-              {imageUrl ? (
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit='cover'
-                />
-              ) : (
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#262626",
-                  }}
-                >
-                  <Text style={{ fontSize: 48 }}>👤</Text>
-                </View>
-              )}
+              <View
+                style={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: 80,
+                  overflow: "hidden",
+                  backgroundColor: "#1a1a1a",
+                }}
+              >
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit='cover'
+                  />
+                ) : (
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "#262626",
+                    }}
+                  >
+                    <Text style={{ fontSize: 48 }}>👤</Text>
+                  </View>
+                )}
+              </View>
+            </TVFocusablePoster>
+            <View style={{ marginTop: 12, flexDirection: "column" }}>
+              <Text
+                numberOfLines={2}
+                style={{
+                  fontSize: typography.callout,
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                }}
+              >
+                {item.Name}
+              </Text>
             </View>
-          );
-        }
-
-        // Music Album, Audio, Playlist - square images
-        if (
-          item.Type === "MusicAlbum" ||
-          item.Type === "Audio" ||
-          item.Type === "Playlist"
-        ) {
-          const imageUrl = imageUrlGetter?.(item);
-          const icon =
-            item.Type === "Playlist"
-              ? "🎶"
-              : item.Type === "Audio"
-                ? "🎵"
-                : "🎵";
-          return (
-            <View
-              style={{
-                width: TV_POSTER_WIDTH,
-                height: TV_POSTER_WIDTH,
-                borderRadius: 12,
-                overflow: "hidden",
-                backgroundColor: "#1a1a1a",
-              }}
-            >
-              {imageUrl ? (
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit='cover'
-                />
-              ) : (
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#262626",
-                  }}
-                >
-                  <Text style={{ fontSize: 64 }}>{icon}</Text>
-                </View>
-              )}
-            </View>
-          );
-        }
-
-        // Person (Actor)
-        if (item.Type === "Person") {
-          return <MoviePoster item={item} />;
-        }
-
-        // Episode rendering
-        if (item.Type === "Episode" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Episode" && !isHorizontal) {
-          return <SeriesPoster item={item} />;
-        }
-
-        // Movie rendering
-        if (item.Type === "Movie" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-        if (item.Type === "Movie" && !isHorizontal) {
-          return <MoviePoster item={item} />;
-        }
-
-        // Series rendering
-        if (item.Type === "Series" && !isHorizontal) {
-          return <SeriesPoster item={item} />;
-        }
-        if (item.Type === "Series" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-
-        // BoxSet (Collection)
-        if (item.Type === "BoxSet" && !isHorizontal) {
-          return <MoviePoster item={item} />;
-        }
-        if (item.Type === "BoxSet" && isHorizontal) {
-          return <ContinueWatchingPoster item={item} />;
-        }
-
-        // Default fallback
-        return isHorizontal ? (
-          <ContinueWatchingPoster item={item} />
-        ) : (
-          <MoviePoster item={item} />
+          </View>
         );
-      };
+      }
 
-      // Special width for music artists (circular)
-      const actualItemWidth = item.Type === "MusicArtist" ? 160 : itemWidth;
+      // Special handling for MusicAlbum, Audio, Playlist (square images)
+      if (
+        item.Type === "MusicAlbum" ||
+        item.Type === "Audio" ||
+        item.Type === "Playlist"
+      ) {
+        const imageUrl = imageUrlGetter?.(item);
+        const icon =
+          item.Type === "Playlist" ? "🎶" : item.Type === "Audio" ? "🎵" : "🎵";
+        return (
+          <View style={{ marginRight: ITEM_GAP, width: posterSizes.poster }}>
+            <TVFocusablePoster
+              onPress={() => onItemPress(item)}
+              onLongPress={
+                onItemLongPress ? () => onItemLongPress(item) : undefined
+              }
+              hasTVPreferredFocus={isFirstItem && !disabled}
+              onFocus={handleItemFocus}
+              onBlur={handleItemBlur}
+              disabled={disabled}
+            >
+              <View
+                style={{
+                  width: posterSizes.poster,
+                  height: posterSizes.poster,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  backgroundColor: "#1a1a1a",
+                }}
+              >
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit='cover'
+                  />
+                ) : (
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "#262626",
+                    }}
+                  >
+                    <Text style={{ fontSize: 64 }}>{icon}</Text>
+                  </View>
+                )}
+              </View>
+            </TVFocusablePoster>
+            <View style={{ marginTop: 12, flexDirection: "column" }}>
+              <Text
+                numberOfLines={2}
+                style={{ fontSize: typography.callout, color: "#FFFFFF" }}
+              >
+                {item.Name}
+              </Text>
+              {item.Type === "MusicAlbum" && (
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: typography.callout,
+                    color: "#9CA3AF",
+                    marginTop: 2,
+                  }}
+                >
+                  {item.AlbumArtist || item.Artists?.join(", ")}
+                </Text>
+              )}
+              {item.Type === "Audio" && (
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: typography.callout,
+                    color: "#9CA3AF",
+                    marginTop: 2,
+                  }}
+                >
+                  {item.Artists?.join(", ") || item.AlbumArtist}
+                </Text>
+              )}
+              {item.Type === "Playlist" && (
+                <Text
+                  style={{
+                    fontSize: typography.callout,
+                    color: "#9CA3AF",
+                    marginTop: 2,
+                  }}
+                >
+                  {item.ChildCount} tracks
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      }
 
+      // Use TVPosterCard for all other item types
       return (
-        <View style={{ marginRight: ITEM_GAP, width: actualItemWidth }}>
-          <TVFocusablePoster
+        <View style={{ marginRight: ITEM_GAP }}>
+          <TVPosterCard
+            item={item}
+            orientation={orientation}
             onPress={() => onItemPress(item)}
+            onLongPress={
+              onItemLongPress ? () => onItemLongPress(item) : undefined
+            }
             hasTVPreferredFocus={isFirstItem && !disabled}
             onFocus={handleItemFocus}
             onBlur={handleItemBlur}
             disabled={disabled}
-          >
-            {renderPoster()}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} />
+            width={itemWidth}
+          />
         </View>
       );
     },
@@ -297,10 +251,14 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
       isFirstSection,
       itemWidth,
       onItemPress,
+      onItemLongPress,
       handleItemFocus,
       handleItemBlur,
       disabled,
       imageUrlGetter,
+      posterSizes.poster,
+      typography.callout,
+      ITEM_GAP,
     ],
   );
 
@@ -311,11 +269,12 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
       {/* Section Header */}
       <Text
         style={{
-          fontSize: 22,
-          fontWeight: "600",
+          fontSize: typography.heading,
+          fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: 20,
+          marginLeft: sizes.padding.horizontal,
+          letterSpacing: 0.5,
         }}
       >
         {title}
@@ -334,9 +293,13 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
         removeClippedSubviews={false}
         getItemLayout={getItemLayout}
         style={{ overflow: "visible" }}
+        contentInset={{
+          left: sizes.padding.horizontal,
+          right: sizes.padding.horizontal,
+        }}
+        contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
         contentContainerStyle={{
           paddingVertical: SCALE_PADDING,
-          paddingHorizontal: SCALE_PADDING,
         }}
       />
     </View>

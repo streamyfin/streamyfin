@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import type { SubtitleSearchResult } from "@/hooks/useRemoteSubtitles";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
@@ -23,6 +23,8 @@ export const TVSubtitleResultCard = React.forwardRef<
   View,
   TVSubtitleResultCardProps
 >(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
+  const typography = useScaledTVTypography();
+  const styles = createStyles(typography);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.03 });
 
@@ -197,72 +199,73 @@ export const TVSubtitleResultCard = React.forwardRef<
   );
 });
 
-const styles = StyleSheet.create({
-  resultCard: {
-    width: 220,
-    minHeight: 120,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-  },
-  providerBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  providerText: {
-    fontSize: TVTypography.callout,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  resultName: {
-    fontSize: TVTypography.callout,
-    fontWeight: "500",
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  resultMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 8,
-  },
-  resultMetaText: {
-    fontSize: TVTypography.callout,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  downloadCountContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  flagsContainer: {
-    flexDirection: "row",
-    gap: 6,
-    flexWrap: "wrap",
-  },
-  flag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  flagText: {
-    fontSize: TVTypography.callout,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  downloadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
+const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
+  StyleSheet.create({
+    resultCard: {
+      width: 220,
+      minHeight: 120,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+    },
+    providerBadge: {
+      alignSelf: "flex-start",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      marginBottom: 8,
+    },
+    providerText: {
+      fontSize: typography.callout,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    resultName: {
+      fontSize: typography.callout,
+      fontWeight: "500",
+      marginBottom: 8,
+      lineHeight: 18,
+    },
+    resultMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginBottom: 8,
+    },
+    resultMetaText: {
+      fontSize: typography.callout,
+    },
+    ratingContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+    },
+    downloadCountContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+    },
+    flagsContainer: {
+      flexDirection: "row",
+      gap: 6,
+      flexWrap: "wrap",
+    },
+    flag: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    flagText: {
+      fontSize: typography.callout,
+      fontWeight: "600",
+      color: "#fff",
+    },
+    downloadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      borderRadius: 14,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+  });

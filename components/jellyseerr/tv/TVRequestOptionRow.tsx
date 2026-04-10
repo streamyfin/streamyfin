@@ -3,7 +3,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 interface TVRequestOptionRowProps {
   label: string;
@@ -20,6 +20,7 @@ export const TVRequestOptionRow: React.FC<TVRequestOptionRowProps> = ({
   hasTVPreferredFocus = false,
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
       scaleAmount: 1.02,
@@ -56,7 +57,7 @@ export const TVRequestOptionRow: React.FC<TVRequestOptionRowProps> = ({
       >
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: "rgba(255,255,255,0.6)",
           }}
         >
@@ -65,7 +66,7 @@ export const TVRequestOptionRow: React.FC<TVRequestOptionRowProps> = ({
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Text
             style={{
-              fontSize: TVTypography.body,
+              fontSize: typography.body,
               color: focused ? "#FFFFFF" : "rgba(255,255,255,0.9)",
               fontWeight: "500",
             }}

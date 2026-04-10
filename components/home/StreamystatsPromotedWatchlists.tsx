@@ -80,7 +80,6 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
       Boolean(api?.accessToken) &&
       Boolean(user?.Id),
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
@@ -215,7 +214,6 @@ export const StreamystatsPromotedWatchlists: React.FC<
       Boolean(jellyfinServerId) &&
       Boolean(user?.Id),
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 

@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { fontSize, size } from "react-native-responsive-sizes";
 import { useHaptic } from "@/hooks/useHaptic";
 import { Loader } from "./Loader";
 
@@ -133,7 +132,7 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
       <Animated.View
         style={{
           transform: [{ scale }],
-          shadowColor: color === "black" ? "#ffffff" : "#a855f7",
+          shadowColor: "#ffffff",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: focused ? 0.5 : 0,
           shadowRadius: focused ? 10 : 0,
@@ -141,15 +140,11 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
         }}
       >
         <View
-          className={`rounded-2xl items-center justify-center 
+          className={`rounded-2xl py-5 items-center justify-center 
             ${colorClasses}
             ${className}`}
-          style={{ paddingVertical: size(50) }}
         >
-          <Text
-            className={`${textColorClass} font-bold`}
-            style={{ fontSize: fontSize(10) }}
-          >
+          <Text className={`${textColorClass} text-xl font-bold`}>
             {children}
           </Text>
         </View>

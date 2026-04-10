@@ -22,7 +22,7 @@ import { Loader } from "@/components/Loader";
 import { JellyserrRatings } from "@/components/Ratings";
 import { TVButton } from "@/components/tv";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useTVRequestModal } from "@/hooks/useTVRequestModal";
@@ -68,6 +68,7 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
   onPress,
   refSetter,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.08 });
 
@@ -128,7 +129,7 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
         </View>
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: focused ? "#fff" : "rgba(255,255,255,0.9)",
             fontWeight: "600",
             textAlign: "center",
@@ -158,6 +159,7 @@ const TVCastCard: React.FC<TVCastCardProps> = ({
 };
 
 export const TVJellyseerrPage: React.FC = () => {
+  const typography = useScaledTVTypography();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
@@ -552,7 +554,7 @@ export const TVJellyseerrPage: React.FC = () => {
             {/* Title */}
             <Text
               style={{
-                fontSize: TVTypography.display,
+                fontSize: typography.display,
                 fontWeight: "bold",
                 color: "#FFFFFF",
                 marginTop: 8,
@@ -566,7 +568,7 @@ export const TVJellyseerrPage: React.FC = () => {
             {/* Year */}
             <Text
               style={{
-                fontSize: TVTypography.body,
+                fontSize: typography.body,
                 color: "rgba(255,255,255,0.7)",
                 marginBottom: 16,
               }}
@@ -601,7 +603,7 @@ export const TVJellyseerrPage: React.FC = () => {
                 >
                   <Text
                     style={{
-                      fontSize: TVTypography.body,
+                      fontSize: typography.body,
                       color: "#E5E7EB",
                       lineHeight: 32,
                     }}
@@ -636,7 +638,7 @@ export const TVJellyseerrPage: React.FC = () => {
                   />
                   <Text
                     style={{
-                      fontSize: TVTypography.callout,
+                      fontSize: typography.callout,
                       fontWeight: "bold",
                       color: "#000000",
                     }}
@@ -663,7 +665,7 @@ export const TVJellyseerrPage: React.FC = () => {
                   />
                   <Text
                     style={{
-                      fontSize: TVTypography.callout,
+                      fontSize: typography.callout,
                       fontWeight: "bold",
                       color: "#FFFFFF",
                     }}
@@ -698,7 +700,7 @@ export const TVJellyseerrPage: React.FC = () => {
                       />
                       <Text
                         style={{
-                          fontSize: TVTypography.callout,
+                          fontSize: typography.callout,
                           fontWeight: "600",
                           color: "#FFFFFF",
                         }}
@@ -732,7 +734,7 @@ export const TVJellyseerrPage: React.FC = () => {
                       />
                       <Text
                         style={{
-                          fontSize: TVTypography.callout,
+                          fontSize: typography.callout,
                           fontWeight: "600",
                           color: "#FFFFFF",
                         }}
@@ -757,7 +759,7 @@ export const TVJellyseerrPage: React.FC = () => {
                   <Ionicons name='person-outline' size={18} color='#9CA3AF' />
                   <Text
                     style={{
-                      fontSize: TVTypography.callout,
+                      fontSize: typography.callout,
                       color: "#9CA3AF",
                       marginLeft: 8,
                     }}
@@ -776,7 +778,7 @@ export const TVJellyseerrPage: React.FC = () => {
                     />
                     <Text
                       style={{
-                        fontSize: TVTypography.callout,
+                        fontSize: typography.callout,
                         fontWeight: "600",
                         color: "#FFFFFF",
                       }}
@@ -794,7 +796,7 @@ export const TVJellyseerrPage: React.FC = () => {
                     />
                     <Text
                       style={{
-                        fontSize: TVTypography.callout,
+                        fontSize: typography.callout,
                         fontWeight: "600",
                         color: "#FFFFFF",
                       }}
@@ -813,7 +815,7 @@ export const TVJellyseerrPage: React.FC = () => {
           <View style={{ marginTop: 24 }}>
             <Text
               style={{
-                fontSize: TVTypography.heading,
+                fontSize: typography.heading,
                 fontWeight: "bold",
                 color: "#FFFFFF",
                 marginBottom: 16,

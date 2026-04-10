@@ -10,6 +10,7 @@ import {
   getPlaystateApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
+import { File } from "expo-file-system";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -45,10 +46,11 @@ import {
 } from "@/modules";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
+import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
+import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -57,8 +59,8 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
-import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
+import { generateDeviceProfile } from "../../../utils/profiles/native";
 
 export default function page() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
@@ -104,6 +106,9 @@ export default function page() {
   // Call directly instead of useMemo - the function reference doesn't change
   // when data updates, only when the provider initializes
   const downloadedFiles = downloadUtils.getDownloadedItems();
+
+  // Inactivity timer controls (TV only)
+  const { pauseInactivityTimer, resumeInactivityTimer } = useInactivity();
 
   const revalidateProgressCache = useInvalidatePlaybackProgressCache();
 
@@ -228,7 +233,12 @@ export default function page() {
             setDownloadedItem(data);
           }
         } else {
-          const res = await getUserLibraryApi(api!).getItem({
+          // Guard against api being null (e.g., during logout)
+          if (!api) {
+            setItemStatus({ isLoading: false, isError: false });
+            return;
+          }
+          const res = await getUserLibraryApi(api).getItem({
             itemId,
             userId: user?.Id,
           });
@@ -262,6 +272,7 @@ export default function page() {
     mediaSource: MediaSourceInfo;
     sessionId: string;
     url: string;
+    requiredHttpHeaders?: Record<string, string>;
   }
 
   const [stream, setStream] = useState<Stream | null>(null);
@@ -324,7 +335,7 @@ export default function page() {
             deviceProfile: generateDeviceProfile(),
           });
           if (!res) return null;
-          const { mediaSource, sessionId, url } = res;
+          const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
 
           if (!sessionId || !mediaSource || !url) {
             Alert.alert(
@@ -333,7 +344,7 @@ export default function page() {
             );
             return null;
           }
-          result = { mediaSource, sessionId, url };
+          result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
@@ -420,7 +431,9 @@ export default function page() {
     setIsPlaybackStopped(true);
     videoRef.current?.pause();
     revalidateProgressCache();
-  }, [videoRef, reportPlaybackStopped, progress]);
+    // Resume inactivity timer when leaving player (TV only)
+    resumeInactivityTimer();
+  }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
 
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
@@ -587,6 +600,13 @@ export default function page() {
       autoplay: true,
       initialSubtitleId,
       initialAudioId,
+      // Pass cache/buffer settings from user preferences
+      cacheConfig: {
+        enabled: settings.mpvCacheEnabled,
+        cacheSeconds: settings.mpvCacheSeconds,
+        maxBytes: settings.mpvDemuxerMaxBytes,
+        maxBackBytes: settings.mpvDemuxerMaxBackBytes,
+      },
     };
 
     // Add external subtitles only for online playback
@@ -594,17 +614,32 @@ export default function page() {
       source.externalSubtitles = externalSubs;
     }
 
-    // Add auth headers only for online streaming (not for local file:// URLs)
-    if (!offline && api?.accessToken) {
-      source.headers = {
-        Authorization: `MediaBrowser Token="${api.accessToken}"`,
-      };
+    // Add headers for online streaming (not for local file:// URLs)
+    if (!offline) {
+      const headers: Record<string, string> = {};
+      const isRemoteStream =
+        mediaSource?.IsRemote && mediaSource?.Protocol === "Http";
+
+      // Add auth header only for Jellyfin API requests (not for external/remote streams)
+      if (api?.accessToken && !isRemoteStream) {
+        headers.Authorization = `MediaBrowser Token="${api.accessToken}"`;
+      }
+
+      // Add any required headers from the media source (e.g., for external/remote streams)
+      if (stream?.requiredHttpHeaders) {
+        Object.assign(headers, stream.requiredHttpHeaders);
+      }
+
+      if (Object.keys(headers).length > 0) {
+        source.headers = headers;
+      }
     }
 
     return source;
   }, [
     stream?.url,
     stream?.mediaSource,
+    stream?.requiredHttpHeaders,
     item?.UserData?.PlaybackPositionTicks,
     playbackPositionFromUrl,
     api?.basePath,
@@ -612,6 +647,10 @@ export default function page() {
     subtitleIndex,
     audioIndex,
     offline,
+    settings.mpvCacheEnabled,
+    settings.mpvCacheSeconds,
+    settings.mpvDemuxerMaxBytes,
+    settings.mpvDemuxerMaxBackBytes,
   ]);
 
   const volumeUpCb = useCallback(async () => {
@@ -702,6 +741,8 @@ export default function page() {
         setIsPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
+        // Pause inactivity timer during playback (TV only)
+        pauseInactivityTimer();
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -713,6 +754,8 @@ export default function page() {
 
       if (isPaused) {
         setIsPlaying(false);
+        // Resume inactivity timer when paused (TV only)
+        resumeInactivityTimer();
         if (item?.Id) {
           playbackManager.reportPlaybackProgress(
             currentPlayStateInfo() as PlaybackProgressInfo,
@@ -726,7 +769,13 @@ export default function page() {
         setIsBuffering(isLoading);
       }
     },
-    [playbackManager, item?.Id, progress],
+    [
+      playbackManager,
+      item?.Id,
+      progress,
+      pauseInactivityTimer,
+      resumeInactivityTimer,
+    ],
   );
 
   /** PiP handler for MPV */
@@ -1028,14 +1077,27 @@ export default function page() {
       if (settings.mpvSubtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
-      if (settings.mpvSubtitleFontSize !== undefined) {
-        await videoRef.current?.setSubtitleFontSize?.(
-          settings.mpvSubtitleFontSize,
+      // Apply subtitle background (iOS only - doesn't work on tvOS due to composite OSD limitation)
+      // mpv uses #RRGGBBAA format (alpha last, same as CSS)
+      if (settings.mpvSubtitleBackgroundEnabled) {
+        const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
+        const alphaHex = Math.round((opacity / 100) * 255)
+          .toString(16)
+          .padStart(2, "0")
+          .toUpperCase();
+        // Enable background-box mode (required for sub-back-color to work)
+        await videoRef.current?.setSubtitleBorderStyle?.("background-box");
+        await videoRef.current?.setSubtitleBackgroundColor?.(
+          `#000000${alphaHex}`,
         );
-      }
-      // Apply subtitle size from general settings
-      if (settings.subtitleSize) {
-        await videoRef.current?.setSubtitleFontSize?.(settings.subtitleSize);
+        // Force override ASS subtitle styles so background shows on styled subtitles
+        await videoRef.current?.setSubtitleAssOverride?.("force");
+      } else {
+        // Restore default outline-and-shadow style
+        await videoRef.current?.setSubtitleBorderStyle?.("outline-and-shadow");
+        await videoRef.current?.setSubtitleBackgroundColor?.("#00000000");
+        // Restore default ASS behavior (keep original styles)
+        await videoRef.current?.setSubtitleAssOverride?.("no");
       }
     };
 
@@ -1055,6 +1117,28 @@ export default function page() {
 
     applyInitialPlaybackSpeed();
   }, [isVideoLoaded, initialPlaybackSpeed]);
+
+  // TV only: Pre-load locally downloaded subtitles when video loads
+  // This adds them to MPV's track list without auto-selecting them
+  useEffect(() => {
+    if (!Platform.isTV || !isVideoLoaded || !videoRef.current || !itemId)
+      return;
+
+    const preloadLocalSubtitles = async () => {
+      const localSubs = getSubtitlesForItem(itemId);
+      for (const sub of localSubs) {
+        // Verify file still exists (cache may have been cleared)
+        const subtitleFile = new File(sub.filePath);
+        if (!subtitleFile.exists) {
+          continue;
+        }
+        // Add subtitle file to MPV without selecting it (select: false)
+        await videoRef.current?.addSubtitleFile?.(sub.filePath, false);
+      }
+    };
+
+    preloadLocalSubtitles();
+  }, [isVideoLoaded, itemId]);
 
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
@@ -1180,6 +1264,7 @@ export default function page() {
                   getTechnicalInfo={getTechnicalInfo}
                   playMethod={playMethod}
                   transcodeReasons={transcodeReasons}
+                  downloadedFiles={downloadedFiles}
                 />
               ) : (
                 <Controls

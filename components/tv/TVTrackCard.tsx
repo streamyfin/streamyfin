@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVTrackCardProps {
@@ -15,6 +15,8 @@ export interface TVTrackCardProps {
 
 export const TVTrackCard = React.forwardRef<View, TVTrackCardProps>(
   ({ label, sublabel, selected, hasTVPreferredFocus, onPress }, ref) => {
+    const typography = useScaledTVTypography();
+    const styles = createStyles(typography);
     const { focused, handleFocus, handleBlur, animatedStyle } =
       useTVFocusAnimation({ scaleAmount: 1.05 });
 
@@ -77,26 +79,27 @@ export const TVTrackCard = React.forwardRef<View, TVTrackCardProps>(
   },
 );
 
-const styles = StyleSheet.create({
-  trackCard: {
-    width: 180,
-    height: 80,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  trackCardText: {
-    fontSize: TVTypography.callout,
-    textAlign: "center",
-  },
-  trackCardSublabel: {
-    fontSize: TVTypography.callout,
-    marginTop: 2,
-  },
-  checkmark: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-  },
-});
+const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
+  StyleSheet.create({
+    trackCard: {
+      width: 180,
+      height: 80,
+      borderRadius: 14,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 12,
+    },
+    trackCardText: {
+      fontSize: typography.callout,
+      textAlign: "center",
+    },
+    trackCardSublabel: {
+      fontSize: typography.callout,
+      marginTop: 2,
+    },
+    checkmark: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+    },
+  });

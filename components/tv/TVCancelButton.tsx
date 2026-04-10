@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVCancelButtonProps {
@@ -16,6 +16,7 @@ export const TVCancelButton: React.FC<TVCancelButtonProps> = ({
   label = "Cancel",
   disabled = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05, duration: 120 });
 
@@ -48,7 +49,7 @@ export const TVCancelButton: React.FC<TVCancelButtonProps> = ({
         />
         <Text
           style={{
-            fontSize: TVTypography.callout,
+            fontSize: typography.callout,
             color: focused ? "#000" : "rgba(255,255,255,0.8)",
             fontWeight: "500",
           }}

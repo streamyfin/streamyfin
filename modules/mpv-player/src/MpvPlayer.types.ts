@@ -43,6 +43,17 @@ export type VideoSource = {
   initialSubtitleId?: number;
   /** MPV audio track ID to select on start (1-based) */
   initialAudioId?: number;
+  /** MPV cache/buffer configuration */
+  cacheConfig?: {
+    /** Whether caching is enabled: "auto" (default), "yes", or "no" */
+    enabled?: "auto" | "yes" | "no";
+    /** Seconds of video to buffer (default: 10, range: 5-120) */
+    cacheSeconds?: number;
+    /** Maximum cache size in MB (default: 150, range: 50-500) */
+    maxBytes?: number;
+    /** Maximum backward cache size in MB (default: 50, range: 25-200) */
+    maxBackBytes?: number;
+  };
 };
 
 export type MpvPlayerViewProps = {
@@ -84,6 +95,11 @@ export interface MpvPlayerViewRef {
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleFontSize: (size: number) => Promise<void>;
+  setSubtitleBackgroundColor: (color: string) => Promise<void>;
+  setSubtitleBorderStyle: (
+    style: "outline-and-shadow" | "background-box",
+  ) => Promise<void>;
+  setSubtitleAssOverride: (mode: "no" | "force") => Promise<void>;
   // Audio controls
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;

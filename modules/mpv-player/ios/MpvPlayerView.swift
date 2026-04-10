@@ -15,7 +15,12 @@ struct VideoLoadConfig {
 	var initialSubtitleId: Int?
 	/// MPV audio track ID to select on start (1-based, nil to use default)
 	var initialAudioId: Int?
-	
+	/// Cache/buffer settings
+	var cacheEnabled: String?  // "auto", "yes", or "no"
+	var cacheSeconds: Int?     // Seconds of video to buffer
+	var demuxerMaxBytes: Int?  // Max cache size in MB
+	var demuxerMaxBackBytes: Int?  // Max backward cache size in MB
+
 	init(
 		url: URL,
 		headers: [String: String]? = nil,
@@ -23,7 +28,11 @@ struct VideoLoadConfig {
 		startPosition: Double? = nil,
 		autoplay: Bool = true,
 		initialSubtitleId: Int? = nil,
-		initialAudioId: Int? = nil
+		initialAudioId: Int? = nil,
+		cacheEnabled: String? = nil,
+		cacheSeconds: Int? = nil,
+		demuxerMaxBytes: Int? = nil,
+		demuxerMaxBackBytes: Int? = nil
 	) {
 		self.url = url
 		self.headers = headers
@@ -32,6 +41,10 @@ struct VideoLoadConfig {
 		self.autoplay = autoplay
 		self.initialSubtitleId = initialSubtitleId
 		self.initialAudioId = initialAudioId
+		self.cacheEnabled = cacheEnabled
+		self.cacheSeconds = cacheSeconds
+		self.demuxerMaxBytes = demuxerMaxBytes
+		self.demuxerMaxBackBytes = demuxerMaxBackBytes
 	}
 }
 
@@ -54,6 +67,7 @@ class MpvPlayerView: ExpoView {
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
+	private var appStateObserver: NSObjectProtocol?
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
@@ -101,6 +115,17 @@ class MpvPlayerView: ExpoView {
 		} catch {
 			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
 		}
+
+		// Pause playback when app enters background on tvOS
+		#if os(tvOS)
+		appStateObserver = NotificationCenter.default.addObserver(
+			forName: UIApplication.didEnterBackgroundNotification,
+			object: nil,
+			queue: .main
+		) { [weak self] _ in
+			self?.pause()
+		}
+		#endif
 	}
 
 	override func layoutSubviews() {
@@ -151,13 +176,17 @@ class MpvPlayerView: ExpoView {
 			startPosition: config.startPosition,
 			externalSubtitles: config.externalSubtitles,
 			initialSubtitleId: config.initialSubtitleId,
-			initialAudioId: config.initialAudioId
+			initialAudioId: config.initialAudioId,
+			cacheEnabled: config.cacheEnabled,
+			cacheSeconds: config.cacheSeconds,
+			demuxerMaxBytes: config.demuxerMaxBytes,
+			demuxerMaxBackBytes: config.demuxerMaxBackBytes
 		)
-		
+
 		if config.autoplay {
 			play()
 		}
-		
+
 		onLoad(["url": config.url.absoluteString])
 	}
 	
@@ -290,6 +319,18 @@ class MpvPlayerView: ExpoView {
 		renderer?.setSubtitleFontSize(size)
 	}
 
+	func setSubtitleBackgroundColor(_ color: String) {
+		renderer?.setSubtitleBackgroundColor(color)
+	}
+
+	func setSubtitleBorderStyle(_ style: String) {
+		renderer?.setSubtitleBorderStyle(style)
+	}
+
+	func setSubtitleAssOverride(_ mode: String) {
+		renderer?.setSubtitleAssOverride(mode)
+	}
+
 	// MARK: - Video Scaling
 
 	func setZoomedToFill(_ zoomed: Bool) {
@@ -308,6 +349,9 @@ class MpvPlayerView: ExpoView {
 	}
 
 	deinit {
+		if let observer = appStateObserver {
+			NotificationCenter.default.removeObserver(observer)
+		}
 		#if os(tvOS)
 		resetDisplayCriteria()
 		#endif

@@ -2,6 +2,7 @@ import React from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 export interface TVSearchBadgeProps {
   label: string;
@@ -14,8 +15,9 @@ export const TVSearchBadge: React.FC<TVSearchBadgeProps> = ({
   onPress,
   hasTVPreferredFocus = false,
 }) => {
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
-    useTVFocusAnimation({ scaleAmount: 1.08, duration: 150 });
+    useTVFocusAnimation({ duration: 150 });
 
   return (
     <Pressable
@@ -41,7 +43,7 @@ export const TVSearchBadge: React.FC<TVSearchBadgeProps> = ({
       >
         <Text
           style={{
-            fontSize: 16,
+            fontSize: typography.callout,
             color: focused ? "#000" : "#fff",
             fontWeight: focused ? "600" : "400",
           }}

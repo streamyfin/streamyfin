@@ -10,6 +10,7 @@ import {
 export interface TVFocusablePosterProps {
   children: React.ReactNode;
   onPress: () => void;
+  onLongPress?: () => void;
   hasTVPreferredFocus?: boolean;
   glowColor?: "white" | "purple";
   scaleAmount?: number;
@@ -17,6 +18,8 @@ export interface TVFocusablePosterProps {
   onFocus?: () => void;
   onBlur?: () => void;
   disabled?: boolean;
+  /** When true, the item remains focusable even when disabled (for navigation purposes) */
+  focusableWhenDisabled?: boolean;
   /** Setter function for the ref (for focus guide destinations) */
   refSetter?: (ref: View | null) => void;
 }
@@ -24,6 +27,7 @@ export interface TVFocusablePosterProps {
 export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   children,
   onPress,
+  onLongPress,
   hasTVPreferredFocus = false,
   glowColor = "white",
   scaleAmount = 1.05,
@@ -31,6 +35,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
   onFocus: onFocusProp,
   onBlur: onBlurProp,
   disabled = false,
+  focusableWhenDisabled = false,
   refSetter,
 }) => {
   const [focused, setFocused] = useState(false);
@@ -50,6 +55,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
     <Pressable
       ref={refSetter}
       onPress={onPress}
+      onLongPress={onLongPress}
       onFocus={() => {
         setFocused(true);
         animateTo(scaleAmount);
@@ -62,7 +68,7 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
       }}
       hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
       disabled={disabled}
-      focusable={!disabled}
+      focusable={!disabled || focusableWhenDisabled}
     >
       <Animated.View
         style={[
@@ -70,8 +76,8 @@ export const TVFocusablePoster: React.FC<TVFocusablePosterProps> = ({
             transform: [{ scale }],
             shadowColor,
             shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
+            shadowOpacity: focused ? 0.3 : 0,
+            shadowRadius: focused ? 12 : 0,
           },
           style,
         ]}

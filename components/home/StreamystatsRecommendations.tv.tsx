@@ -11,20 +11,15 @@ import { FlatList, View, type ViewProps } from "react-native";
 
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
-import SeriesPoster from "@/components/posters/SeriesPoster.tv";
-import { TVFocusablePoster } from "@/components/tv/TVFocusablePoster";
-import { TVTypography } from "@/constants/TVTypography";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsRecommendationsIdsResponse } from "@/utils/streamystats/types";
-
-const ITEM_GAP = 16;
-const SCALE_PADDING = 20;
 
 interface Props extends ViewProps {
   title: string;
@@ -34,28 +29,6 @@ interface Props extends ViewProps {
   onItemFocus?: (item: BaseItemDto) => void;
 }
 
-const TVItemCardText: React.FC<{ item: BaseItemDto }> = ({ item }) => {
-  return (
-    <View style={{ marginTop: 12, flexDirection: "column" }}>
-      <Text
-        numberOfLines={1}
-        style={{ fontSize: TVTypography.callout, color: "#FFFFFF" }}
-      >
-        {item.Name}
-      </Text>
-      <Text
-        style={{
-          fontSize: TVTypography.callout,
-          color: "#9CA3AF",
-          marginTop: 2,
-        }}
-      >
-        {item.ProductionYear}
-      </Text>
-    </View>
-  );
-};
-
 export const StreamystatsRecommendations: React.FC<Props> = ({
   title,
   type,
@@ -64,10 +37,13 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
   onItemFocus,
   ...props
 }) => {
+  const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
 
@@ -133,8 +109,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
       Boolean(api?.accessToken) &&
       Boolean(jellyfinServerId) &&
       Boolean(user?.Id),
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -166,8 +142,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
     },
     enabled:
       Boolean(recommendationIds?.length) && Boolean(api) && Boolean(user?.Id),
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -184,30 +160,29 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
 
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: TV_POSTER_WIDTH + ITEM_GAP,
-      offset: (TV_POSTER_WIDTH + ITEM_GAP) * index,
+      length: sizes.posters.poster + sizes.gaps.item,
+      offset: (sizes.posters.poster + sizes.gaps.item) * index,
       index,
     }),
-    [],
+    [sizes],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: BaseItemDto }) => {
       return (
-        <View style={{ marginRight: ITEM_GAP, width: TV_POSTER_WIDTH }}>
-          <TVFocusablePoster
+        <View style={{ marginRight: sizes.gaps.item }}>
+          <TVPosterCard
+            item={item}
+            orientation='vertical'
             onPress={() => handleItemPress(item)}
+            onLongPress={() => showItemActions(item)}
             onFocus={() => onItemFocus?.(item)}
-            hasTVPreferredFocus={false}
-          >
-            {item.Type === "Movie" && <MoviePoster item={item} />}
-            {item.Type === "Series" && <SeriesPoster item={item} />}
-          </TVFocusablePoster>
-          <TVItemCardText item={item} />
+            width={sizes.posters.poster}
+          />
         </View>
       );
     },
-    [handleItemPress, onItemFocus],
+    [sizes, handleItemPress, showItemActions, onItemFocus],
   );
 
   if (!streamyStatsEnabled) return null;
@@ -218,11 +193,12 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
     <View style={{ overflow: "visible" }} {...props}>
       <Text
         style={{
-          fontSize: TVTypography.body,
-          fontWeight: "600",
+          fontSize: typography.heading,
+          fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: 20,
+          marginLeft: sizes.padding.horizontal,
+          letterSpacing: 0.5,
         }}
       >
         {title}
@@ -232,17 +208,17 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
         <View
           style={{
             flexDirection: "row",
-            gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
-            paddingVertical: SCALE_PADDING,
+            gap: sizes.gaps.item,
+            paddingHorizontal: sizes.padding.scale,
+            paddingVertical: sizes.padding.scale,
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
-            <View key={i} style={{ width: TV_POSTER_WIDTH }}>
+            <View key={i} style={{ width: sizes.posters.poster }}>
               <View
                 style={{
                   backgroundColor: "#262626",
-                  width: TV_POSTER_WIDTH,
+                  width: sizes.posters.poster,
                   aspectRatio: 10 / 15,
                   borderRadius: 12,
                   marginBottom: 8,
@@ -264,9 +240,13 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           removeClippedSubviews={false}
           getItemLayout={getItemLayout}
           style={{ overflow: "visible" }}
+          contentInset={{
+            left: sizes.padding.horizontal,
+            right: sizes.padding.horizontal,
+          }}
+          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
-            paddingVertical: SCALE_PADDING,
-            paddingHorizontal: SCALE_PADDING,
+            paddingVertical: sizes.padding.scale,
           }}
         />
       )}

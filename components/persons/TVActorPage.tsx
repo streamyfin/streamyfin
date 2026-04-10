@@ -19,19 +19,19 @@ import {
   Dimensions,
   Easing,
   FlatList,
-  Pressable,
   ScrollView,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
-import MoviePoster, {
-  TV_POSTER_WIDTH,
-} from "@/components/posters/MoviePoster.tv";
+import { TVPosterCard } from "@/components/tv/TVPosterCard";
+import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
@@ -41,57 +41,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const HORIZONTAL_PADDING = 80;
 const TOP_PADDING = 140;
 const ACTOR_IMAGE_SIZE = 250;
-const ITEM_GAP = 16;
 const SCALE_PADDING = 20;
-
-// Focusable poster wrapper component for TV
-const TVFocusablePoster: React.FC<{
-  children: React.ReactNode;
-  onPress: () => void;
-  hasTVPreferredFocus?: boolean;
-  onFocus?: () => void;
-  onBlur?: () => void;
-}> = ({ children, onPress, hasTVPreferredFocus, onFocus, onBlur }) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (value: number) =>
-    Animated.timing(scale, {
-      toValue: value,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-        onFocus?.();
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-        onBlur?.();
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          shadowColor: "#ffffff",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.6 : 0,
-          shadowRadius: focused ? 20 : 0,
-        }}
-      >
-        {children}
-      </Animated.View>
-    </Pressable>
-  );
-};
 
 interface TVActorPageProps {
   personId: string;
@@ -101,8 +51,13 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
   const segments = useSegments();
   const from = (segments as string[])[2] || "(home)";
+  const posterSizes = useScaledTVPosterSizes();
+  const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
+  const ITEM_GAP = sizes.gaps.item;
 
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -276,35 +231,47 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
   // List item layout
   const getItemLayout = useCallback(
     (_data: ArrayLike<BaseItemDto> | null | undefined, index: number) => ({
-      length: TV_POSTER_WIDTH + ITEM_GAP,
-      offset: (TV_POSTER_WIDTH + ITEM_GAP) * index,
+      length: posterSizes.poster + ITEM_GAP,
+      offset: (posterSizes.poster + ITEM_GAP) * index,
       index,
     }),
     [],
   );
 
-  // Render filmography item
-  const renderFilmographyItem = useCallback(
-    (
-      { item: filmItem, index }: { item: BaseItemDto; index: number },
-      isFirstSection: boolean,
-    ) => (
+  // Render movie filmography item
+  const renderMovieItem = useCallback(
+    ({ item: filmItem, index }: { item: BaseItemDto; index: number }) => (
       <View style={{ marginRight: ITEM_GAP }}>
-        <TVFocusablePoster
+        <TVPosterCard
+          item={filmItem}
+          orientation='vertical'
           onPress={() => handleItemPress(filmItem)}
+          onLongPress={() => showItemActions(filmItem)}
           onFocus={() => setFocusedItem(filmItem)}
-          hasTVPreferredFocus={isFirstSection && index === 0}
-        >
-          <View>
-            <MoviePoster item={filmItem} />
-            <View style={{ width: TV_POSTER_WIDTH, marginTop: 8 }}>
-              <ItemCardText item={filmItem} />
-            </View>
-          </View>
-        </TVFocusablePoster>
+          hasTVPreferredFocus={index === 0}
+          width={posterSizes.poster}
+        />
       </View>
     ),
-    [handleItemPress],
+    [handleItemPress, showItemActions, posterSizes.poster],
+  );
+
+  // Render series filmography item
+  const renderSeriesItem = useCallback(
+    ({ item: filmItem, index }: { item: BaseItemDto; index: number }) => (
+      <View style={{ marginRight: ITEM_GAP }}>
+        <TVPosterCard
+          item={filmItem}
+          orientation='vertical'
+          onPress={() => handleItemPress(filmItem)}
+          onLongPress={() => showItemActions(filmItem)}
+          onFocus={() => setFocusedItem(filmItem)}
+          hasTVPreferredFocus={movies.length === 0 && index === 0}
+          width={posterSizes.poster}
+        />
+      </View>
+    ),
+    [handleItemPress, showItemActions, posterSizes.poster, movies.length],
   );
 
   if (isLoadingActor) {
@@ -374,28 +341,16 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             <View style={{ flex: 1, backgroundColor: "#1a1a1a" }} />
           )}
         </Animated.View>
-        {/* Gradient overlays for readability */}
+        {/* Gradient overlay for readability */}
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
-          locations={[0, 0.5, 1]}
+          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
+          locations={[0, 0.4, 1]}
           style={{
             position: "absolute",
             left: 0,
             right: 0,
             bottom: 0,
-            height: "70%",
-          }}
-        />
-        <LinearGradient
-          colors={["rgba(0,0,0,0.8)", "transparent"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.6, y: 0 }}
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: "60%",
+            height: "100%",
           }}
         />
       </View>
@@ -459,7 +414,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             {/* Actor name */}
             <Text
               style={{
-                fontSize: 42,
+                fontSize: typography.title,
                 fontWeight: "bold",
                 color: "#FFFFFF",
                 marginBottom: 8,
@@ -473,7 +428,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             {item.ProductionYear && (
               <Text
                 style={{
-                  fontSize: 18,
+                  fontSize: typography.callout,
                   color: "#9CA3AF",
                   marginBottom: 16,
                 }}
@@ -486,9 +441,9 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             {item.Overview && (
               <Text
                 style={{
-                  fontSize: 18,
+                  fontSize: typography.body,
                   color: "#D1D5DB",
-                  lineHeight: 28,
+                  lineHeight: typography.body * 1.4,
                   maxWidth: SCREEN_WIDTH * 0.45,
                 }}
                 numberOfLines={4}
@@ -517,7 +472,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
               <View style={{ marginBottom: 32 }}>
                 <Text
                   style={{
-                    fontSize: 22,
+                    fontSize: typography.heading,
                     fontWeight: "600",
                     color: "#FFFFFF",
                     marginBottom: 16,
@@ -530,7 +485,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
                   horizontal
                   data={movies}
                   keyExtractor={(filmItem) => filmItem.Id!}
-                  renderItem={(props) => renderFilmographyItem(props, true)}
+                  renderItem={renderMovieItem}
                   showsHorizontalScrollIndicator={false}
                   initialNumToRender={6}
                   maxToRenderPerBatch={4}
@@ -563,7 +518,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
               <View>
                 <Text
                   style={{
-                    fontSize: 22,
+                    fontSize: typography.heading,
                     fontWeight: "600",
                     color: "#FFFFFF",
                     marginBottom: 16,
@@ -576,9 +531,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
                   horizontal
                   data={series}
                   keyExtractor={(filmItem) => filmItem.Id!}
-                  renderItem={(props) =>
-                    renderFilmographyItem(props, movies.length === 0)
-                  }
+                  renderItem={renderSeriesItem}
                   showsHorizontalScrollIndicator={false}
                   initialNumToRender={6}
                   maxToRenderPerBatch={4}
@@ -603,7 +556,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
               <Text
                 style={{
                   color: "#737373",
-                  fontSize: 16,
+                  fontSize: typography.callout,
                   marginLeft: SCALE_PADDING,
                 }}
               >

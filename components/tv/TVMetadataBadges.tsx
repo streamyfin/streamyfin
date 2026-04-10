@@ -3,7 +3,7 @@ import React from "react";
 import { View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
-import { TVTypography } from "@/constants/TVTypography";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 export interface TVMetadataBadgesProps {
   year?: number | null;
@@ -14,6 +14,8 @@ export interface TVMetadataBadgesProps {
 
 export const TVMetadataBadges: React.FC<TVMetadataBadgesProps> = React.memo(
   ({ year, duration, officialRating, communityRating }) => {
+    const typography = useScaledTVTypography();
+
     return (
       <View
         style={{
@@ -25,12 +27,12 @@ export const TVMetadataBadges: React.FC<TVMetadataBadgesProps> = React.memo(
         }}
       >
         {year != null && (
-          <Text style={{ color: "white", fontSize: TVTypography.body }}>
+          <Text style={{ color: "white", fontSize: typography.body }}>
             {year}
           </Text>
         )}
         {duration && (
-          <Text style={{ color: "white", fontSize: TVTypography.body }}>
+          <Text style={{ color: "white", fontSize: typography.body }}>
             {duration}
           </Text>
         )}

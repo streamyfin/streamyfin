@@ -1,41 +1,28 @@
 import React from "react";
 import { Dimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export const ItemContentSkeletonTV: React.FC = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <View
       style={{
         flex: 1,
         flexDirection: "row",
-        paddingTop: 180,
-        paddingHorizontal: 160,
+        paddingTop: insets.top + 140,
+        paddingHorizontal: insets.left + 80,
       }}
     >
-      {/* Left side - Poster placeholder */}
-      <View
-        style={{
-          width: SCREEN_WIDTH * 0.22,
-          marginRight: 50,
-        }}
-      >
+      {/* Left side - Content placeholders */}
+      <View style={{ flex: 1 }}>
+        {/* Logo placeholder */}
         <View
           style={{
-            aspectRatio: 2 / 3,
-            borderRadius: 16,
-            backgroundColor: "#1a1a1a",
-          }}
-        />
-      </View>
-
-      {/* Right side - Content placeholders */}
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        {/* Logo/Title placeholder */}
-        <View
-          style={{
-            height: 80,
-            width: "60%",
+            height: 150,
+            width: "80%",
             backgroundColor: "#1a1a1a",
             borderRadius: 8,
             marginBottom: 24,
@@ -152,6 +139,22 @@ export const ItemContentSkeletonTV: React.FC = () => {
             width: 180,
             backgroundColor: "#1a1a1a",
             borderRadius: 12,
+          }}
+        />
+      </View>
+
+      {/* Right side - Poster placeholder */}
+      <View
+        style={{
+          width: SCREEN_WIDTH * 0.22,
+          marginLeft: 50,
+        }}
+      >
+        <View
+          style={{
+            aspectRatio: 2 / 3,
+            borderRadius: 16,
+            backgroundColor: "#1a1a1a",
           }}
         />
       </View>
