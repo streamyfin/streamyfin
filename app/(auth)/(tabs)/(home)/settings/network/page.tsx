@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { LocalNetworkSettings } from "@/components/settings/LocalNetworkSettings";
+import { WakeOnLanSettings } from "@/components/settings/WakeOnLanSettings";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { storage } from "@/utils/mmkv";
 
@@ -41,6 +42,10 @@ export default function NetworkSettingsPage() {
 
         <View className='mt-4'>
           <LocalNetworkSettings />
+        </View>
+
+        <View className='mt-4'>
+          <WakeOnLanSettings />
         </View>
       </View>
     </ScrollView>

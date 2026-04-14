@@ -149,7 +149,19 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "wake_on_lan": {
+          "title": "Wake on LAN",
+          "enable": "Wake server on startup",
+          "enable_description": "Send a magic packet to wake your server when the app starts or resumes",
+          "mac_address": "Server MAC Address",
+          "mac_address_placeholder": "AA:BB:CC:DD:EE:FF",
+          "mac_address_hint": "Enter the MAC address of your Jellyfin server's network interface",
+          "mac_address_invalid": "Invalid MAC address format",
+          "test_packet": "Send Test Packet",
+          "test_success": "Magic packet sent",
+          "test_error": "Failed to send magic packet"
+        }
       },
       "user_info": {
         "user_info_title": "User Info",
