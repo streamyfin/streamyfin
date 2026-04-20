@@ -196,7 +196,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
               step={10}
               min={10}
               max={100}
-              unit='%'
+              appendValue='%'
               onUpdate={(value) =>
                 updateSettings({ subtitleBackgroundOpacity: value })
               }
