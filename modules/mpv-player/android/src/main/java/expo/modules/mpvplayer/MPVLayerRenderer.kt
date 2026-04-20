@@ -447,6 +447,19 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleFontSize(size: Int) {
         MPVLib.setPropertyInt("sub-font-size", size)
     }
+
+    fun setSubtitleBackgroundColor(color: String) {
+        if (color.isEmpty()) {
+            MPVLib.setPropertyString("sub-border-style", "outline-and-shadow")
+            MPVLib.setPropertyString("sub-shadow-offset", "1")
+            MPVLib.setPropertyString("sub-border-size", "3")
+        } else {
+            MPVLib.setPropertyString("sub-back-color", color)
+            MPVLib.setPropertyString("sub-border-style", "background-box")
+            MPVLib.setPropertyString("sub-shadow-offset", "0")
+            MPVLib.setPropertyString("sub-border-size", "0")
+        }
+    }
     
     // MARK: - Audio Track Controls
     

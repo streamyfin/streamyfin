@@ -165,6 +165,10 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleFontSize") { (view: MpvPlayerView, size: Int) in
         view.setSubtitleFontSize(size)
       }
+
+      AsyncFunction("setSubtitleBackgroundColor") { (view: MpvPlayerView, color: String) in
+        view.setSubtitleBackgroundColor(color)
+      }
       
       // Audio track functions
       AsyncFunction("getAudioTracks") { (view: MpvPlayerView) -> [[String: Any]] in

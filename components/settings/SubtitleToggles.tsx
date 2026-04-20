@@ -170,6 +170,39 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
+
+        <ListItem
+          title={t("home.settings.subtitles.subtitle_background")}
+          subtitle={t("home.settings.subtitles.subtitle_background_hint")}
+          disabled={pluginSettings?.subtitleBackground?.locked}
+        >
+          <Switch
+            value={settings.subtitleBackground}
+            disabled={pluginSettings?.subtitleBackground?.locked}
+            onValueChange={(value) =>
+              updateSettings({ subtitleBackground: value })
+            }
+          />
+        </ListItem>
+
+        {settings.subtitleBackground && (
+          <ListItem
+            title={t("home.settings.subtitles.subtitle_background_opacity")}
+            disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
+          >
+            <Stepper
+              value={settings.subtitleBackgroundOpacity}
+              disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
+              step={10}
+              min={10}
+              max={100}
+              unit='%'
+              onUpdate={(value) =>
+                updateSettings({ subtitleBackgroundOpacity: value })
+              }
+            />
+          </ListItem>
+        )}
       </ListGroup>
     </View>
   );

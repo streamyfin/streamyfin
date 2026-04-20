@@ -173,6 +173,8 @@ export type Settings = {
   showCustomMenuLinks: boolean;
   disableHapticFeedback: boolean;
   subtitleSize: number;
+  subtitleBackground: boolean;
+  subtitleBackgroundOpacity: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   useKefinTweaks: boolean;
@@ -258,6 +260,8 @@ export const defaultValues: Settings = {
   showCustomMenuLinks: false,
   disableHapticFeedback: false,
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
+  subtitleBackground: false,
+  subtitleBackgroundOpacity: 40,
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   useKefinTweaks: false,

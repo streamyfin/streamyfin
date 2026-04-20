@@ -271,6 +271,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSubtitleFontSize(size: Int) {
         renderer?.setSubtitleFontSize(size)
     }
+
+    fun setSubtitleBackgroundColor(color: String) {
+        renderer?.setSubtitleBackgroundColor(color)
+    }
     
     // MARK: - Audio Track Controls
     

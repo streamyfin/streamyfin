@@ -750,6 +750,19 @@ final class MPVLayerRenderer {
         setProperty(name: "sub-font-size", value: String(size))
     }
     
+    func setSubtitleBackgroundColor(_ color: String) {
+        if color.isEmpty {
+            setProperty(name: "sub-border-style", value: "outline-and-shadow")
+            setProperty(name: "sub-shadow-offset", value: "1")
+            setProperty(name: "sub-border-size", value: "3")
+        } else {
+            setProperty(name: "sub-back-color", value: color)
+            setProperty(name: "sub-border-style", value: "background-box")
+            setProperty(name: "sub-shadow-offset", value: "0")
+            setProperty(name: "sub-border-size", value: "0")
+        }
+    }
+    
     // MARK: - Audio Track Controls
     
     func getAudioTracks() -> [[String: Any]] {

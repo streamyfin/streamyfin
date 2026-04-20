@@ -880,6 +880,17 @@ export default function page() {
       if (settings.subtitleSize) {
         await videoRef.current?.setSubtitleFontSize?.(settings.subtitleSize);
       }
+      if (settings.subtitleBackground !== undefined) {
+        const alpha = Math.round(
+          (settings.subtitleBackgroundOpacity / 100) * 255,
+        )
+          .toString(16)
+          .padStart(2, "0")
+          .toUpperCase();
+        await videoRef.current?.setSubtitleBackgroundColor?.(
+          settings.subtitleBackground ? `#${alpha}000000` : "",
+        );
+      }
     };
 
     applySubtitleSettings();
