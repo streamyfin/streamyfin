@@ -213,6 +213,7 @@
         "subtitle_background": "Subtitle Background",
         "subtitle_background_hint": "Adds a semi-transparent black background behind subtitles",
         "subtitle_background_opacity": "Background Opacity",
+        "subtitle_background_padding": "Background Padding",
         "none": "None",
         "language": "Language",
         "loading": "Loading",

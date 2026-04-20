@@ -157,8 +157,8 @@ class MpvPlayerModule : Module() {
                 view.setSubtitleFontSize(size)
             }
 
-            AsyncFunction("setSubtitleBackgroundColor") { view: MpvPlayerView, color: String ->
-                view.setSubtitleBackgroundColor(color)
+            AsyncFunction("setSubtitleBackgroundStyle") { view: MpvPlayerView, color: String, padding: Int ->
+                view.setSubtitleBackgroundStyle(color, padding)
             }
 
             // Audio track functions

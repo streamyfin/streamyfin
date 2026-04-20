@@ -84,8 +84,8 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       setSubtitleFontSize: async (size: number) => {
         await nativeRef.current?.setSubtitleFontSize(size);
       },
-      setSubtitleBackgroundColor: async (color: string) => {
-        await nativeRef.current?.setSubtitleBackgroundColor(color);
+      setSubtitleBackgroundStyle: async (color: string, padding: number) => {
+        await nativeRef.current?.setSubtitleBackgroundStyle(color, padding);
       },
       // Audio controls
       getAudioTracks: async () => {

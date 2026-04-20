@@ -110,8 +110,8 @@ export const usePlayerControls = () => {
       playerRef.current?.setSubtitleMarginY?.(margin),
     setSubtitleFontSize: (size: number) =>
       playerRef.current?.setSubtitleFontSize?.(size),
-    setSubtitleBackgroundColor: (color: string) =>
-      playerRef.current?.setSubtitleBackgroundColor?.(color),
+    setSubtitleBackgroundStyle: (color: string, padding: number) =>
+      playerRef.current?.setSubtitleBackgroundStyle?.(color, padding),
 
     // PiP
     startPictureInPicture: () => playerRef.current?.startPictureInPicture?.(),

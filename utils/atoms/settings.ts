@@ -175,6 +175,7 @@ export type Settings = {
   subtitleSize: number;
   subtitleBackground: boolean;
   subtitleBackgroundOpacity: number;
+  subtitleBackgroundPadding: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   useKefinTweaks: boolean;
@@ -262,6 +263,7 @@ export const defaultValues: Settings = {
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   subtitleBackground: false,
   subtitleBackgroundOpacity: 40,
+  subtitleBackgroundPadding: 18,
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   useKefinTweaks: false,

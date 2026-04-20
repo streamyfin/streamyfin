@@ -887,8 +887,9 @@ export default function page() {
           .toString(16)
           .padStart(2, "0")
           .toUpperCase();
-        await videoRef.current?.setSubtitleBackgroundColor?.(
+        await videoRef.current?.setSubtitleBackgroundStyle?.(
           settings.subtitleBackground ? `#${alpha}000000` : "",
+          settings.subtitleBackgroundPadding || 0,
         );
       }
     };
