@@ -34,8 +34,14 @@ export const SubtitleColorPicker: React.FC<Props> = ({
           <TouchableOpacity
             key={color.value}
             onPress={() => updateSettings({ subtitleColor: color.value })}
-            className={`w-6 h-6 rounded-full border-2 ${settings.subtitleColor === color.value ? "border-white" : "border-transparent"}`}
-            style={{ backgroundColor: color.value }}
+            className='w-6 h-6 rounded-full border-2'
+            style={{
+              backgroundColor: color.value,
+              borderColor:
+                settings.subtitleColor === color.value
+                  ? "white"
+                  : "transparent",
+            }}
           />
         ))}
       </View>

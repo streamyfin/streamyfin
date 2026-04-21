@@ -7,6 +7,7 @@ import { useSettings } from "@/utils/atoms/settings";
 export const SubtitlePreview = () => {
   const { settings } = useSettings();
   const [assetUri, setAssetUri] = useState<string | null>(null);
+  const [playerReady, setPlayerReady] = useState(false);
   const playerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export const SubtitlePreview = () => {
   }, []);
 
   const applyStyle = async () => {
-    if (!playerRef.current) return;
+    if (!playerRef.current || !playerReady) return;
 
     const alpha = Math.round((settings.subtitleBackgroundOpacity / 100) * 255)
       .toString(16)
@@ -49,7 +50,7 @@ export const SubtitlePreview = () => {
 
   useEffect(() => {
     applyStyle();
-  }, [settings, assetUri]);
+  }, [settings, assetUri, playerReady]);
 
   if (!assetUri) {
     return (
@@ -71,7 +72,7 @@ export const SubtitlePreview = () => {
           loop: true,
         }}
         onLoad={() => {
-          applyStyle();
+          setPlayerReady(true);
         }}
       />
     </View>
