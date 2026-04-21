@@ -37,7 +37,8 @@ class MpvPlayerModule : Module() {
                     startPosition = (source["startPosition"] as? Number)?.toDouble(),
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
-                    initialAudioId = (source["initialAudioId"] as? Number)?.toInt()
+                    initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
+                    loop = (source["loop"] as? Boolean) ?: false
                 )
                 
                 view.loadVideo(config)
@@ -153,12 +154,8 @@ class MpvPlayerModule : Module() {
                 view.setSubtitleAlignY(alignment)
             }
 
-            AsyncFunction("setSubtitleFontSize") { view: MpvPlayerView, size: Int ->
-                view.setSubtitleFontSize(size)
-            }
-
-            AsyncFunction("setSubtitleBackgroundStyle") { view: MpvPlayerView, color: String, padding: Int ->
-                view.setSubtitleBackgroundStyle(color, padding)
+            AsyncFunction("setSubtitleStyle") { view: MpvPlayerView, config: Map<String, Any> ->
+                view.setSubtitleStyle(config)
             }
 
             // Audio track functions

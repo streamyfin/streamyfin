@@ -2,7 +2,11 @@ import { requireNativeView } from "expo";
 import * as React from "react";
 import { useImperativeHandle, useRef } from "react";
 
-import { MpvPlayerViewProps, MpvPlayerViewRef } from "./MpvPlayer.types";
+import {
+  MpvPlayerViewProps,
+  MpvPlayerViewRef,
+  SubtitleStyleConfig,
+} from "./MpvPlayer.types";
 
 const NativeView: React.ComponentType<MpvPlayerViewProps & { ref?: any }> =
   requireNativeView("MpvPlayer");
@@ -81,11 +85,8 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       setSubtitleAlignY: async (alignment: "top" | "center" | "bottom") => {
         await nativeRef.current?.setSubtitleAlignY(alignment);
       },
-      setSubtitleFontSize: async (size: number) => {
-        await nativeRef.current?.setSubtitleFontSize(size);
-      },
-      setSubtitleBackgroundStyle: async (color: string, padding: number) => {
-        await nativeRef.current?.setSubtitleBackgroundStyle(color, padding);
+      setSubtitleStyle: async (style: SubtitleStyleConfig) => {
+        await nativeRef.current?.setSubtitleStyle(style);
       },
       // Audio controls
       getAudioTracks: async () => {

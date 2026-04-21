@@ -266,7 +266,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         startPosition: Double? = null,
         externalSubtitles: List<String>? = null,
         initialSubtitleId: Int? = null,
-        initialAudioId: Int? = null
+        initialAudioId: Int? = null,
+        loop: Boolean = false
     ) {
         currentUrl = url
         currentHeaders = headers
@@ -283,6 +284,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         
         // Set HTTP headers if provided
         updateHttpHeaders(headers)
+
+        // Set looping
+        MPVLib.setPropertyString("loop-file", if (loop) "inf" else "no")
         
         // Set start position
         if (startPosition != null && startPosition > 0) {
@@ -444,20 +448,33 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         MPVLib.setPropertyString("sub-align-y", alignment)
     }
     
-    fun setSubtitleFontSize(size: Int) {
-        MPVLib.setPropertyInt("sub-font-size", size)
-    }
-
-    fun setSubtitleBackgroundStyle(color: String, padding: Int) {
-        if (color.isEmpty()) {
-            MPVLib.setPropertyString("sub-border-style", "outline-and-shadow")
-            MPVLib.setPropertyString("sub-shadow-offset", "1")
-            MPVLib.setPropertyString("sub-border-size", "3")
-        } else {
-            MPVLib.setPropertyString("sub-back-color", color)
-            MPVLib.setPropertyString("sub-border-style", "background-box")
-            MPVLib.setPropertyString("sub-shadow-offset", padding.toString())
-            MPVLib.setPropertyString("sub-border-size", "0")
+    fun setSubtitleStyle(config: Map<String, Any>) {
+        (config["fontSize"] as? Number)?.let {
+            MPVLib.setPropertyInt("sub-font-size", it.toInt())
+        }
+        
+        (config["color"] as? String)?.let {
+            MPVLib.setPropertyString("sub-color", it)
+        }
+        
+        (config["font"] as? String)?.let {
+            if (it != "System") {
+                MPVLib.setPropertyString("sub-font", it)
+            }
+        }
+        
+        (config["background"] as? String)?.let { background ->
+            if (background.isEmpty()) {
+                MPVLib.setPropertyString("sub-border-style", "outline-and-shadow")
+                MPVLib.setPropertyString("sub-shadow-offset", "1")
+                MPVLib.setPropertyString("sub-border-size", "3")
+            } else {
+                MPVLib.setPropertyString("sub-back-color", background)
+                MPVLib.setPropertyString("sub-border-style", "background-box")
+                val padding = (config["backgroundPadding"] as? Number)?.toInt() ?: 18
+                MPVLib.setPropertyString("sub-shadow-offset", padding.toString())
+                MPVLib.setPropertyString("sub-border-size", "0")
+            }
         }
     }
     

@@ -243,7 +243,8 @@ final class MPVLayerRenderer {
         startPosition: Double? = nil,
         externalSubtitles: [String]? = nil,
         initialSubtitleId: Int? = nil,
-        initialAudioId: Int? = nil
+        initialAudioId: Int? = nil,
+        loop: Bool = false
     ) {
         currentPreset = preset
         currentURL = url
@@ -266,6 +267,10 @@ final class MPVLayerRenderer {
             // Stop previous playback before loading new file
             self.command(handle, ["stop"])
             self.updateHTTPHeaders(headers)
+
+            // Set looping
+            self.setProperty(name: "loop-file", value: loop ? "inf" : "no")
+
             // Set start position
             if let startPos = startPosition, startPos > 0 {
                 self.setProperty(name: "start", value: String(format: "%.2f", startPos))
@@ -746,20 +751,33 @@ final class MPVLayerRenderer {
         setProperty(name: "sub-align-y", value: alignment)
     }
     
-    func setSubtitleFontSize(_ size: Int) {
-        setProperty(name: "sub-font-size", value: String(size))
-    }
-    
-    func setSubtitleBackgroundStyle(color: String, padding: Int) {
-        if color.isEmpty {
-            setProperty(name: "sub-border-style", value: "outline-and-shadow")
-            setProperty(name: "sub-shadow-offset", value: "1")
-            setProperty(name: "sub-border-size", value: "3")
-        } else {
-            setProperty(name: "sub-back-color", value: color)
-            setProperty(name: "sub-border-style", value: "background-box")
-            setProperty(name: "sub-shadow-offset", value: String(padding))
-            setProperty(name: "sub-border-size", value: "0")
+    func setSubtitleStyle(config: [String: Any]) {
+        if let fontSize = config["fontSize"] as? Int {
+            setProperty(name: "sub-font-size", value: String(fontSize))
+        }
+        
+        if let color = config["color"] as? String {
+            setProperty(name: "sub-color", value: color)
+        }
+        
+        if let font = config["font"] as? String {
+            if font != "System" {
+                setProperty(name: "sub-font", value: font)
+            }
+        }
+        
+        if let background = config["background"] as? String {
+            if background.isEmpty {
+                setProperty(name: "sub-border-style", value: "outline-and-shadow")
+                setProperty(name: "sub-shadow-offset", value: "1")
+                setProperty(name: "sub-border-size", value: "3")
+            } else {
+                setProperty(name: "sub-back-color", value: background)
+                setProperty(name: "sub-border-style", value: "background-box")
+                let padding = config["backgroundPadding"] as? Int ?? 18
+                setProperty(name: "sub-shadow-offset", value: String(padding))
+                setProperty(name: "sub-border-size", value: "0")
+            }
         }
     }
     

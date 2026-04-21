@@ -176,6 +176,8 @@ export type Settings = {
   subtitleBackground: boolean;
   subtitleBackgroundOpacity: number;
   subtitleBackgroundPadding: number;
+  subtitleFont: string;
+  subtitleColor: string;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   useKefinTweaks: boolean;
@@ -264,6 +266,8 @@ export const defaultValues: Settings = {
   subtitleBackground: false,
   subtitleBackgroundOpacity: 40,
   subtitleBackgroundPadding: 18,
+  subtitleFont: "System",
+  subtitleColor: "#FFFFFF",
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   useKefinTweaks: false,

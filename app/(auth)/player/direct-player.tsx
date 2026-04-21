@@ -871,27 +871,18 @@ export default function page() {
       if (settings.mpvSubtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
-      if (settings.mpvSubtitleFontSize !== undefined) {
-        await videoRef.current?.setSubtitleFontSize?.(
-          settings.mpvSubtitleFontSize,
-        );
-      }
-      // Apply subtitle size from general settings
-      if (settings.subtitleSize) {
-        await videoRef.current?.setSubtitleFontSize?.(settings.subtitleSize);
-      }
-      if (settings.subtitleBackground !== undefined) {
-        const alpha = Math.round(
-          (settings.subtitleBackgroundOpacity / 100) * 255,
-        )
-          .toString(16)
-          .padStart(2, "0")
-          .toUpperCase();
-        await videoRef.current?.setSubtitleBackgroundStyle?.(
-          settings.subtitleBackground ? `#${alpha}000000` : "",
-          settings.subtitleBackgroundPadding || 0,
-        );
-      }
+      const alpha = Math.round((settings.subtitleBackgroundOpacity / 100) * 255)
+        .toString(16)
+        .padStart(2, "0")
+        .toUpperCase();
+
+      await videoRef.current?.setSubtitleStyle?.({
+        fontSize: settings.mpvSubtitleFontSize || settings.subtitleSize,
+        color: settings.subtitleColor,
+        font: settings.subtitleFont,
+        background: settings.subtitleBackground ? `#${alpha}000000` : "",
+        backgroundPadding: settings.subtitleBackgroundPadding,
+      });
     };
 
     applySubtitleSettings();

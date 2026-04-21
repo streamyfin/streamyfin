@@ -18,6 +18,7 @@ export type {
   OnPlaybackStateChangePayload as MpvOnPlaybackStateChangePayload,
   OnProgressEventPayload as MpvOnProgressEventPayload,
   OnTracksReadyEventPayload as MpvOnTracksReadyEventPayload,
+  SubtitleStyleConfig,
   SubtitleTrack as MpvSubtitleTrack,
   VideoSource as MpvVideoSource,
 } from "./mpv-player";

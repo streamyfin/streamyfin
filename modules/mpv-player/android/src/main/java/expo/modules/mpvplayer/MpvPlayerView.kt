@@ -21,7 +21,8 @@ data class VideoLoadConfig(
     val startPosition: Double? = null,
     val autoplay: Boolean = true,
     val initialSubtitleId: Int? = null,
-    val initialAudioId: Int? = null
+    val initialAudioId: Int? = null,
+    val loop: Boolean = false
 )
 
 /**
@@ -148,7 +149,8 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             startPosition = config.startPosition,
             externalSubtitles = config.externalSubtitles,
             initialSubtitleId = config.initialSubtitleId,
-            initialAudioId = config.initialAudioId
+            initialAudioId = config.initialAudioId,
+            loop = config.loop
         )
         
         if (config.autoplay) {
@@ -268,14 +270,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         renderer?.setSubtitleAlignY(alignment)
     }
     
-    fun setSubtitleFontSize(size: Int) {
-        renderer?.setSubtitleFontSize(size)
+    fun setSubtitleStyle(config: Map<String, Any>) {
+        renderer?.setSubtitleStyle(config)
     }
 
-    fun setSubtitleBackgroundStyle(color: String, padding: Int) {
-        renderer?.setSubtitleBackgroundStyle(color, padding)
-    }
-    
     // MARK: - Audio Track Controls
     
     fun getAudioTracks(): List<Map<String, Any>> {

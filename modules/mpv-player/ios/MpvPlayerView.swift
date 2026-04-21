@@ -15,6 +15,7 @@ struct VideoLoadConfig {
 	var initialSubtitleId: Int?
 	/// MPV audio track ID to select on start (1-based, nil to use default)
 	var initialAudioId: Int?
+	var loop: Bool
 	
 	init(
 		url: URL,
@@ -23,7 +24,8 @@ struct VideoLoadConfig {
 		startPosition: Double? = nil,
 		autoplay: Bool = true,
 		initialSubtitleId: Int? = nil,
-		initialAudioId: Int? = nil
+		initialAudioId: Int? = nil,
+		loop: Bool = false
 	) {
 		self.url = url
 		self.headers = headers
@@ -32,6 +34,7 @@ struct VideoLoadConfig {
 		self.autoplay = autoplay
 		self.initialSubtitleId = initialSubtitleId
 		self.initialAudioId = initialAudioId
+		self.loop = loop
 	}
 }
 
@@ -206,7 +209,8 @@ class MpvPlayerView: ExpoView {
 			startPosition: config.startPosition,
 			externalSubtitles: config.externalSubtitles,
 			initialSubtitleId: config.initialSubtitleId,
-			initialAudioId: config.initialAudioId
+			initialAudioId: config.initialAudioId,
+			loop: config.loop
 		)
 		
 		if config.autoplay {
@@ -349,16 +353,8 @@ class MpvPlayerView: ExpoView {
 		renderer?.setSubtitleAlignY(alignment)
 	}
 	
-	func setSubtitleFontSize(_ size: Int) {
-		renderer?.setSubtitleFontSize(size)
-	}
-
-	func setSubtitleFontSize(_ size: Int) {
-		renderer?.setSubtitleFontSize(size)
-	}
-
-	func setSubtitleBackgroundStyle(color: String, padding: Int) {
-		renderer?.setSubtitleBackgroundStyle(color: color, padding: padding)
+	func setSubtitleStyle(config: [String: Any]) {
+		renderer?.setSubtitleStyle(config: config)
 	}
 
 	// MARK: - Video Scaling

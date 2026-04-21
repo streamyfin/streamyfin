@@ -46,6 +46,8 @@ export type VideoSource = {
   externalSubtitles?: string[];
   startPosition?: number;
   autoplay?: boolean;
+  /** Whether to loop the video indefinitely */
+  loop?: boolean;
   /** MPV subtitle track ID to select on start (1-based, -1 to disable) */
   initialSubtitleId?: number;
   /** MPV audio track ID to select on start (1-based) */
@@ -65,6 +67,14 @@ export type MpvPlayerViewProps = {
   onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
 };
+
+export interface SubtitleStyleConfig {
+  fontSize?: number;
+  color?: string;
+  font?: string;
+  background?: string; // hex color with alpha
+  backgroundPadding?: number;
+}
 
 export interface MpvPlayerViewRef {
   play: () => Promise<void>;
@@ -92,8 +102,7 @@ export interface MpvPlayerViewRef {
   setSubtitleMarginY: (margin: number) => Promise<void>;
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
-  setSubtitleFontSize: (size: number) => Promise<void>;
-  setSubtitleBackgroundStyle: (color: string, padding: number) => Promise<void>;
+  setSubtitleStyle: (style: SubtitleStyleConfig) => Promise<void>;
   // Audio controls
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;

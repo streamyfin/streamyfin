@@ -9,7 +9,7 @@ import React, {
   useContext,
   useMemo,
 } from "react";
-import type { MpvPlayerViewRef } from "@/modules";
+import type { MpvPlayerViewRef, SubtitleStyleConfig } from "@/modules";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 
 interface PlayerContextProps {
@@ -106,12 +106,10 @@ export const usePlayerControls = () => {
       playerRef.current?.setSubtitleScale?.(scale),
     setSubtitlePosition: (position: number) =>
       playerRef.current?.setSubtitlePosition?.(position),
-    setSubtitleMarginY: (margin: number) =>
-      playerRef.current?.setSubtitleMarginY?.(margin),
-    setSubtitleFontSize: (size: number) =>
-      playerRef.current?.setSubtitleFontSize?.(size),
-    setSubtitleBackgroundStyle: (color: string, padding: number) =>
-      playerRef.current?.setSubtitleBackgroundStyle?.(color, padding),
+    setSubtitleAlignY: (alignment: "top" | "center" | "bottom") =>
+      playerRef.current?.setSubtitleAlignY?.(alignment),
+    setSubtitleStyle: (style: SubtitleStyleConfig) =>
+      playerRef.current?.setSubtitleStyle?.(style),
 
     // PiP
     startPictureInPicture: () => playerRef.current?.startPictureInPicture?.(),
