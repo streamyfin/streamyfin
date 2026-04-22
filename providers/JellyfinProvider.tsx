@@ -26,7 +26,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { writeDebugLog, writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
   type AccountSecurityType,
@@ -144,35 +144,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       (h) => h.enabled && h.key.trim(),
     );
 
-    console.log("[CustomHeaders] Axios interceptor - Server URL:", serverUrl);
-    console.log(
-      "[CustomHeaders] Axios interceptor - Custom headers:",
-      JSON.stringify(customHeaders, null, 2),
-    );
-    console.log(
-      "[CustomHeaders] Axios interceptor - Active headers:",
-      JSON.stringify(activeHeaders, null, 2),
-    );
+    writeDebugLog("[CustomHeaders] Axios interceptor setup", {
+      serverUrl,
+      activeHeaderCount: activeHeaders.length,
+    });
 
     if (activeHeaders.length > 0) {
       axiosInterceptorRef.current = api.axiosInstance.interceptors.request.use(
         (config) => {
-          console.log(
-            "[CustomHeaders] Injecting headers into request:",
-            config.url,
-          );
           for (const { key, value } of activeHeaders) {
             config.headers.set(key, value);
-            console.log(
-              `[CustomHeaders] Set header: ${key} = ${value.substring(0, 10)}...`,
-            );
           }
           return config;
         },
       );
-      console.log("[CustomHeaders] Axios interceptor registered");
-    } else {
-      console.log("[CustomHeaders] No active headers to inject");
     }
   }, [api]);
 

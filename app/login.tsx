@@ -25,7 +25,7 @@ import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { HEADER_PRESETS } from "@/utils/customHeaderPresets";
-import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
+import { writeDebugLog } from "@/utils/log";
 import type {
   AccountSecurityType,
   CustomHeader,
@@ -220,48 +220,55 @@ const Login: React.FC = () => {
    * - Sets loadingServerCheck state to true at the beginning and false at the end.
    * - Logs errors and timeout information to the console.
    */
-  const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
-    const baseUrl = url.replace(/^https?:\/\//i, "");
-    const protocols = ["https", "http"];
-    try {
-      return checkHttp(baseUrl, protocols);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Server too old") {
-        throw e;
+  const checkUrl = useCallback(
+    async (url: string, pendingHeaders?: CustomHeader[]) => {
+      setLoadingServerCheck(true);
+      const baseUrl = url.replace(/^https?:\/\//i, "");
+      const protocols = ["https", "http"];
+      try {
+        return checkHttp(baseUrl, protocols, pendingHeaders);
+      } catch (e) {
+        if (e instanceof Error && e.message === "Server too old") {
+          throw e;
+        }
+        return undefined;
+      } finally {
+        setLoadingServerCheck(false);
       }
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  async function checkHttp(baseUrl: string, protocols: string[]) {
+  async function checkHttp(
+    baseUrl: string,
+    protocols: string[],
+    pendingHeaders?: CustomHeader[],
+  ) {
     for (const protocol of protocols) {
       try {
         const serverUrl = `${protocol}://${baseUrl}`;
-        const customHeaders = getCustomHeaders(serverUrl);
 
-        console.log("[CustomHeaders] checkHttp - Server URL:", serverUrl);
-        console.log(
-          "[CustomHeaders] checkHttp - Retrieved headers:",
-          JSON.stringify(customHeaders, null, 2),
-        );
+        // Build headers: use pendingHeaders if provided, otherwise fall back to stored headers
+        const headersToInject: Record<string, string> = {};
+        const source = pendingHeaders ?? [];
+        for (const { key, value, enabled } of source) {
+          if (enabled && key.trim()) headersToInject[key] = value;
+        }
+
+        writeDebugLog("[CustomHeaders] checkHttp attempting", {
+          serverUrl,
+          headerCount: source.length,
+        });
 
         const response = await fetch(`${serverUrl}/System/Info/Public`, {
           mode: "cors",
-          headers: customHeaders,
+          headers: headersToInject,
         });
 
-        console.log("[CustomHeaders] Response status:", response.status);
-        console.log(
-          "[CustomHeaders] Response headers:",
-          JSON.stringify(
-            Object.fromEntries(response.headers.entries()),
-            null,
-            2,
-          ),
-        );
+        writeDebugLog("[CustomHeaders] checkHttp response", {
+          serverUrl,
+          status: response.status,
+        });
 
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
@@ -275,20 +282,19 @@ const Login: React.FC = () => {
               throw new Error("Server too old");
             }
           }
+          // Save headers now that we know which protocol worked
+          if (pendingHeaders && pendingHeaders.length > 0) {
+            updateServerCustomHeaders(serverUrl, pendingHeaders);
+            writeDebugLog("[CustomHeaders] headers saved", { serverUrl });
+          }
           setServerName(data.ServerName || "");
           return serverUrl;
         }
       } catch (e) {
-        console.log(
-          "[CustomHeaders] Fetch error for",
-          `${protocol}://${baseUrl}`,
-          ":",
-          e,
-        );
-        if (e instanceof Error) {
-          console.log("[CustomHeaders] Error message:", e.message);
-          console.log("[CustomHeaders] Error stack:", e.stack);
-        }
+        writeDebugLog("[CustomHeaders] checkHttp error", {
+          url: `${protocol}://${baseUrl}`,
+          error: e instanceof Error ? e.message : String(e),
+        });
         if (e instanceof Error && e.message === "Server too old") {
           throw e;
         }
@@ -313,10 +319,10 @@ const Login: React.FC = () => {
    *
    */
   const handleConnect = useCallback(
-    async (url: string) => {
+    async (url: string, pendingHeaders?: CustomHeader[]) => {
       url = url.trim().replace(/\/$/, "");
       try {
-        const result = await checkUrl(url);
+        const result = await checkUrl(url, pendingHeaders);
         if (result === undefined) {
           Alert.alert(
             t("login.connection_failed"),
@@ -327,7 +333,7 @@ const Login: React.FC = () => {
         await setServer({ address: result });
       } catch {}
     },
-    [pendingHeaders],
+    [checkUrl],
   );
 
   const handleQuickConnect = async () => {
@@ -759,31 +765,10 @@ const Login: React.FC = () => {
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
-                  // Save pending headers before connecting
-                  if (pendingHeaders.length > 0 && serverURL) {
-                    // Strip protocol to get just the domain for storage key
-                    const domain = serverURL.replace(/^https?:\/\//, "");
-                    console.log(
-                      "[CustomHeaders] Saving headers for domain:",
-                      domain,
-                    );
-                    console.log(
-                      "[CustomHeaders] Headers:",
-                      JSON.stringify(pendingHeaders, null, 2),
-                    );
-                    // Save with both http and https variants so checkHttp can find them
-                    updateServerCustomHeaders(
-                      `https://${domain}`,
-                      pendingHeaders,
-                    );
-                    updateServerCustomHeaders(
-                      `http://${domain}`,
-                      pendingHeaders,
-                    );
-                  } else {
-                    console.log("[CustomHeaders] No pending headers to save");
-                  }
-                  await handleConnect(serverURL);
+                  await handleConnect(
+                    serverURL,
+                    pendingHeaders.length > 0 ? pendingHeaders : undefined,
+                  );
                 }}
                 className='w-full grow'
               >
