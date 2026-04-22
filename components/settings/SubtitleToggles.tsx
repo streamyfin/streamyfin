@@ -30,7 +30,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   return (
     <View {...props}>
       <ListGroup
-        title={t("home.settings.subtitles.subtitle_title") || "Subtitles"}
+        title={t("home.settings.subtitles.subtitle_title")}
         description={
           <Text className='text-[#8E8D91] text-xs'>
             {t("home.settings.subtitles.subtitle_hint")}
