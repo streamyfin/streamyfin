@@ -52,6 +52,7 @@ class MpvPlayerView: ExpoView {
 	let onTracksReady = EventDispatcher()
 
 	private var currentURL: URL?
+	private var currentLoop: Bool = false
 	private var cachedPosition: Double = 0
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false
