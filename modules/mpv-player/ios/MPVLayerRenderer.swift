@@ -766,7 +766,18 @@ final class MPVLayerRenderer {
             if font == "System" {
                 setProperty(name: "sub-font", value: "")
             } else {
-                setProperty(name: "sub-font", value: font)
+                let mappedFont: String
+                switch font {
+                case "sans-serif":
+                    mappedFont = "Helvetica"
+                case "serif":
+                    mappedFont = "Georgia"
+                case "monospace":
+                    mappedFont = "Menlo"
+                default:
+                    mappedFont = font
+                }
+                setProperty(name: "sub-font", value: mappedFont)
             }
         }
         

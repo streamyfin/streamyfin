@@ -457,11 +457,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setPropertyString("sub-color", it)
         }
         
-        (config["font"] as? String)?.let {
-            if (it == "System") {
-                MPVLib.setPropertyString("sub-font", "")
-            } else {
-                MPVLib.setPropertyString("sub-font", it)
+        (config["font"] as? String)?.let { font ->
+            when (font) {
+                "System" -> MPVLib.setPropertyString("sub-font", "")
+                "sans-serif" -> MPVLib.setPropertyString("sub-font", "Roboto, Noto Sans")
+                "serif" -> MPVLib.setPropertyString("sub-font", "Roboto Serif, Noto Serif")
+                "monospace" -> MPVLib.setPropertyString("sub-font", "Roboto Mono, Noto Sans Mono")
+                else -> MPVLib.setPropertyString("sub-font", font)
             }
         }
         
