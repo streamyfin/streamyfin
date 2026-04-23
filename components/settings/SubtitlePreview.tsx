@@ -1,5 +1,5 @@
 import { Asset } from "expo-asset";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { MpvPlayerView } from "@/modules/mpv-player";
 import { useSettings } from "@/utils/atoms/settings";
@@ -36,7 +36,7 @@ export const SubtitlePreview = React.memo(() => {
     };
   }, []);
 
-  const applyStyle = async () => {
+  const applyStyle = useCallback(async () => {
     if (!playerRef.current || !playerReady) return;
 
     const alpha = Math.round((settings.subtitleBackgroundOpacity / 100) * 255)
@@ -51,11 +51,13 @@ export const SubtitlePreview = React.memo(() => {
       background: settings.subtitleBackground ? `#${alpha}000000` : "",
       backgroundPadding: settings.subtitleBackgroundPadding || 18,
     });
-  };
+  }, [settings, playerReady, playerRef]);
 
   useEffect(() => {
-    applyStyle();
-  }, [settings, assetUri, playerReady]);
+    applyStyle().catch((err: unknown) =>
+      console.error("Failed to apply subtitle style:", err),
+    );
+  }, [applyStyle, assetUri]);
 
   if (isLoading) {
     return (

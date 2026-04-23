@@ -235,7 +235,9 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
                 accessibilityLabel={`Color ${color.name}`}
                 accessibilityState={{
                   disabled: !!pluginSettings?.subtitleColor?.locked,
+                  selected: settings.subtitleColor === color.value,
                 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 onPress={() => {
                   if (!pluginSettings?.subtitleColor?.locked) {
                     updateSettings({ subtitleColor: color.value });

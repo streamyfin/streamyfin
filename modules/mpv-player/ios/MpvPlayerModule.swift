@@ -1,6 +1,15 @@
 import ExpoModulesCore
 
 public class MpvPlayerModule: Module {
+  private func parseNumericTrackId(_ value: Any?) -> Int? {
+    if let intValue = value as? Int {
+      return intValue
+    } else if let doubleValue = value as? Double {
+      return Int(doubleValue)
+    }
+    return nil
+  }
+
   public func definition() -> ModuleDefinition {
     Name("MpvPlayer")
 

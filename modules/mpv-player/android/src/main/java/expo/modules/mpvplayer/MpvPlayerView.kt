@@ -48,6 +48,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var pipController: PiPController? = null
     
     private var currentUrl: String? = null
+    private var currentLoop: Boolean = false
     private var cachedPosition: Double = 0.0
     private var cachedDuration: Double = 0.0
     private var intendedPlayState: Boolean = false
@@ -142,6 +143,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     
     private fun loadVideoInternal(config: VideoLoadConfig) {
         currentUrl = config.url
+        currentLoop = config.loop
         
         renderer?.load(
             url = config.url,

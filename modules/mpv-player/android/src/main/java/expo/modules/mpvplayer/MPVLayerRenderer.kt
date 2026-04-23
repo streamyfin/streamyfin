@@ -458,7 +458,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         }
         
         (config["font"] as? String)?.let {
-            if (it != "System") {
+            if (it == "System") {
+                MPVLib.setPropertyString("sub-font", "")
+            } else {
                 MPVLib.setPropertyString("sub-font", it)
             }
         }

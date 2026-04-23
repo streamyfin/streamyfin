@@ -871,7 +871,11 @@ export default function page() {
       if (settings.mpvSubtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
-      const alpha = Math.round((settings.subtitleBackgroundOpacity / 100) * 255)
+      const opacity = Math.min(
+        Math.max(Number(settings.subtitleBackgroundOpacity) || 100, 0),
+        100,
+      );
+      const alpha = Math.round((opacity / 100) * 255)
         .toString(16)
         .padStart(2, "0")
         .toUpperCase();
