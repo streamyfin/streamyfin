@@ -754,6 +754,8 @@ final class MPVLayerRenderer {
     func setSubtitleStyle(config: [String: Any]) {
         if let fontSize = config["fontSize"] as? Int {
             setProperty(name: "sub-font-size", value: String(fontSize))
+        } else if let fontSizeDouble = config["fontSize"] as? Double {
+            setProperty(name: "sub-font-size", value: String(Int(fontSizeDouble)))
         }
         
         if let color = config["color"] as? String {
@@ -761,7 +763,9 @@ final class MPVLayerRenderer {
         }
         
         if let font = config["font"] as? String {
-            if font != "System" {
+            if font == "System" {
+                setProperty(name: "sub-font", value: "")
+            } else {
                 setProperty(name: "sub-font", value: font)
             }
         }
@@ -774,7 +778,14 @@ final class MPVLayerRenderer {
             } else {
                 setProperty(name: "sub-back-color", value: background)
                 setProperty(name: "sub-border-style", value: "background-box")
-                let padding = config["backgroundPadding"] as? Int ?? 18
+                let padding: Int
+                if let pInt = config["backgroundPadding"] as? Int {
+                    padding = pInt
+                } else if let pDouble = config["backgroundPadding"] as? Double {
+                    padding = Int(pDouble)
+                } else {
+                    padding = 18
+                }
                 setProperty(name: "sub-shadow-offset", value: String(padding))
                 setProperty(name: "sub-border-size", value: "0")
             }

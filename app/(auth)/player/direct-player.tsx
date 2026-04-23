@@ -877,7 +877,7 @@ export default function page() {
         .toUpperCase();
 
       await videoRef.current?.setSubtitleStyle?.({
-        fontSize: settings.mpvSubtitleFontSize || settings.subtitleSize,
+        fontSize: settings.subtitleSize ?? settings.mpvSubtitleFontSize,
         color: settings.subtitleColor,
         font: settings.subtitleFont,
         background: settings.subtitleBackground ? `#${alpha}000000` : "",

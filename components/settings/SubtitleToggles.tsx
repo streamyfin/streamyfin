@@ -5,13 +5,13 @@ import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
 import { Stepper } from "@/components/inputs/Stepper";
+import { SubtitlePreview } from "@/components/settings/SubtitlePreview";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { PlatformDropdown } from "../PlatformDropdown";
 import { useMedia } from "./MediaContext";
-import { SubtitlePreview } from "./SubtitlePreview";
 
 interface Props extends ViewProps {}
 
@@ -100,7 +100,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
       label: font.label,
       value: font.value,
       selected: font.value === settings?.subtitleFont,
-      onPress: () => updateSettings({ subtitleFont: font.value }),
+      onPress: () => {
+        if (!pluginSettings?.subtitleFont?.locked) {
+          updateSettings({ subtitleFont: font.value });
+        }
+      },
     }));
 
     return [
@@ -108,7 +112,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         options,
       },
     ];
-  }, [settings?.subtitleFont, updateSettings]);
+  }, [
+    settings?.subtitleFont,
+    pluginSettings?.subtitleFont?.locked,
+    updateSettings,
+  ]);
 
   const subtitleColors = [
     { name: "White", value: "#FFFFFF" },
@@ -222,7 +230,17 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             {subtitleColors.map((color) => (
               <TouchableOpacity
                 key={color.value}
-                onPress={() => updateSettings({ subtitleColor: color.value })}
+                disabled={pluginSettings?.subtitleColor?.locked}
+                accessibilityRole='button'
+                accessibilityLabel={`Color ${color.name}`}
+                accessibilityState={{
+                  disabled: !!pluginSettings?.subtitleColor?.locked,
+                }}
+                onPress={() => {
+                  if (!pluginSettings?.subtitleColor?.locked) {
+                    updateSettings({ subtitleColor: color.value });
+                  }
+                }}
                 className='w-6 h-6 rounded-full border-2'
                 style={{
                   backgroundColor: color.value,
@@ -284,24 +302,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             />
           </ListItem>
         )}
-
-        {/* {settings.subtitleBackground && (
-          <ListItem
-            title={t("home.settings.subtitles.subtitle_background_padding")}
-            disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
-          >
-            <Stepper
-              value={settings.subtitleBackgroundPadding}
-              disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
-              step={1}
-              min={0}
-              max={20}
-              onUpdate={(value) =>
-                updateSettings({ subtitleBackgroundPadding: value })
-              }
-            />
-          </ListItem>
-        )} */}
       </ListGroup>
     </View>
   );

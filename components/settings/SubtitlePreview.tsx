@@ -1,12 +1,13 @@
 import { Asset } from "expo-asset";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { MpvPlayerView } from "@/modules/mpv-player";
 import { useSettings } from "@/utils/atoms/settings";
 
-export const SubtitlePreview = () => {
+export const SubtitlePreview = React.memo(() => {
   const { settings } = useSettings();
   const [assetUri, setAssetUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
   const playerRef = useRef<any>(null);
 
@@ -20,9 +21,13 @@ export const SubtitlePreview = () => {
         await asset.downloadAsync();
         if (isMounted) {
           setAssetUri(asset.localUri || asset.uri);
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Failed to load subtitle preview asset:", error);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     loadAsset();
@@ -52,12 +57,16 @@ export const SubtitlePreview = () => {
     applyStyle();
   }, [settings, assetUri, playerReady]);
 
-  if (!assetUri) {
+  if (isLoading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator color='white' />
       </View>
     );
+  }
+
+  if (!assetUri) {
+    return <View style={styles.container} />;
   }
 
   return (
@@ -77,7 +86,8 @@ export const SubtitlePreview = () => {
       />
     </View>
   );
-};
+});
+SubtitlePreview.displayName = "SubtitlePreview";
 
 const styles = StyleSheet.create({
   container: {
