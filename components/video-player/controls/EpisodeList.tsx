@@ -59,7 +59,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
-  const { getDownloadedItems } = useDownload();
+  // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
+  // This avoids expensive database parsing and unnecessary re-renders
+  const { downloadedItems: downloadedFiles } = useDownload();
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
 
@@ -69,7 +71,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
       if (isOffline) {
         if (!item.SeriesId) return [];
         const seasonNumbers = getDownloadedSeasonNumbers(
-          getDownloadedItems(),
+          downloadedFiles,
           item.SeriesId,
         );
         // Create fake season objects
@@ -113,7 +115,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
       if (isOffline) {
         if (!item.SeriesId || typeof seasonIndex !== "number") return [];
         return getDownloadedEpisodesForSeason(
-          getDownloadedItems(),
+          downloadedFiles,
           item.SeriesId,
           seasonIndex,
         );
