@@ -1,5 +1,4 @@
 import axios, { type AxiosError, type AxiosInstance } from "axios";
-import * as SecureStore from "expo-secure-store";
 import { atom } from "jotai";
 import { useAtom } from "jotai/index";
 import { inRange } from "lodash";
@@ -15,6 +14,7 @@ import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
@@ -49,6 +49,7 @@ import type {
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
 import { writeErrorLog } from "@/utils/log";
+import { getAccountCredential } from "@/utils/secureCredentials";
 
 interface SearchParams {
   query: string;
@@ -65,26 +66,6 @@ interface SearchResults {
 
 const JELLYSEERR_USER = "JELLYSEERR_USER";
 const JELLYSEERR_COOKIES = "JELLYSEERR_COOKIES";
-const JELLYSEERR_CREDENTIALS_KEY = "jellyseerr_credentials";
-
-interface JellyseerrCredentials {
-  username: string;
-  password: string;
-}
-
-export const saveJellyseerrCredentials = async (
-  username: string,
-  password: string,
-): Promise<void> => {
-  await SecureStore.setItemAsync(
-    JELLYSEERR_CREDENTIALS_KEY,
-    JSON.stringify({ username, password }),
-  );
-};
-
-export const clearJellyseerrCredentials = async (): Promise<void> => {
-  await SecureStore.deleteItemAsync(JELLYSEERR_CREDENTIALS_KEY);
-};
 
 export const clearJellyseerrStorageData = () => {
   storage.remove(JELLYSEERR_USER);
@@ -503,6 +484,8 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
+  const [jellyfinApi] = useAtom(apiAtom);
+  const [jellyfinUser] = useAtom(userAtom);
   const queryClient = useNetworkAwareQueryClient();
 
   const jellyseerrApi = useMemo(() => {
@@ -510,24 +493,32 @@ export const useJellyseerr = () => {
     if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
       const api = new JellyseerrApi(settings?.jellyseerrServerUrl);
       api.setReloginCallback(async () => {
-        const credStr = await SecureStore.getItemAsync(
-          JELLYSEERR_CREDENTIALS_KEY,
+        const serverUrl = jellyfinApi?.basePath;
+        const userId = jellyfinUser?.Id;
+        if (!serverUrl || !userId)
+          throw new Error("No Jellyfin session available");
+        const credential = await getAccountCredential(serverUrl, userId);
+        if (!credential?.seerrPassword)
+          throw new Error("No stored Seerr password");
+        const user = await api.login(
+          credential.username,
+          credential.seerrPassword,
         );
-        if (!credStr) throw new Error("No stored Seerr credentials");
-        const { username, password } = JSON.parse(
-          credStr,
-        ) as JellyseerrCredentials;
-        const user = await api.login(username, password);
         setJellyseerrUser(user);
       });
       return api;
     }
     return undefined;
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser, setJellyseerrUser]);
+  }, [
+    settings?.jellyseerrServerUrl,
+    jellyseerrUser,
+    setJellyseerrUser,
+    jellyfinApi?.basePath,
+    jellyfinUser?.Id,
+  ]);
 
   const clearAllJellyseerData = useCallback(async () => {
     clearJellyseerrStorageData();
-    await clearJellyseerrCredentials();
     setJellyseerrUser(undefined);
     updateSettings({ jellyseerrServerUrl: undefined });
   }, []);

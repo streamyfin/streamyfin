@@ -19,6 +19,7 @@ export interface ServerCredential {
   token: string;
   userId: string;
   username: string;
+  seerrPassword?: string;
   savedAt: number;
   securityType: AccountSecurityType;
   pinHash?: string;
