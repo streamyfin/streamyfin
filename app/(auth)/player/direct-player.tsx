@@ -220,6 +220,8 @@ export default function page() {
     };
 
     if (itemId) {
+      setItem(null);
+      setDownloadedItem(null);
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
@@ -254,6 +256,12 @@ export default function page() {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
+          setStreamStatus({ isLoading: false, isError: false });
+          return;
+        }
+
+        // Ensure item matches the current itemId to avoid race conditions
+        if (item.Id !== itemId) {
           setStreamStatus({ isLoading: false, isError: false });
           return;
         }
@@ -325,6 +333,7 @@ export default function page() {
     item,
     user?.Id,
     downloadedItem,
+    offline,
   ]);
 
   useEffect(() => {
