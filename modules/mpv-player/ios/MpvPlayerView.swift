@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreMedia
 import ExpoModulesCore
+import MediaPlayer
 import UIKit
 
 /// Configuration for loading a video
@@ -41,7 +42,6 @@ class MpvPlayerView: ExpoView {
 	private var renderer: MPVLayerRenderer?
 	private var videoContainer: UIView!
 	private var pipController: PiPController?
-
 	let onLoad = EventDispatcher()
 	let onPlaybackStateChange = EventDispatcher()
 	let onProgress = EventDispatcher()
@@ -53,11 +53,14 @@ class MpvPlayerView: ExpoView {
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
+	
+	// Reference to now playing manager
+	private let nowPlayingManager = MPVNowPlayingManager.shared
 
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
+		setupNotifications()
 		setupView()
-		// Note: Decoder reset is handled automatically via KVO in MPVLayerRenderer
 	}
 
 	private func setupView() {
@@ -109,6 +112,77 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
+	// MARK: - Audio Session & Notifications
+
+	private func setupNotifications() {
+		// Handle audio session interruptions (e.g., incoming calls, other apps playing audio)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleAudioSessionInterruption),
+			name: AVAudioSession.interruptionNotification, object: nil)
+	}
+
+	@objc func handleAudioSessionInterruption(_ notification: Notification) {
+		guard let userInfo = notification.userInfo,
+			  let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+			  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+			return
+		}
+		
+		switch type {
+		case .began:
+			// Interruption began - pause the video
+			print("[MPV] Audio session interrupted - pausing video")
+			self.pause()
+			
+		case .ended:
+			// Interruption ended - check if we should resume
+			if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+				let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+				if options.contains(.shouldResume) {
+					print("[MPV] Audio session interruption ended - can resume")
+					// Don't auto-resume - let user manually resume playback
+				} else {
+					print("[MPV] Audio session interruption ended - should not resume")
+				}
+			}
+			
+		@unknown default:
+			break
+		}
+	}
+	
+	private func setupRemoteCommands() {
+		nowPlayingManager.setupRemoteCommands(
+			playHandler: { [weak self] in self?.play() },
+			pauseHandler: { [weak self] in self?.pause() },
+			toggleHandler: { [weak self] in
+				guard let self else { return }
+				if self.intendedPlayState { self.pause() } else { self.play() }
+			},
+			seekHandler: { [weak self] time in self?.seekTo(position: time) },
+			skipForward: { [weak self] interval in self?.seekBy(offset: interval) },
+			skipBackward: { [weak self] interval in self?.seekBy(offset: -interval) }
+		)
+	}
+
+	// MARK: - Now Playing Info
+
+	func setNowPlayingMetadata(_ metadata: [String: String]) {
+		print("[MPV] setNowPlayingMetadata: \(metadata["title"] ?? "nil")")
+		nowPlayingManager.setMetadata(
+			title: metadata["title"],
+			artist: metadata["artist"],
+			albumTitle: metadata["albumTitle"],
+			artworkUrl: metadata["artworkUri"]
+		)
+	}
+
+	private func clearNowPlayingInfo() {
+		nowPlayingManager.cleanupRemoteCommands()
+		nowPlayingManager.deactivateAudioSession()
+		nowPlayingManager.clear()
+	}
+
 	func loadVideo(config: VideoLoadConfig) {
 		// Skip reload if same URL is already playing
 		if currentURL == config.url {
@@ -149,6 +223,7 @@ class MpvPlayerView: ExpoView {
 
 	func play() {
 		intendedPlayState = true
+		setupRemoteCommands()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
 		pipController?.updatePlaybackState()
@@ -162,10 +237,17 @@ class MpvPlayerView: ExpoView {
 	}
 
 	func seekTo(position: Double) {
+		// Update cached position and Now Playing immediately for smooth Control Center feedback
+		cachedPosition = position
+		syncNowPlaying(isPlaying: !isPaused())
 		renderer?.seek(to: position)
 	}
 
 	func seekBy(offset: Double) {
+		// Update cached position and Now Playing immediately for smooth Control Center feedback
+		let newPosition = max(0, min(cachedPosition + offset, cachedDuration))
+		cachedPosition = newPosition
+		syncNowPlaying(isPlaying: !isPaused())
 		renderer?.seek(by: offset)
 	}
 
@@ -292,27 +374,37 @@ class MpvPlayerView: ExpoView {
 		pipController?.stopPictureInPicture()
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
+		clearNowPlayingInfo()
+		NotificationCenter.default.removeObserver(self)
 	}
 }
 
 // MARK: - MPVLayerRendererDelegate
 
 extension MpvPlayerView: MPVLayerRendererDelegate {
-	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double) {
+	
+	// MARK: - Single location for Now Playing updates
+	private func syncNowPlaying(isPlaying: Bool) {
+		print("[MPV] syncNowPlaying: pos=\(Int(cachedPosition))s, dur=\(Int(cachedDuration))s, playing=\(isPlaying)")
+		nowPlayingManager.updatePlayback(position: cachedPosition, duration: cachedDuration, isPlaying: isPlaying)
+	}
+	
+	func renderer(_: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double) {
 		cachedPosition = position
 		cachedDuration = duration
 		
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
-			// Update PiP current time for progress bar
+
 			if self.pipController?.isPictureInPictureActive == true {
 				self.pipController?.setCurrentTimeFromSeconds(position, duration: duration)
 			}
-			
+
 			self.onProgress([
 				"position": position,
 				"duration": duration,
 				"progress": duration > 0 ? position / duration : 0,
+				"cacheSeconds": cacheSeconds,
 			])
 		}
 	}
@@ -320,12 +412,10 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 	func renderer(_: MPVLayerRenderer, didChangePause isPaused: Bool) {
 		DispatchQueue.main.async { [weak self] in
 			guard let self else { return }
-			// Don't update intendedPlayState here - it's only set by user actions (play/pause)
-			// This prevents PiP UI flicker during seeking
 			
-			// Sync timebase rate with actual playback state
+			print("[MPV] didChangePause: isPaused=\(isPaused), cachedDuration=\(self.cachedDuration)")
 			self.pipController?.setPlaybackRate(isPaused ? 0.0 : 1.0)
-			
+			self.syncNowPlaying(isPlaying: !isPaused)
 			self.onPlaybackStateChange([
 				"isPaused": isPaused,
 				"isPlaying": !isPaused,
@@ -356,6 +446,13 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 			guard let self else { return }
 			self.onTracksReady([:])
 		}
+	}
+	
+	func renderer(_: MPVLayerRenderer, didSelectAudioOutput audioOutput: String) {
+		// Audio output is now active - this is the right time to activate audio session and set Now Playing
+		print("[MPV] Audio output ready (\(audioOutput)), activating audio session and syncing Now Playing")
+		nowPlayingManager.activateAudioSession()
+		syncNowPlaying(isPlaying: !isPaused())
 	}
 }
 

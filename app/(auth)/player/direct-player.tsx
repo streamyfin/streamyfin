@@ -48,6 +48,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
 import { useSettings } from "@/utils/atoms/settings";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
   getMpvAudioId,
@@ -458,7 +459,7 @@ export default function page() {
     async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
-      const { position } = data.nativeEvent;
+      const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
@@ -467,6 +468,12 @@ export default function page() {
       }
 
       progress.set(currentTime);
+
+      // Update cache progress (current position + buffered seconds ahead)
+      if (cacheSeconds !== undefined && cacheSeconds > 0) {
+        const cacheEnd = currentTime + cacheSeconds * 1000;
+        cacheProgress.set(cacheEnd);
+      }
 
       // Update URL immediately after seeking, or every 30 seconds during normal playback
       const now = Date.now();
@@ -506,6 +513,31 @@ export default function page() {
   const _startPosition = useMemo(() => {
     return ticksToSeconds(getInitialPlaybackTicks());
   }, [getInitialPlaybackTicks]);
+
+  /** Prepare metadata for iOS native media controls (Control Center, Lock Screen) */
+  const nowPlayingMetadata = useMemo(() => {
+    if (!item || !api) return undefined;
+
+    const artworkUri = getPrimaryImageUrl({
+      api,
+      item,
+      quality: 90,
+      width: 500,
+    });
+
+    return {
+      title: item.Name || "",
+      artist:
+        item.Type === "Episode"
+          ? item.SeriesName || ""
+          : item.AlbumArtist || "",
+      albumTitle:
+        item.Type === "Episode" && item.SeasonName
+          ? item.SeasonName
+          : undefined,
+      artworkUri: artworkUri || undefined,
+    };
+  }, [item, api]);
 
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
@@ -935,6 +967,7 @@ export default function page() {
                 ref={videoRef}
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}
+                nowPlayingMetadata={nowPlayingMetadata}
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onLoad={() => setIsVideoLoaded(true)}

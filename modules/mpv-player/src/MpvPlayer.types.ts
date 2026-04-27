@@ -15,6 +15,8 @@ export type OnProgressEventPayload = {
   position: number;
   duration: number;
   progress: number;
+  /** Seconds of video buffered ahead of current position */
+  cacheSeconds: number;
 };
 
 export type OnErrorEventPayload = {
@@ -22,6 +24,13 @@ export type OnErrorEventPayload = {
 };
 
 export type OnTracksReadyEventPayload = Record<string, never>;
+
+export type NowPlayingMetadata = {
+  title?: string;
+  artist?: string;
+  albumTitle?: string;
+  artworkUri?: string;
+};
 
 export type MpvPlayerModuleEvents = {
   onChange: (params: ChangeEventPayload) => void;
@@ -46,6 +55,8 @@ export type VideoSource = {
 export type MpvPlayerViewProps = {
   source?: VideoSource;
   style?: StyleProp<ViewStyle>;
+  /** Metadata for iOS Control Center and Lock Screen now playing info */
+  nowPlayingMetadata?: NowPlayingMetadata;
   onLoad?: (event: { nativeEvent: OnLoadEventPayload }) => void;
   onPlaybackStateChange?: (event: {
     nativeEvent: OnPlaybackStateChangePayload;

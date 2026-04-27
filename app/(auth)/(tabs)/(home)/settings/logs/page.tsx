@@ -61,7 +61,10 @@ export default function Page() {
     setLoading(true);
     try {
       logsFile.write(JSON.stringify(filteredLogs));
-      await Sharing.shareAsync(logsFile.uri, { mimeType: "txt", UTI: "txt" });
+      await Sharing.shareAsync(logsFile.uri, {
+        mimeType: "text/plain",
+        UTI: "public.plain-text",
+      });
     } catch (e: any) {
       writeErrorLog("Something went wrong attempting to export", e);
     } finally {
