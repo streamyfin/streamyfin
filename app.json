@@ -57,7 +57,17 @@
     "plugins": [
       "@react-native-tvos/config-tv",
       "expo-router",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/OpenDyslexic-Bold.otf",
+            "./assets/fonts/OpenDyslexic-BoldItalic.otf",
+            "./assets/fonts/OpenDyslexic-Italic.otf",
+            "./assets/fonts/OpenDyslexic-Regular.otf"
+          ]
+        }
+      ],
       "./plugins/withExcludeMedia3Dash.js",
       [
         "expo-build-properties",

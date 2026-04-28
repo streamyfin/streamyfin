@@ -148,6 +148,24 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                     .open(fileName, AssetManager.ACCESS_STREAMING)
                     .copyTo(FileOutputStream(file))
             }
+            
+            // Copy custom fonts
+            val customFonts = arrayOf(
+                "OpenDyslexic-Regular.otf",
+                "OpenDyslexic-Bold.otf",
+                "OpenDyslexic-Italic.otf",
+                "OpenDyslexic-BoldItalic.otf"
+            )
+            customFonts.forEach { fileName ->
+                val file = File(fontsDir, fileName)
+                if (!file.exists()) {
+                    try {
+                        context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(file))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to copy font $fileName", e)
+                    }
+                }
+            }
             MPVLib.setOptionString("config", "yes")
             MPVLib.setOptionString("config-dir", mpvDir.path)
             
@@ -449,8 +467,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
     
     fun setSubtitleStyle(config: Map<String, Any>) {
+        val isDyslexic = (config["font"] as? String) == "opendyslexic"
+
         (config["fontSize"] as? Number)?.let {
-            MPVLib.setPropertyInt("sub-font-size", it.toInt())
+            val size = if (isDyslexic) it.toInt() + 20 else it.toInt()
+            MPVLib.setPropertyInt("sub-font-size", size)
         }
         
         (config["color"] as? String)?.let {
@@ -463,6 +484,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 "sans-serif" -> MPVLib.setPropertyString("sub-font", "Roboto, Noto Sans")
                 "serif" -> MPVLib.setPropertyString("sub-font", "Roboto Serif, Noto Serif")
                 "monospace" -> MPVLib.setPropertyString("sub-font", "Roboto Mono, Noto Sans Mono")
+                "opendyslexic" -> MPVLib.setPropertyString("sub-font", "OpenDyslexic")
                 else -> MPVLib.setPropertyString("sub-font", font)
             }
         }
@@ -477,6 +499,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 MPVLib.setPropertyString("sub-border-style", "background-box")
                 val padding = (config["backgroundPadding"] as? Number)?.toInt() ?: 18
                 MPVLib.setPropertyString("sub-shadow-offset", padding.toString())
+                val finalPadding = if (isDyslexic) padding / 2 else padding
+                MPVLib.setPropertyString("sub-shadow-offset", finalPadding.toString())
                 MPVLib.setPropertyString("sub-border-size", "0")
             }
         }

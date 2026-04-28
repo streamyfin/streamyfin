@@ -92,6 +92,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
     { label: "Sans-Serif", value: "sans-serif" },
     { label: "Serif", value: "serif" },
     { label: "Monospace", value: "monospace" },
+    { label: "Dyslexic", value: "opendyslexic" },
   ];
 
   const fontOptionGroups = useMemo(() => {

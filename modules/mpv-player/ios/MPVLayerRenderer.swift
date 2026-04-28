@@ -756,10 +756,14 @@ final class MPVLayerRenderer {
     }
     
     func setSubtitleStyle(config: [String: Any]) {
+        let isDyslexic = (config["font"] as? String) == "opendyslexic"
+
         if let fontSize = config["fontSize"] as? Int {
-            setProperty(name: "sub-font-size", value: String(fontSize))
+            let size = isDyslexic ? fontSize + 20 : fontSize
+            setProperty(name: "sub-font-size", value: String(size))
         } else if let fontSizeDouble = config["fontSize"] as? Double {
-            setProperty(name: "sub-font-size", value: String(Int(fontSizeDouble)))
+            let size = isDyslexic ? Int(fontSizeDouble) + 20 : Int(fontSizeDouble)
+            setProperty(name: "sub-font-size", value: String(size))
         }
         
         if let color = config["color"] as? String {
@@ -778,6 +782,8 @@ final class MPVLayerRenderer {
                     mappedFont = "Georgia"
                 case "monospace":
                     mappedFont = "Menlo"
+                case "opendyslexic":
+                    mappedFont = "OpenDyslexic"
                 default:
                     mappedFont = font
                 }
@@ -801,7 +807,8 @@ final class MPVLayerRenderer {
                 } else {
                     padding = 18
                 }
-                setProperty(name: "sub-shadow-offset", value: String(padding))
+                let finalPadding = isDyslexic ? padding / 2 : padding
+                setProperty(name: "sub-shadow-offset", value: String(finalPadding))
                 setProperty(name: "sub-border-size", value: "0")
             }
         }
