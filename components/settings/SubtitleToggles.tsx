@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";
@@ -15,7 +15,7 @@ import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
 
-export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
+export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   const isTv = Platform.isTV;
 
   const media = useMedia();
@@ -327,4 +327,6 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
       </ListGroup>
     </View>
   );
-};
+});
+
+SubtitleToggles.displayName = "SubtitleToggles";
