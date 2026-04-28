@@ -120,12 +120,12 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   ]);
 
   const subtitleColors = [
-    { name: "White", value: "#FFFFFF" },
-    { name: "Yellow", value: "#FFFF00" },
-    { name: "Cyan", value: "#00FFFF" },
-    { name: "Green", value: "#00FF00" },
-    { name: "Magenta", value: "#FF00FF" },
-    { name: "Red", value: "#FF0000" },
+    { name: "White", hex: "#FFFFFF" },
+    { name: "Yellow", hex: "#FFFF00" },
+    { name: "Cyan", hex: "#00FFFF" },
+    { name: "Green", hex: "#00FF00" },
+    { name: "Magenta", hex: "#FF00FF" },
+    { name: "Red", hex: "#FF0000" },
   ];
 
   if (isTv) return null;
@@ -230,25 +230,25 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           <View className='flex flex-row items-center space-x-2'>
             {subtitleColors.map((color) => (
               <TouchableOpacity
-                key={color.value}
+                key={color.hex}
                 disabled={pluginSettings?.subtitleColor?.locked}
                 accessibilityRole='button'
                 accessibilityLabel={`Color ${color.name}`}
                 accessibilityState={{
                   disabled: !!pluginSettings?.subtitleColor?.locked,
-                  selected: settings.subtitleColor === color.value,
+                  selected: settings.subtitleColor === color.hex,
                 }}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 onPress={() => {
                   if (!pluginSettings?.subtitleColor?.locked) {
-                    updateSettings({ subtitleColor: color.value });
+                    updateSettings({ subtitleColor: color.hex });
                   }
                 }}
                 className='w-6 h-6 rounded-full border-2'
                 style={{
-                  backgroundColor: color.value,
+                  backgroundColor: color.hex,
                   borderColor:
-                    settings.subtitleColor === color.value
+                    settings.subtitleColor === color.hex
                       ? "white"
                       : "transparent",
                 }}
