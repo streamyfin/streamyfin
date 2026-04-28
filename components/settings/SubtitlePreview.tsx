@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { MpvPlayerView } from "@/modules/mpv-player";
+import type { MpvPlayerViewRef } from "@/modules/mpv-player/src/MpvPlayer.types";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 
@@ -16,7 +17,7 @@ export const SubtitlePreview = React.memo(() => {
   const [isLoading, setIsLoading] = useState(true);
   const [assetError, setAssetError] = useState(false);
   const [playerReady, setPlayerReady] = useState(false);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<MpvPlayerViewRef>(null);
 
   const loadAsset = useCallback(async () => {
     setAssetError(false);
