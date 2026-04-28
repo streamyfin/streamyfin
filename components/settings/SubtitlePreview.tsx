@@ -1,40 +1,41 @@
 import { Asset } from "expo-asset";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { MpvPlayerView } from "@/modules/mpv-player";
 import { useSettings } from "@/utils/atoms/settings";
+import { Text } from "../common/Text";
 
 export const SubtitlePreview = React.memo(() => {
   const { settings } = useSettings();
   const [assetUri, setAssetUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [assetError, setAssetError] = useState(false);
   const [playerReady, setPlayerReady] = useState(false);
   const playerRef = useRef<any>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadAsset = async () => {
-      try {
-        const asset = Asset.fromModule(
-          require("@/assets/sample_subtitled.mp4"),
-        );
-        await asset.downloadAsync();
-        if (isMounted) {
-          setAssetUri(asset.localUri || asset.uri);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error("Failed to load subtitle preview asset:", error);
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-    loadAsset();
-    return () => {
-      isMounted = false;
-    };
+  const loadAsset = useCallback(async () => {
+    setAssetError(false);
+    setIsLoading(true);
+    try {
+      const asset = Asset.fromModule(require("@/assets/sample_subtitled.mp4"));
+      await asset.downloadAsync();
+      setAssetUri(asset.localUri || asset.uri);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to load subtitle preview asset:", error);
+      setAssetError(true);
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAsset();
+  }, [loadAsset]);
 
   const applyStyle = useCallback(async () => {
     if (!playerRef.current || !playerReady) return;
@@ -63,6 +64,22 @@ export const SubtitlePreview = React.memo(() => {
     return (
       <View style={styles.container}>
         <ActivityIndicator color='white' />
+      </View>
+    );
+  }
+
+  if (assetError) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <Text style={styles.errorText}>Failed to load preview</Text>
+        <TouchableOpacity
+          onPress={() => {
+            loadAsset();
+          }}
+          style={styles.retryButton}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -102,5 +119,26 @@ const styles = StyleSheet.create({
   },
   player: {
     flex: 1,
+  },
+  errorContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 10,
+  },
+  errorText: {
+    color: "#FF453A",
+    marginBottom: 10,
+    fontSize: 14,
+  },
+  retryButton: {
+    backgroundColor: "#333",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  retryText: {
+    color: "white",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
