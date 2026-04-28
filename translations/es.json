@@ -252,7 +252,6 @@
           "Thick": "Grosor"
         },
         "subtitle_color": "Color de los Subtítulos",
-        "subtitle_background_color": "Color del fondo",
         "subtitle_font": "Fuente de los subtítulos",
         "ksplayer_title": "Ajustes de KSPlayer",
         "hardware_decode": "Decodificación de hardware",

@@ -210,6 +210,12 @@
         "subtitle_mode": "Mode des sous-titres",
         "set_subtitle_track": "Piste de sous-titres de l'élément précédent",
         "subtitle_size": "Taille des sous-titres",
+        "subtitle_background": "Arrière-plan des sous-titres",
+        "subtitle_background_hint": "Ajoute un arrière-plan noir semi-transparent derrière les sous-titres",
+        "subtitle_background_opacity": "Opacité de l'arrière-plan",
+        "subtitle_background_padding": "Largeur de la marge de l'arrière-plan",
+        "subtitle_font": "Police des sous-titres",
+        "subtitle_color": "Couleur du texte",
         "none": "Aucune",
         "language": "Langage",
         "loading": "Chargement",
@@ -251,9 +257,6 @@
           "Normal": "Normale",
           "Thick": "Épais"
         },
-        "subtitle_color": "Couleur des sous-titres",
-        "subtitle_background_color": "Couleur d'arrière-plan",
-        "subtitle_font": "Police des sous-titres",
         "ksplayer_title": "Paramètres de KSPlayer",
         "hardware_decode": "Décodage matériel",
         "hardware_decode_description": "Utilisez l’accélération matérielle pour le décodage vidéo. Désactivez si vous rencontrez des problèmes de lecture."

@@ -252,7 +252,6 @@
           "Thick": "Grosso"
         },
         "subtitle_color": "Cor da legenda",
-        "subtitle_background_color": "Cor de fundo",
         "subtitle_font": "Fonte da legenda",
         "ksplayer_title": "Configurações do KSPlayer",
         "hardware_decode": "Decodificação por hardware",

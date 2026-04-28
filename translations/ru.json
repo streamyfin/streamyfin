@@ -252,7 +252,6 @@
           "Thick": "Толстый"
         },
         "subtitle_color": "Цвет субтитров",
-        "subtitle_background_color": "Цвет фона",
         "subtitle_font": "Шрифт субтитров",
         "ksplayer_title": "Настройки KSPlayer",
         "hardware_decode": "Аппаратное декодирование",
