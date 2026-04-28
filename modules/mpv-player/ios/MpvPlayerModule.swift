@@ -45,8 +45,8 @@ public class MpvPlayerModule: Module {
           externalSubtitles: source["externalSubtitles"] as? [String],
           startPosition: source["startPosition"] as? Double,
           autoplay: (source["autoplay"] as? Bool) ?? true,
-          initialSubtitleId: source["initialSubtitleId"] as? Int,
-          initialAudioId: source["initialAudioId"] as? Int,
+          initialSubtitleId: self.parseNumericTrackId(source["initialSubtitleId"]),
+          initialAudioId: self.parseNumericTrackId(source["initialAudioId"]),
           loop: (source["loop"] as? Bool) ?? false
         )
         
