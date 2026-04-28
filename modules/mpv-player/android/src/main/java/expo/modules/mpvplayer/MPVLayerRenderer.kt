@@ -136,39 +136,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
              * The issue discusses that without a font in the config directory, SubRip subtitles fail to load
              * properly on Android, and the solution is to copy a font file to a known location that mpv can access.
              */
-            // Create mpv config directory and copy font files
+            // Create mpv config directory
             val mpvDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "mpv")
-            val fontsDir = File(mpvDir, "fonts")
-            //Log.i(TAG, "mpv config dir: $mpvDir")
             if (!mpvDir.exists()) mpvDir.mkdirs()
-            if (!fontsDir.exists()) fontsDir.mkdirs()
 
-            // This needs to be named `subfont.ttf` else it won't work
-            arrayOf("subfont.ttf").forEach { fileName ->
-                val file = File(mpvDir, fileName)
-                if (file.exists()) return@forEach
-                context.assets
-                    .open(fileName, AssetManager.ACCESS_STREAMING)
-                    .copyTo(FileOutputStream(file))
-            }
-            
-            // Copy custom fonts
-            val customFonts = arrayOf(
-                "OpenDyslexic-Regular.otf",
-                "OpenDyslexic-Bold.otf",
-                "OpenDyslexic-Italic.otf",
-                "OpenDyslexic-BoldItalic.otf"
-            )
-            customFonts.forEach { fileName ->
-                val file = File(fontsDir, fileName)
-                if (!file.exists()) {
-                    try {
-                        context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(file))
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to copy font $fileName", e)
-                    }
-                }
-            }
+            // Prepare fonts
+            copyFontsToConfigDir(mpvDir)
+
             MPVLib.setOptionString("config", "yes")
             MPVLib.setOptionString("config-dir", mpvDir.path)
             
@@ -195,6 +169,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("hr-seek-framedrop", "yes")
             
             // Subtitle settings
+            MPVLib.setOptionString("osd-font-provider", "android")
             MPVLib.setOptionString("sub-scale-with-window", "no")
             MPVLib.setOptionString("sub-use-margins", "no")
             MPVLib.setOptionString("subs-match-os-language", "yes")
@@ -216,6 +191,63 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             delegate?.onError("Failed to start renderer: ${e.message}")
         }
     }
+
+    /**
+     * Copies required fonts (bundled assets and system fallbacks) to the MPV config directory.
+     * This is necessary because libmpv/libass cannot access Android assets or system fonts directly.
+     */
+    private fun copyFontsToConfigDir(mpvDir: File) {
+        val fontsDir = File(mpvDir, "fonts")
+        if (!fontsDir.exists()) fontsDir.mkdirs()
+
+        // 1. Copy the main fallback font (required for SRT subtitles)
+        val subfont = File(mpvDir, "subfont.ttf")
+        if (!subfont.exists()) {
+            try {
+                context.assets.open("subfont.ttf", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(subfont))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy subfont.ttf", e)
+            }
+        }
+
+        // 2. Copy custom bundled fonts (e.g., OpenDyslexic)
+        val customFonts = arrayOf(
+            "OpenDyslexic-Regular.otf",
+            "OpenDyslexic-Bold.otf",
+            "OpenDyslexic-Italic.otf",
+            "OpenDyslexic-BoldItalic.otf"
+        )
+        customFonts.forEach { fileName ->
+            val file = File(fontsDir, fileName)
+            if (!file.exists()) {
+                try {
+                    context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(file))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to copy custom font $fileName", e)
+                }
+            }
+        }
+
+        // 3. Copy system fonts into mpv's font directory as local fallbacks
+        // This bypasses sandboxing issues where libass cannot resolve system font names.
+        val systemFontsToCopy = mapOf(
+            "Roboto-Regular.ttf" to "Roboto-Regular.ttf",
+            "NotoSerif-Regular.ttf" to "NotoSerif-Regular.ttf",
+            "DroidSansMono.ttf" to "DroidSansMono.ttf"
+        )
+        systemFontsToCopy.forEach { (srcName, destName) ->
+            val sysFile = File("/system/fonts", srcName)
+            val destFile = File(fontsDir, destName)
+            if (sysFile.exists() && !destFile.exists()) {
+                try {
+                    sysFile.copyTo(destFile)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to copy system font $srcName", e)
+                }
+            }
+        }
+    }
+
     
     fun stop() {
         if (isStopping) return
@@ -484,9 +516,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         (config["font"] as? String)?.let { font ->
             when (font) {
                 "System" -> MPVLib.setPropertyString("sub-font", "")
-                "sans-serif" -> MPVLib.setPropertyString("sub-font", "Roboto, Noto Sans")
-                "serif" -> MPVLib.setPropertyString("sub-font", "Roboto Serif, Noto Serif")
-                "monospace" -> MPVLib.setPropertyString("sub-font", "Roboto Mono, Noto Sans Mono")
+                "sans-serif" -> MPVLib.setPropertyString("sub-font", "Roboto")
+                "serif" -> MPVLib.setPropertyString("sub-font", "Noto Serif")
+                "monospace" -> MPVLib.setPropertyString("sub-font", "Droid Sans Mono")
                 "opendyslexic" -> MPVLib.setPropertyString("sub-font", "OpenDyslexic")
                 else -> MPVLib.setPropertyString("sub-font", font)
             }
