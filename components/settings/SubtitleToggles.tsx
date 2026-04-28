@@ -172,7 +172,10 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {t(subtitleModeKeys[settings?.subtitleMode])}
+                  {t(
+                    subtitleModeKeys[settings?.subtitleMode] ??
+                      "home.settings.subtitles.modes.Default",
+                  )}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
