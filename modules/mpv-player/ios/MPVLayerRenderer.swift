@@ -33,6 +33,7 @@ final class MPVLayerRenderer {
     private var pendingExternalSubtitles: [String] = []
     private var initialSubtitleId: Int?
     private var initialAudioId: Int?
+    private var currentLoop: Bool = false
     
     private var isRunning = false
     private var isStopping = false
@@ -256,6 +257,7 @@ final class MPVLayerRenderer {
         pendingExternalSubtitles = externalSubtitles ?? []
         self.initialSubtitleId = initialSubtitleId
         self.initialAudioId = initialAudioId
+        self.currentLoop = loop
         queue.async { [weak self] in
             guard let self else { return }
             self.isLoading = true
@@ -302,7 +304,14 @@ final class MPVLayerRenderer {
     
     func reloadCurrentItem() {
         guard let url = currentURL, let preset = currentPreset else { return }
-        load(url: url, with: preset, headers: currentHeaders)
+        load(
+            url: url,
+            with: preset,
+            headers: currentHeaders,
+            initialSubtitleId: initialSubtitleId,
+            initialAudioId: initialAudioId,
+            loop: currentLoop
+        )
     }
     
     func applyPreset(_ preset: PlayerPreset) {
