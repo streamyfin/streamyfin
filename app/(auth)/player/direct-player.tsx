@@ -872,7 +872,7 @@ export default function page() {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
       const opacity = Math.min(
-        Math.max(Number(settings.subtitleBackgroundOpacity) || 100, 0),
+        Math.max(Number(settings.subtitleBackgroundOpacity) || 40, 0),
         100,
       );
       const alpha = Math.round((opacity / 100) * 255)
@@ -885,7 +885,7 @@ export default function page() {
         color: settings.subtitleColor,
         font: settings.subtitleFont,
         background: settings.subtitleBackground ? `#${alpha}000000` : "",
-        backgroundPadding: settings.subtitleBackgroundPadding,
+        backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
       });
     };
 
