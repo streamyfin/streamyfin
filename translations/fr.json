@@ -213,7 +213,7 @@
         "subtitle_background": "Arrière-plan des sous-titres",
         "subtitle_background_hint": "Ajoute un arrière-plan noir semi-transparent derrière les sous-titres",
         "subtitle_background_opacity": "Opacité de l'arrière-plan",
-        "subtitle_background_padding": "Largeur de la marge de l'arrière-plan",
+        "subtitle_background_padding": "Marge de l'arrière-plan",
         "subtitle_font": "Police des sous-titres",
         "subtitle_color": "Couleur du texte",
         "none": "Aucune",
