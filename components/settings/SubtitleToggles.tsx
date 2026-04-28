@@ -295,12 +295,30 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             <Stepper
               value={settings.subtitleBackgroundOpacity}
               disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
-              step={10}
-              min={10}
+              step={5}
+              min={5}
               max={100}
               appendValue='%'
               onUpdate={(value) =>
                 updateSettings({ subtitleBackgroundOpacity: value })
+              }
+            />
+          </ListItem>
+        )}
+
+        {settings.subtitleBackground && (
+          <ListItem
+            title={t("home.settings.subtitles.subtitle_background_padding")}
+            disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
+          >
+            <Stepper
+              value={settings.subtitleBackgroundPadding}
+              disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
+              step={1}
+              min={0}
+              max={30}
+              onUpdate={(value) =>
+                updateSettings({ subtitleBackgroundPadding: value })
               }
             />
           </ListItem>

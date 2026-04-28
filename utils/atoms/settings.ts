@@ -265,7 +265,7 @@ export const defaultValues: Settings = {
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   subtitleBackground: false,
   subtitleBackgroundOpacity: 40,
-  subtitleBackgroundPadding: 18,
+  subtitleBackgroundPadding: 12,
   subtitleFont: "System",
   subtitleColor: "#FFFFFF",
   safeAreaInControlsEnabled: true,

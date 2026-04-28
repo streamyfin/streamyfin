@@ -805,7 +805,7 @@ final class MPVLayerRenderer {
                 } else if let pDouble = config["backgroundPadding"] as? Double {
                     padding = Int(pDouble)
                 } else {
-                    padding = 18
+                    padding = 12
                 }
                 let finalPadding = isDyslexic ? padding / 2 : padding
                 setProperty(name: "sub-shadow-offset", value: String(finalPadding))

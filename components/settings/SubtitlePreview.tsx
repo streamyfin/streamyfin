@@ -49,7 +49,7 @@ export const SubtitlePreview = React.memo(() => {
       color: settings.subtitleColor,
       font: settings.subtitleFont,
       background: settings.subtitleBackground ? `#${alpha}000000` : "",
-      backgroundPadding: settings.subtitleBackgroundPadding || 18,
+      backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
     });
   }, [settings, playerReady, playerRef]);
 

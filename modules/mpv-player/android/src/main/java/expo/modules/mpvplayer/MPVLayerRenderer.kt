@@ -138,8 +138,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
              */
             // Create mpv config directory and copy font files
             val mpvDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "mpv")
+            val fontsDir = File(mpvDir, "fonts")
             //Log.i(TAG, "mpv config dir: $mpvDir")
             if (!mpvDir.exists()) mpvDir.mkdirs()
+            if (!fontsDir.exists()) fontsDir.mkdirs()
+
             // This needs to be named `subfont.ttf` else it won't work
             arrayOf("subfont.ttf").forEach { fileName ->
                 val file = File(mpvDir, fileName)
@@ -497,8 +500,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             } else {
                 MPVLib.setPropertyString("sub-back-color", background)
                 MPVLib.setPropertyString("sub-border-style", "background-box")
-                val padding = (config["backgroundPadding"] as? Number)?.toInt() ?: 18
-                MPVLib.setPropertyString("sub-shadow-offset", padding.toString())
+                val padding = (config["backgroundPadding"] as? Number)?.toInt() ?: 12
                 val finalPadding = if (isDyslexic) padding / 2 else padding
                 MPVLib.setPropertyString("sub-shadow-offset", finalPadding.toString())
                 MPVLib.setPropertyString("sub-border-size", "0")
