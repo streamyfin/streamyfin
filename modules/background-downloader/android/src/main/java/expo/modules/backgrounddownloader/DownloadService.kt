@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -30,7 +29,6 @@ class DownloadService : Service() {
   private var currentProgress = 0
   private var isForegroundStarted = false
   private var wakeLock: PowerManager.WakeLock? = null
-  private var wifiLock: WifiManager.WifiLock? = null
 
   inner class DownloadServiceBinder : Binder() {
     fun getService(): DownloadService = this@DownloadService
@@ -45,12 +43,7 @@ class DownloadService : Service() {
     wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Streamyfin::DownloadWakeLock")
     wakeLock?.acquire()
 
-    val wm = getSystemService(WifiManager::class.java)
-    @Suppress("DEPRECATION")
-    wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Streamyfin::DownloadWifiLock")
-    wifiLock?.acquire()
-
-    Log.d(TAG, "Wake and WiFi locks acquired")
+    Log.d(TAG, "Wake lock acquired")
   }
 
   override fun onBind(intent: Intent?): IBinder {
@@ -109,8 +102,7 @@ class DownloadService : Service() {
   
   override fun onDestroy() {
     wakeLock?.let { if (it.isHeld) it.release() }
-    wifiLock?.let { if (it.isHeld) it.release() }
-    Log.d(TAG, "Wake and WiFi locks released")
+    Log.d(TAG, "Wake lock released")
     Log.d(TAG, "DownloadService destroyed")
     super.onDestroy()
   }
