@@ -204,7 +204,10 @@ export const OtherSettings: React.FC = () => {
             }
           />
         </ListItem>
-        <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
+        <ListItem
+          title={t("home.settings.other.max_auto_play_episode_count")}
+          disabled={pluginSettings?.maxAutoPlayEpisodeCount?.locked}
+        >
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}
             trigger={
