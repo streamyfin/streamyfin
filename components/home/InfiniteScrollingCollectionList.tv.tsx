@@ -329,18 +329,22 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           windowSize={5}
           removeClippedSubviews={false}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-          ListHeaderComponent={
-            <View style={{ width: sizes.padding.horizontal }} />
-          }
           style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
-          }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
-            paddingVertical: SCALE_PADDING,
+            paddingVertical: sizes.gaps.small,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
           }}
+          // Below is a work around with the contentInset, same in TVHeroCarousel, if okay on apple remove
+          // ListHeaderComponent={
+          //   <View style={{ width: sizes.padding.horizontal }} />
+          // }
+          // contentInset={{
+          //   left: sizes.padding.horizontal,
+          //   right: sizes.padding.horizontal,
+          // }}
+          // contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
+          // contentContainerStyle={{ paddingVertical: SCALE_PADDING }}
           ListFooterComponent={
             <View
               style={{

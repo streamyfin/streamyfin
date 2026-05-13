@@ -1,6 +1,8 @@
 package expo.modules.mpvplayer
 
+import android.app.UiModeManager
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.AssetManager
 import android.os.Handler
 import android.os.Looper
@@ -27,7 +29,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         const val MPV_FORMAT_DOUBLE = 5
         const val MPV_FORMAT_NODE = 6
     }
-    
+
+    private fun isTvDevice(): Boolean {
+        val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
     interface Delegate {
         fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double)
         fun onPauseChanged(isPaused: Boolean)
@@ -157,7 +164,15 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("opengl-es", "yes")
             
             // Hardware video decoding
-            MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            // TV: zero-copy (mediacodec) for better performance on low-power devices
+            // Mobile: copy mode (mediacodec-copy) for better compatibility
+            val isTV = isTvDevice()
+            if (isTV) {
+                MPVLib.setOptionString("hwdec", "mediacodec")
+                MPVLib.setOptionString("profile", "fast")
+            } else {
+                MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            }
             MPVLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
             
             // Cache settings for better network streaming

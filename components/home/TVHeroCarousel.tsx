@@ -33,6 +33,7 @@ import {
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
+import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -129,7 +130,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
           <GlassPosterView
             imageUrl={posterUrl}
             aspectRatio={16 / 9}
-            cornerRadius={24}
+            cornerRadius={scaleSize(24)}
             progress={progress}
             showWatchedIndicator={false}
             isFocused={focused}
@@ -154,15 +155,15 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
           style={{
             width: sizes.posters.episode,
             aspectRatio: 16 / 9,
-            borderRadius: 24,
+            borderRadius: scaleSize(24),
             overflow: "hidden",
             transform: [{ scale }],
-            borderWidth: 2,
+            borderWidth: scaleSize(2),
             borderColor: focused ? "#FFFFFF" : "transparent",
             shadowColor: "#FFFFFF",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
+            shadowRadius: focused ? scaleSize(20) : 0,
           }}
         >
           {posterUrl ? (
@@ -183,7 +184,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
             >
               <Ionicons
                 name='film-outline'
-                size={48}
+                size={scaleSize(48)}
                 color='rgba(255,255,255,0.3)'
               />
             </View>
@@ -472,7 +473,10 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           left: sizes.padding.horizontal,
           right: sizes.padding.horizontal,
           bottom:
-            40 + sizes.posters.episode * (9 / 16) + sizes.gaps.small * 2 + 20,
+            scaleSize(40) +
+            sizes.posters.episode * (9 / 16) +
+            sizes.gaps.small * 2 +
+            scaleSize(20),
         }}
       >
         {/* Logo or Title */}
@@ -480,9 +484,9 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           <Image
             source={{ uri: logoUrl }}
             style={{
-              height: 100,
+              height: scaleSize(100),
               width: SCREEN_WIDTH * 0.35,
-              marginBottom: 16,
+              marginBottom: scaleSize(16),
             }}
             contentFit='contain'
             contentPosition='left'
@@ -493,7 +497,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
               fontSize: typography.display,
               fontWeight: "bold",
               color: "#FFFFFF",
-              marginBottom: 12,
+              marginBottom: scaleSize(12),
             }}
             numberOfLines={1}
           >
@@ -507,7 +511,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             style={{
               fontSize: typography.body,
               color: "rgba(255,255,255,0.9)",
-              marginBottom: 12,
+              marginBottom: scaleSize(12),
             }}
             numberOfLines={1}
           >
@@ -521,7 +525,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             style={{
               fontSize: typography.body,
               color: "rgba(255,255,255,0.8)",
-              marginBottom: 16,
+              marginBottom: scaleSize(16),
               maxWidth: SCREEN_WIDTH * 0.5,
               lineHeight: typography.body * 1.4,
             }}
@@ -536,7 +540,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 16,
+            gap: scaleSize(16),
           }}
         >
           {year && (
@@ -562,10 +566,10 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           {activeItem?.OfficialRating && (
             <View
               style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
-                borderWidth: 1,
+                paddingHorizontal: scaleSize(8),
+                paddingVertical: scaleSize(2),
+                borderRadius: scaleSize(4),
+                borderWidth: scaleSize(1),
                 borderColor: "rgba(255,255,255,0.5)",
               }}
             >
@@ -584,15 +588,15 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 6,
+                gap: scaleSize(6),
               }}
             >
               <View
                 style={{
-                  width: 60,
-                  height: 4,
+                  width: scaleSize(60),
+                  height: scaleSize(4),
                   backgroundColor: "rgba(255,255,255,0.3)",
-                  borderRadius: 2,
+                  borderRadius: scaleSize(2),
                   overflow: "hidden",
                 }}
               >
@@ -624,7 +628,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           position: "absolute",
           left: 0,
           right: 0,
-          bottom: 40,
+          bottom: scaleSize(40),
         }}
       >
         <FlatList
@@ -633,12 +637,21 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           keyExtractor={keyExtractor}
           showsHorizontalScrollIndicator={false}
           style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
+          contentContainerStyle={{
+            paddingVertical: sizes.gaps.small,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
           }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
-          contentContainerStyle={{ paddingVertical: sizes.gaps.small }}
+          // Below is a work around with the contentInset, same in infiniteScrollingCollectionList, if okay on apple remove
+          // ListHeaderComponent={
+          //   <View style={{ width: sizes.padding.horizontal }} />
+          // }
+          // contentInset={{
+          //   left: sizes.padding.horizontal,
+          //   right: sizes.padding.horizontal,
+          // }}
+          // contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
+          // contentContainerStyle={{ paddingVertical: sizes.gaps.small }}
           renderItem={renderHeroCard}
           removeClippedSubviews={false}
           initialNumToRender={8}

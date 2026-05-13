@@ -134,7 +134,7 @@ export default function TabLayout() {
             tabBarItemHidden: !Platform.isTV,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
+                ? (_e) => require("@/assets/icons/gear.png") //Should maybe use other libraries to have it uniform
                 : (_e) => ({ sfSymbol: "gearshape.fill" }),
           }}
         />
