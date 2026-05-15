@@ -97,6 +97,25 @@ export default function IndexLayout() {
         }}
       />
       <Stack.Screen
+        name='companion-login'
+        options={{
+          title: t("companion_login.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </Pressable>
+          ),
+        }}
+      />
+      <Stack.Screen
         name='settings/playback-controls/page'
         options={{
           title: t("home.settings.playback_controls.title"),
