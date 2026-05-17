@@ -268,6 +268,7 @@ export const Controls: FC<Props> = ({
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
   const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
+  const [skipSegmentRef, setSkipSegmentRef] = useState<View | null>(null);
 
   // Minimal seek bar state (shows only progress bar when seeking while controls hidden)
   const [showMinimalSeekBar, setShowMinimalSeekBar] = useState(false);
@@ -1040,6 +1041,9 @@ export const Controls: FC<Props> = ({
         onPress={skipIntro}
         type='intro'
         controlsVisible={showControls}
+        refSetter={setSkipSegmentRef}
+        hasTVPreferredFocus={!showControls}
+        downDestination={showControls ? playButtonRef : null}
       />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
@@ -1052,6 +1056,9 @@ export const Controls: FC<Props> = ({
         onPress={skipCredit}
         type='credits'
         controlsVisible={showControls}
+        refSetter={setSkipSegmentRef}
+        hasTVPreferredFocus={!showControls}
+        downDestination={showControls ? playButtonRef : null}
       />
 
       {nextItem && (
@@ -1209,6 +1216,14 @@ export const Controls: FC<Props> = ({
               </Text>
             )}
           </View>
+
+          {/* Upward: control buttons → visible skip segment card */}
+          {skipSegmentRef && (
+            <TVFocusGuideView
+              destinations={[skipSegmentRef]}
+              style={styles.focusGuide}
+            />
+          )}
 
           <View style={styles.controlButtonsRow}>
             <TVControlButton

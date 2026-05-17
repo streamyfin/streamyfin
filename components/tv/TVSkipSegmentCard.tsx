@@ -2,7 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import type { FC } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Animated as RNAnimated, StyleSheet } from "react-native";
+import {
+  Pressable,
+  Animated as RNAnimated,
+  StyleSheet,
+  TVFocusGuideView,
+  type View,
+} from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -18,6 +24,12 @@ export interface TVSkipSegmentCardProps {
   type: "intro" | "credits";
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
+  /** Callback ref setter for focus guide destination pattern */
+  refSetter?: (ref: View | null) => void;
+  /** Whether this component should receive initial focus */
+  hasTVPreferredFocus?: boolean;
+  /** Destination used when moving down from this card */
+  downDestination?: View | null;
 }
 
 // Position constants - same as TVNextEpisodeCountdown (they're mutually exclusive)
@@ -29,6 +41,9 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
   onPress,
   type,
   controlsVisible = false,
+  refSetter,
+  hasTVPreferredFocus = true,
+  downDestination,
 }) => {
   const { t } = useTranslation();
   const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -67,10 +82,11 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
       pointerEvents='box-none'
     >
       <Pressable
+        ref={refSetter}
         onPress={onPress}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        hasTVPreferredFocus={true}
+        hasTVPreferredFocus={hasTVPreferredFocus}
       >
         <RNAnimated.View
           style={[
@@ -90,6 +106,12 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
           <Text style={styles.label}>{labelText}</Text>
         </RNAnimated.View>
       </Pressable>
+      {downDestination && (
+        <TVFocusGuideView
+          destinations={[downDestination]}
+          style={styles.returnFocusGuide}
+        />
+      )}
     </Animated.View>
   );
 };
@@ -113,5 +135,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#fff",
     fontWeight: "600",
+  },
+  returnFocusGuide: {
+    height: 1,
+    width: "100%",
   },
 });
