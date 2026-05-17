@@ -12,7 +12,7 @@ import { FlatList, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVSizes, useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -39,6 +39,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
+  const tv = useTVDesignTokens();
+  const listHorizontalPadding = sizes.padding.horizontal + sizes.padding.scale;
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -196,7 +198,7 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 20,
+          marginBottom: tv.spacing.lg,
           marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
@@ -220,8 +222,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
                   backgroundColor: "#262626",
                   width: sizes.posters.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: tv.radius.md,
+                  marginBottom: tv.spacing.xs,
                 }}
               />
             </View>
@@ -239,13 +241,12 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           windowSize={5}
           removeClippedSubviews={false}
           getItemLayout={getItemLayout}
-          style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
+          style={{
+            overflow: "visible",
+            marginHorizontal: -sizes.padding.scale,
           }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
+            paddingHorizontal: listHorizontalPadding,
             paddingVertical: sizes.padding.scale,
           }}
         />

@@ -32,6 +32,7 @@ import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPr
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations.tv";
 import { TVHeroCarousel } from "@/components/home/TVHeroCarousel";
 import { Loader } from "@/components/Loader";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -43,8 +44,6 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
-// Generous gap between sections for Apple TV+ aesthetic
-const SECTION_GAP = 24;
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -63,6 +62,7 @@ const BACKDROP_DEBOUNCE_MS = 300;
 
 export const Home = () => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const _router = useRouter();
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
@@ -78,6 +78,11 @@ export const Home = () => {
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
   const { showItemActions } = useTVItemActionModal();
+  const horizontalPadding = sizes.padding.horizontal;
+  const topPadding = Math.round(
+    (TOP_PADDING * horizontalPadding) / HORIZONTAL_PADDING,
+  );
+  const sectionGap = sizes.gaps.item;
 
   // Dynamic backdrop state with debounce
   const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
@@ -568,7 +573,7 @@ export const Home = () => {
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          paddingHorizontal: HORIZONTAL_PADDING,
+          paddingHorizontal: horizontalPadding,
         }}
       >
         <Text
@@ -592,7 +597,7 @@ export const Home = () => {
           {subtitle}
         </Text>
 
-        <View style={{ marginTop: 24 }}>
+        <View style={{ marginTop: sectionGap }}>
           <Button
             color='black'
             onPress={retryCheck}
@@ -721,8 +726,8 @@ export const Home = () => {
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: showHero ? 0 : insets.top + TOP_PADDING,
-          paddingBottom: insets.bottom + 60,
+          paddingTop: showHero ? 0 : insets.top + topPadding,
+          paddingBottom: insets.bottom + sizes.padding.horizontal,
         }}
       >
         {/* Hero Carousel - Apple TV+ style featured content */}
@@ -736,8 +741,8 @@ export const Home = () => {
 
         <View
           style={{
-            gap: SECTION_GAP,
-            paddingTop: showHero ? SECTION_GAP : 0,
+            gap: sectionGap,
+            paddingTop: showHero ? sectionGap : 0,
           }}
         >
           {/* Skip first section (Continue Watching) when hero is shown since hero displays that content */}
@@ -757,7 +762,7 @@ export const Home = () => {
               settings.streamyStatsPromotedWatchlists;
             const streamystatsSections =
               index === streamystatsIndex && hasStreamystatsContent ? (
-                <View key='streamystats-sections' style={{ gap: SECTION_GAP }}>
+                <View key='streamystats-sections' style={{ gap: sectionGap }}>
                   {settings.streamyStatsMovieRecommendations && (
                     <StreamystatsRecommendations
                       title={t(
@@ -788,7 +793,7 @@ export const Home = () => {
               // First section only gets preferred focus if hero is not shown
               const isFirstSection = index === 0 && !showHero;
               return (
-                <View key={index} style={{ gap: SECTION_GAP }}>
+                <View key={index} style={{ gap: sectionGap }}>
                   <InfiniteScrollingCollectionList
                     title={section.title}
                     queryKey={section.queryKey}

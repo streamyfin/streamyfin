@@ -25,9 +25,6 @@ import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 
-// Extra padding to accommodate scale animation (1.05x) and glow shadow
-const SCALE_PADDING = 20;
-
 interface Props extends ViewProps {
   title?: string | null;
   orientation?: "horizontal" | "vertical";
@@ -128,6 +125,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const posterSizes = useScaledTVPosterSizes();
   const sizes = useScaledTVSizes();
   const ITEM_GAP = sizes.gaps.item;
+  const listHorizontalPadding = sizes.padding.horizontal + sizes.padding.scale;
   const effectivePageSize = Math.max(1, pageSize);
   const router = useRouter();
   const { showItemActions } = useTVItemActionModal();
@@ -250,7 +248,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 20,
+          marginBottom: sizes.padding.scale,
           marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
@@ -275,8 +273,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           style={{
             flexDirection: "row",
             gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
-            paddingVertical: SCALE_PADDING,
+            paddingHorizontal: sizes.padding.scale,
+            paddingVertical: sizes.padding.scale,
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
@@ -328,14 +326,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           windowSize={5}
           removeClippedSubviews={false}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-          style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
+          style={{
+            overflow: "visible",
+            marginHorizontal: -sizes.padding.scale,
           }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
-            paddingVertical: SCALE_PADDING,
+            paddingHorizontal: listHorizontalPadding,
+            paddingVertical: sizes.padding.scale,
           }}
           ListFooterComponent={
             <View

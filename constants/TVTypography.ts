@@ -1,4 +1,5 @@
 import { TVTypographyScale, useSettings } from "@/utils/atoms/settings";
+import { useTVViewportScale } from "./TVSizes";
 
 /**
  * TV Typography Scale
@@ -39,9 +40,11 @@ const scaleMultipliers: Record<TVTypographyScale, number> = {
  */
 export const useScaledTVTypography = () => {
   const { settings } = useSettings();
-  const scale =
+  const viewportScale = useTVViewportScale();
+  const userScale =
     scaleMultipliers[settings.tvTypographyScale] ??
     scaleMultipliers[TVTypographyScale.Default];
+  const scale = userScale * viewportScale;
 
   return {
     display: Math.round(TVTypography.display * scale),

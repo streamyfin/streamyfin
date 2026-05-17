@@ -1,4 +1,78 @@
+import { useMemo } from "react";
+import { Platform, useWindowDimensions } from "react-native";
 import { TVTypographyScale, useSettings } from "@/utils/atoms/settings";
+
+const TV_BASELINE_WIDTH = 1920;
+const MIN_TV_VIEWPORT_SCALE = 0.5;
+
+/**
+ * Normalizes TV layout values across platforms.
+ *
+ * tvOS reports a 1920-wide logical viewport on common TV targets, while
+ * Android TV often reports density-independent widths such as 960 for a
+ * 1080p display. Scaling against a 1920 baseline keeps the UI from appearing
+ * oversized on Android TV while preserving the current tvOS sizing.
+ */
+export const useTVViewportScale = () => {
+  const { width } = useWindowDimensions();
+
+  return useMemo(() => {
+    if (!Platform.isTV || width <= 0) return 1;
+
+    return Math.min(
+      1,
+      Math.max(MIN_TV_VIEWPORT_SCALE, width / TV_BASELINE_WIDTH),
+    );
+  }, [width]);
+};
+
+export const useTVDesignTokens = () => {
+  const scale = useTVViewportScale();
+  const scaled = (value: number) => Math.round(value * scale);
+
+  return useMemo(
+    () => ({
+      scale,
+      size: scaled,
+      spacing: {
+        xxs: scaled(4),
+        xs: scaled(8),
+        sm: scaled(12),
+        md: scaled(16),
+        lg: scaled(20),
+        xl: scaled(24),
+        "2xl": scaled(32),
+        "3xl": scaled(40),
+        "4xl": scaled(48),
+      },
+      radius: {
+        sm: scaled(8),
+        md: scaled(12),
+        lg: scaled(16),
+        xl: scaled(24),
+      },
+      page: {
+        horizontal: scaled(80),
+        horizontalCompact: scaled(60),
+        top: scaled(140),
+        topCompact: scaled(100),
+        focusPadding: scaled(20),
+      },
+      shadow: {
+        md: scaled(12),
+        lg: scaled(15),
+        xl: scaled(20),
+      },
+      button: {
+        paddingVertical: scaled(18),
+        paddingHorizontal: scaled(32),
+        squarePadding: scaled(18),
+        minWidth: scaled(180),
+      },
+    }),
+    [scale],
+  );
+};
 
 /**
  * TV Layout Sizes
@@ -123,9 +197,11 @@ export type ScaledTVSizes = {
  */
 export const useScaledTVSizes = (): ScaledTVSizes => {
   const { settings } = useSettings();
-  const scale =
+  const viewportScale = useTVViewportScale();
+  const userScale =
     sizeScaleMultipliers[settings.tvTypographyScale] ??
     sizeScaleMultipliers[TVTypographyScale.Default];
+  const scale = userScale * viewportScale;
 
   return {
     posters: {
@@ -143,7 +219,7 @@ export const useScaledTVSizes = (): ScaledTVSizes => {
       horizontal: Math.round(TVPadding.horizontal * scale),
       scale: Math.round(TVPadding.scale * scale),
       vertical: Math.round(TVPadding.vertical * scale),
-      heroHeight: TVPadding.heroHeight * scale,
+      heroHeight: TVPadding.heroHeight * userScale,
     },
     animation: TVAnimation,
   };

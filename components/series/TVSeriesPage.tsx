@@ -30,6 +30,7 @@ import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
+import { useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -46,10 +47,7 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-const HORIZONTAL_PADDING = 80;
-const TOP_PADDING = 140;
 const POSTER_WIDTH_PERCENT = 0.22;
-const SCALE_PADDING = 20;
 
 interface TVSeriesPageProps {
   item: BaseItemDto;
@@ -73,6 +71,7 @@ const TVFocusableButton: React.FC<{
   variant = "primary",
   refSetter,
 }) => {
+  const tv = useTVDesignTokens();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -109,7 +108,7 @@ const TVFocusableButton: React.FC<{
             shadowColor: isPrimary ? "#fff" : "#a855f7",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
+            shadowRadius: focused ? tv.shadow.xl : 0,
           },
         ]}
       >
@@ -122,13 +121,13 @@ const TVFocusableButton: React.FC<{
               : isPrimary
                 ? "rgba(255, 255, 255, 0.9)"
                 : "rgba(124, 58, 237, 0.8)",
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: 32,
+            borderRadius: tv.radius.md,
+            paddingVertical: tv.button.paddingVertical,
+            paddingHorizontal: tv.button.paddingHorizontal,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            minWidth: 180,
+            minWidth: tv.button.minWidth,
           }}
         >
           {children}
@@ -145,6 +144,7 @@ const TVSeasonButton: React.FC<{
   disabled?: boolean;
 }> = ({ seasonName, onPress, disabled = false }) => {
   const typography = useScaledTVTypography();
+  const tv = useTVDesignTokens();
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -176,19 +176,19 @@ const TVSeasonButton: React.FC<{
           shadowColor: "#fff",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: focused ? 0.6 : 0,
-          shadowRadius: focused ? 20 : 0,
+          shadowRadius: focused ? tv.shadow.xl : 0,
         }}
       >
         <View
           style={{
             backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.1)",
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: 32,
+            borderRadius: tv.radius.md,
+            paddingVertical: tv.button.paddingVertical,
+            paddingHorizontal: tv.button.paddingHorizontal,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            gap: 10,
+            gap: tv.spacing.xs,
           }}
         >
           <Text
@@ -202,7 +202,7 @@ const TVSeasonButton: React.FC<{
           </Text>
           <Ionicons
             name='chevron-down'
-            size={28}
+            size={tv.size(28)}
             color={focused ? "#000" : "#FFFFFF"}
           />
         </View>
@@ -217,6 +217,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   isLoading: _isLoading,
 }) => {
   const typography = useScaledTVTypography();
+  const tv = useTVDesignTokens();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -498,9 +499,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         ref={mainScrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + TOP_PADDING,
-          paddingHorizontal: insets.left + HORIZONTAL_PADDING,
-          paddingBottom: insets.bottom + 60,
+          paddingTop: insets.top + tv.page.top,
+          paddingHorizontal: insets.left + tv.page.horizontal,
+          paddingBottom: insets.bottom + tv.page.horizontalCompact,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -519,8 +520,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             <View
               style={{
                 flexDirection: "row",
-                gap: 16,
-                marginTop: 32,
+                gap: tv.spacing.md,
+                marginTop: tv.spacing["2xl"],
               }}
             >
               <TVFocusableButton
@@ -532,9 +533,9 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
               >
                 <Ionicons
                   name='play'
-                  size={28}
+                  size={tv.size(28)}
                   color='#000000'
-                  style={{ marginRight: 10 }}
+                  style={{ marginRight: tv.spacing.xs }}
                 />
                 <Text
                   style={{
@@ -563,18 +564,18 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
           <View
             style={{
               width: SCREEN_WIDTH * POSTER_WIDTH_PERCENT,
-              marginLeft: 50,
+              marginLeft: tv.spacing["4xl"],
             }}
           >
             <View
               style={{
                 aspectRatio: 2 / 3,
-                borderRadius: 16,
+                borderRadius: tv.radius.lg,
                 overflow: "hidden",
                 shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
+                shadowOffset: { width: 0, height: tv.spacing.xs },
                 shadowOpacity: 0.5,
-                shadowRadius: 20,
+                shadowRadius: tv.shadow.xl,
               }}
             >
               <ItemImage
@@ -587,14 +588,14 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
         </View>
 
         {/* Episodes section */}
-        <View style={{ marginTop: 40, overflow: "visible" }}>
+        <View style={{ marginTop: tv.spacing["3xl"], overflow: "visible" }}>
           <Text
             style={{
               fontSize: typography.heading,
               fontWeight: "600",
               color: "#FFFFFF",
-              marginBottom: 24,
-              marginLeft: SCALE_PADDING,
+              marginBottom: tv.spacing.xl,
+              marginLeft: tv.page.focusPadding,
             }}
           >
             {selectedSeasonName}
@@ -626,7 +627,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
             scrollViewRef={episodeListRef}
             firstEpisodeRefSetter={setFirstEpisodeRef}
             emptyText={t("item_card.no_episodes_for_this_season")}
-            horizontalPadding={HORIZONTAL_PADDING}
+            horizontalPadding={tv.page.horizontal}
           />
         </View>
       </ScrollView>

@@ -3,7 +3,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, TVFocusGuideView, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVSizes, useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TVActorCard } from "./TVActorCard";
 
@@ -27,6 +27,7 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
   }) => {
     const typography = useScaledTVTypography();
     const sizes = useScaledTVSizes();
+    const tv = useTVDesignTokens();
     const { t } = useTranslation();
 
     if (cast.length === 0) {
@@ -34,13 +35,13 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
     }
 
     return (
-      <View style={{ marginBottom: 40 }}>
+      <View style={{ marginBottom: tv.spacing["3xl"] }}>
         <Text
           style={{
             fontSize: typography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
-            marginBottom: 24,
+            marginBottom: tv.spacing.xl,
           }}
         >
           {t("item_card.cast")}
@@ -55,10 +56,10 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -80, overflow: "visible" }}
+          style={{ marginHorizontal: -tv.page.horizontal, overflow: "visible" }}
           contentContainerStyle={{
-            paddingHorizontal: 80,
-            paddingVertical: 16,
+            paddingHorizontal: tv.page.horizontal,
+            paddingVertical: tv.spacing.md,
             gap: sizes.gaps.item,
           }}
         >

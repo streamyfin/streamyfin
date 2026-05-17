@@ -14,6 +14,7 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
+import { useTVViewportScale } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
   GlassPosterView,
@@ -108,6 +109,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
   const typography = useScaledTVTypography();
+  const viewportScale = useTVViewportScale();
+  const scaleValue = (value: number) => Math.round(value * viewportScale);
+  const posterRadius = scaleValue(24);
 
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -344,23 +348,23 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     <View
       style={{
         position: "absolute",
-        top: 12,
-        left: 12,
+        top: scaleValue(12),
+        left: scaleValue(12),
         backgroundColor: "#FFFFFF",
-        borderRadius: 8,
+        borderRadius: scaleValue(8),
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        gap: 6,
+        paddingHorizontal: scaleValue(12),
+        paddingVertical: scaleValue(8),
+        gap: scaleValue(6),
         zIndex: 10,
       }}
     >
-      <Ionicons name='play' size={16} color='#000000' />
+      <Ionicons name='play' size={scaleValue(16)} color='#000000' />
       <Text
         style={{
           color: "#000000",
-          fontSize: 14,
+          fontSize: scaleValue(14),
           fontWeight: "700",
         }}
       >
@@ -382,7 +386,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         justifyContent: "center",
       }}
     >
-      <Ionicons name='play-circle' size={56} color='white' />
+      <Ionicons name='play-circle' size={scaleValue(56)} color='white' />
     </View>
   ) : null;
 
@@ -395,7 +399,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           style={{
             width,
             aspectRatio,
-            borderRadius: 24,
+            borderRadius: posterRadius,
             backgroundColor: "#1a1a1a",
             borderWidth: 2,
             borderColor: focused ? "#FFFFFF" : "transparent",
@@ -411,7 +415,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           <GlassPosterView
             imageUrl={imageUrl}
             aspectRatio={aspectRatio}
-            cornerRadius={24}
+            cornerRadius={posterRadius}
             progress={progress}
             showWatchedIndicator={isWatched}
             isFocused={focused}
@@ -431,7 +435,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           position: "relative",
           width,
           aspectRatio,
-          borderRadius: 24,
+          borderRadius: posterRadius,
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
           borderWidth: 2,

@@ -11,12 +11,9 @@ import heart from "@/assets/icons/heart.fill.png";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { Colors } from "@/constants/Colors";
+import { useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-
-const HORIZONTAL_PADDING = 60;
-const TOP_PADDING = 100;
-const SECTION_GAP = 10;
 
 type FavoriteTypes =
   | "Series"
@@ -29,6 +26,7 @@ type EmptyState = Record<FavoriteTypes, boolean>;
 
 export const Favorites = () => {
   const typography = useScaledTVTypography();
+  const tv = useTVDesignTokens();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -134,14 +132,14 @@ export const Favorites = () => {
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          paddingHorizontal: HORIZONTAL_PADDING,
+          paddingHorizontal: tv.page.horizontalCompact,
         }}
       >
         <Image
           style={{
-            width: 64,
-            height: 64,
-            marginBottom: 16,
+            width: tv.size(64),
+            height: tv.size(64),
+            marginBottom: tv.spacing.md,
             tintColor: Colors.primary,
           }}
           contentFit='contain'
@@ -151,7 +149,7 @@ export const Favorites = () => {
           style={{
             fontSize: typography.heading,
             fontWeight: "bold",
-            marginBottom: 8,
+            marginBottom: tv.spacing.xs,
             color: "#FFFFFF",
           }}
         >
@@ -176,11 +174,11 @@ export const Favorites = () => {
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
-        paddingTop: insets.top + TOP_PADDING,
-        paddingBottom: insets.bottom + 60,
+        paddingTop: insets.top + tv.page.topCompact,
+        paddingBottom: insets.bottom + tv.page.horizontalCompact,
       }}
     >
-      <View style={{ gap: SECTION_GAP }}>
+      <View style={{ gap: tv.spacing.xs }}>
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteSeries}
           queryKey={["home", "favorites", "series"]}

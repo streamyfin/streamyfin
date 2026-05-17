@@ -13,7 +13,7 @@ import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVSizes, useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -21,8 +21,6 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
-
-const SCALE_PADDING = 20;
 
 interface WatchlistSectionProps extends ViewProps {
   watchlist: StreamystatsWatchlist;
@@ -39,7 +37,9 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
   const typography = useScaledTVTypography();
   const posterSizes = useScaledTVPosterSizes();
   const sizes = useScaledTVSizes();
+  const tv = useTVDesignTokens();
   const ITEM_GAP = sizes.gaps.item;
+  const listHorizontalPadding = sizes.padding.horizontal + sizes.padding.scale;
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
@@ -144,7 +144,7 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 20,
+          marginBottom: tv.spacing.lg,
           marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
@@ -157,8 +157,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           style={{
             flexDirection: "row",
             gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
-            paddingVertical: SCALE_PADDING,
+            paddingHorizontal: sizes.padding.scale,
+            paddingVertical: sizes.padding.scale,
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
@@ -168,8 +168,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
                   backgroundColor: "#262626",
                   width: posterSizes.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: tv.radius.md,
+                  marginBottom: tv.spacing.xs,
                 }}
               />
             </View>
@@ -187,14 +187,13 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           windowSize={5}
           removeClippedSubviews={false}
           getItemLayout={getItemLayout}
-          style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
+          style={{
+            overflow: "visible",
+            marginHorizontal: -sizes.padding.scale,
           }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
-            paddingVertical: SCALE_PADDING,
+            paddingHorizontal: listHorizontalPadding,
+            paddingVertical: sizes.padding.scale,
           }}
         />
       )}
@@ -212,6 +211,7 @@ export const StreamystatsPromotedWatchlists: React.FC<
 > = ({ enabled = true, onItemFocus, ...props }) => {
   const posterSizes = useScaledTVPosterSizes();
   const sizes = useScaledTVSizes();
+  const tv = useTVDesignTokens();
   const ITEM_GAP = sizes.gaps.item;
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
@@ -286,20 +286,20 @@ export const StreamystatsPromotedWatchlists: React.FC<
       <View style={{ overflow: "visible" }} {...props}>
         <View
           style={{
-            height: 16,
-            width: 128,
+            height: tv.spacing.md,
+            width: tv.size(128),
             backgroundColor: "#262626",
-            borderRadius: 4,
-            marginLeft: SCALE_PADDING,
-            marginBottom: 16,
+            borderRadius: tv.spacing.xxs,
+            marginLeft: sizes.padding.scale,
+            marginBottom: tv.spacing.md,
           }}
         />
         <View
           style={{
             flexDirection: "row",
             gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
-            paddingVertical: SCALE_PADDING,
+            paddingHorizontal: sizes.padding.scale,
+            paddingVertical: sizes.padding.scale,
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
@@ -309,8 +309,8 @@ export const StreamystatsPromotedWatchlists: React.FC<
                   backgroundColor: "#262626",
                   width: posterSizes.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: tv.radius.md,
+                  marginBottom: tv.spacing.xs,
                 }}
               />
             </View>

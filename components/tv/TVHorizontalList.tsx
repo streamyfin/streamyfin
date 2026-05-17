@@ -1,7 +1,7 @@
 import React, { useCallback } from "react";
 import { FlatList, ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVSizes, useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 
 interface TVHorizontalListProps<T> {
@@ -65,6 +65,7 @@ export function TVHorizontalList<T>({
 }: TVHorizontalListProps<T>) {
   const sizes = useScaledTVSizes();
   const typography = useScaledTVTypography();
+  const tv = useTVDesignTokens();
 
   // Use custom horizontal padding if provided, otherwise use default scale padding
   const effectiveHorizontalPadding = horizontalPadding ?? sizes.padding.scale;
@@ -94,7 +95,7 @@ export function TVHorizontalList<T>({
               fontSize: typography.heading,
               fontWeight: "700",
               color: "#FFFFFF",
-              marginBottom: 20,
+              marginBottom: tv.spacing.lg,
               marginLeft: sizes.padding.scale,
               letterSpacing: 0.5,
             }}
@@ -125,7 +126,7 @@ export function TVHorizontalList<T>({
               fontSize: typography.heading,
               fontWeight: "700",
               color: "#FFFFFF",
-              marginBottom: 20,
+              marginBottom: tv.spacing.lg,
               marginLeft: sizes.padding.scale,
               letterSpacing: 0.5,
             }}
@@ -167,7 +168,7 @@ export function TVHorizontalList<T>({
             fontSize: typography.heading,
             fontWeight: "700",
             color: "#FFFFFF",
-            marginBottom: 20,
+            marginBottom: tv.spacing.lg,
             marginLeft: sizes.padding.scale,
             letterSpacing: 0.5,
           }}

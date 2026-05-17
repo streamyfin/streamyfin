@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import React from "react";
+import { useTVDesignTokens } from "@/constants/TVSizes";
 import { useFavorite } from "@/hooks/useFavorite";
 import { TVButton } from "./TVButton";
 
@@ -14,6 +15,7 @@ export const TVFavoriteButton: React.FC<TVFavoriteButtonProps> = ({
   disabled,
 }) => {
   const { isFavorite, toggleFavorite } = useFavorite(item);
+  const tv = useTVDesignTokens();
 
   return (
     <TVButton
@@ -24,7 +26,7 @@ export const TVFavoriteButton: React.FC<TVFavoriteButtonProps> = ({
     >
       <Ionicons
         name={isFavorite ? "heart" : "heart-outline"}
-        size={28}
+        size={tv.size(28)}
         color='#FFFFFF'
       />
     </TVButton>

@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
-import { useScaledTVSizes } from "@/constants/TVSizes";
+import { useScaledTVSizes, useTVDesignTokens } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
   GlassPosterView,
@@ -30,6 +30,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
+  const tv = useTVDesignTokens();
   const [focused, setFocused] = useState(false);
 
   // Check if glass effect is available (tvOS 26+)
@@ -51,7 +52,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         <GlassPosterView
           imageUrl={imageUrl}
           aspectRatio={10 / 15}
-          cornerRadius={24}
+          cornerRadius={tv.radius.xl}
           progress={0}
           showWatchedIndicator={false}
           isFocused={focused}
@@ -66,7 +67,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         style={{
           width: sizes.posters.poster,
           aspectRatio: 10 / 15,
-          borderRadius: 24,
+          borderRadius: tv.radius.xl,
           overflow: "hidden",
           backgroundColor: "rgba(255,255,255,0.1)",
           borderWidth: 2,
@@ -87,7 +88,11 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
               alignItems: "center",
             }}
           >
-            <Ionicons name='film' size={56} color='rgba(255,255,255,0.4)' />
+            <Ionicons
+              name='film'
+              size={tv.size(56)}
+              color='rgba(255,255,255,0.4)'
+            />
           </View>
         )}
       </View>
@@ -122,14 +127,14 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
             shadowColor: useGlass ? undefined : "#ffffff",
             shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
             shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
-            shadowRadius: useGlass ? undefined : focused ? 12 : 0,
+            shadowRadius: useGlass ? undefined : focused ? tv.shadow.md : 0,
           }}
         >
           {renderPoster()}
         </Animated.View>
       </Pressable>
 
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: tv.spacing.sm }}>
         <Text
           style={{
             fontSize: typography.body,
@@ -145,7 +150,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
             style={{
               fontSize: typography.callout,
               color: "#9CA3AF",
-              marginTop: 4,
+              marginTop: tv.spacing.xxs,
             }}
             numberOfLines={1}
           >

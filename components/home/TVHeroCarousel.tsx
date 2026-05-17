@@ -23,7 +23,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
-import { type ScaledTVSizes, useScaledTVSizes } from "@/constants/TVSizes";
+import {
+  type ScaledTVSizes,
+  useScaledTVSizes,
+  useTVViewportScale,
+} from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -55,8 +59,10 @@ interface HeroCardProps {
 const HeroCard: React.FC<HeroCardProps> = React.memo(
   ({ item, isFirst, sizes, onFocus, onPress, onLongPress }) => {
     const api = useAtomValue(apiAtom);
+    const viewportScale = useTVViewportScale();
     const [focused, setFocused] = useState(false);
     const scale = useRef(new Animated.Value(1)).current;
+    const cornerRadius = Math.round(24 * viewportScale);
 
     // Check if glass effect is available (tvOS 26+)
     const useGlass = Platform.OS === "ios" && isGlassEffectAvailable();
@@ -129,7 +135,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
           <GlassPosterView
             imageUrl={posterUrl}
             aspectRatio={16 / 9}
-            cornerRadius={24}
+            cornerRadius={cornerRadius}
             progress={progress}
             showWatchedIndicator={false}
             isFocused={focused}
@@ -154,7 +160,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
           style={{
             width: sizes.posters.episode,
             aspectRatio: 16 / 9,
-            borderRadius: 24,
+            borderRadius: cornerRadius,
             overflow: "hidden",
             transform: [{ scale }],
             borderWidth: 2,
@@ -162,7 +168,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
             shadowColor: "#FFFFFF",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
+            shadowRadius: focused ? Math.round(20 * viewportScale) : 0,
           }}
         >
           {posterUrl ? (
@@ -183,7 +189,7 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
             >
               <Ionicons
                 name='film-outline'
-                size={48}
+                size={Math.round(48 * viewportScale)}
                 color='rgba(255,255,255,0.3)'
               />
             </View>
@@ -205,6 +211,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
+  const viewportScale = useTVViewportScale();
   const api = useAtomValue(apiAtom);
   const _insets = useSafeAreaInsets();
   const router = useRouter();
@@ -377,7 +384,18 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
 
   if (items.length === 0) return null;
 
+  const scaleValue = (value: number) => Math.round(value * viewportScale);
   const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
+  const carouselBottom = scaleValue(40);
+  const carouselVerticalPadding = sizes.gaps.small + sizes.padding.scale;
+  const contentToCarouselGap = sizes.gaps.small;
+  const contentBottom =
+    carouselBottom +
+    sizes.posters.episode * (9 / 16) +
+    carouselVerticalPadding * 2 +
+    contentToCarouselGap;
+  const carouselHorizontalPadding =
+    sizes.padding.horizontal + sizes.padding.scale;
 
   return (
     <View style={{ height: heroHeight, width: "100%" }}>
@@ -471,8 +489,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           position: "absolute",
           left: sizes.padding.horizontal,
           right: sizes.padding.horizontal,
-          bottom:
-            40 + sizes.posters.episode * (9 / 16) + sizes.gaps.small * 2 + 20,
+          bottom: contentBottom,
         }}
       >
         {/* Logo or Title */}
@@ -480,9 +497,9 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           <Image
             source={{ uri: logoUrl }}
             style={{
-              height: 100,
+              height: scaleValue(100),
               width: SCREEN_WIDTH * 0.35,
-              marginBottom: 16,
+              marginBottom: scaleValue(16),
             }}
             contentFit='contain'
             contentPosition='left'
@@ -493,7 +510,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
               fontSize: typography.display,
               fontWeight: "bold",
               color: "#FFFFFF",
-              marginBottom: 12,
+              marginBottom: scaleValue(12),
             }}
             numberOfLines={1}
           >
@@ -507,7 +524,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             style={{
               fontSize: typography.body,
               color: "rgba(255,255,255,0.9)",
-              marginBottom: 12,
+              marginBottom: scaleValue(12),
             }}
             numberOfLines={1}
           >
@@ -521,7 +538,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
             style={{
               fontSize: typography.body,
               color: "rgba(255,255,255,0.8)",
-              marginBottom: 16,
+              marginBottom: scaleValue(16),
               maxWidth: SCREEN_WIDTH * 0.5,
               lineHeight: typography.body * 1.4,
             }}
@@ -536,7 +553,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 16,
+            gap: scaleValue(16),
           }}
         >
           {year && (
@@ -562,9 +579,9 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           {activeItem?.OfficialRating && (
             <View
               style={{
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 4,
+                paddingHorizontal: scaleValue(8),
+                paddingVertical: Math.max(1, scaleValue(2)),
+                borderRadius: scaleValue(4),
                 borderWidth: 1,
                 borderColor: "rgba(255,255,255,0.5)",
               }}
@@ -584,15 +601,15 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 6,
+                gap: scaleValue(6),
               }}
             >
               <View
                 style={{
-                  width: 60,
-                  height: 4,
+                  width: scaleValue(60),
+                  height: Math.max(2, scaleValue(4)),
                   backgroundColor: "rgba(255,255,255,0.3)",
-                  borderRadius: 2,
+                  borderRadius: scaleValue(2),
                   overflow: "hidden",
                 }}
               >
@@ -601,7 +618,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
                     width: `${playedPercent}%`,
                     height: "100%",
                     backgroundColor: "#FFFFFF",
-                    borderRadius: 2,
+                    borderRadius: scaleValue(2),
                   }}
                 />
               </View>
@@ -624,7 +641,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           position: "absolute",
           left: 0,
           right: 0,
-          bottom: 40,
+          bottom: carouselBottom,
         }}
       >
         <FlatList
@@ -632,13 +649,14 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           data={heroItems}
           keyExtractor={keyExtractor}
           showsHorizontalScrollIndicator={false}
-          style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
+          style={{
+            overflow: "visible",
+            marginHorizontal: -sizes.padding.scale,
           }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
-          contentContainerStyle={{ paddingVertical: sizes.gaps.small }}
+          contentContainerStyle={{
+            paddingHorizontal: carouselHorizontalPadding,
+            paddingVertical: carouselVerticalPadding,
+          }}
           renderItem={renderHeroCard}
           removeClippedSubviews={false}
           initialNumToRender={8}
