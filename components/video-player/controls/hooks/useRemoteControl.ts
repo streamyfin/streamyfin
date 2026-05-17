@@ -1,20 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, BackHandler, Platform } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
-
-// TV event handler with fallback for non-TV platforms
-let useTVEventHandler: (callback: (evt: any) => void) => void;
-if (Platform.isTV) {
-  try {
-    useTVEventHandler = require("react-native").useTVEventHandler;
-  } catch {
-    // Fallback for non-TV platforms
-    useTVEventHandler = () => {};
-  }
-} else {
-  // No-op hook for non-TV platforms
-  useTVEventHandler = () => {};
-}
+import { useTVEventHandler } from "@/hooks/useTVEventHandler";
 
 interface UseRemoteControlProps {
   showControls: boolean;
