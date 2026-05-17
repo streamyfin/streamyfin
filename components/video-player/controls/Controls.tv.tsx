@@ -269,6 +269,7 @@ export const Controls: FC<Props> = ({
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
   const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
   const [skipSegmentRef, setSkipSegmentRef] = useState<View | null>(null);
+  const [nextEpisodeRef, setNextEpisodeRef] = useState<View | null>(null);
 
   // Minimal seek bar state (shows only progress bar when seeking while controls hidden)
   const [showMinimalSeekBar, setShowMinimalSeekBar] = useState(false);
@@ -1015,6 +1016,8 @@ export const Controls: FC<Props> = ({
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
 
+  const topOverlayFocusTarget = skipSegmentRef ?? nextEpisodeRef;
+
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
       <Animated.View
@@ -1070,6 +1073,9 @@ export const Controls: FC<Props> = ({
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
           controlsVisible={showControls}
+          refSetter={setNextEpisodeRef}
+          hasTVPreferredFocus={!showControls}
+          downDestination={showControls ? playButtonRef : null}
         />
       )}
 
@@ -1217,10 +1223,10 @@ export const Controls: FC<Props> = ({
             )}
           </View>
 
-          {/* Upward: control buttons → visible skip segment card */}
-          {skipSegmentRef && (
+          {/* Upward: control buttons → visible skip segment or next episode card */}
+          {topOverlayFocusTarget && (
             <TVFocusGuideView
-              destinations={[skipSegmentRef]}
+              destinations={[topOverlayFocusTarget]}
               style={styles.focusGuide}
             />
           )}
