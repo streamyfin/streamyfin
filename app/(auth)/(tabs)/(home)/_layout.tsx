@@ -3,7 +3,10 @@ import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import {
+  androidTVFadeScreenOptions,
+  nestedTabPageScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
@@ -18,7 +21,7 @@ export default function IndexLayout() {
   const { t } = useTranslation();
 
   return (
-    <Stack>
+    <Stack screenOptions={androidTVFadeScreenOptions}>
       <Stack.Screen
         name='index'
         options={{

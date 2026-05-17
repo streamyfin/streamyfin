@@ -1,11 +1,12 @@
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
+import { androidTVFadeScreenOptions } from "@/components/stacks/NestedTabPageStack";
 
 export default function SettingsLayout() {
   const { t } = useTranslation();
   return (
-    <Stack>
+    <Stack screenOptions={androidTVFadeScreenOptions}>
       <Stack.Screen
         name='index'
         options={{

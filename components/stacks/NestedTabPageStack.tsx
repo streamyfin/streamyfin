@@ -10,7 +10,15 @@ type ICommonScreenOptions =
       navigation: any;
     }) => NativeStackNavigationOptions);
 
+export const androidTVFadeScreenOptions: NativeStackNavigationOptions =
+  Platform.OS === "android" && Platform.isTV
+    ? {
+        animation: "fade",
+      }
+    : {};
+
 export const commonScreenOptions: ICommonScreenOptions = {
+  ...androidTVFadeScreenOptions,
   title: "",
   headerShown: !Platform.isTV,
   headerTransparent: Platform.OS === "ios",

@@ -10,6 +10,7 @@ import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { androidTVFadeScreenOptions } from "@/components/stacks/NestedTabPageStack";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -415,7 +416,10 @@ function Layout() {
                             <IntroSheetProvider>
                               <ThemeProvider value={DarkTheme}>
                                 <SystemBars style='light' hidden={false} />
-                                <Stack initialRouteName='(auth)/(tabs)'>
+                                <Stack
+                                  initialRouteName='(auth)/(tabs)'
+                                  screenOptions={androidTVFadeScreenOptions}
+                                >
                                   <Stack.Screen
                                     name='(auth)/(tabs)'
                                     options={{

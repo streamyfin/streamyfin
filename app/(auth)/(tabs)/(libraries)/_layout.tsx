@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import {
+  androidTVFadeScreenOptions,
+  nestedTabPageScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function IndexLayout() {
@@ -150,7 +153,7 @@ export default function IndexLayout() {
   if (!settings?.libraryOptions) return null;
 
   return (
-    <Stack>
+    <Stack screenOptions={androidTVFadeScreenOptions}>
       <Stack.Screen
         name='index'
         options={{

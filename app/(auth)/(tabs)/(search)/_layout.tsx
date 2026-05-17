@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import {
+  androidTVFadeScreenOptions,
   commonScreenOptions,
   nestedTabPageScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
@@ -9,7 +10,7 @@ import {
 export default function SearchLayout() {
   const { t } = useTranslation();
   return (
-    <Stack>
+    <Stack screenOptions={androidTVFadeScreenOptions}>
       <Stack.Screen
         name='index'
         options={{

@@ -1,20 +1,26 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { ItemImage } from "@/components/common/ItemImage";
+import { ANDROID_TV_SIDEBAR_EXPANDED_WIDTH } from "@/components/navigation/AndroidTVSidebar";
 
 export interface TVBackdropProps {
   item: BaseItemDto;
 }
 
 export const TVBackdrop: React.FC<TVBackdropProps> = React.memo(({ item }) => {
+  const spillLeft =
+    Platform.OS === "android" && Platform.isTV
+      ? ANDROID_TV_SIDEBAR_EXPANDED_WIDTH
+      : 0;
+
   return (
     <View
       style={{
         position: "absolute",
         top: 0,
-        left: 0,
+        left: -spillLeft,
         right: 0,
         bottom: 0,
       }}
