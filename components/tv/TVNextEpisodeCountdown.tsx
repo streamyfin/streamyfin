@@ -40,7 +40,7 @@ export interface TVNextEpisodeCountdownProps {
   /** Whether this component should receive initial focus */
   hasTVPreferredFocus?: boolean;
   /** Destination used when moving down from this card */
-  downDestination?: RNView | null;
+  playButtonRef?: RNView | null;
 }
 
 // Position constants
@@ -57,7 +57,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   controlsVisible = false,
   refSetter,
   hasTVPreferredFocus = true,
-  downDestination,
+  playButtonRef: downDestination,
 }) => {
   const typography = useScaledTVTypography();
   const { t } = useTranslation();

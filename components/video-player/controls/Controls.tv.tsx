@@ -1046,7 +1046,7 @@ export const Controls: FC<Props> = ({
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
         hasTVPreferredFocus={!showControls}
-        downDestination={showControls ? playButtonRef : null}
+        playButtonRef={showControls ? playButtonRef : null}
       />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
@@ -1061,7 +1061,7 @@ export const Controls: FC<Props> = ({
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
         hasTVPreferredFocus={!showControls}
-        downDestination={showControls ? playButtonRef : null}
+        playButtonRef={showControls ? playButtonRef : null}
       />
 
       {nextItem && (
@@ -1075,7 +1075,7 @@ export const Controls: FC<Props> = ({
           controlsVisible={showControls}
           refSetter={setNextEpisodeRef}
           hasTVPreferredFocus={!showControls}
-          downDestination={showControls ? playButtonRef : null}
+          playButtonRef={showControls ? playButtonRef : null}
         />
       )}
 

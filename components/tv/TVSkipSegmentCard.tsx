@@ -29,7 +29,7 @@ export interface TVSkipSegmentCardProps {
   /** Whether this component should receive initial focus */
   hasTVPreferredFocus?: boolean;
   /** Destination used when moving down from this card */
-  downDestination?: View | null;
+  playButtonRef?: View | null;
 }
 
 // Position constants - same as TVNextEpisodeCountdown (they're mutually exclusive)
@@ -43,7 +43,7 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
   controlsVisible = false,
   refSetter,
   hasTVPreferredFocus = true,
-  downDestination,
+  playButtonRef: downDestination,
 }) => {
   const { t } = useTranslation();
   const { focused, handleFocus, handleBlur, animatedStyle } =
