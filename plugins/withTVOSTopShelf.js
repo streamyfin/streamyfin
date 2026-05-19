@@ -48,59 +48,90 @@ function ensureKeychainAccessGroup(value, keychainAccessGroupIdentifier) {
     : [...groups, keychainAccessGroupIdentifier];
 }
 
+function ensureAppExtension(
+  appExtensions,
+  targetName,
+  bundleIdentifier,
+  appGroupIdentifier,
+  keychainAccessGroupIdentifier,
+) {
+  const extensionConfig = {
+    targetName,
+    bundleIdentifier,
+    entitlements: {
+      "com.apple.security.application-groups": [appGroupIdentifier],
+      "keychain-access-groups": [keychainAccessGroupIdentifier],
+    },
+  };
+  const extensions = Array.isArray(appExtensions) ? appExtensions : [];
+  // Keep plugin runs idempotent and preserve unrelated app extension entries.
+  const existingIndex = extensions.findIndex(
+    (appExtension) => appExtension?.targetName === targetName,
+  );
+
+  if (existingIndex === -1) {
+    return [...extensions, extensionConfig];
+  }
+
+  return extensions.map((appExtension, index) =>
+    index === existingIndex ? extensionConfig : appExtension,
+  );
+}
+
 const withTVOSTopShelf = (config) => {
   const appGroupIdentifier = getAppGroupIdentifier(config);
   const keychainAccessGroupIdentifier =
     getKeychainAccessGroupIdentifier(config);
   const bundleIdentifier = getBundleIdentifier(config);
   const extensionBundleIdentifier = `${bundleIdentifier}.TopShelf`;
+  const isTVBuild = process.env.EXPO_TV === "1";
 
-  config.extra = {
-    ...config.extra,
-    eas: {
-      ...config.extra?.eas,
-      build: {
-        ...config.extra?.eas?.build,
-        experimental: {
-          ...config.extra?.eas?.build?.experimental,
-          ios: {
-            ...config.extra?.eas?.build?.experimental?.ios,
-            appExtensions: [
-              {
-                targetName: EXTENSION_TARGET_NAME,
-                bundleIdentifier: extensionBundleIdentifier,
-                entitlements: {
-                  "com.apple.security.application-groups": [appGroupIdentifier],
-                  "keychain-access-groups": [keychainAccessGroupIdentifier],
-                },
-              },
-            ],
+  if (isTVBuild) {
+    config.extra = {
+      ...config.extra,
+      eas: {
+        ...config.extra?.eas,
+        build: {
+          ...config.extra?.eas?.build,
+          experimental: {
+            ...config.extra?.eas?.build?.experimental,
+            ios: {
+              ...config.extra?.eas?.build?.experimental?.ios,
+              appExtensions: ensureAppExtension(
+                config.extra?.eas?.build?.experimental?.ios?.appExtensions,
+                EXTENSION_TARGET_NAME,
+                extensionBundleIdentifier,
+                appGroupIdentifier,
+                keychainAccessGroupIdentifier,
+              ),
+            },
           },
         },
       },
-    },
-  };
+    };
 
-  config = withInfoPlist(config, (config) => {
-    config.modResults[APP_GROUP_INFO_PLIST_KEY] = appGroupIdentifier;
-    config.modResults[KEYCHAIN_ACCESS_GROUP_INFO_PLIST_KEY] =
-      keychainAccessGroupIdentifier;
-    return config;
-  });
+    config = withInfoPlist(config, (config) => {
+      config.modResults[APP_GROUP_INFO_PLIST_KEY] = appGroupIdentifier;
+      config.modResults[KEYCHAIN_ACCESS_GROUP_INFO_PLIST_KEY] =
+        keychainAccessGroupIdentifier;
+      return config;
+    });
 
-  config = withEntitlementsPlist(config, (config) => {
-    config.modResults["com.apple.security.application-groups"] = ensureAppGroup(
-      config.modResults["com.apple.security.application-groups"],
-      appGroupIdentifier,
-    );
-    config.modResults["keychain-access-groups"] = ensureKeychainAccessGroup(
-      config.modResults["keychain-access-groups"],
-      keychainAccessGroupIdentifier,
-    );
-    return config;
-  });
+    config = withEntitlementsPlist(config, (config) => {
+      config.modResults["com.apple.security.application-groups"] =
+        ensureAppGroup(
+          config.modResults["com.apple.security.application-groups"],
+          appGroupIdentifier,
+        );
+      config.modResults["keychain-access-groups"] = ensureKeychainAccessGroup(
+        config.modResults["keychain-access-groups"],
+        keychainAccessGroupIdentifier,
+      );
+      return config;
+    });
+  }
 
-  if (process.env.EXPO_TV !== "1") {
+  if (!isTVBuild) {
     return config;
   }
 

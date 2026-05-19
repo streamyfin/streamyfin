@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import TVServices
 
 private let appGroupInfoPlistKey = "StreamyfinAppGroupIdentifier"

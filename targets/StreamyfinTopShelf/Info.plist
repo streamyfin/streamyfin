@@ -8,6 +8,11 @@
   <string>$(KEYCHAIN_ACCESS_GROUP_IDENTIFIER)</string>
   <key>CFBundleDevelopmentRegion</key>
   <string>$(DEVELOPMENT_LANGUAGE)</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+  </dict>
     <key>CFBundleDisplayName</key>
     <string>Streamyfin Top Shelf</string>
     <key>CFBundleExecutable</key>

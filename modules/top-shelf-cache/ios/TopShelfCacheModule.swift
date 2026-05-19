@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import Foundation
+import Security
 #if canImport(TVServices)
 import TVServices
 #endif
@@ -41,13 +42,13 @@ public class TopShelfCacheModule: Module {
       defaults.set(json, forKey: cacheKey)
       defaults.set(Date().timeIntervalSince1970, forKey: "\(cacheKey)UpdatedAt")
       defaults.synchronize()
-      saveAPIKey(apiKey)
+      let didSaveAPIKey = saveAPIKey(apiKey)
 
       #if canImport(TVServices)
       TVTopShelfContentProvider.topShelfContentDidChange()
       #endif
 
-      return true
+      return didSaveAPIKey
     }
 
     Function("clearCache") { () -> Bool in
@@ -61,13 +62,13 @@ public class TopShelfCacheModule: Module {
       defaults.removeObject(forKey: cacheKey)
       defaults.removeObject(forKey: "\(cacheKey)UpdatedAt")
       defaults.synchronize()
-      deleteAPIKey()
+      let didDeleteAPIKey = deleteAPIKey()
 
       #if canImport(TVServices)
       TVTopShelfContentProvider.topShelfContentDidChange()
       #endif
 
-      return true
+      return didDeleteAPIKey
     }
   }
 
@@ -85,23 +86,27 @@ public class TopShelfCacheModule: Module {
     return query
   }
 
-  private func saveAPIKey(_ apiKey: String?) {
-    deleteAPIKey()
+  private func saveAPIKey(_ apiKey: String?) -> Bool {
+    guard deleteAPIKey() else {
+      return false
+    }
 
     guard
       let apiKey,
       !apiKey.isEmpty,
       let data = apiKey.data(using: .utf8)
     else {
-      return
+      return true
     }
 
     var query = baseAPIKeyQuery()
     query[kSecValueData as String] = data
-    SecItemAdd(query as CFDictionary, nil)
+    let status = SecItemAdd(query as CFDictionary, nil)
+    return status == errSecSuccess
   }
 
-  private func deleteAPIKey() {
-    SecItemDelete(baseAPIKeyQuery() as CFDictionary)
+  private func deleteAPIKey() -> Bool {
+    let status = SecItemDelete(baseAPIKeyQuery() as CFDictionary)
+    return status == errSecSuccess || status == errSecItemNotFound
   }
 }

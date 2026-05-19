@@ -24,7 +24,11 @@ export function writeTopShelfCache(json: string, apiKey?: string): boolean {
   try {
     return TopShelfCacheNativeModule.writeCache(json, apiKey);
   } catch {
-    return TopShelfCacheNativeModule.writeCache(json);
+    try {
+      return TopShelfCacheNativeModule.writeCache(json);
+    } catch {
+      return false;
+    }
   }
 }
 
