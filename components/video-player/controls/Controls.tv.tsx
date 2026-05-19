@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  runOnJS,
   type SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -108,6 +109,7 @@ const TV_TRICKPLAY_INTERNAL_OFFSET = 62 * TV_TRICKPLAY_SCALE;
 const TV_TRICKPLAY_CENTERING_OFFSET = 98 * TV_TRICKPLAY_SCALE;
 const TV_TRICKPLAY_RIGHT_PADDING = 150;
 const TV_TRICKPLAY_FADE_DURATION = 200;
+const TV_TOUCH_SCRUB_SENSITIVITY = 0.2;
 
 interface TVTrickplayBubbleProps {
   trickPlayUrl: {
@@ -481,9 +483,9 @@ export const Controls: FC<Props> = ({
   // For live TV, determine if we're at the live edge (within 5 seconds of max)
   const LIVE_EDGE_THRESHOLD = 5000; // 5 seconds in ms
 
-  const getFinishTime = () => {
+  const getFinishTime = (remainingMs = remainingTime) => {
     const now = new Date();
-    const finishTime = new Date(now.getTime() + remainingTime);
+    const finishTime = new Date(now.getTime() + remainingMs);
     return finishTime.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -496,6 +498,9 @@ export const Controls: FC<Props> = ({
     setShowControls(!showControls);
   }, [showControls, setShowControls, isSkipOrCountdownVisible]);
 
+  const [isProgressBarScrubbing, setIsProgressBarScrubbing] = useState(false);
+  const [scrubPreviewPosition, setScrubPreviewPosition] = useState(0);
+  const isProgressBarScrubbingValue = useSharedValue(false);
   const [showSeekBubble, setShowSeekBubble] = useState(false);
   const [seekBubbleTime, setSeekBubbleTime] = useState({
     hours: 0,
@@ -507,6 +512,9 @@ export const Controls: FC<Props> = ({
   );
   const continuousSeekRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const seekAccelerationRef = useRef(1);
+  const wasPlayingBeforeScrubRef = useRef(false);
+  const progressBeforeScrubRef = useRef(0);
+  const isCancelingProgressScrubRef = useRef(false);
   const controlsInteractionRef = useRef<() => void>(() => {});
   const goToNextItemRef = useRef<(opts?: { isAutoPlay?: boolean }) => void>(
     () => {},
@@ -634,9 +642,23 @@ export const Controls: FC<Props> = ({
 
   const SEEK_THRESHOLD_MS = 5000;
 
+  useEffect(() => {
+    isProgressBarScrubbingValue.value = isProgressBarScrubbing;
+  }, [isProgressBarScrubbing, isProgressBarScrubbingValue]);
+
+  const displayCurrentTime = isProgressBarScrubbing
+    ? scrubPreviewPosition
+    : currentTime;
+  const displayRemainingTime = isProgressBarScrubbing
+    ? Math.max(0, max.value - scrubPreviewPosition)
+    : remainingTime;
+
   useAnimatedReaction(
     () => progress.value,
     (current, _previous) => {
+      if (isProgressBarScrubbingValue.value) {
+        return;
+      }
       const progressUnit = CONTROLS_CONSTANTS.PROGRESS_UNIT_MS;
       const progressDiff = Math.abs(current - effectiveProgress.value);
       if (progressDiff >= progressUnit) {
@@ -652,6 +674,123 @@ export const Controls: FC<Props> = ({
     },
     [],
   );
+
+  const showPersistentSeekBubble = useCallback(
+    (positionMs: number) => {
+      calculateTrickplayUrl(msToTicks(positionMs));
+      updateSeekBubbleTime(positionMs);
+      setScrubPreviewPosition(positionMs);
+      setShowSeekBubble(true);
+
+      if (seekBubbleTimeoutRef.current) {
+        clearTimeout(seekBubbleTimeoutRef.current);
+        seekBubbleTimeoutRef.current = null;
+      }
+
+      controlsInteractionRef.current();
+    },
+    [calculateTrickplayUrl, updateSeekBubbleTime],
+  );
+
+  const hideSeekBubbleAfterDelay = useCallback(() => {
+    if (seekBubbleTimeoutRef.current) {
+      clearTimeout(seekBubbleTimeoutRef.current);
+    }
+    seekBubbleTimeoutRef.current = setTimeout(() => {
+      setShowSeekBubble(false);
+    }, 2000);
+  }, []);
+
+  const handleProgressBarPress = useCallback(() => {
+    if (isCancelingProgressScrubRef.current) return;
+    if (!isProgressBarFocused) return;
+
+    if (isProgressBarScrubbing) {
+      const newPosition = Math.max(
+        min.value,
+        Math.min(max.value, effectiveProgress.value),
+      );
+      progress.value = newPosition;
+      seek(newPosition);
+      setIsProgressBarScrubbing(false);
+      hideSeekBubbleAfterDelay();
+      if (wasPlayingBeforeScrubRef.current) {
+        _play();
+      }
+      wasPlayingBeforeScrubRef.current = false;
+      controlsInteractionRef.current();
+      return;
+    }
+
+    wasPlayingBeforeScrubRef.current = isPlaying;
+    progressBeforeScrubRef.current = progress.value;
+    if (isPlaying) {
+      _pause();
+    }
+    effectiveProgress.value = progressBeforeScrubRef.current;
+    setIsProgressBarScrubbing(true);
+    showPersistentSeekBubble(progressBeforeScrubRef.current);
+  }, [
+    isProgressBarFocused,
+    isProgressBarScrubbing,
+    min,
+    max,
+    effectiveProgress,
+    progress,
+    seek,
+    isPlaying,
+    _play,
+    _pause,
+    hideSeekBubbleAfterDelay,
+    showPersistentSeekBubble,
+  ]);
+
+  const finishProgressScrubCancel = useCallback(
+    (resumePlayback: boolean, positionMs: number) => {
+      setScrubPreviewPosition(positionMs);
+      setIsProgressBarScrubbing(false);
+      hideSeekBubbleAfterDelay();
+
+      if (resumePlayback) {
+        _play();
+      }
+
+      wasPlayingBeforeScrubRef.current = false;
+      isCancelingProgressScrubRef.current = false;
+      controlsInteractionRef.current();
+    },
+    [_play, hideSeekBubbleAfterDelay],
+  );
+
+  const cancelProgressScrub = useCallback(() => {
+    if (!isProgressBarScrubbing || isCancelingProgressScrubRef.current) return;
+
+    isCancelingProgressScrubRef.current = true;
+
+    const resumePlayback = wasPlayingBeforeScrubRef.current;
+    const currentPosition = Math.max(
+      min.value,
+      Math.min(max.value, progress.value),
+    );
+
+    effectiveProgress.value = withTiming(
+      currentPosition,
+      {
+        duration: 140,
+        easing: Easing.out(Easing.quad),
+      },
+      () => {
+        runOnJS(finishProgressScrubCancel)(resumePlayback, currentPosition);
+      },
+    );
+  }, [
+    isProgressBarScrubbing,
+    effectiveProgress,
+    progress,
+    min,
+    max,
+    finishProgressScrubCancel,
+  ]);
 
   const handleSeekForwardButton = useCallback(() => {
     // For live TV, check if we're already at the live edge
@@ -707,6 +846,26 @@ export const Controls: FC<Props> = ({
 
   // Progress bar D-pad seeking (10s increments for finer control)
   const handleProgressSeekRight = useCallback(() => {
+    if (isCancelingProgressScrubRef.current) return;
+
+    if (isProgressBarScrubbing) {
+      if (
+        isLiveTV &&
+        max.value - effectiveProgress.value < LIVE_EDGE_THRESHOLD
+      ) {
+        controlsInteractionRef.current();
+        return;
+      }
+
+      const newPosition = Math.min(
+        max.value,
+        effectiveProgress.value + 10 * 1000,
+      );
+      effectiveProgress.value = newPosition;
+      showPersistentSeekBubble(newPosition);
+      return;
+    }
+
     // For live TV, check if we're already at the live edge
     if (isLiveTV && max.value - progress.value < LIVE_EDGE_THRESHOLD) {
       // Already at live edge, don't seek further
@@ -733,13 +892,28 @@ export const Controls: FC<Props> = ({
   }, [
     progress,
     max,
+    effectiveProgress,
     seek,
     calculateTrickplayUrl,
     updateSeekBubbleTime,
     isLiveTV,
+    isProgressBarScrubbing,
+    showPersistentSeekBubble,
   ]);
 
   const handleProgressSeekLeft = useCallback(() => {
+    if (isCancelingProgressScrubRef.current) return;
+
+    if (isProgressBarScrubbing) {
+      const newPosition = Math.max(
+        min.value,
+        effectiveProgress.value - 10 * 1000,
+      );
+      effectiveProgress.value = newPosition;
+      showPersistentSeekBubble(newPosition);
+      return;
+    }
+
     const newPosition = Math.max(min.value, progress.value - 10 * 1000);
     progress.value = newPosition;
     seek(newPosition);
@@ -756,7 +930,50 @@ export const Controls: FC<Props> = ({
     }, 2000);
 
     controlsInteractionRef.current();
-  }, [progress, min, seek, calculateTrickplayUrl, updateSeekBubbleTime]);
+  }, [
+    progress,
+    min,
+    effectiveProgress,
+    seek,
+    calculateTrickplayUrl,
+    updateSeekBubbleTime,
+    isProgressBarScrubbing,
+    showPersistentSeekBubble,
+  ]);
+
+  const handleProgressScrubPan = useCallback(
+    (deltaX: number) => {
+      if (
+        !isProgressBarScrubbing ||
+        isCancelingProgressScrubRef.current ||
+        max.value <= 0
+      ) {
+        return;
+      }
+
+      const newPosition = Math.max(
+        min.value,
+        Math.min(
+          max.value,
+          effectiveProgress.value +
+            (deltaX / progressBarWidth) *
+              max.value *
+              TV_TOUCH_SCRUB_SENSITIVITY,
+        ),
+      );
+
+      effectiveProgress.value = newPosition;
+      showPersistentSeekBubble(newPosition);
+    },
+    [
+      isProgressBarScrubbing,
+      max,
+      min,
+      effectiveProgress,
+      progressBarWidth,
+      showPersistentSeekBubble,
+    ],
+  );
 
   // Minimal seek mode handlers (only show progress bar, not full controls)
   const handleMinimalSeekRight = useCallback(() => {
@@ -949,9 +1166,10 @@ export const Controls: FC<Props> = ({
   }, [setShowControls, isSkipOrCountdownVisible]);
 
   const hideControls = useCallback(() => {
+    cancelProgressScrub();
     setShowControls(false);
     setFocusPlayButton(false);
-  }, [setShowControls]);
+  }, [cancelProgressScrub, setShowControls]);
 
   // When controls hide (and no skip/countdown overlay is visible), move focus
   // to the invisible overlay so hidden buttons can't receive select events.
@@ -967,8 +1185,24 @@ export const Controls: FC<Props> = ({
   }, [showControls, isSkipOrCountdownVisible]);
 
   const handleBack = useCallback(() => {
+    if (isProgressBarScrubbing) {
+      cancelProgressScrub();
+      return;
+    }
+
+    if (showControls) {
+      hideControls();
+      return;
+    }
+
     router.back();
-  }, [router]);
+  }, [
+    cancelProgressScrub,
+    hideControls,
+    isProgressBarScrubbing,
+    router,
+    showControls,
+  ]);
 
   const handleWillExit = useCallback(() => {
     exitingRef.current = true;
@@ -985,6 +1219,9 @@ export const Controls: FC<Props> = ({
     toggleControls,
     togglePlay,
     isProgressBarFocused,
+    isProgressBarScrubbing,
+    onProgressBarPress: handleProgressBarPress,
+    onProgressScrubPan: handleProgressScrubPan,
     onSeekLeft: handleProgressSeekLeft,
     onSeekRight: handleProgressSeekRight,
     onMinimalSeekLeft: handleMinimalSeekLeft,
@@ -1007,7 +1244,7 @@ export const Controls: FC<Props> = ({
     episodeView: false,
     onHideControls: hideControls,
     timeout: TV_AUTO_HIDE_TIMEOUT,
-    disabled: false,
+    disabled: isProgressBarScrubbing,
   });
 
   controlsInteractionRef.current = handleControlsInteraction;
@@ -1244,17 +1481,17 @@ export const Controls: FC<Props> = ({
 
           <View style={styles.timeContainer}>
             <Text style={[styles.timeText, { fontSize: typography.body }]}>
-              {formatTimeString(currentTime, "ms")}
+              {formatTimeString(displayCurrentTime, "ms")}
             </Text>
             {!isLiveTV && (
               <View style={styles.timeRight}>
                 <Text style={[styles.timeText, { fontSize: typography.body }]}>
-                  -{formatTimeString(remainingTime, "ms")}
+                  -{formatTimeString(displayRemainingTime, "ms")}
                 </Text>
                 <Text
                   style={[styles.endsAtText, { fontSize: typography.callout }]}
                 >
-                  {t("player.ends_at")} {getFinishTime()}
+                  {t("player.ends_at")} {getFinishTime(displayRemainingTime)}
                 </Text>
               </View>
             )}
@@ -1422,8 +1659,13 @@ export const Controls: FC<Props> = ({
             />
           )}
 
-          {/* Progress bar with focus trapping for left/right */}
-          <TVFocusGuideView trapFocusLeft trapFocusRight>
+          {/* Progress bar with focus trapping for scrubbing/navigation */}
+          <TVFocusGuideView
+            trapFocusLeft
+            trapFocusRight
+            trapFocusUp={isProgressBarScrubbing}
+            trapFocusDown={isProgressBarScrubbing}
+          >
             <TVFocusableProgressBar
               progress={effectiveProgress}
               max={max}
@@ -1433,22 +1675,23 @@ export const Controls: FC<Props> = ({
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
               hasTVPreferredFocus={false}
+              isScrubbing={isProgressBarScrubbing}
             />
           </TVFocusGuideView>
 
           <View style={styles.timeContainer}>
             <Text style={[styles.timeText, { fontSize: typography.body }]}>
-              {formatTimeString(currentTime, "ms")}
+              {formatTimeString(displayCurrentTime, "ms")}
             </Text>
             {!isLiveTV && (
               <View style={styles.timeRight}>
                 <Text style={[styles.timeText, { fontSize: typography.body }]}>
-                  -{formatTimeString(remainingTime, "ms")}
+                  -{formatTimeString(displayRemainingTime, "ms")}
                 </Text>
                 <Text
                   style={[styles.endsAtText, { fontSize: typography.callout }]}
                 >
-                  {t("player.ends_at")} {getFinishTime()}
+                  {t("player.ends_at")} {getFinishTime(displayRemainingTime)}
                 </Text>
               </View>
             )}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Animated,
   Pressable,
@@ -7,7 +7,12 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
-import ReanimatedModule, { useAnimatedStyle } from "react-native-reanimated";
+import ReanimatedModule, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
@@ -32,11 +37,14 @@ export interface TVFocusableProgressBarProps {
   disabled?: boolean;
   /** Whether this component should receive initial focus */
   hasTVPreferredFocus?: boolean;
+  /** Whether the progress bar is in active scrub mode */
+  isScrubbing?: boolean;
   /** Optional style overrides */
   style?: ViewStyle;
 }
 
 const PROGRESS_BAR_HEIGHT = scaleSize(14);
+const PROGRESS_THUMB_SIZE = scaleSize(26);
 
 export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
   React.memo(
@@ -50,8 +58,11 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
       refSetter,
       disabled = false,
       hasTVPreferredFocus = false,
+      isScrubbing = false,
       style,
     }) => {
+      const thumbVisibility = useSharedValue(isScrubbing ? 1 : 0);
+
       const { focused, handleFocus, handleBlur, animatedStyle } =
         useTVFocusAnimation({
           scaleAmount: 1.02,
@@ -60,12 +71,25 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
           onBlur,
         });
 
+      useEffect(() => {
+        thumbVisibility.value = withTiming(isScrubbing ? 1 : 0, {
+          duration: isScrubbing ? 120 : 100,
+          easing: Easing.out(Easing.quad),
+        });
+      }, [isScrubbing, thumbVisibility]);
+
       const progressFillStyle = useAnimatedStyle(() => ({
         width: `${max.value > 0 ? (progress.value / max.value) * 100 : 0}%`,
       }));
 
       const cacheProgressStyle = useAnimatedStyle(() => ({
         width: `${max.value > 0 && cacheProgress ? (cacheProgress.value / max.value) * 100 : 0}%`,
+      }));
+
+      const progressThumbStyle = useAnimatedStyle(() => ({
+        left: `${max.value > 0 ? (progress.value / max.value) * 100 : 0}%`,
+        opacity: thumbVisibility.value,
+        transform: [{ scale: 0.65 + thumbVisibility.value * 0.35 }],
       }));
 
       return (
@@ -83,6 +107,7 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
               styles.animatedContainer,
               animatedStyle,
               focused && styles.animatedContainerFocused,
+              isScrubbing && styles.animatedContainerScrubbing,
             ]}
           >
             <View style={styles.progressTrackWrapper}>
@@ -90,6 +115,7 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
                 style={[
                   styles.progressTrack,
                   focused && styles.progressTrackFocused,
+                  isScrubbing && styles.progressTrackScrubbing,
                 ]}
               >
                 {cacheProgress && (
@@ -101,6 +127,10 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
                   style={[styles.progressFill, progressFillStyle]}
                 />
               </View>
+              <ReanimatedView
+                pointerEvents='none'
+                style={[styles.progressThumb, progressThumbStyle]}
+              />
               {/* Chapter markers - positioned outside track to extend above */}
               {chapterPositions.length > 0 && (
                 <View
@@ -141,6 +171,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: scaleSize(12),
   },
+  animatedContainerScrubbing: {
+    shadowOpacity: 0.8,
+    shadowRadius: 18,
+    transform: [{ scale: 1.03 }],
+  },
   progressTrackWrapper: {
     position: "relative",
     height: PROGRESS_BAR_HEIGHT,
@@ -154,6 +189,9 @@ const styles = StyleSheet.create({
   progressTrackFocused: {
     // Brighter track when focused
     backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  progressTrackScrubbing: {
+    backgroundColor: "rgba(255,255,255,0.45)",
   },
   cacheProgress: {
     position: "absolute",
@@ -170,6 +208,23 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#fff",
     borderRadius: scaleSize(8),
+  },
+  progressThumb: {
+    position: "absolute",
+    top: -(PROGRESS_THUMB_SIZE - PROGRESS_BAR_HEIGHT) / 2,
+    width: PROGRESS_THUMB_SIZE,
+    height: PROGRESS_THUMB_SIZE,
+    marginLeft: -PROGRESS_THUMB_SIZE / 2,
+    borderRadius: PROGRESS_THUMB_SIZE / 2,
+    backgroundColor: "#fff",
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.75)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 8,
+    zIndex: 3,
   },
   chapterMarkersContainer: {
     position: "absolute",

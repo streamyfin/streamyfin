@@ -1,8 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useTVEventHandler } from "@/hooks/useTVEventHandler";
+
+let TVEventControl: {
+  enableTVMenuKey: () => void;
+  disableTVMenuKey: () => void;
+  enableTVPanGesture?: () => void;
+  disableTVPanGesture?: () => void;
+} | null = null;
+
+if (Platform.isTV) {
+  try {
+    TVEventControl = require("react-native").TVEventControl;
+  } catch {
+    TVEventControl = null;
+  }
+}
 
 interface UseRemoteControlProps {
   showControls: boolean;
@@ -17,6 +32,12 @@ interface UseRemoteControlProps {
   videoTitle?: string;
   /** Whether the progress bar currently has focus */
   isProgressBarFocused?: boolean;
+  /** Whether the progress bar is actively preview-scrubbing */
+  isProgressBarScrubbing?: boolean;
+  /** Callback when select/enter is pressed on the focused progress bar */
+  onProgressBarPress?: () => void;
+  /** Callback for touch-surface pan movement while scrubbing */
+  onProgressScrubPan?: (deltaX: number) => void;
   /** Callback for seeking left when progress bar is focused */
   onSeekLeft?: () => void;
   /** Callback for seeking right when progress bar is focused */
@@ -67,6 +88,9 @@ export function useRemoteControl({
   onHideControls,
   videoTitle,
   isProgressBarFocused,
+  isProgressBarScrubbing,
+  onProgressBarPress,
+  onProgressScrubPan,
   onSeekLeft,
   onSeekRight,
   onMinimalSeekLeft,
@@ -93,6 +117,14 @@ export function useRemoteControl({
   const videoTitleRef = useRef(videoTitle);
   const onWillExitRef = useRef(onWillExit);
   const onCancelExitRef = useRef(onCancelExit);
+  const isProgressBarScrubbingRef = useRef(isProgressBarScrubbing);
+  const lastPanXRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!Platform.isTV || !TVEventControl) return;
+
+    TVEventControl.enableTVMenuKey();
+  }, []);
 
   useEffect(() => {
     showControlsRef.current = showControls;
@@ -101,6 +133,7 @@ export function useRemoteControl({
     videoTitleRef.current = videoTitle;
     onWillExitRef.current = onWillExit;
     onCancelExitRef.current = onCancelExit;
+    isProgressBarScrubbingRef.current = isProgressBarScrubbing;
   }, [
     showControls,
     onHideControls,
@@ -108,11 +141,41 @@ export function useRemoteControl({
     videoTitle,
     onWillExit,
     onCancelExit,
+    isProgressBarScrubbing,
   ]);
+
+  useEffect(() => {
+    if (
+      !Platform.isTV ||
+      Platform.OS !== "ios" ||
+      !TVEventControl?.enableTVPanGesture ||
+      !TVEventControl?.disableTVPanGesture
+    ) {
+      return;
+    }
+
+    if (isProgressBarScrubbing) {
+      TVEventControl.enableTVPanGesture();
+      return () => {
+        TVEventControl?.disableTVPanGesture?.();
+        lastPanXRef.current = null;
+      };
+    }
+
+    TVEventControl.disableTVPanGesture();
+    lastPanXRef.current = null;
+  }, [isProgressBarScrubbing]);
 
   // BackHandler owns player exit: Android TV sends hardware back here, and
   // react-native-tvos maps the Apple TV menu button to the same API.
   useTVBackPress(() => {
+    if (isProgressBarScrubbingRef.current && onBackRef.current) {
+      // Active progress scrubbing owns the first back press so both TV
+      // platforms cancel scrubbing through the shared back/menu handler.
+      onBackRef.current();
+      return true;
+    }
+
     if (showControlsRef.current && onHideControlsRef.current) {
       // Controls are visible, so the first back press only hides them.
       onHideControlsRef.current();
@@ -148,7 +211,7 @@ export function useRemoteControl({
 
     // Back/menu is handled by useTVBackPress above. Keep this handler focused
     // on remote-control events like play/pause, D-pad, and long seek.
-    if (evt.eventType === "menu") {
+    if (evt.eventType === "menu" || evt.eventType === "back") {
       return;
     }
 
@@ -157,6 +220,62 @@ export function useRemoteControl({
       togglePlay?.();
       onInteraction?.();
       return;
+    }
+
+    if (isProgressBarScrubbing) {
+      if (evt.eventType === "pan") {
+        const body = evt.body;
+        if (!body) return;
+
+        if (body.state === "Began") {
+          lastPanXRef.current = body.x;
+          return;
+        }
+
+        if (body.state === "Changed" && onProgressScrubPan) {
+          const previousX = lastPanXRef.current ?? body.x;
+          const deltaX = body.x - previousX;
+          lastPanXRef.current = body.x;
+
+          if (Math.abs(deltaX) >= 1) {
+            onProgressScrubPan(deltaX);
+          }
+          return;
+        }
+
+        if (body.state === "Ended") {
+          lastPanXRef.current = null;
+          return;
+        }
+
+        return;
+      }
+
+      if (
+        (evt.eventType === "select" || evt.eventType === "enter") &&
+        onProgressBarPress
+      ) {
+        onProgressBarPress();
+        return;
+      }
+      if (
+        (evt.eventType === "longLeft" || evt.eventType === "left") &&
+        onSeekLeft
+      ) {
+        if (evt.eventType === "left" || evt.eventKeyAction === 0) {
+          onSeekLeft();
+        }
+        return;
+      }
+      if (
+        (evt.eventType === "longRight" || evt.eventType === "right") &&
+        onSeekRight
+      ) {
+        if (evt.eventType === "right" || evt.eventKeyAction === 0) {
+          onSeekRight();
+        }
+        return;
+      }
     }
 
     // Handle long press D-pad for continuous seeking (works in both modes)
@@ -185,11 +304,6 @@ export function useRemoteControl({
 
     // Handle D-pad when controls are hidden
     if (!showControls) {
-      // Ignore select/enter events - let the native Pressable handle them
-      // This prevents controls from showing when pressing buttons like skip intro
-      if (evt.eventType === "select" || evt.eventType === "enter") {
-        return;
-      }
       // Minimal seek mode for left/right
       if (evt.eventType === "left" && onMinimalSeekLeft) {
         onMinimalSeekLeft();
@@ -199,21 +313,40 @@ export function useRemoteControl({
         onMinimalSeekRight();
         return;
       }
-      // Up/down shows controls with play button focused
+      // Select toggles playback without opening controls.
       if (
-        (evt.eventType === "up" || evt.eventType === "down") &&
+        (evt.eventType === "select" || evt.eventType === "enter") &&
+        togglePlay
+      ) {
+        togglePlay();
+        onInteraction?.();
+        return;
+      }
+      // Vertical navigation shows controls with play button focused.
+      if (
+        (evt.eventType === "up" ||
+          evt.eventType === "down" ||
+          evt.eventType === "swipeUp" ||
+          evt.eventType === "swipeDown") &&
         onVerticalDpad
       ) {
         onVerticalDpad();
         return;
       }
       // Ignore all other events (focus/blur, swipes, etc.)
-      // User can press up/down to show controls
+      // User can move vertically to show controls.
       return;
     }
 
     // Controls are showing - handle seeking when progress bar is focused
     if (isProgressBarFocused) {
+      if (
+        (evt.eventType === "select" || evt.eventType === "enter") &&
+        onProgressBarPress
+      ) {
+        onProgressBarPress();
+        return;
+      }
       if (evt.eventType === "left" && onSeekLeft) {
         onSeekLeft();
         return;
