@@ -31,3 +31,9 @@ export type {
   TopShelfCacheSection,
 } from "./top-shelf-cache";
 export { clearTopShelfCache, writeTopShelfCache } from "./top-shelf-cache";
+// TV recommendations (Android TV)
+export {
+  clearTvRecommendations,
+  refreshTvRecommendations,
+  syncTvRecommendations,
+} from "./tv-recommendations";
