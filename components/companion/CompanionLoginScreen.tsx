@@ -1,4 +1,3 @@
-import { Camera, CameraView } from "expo-camera";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,6 +29,8 @@ interface ParsedPairingCode {
   code: string;
 }
 
+type ExpoCameraModule = typeof import("expo-camera");
+
 export const CompanionLoginScreen: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
@@ -42,6 +43,9 @@ export const CompanionLoginScreen: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cameraModule, setCameraModule] = useState<ExpoCameraModule | null>(
+    null,
+  );
 
   // Pre-fill server URL and username from current session
   useEffect(() => {
@@ -54,18 +58,30 @@ export const CompanionLoginScreen: React.FC = () => {
     }
   }, [api?.basePath, user?.Name]);
 
+  // Load camera module only on devices that include it in the native build.
+  useEffect(() => {
+    if (Platform.isTV) {
+      setScreenState("form");
+      return;
+    }
+
+    import("expo-camera").then(setCameraModule);
+  }, []);
+
   // Request camera permission
   useEffect(() => {
-    Camera.getCameraPermissionsAsync().then((response) => {
+    if (!cameraModule) return;
+
+    cameraModule.Camera.getCameraPermissionsAsync().then((response) => {
       if (!response.granted) {
-        Camera.requestCameraPermissionsAsync().then((result) => {
+        cameraModule.Camera.requestCameraPermissionsAsync().then((result) => {
           if (!result.granted) {
             setScreenState("no-permission");
           }
         });
       }
     });
-  }, []);
+  }, [cameraModule]);
 
   const validateAndParseQR = useCallback(
     (data: string): ParsedPairingCode | null => {
@@ -462,6 +478,22 @@ export const CompanionLoginScreen: React.FC = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+    );
+  }
+
+  const CameraView = cameraModule?.CameraView;
+
+  if (!CameraView) {
+    return (
+      <View className='flex-1 bg-black items-center justify-center p-8'>
+        <Button
+          onPress={handleEnterCodeManually}
+          color='purple'
+          textClassName='flex-1 text-center'
+        >
+          {t("companion_login.enter_code_manually")}
+        </Button>
+      </View>
     );
   }
 
