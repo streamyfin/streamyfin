@@ -28,6 +28,19 @@ export function disableTVMenuKeyInterception() {
   }
 }
 
+export function useTVMenuKeyInterception(enabled = true) {
+  useEffect(() => {
+    if (!Platform.isTV) return;
+
+    if (enabled) {
+      enableTVMenuKeyInterception();
+      return;
+    }
+
+    disableTVMenuKeyInterception();
+  }, [enabled]);
+}
+
 /**
  * Subscribe to TV back presses through React Native's BackHandler.
  *
@@ -52,6 +65,8 @@ export function useTVBackPress(
       handler,
     );
 
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+    };
   }, deps);
 }
