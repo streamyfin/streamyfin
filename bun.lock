@@ -104,7 +104,7 @@
         "@types/react": "19.1.17",
         "@types/react-test-renderer": "19.1.0",
         "cross-env": "10.1.0",
-        "expo-doctor": "1.17.14",
+        "expo-doctor": "1.18.22",
         "husky": "9.1.7",
         "lint-staged": "16.2.7",
         "react-test-renderer": "19.2.3",
@@ -1030,7 +1030,7 @@
 
     "expo-device": ["expo-device@8.0.10", "", { "dependencies": { "ua-parser-js": "^0.7.33" }, "peerDependencies": { "expo": "*" } }, "sha512-jd5BxjaF7382JkDMaC+P04aXXknB2UhWaVx5WiQKA05ugm/8GH5uaz9P9ckWdMKZGQVVEOC8MHaUADoT26KmFA=="],
 
-    "expo-doctor": ["expo-doctor@1.17.14", "", { "bin": { "expo-doctor": "build/index.js" } }, "sha512-+UsXFP5ZTVobDuGS5Du8aKU6O6s2sa49QOdGHdzP8UEjQKH8gPb59uw6hxEQmo6YtVboLwQd13QEdcSolBMvLw=="],
+    "expo-doctor": ["expo-doctor@1.18.22", "", { "bin": { "expo-doctor": "build/index.js" } }, "sha512-AEGwceidWxyYpWEfIf3XnUvc+FbI3OjjyBaXctuoZg10x9An+utrdRf6go/3UFRAG5EkpMOWgUT0j1TKcYDsSQ=="],
 
     "expo-file-system": ["expo-file-system@19.0.21", "", { "peerDependencies": { "expo": "*", "react-native": "*" } }, "sha512-s3DlrDdiscBHtab/6W1osrjGL+C2bvoInPJD7sOwmxfJ5Woynv2oc+Fz1/xVXaE/V7HE/+xrHC/H45tu6lZzzg=="],
 
@@ -1696,7 +1696,7 @@
 
     "react-native-text-ticker": ["react-native-text-ticker@1.15.0", "", {}, "sha512-d/uK+PIOhsYMy1r8h825iq/nADiHsabz3WMbRJSnkpQYn+K9aykUAXRRhu8ZbTAzk4CgnUWajJEFxS5ZDygsdg=="],
 
-    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#003afd0", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-003afd0"],
+    "react-native-track-player": ["react-native-track-player@github:lovegaoshi/react-native-track-player#003afd0", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-windows": "*", "shaka-player": "^4.7.9" }, "optionalPeers": ["react-native-windows", "shaka-player"] }, "lovegaoshi-react-native-track-player-003afd0", "sha512-HR7BaMDMBhQ4xAy5XeQEkT0fBosWw2x9+X2QOD4buocxuX03D770LaRKm5rgQ/qDzchr92KW7+d8fISI14fRLA=="],
 
     "react-native-udp": ["react-native-udp@4.1.7", "", { "dependencies": { "buffer": "^5.6.0", "events": "^3.1.0" } }, "sha512-NUE3zewu61NCdSsLlj+l0ad6qojcVEZPT4hVG/x6DU9U4iCzwtfZSASh9vm7teAcVzLkdD+cO3411LHshAi/wA=="],
 
