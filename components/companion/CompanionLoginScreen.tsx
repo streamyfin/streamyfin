@@ -31,21 +31,24 @@ interface ParsedPairingCode {
 
 type ExpoCameraModule = typeof import("expo-camera");
 
+const ExpoCamera: ExpoCameraModule | null = Platform.isTV
+  ? null
+  : require("expo-camera");
+
 export const CompanionLoginScreen: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
 
-  const [screenState, setScreenState] = useState<ScreenState>("scanning");
+  const [screenState, setScreenState] = useState<ScreenState>(
+    Platform.isTV ? "form" : "scanning",
+  );
   const [pairingCode, setPairingCode] = useState<string>("");
   const [serverUrl, setServerUrl] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [cameraModule, setCameraModule] = useState<ExpoCameraModule | null>(
-    null,
-  );
 
   // Pre-fill server URL and username from current session
   useEffect(() => {
@@ -58,30 +61,20 @@ export const CompanionLoginScreen: React.FC = () => {
     }
   }, [api?.basePath, user?.Name]);
 
-  // Load camera module only on devices that include it in the native build.
-  useEffect(() => {
-    if (Platform.isTV) {
-      setScreenState("form");
-      return;
-    }
-
-    import("expo-camera").then(setCameraModule);
-  }, []);
-
   // Request camera permission
   useEffect(() => {
-    if (!cameraModule) return;
+    if (!ExpoCamera) return;
 
-    cameraModule.Camera.getCameraPermissionsAsync().then((response) => {
+    ExpoCamera.Camera.getCameraPermissionsAsync().then((response) => {
       if (!response.granted) {
-        cameraModule.Camera.requestCameraPermissionsAsync().then((result) => {
+        ExpoCamera.Camera.requestCameraPermissionsAsync().then((result) => {
           if (!result.granted) {
             setScreenState("no-permission");
           }
         });
       }
     });
-  }, [cameraModule]);
+  }, []);
 
   const validateAndParseQR = useCallback(
     (data: string): ParsedPairingCode | null => {
@@ -481,7 +474,7 @@ export const CompanionLoginScreen: React.FC = () => {
     );
   }
 
-  const CameraView = cameraModule?.CameraView;
+  const CameraView = ExpoCamera?.CameraView;
 
   if (!CameraView) {
     return (
