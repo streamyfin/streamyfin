@@ -496,7 +496,7 @@ export const TVLogin: React.FC = () => {
             ? error.message
             : t("login.an_unexpected_error_occured");
         Alert.alert(t("login.connection_failed"), message);
-        setCurrentScreen("qr-code-display");
+        goToQRScreen();
       } finally {
         setLoading(false);
       }
@@ -547,13 +547,18 @@ export const TVLogin: React.FC = () => {
     }
   };
 
-  // Handle pairing with companion phone
-  const handleStartPairing = useCallback(() => {
-    setCurrentScreen("qr-code-display");
+  // Navigate to QR screen with a fresh code and active listener
+  const goToQRScreen = useCallback(() => {
     const code = generatePairingCode();
     setPairingCode(code);
     setShowPairingQR(true);
+    setCurrentScreen("qr-code-display");
   }, []);
+
+  // Handle pairing with companion phone
+  const handleStartPairing = useCallback(() => {
+    goToQRScreen();
+  }, [goToQRScreen]);
 
   // Handle credentials received from companion
   const handlePairingCredentials = useCallback(
@@ -672,7 +677,6 @@ export const TVLogin: React.FC = () => {
         return (
           <TVQRCodeDisplay
             code={pairingCode}
-            mode='pairing'
             onBack={() => {
               setShowPairingQR(false);
               setCurrentScreen("add-server");
@@ -761,7 +765,7 @@ export const TVLogin: React.FC = () => {
                   ? error.message
                   : t("login.an_unexpected_error_occured");
               Alert.alert(t("login.connection_failed"), message);
-              setCurrentScreen("qr-code-display");
+              goToQRScreen();
             });
             return;
           }

@@ -16,13 +16,11 @@ import { scaleSize } from "@/utils/scaleSize";
 
 interface TVQRCodeDisplayProps {
   code: string;
-  mode: "pairing";
   onBack?: () => void;
 }
 
 export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
   code,
-  mode,
   onBack,
 }) => {
   const typography = useScaledTVTypography();

@@ -7,12 +7,12 @@ import {
   Linking,
   Platform,
   ScrollView,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Button } from "@/components/Button";
+import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { sendCredentialsToTV } from "@/utils/pairingService";
@@ -37,7 +37,6 @@ export const CompanionLoginScreen: React.FC = () => {
   const [user] = useAtom(userAtom);
 
   const [screenState, setScreenState] = useState<ScreenState>("scanning");
-  const [_hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [pairingCode, setPairingCode] = useState<string>("");
   const [serverUrl, setServerUrl] = useState("");
   const [username, setUsername] = useState("");
@@ -58,12 +57,8 @@ export const CompanionLoginScreen: React.FC = () => {
   // Request camera permission
   useEffect(() => {
     Camera.getCameraPermissionsAsync().then((response) => {
-      setHasPermission(response.granted);
-
       if (!response.granted) {
         Camera.requestCameraPermissionsAsync().then((result) => {
-          setHasPermission(result.granted);
-
           if (!result.granted) {
             setScreenState("no-permission");
           }
@@ -180,7 +175,7 @@ export const CompanionLoginScreen: React.FC = () => {
               className='mt-4 rounded-lg bg-purple-600 px-6 py-3'
             >
               <Text className='text-base font-semibold text-white'>
-                Open Settings
+                {t("companion_login.open_settings")}
               </Text>
             </TouchableOpacity>
           )}
@@ -369,13 +364,22 @@ export const CompanionLoginScreen: React.FC = () => {
             {t("companion_login.pairing_enter_credentials")}
           </Text>
 
-          <Text className='mb-1 text-sm text-gray-400'>
-            {t("companion_login.pairing_code_label")}
-          </Text>
+          <View className='mb-5'>
+            <Text className='mb-2 text-sm text-gray-400'>
+              {t("companion_login.pairing_code_label")}
+            </Text>
 
-          <Text className='mb-8 text-center text-4xl font-bold tracking-[6px] text-white'>
-            {pairingCode}
-          </Text>
+            <TextInput
+              className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-center text-2xl font-bold tracking-[6px] text-white'
+              value={pairingCode}
+              onChangeText={setPairingCode}
+              placeholder={t("companion_login.pairing_code_label")}
+              placeholderTextColor='#6B7280'
+              autoCapitalize='characters'
+              autoCorrect={false}
+              returnKeyType='next'
+            />
+          </View>
 
           <View className='mb-5'>
             <Text className='mb-2 text-sm text-gray-400'>
@@ -444,7 +448,10 @@ export const CompanionLoginScreen: React.FC = () => {
             <Button
               onPress={handleSendCredentials}
               disabled={
-                !serverUrl.trim() || !username.trim() || !password.trim()
+                !serverUrl.trim() ||
+                !username.trim() ||
+                !password.trim() ||
+                !pairingCode.trim()
               }
               className='w-40'
               color='purple'

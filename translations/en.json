@@ -999,7 +999,8 @@
     "error_permission_denied": "Camera permission is required to scan QR codes.",
     "login_as": "Log in as {{username}}?",
     "on_server": "on {{server}}",
-    "use_different_user": "Use a different user"
+    "use_different_user": "Use a different user",
+    "open_settings": "Open Settings"
   },
   "pairing": {
     "pair_with_phone": "Pair with Phone",
