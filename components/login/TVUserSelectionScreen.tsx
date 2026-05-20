@@ -1,9 +1,9 @@
 import { t } from "i18next";
-import React, { useEffect } from "react";
-import { BackHandler, Platform, ScrollView, View } from "react-native";
+import React, { useCallback } from "react";
+import { ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { useTVEventHandler } from "@/hooks/useTVEventHandler";
+import { useTVBackPress } from "@/hooks/useTVBackPress";
 import type {
   SavedServer,
   SavedServerAccount,
@@ -32,31 +32,13 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
   const accounts = server.accounts || [];
   const hasAccounts = accounts.length > 0;
 
-  // Handle TV remote back/menu button
-  useTVEventHandler((evt) => {
-    if (!evt || disabled) return;
-    if (evt.eventType === "menu" || evt.eventType === "back") {
-      onChangeServer();
-    }
-  });
+  const handleBackPress = useCallback(() => {
+    if (disabled) return false;
+    onChangeServer();
+    return true;
+  }, [disabled, onChangeServer]);
 
-  // Handle Android TV back button
-  useEffect(() => {
-    if (!Platform.isTV) return;
-
-    const handleBackPress = () => {
-      if (disabled) return false;
-      onChangeServer();
-      return true;
-    };
-
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handleBackPress,
-    );
-
-    return () => subscription.remove();
-  }, [onChangeServer, disabled]);
+  useTVBackPress(handleBackPress, [handleBackPress]);
 
   return (
     <ScrollView

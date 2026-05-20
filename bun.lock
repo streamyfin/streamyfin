@@ -115,6 +115,10 @@
       },
     },
   },
+  "patchedDependencies": {
+    "react-native-screens@4.18.0": "bun-patches/react-native-screens@4.18.0.patch",
+    "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch",
+  },
   "overrides": {
     "expo-constants": "18.0.13",
   },
