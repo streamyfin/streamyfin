@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { t } from "i18next";
-import React, { useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  BackHandler,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -9,6 +17,7 @@ import { TVInput } from "./TVInput";
 
 interface TVAddServerFormProps {
   onConnect: (url: string) => Promise<void>;
+  onStartPairing?: () => void;
   onBack: () => void;
   loading?: boolean;
   disabled?: boolean;
@@ -78,6 +87,7 @@ const TVBackButton: React.FC<{
 
 export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
   onConnect,
+  onStartPairing,
   onBack,
   loading = false,
   disabled = false,
@@ -92,6 +102,24 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
   };
 
   const isDisabled = disabled || loading;
+
+  // Handle Android TV back button, needed as an "override"
+  useEffect(() => {
+    if (!Platform.isTV) return;
+
+    const handleBackPress = () => {
+      if (disabled) return false;
+      onBack();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [onBack, disabled]);
 
   return (
     <ScrollView
@@ -156,6 +184,18 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         >
           {t("server.enter_url_to_jellyfin_server")}
         </Text>
+
+        {/* Pair with Phone */}
+        {onStartPairing && (
+          <View style={{ marginTop: 32 }}>
+            <Button
+              onPress={onStartPairing}
+              className='bg-neutral-800 border border-neutral-700'
+            >
+              {t("pairing.pair_with_phone")}
+            </Button>
+          </View>
+        )}
       </View>
     </ScrollView>
   );

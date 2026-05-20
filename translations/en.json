@@ -979,5 +979,36 @@
       "show": "This show",
       "all": "All media (default)"
     }
+  },
+  "companion_login": {
+    "title": "Pair with TV",
+    "align_qr": "Align the QR code within the frame",
+    "enter_code_manually": "Enter code manually",
+    "pairing_enter_credentials": "Enter credentials for TV",
+    "pairing_code_label": "Pairing code",
+    "server": "Server",
+    "authorize_button": "Authorize",
+    "authorizing": "Authorizing...",
+    "scan_again": "Scan Again",
+    "done": "Done",
+    "success_title": "Authorization Sent",
+    "pairing_tv_connecting": "The TV is connecting to your account",
+    "error_title": "Authorization Failed",
+    "error_invalid_qr": "Invalid QR code. Please scan the TV pairing code.",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_permission_denied": "Camera permission is required to scan QR codes.",
+    "login_as": "Log in as {{username}}?",
+    "on_server": "on {{server}}",
+    "use_different_user": "Use a different user",
+    "open_settings": "Open Settings"
+  },
+  "pairing": {
+    "pair_with_phone": "Pair with Phone",
+    "pair_with_phone_title": "Login TV",
+    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
+    "waiting_for_phone": "Waiting for phone...",
+    "scan_with_phone": "Scan with the Streamyfin app on your phone",
+    "logging_in": "Logging in...",
+    "logging_in_description": "Connecting to your server"
   }
 }
