@@ -162,6 +162,9 @@
   "trustedDependencies": [
     "unrs-resolver"
   ],
+  "patchedDependencies": {
+    "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch"
+  },
   "resolutions": {
     "expo-constants": "18.0.13"
   }
