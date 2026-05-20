@@ -18,6 +18,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { scaleSize } from "@/utils/scaleSize";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsRecommendationsIdsResponse } from "@/utils/streamystats/types";
 
@@ -220,8 +221,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
                   backgroundColor: "#262626",
                   width: sizes.posters.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: scaleSize(12),
+                  marginBottom: scaleSize(8),
                 }}
               />
             </View>
