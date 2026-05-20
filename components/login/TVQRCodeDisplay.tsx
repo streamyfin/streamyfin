@@ -1,17 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { t } from "i18next";
-import React, { useEffect, useRef } from "react";
-import {
-  Animated,
-  BackHandler,
-  Easing,
-  Platform,
-  Pressable,
-  View,
-} from "react-native";
+import React, { useCallback } from "react";
+import { View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { scaleSize } from "@/utils/scaleSize";
 
 interface TVQRCodeDisplayProps {
@@ -24,7 +17,6 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
   onBack,
 }) => {
   const typography = useScaledTVTypography();
-  const handledRef = useRef(false);
 
   const qrSize = scaleSize(280);
   const cardPadding = scaleSize(16);
@@ -36,29 +28,13 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
     code,
   });
 
-  // Handle Android TV back button
-  useEffect(() => {
-    if (!Platform.isTV || !onBack) return;
-
-    const handleBackPress = () => {
-      if (handledRef.current) return true;
-
-      handledRef.current = true;
-      setTimeout(() => {
-        handledRef.current = false;
-      }, 100);
-
-      onBack();
-      return true;
-    };
-
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handleBackPress,
-    );
-
-    return () => subscription.remove();
+  const handleBack = useCallback(() => {
+    if (!onBack) return false;
+    onBack();
+    return true;
   }, [onBack]);
+
+  useTVBackPress(() => handleBack(), [handleBack]);
 
   return (
     <View
@@ -75,9 +51,6 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
           paddingHorizontal: outerPadding,
         }}
       >
-        {/* Back Button */}
-        {onBack && <TVBackButton onPress={onBack} />}
-
         {/* QR Code */}
         <View
           style={{
@@ -138,64 +111,5 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
         </View>
       </View>
     </View>
-  );
-};
-
-const TVBackButton: React.FC<{
-  onPress: () => void;
-}> = ({ onPress }) => {
-  const [isFocused, setIsFocused] = React.useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateFocus = (focused: boolean) => {
-    Animated.timing(scale, {
-      toValue: focused ? 1.05 : 1,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setIsFocused(true);
-        animateFocus(true);
-      }}
-      onBlur={() => {
-        setIsFocused(false);
-        animateFocus(false);
-      }}
-      style={{ alignSelf: "flex-start", marginBottom: 24 }}
-      focusable
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          flexDirection: "row",
-          alignItems: "center",
-          paddingVertical: 8,
-          paddingHorizontal: 12,
-          borderRadius: 8,
-          backgroundColor: isFocused ? "#fff" : "rgba(255, 255, 255, 0.15)",
-        }}
-      >
-        <Ionicons
-          name='chevron-back'
-          size={28}
-          color={isFocused ? "#000" : "#fff"}
-        />
-        <Text
-          style={{
-            color: isFocused ? "#000" : "#fff",
-            fontSize: 20,
-            marginLeft: 4,
-          }}
-        >
-          {t("common.back")}
-        </Text>
-      </Animated.View>
-    </Pressable>
   );
 };
