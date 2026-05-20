@@ -1,0 +1,87 @@
+diff --git a/ios/RNSScreenStack.mm b/ios/RNSScreenStack.mm
+index 47a671928338ae7fb4f85532d9fd1ed2d594f823..e4eecb7d5f9d3c3afc8a090fb953010e4e1b8a08 100644
+--- a/ios/RNSScreenStack.mm
++++ b/ios/RNSScreenStack.mm
+@@ -34,6 +34,11 @@
+ #import "integrations/RNSDismissibleModalProtocol.h"
+ #import "utils/UINavigationBar+RNSUtility.h"
+ 
++#if TARGET_OS_TV
++#import <React/RCTTVNavigationEventNotification.h>
++#import <React/RCTTVRemoteHandler.h>
++#endif // TARGET_OS_TV
++
+ #ifdef RNS_GAMMA_ENABLED
+ #import "RNSFrameCorrectionProvider.h"
+ #import "Swift-Bridging.h"
+@@ -43,6 +48,12 @@
+ namespace react = facebook::react;
+ #endif // RCT_NEW_ARCH_ENABLED
+ 
++#if TARGET_OS_TV
++@interface RNSNavigationController ()
++@property (nonatomic, strong) UITapGestureRecognizer *rnscreens_menuGestureRecognizer;
++@end
++#endif // TARGET_OS_TV
++
+ @interface RNSScreenStackView () <
+     UINavigationControllerDelegate,
+     UIAdaptivePresentationControllerDelegate,
+@@ -61,6 +72,57 @@
+ @end
+ 
+ @implementation RNSNavigationController
++
++#if TARGET_OS_TV
++- (void)viewDidLoad
++{
++  [super viewDidLoad];
++
++  self.rnscreens_menuGestureRecognizer =
++      [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(rnscreens_menuPressed:)];
++  self.rnscreens_menuGestureRecognizer.allowedPressTypes = @[ @(UIPressTypeMenu) ];
++
++  [[NSNotificationCenter defaultCenter] addObserver:self
++                                           selector:@selector(rnscreens_enableMenuGesture)
++                                               name:RCTTVEnableMenuKeyNotification
++                                             object:nil];
++  [[NSNotificationCenter defaultCenter] addObserver:self
++                                           selector:@selector(rnscreens_disableMenuGesture)
++                                               name:RCTTVDisableMenuKeyNotification
++                                             object:nil];
++
++  if ([RCTTVRemoteHandler useMenuKey]) {
++    [self rnscreens_enableMenuGesture];
++  }
++}
++
++- (void)dealloc
++{
++  [[NSNotificationCenter defaultCenter] removeObserver:self];
++}
++
++- (void)rnscreens_enableMenuGesture
++{
++  if (![self.view.gestureRecognizers containsObject:self.rnscreens_menuGestureRecognizer]) {
++    [self.view addGestureRecognizer:self.rnscreens_menuGestureRecognizer];
++  }
++}
++
++- (void)rnscreens_disableMenuGesture
++{
++  if ([self.view.gestureRecognizers containsObject:self.rnscreens_menuGestureRecognizer]) {
++    [self.view removeGestureRecognizer:self.rnscreens_menuGestureRecognizer];
++  }
++}
++
++- (void)rnscreens_menuPressed:(UIGestureRecognizer *)recognizer
++{
++  [[NSNotificationCenter defaultCenter] postNavigationPressEventWithType:RCTTVRemoteEventMenu
++                                                               keyAction:recognizer.eventKeyAction
++                                                                     tag:nil
++                                                                  target:nil];
++}
++#endif // TARGET_OS_TV
+ 
+ #if !TARGET_OS_TV
+ - (UIViewController *)childViewControllerForStatusBarStyle

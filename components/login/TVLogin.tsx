@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { Text } from "@/components/common/Text";
+import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import { storage } from "@/utils/mmkv";
@@ -77,6 +78,8 @@ export const TVLogin: React.FC = () => {
   // Current screen state
   const [currentScreen, setCurrentScreen] =
     useState<TVLoginScreen>("server-selection");
+  // No interception on server-selection so that it can go back to home screen on tvOS
+  useTVMenuKeyInterception(currentScreen !== "server-selection");
 
   // Current selected server for user selection screen
   const [currentServer, setCurrentServer] = useState<SavedServer | null>(null);
