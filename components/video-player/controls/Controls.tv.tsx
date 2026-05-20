@@ -268,6 +268,8 @@ export const Controls: FC<Props> = ({
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
   const [progressBarRef, setProgressBarRef] = useState<View | null>(null);
+  const [skipSegmentRef, setSkipSegmentRef] = useState<View | null>(null);
+  const [nextEpisodeRef, setNextEpisodeRef] = useState<View | null>(null);
 
   // Minimal seek bar state (shows only progress bar when seeking while controls hidden)
   const [showMinimalSeekBar, setShowMinimalSeekBar] = useState(false);
@@ -1014,6 +1016,8 @@ export const Controls: FC<Props> = ({
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
 
+  const topOverlayFocusTarget = skipSegmentRef ?? nextEpisodeRef;
+
   return (
     <View style={styles.controlsContainer} pointerEvents='box-none'>
       <Animated.View
@@ -1040,6 +1044,9 @@ export const Controls: FC<Props> = ({
         onPress={skipIntro}
         type='intro'
         controlsVisible={showControls}
+        refSetter={setSkipSegmentRef}
+        hasTVPreferredFocus={!showControls}
+        playButtonRef={showControls ? playButtonRef : null}
       />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
@@ -1052,6 +1059,9 @@ export const Controls: FC<Props> = ({
         onPress={skipCredit}
         type='credits'
         controlsVisible={showControls}
+        refSetter={setSkipSegmentRef}
+        hasTVPreferredFocus={!showControls}
+        playButtonRef={showControls ? playButtonRef : null}
       />
 
       {nextItem && (
@@ -1063,6 +1073,9 @@ export const Controls: FC<Props> = ({
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
           controlsVisible={showControls}
+          refSetter={setNextEpisodeRef}
+          hasTVPreferredFocus={!showControls}
+          playButtonRef={showControls ? playButtonRef : null}
         />
       )}
 
@@ -1209,6 +1222,14 @@ export const Controls: FC<Props> = ({
               </Text>
             )}
           </View>
+
+          {/* Upward: control buttons → visible skip segment or next episode card */}
+          {topOverlayFocusTarget && (
+            <TVFocusGuideView
+              destinations={[topOverlayFocusTarget]}
+              style={styles.focusGuide}
+            />
+          )}
 
           <View style={styles.controlButtonsRow}>
             <TVControlButton
