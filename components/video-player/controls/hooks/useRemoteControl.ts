@@ -1,20 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, BackHandler, Platform } from "react-native";
+import { Alert } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
-
-// TV event handler with fallback for non-TV platforms
-let useTVEventHandler: (callback: (evt: any) => void) => void;
-if (Platform.isTV) {
-  try {
-    useTVEventHandler = require("react-native").useTVEventHandler;
-  } catch {
-    // Fallback for non-TV platforms
-    useTVEventHandler = () => {};
-  }
-} else {
-  // No-op hook for non-TV platforms
-  useTVEventHandler = () => {};
-}
+import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { useTVEventHandler } from "@/hooks/useTVEventHandler";
 
 interface UseRemoteControlProps {
   showControls: boolean;
@@ -70,7 +58,6 @@ interface UseRemoteControlProps {
  */
 export function useRemoteControl({
   showControls,
-  toggleControls,
   togglePlay,
   onBack,
   onHideControls,
@@ -106,61 +93,38 @@ export function useRemoteControl({
     videoTitleRef.current = videoTitle;
   }, [showControls, onHideControls, onBack, videoTitle]);
 
-  // Handle hardware back button (works on both Android TV and tvOS)
-  useEffect(() => {
-    if (!Platform.isTV) return;
-
-    const handleBackPress = () => {
-      if (showControlsRef.current && onHideControlsRef.current) {
-        // Controls are visible - just hide them
-        onHideControlsRef.current();
-        return true; // Prevent default back navigation
-      }
-      if (onBackRef.current) {
-        // Controls are hidden - show confirmation before exiting
-        Alert.alert(
-          "Stop Playback",
-          videoTitleRef.current
-            ? `Stop playing "${videoTitleRef.current}"?`
-            : "Are you sure you want to stop playback?",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Stop", style: "destructive", onPress: onBackRef.current },
-          ],
-        );
-        return true; // Prevent default back navigation
-      }
-      return false; // Let default back navigation happen
-    };
-
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handleBackPress,
-    );
-
-    return () => subscription.remove();
+  // BackHandler owns player exit: Android TV sends hardware back here, and
+  // react-native-tvos maps the Apple TV menu button to the same API.
+  useTVBackPress(() => {
+    if (showControlsRef.current && onHideControlsRef.current) {
+      // Controls are visible, so the first back press only hides them.
+      onHideControlsRef.current();
+      return true;
+    }
+    if (onBackRef.current) {
+      // Controls are hidden, so confirm before leaving playback.
+      Alert.alert(
+        "Stop Playback",
+        videoTitleRef.current
+          ? `Stop playing "${videoTitleRef.current}"?`
+          : "Are you sure you want to stop playback?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Stop", style: "destructive", onPress: onBackRef.current },
+        ],
+      );
+      return true;
+    }
+    return false;
   }, []);
 
   // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
     if (!evt) return;
 
-    // Back/menu is handled by BackHandler above, but keep this for tvOS menu button
+    // Back/menu is handled by useTVBackPress above. Keep this handler focused
+    // on remote-control events like play/pause, D-pad, and long seek.
     if (evt.eventType === "menu") {
-      if (showControls && onHideControls) {
-        onHideControls();
-      } else if (onBack) {
-        Alert.alert(
-          "Stop Playback",
-          videoTitle
-            ? `Stop playing "${videoTitle}"?`
-            : "Are you sure you want to stop playback?",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Stop", style: "destructive", onPress: onBack },
-          ],
-        );
-      }
       return;
     }
 
