@@ -198,8 +198,10 @@ Replace `enableH265ForChromecast: boolean` with:
 | `chromecastProfile` | `"auto" \| "force-hevc" \| "force-h264"` | `"auto"` |
 | `chromecastMaxBitrate` | `number \| undefined` | `undefined` |
 
-**Migration:** existing `enableH265ForChromecast === true` → `chromecastProfile:
-"force-hevc"`; `false` or unset → `"auto"`.
+**No migration.** `enableH265ForChromecast` is removed outright — no migration code.
+`chromecastProfile` defaults to `"auto"`, the correct behaviour for almost every user.
+Anyone who had H265 forced reconfigures it once. Avoids carrying migration logic for a
+niche setting.
 
 UI: a profile-mode selector and an optional max-bitrate field in the Chromecast
 settings screen. `"auto"` is presented as the recommended default; the overrides are
