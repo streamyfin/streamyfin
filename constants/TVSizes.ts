@@ -1,10 +1,12 @@
 import { TVTypographyScale, useSettings } from "@/utils/atoms/settings";
+import { scaleSize } from "@/utils/scaleSize";
 
 /**
  * TV Layout Sizes
  *
  * Unified constants for TV interface layout including posters, gaps, and padding.
- * All values scale based on the user's tvTypographyScale setting.
+ * Base values are designed for 1920x1080 and scaled to the actual viewport via
+ * scaleSize(), then further adjusted by the user's tvTypographyScale setting.
  */
 
 // =============================================================================
@@ -48,7 +50,7 @@ export const TVGaps = {
  */
 export const TVPadding = {
   /** Horizontal padding from screen edges */
-  horizontal: 60,
+  horizontal: 90,
 
   /** Padding to accommodate scale animations (1.05x) */
   scale: 20,
@@ -129,20 +131,20 @@ export const useScaledTVSizes = (): ScaledTVSizes => {
 
   return {
     posters: {
-      poster: Math.round(TVPosterSizes.poster * scale),
-      landscape: Math.round(TVPosterSizes.landscape * scale),
-      episode: Math.round(TVPosterSizes.episode * scale),
+      poster: Math.round(scaleSize(TVPosterSizes.poster) * scale),
+      landscape: Math.round(scaleSize(TVPosterSizes.landscape) * scale),
+      episode: Math.round(scaleSize(TVPosterSizes.episode) * scale),
     },
     gaps: {
-      item: Math.round(TVGaps.item * scale),
-      section: Math.round(TVGaps.section * scale),
-      small: Math.round(TVGaps.small * scale),
-      large: Math.round(TVGaps.large * scale),
+      item: Math.round(scaleSize(TVGaps.item) * scale),
+      section: Math.round(scaleSize(TVGaps.section) * scale),
+      small: Math.round(scaleSize(TVGaps.small) * scale),
+      large: Math.round(scaleSize(TVGaps.large) * scale),
     },
     padding: {
-      horizontal: Math.round(TVPadding.horizontal * scale),
-      scale: Math.round(TVPadding.scale * scale),
-      vertical: Math.round(TVPadding.vertical * scale),
+      horizontal: Math.round(scaleSize(TVPadding.horizontal) * scale),
+      scale: Math.round(scaleSize(TVPadding.scale) * scale),
+      vertical: Math.round(scaleSize(TVPadding.vertical) * scale),
       heroHeight: TVPadding.heroHeight * scale,
     },
     animation: TVAnimation,

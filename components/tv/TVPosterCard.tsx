@@ -21,6 +21,7 @@ import {
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 export interface TVPosterCardProps {
@@ -225,7 +226,13 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         : null;
 
       return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: scaleSize(8),
+          }}
+        >
           {episodeLabel && (
             <Text
               style={{
@@ -259,7 +266,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#9CA3AF",
-            marginTop: 4,
+            marginTop: scaleSize(4),
           }}
         >
           {item.ChannelName}
@@ -277,7 +284,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             style={{
               fontSize: typography.callout,
               color: "#9CA3AF",
-              marginTop: 4,
+              marginTop: scaleSize(4),
             }}
           >
             {artist}
@@ -296,7 +303,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             style={{
               fontSize: typography.callout,
               color: "#9CA3AF",
-              marginTop: 4,
+              marginTop: scaleSize(4),
             }}
           >
             {artist}
@@ -312,7 +319,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#9CA3AF",
-            marginTop: 4,
+            marginTop: scaleSize(4),
           }}
         >
           {item.ChildCount} tracks
@@ -328,7 +335,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#9CA3AF",
-            marginTop: 4,
+            marginTop: scaleSize(4),
           }}
         >
           {item.ProductionYear}
@@ -344,23 +351,23 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     <View
       style={{
         position: "absolute",
-        top: 12,
-        left: 12,
+        top: scaleSize(12),
+        left: scaleSize(12),
         backgroundColor: "#FFFFFF",
-        borderRadius: 8,
+        borderRadius: scaleSize(8),
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        gap: 6,
+        paddingHorizontal: scaleSize(12),
+        paddingVertical: scaleSize(8),
+        gap: scaleSize(6),
         zIndex: 10,
       }}
     >
-      <Ionicons name='play' size={16} color='#000000' />
+      <Ionicons name='play' size={scaleSize(16)} color='#000000' />
       <Text
         style={{
           color: "#000000",
-          fontSize: 14,
+          fontSize: scaleSize(14),
           fontWeight: "700",
         }}
       >
@@ -382,7 +389,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         justifyContent: "center",
       }}
     >
-      <Ionicons name='play-circle' size={56} color='white' />
+      <Ionicons name='play-circle' size={scaleSize(56)} color='white' />
     </View>
   ) : null;
 
@@ -395,9 +402,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           style={{
             width,
             aspectRatio,
-            borderRadius: 24,
+            borderRadius: scaleSize(24),
             backgroundColor: "#1a1a1a",
-            borderWidth: 2,
+            borderWidth: scaleSize(2),
             borderColor: focused ? "#FFFFFF" : "transparent",
           }}
         />
@@ -411,7 +418,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           <GlassPosterView
             imageUrl={imageUrl}
             aspectRatio={aspectRatio}
-            cornerRadius={24}
+            cornerRadius={scaleSize(24)}
             progress={progress}
             showWatchedIndicator={isWatched}
             isFocused={focused}
@@ -431,10 +438,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           position: "relative",
           width,
           aspectRatio,
-          borderRadius: 24,
+          borderRadius: scaleSize(4),
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
-          borderWidth: 2,
+          borderWidth: scaleSize(2),
           borderColor: focused ? "#FFFFFF" : "transparent",
         }}
       >
@@ -470,7 +477,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#FFFFFF",
-            marginTop: 4,
+            marginTop: scaleSize(4),
             fontWeight: "500",
           }}
         >
@@ -498,8 +505,13 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     // Default: show name
     return (
       <Text
-        numberOfLines={1}
-        style={{ fontSize: typography.body, color: "#FFFFFF" }}
+        numberOfLines={3}
+        style={{
+          fontSize: typography.callout,
+          color: "#FFFFFF",
+          marginTop: scaleSize(4),
+          fontWeight: "500",
+        }}
       >
         {item.Name}
       </Text>
@@ -551,7 +563,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             shadowColor: useGlass ? undefined : shadowColor,
             shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
             shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
-            shadowRadius: useGlass ? undefined : focused ? 12 : 0,
+            shadowRadius: useGlass ? undefined : focused ? scaleSize(12) : 0,
           }}
         >
           {renderPosterImage()}
@@ -560,7 +572,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
       {/* Text below poster */}
       {showText && (
-        <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
+        <View
+          style={{ marginTop: scaleSize(12), paddingHorizontal: scaleSize(4) }}
+        >
           {item.Type === "Episode" ? (
             <>
               {renderSubtitle()}

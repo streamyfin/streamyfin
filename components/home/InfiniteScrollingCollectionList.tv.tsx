@@ -24,9 +24,10 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
+import { scaleSize } from "@/utils/scaleSize";
 
 // Extra padding to accommodate scale animation (1.05x) and glow shadow
-const SCALE_PADDING = 20;
+const SCALE_PADDING = scaleSize(20);
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -81,7 +82,7 @@ const TVSeeAllCard: React.FC<{
           style={{
             width,
             aspectRatio,
-            borderRadius: 24,
+            borderRadius: scaleSize(24),
             backgroundColor: "rgba(255, 255, 255, 0.08)",
             justifyContent: "center",
             alignItems: "center",
@@ -91,9 +92,9 @@ const TVSeeAllCard: React.FC<{
         >
           <Ionicons
             name='arrow-forward'
-            size={32}
+            size={scaleSize(32)}
             color='white'
-            style={{ marginBottom: 8 }}
+            style={{ marginBottom: scaleSize(8) }}
           />
           <Text
             style={{
@@ -250,7 +251,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           fontSize: typography.heading,
           fontWeight: "700",
           color: "#FFFFFF",
-          marginBottom: 20,
+          marginBottom: scaleSize(20),
           marginLeft: sizes.padding.horizontal,
           letterSpacing: 0.5,
         }}
@@ -286,8 +287,8 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                   backgroundColor: "#262626",
                   width: itemWidth,
                   aspectRatio: orientation === "horizontal" ? 16 / 9 : 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: scaleSize(12),
+                  marginBottom: scaleSize(8),
                 }}
               />
               <View
@@ -329,19 +330,27 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           removeClippedSubviews={false}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           style={{ overflow: "visible" }}
-          contentInset={{
-            left: sizes.padding.horizontal,
-            right: sizes.padding.horizontal,
-          }}
-          contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           contentContainerStyle={{
-            paddingVertical: SCALE_PADDING,
+            paddingVertical: sizes.gaps.small,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
           }}
+          // Below is a work around with the contentInset, same in TVHeroCarousel, if okay on apple remove
+          // ListHeaderComponent={
+          //   <View style={{ width: sizes.padding.horizontal }} />
+          // }
+          // contentInset={{
+          //   left: sizes.padding.horizontal,
+          //   right: sizes.padding.horizontal,
+          // }}
+          // contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
+          // contentContainerStyle={{ paddingVertical: SCALE_PADDING }}
           ListFooterComponent={
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
+                width: sizes.padding.horizontal,
               }}
             >
               {isFetchingNextPage && (
@@ -350,7 +359,10 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                     marginLeft: itemWidth / 2,
                     marginRight: ITEM_GAP,
                     justifyContent: "center",
-                    height: orientation === "horizontal" ? 191 : 315,
+                    height:
+                      orientation === "horizontal"
+                        ? scaleSize(191)
+                        : scaleSize(315),
                   }}
                 >
                   <ActivityIndicator size='small' color='white' />

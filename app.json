@@ -85,7 +85,7 @@
             "useFrameworks": "static"
           },
           "android": {
-            "buildArchs": ["arm64-v8a", "x86_64"],
+            "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
             "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",

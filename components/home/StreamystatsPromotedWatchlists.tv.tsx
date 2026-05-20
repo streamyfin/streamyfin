@@ -19,10 +19,11 @@ import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { scaleSize } from "@/utils/scaleSize";
 import { createStreamystatsApi } from "@/utils/streamystats/api";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
-const SCALE_PADDING = 20;
+const SCALE_PADDING = scaleSize(20);
 
 interface WatchlistSectionProps extends ViewProps {
   watchlist: StreamystatsWatchlist;
@@ -168,8 +169,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
                   backgroundColor: "#262626",
                   width: posterSizes.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: scaleSize(12),
+                  marginBottom: scaleSize(8),
                 }}
               />
             </View>
@@ -286,12 +287,12 @@ export const StreamystatsPromotedWatchlists: React.FC<
       <View style={{ overflow: "visible" }} {...props}>
         <View
           style={{
-            height: 16,
-            width: 128,
+            height: scaleSize(16),
+            width: scaleSize(128),
             backgroundColor: "#262626",
-            borderRadius: 4,
+            borderRadius: scaleSize(4),
             marginLeft: SCALE_PADDING,
-            marginBottom: 16,
+            marginBottom: scaleSize(16),
           }}
         />
         <View
@@ -309,8 +310,8 @@ export const StreamystatsPromotedWatchlists: React.FC<
                   backgroundColor: "#262626",
                   width: posterSizes.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: 12,
-                  marginBottom: 8,
+                  borderRadius: scaleSize(12),
+                  marginBottom: scaleSize(8),
                 }}
               />
             </View>
