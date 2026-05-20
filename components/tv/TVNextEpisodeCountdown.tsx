@@ -7,7 +7,9 @@ import {
   Image,
   Pressable,
   Animated as RNAnimated,
+  type View as RNView,
   StyleSheet,
+  TVFocusGuideView,
   View,
 } from "react-native";
 import Animated, {
@@ -33,6 +35,12 @@ export interface TVNextEpisodeCountdownProps {
   onPlayNext?: () => void;
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
+  /** Callback ref setter for focus guide destination pattern */
+  refSetter?: (ref: RNView | null) => void;
+  /** Whether this component should receive initial focus */
+  hasTVPreferredFocus?: boolean;
+  /** Destination used when moving down from this card */
+  playButtonRef?: RNView | null;
 }
 
 // Position constants
@@ -47,6 +55,9 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   onFinish,
   onPlayNext,
   controlsVisible = false,
+  refSetter,
+  hasTVPreferredFocus = true,
+  playButtonRef: downDestination,
 }) => {
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
@@ -135,10 +146,11 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
       pointerEvents='box-none'
     >
       <Pressable
+        ref={refSetter}
         onPress={onPlayNext}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        hasTVPreferredFocus={true}
+        hasTVPreferredFocus={hasTVPreferredFocus}
         focusable={true}
       >
         <RNAnimated.View style={[animatedStyle, focused && styles.focusedCard]}>
@@ -172,6 +184,12 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
           </BlurView>
         </RNAnimated.View>
       </Pressable>
+      {downDestination && (
+        <TVFocusGuideView
+          destinations={[downDestination]}
+          style={styles.returnFocusGuide}
+        />
+      )}
     </Animated.View>
   );
 };
@@ -234,5 +252,9 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       height: "100%",
       backgroundColor: "#fff",
       borderRadius: 2,
+    },
+    returnFocusGuide: {
+      height: 1,
+      width: "100%",
     },
   });
