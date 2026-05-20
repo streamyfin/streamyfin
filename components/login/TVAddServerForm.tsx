@@ -1,18 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { t } from "i18next";
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  BackHandler,
-  Easing,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import React, { useCallback, useState } from "react";
+import { ScrollView, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { TVInput } from "./TVInput";
 
 interface TVAddServerFormProps {
@@ -22,68 +14,6 @@ interface TVAddServerFormProps {
   loading?: boolean;
   disabled?: boolean;
 }
-
-const TVBackButton: React.FC<{
-  onPress: () => void;
-  label: string;
-  disabled?: boolean;
-}> = ({ onPress, label, disabled = false }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateFocus = (focused: boolean) => {
-    Animated.timing(scale, {
-      toValue: focused ? 1.05 : 1,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setIsFocused(true);
-        animateFocus(true);
-      }}
-      onBlur={() => {
-        setIsFocused(false);
-        animateFocus(false);
-      }}
-      style={{ alignSelf: "flex-start", marginBottom: 24 }}
-      disabled={disabled}
-      focusable={!disabled}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          flexDirection: "row",
-          alignItems: "center",
-          paddingVertical: 8,
-          paddingHorizontal: 12,
-          borderRadius: 8,
-          backgroundColor: isFocused ? "#fff" : "rgba(255, 255, 255, 0.15)",
-        }}
-      >
-        <Ionicons
-          name='chevron-back'
-          size={28}
-          color={isFocused ? "#000" : "#fff"}
-        />
-        <Text
-          style={{
-            color: isFocused ? "#000" : "#fff",
-            fontSize: 20,
-            marginLeft: 4,
-          }}
-        >
-          {label}
-        </Text>
-      </Animated.View>
-    </Pressable>
-  );
-};
 
 export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
   onConnect,
@@ -103,23 +33,13 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
 
   const isDisabled = disabled || loading;
 
-  // Handle Android TV back button, needed as an "override"
-  useEffect(() => {
-    if (!Platform.isTV) return;
+  const handleBack = useCallback(() => {
+    if (isDisabled) return false;
+    onBack();
+    return true;
+  }, [isDisabled, onBack]);
 
-    const handleBackPress = () => {
-      if (disabled) return false;
-      onBack();
-      return true;
-    };
-
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      handleBackPress,
-    );
-
-    return () => subscription.remove();
-  }, [onBack, disabled]);
+  useTVBackPress(() => handleBack(), [handleBack]);
 
   return (
     <ScrollView
@@ -139,12 +59,19 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
           paddingHorizontal: 60,
         }}
       >
-        {/* Back Button */}
-        <TVBackButton
-          onPress={onBack}
-          label={t("common.back")}
-          disabled={isDisabled}
-        />
+        {/* Title */}
+        <Text
+          style={{
+            fontSize: typography.heading,
+            fontWeight: "bold",
+            color: "#FFFFFF",
+            textAlign: "left",
+            marginBottom: 24,
+            paddingHorizontal: 8,
+          }}
+        >
+          {t("server.enter_url_to_jellyfin_server")}
+        </Text>
 
         {/* Server URL Input */}
         <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
@@ -173,21 +100,9 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
           </Button>
         </View>
 
-        {/* Hint text */}
-        <Text
-          style={{
-            fontSize: typography.callout,
-            color: "#6B7280",
-            textAlign: "left",
-            paddingHorizontal: 8,
-          }}
-        >
-          {t("server.enter_url_to_jellyfin_server")}
-        </Text>
-
         {/* Pair with Phone */}
         {onStartPairing && (
-          <View style={{ marginTop: 32 }}>
+          <View>
             <Button
               onPress={onStartPairing}
               className='bg-neutral-800 border border-neutral-700'
