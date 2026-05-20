@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { t } from "i18next";
-import React, { useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  BackHandler,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -107,6 +115,24 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
   };
 
   const isDisabled = disabled || loading;
+
+  // Handle Android TV back button, needed as an "override"
+  useEffect(() => {
+    if (!Platform.isTV) return;
+
+    const handleBackPress = () => {
+      if (disabled) return false;
+      onBack();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [onBack, disabled]);
 
   return (
     <ScrollView
