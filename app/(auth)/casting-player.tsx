@@ -242,6 +242,7 @@ export default function CastingPlayerScreen() {
   const [seasonData, setSeasonData] = useState<BaseItemDto | null>(null);
 
   // Track selection states
+  // null = not yet initialized (use server default), -1 = subtitles off, >= 0 = specific track
   const [selectedAudioTrackIndex, setSelectedAudioTrackIndex] = useState<
     number | null
   >(null);
@@ -249,6 +250,34 @@ export default function CastingPlayerScreen() {
     number | null
   >(null);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
+
+  // Initialize track selection from server defaults when item data arrives
+  useEffect(() => {
+    if (!fetchedItem) return;
+    const source = fetchedItem.MediaSources?.[0];
+    if (source) {
+      if (source.DefaultAudioStreamIndex != null) {
+        setSelectedAudioTrackIndex(source.DefaultAudioStreamIndex);
+      }
+      // Jellyfin uses -1 for "no subtitles", >= 0 for a specific track
+      const defaultSub = source.DefaultSubtitleStreamIndex;
+      setSelectedSubtitleTrackIndex(defaultSub ?? -1);
+      return;
+    }
+    // Fallback: scan MediaStreams for IsDefault flags
+    if (fetchedItem.MediaStreams) {
+      const defaultAudio = fetchedItem.MediaStreams.find(
+        (s) => s.Type === "Audio" && s.IsDefault,
+      );
+      if (defaultAudio?.Index != null) {
+        setSelectedAudioTrackIndex(defaultAudio.Index);
+      }
+      const defaultSub = fetchedItem.MediaStreams.find(
+        (s) => s.Type === "Subtitle" && s.IsDefault,
+      );
+      setSelectedSubtitleTrackIndex(defaultSub?.Index ?? -1);
+    }
+  }, [fetchedItem?.Id]);
 
   // Function to reload media with new audio/subtitle/quality settings
   const reloadWithSettings = useCallback(
@@ -268,6 +297,19 @@ export default function CastingPlayerScreen() {
 
         // Get new stream URL with updated settings
         const enableH265 = settings.enableH265ForChromecast;
+
+        // Resolve subtitle index:
+        // - options.subtitleIndex is explicitly provided: null = disable (-1), number = specific track
+        // - options.subtitleIndex is undefined: preserve current selection
+        let resolvedSubtitleIndex: number | undefined;
+        if (options.subtitleIndex === undefined) {
+          resolvedSubtitleIndex = selectedSubtitleTrackIndex ?? undefined;
+        } else if (options.subtitleIndex === null) {
+          resolvedSubtitleIndex = -1;
+        } else {
+          resolvedSubtitleIndex = options.subtitleIndex;
+        }
+
         const data = await getStreamUrl({
           api,
           item: currentItem,
@@ -276,9 +318,7 @@ export default function CastingPlayerScreen() {
           userId: user.Id,
           audioStreamIndex:
             options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
-          // null = subtitles off (omit from request), number = specific track
-          subtitleStreamIndex:
-            options.subtitleIndex === null ? undefined : options.subtitleIndex,
+          subtitleStreamIndex: resolvedSubtitleIndex,
           maxStreamingBitrate: options.bitrateValue,
         });
 
@@ -308,6 +348,7 @@ export default function CastingPlayerScreen() {
       mediaStatus?.streamPosition,
       settings.enableH265ForChromecast,
       selectedAudioTrackIndex,
+      selectedSubtitleTrackIndex,
     ],
   );
 
@@ -1422,15 +1463,17 @@ export default function CastingPlayerScreen() {
             }}
             subtitleTracks={availableSubtitleTracks}
             selectedSubtitleTrack={
-              selectedSubtitleTrackIndex === null
+              selectedSubtitleTrackIndex == null ||
+              selectedSubtitleTrackIndex < 0
                 ? null
                 : availableSubtitleTracks.find(
                     (t) => t.index === selectedSubtitleTrackIndex,
                   ) || null
             }
             onSubtitleTrackChange={(track) => {
-              setSelectedSubtitleTrackIndex(track?.index ?? null);
-              // Reload stream with new subtitle track
+              // -1 = disabled, >= 0 = specific track
+              setSelectedSubtitleTrackIndex(track?.index ?? -1);
+              // Reload stream: null signals disable, number selects track
               reloadWithSettings({ subtitleIndex: track?.index ?? null });
             }}
             playbackSpeed={currentPlaybackSpeed}

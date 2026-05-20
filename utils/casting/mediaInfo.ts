@@ -102,6 +102,8 @@ export const buildCastMediaInfo = ({
       Bitrate: src.Bitrate,
       Container: src.Container,
       Name: src.Name,
+      DefaultAudioStreamIndex: src.DefaultAudioStreamIndex,
+      DefaultSubtitleStreamIndex: src.DefaultSubtitleStreamIndex,
     })),
     UserData: item.UserData
       ? { PlaybackPositionTicks: item.UserData.PlaybackPositionTicks }

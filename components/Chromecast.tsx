@@ -114,16 +114,15 @@ export function Chromecast({
 
     // Generate a new PlaySessionId when the content changes
     if (contentId !== lastContentIdRef.current) {
-      const randomBytes = new Uint8Array(16);
-      crypto.getRandomValues(randomBytes);
-      // Format as UUID v4
-      randomBytes[6] = (randomBytes[6] & 0x0f) | 0x40; // Version 4
-      randomBytes[8] = (randomBytes[8] & 0x3f) | 0x80; // Variant 10
-      const uuid = Array.from(randomBytes, (b, i) => {
-        const hex = b.toString(16).padStart(2, "0");
-        return [4, 6, 8, 10].includes(i) ? `-${hex}` : hex;
-      }).join("");
-      playSessionIdRef.current = uuid;
+      // Use Math.random()-based UUID v4 (React Native lacks global crypto)
+      playSessionIdRef.current = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+        /[xy]/g,
+        (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === "x" ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        },
+      );
       lastContentIdRef.current = contentId;
     }
 
