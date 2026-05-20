@@ -20,10 +20,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   Easing,
-  PixelRatio,
-  Platform,
   ScrollView,
   View,
 } from "react-native";
@@ -82,22 +79,6 @@ export const Home = () => {
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
   const { showItemActions } = useTVItemActionModal();
-
-  // Log TV viewport dimensions for DPI scaling debug
-  useEffect(() => {
-    const w = Dimensions.get("window");
-    const s = Dimensions.get("screen");
-    console.log("========== TV DIMENSIONS ==========");
-    console.log("Platform.OS:", Platform.OS, "isTV:", Platform.isTV);
-    console.log("Window:", w.width, "x", w.height);
-    console.log("Screen:", s.width, "x", s.height);
-    console.log("PixelRatio:", PixelRatio.get());
-    console.log(
-      "scaleSize(210):",
-      210 * Math.min(w.width / 1920, w.height / 1080),
-    );
-    console.log("====================================");
-  }, []);
 
   // Dynamic backdrop state with debounce
   const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
