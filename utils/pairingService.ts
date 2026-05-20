@@ -27,13 +27,14 @@ export function startPairingListener(
   });
 
   socket.on("error", (err) => {
-    console.error("[PairingService] Socket error:", err);
+    if (__DEV__) console.error("[PairingService] Socket error:", err);
     onError?.(err.message);
     cleanup();
   });
 
   socket.bind(PAIRING_PORT, () => {
-    console.log("[PairingService] Listening on port", PAIRING_PORT);
+    if (__DEV__)
+      console.log("[PairingService] Listening on port", PAIRING_PORT);
   });
 
   socket.on("message", (msg) => {
@@ -46,11 +47,11 @@ export function startPairingListener(
       if (data.code !== code) return;
 
       if (!data.server_url || !data.username || !data.password) {
-        console.error("[PairingService] Missing fields in pairing response");
+        if (__DEV__)
+          console.error("[PairingService] Missing fields in pairing response");
         return;
       }
 
-      console.log("[PairingService] Credentials received");
       active = false;
       onCredentialsReceived({
         serverUrl: data.server_url,
@@ -59,7 +60,8 @@ export function startPairingListener(
       });
       cleanup();
     } catch (error) {
-      console.error("[PairingService] Error parsing message:", error);
+      if (__DEV__)
+        console.error("[PairingService] Error parsing message:", error);
     }
   });
 
