@@ -246,7 +246,7 @@ export const TVLogin: React.FC = () => {
           setCurrentScreen("user-selection");
         }
       } catch (error) {
-        console.error("[TVLogin] Error in handleConnect:", error);
+        if (__DEV__) console.error("[TVLogin] Error in handleConnect:", error);
       }
     },
     [checkUrl, setServer, serverName, setSelectedTVServer],
@@ -485,10 +485,11 @@ export const TVLogin: React.FC = () => {
             });
           }
         } catch (saveError) {
-          console.error(
-            "[TVLogin] Failed to save pairing credential:",
-            saveError,
-          );
+          if (__DEV__)
+            console.error(
+              "[TVLogin] Failed to save pairing credential:",
+              saveError,
+            );
         }
       } catch (error) {
         const message =
@@ -589,7 +590,7 @@ export const TVLogin: React.FC = () => {
       pairingCode,
       handlePairingCredentials,
       (error) => {
-        console.error("[TVLogin] Pairing error:", error);
+        if (__DEV__) console.error("[TVLogin] Pairing error:", error);
         setShowPairingQR(false);
         Alert.alert(t("login.error_title"), t("companion_login.error_generic"));
       },
