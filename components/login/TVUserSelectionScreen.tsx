@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { BackHandler, Platform, ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useTVEventHandler } from "@/hooks/useTVEventHandler";
 import type {
   SavedServer,
   SavedServerAccount,
@@ -17,18 +18,6 @@ interface TVUserSelectionScreenProps {
   onAddUser: () => void;
   onChangeServer: () => void;
   disabled?: boolean;
-}
-
-// TV event handler with fallback for non-TV platforms
-let useTVEventHandler: (callback: (evt: any) => void) => void;
-if (Platform.isTV) {
-  try {
-    useTVEventHandler = require("react-native").useTVEventHandler;
-  } catch {
-    useTVEventHandler = () => {};
-  }
-} else {
-  useTVEventHandler = () => {};
 }
 
 export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
