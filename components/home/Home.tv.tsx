@@ -41,6 +41,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
+import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 
 const HORIZONTAL_PADDING = scaleSize(60);
 const TOP_PADDING = scaleSize(100);
@@ -257,6 +258,18 @@ export const Home = () => {
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
+
+  useEffect(() => {
+    updateTVDiscovery({
+      api,
+      sections: [
+        {
+          title: t("home.continue_and_next_up"),
+          items: heroItems,
+        },
+      ],
+    });
+  }, [api, heroItems, t]);
 
   const userViews = useMemo(
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
