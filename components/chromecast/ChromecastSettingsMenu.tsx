@@ -1,53 +1,65 @@
 /**
  * Chromecast Settings Menu
- * Allows users to configure audio, subtitles, quality, and playback speed
+ * Configure version, quality (bitrate cap), audio, subtitles, and playback speed.
+ * Every "selected" row is driven by the active CastSelection — no [0] fallbacks.
  */
 
 import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import type {
-  AudioTrack,
-  MediaSource,
-  SubtitleTrack,
-} from "@/utils/casting/types";
+import type { AudioTrack, SubtitleTrack } from "@/utils/casting/types";
+
+export interface VersionOption {
+  id: string;
+  name: string;
+}
+
+export interface QualityOption {
+  key: string;
+  value: number | undefined;
+}
 
 interface ChromecastSettingsMenuProps {
   visible: boolean;
   onClose: () => void;
-  item: BaseItemDto;
-  mediaSources: MediaSource[];
-  selectedMediaSource: MediaSource | null;
-  onMediaSourceChange: (source: MediaSource) => void;
+  versions: VersionOption[];
+  selectedVersionId: string;
+  onVersionChange: (id: string) => void;
+  qualities: QualityOption[];
+  selectedMaxBitrate: number | undefined;
+  onQualityChange: (value: number | undefined) => void;
   audioTracks: AudioTrack[];
-  selectedAudioTrack: AudioTrack | null;
-  onAudioTrackChange: (track: AudioTrack) => void;
+  selectedAudioIndex: number;
+  onAudioChange: (index: number) => void;
   subtitleTracks: SubtitleTrack[];
-  selectedSubtitleTrack: SubtitleTrack | null;
-  onSubtitleTrackChange: (track: SubtitleTrack | null) => void;
+  /** -1 = subtitles off. */
+  selectedSubtitleIndex: number;
+  onSubtitleChange: (index: number) => void;
   playbackSpeed: number;
   onPlaybackSpeedChange: (speed: number) => void;
 }
 
 const PLAYBACK_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+const ACCENT = "#a855f7";
 
 export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
   visible,
   onClose,
-  item: _item, // Reserved for future use (technical info display)
-  mediaSources,
-  selectedMediaSource,
-  onMediaSourceChange,
+  versions,
+  selectedVersionId,
+  onVersionChange,
+  qualities,
+  selectedMaxBitrate,
+  onQualityChange,
   audioTracks,
-  selectedAudioTrack,
-  onAudioTrackChange,
+  selectedAudioIndex,
+  onAudioChange,
   subtitleTracks,
-  selectedSubtitleTrack,
-  onSubtitleTrackChange,
+  selectedSubtitleIndex,
+  onSubtitleChange,
   playbackSpeed,
   onPlaybackSpeedChange,
 }) => {
@@ -89,6 +101,39 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
     </Pressable>
   );
 
+  const renderRow = (
+    key: string | number,
+    label: string,
+    sublabel: string | null,
+    selected: boolean,
+    onPress: () => void,
+  ) => (
+    <Pressable
+      key={key}
+      onPress={() => {
+        onPress();
+        setExpandedSection(null);
+      }}
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: 16,
+        backgroundColor: selected ? "#2a2a2a" : "transparent",
+      }}
+    >
+      <View>
+        <Text style={{ color: "white", fontSize: 15 }}>{label}</Text>
+        {sublabel ? (
+          <Text style={{ color: "#999", fontSize: 13, marginTop: 2 }}>
+            {sublabel}
+          </Text>
+        ) : null}
+      </View>
+      {selected ? <Ionicons name='checkmark' size={20} color={ACCENT} /> : null}
+    </Pressable>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -114,7 +159,6 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
           }}
           onPress={(e) => e.stopPropagation()}
         >
-          {/* Header */}
           <View
             style={{
               flexDirection: "row",
@@ -134,54 +178,48 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
           </View>
 
           <ScrollView>
-            {/* Quality/Media Source - only show when sources available */}
-            {mediaSources.length > 0 &&
+            {/* Version — only when the item has more than one MediaSource */}
+            {versions.length > 1 &&
               renderSectionHeader(
-                t("casting_player.quality"),
-                "film-outline",
-                "quality",
+                t("casting_player.version"),
+                "albums-outline",
+                "version",
               )}
-            {mediaSources.length > 0 && expandedSection === "quality" && (
+            {versions.length > 1 && expandedSection === "version" && (
               <View style={{ paddingVertical: 8 }}>
-                {mediaSources.map((source) => (
-                  <Pressable
-                    key={source.id}
-                    onPress={() => {
-                      onMediaSourceChange(source);
-                      setExpandedSection(null);
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: 16,
-                      backgroundColor:
-                        selectedMediaSource?.id === source.id
-                          ? "#2a2a2a"
-                          : "transparent",
-                    }}
-                  >
-                    <View>
-                      <Text style={{ color: "white", fontSize: 15 }}>
-                        {source.name}
-                      </Text>
-                      {source.bitrate && (
-                        <Text
-                          style={{ color: "#999", fontSize: 13, marginTop: 2 }}
-                        >
-                          {Math.round(source.bitrate / 1000000)} Mbps
-                        </Text>
-                      )}
-                    </View>
-                    {selectedMediaSource?.id === source.id && (
-                      <Ionicons name='checkmark' size={20} color='#a855f7' />
-                    )}
-                  </Pressable>
-                ))}
+                {versions.map((v) =>
+                  renderRow(
+                    v.id,
+                    v.name,
+                    null,
+                    v.id === selectedVersionId,
+                    () => onVersionChange(v.id),
+                  ),
+                )}
               </View>
             )}
 
-            {/* Audio Tracks - only show if more than one track */}
+            {/* Quality (bitrate cap) */}
+            {renderSectionHeader(
+              t("casting_player.quality"),
+              "film-outline",
+              "quality",
+            )}
+            {expandedSection === "quality" && (
+              <View style={{ paddingVertical: 8 }}>
+                {qualities.map((q) =>
+                  renderRow(
+                    q.key,
+                    q.key,
+                    null,
+                    q.value === selectedMaxBitrate,
+                    () => onQualityChange(q.value),
+                  ),
+                )}
+              </View>
+            )}
+
+            {/* Audio — only when more than one track */}
             {audioTracks.length > 1 &&
               renderSectionHeader(
                 t("casting_player.audio"),
@@ -190,47 +228,21 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
               )}
             {audioTracks.length > 1 && expandedSection === "audio" && (
               <View style={{ paddingVertical: 8 }}>
-                {audioTracks.map((track) => (
-                  <Pressable
-                    key={track.index}
-                    onPress={() => {
-                      onAudioTrackChange(track);
-                      setExpandedSection(null);
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: 16,
-                      backgroundColor:
-                        selectedAudioTrack?.index === track.index
-                          ? "#2a2a2a"
-                          : "transparent",
-                    }}
-                  >
-                    <View>
-                      <Text style={{ color: "white", fontSize: 15 }}>
-                        {track.displayTitle ||
-                          track.language ||
-                          t("casting_player.unknown")}
-                      </Text>
-                      {track.codec && (
-                        <Text
-                          style={{ color: "#999", fontSize: 13, marginTop: 2 }}
-                        >
-                          {track.codec.toUpperCase()}
-                        </Text>
-                      )}
-                    </View>
-                    {selectedAudioTrack?.index === track.index && (
-                      <Ionicons name='checkmark' size={20} color='#a855f7' />
-                    )}
-                  </Pressable>
-                ))}
+                {audioTracks.map((track) =>
+                  renderRow(
+                    track.index,
+                    track.displayTitle ||
+                      track.language ||
+                      t("casting_player.unknown"),
+                    track.codec ? track.codec.toUpperCase() : null,
+                    track.index === selectedAudioIndex,
+                    () => onAudioChange(track.index),
+                  ),
+                )}
               </View>
             )}
 
-            {/* Subtitle Tracks - only show if subtitles available */}
+            {/* Subtitles */}
             {subtitleTracks.length > 0 &&
               renderSectionHeader(
                 t("casting_player.subtitles"),
@@ -239,71 +251,33 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
               )}
             {subtitleTracks.length > 0 && expandedSection === "subtitles" && (
               <View style={{ paddingVertical: 8 }}>
-                <Pressable
-                  onPress={() => {
-                    onSubtitleTrackChange(null);
-                    setExpandedSection(null);
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: 16,
-                    backgroundColor:
-                      selectedSubtitleTrack === null
-                        ? "#2a2a2a"
-                        : "transparent",
-                  }}
-                >
-                  <Text style={{ color: "white", fontSize: 15 }}>
-                    {t("casting_player.none")}
-                  </Text>
-                  {selectedSubtitleTrack === null && (
-                    <Ionicons name='checkmark' size={20} color='#a855f7' />
-                  )}
-                </Pressable>
-                {subtitleTracks.map((track) => (
-                  <Pressable
-                    key={track.index}
-                    onPress={() => {
-                      onSubtitleTrackChange(track);
-                      setExpandedSection(null);
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: 16,
-                      backgroundColor:
-                        selectedSubtitleTrack?.index === track.index
-                          ? "#2a2a2a"
-                          : "transparent",
-                    }}
-                  >
-                    <View>
-                      <Text style={{ color: "white", fontSize: 15 }}>
-                        {track.displayTitle ||
-                          track.language ||
-                          t("casting_player.unknown")}
-                      </Text>
-                      {(track.codec || track.isForced) && (
-                        <Text
-                          style={{ color: "#999", fontSize: 13, marginTop: 2 }}
-                        >
-                          {track.codec ? track.codec.toUpperCase() : ""}
-                          {track.isForced && ` • ${t("casting_player.forced")}`}
-                        </Text>
-                      )}
-                    </View>
-                    {selectedSubtitleTrack?.index === track.index && (
-                      <Ionicons name='checkmark' size={20} color='#a855f7' />
-                    )}
-                  </Pressable>
-                ))}
+                {renderRow(
+                  "off",
+                  t("casting_player.none"),
+                  null,
+                  selectedSubtitleIndex < 0,
+                  () => onSubtitleChange(-1),
+                )}
+                {subtitleTracks.map((track) =>
+                  renderRow(
+                    track.index,
+                    track.displayTitle ||
+                      track.language ||
+                      t("casting_player.unknown"),
+                    [
+                      track.codec ? track.codec.toUpperCase() : "",
+                      track.isForced ? t("casting_player.forced") : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" • ") || null,
+                    track.index === selectedSubtitleIndex,
+                    () => onSubtitleChange(track.index),
+                  ),
+                )}
               </View>
             )}
 
-            {/* Playback Speed */}
+            {/* Playback speed */}
             {renderSectionHeader(
               t("casting_player.playback_speed"),
               "speedometer",
@@ -311,32 +285,15 @@ export const ChromecastSettingsMenu: React.FC<ChromecastSettingsMenuProps> = ({
             )}
             {expandedSection === "speed" && (
               <View style={{ paddingVertical: 8 }}>
-                {PLAYBACK_SPEEDS.map((speed) => (
-                  <Pressable
-                    key={speed}
-                    onPress={() => {
-                      onPlaybackSpeedChange(speed);
-                      setExpandedSection(null);
-                    }}
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: 16,
-                      backgroundColor:
-                        Math.abs(playbackSpeed - speed) < 0.01
-                          ? "#2a2a2a"
-                          : "transparent",
-                    }}
-                  >
-                    <Text style={{ color: "white", fontSize: 15 }}>
-                      {speed === 1 ? t("casting_player.normal") : `${speed}x`}
-                    </Text>
-                    {Math.abs(playbackSpeed - speed) < 0.01 && (
-                      <Ionicons name='checkmark' size={20} color='#a855f7' />
-                    )}
-                  </Pressable>
-                ))}
+                {PLAYBACK_SPEEDS.map((speed) =>
+                  renderRow(
+                    speed,
+                    speed === 1 ? t("casting_player.normal") : `${speed}x`,
+                    null,
+                    Math.abs(playbackSpeed - speed) < 0.01,
+                    () => onPlaybackSpeedChange(speed),
+                  ),
+                )}
               </View>
             )}
           </ScrollView>

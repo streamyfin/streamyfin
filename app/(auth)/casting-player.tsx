@@ -35,15 +35,18 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BITRATES } from "@/components/BitrateSelector";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
 import { useCasting } from "@/hooks/useCasting";
+import { useCastSelection } from "@/hooks/useCastSelection";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { detectCapabilities } from "@/utils/casting/capabilities";
 import { loadCastMedia } from "@/utils/casting/castLoad";
 import {
   calculateEndingTime,
@@ -52,6 +55,8 @@ import {
   getPosterUrl,
   truncateTitle,
 } from "@/utils/casting/helpers";
+import { resolveSelection } from "@/utils/casting/selection";
+import type { CastSelection } from "@/utils/casting/types";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
@@ -238,94 +243,40 @@ export default function CastingPlayerScreen() {
   const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null);
   const [seasonData, setSeasonData] = useState<BaseItemDto | null>(null);
 
-  // Track selection states
-  // null = not yet initialized (use server default), -1 = subtitles off, >= 0 = specific track
-  const [selectedAudioTrackIndex, setSelectedAudioTrackIndex] = useState<
-    number | null
-  >(null);
-  const [selectedSubtitleTrackIndex, setSelectedSubtitleTrackIndex] = useState<
-    number | null
-  >(null);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
 
-  // Initialize track selection from server defaults when item data arrives
-  useEffect(() => {
-    if (!fetchedItem) return;
-    const source = fetchedItem.MediaSources?.[0];
-    if (source) {
-      if (source.DefaultAudioStreamIndex != null) {
-        setSelectedAudioTrackIndex(source.DefaultAudioStreamIndex);
-      }
-      // Jellyfin uses -1 for "no subtitles", >= 0 for a specific track
-      const defaultSub = source.DefaultSubtitleStreamIndex;
-      setSelectedSubtitleTrackIndex(defaultSub ?? -1);
-      return;
-    }
-    // Fallback: scan MediaStreams for IsDefault flags
-    if (fetchedItem.MediaStreams) {
-      const defaultAudio = fetchedItem.MediaStreams.find(
-        (s) => s.Type === "Audio" && s.IsDefault,
-      );
-      if (defaultAudio?.Index != null) {
-        setSelectedAudioTrackIndex(defaultAudio.Index);
-      }
-      const defaultSub = fetchedItem.MediaStreams.find(
-        (s) => s.Type === "Subtitle" && s.IsDefault,
-      );
-      setSelectedSubtitleTrackIndex(defaultSub?.Index ?? -1);
-    }
-  }, [fetchedItem?.Id]);
-
-  // Function to reload media with new audio/subtitle/quality settings
-  const reloadWithSettings = useCallback(
-    async (options: {
-      audioIndex?: number;
-      subtitleIndex?: number | null;
-      bitrateValue?: number;
-    }) => {
+  // Reload the cast stream with a full selection; resolves true on success.
+  const reloadWithSelection = useCallback(
+    async (selection: CastSelection): Promise<boolean> => {
       if (!api || !user?.Id || !currentItem?.Id || !remoteMediaClient) {
         console.warn("[Casting Player] Cannot reload - missing required data");
-        return;
+        return false;
       }
-
-      try {
-        const currentPosition = mediaStatus?.streamPosition ?? 0;
-
-        let resolvedSubtitleIndex: number | undefined;
-        if (options.subtitleIndex === undefined) {
-          resolvedSubtitleIndex = selectedSubtitleTrackIndex ?? undefined;
-        } else if (options.subtitleIndex === null) {
-          resolvedSubtitleIndex = -1;
-        } else {
-          resolvedSubtitleIndex = options.subtitleIndex;
-        }
-
-        const result = await loadCastMedia({
-          client: remoteMediaClient,
-          device: castDevice,
-          api,
-          item: currentItem,
-          userId: user.Id,
-          profileMode: settings.chromecastProfile,
-          maxBitrateSetting: settings.chromecastMaxBitrate,
-          options: {
-            audioStreamIndex:
-              options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
-            subtitleStreamIndex: resolvedSubtitleIndex,
-            maxBitrate: options.bitrateValue,
-            startPositionMs: currentPosition * 1000,
-          },
-        });
-
-        if (!result.ok) {
-          console.error(
-            "[Casting Player] Failed to reload stream:",
-            result.error,
-          );
-        }
-      } catch (error) {
-        console.error("[Casting Player] Failed to reload stream:", error);
+      const currentPosition = mediaStatus?.streamPosition ?? 0;
+      const result = await loadCastMedia({
+        client: remoteMediaClient,
+        device: castDevice,
+        api,
+        item: currentItem,
+        userId: user.Id,
+        profileMode: settings.chromecastProfile,
+        maxBitrateSetting: settings.chromecastMaxBitrate,
+        options: {
+          mediaSourceId: selection.mediaSourceId,
+          audioStreamIndex: selection.audioStreamIndex,
+          subtitleStreamIndex: selection.subtitleStreamIndex,
+          maxBitrate: selection.maxBitrate,
+          startPositionMs: currentPosition * 1000,
+        },
+      });
+      if (!result.ok) {
+        console.error(
+          "[Casting Player] Failed to reload stream:",
+          result.error,
+        );
+        return false;
       }
+      return true;
     },
     [
       api,
@@ -336,10 +287,14 @@ export default function CastingPlayerScreen() {
       mediaStatus?.streamPosition,
       settings.chromecastProfile,
       settings.chromecastMaxBitrate,
-      selectedAudioTrackIndex,
-      selectedSubtitleTrackIndex,
     ],
   );
+
+  const { currentSelection, applySelection } = useCastSelection({
+    currentItem,
+    mediaStatus,
+    reload: reloadWithSelection,
+  });
 
   // Load a different episode on the Chromecast
   const loadEpisode = useCallback(
@@ -368,9 +323,6 @@ export default function CastingPlayerScreen() {
           );
           return;
         }
-
-        setSelectedAudioTrackIndex(null);
-        setSelectedSubtitleTrackIndex(null);
       } catch (error) {
         console.error("[Casting Player] Failed to load episode:", error);
       }
@@ -412,87 +364,86 @@ export default function CastingPlayerScreen() {
     fetchSeasonData();
   }, [currentItem?.Type, currentItem?.SeasonId, api, user?.Id]);
 
-  const availableAudioTracks = useMemo(() => {
-    if (!currentItem?.MediaStreams) return [];
+  // The MediaSource currently selected, for deriving its tracks.
+  const selectedSource = useMemo(
+    () =>
+      currentItem?.MediaSources?.find(
+        (s) => s.Id === currentSelection?.mediaSourceId,
+      ) ??
+      currentItem?.MediaSources?.[0] ??
+      null,
+    [currentItem?.MediaSources, currentSelection?.mediaSourceId],
+  );
 
-    return currentItem.MediaStreams.filter(
-      (stream) => stream.Type === "Audio",
-    ).map((stream) => ({
-      index: stream.Index ?? 0,
-      language: stream.Language || "Unknown",
-      displayTitle:
-        stream.DisplayTitle ||
-        `${stream.Language || "Unknown"} ${stream.Codec || ""}`.trim(),
-      codec: stream.Codec || "Unknown",
-      channels: stream.Channels,
-      bitrate: stream.BitRate,
-    }));
-  }, [currentItem?.MediaStreams]);
+  // Real alternate versions (multi-version items).
+  const availableVersions = useMemo(
+    () =>
+      (currentItem?.MediaSources ?? []).map((s, i) => ({
+        id: s.Id ?? `source-${i}`,
+        name: s.Name || `${t("casting_player.version")} ${i + 1}`,
+      })),
+    [currentItem?.MediaSources, t],
+  );
+
+  // Quality tiers from the shared ladder, capped to BOTH the device's
+  // capability and the media's own bitrate — a tier above either ceiling
+  // would behave identically to "Max", so it is not offered.
+  const availableQualities = useMemo(() => {
+    const caps = detectCapabilities(castDevice, {
+      profileMode: settings.chromecastProfile,
+      maxBitrate: settings.chromecastMaxBitrate,
+    });
+    const mediaBitrate =
+      selectedSource?.Bitrate ??
+      currentItem?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ??
+      Number.POSITIVE_INFINITY;
+    const ceiling = Math.min(caps.maxVideoBitrate, mediaBitrate);
+    return BITRATES.filter((b) => b.value === undefined || b.value <= ceiling);
+  }, [
+    castDevice,
+    settings.chromecastProfile,
+    settings.chromecastMaxBitrate,
+    selectedSource,
+    currentItem?.MediaStreams,
+  ]);
+
+  const availableAudioTracks = useMemo(() => {
+    const streams = selectedSource?.MediaStreams ?? currentItem?.MediaStreams;
+    if (!streams) return [];
+    return streams
+      .filter((stream) => stream.Type === "Audio")
+      .map((stream) => ({
+        index: stream.Index ?? 0,
+        language: stream.Language || "Unknown",
+        displayTitle:
+          stream.DisplayTitle ||
+          `${stream.Language || "Unknown"} ${stream.Codec || ""}`.trim(),
+        codec: stream.Codec || "Unknown",
+        channels: stream.Channels,
+        bitrate: stream.BitRate,
+      }));
+  }, [selectedSource, currentItem?.MediaStreams]);
 
   const availableSubtitleTracks = useMemo(() => {
-    if (!currentItem?.MediaStreams) return [];
-
-    return currentItem.MediaStreams.filter(
-      (stream) => stream.Type === "Subtitle",
-    ).map((stream) => ({
-      index: stream.Index ?? 0,
-      language: stream.Language || "Unknown",
-      displayTitle:
-        stream.DisplayTitle ||
-        [
-          stream.Language || "Unknown",
-          stream.IsForced ? " (Forced)" : "",
-          stream.Title ? ` - ${stream.Title}` : "",
-        ].join(""),
-      codec: stream.Codec || "Unknown",
-      isForced: stream.IsForced || false,
-      isExternal: stream.IsExternal || false,
-    }));
-  }, [currentItem?.MediaStreams]);
-
-  const availableMediaSources = useMemo(() => {
-    // Get the original source bitrate
-    const originalBitrate =
-      currentItem?.MediaSources?.[0]?.Bitrate ||
-      currentItem?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ||
-      20000000; // Default to 20Mbps if unknown
-
-    // Generate bitrate variants
-    const variants = [
-      {
-        id: `${currentItem?.Id}-max`,
-        name: "Max",
-        bitrate: originalBitrate,
-        container: currentItem?.MediaSources?.[0]?.Container || "mp4",
-      },
-      {
-        id: `${currentItem?.Id}-8mbps`,
-        name: "8 Mb/s",
-        bitrate: 8000000,
-        container: currentItem?.MediaSources?.[0]?.Container || "mp4",
-      },
-      {
-        id: `${currentItem?.Id}-4mbps`,
-        name: "4 Mb/s",
-        bitrate: 4000000,
-        container: currentItem?.MediaSources?.[0]?.Container || "mp4",
-      },
-      {
-        id: `${currentItem?.Id}-2mbps`,
-        name: "2 Mb/s",
-        bitrate: 2000000,
-        container: currentItem?.MediaSources?.[0]?.Container || "mp4",
-      },
-      {
-        id: `${currentItem?.Id}-1mbps`,
-        name: "1 Mb/s",
-        bitrate: 1000000,
-        container: currentItem?.MediaSources?.[0]?.Container || "mp4",
-      },
-    ];
-
-    return variants;
-  }, [currentItem?.MediaSources, currentItem?.MediaStreams, currentItem?.Id]);
+    const streams = selectedSource?.MediaStreams ?? currentItem?.MediaStreams;
+    if (!streams) return [];
+    return streams
+      .filter((stream) => stream.Type === "Subtitle")
+      .map((stream) => ({
+        index: stream.Index ?? 0,
+        language: stream.Language || "Unknown",
+        displayTitle:
+          stream.DisplayTitle ||
+          [
+            stream.Language || "Unknown",
+            stream.IsForced ? " (Forced)" : "",
+            stream.Title ? ` - ${stream.Title}` : "",
+          ].join(""),
+        codec: stream.Codec || "Unknown",
+        isForced: stream.IsForced || false,
+        isExternal: stream.IsExternal || false,
+      }));
+  }, [selectedSource, currentItem?.MediaStreams]);
 
   // Fetch episodes for TV shows
   useEffect(() => {
@@ -1430,44 +1381,27 @@ export default function CastingPlayerScreen() {
           <ChromecastSettingsMenu
             visible={showSettings}
             onClose={() => setShowSettings(false)}
-            item={currentItem}
-            mediaSources={availableMediaSources.filter((source) => {
-              const currentBitrate =
-                availableMediaSources[0]?.bitrate || Number.POSITIVE_INFINITY;
-              return (source.bitrate || 0) <= currentBitrate;
-            })}
-            selectedMediaSource={availableMediaSources[0] || null}
-            onMediaSourceChange={(source) => {
-              reloadWithSettings({ bitrateValue: source.bitrate });
+            versions={availableVersions}
+            selectedVersionId={currentSelection?.mediaSourceId ?? ""}
+            onVersionChange={(id) => {
+              if (!currentItem) return;
+              applySelection(
+                resolveSelection(currentItem, { mediaSourceId: id }),
+              );
             }}
+            qualities={availableQualities}
+            selectedMaxBitrate={currentSelection?.maxBitrate}
+            onQualityChange={(value) => applySelection({ maxBitrate: value })}
             audioTracks={availableAudioTracks}
-            selectedAudioTrack={
-              selectedAudioTrackIndex === null
-                ? availableAudioTracks[0] || null
-                : availableAudioTracks.find(
-                    (t) => t.index === selectedAudioTrackIndex,
-                  ) || null
+            selectedAudioIndex={currentSelection?.audioStreamIndex ?? -1}
+            onAudioChange={(index) =>
+              applySelection({ audioStreamIndex: index })
             }
-            onAudioTrackChange={(track) => {
-              setSelectedAudioTrackIndex(track.index);
-              // Reload stream with new audio track
-              reloadWithSettings({ audioIndex: track.index });
-            }}
             subtitleTracks={availableSubtitleTracks}
-            selectedSubtitleTrack={
-              selectedSubtitleTrackIndex == null ||
-              selectedSubtitleTrackIndex < 0
-                ? null
-                : availableSubtitleTracks.find(
-                    (t) => t.index === selectedSubtitleTrackIndex,
-                  ) || null
+            selectedSubtitleIndex={currentSelection?.subtitleStreamIndex ?? -1}
+            onSubtitleChange={(index) =>
+              applySelection({ subtitleStreamIndex: index })
             }
-            onSubtitleTrackChange={(track) => {
-              // -1 = disabled, >= 0 = specific track
-              setSelectedSubtitleTrackIndex(track?.index ?? -1);
-              // Reload stream: null signals disable, number selects track
-              reloadWithSettings({ subtitleIndex: track?.index ?? null });
-            }}
             playbackSpeed={currentPlaybackSpeed}
             onPlaybackSpeedChange={(speed) => {
               setCurrentPlaybackSpeed(speed);

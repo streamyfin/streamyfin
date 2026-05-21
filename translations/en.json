@@ -67,6 +67,7 @@
     "chromecast": "Chromecast",
     "device_name": "Device Name",
     "playback_settings": "Playback Settings",
+    "version": "Version",
     "quality": "Quality",
     "audio": "Audio",
     "subtitles": "Subtitles",
