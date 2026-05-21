@@ -24,3 +24,16 @@ export type {
   VideoSource as MpvVideoSource,
 } from "./mpv-player";
 export { MpvPlayerView } from "./mpv-player";
+// Top Shelf cache (tvOS)
+export type {
+  TopShelfCacheItem,
+  TopShelfCachePayload,
+  TopShelfCacheSection,
+} from "./top-shelf-cache";
+export { clearTopShelfCache, writeTopShelfCache } from "./top-shelf-cache";
+// TV recommendations (Android TV)
+export {
+  clearTvRecommendations,
+  refreshTvRecommendations,
+  syncTvRecommendations,
+} from "./tv-recommendations";

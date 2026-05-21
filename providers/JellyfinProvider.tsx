@@ -39,6 +39,7 @@ import {
   updateAccountToken,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
+import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
 
 interface Server {
   address: string;
@@ -232,6 +233,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const setServerMutation = useMutation({
     mutationFn: async (server: Server) => {
+      clearTVDiscoverySafely();
       const apiInstance = jellyfin?.createApi(server.address);
 
       if (!apiInstance?.basePath) throw new Error("Failed to connect");
@@ -250,6 +252,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeServerMutation = useMutation({
     mutationFn: async () => {
+      clearTVDiscoverySafely();
       storage.remove("serverUrl");
       setApi(null);
     },
@@ -361,6 +364,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         );
 
       storage.remove("token");
+      clearTVDiscoverySafely();
       setUser(null);
       setApi(null);
       setPluginSettings(undefined);
@@ -531,6 +535,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     (newUrl: string) => {
       if (!jellyfin || !api?.accessToken) return;
 
+      clearTVDiscoverySafely();
       const newApi = jellyfin.createApi(newUrl, api.accessToken);
       setApi(newApi);
       // Note: We don't update storage.set("serverUrl") here
@@ -661,10 +666,11 @@ function useProtectedRoute(user: UserDto | null, loaded = false) {
     if (loaded === false) return;
 
     const inAuthGroup = segments.length > 1 && segments[0] === "(auth)";
+    const isTopShelfLaunchRoute = segments[0] === "topshelf";
 
     if (!user?.Id && inAuthGroup) {
       router.replace("/login");
-    } else if (user?.Id && !inAuthGroup) {
+    } else if (user?.Id && !inAuthGroup && !isTopShelfLaunchRoute) {
       router.replace("/(auth)/(tabs)/(home)/");
     }
   }, [user, segments, loaded]);
