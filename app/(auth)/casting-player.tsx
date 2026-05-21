@@ -37,6 +37,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
 import { CastPlayerHeader } from "@/components/casting/player/CastPlayerHeader";
+import { CastPlayerPoster } from "@/components/casting/player/CastPlayerPoster";
 import { CastPlayerTitle } from "@/components/casting/player/CastPlayerTitle";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
@@ -695,130 +696,18 @@ export default function CastingPlayerScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* Poster with buffering overlay */}
-            <View
-              style={{
-                alignItems: "center",
-                marginBottom: 40,
-              }}
-            >
-              <View
-                style={{
-                  width: 280,
-                  height: 420,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  position: "relative",
-                }}
-              >
-                {posterUrl ? (
-                  <Image
-                    source={{ uri: posterUrl }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit='cover'
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      backgroundColor: "#1a1a1a",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Ionicons name='film-outline' size={64} color='#333' />
-                  </View>
-                )}
-
-                {/* Skip intro/credits bar at bottom of poster */}
-                {currentSegment && (
-                  <Pressable
-                    onPress={async () => {
-                      if (!remoteMediaClient) return;
-                      try {
-                        const seekFn = async (positionMs: number) => {
-                          if (
-                            mediaStatus?.playerState ===
-                              MediaPlayerState.PLAYING ||
-                            mediaStatus?.playerState === MediaPlayerState.PAUSED
-                          ) {
-                            await remoteMediaClient.seek({
-                              position: positionMs / 1000,
-                            });
-                          }
-                        };
-                        if (currentSegment.type === "intro") {
-                          await skipIntro(seekFn);
-                        } else if (currentSegment.type === "credits") {
-                          await skipCredits(seekFn);
-                        } else {
-                          await skipSegment(seekFn);
-                        }
-                      } catch (error) {
-                        console.error("[Casting Player] Skip error:", error);
-                      }
-                    }}
-                    style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      backgroundColor: protocolColor,
-                      paddingVertical: 12,
-                      paddingHorizontal: 16,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <Ionicons
-                      name='play-skip-forward'
-                      size={18}
-                      color='white'
-                    />
-                    <Text
-                      style={{
-                        color: "white",
-                        fontSize: 14,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {t(
-                        `player.skip_${currentSegment.type === "credits" ? "outro" : currentSegment.type}`,
-                      )}
-                    </Text>
-                  </Pressable>
-                )}
-
-                {/* Buffering overlay */}
-                {isBuffering && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: "rgba(0,0,0,0.7)",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <ActivityIndicator size='large' color={protocolColor} />
-                    <Text
-                      style={{
-                        color: "white",
-                        fontSize: 16,
-                        marginTop: 16,
-                      }}
-                    >
-                      {t("casting_player.buffering")}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
+            <CastPlayerPoster
+              posterUrl={posterUrl}
+              isBuffering={isBuffering}
+              currentSegment={currentSegment}
+              skipIntro={skipIntro}
+              skipCredits={skipCredits}
+              skipSegment={skipSegment}
+              remoteMediaClient={remoteMediaClient}
+              mediaStatus={mediaStatus}
+              protocolColor={protocolColor}
+              t={t}
+            />
           </ScrollView>
 
           {/* Fixed 4-button control row for episodes - positioned independently */}
