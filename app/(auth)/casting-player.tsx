@@ -8,7 +8,7 @@ import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, ScrollView, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { GestureDetector } from "react-native-gesture-handler";
 import GoogleCast, {
   CastState,
   MediaPlayerState,
@@ -17,12 +17,7 @@ import GoogleCast, {
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
 import { CastPlayerEpisodeControls } from "@/components/casting/player/CastPlayerEpisodeControls";
@@ -36,6 +31,7 @@ import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisode
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
+import { useCastDismissGesture } from "@/hooks/useCastDismissGesture";
 import { useCastEpisodes } from "@/hooks/useCastEpisodes";
 import { useCasting } from "@/hooks/useCasting";
 import { useCastPlayerItem } from "@/hooks/useCastPlayerItem";
@@ -333,51 +329,9 @@ export default function CastingPlayerScreen() {
     useChromecastSegments(currentItem, progress * 1000, false);
 
   // Swipe down to dismiss gesture
-  const translateY = useSharedValue(0);
-  const context = useSharedValue({ y: 0 });
-
-  const dismissModal = useCallback(() => {
-    // Navigate immediately without animation to prevent crashes
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(auth)/(tabs)/(home)/");
-    }
-  }, [router]);
-
-  const panGesture = Gesture.Pan()
-    .onStart(() => {
-      context.value = { y: translateY.value };
-    })
-    .onUpdate((event) => {
-      // Only allow downward swipes from top of screen
-      if (event.translationY > 0) {
-        translateY.value = context.value.y + event.translationY;
-      }
-    })
-    .onEnd((event) => {
-      // Dismiss if swiped down more than 150px or fast swipe
-      if (event.translationY > 150 || event.velocityY > 600) {
-        // Animate down and dismiss
-        translateY.value = withSpring(
-          1000,
-          {
-            damping: 20,
-            stiffness: 90,
-          },
-          () => {
-            runOnJS(dismissModal)();
-          },
-        );
-      } else {
-        // Spring back to position
-        translateY.value = withSpring(0);
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const { panGesture, animatedStyle, dismissModal } = useCastDismissGesture({
+    router,
+  });
 
   // Memoize expensive calculations (before early return)
   const posterUrl = useMemo(() => {
