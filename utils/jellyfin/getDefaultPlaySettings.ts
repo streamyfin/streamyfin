@@ -15,6 +15,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { BITRATES } from "@/components/BitrateSelector";
 import { type Settings } from "../atoms/settings";
+import {
+  AudioStreamRanker,
+  StreamRanker,
+  SubtitleStreamRanker,
+} from "../streamRanker";
 
 export interface PlaySettings {
   item: BaseItemDto;
@@ -49,27 +54,42 @@ export function getDefaultPlaySettings(
   }
 
   const mediaSource = item.MediaSources?.[0];
-  const _streams = mediaSource?.MediaStreams ?? [];
+  const streams = mediaSource?.MediaStreams ?? [];
 
   // Start with media source defaults
   let audioIndex = mediaSource?.DefaultAudioStreamIndex;
   let subtitleIndex = mediaSource?.DefaultSubtitleStreamIndex ?? -1;
 
   // Try to match previous selections (sequential play)
-  // Simplified: just use previous indexes if available
-  if (previous?.indexes && settings) {
+  if (previous?.indexes && previous?.source && settings) {
     if (
       settings.rememberSubtitleSelections &&
       previous.indexes.subtitleIndex !== undefined
     ) {
-      subtitleIndex = previous.indexes.subtitleIndex;
+      const ranker = new StreamRanker(new SubtitleStreamRanker());
+      const result = { DefaultSubtitleStreamIndex: subtitleIndex };
+      ranker.rankStream(
+        previous.indexes.subtitleIndex,
+        previous.source,
+        streams,
+        result,
+      );
+      subtitleIndex = result.DefaultSubtitleStreamIndex;
     }
 
     if (
       settings.rememberAudioSelections &&
       previous.indexes.audioIndex !== undefined
     ) {
-      audioIndex = previous.indexes.audioIndex;
+      const ranker = new StreamRanker(new AudioStreamRanker());
+      const result = { DefaultAudioStreamIndex: audioIndex };
+      ranker.rankStream(
+        previous.indexes.audioIndex,
+        previous.source,
+        streams,
+        result,
+      );
+      audioIndex = result.DefaultAudioStreamIndex;
     }
   }
 
