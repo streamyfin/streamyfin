@@ -10,6 +10,7 @@ protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
+    func renderer(_ renderer: MPVLayerRenderer, didSelectAudioOutput audioOutput: String)
 }
 
 /// MPV player using vo_avfoundation for video output.
@@ -170,7 +171,11 @@ final class MPVLayerRenderer {
         // Enable composite OSD mode - renders subtitles directly onto video frames using GPU
         // This is better for PiP as subtitles are baked into the video
         // NOTE: Must be set BEFORE the #if targetEnvironment check or tvOS will freeze on player exit
+        #if targetEnvironment(simulator)
+        checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "no"))
+        #else
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
+        #endif
 
         // Hardware decoding with VideoToolbox
         // On simulator, use software decoding since VideoToolbox is not available
@@ -347,7 +352,8 @@ final class MPVLayerRenderer {
             ("pause", MPV_FORMAT_FLAG),
             ("track-list/count", MPV_FORMAT_INT64),
             ("paused-for-cache", MPV_FORMAT_FLAG),
-            ("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
+            ("demuxer-cache-duration", MPV_FORMAT_DOUBLE),
+            ("current-ao", MPV_FORMAT_STRING)
         ]
         for (name, format) in properties {
             mpv_observe_property(handle, 0, name, format)
@@ -550,6 +556,15 @@ final class MPVLayerRenderer {
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.delegate?.renderer(self, didBecomeTracksReady: true)
+                }
+            }
+        case "current-ao":
+            // Audio output is now active - notify delegate
+            if let aoName = getStringProperty(handle: handle, name: name) {
+                print("[MPV] 🔊 Audio output selected: \(aoName)")
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.renderer(self, didSelectAudioOutput: aoName)
                 }
             }
         default:

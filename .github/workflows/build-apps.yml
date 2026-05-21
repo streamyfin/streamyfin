@@ -33,7 +33,7 @@ jobs:
           swap-storage: false
 
       - name: 📥 Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -41,12 +41,12 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@b7a1c7ccf290d58743029c4f6903da283811b979 # v2.1.0
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
@@ -60,7 +60,7 @@ jobs:
           bun run submodule-reload
 
       - name: 💾 Cache Gradle global
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -73,7 +73,7 @@ jobs:
         run: bun run prebuild
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: android/.gradle
           key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -88,7 +88,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-android-phone-apk-${{ env.DATE_TAG }}
           path: |
@@ -116,7 +116,7 @@ jobs:
           swap-storage: false
 
       - name: 📥 Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -124,12 +124,12 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@b7a1c7ccf290d58743029c4f6903da283811b979 # v2.1.0
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
@@ -143,7 +143,7 @@ jobs:
           bun run submodule-reload
 
       - name: 💾 Cache Gradle global
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -156,7 +156,7 @@ jobs:
         run: bun run prebuild:tv
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: android/.gradle
           key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -171,7 +171,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-android-tv-apk-${{ env.DATE_TAG }}
           path: |
@@ -187,7 +187,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -195,12 +195,12 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@b7a1c7ccf290d58743029c4f6903da283811b979 # v2.1.0
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
@@ -216,12 +216,12 @@ jobs:
         run: bun run prebuild
 
       - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: "26.2"
 
       - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@main
+        uses: expo/expo-github-action@b184ff86a3c926240f1b6db41764c83a01c02eef # main
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -236,7 +236,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-ios-phone-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
@@ -251,7 +251,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -259,12 +259,12 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@b7a1c7ccf290d58743029c4f6903da283811b979 # v2.1.0
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
@@ -280,7 +280,7 @@ jobs:
         run: bun run prebuild
 
       - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: "26.2"
 
@@ -293,7 +293,7 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-ios-phone-unsigned-ipa-${{ env.DATE_TAG }}
           path: build/*.ipa
