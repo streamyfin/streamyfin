@@ -8,6 +8,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -52,7 +53,7 @@ export const CastAndCrew: React.FC<Props> = ({ item, loading, ...props }) => {
       <HorizontalScroll
         loading={loading}
         keyExtractor={(i, _idx) => i.Id?.toString() || ""}
-        height={220}
+        height={POSTER_CAROUSEL_HEIGHT}
         data={destinctPeople}
         renderItem={(i) => (
           <TouchableOpacity

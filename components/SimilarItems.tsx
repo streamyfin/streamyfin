@@ -6,11 +6,8 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { POSTER_CAROUSEL_HEIGHT } from "@/constants/Values";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-
-// Matches `w-28` poster cards (approx 112px wide, 10/15 aspect ratio) + 2 lines of text.
-const POSTER_CAROUSEL_HEIGHT = 220;
-
 import { HorizontalScroll } from "./common/HorizontalScroll";
 import { Text } from "./common/Text";
 import { TouchableItemRouter } from "./common/TouchableItemRouter";
