@@ -41,7 +41,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
-import { updateTopShelfCache } from "@/utils/topshelf/cache";
+import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 
 const HORIZONTAL_PADDING = scaleSize(60);
 const TOP_PADDING = scaleSize(100);
@@ -260,7 +260,7 @@ export const Home = () => {
   });
 
   useEffect(() => {
-    updateTopShelfCache({
+    updateTVDiscovery({
       api,
       sections: [
         {

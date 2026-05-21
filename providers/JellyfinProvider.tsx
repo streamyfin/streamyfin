@@ -39,7 +39,7 @@ import {
   updateAccountToken,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
-import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
+import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
 
 interface Server {
   address: string;
@@ -233,7 +233,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const setServerMutation = useMutation({
     mutationFn: async (server: Server) => {
-      clearTopShelfCacheSafely();
+      clearTVDiscoverySafely();
       const apiInstance = jellyfin?.createApi(server.address);
 
       if (!apiInstance?.basePath) throw new Error("Failed to connect");
@@ -252,7 +252,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const removeServerMutation = useMutation({
     mutationFn: async () => {
-      clearTopShelfCacheSafely();
+      clearTVDiscoverySafely();
       storage.remove("serverUrl");
       setApi(null);
     },
@@ -364,7 +364,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         );
 
       storage.remove("token");
-      clearTopShelfCacheSafely();
+      clearTVDiscoverySafely();
       setUser(null);
       setApi(null);
       setPluginSettings(undefined);
@@ -535,7 +535,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     (newUrl: string) => {
       if (!jellyfin || !api?.accessToken) return;
 
-      clearTopShelfCacheSafely();
+      clearTVDiscoverySafely();
       const newApi = jellyfin.createApi(newUrl, api.accessToken);
       setApi(newApi);
       // Note: We don't update storage.set("serverUrl") here
