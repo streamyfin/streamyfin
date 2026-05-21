@@ -120,13 +120,27 @@ export const loadCastMedia = async (
       return { ok: false, error };
     }
     // Downgrade-on-failure: one retry with the safest possible profile.
+    // The bitrate cap must also be applied to the explicit getStreamUrl
+    // `maxBitrate` request param — Jellyfin uses that as the effective
+    // ceiling, so the conservative profile alone would not lower it.
     try {
       const fallback = detectCapabilities(params.device, {
         profileMode: "force-h264",
       });
-      await attemptLoad(params, {
+      const FALLBACK_MAX_BITRATE = 4_000_000;
+      const fallbackParams: CastLoadParams = {
+        ...params,
+        options: {
+          ...params.options,
+          maxBitrate: Math.min(
+            params.options?.maxBitrate ?? Number.POSITIVE_INFINITY,
+            FALLBACK_MAX_BITRATE,
+          ),
+        },
+      };
+      await attemptLoad(fallbackParams, {
         ...fallback,
-        maxVideoBitrate: 4_000_000,
+        maxVideoBitrate: FALLBACK_MAX_BITRATE,
         maxAudioChannels: 2,
       });
       return { ok: true };
