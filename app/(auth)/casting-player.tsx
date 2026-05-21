@@ -36,6 +36,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
+import { CastPlayerEpisodeControls } from "@/components/casting/player/CastPlayerEpisodeControls";
 import { CastPlayerHeader } from "@/components/casting/player/CastPlayerHeader";
 import { CastPlayerPoster } from "@/components/casting/player/CastPlayerPoster";
 import { CastPlayerTitle } from "@/components/casting/player/CastPlayerTitle";
@@ -712,128 +713,16 @@ export default function CastingPlayerScreen() {
 
           {/* Fixed 4-button control row for episodes - positioned independently */}
           {currentItem.Type === "Episode" && (
-            <View
-              style={{
-                position: "absolute",
-                bottom: insets.bottom + 200,
-                left: 0,
-                right: 0,
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 16,
-                paddingHorizontal: 20,
-              }}
-            >
-              {/* Episodes button */}
-              <Pressable
-                onPress={() => setShowEpisodeList(true)}
-                style={{
-                  flex: 1,
-                  backgroundColor: "#1a1a1a",
-                  padding: 12,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons name='list' size={22} color='white' />
-              </Pressable>
-
-              {/* Previous episode button */}
-              <Pressable
-                onPress={async () => {
-                  const currentIndex = episodes.findIndex(
-                    (ep) => ep.Id === currentItem.Id,
-                  );
-                  if (currentIndex > 0) {
-                    await loadEpisode(episodes[currentIndex - 1]);
-                  }
-                }}
-                disabled={
-                  episodes.findIndex((ep) => ep.Id === currentItem.Id) <= 0
-                }
-                style={{
-                  flex: 1,
-                  backgroundColor: "#1a1a1a",
-                  padding: 12,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity:
-                    episodes.findIndex((ep) => ep.Id === currentItem.Id) <= 0
-                      ? 0.4
-                      : 1,
-                }}
-              >
-                <Ionicons name='play-skip-back' size={22} color='white' />
-              </Pressable>
-
-              {/* Next episode button */}
-              <Pressable
-                onPress={async () => {
-                  if (nextEpisode) {
-                    await loadEpisode(nextEpisode);
-                  }
-                }}
-                disabled={!nextEpisode}
-                style={{
-                  flex: 1,
-                  backgroundColor: "#1a1a1a",
-                  padding: 12,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: nextEpisode ? 1 : 0.4,
-                }}
-              >
-                <Ionicons name='play-skip-forward' size={22} color='white' />
-              </Pressable>
-
-              {/* Stop playback button - stops media but stays connected to Chromecast */}
-              <Pressable
-                onPress={async () => {
-                  try {
-                    // Stop the current media playback (don't disconnect from Chromecast)
-                    if (remoteMediaClient) {
-                      await remoteMediaClient.stop();
-                    }
-
-                    // Navigate back/close the player (mini player will disappear since no media is playing)
-                    if (router.canGoBack()) {
-                      router.back();
-                    } else {
-                      router.replace("/(auth)/(tabs)/(home)/");
-                    }
-                  } catch (error) {
-                    console.error(
-                      "[Casting Player] Error stopping playback:",
-                      error,
-                    );
-                    // Navigate anyway
-                    if (router.canGoBack()) {
-                      router.back();
-                    } else {
-                      router.replace("/(auth)/(tabs)/(home)/");
-                    }
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  backgroundColor: "#1a1a1a",
-                  padding: 12,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons name='stop-circle' size={22} color='white' />
-              </Pressable>
-            </View>
+            <CastPlayerEpisodeControls
+              insetBottom={insets.bottom}
+              currentItemId={currentItem.Id}
+              episodes={episodes}
+              nextEpisode={nextEpisode}
+              remoteMediaClient={remoteMediaClient}
+              onPressEpisodes={() => setShowEpisodeList(true)}
+              loadEpisode={loadEpisode}
+              router={router}
+            />
           )}
 
           {/* Fixed bottom controls area */}
