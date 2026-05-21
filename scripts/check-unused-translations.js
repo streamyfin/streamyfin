@@ -36,7 +36,9 @@ function isKeyUsed(key) {
 
     // Search in TypeScript/TSX files
     const result = execSync(
-      `git grep -l "${escapedKey}" -- "*.ts" "*.tsx" 2>nul || echo ""`,
+      // `2>nul` is cmd-only; omitted so this stays cross-platform (it would
+      // create a literal `nul` file on Unix). `|| echo ""` handles no-match.
+      `git grep -l "${escapedKey}" -- "*.ts" "*.tsx" || echo ""`,
       {
         encoding: "utf8",
         cwd: path.join(__dirname, ".."),
