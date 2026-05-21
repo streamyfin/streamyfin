@@ -6,19 +6,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { Image } from "expo-image";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ActivityIndicator,
-  Dimensions,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
-import { Slider } from "react-native-awesome-slider";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import GoogleCast, {
   CastState,
@@ -39,6 +31,7 @@ import { BITRATES } from "@/components/BitrateSelector";
 import { CastPlayerEpisodeControls } from "@/components/casting/player/CastPlayerEpisodeControls";
 import { CastPlayerHeader } from "@/components/casting/player/CastPlayerHeader";
 import { CastPlayerPoster } from "@/components/casting/player/CastPlayerPoster";
+import { CastPlayerProgressBar } from "@/components/casting/player/CastPlayerProgressBar";
 import { CastPlayerTitle } from "@/components/casting/player/CastPlayerTitle";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
@@ -52,15 +45,9 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { detectCapabilities } from "@/utils/casting/capabilities";
 import { loadCastMedia } from "@/utils/casting/castLoad";
-import {
-  calculateEndingTime,
-  formatTime,
-  formatTrickplayTime,
-  getPosterUrl,
-} from "@/utils/casting/helpers";
+import { getPosterUrl } from "@/utils/casting/helpers";
 import { resolveSelection } from "@/utils/casting/selection";
 import type { CastSelection } from "@/utils/casting/types";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -735,209 +722,25 @@ export default function CastingPlayerScreen() {
               zIndex: 98,
             }}
           >
-            {/* Progress slider with trickplay preview */}
-            <View style={{ marginTop: 8, height: 40 }}>
-              <Slider
-                style={{ width: "100%", height: 40 }}
-                progress={sliderProgress}
-                minimumValue={sliderMin}
-                maximumValue={sliderMax}
-                theme={{
-                  maximumTrackTintColor: "#333",
-                  minimumTrackTintColor: protocolColor,
-                  bubbleBackgroundColor: protocolColor,
-                  bubbleTextColor: "#fff",
-                }}
-                onSlidingStart={() => {
-                  isScrubbing.current = true;
-                }}
-                onValueChange={(value) => {
-                  // Calculate trickplay preview
-                  const progressInTicks = msToTicks(value);
-                  calculateTrickplayUrl(progressInTicks);
-
-                  // Update time display for trickplay bubble
-                  const progressInSeconds = Math.floor(
-                    ticksToSeconds(progressInTicks),
-                  );
-                  const hours = Math.floor(progressInSeconds / 3600);
-                  const minutes = Math.floor((progressInSeconds % 3600) / 60);
-                  const seconds = progressInSeconds % 60;
-                  setTrickplayTime({ hours, minutes, seconds });
-
-                  // Track scrub percentage for bubble positioning
-                  const durationMs = duration * 1000;
-                  if (durationMs > 0) {
-                    setScrubPercentage(value / durationMs);
-                  }
-                }}
-                onSlidingComplete={(value) => {
-                  isScrubbing.current = false;
-                  // Seek to the position (value is in milliseconds, convert to seconds)
-                  const positionSeconds = value / 1000;
-                  if (remoteMediaClient && duration > 0) {
-                    remoteMediaClient
-                      .seek({ position: positionSeconds })
-                      .catch((error) => {
-                        console.error("[Casting Player] Seek error:", error);
-                      });
-                  }
-                }}
-                renderBubble={() => {
-                  // Calculate bubble position with edge clamping
-                  const screenWidth = Dimensions.get("window").width;
-                  const containerPadding = 20; // left/right padding of slider container (matches style)
-                  const thumbWidth = 16; // matches thumbWidth prop on Slider
-                  const sliderWidth = screenWidth - containerPadding * 2;
-                  // Adjust thumb position to account for thumb width affecting travel range
-                  const effectiveTrackWidth = sliderWidth - thumbWidth;
-                  const thumbPosition =
-                    thumbWidth / 2 + scrubPercentage * effectiveTrackWidth;
-
-                  if (!trickPlayUrl || !trickplayInfo) {
-                    // Show simple time bubble when no trickplay
-                    const timeBubbleWidth = 80;
-                    // Clamp position so bubble stays on screen
-                    // minLeft prevents going off left edge, maxLeft prevents going off right edge
-                    const minLeft = -thumbPosition;
-                    const maxLeft =
-                      sliderWidth - thumbPosition - timeBubbleWidth;
-                    const centeredLeft = -timeBubbleWidth / 2;
-                    const clampedLeft = Math.max(
-                      minLeft,
-                      Math.min(maxLeft, centeredLeft),
-                    );
-
-                    return (
-                      <View
-                        style={{
-                          position: "absolute",
-                          bottom: 20,
-                          left: clampedLeft,
-                          backgroundColor: protocolColor,
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#fff",
-                            fontSize: 14,
-                            fontWeight: "600",
-                          }}
-                        >
-                          {formatTrickplayTime(trickplayTime)}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  const { x, y, url } = trickPlayUrl;
-                  const tileWidth = 220; // Larger preview for casting player
-                  const tileHeight =
-                    tileWidth / (trickplayInfo.aspectRatio ?? 1.78);
-
-                  // Calculate clamped position for trickplay preview
-                  // minLeft: furthest left (when thumb is at left edge)
-                  // maxLeft: furthest right (when thumb is at right edge)
-                  const minLeft = -thumbPosition;
-                  const maxLeft = sliderWidth - thumbPosition - tileWidth;
-                  const centeredLeft = -tileWidth / 2;
-                  const clampedLeft = Math.max(
-                    minLeft,
-                    Math.min(maxLeft, centeredLeft),
-                  );
-
-                  return (
-                    <View
-                      style={{
-                        position: "absolute",
-                        bottom: 20,
-                        left: clampedLeft,
-                        width: tileWidth,
-                        alignItems: "center",
-                      }}
-                    >
-                      {/* Trickplay image preview */}
-                      <View
-                        style={{
-                          width: tileWidth,
-                          height: tileHeight,
-                          borderRadius: 8,
-                          overflow: "hidden",
-                          backgroundColor: "#1a1a1a",
-                        }}
-                      >
-                        <Image
-                          cachePolicy='memory-disk'
-                          style={{
-                            width:
-                              tileWidth * (trickplayInfo.data?.TileWidth ?? 1),
-                            height:
-                              (tileWidth /
-                                (trickplayInfo.aspectRatio ?? 1.78)) *
-                              (trickplayInfo.data?.TileHeight ?? 1),
-                            transform: [
-                              { translateX: -x * tileWidth },
-                              { translateY: -y * tileHeight },
-                            ],
-                          }}
-                          source={{ uri: url }}
-                          contentFit='cover'
-                        />
-                      </View>
-                      {/* Time overlay */}
-                      <View
-                        style={{
-                          position: "absolute",
-                          bottom: 4,
-                          left: 4,
-                          backgroundColor: "rgba(0, 0, 0, 0.7)",
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 4,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: "#fff",
-                            fontSize: 12,
-                            fontWeight: "600",
-                          }}
-                        >
-                          {formatTrickplayTime(trickplayTime)}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                }}
-                sliderHeight={6}
-                thumbWidth={16}
-                panHitSlop={{ top: 30, bottom: 30, left: 10, right: 10 }}
-              />
-            </View>
-
-            {/* Time display */}
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                marginBottom: 24,
-              }}
-            >
-              <Text style={{ color: "#999", fontSize: 13 }}>
-                {formatTime(progress * 1000)}
-              </Text>
-              <Text style={{ color: "#999", fontSize: 13 }}>
-                {t("casting_player.ending_at", {
-                  time: calculateEndingTime(progress * 1000, duration * 1000),
-                })}
-              </Text>
-              <Text style={{ color: "#999", fontSize: 13 }}>
-                {formatTime(duration * 1000)}
-              </Text>
-            </View>
+            {/* Progress slider with trickplay preview + time display */}
+            <CastPlayerProgressBar
+              sliderProgress={sliderProgress}
+              sliderMin={sliderMin}
+              sliderMax={sliderMax}
+              isScrubbing={isScrubbing}
+              scrubPercentage={scrubPercentage}
+              setScrubPercentage={setScrubPercentage}
+              trickplayTime={trickplayTime}
+              setTrickplayTime={setTrickplayTime}
+              trickPlayUrl={trickPlayUrl}
+              calculateTrickplayUrl={calculateTrickplayUrl}
+              trickplayInfo={trickplayInfo}
+              progress={progress}
+              duration={duration}
+              remoteMediaClient={remoteMediaClient}
+              protocolColor={protocolColor}
+              t={t}
+            />
 
             {/* Playback controls */}
             <View
