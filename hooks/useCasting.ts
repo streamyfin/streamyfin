@@ -52,6 +52,14 @@ export const useCasting = (item: BaseItemDto | null) => {
     [],
   );
 
+  // Real Jellyfin PlaySessionId, embedded in customData by buildCastMediaInfo.
+  const playSessionId =
+    (
+      mediaStatus?.mediaInfo?.customData as
+        | { playSessionId?: string }
+        | undefined
+    )?.playSessionId ?? mediaStatus?.mediaInfo?.contentId;
+
   // Detect which protocol is active - use CastState for reliable detection
   const chromecastConnected = castState === CastState.CONNECTED;
   // Future: Add detection for other protocols here
@@ -139,7 +147,7 @@ export const useCasting = (item: BaseItemDto | null) => {
               activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
             VolumeLevel: Math.floor(currentState.volume * 100),
             IsMuted: currentState.volume === 0,
-            PlaySessionId: mediaStatus?.mediaInfo?.contentId,
+            PlaySessionId: playSessionId,
           },
         })
         .catch((error) => {
@@ -179,7 +187,7 @@ export const useCasting = (item: BaseItemDto | null) => {
               activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
             VolumeLevel: Math.floor(s.volume * 100),
             IsMuted: s.volume === 0,
-            PlaySessionId: mediaStatus?.mediaInfo?.contentId,
+            PlaySessionId: playSessionId,
           },
         })
         .catch((error) => {
@@ -190,14 +198,7 @@ export const useCasting = (item: BaseItemDto | null) => {
     // Report progress on a fixed interval, reading latest state from ref
     const interval = setInterval(reportProgress, 10000);
     return () => clearInterval(interval);
-  }, [
-    api,
-    item?.Id,
-    user?.Id,
-    isConnected,
-    activeProtocol,
-    mediaStatus?.mediaInfo?.contentId,
-  ]);
+  }, [api, item?.Id, user?.Id, isConnected, activeProtocol, playSessionId]);
 
   // Play/Pause controls
   const play = useCallback(async () => {

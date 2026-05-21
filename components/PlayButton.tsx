@@ -10,6 +10,7 @@ import CastContext, {
   CastButton,
   MediaPlayerState,
   PlayServicesState,
+  useCastDevice,
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
@@ -32,10 +33,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
-import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
+import { loadCastMedia } from "@/utils/casting/castLoad";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -58,6 +56,7 @@ export const PlayButton: React.FC<Props> = ({
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
   const client = useRemoteMediaClient();
+  const castDevice = useCastDevice();
   const mediaStatus = useMediaStatus();
   const { t } = useTranslation();
   const { showModal, hideModal } = useGlobalModal();
@@ -138,30 +137,8 @@ export const PlayButton: React.FC<Props> = ({
               if (state && state !== PlayServicesState.SUCCESS) {
                 CastContext.showPlayServicesErrorDialog(state);
               } else {
-                // Check if user wants H265 for Chromecast
-                const enableH265 = settings.enableH265ForChromecast;
-
-                // Validate required parameters before calling getStreamUrl
-                if (!api) {
-                  console.warn("API not available for Chromecast streaming");
-                  Alert.alert(
-                    t("player.client_error"),
-                    t("player.missing_parameters"),
-                  );
-                  return;
-                }
-                if (!user?.Id) {
-                  console.warn(
-                    "User not authenticated for Chromecast streaming",
-                  );
-                  Alert.alert(
-                    t("player.client_error"),
-                    t("player.missing_parameters"),
-                  );
-                  return;
-                }
-                if (!item?.Id) {
-                  console.warn("Item not available for Chromecast streaming");
+                if (!api || !user?.Id || !item?.Id) {
+                  console.warn("Missing parameters for Chromecast streaming");
                   Alert.alert(
                     t("player.client_error"),
                     t("player.missing_parameters"),
@@ -169,53 +146,37 @@ export const PlayButton: React.FC<Props> = ({
                   return;
                 }
 
-                // Get a new URL with the Chromecast device profile
-                try {
-                  const data = await getStreamUrl({
-                    api,
-                    item,
-                    deviceProfile: enableH265 ? chromecasth265 : chromecast,
-                    startTimeTicks: item?.UserData?.PlaybackPositionTicks ?? 0,
-                    userId: user.Id,
+                const startPositionMs =
+                  (item.UserData?.PlaybackPositionTicks ?? 0) / 10000;
+
+                const result = await loadCastMedia({
+                  client,
+                  device: castDevice,
+                  api,
+                  item,
+                  userId: user.Id,
+                  profileMode: settings.chromecastProfile,
+                  maxBitrateSetting: settings.chromecastMaxBitrate,
+                  options: {
                     audioStreamIndex: selectedOptions.audioIndex,
-                    maxStreamingBitrate: selectedOptions.bitrate?.value,
-                    mediaSourceId: selectedOptions.mediaSource?.Id,
                     subtitleStreamIndex: selectedOptions.subtitleIndex,
-                  });
+                    maxBitrate: selectedOptions.bitrate?.value,
+                    mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+                    startPositionMs,
+                  },
+                });
 
-                  if (!data?.url) {
-                    console.warn("No URL returned from getStreamUrl", data);
-                    Alert.alert(
-                      t("player.client_error"),
-                      t("player.could_not_create_stream_for_chromecast"),
-                    );
-                    return;
-                  }
+                if (!result.ok) {
+                  console.error("[PlayButton] cast load failed:", result.error);
+                  Alert.alert(
+                    t("player.client_error"),
+                    t("player.could_not_create_stream_for_chromecast"),
+                  );
+                  return;
+                }
 
-                  const startTimeSeconds =
-                    (item?.UserData?.PlaybackPositionTicks ?? 0) / 10000000;
-
-                  client
-                    .loadMedia({
-                      mediaInfo: buildCastMediaInfo({
-                        item,
-                        streamUrl: data.url,
-                        api,
-                      }),
-                      startTime: startTimeSeconds,
-                    })
-                    .then(() => {
-                      // state is already set when reopening current media, so skip it here.
-                      if (isOpeningCurrentlyPlayingMedia) {
-                        return;
-                      }
-                      router.push("/casting-player");
-                    })
-                    .catch((err) => {
-                      console.error("[PlayButton] loadMedia failed:", err);
-                    });
-                } catch (e) {
-                  console.error("[PlayButton] Cast error:", e);
+                if (!isOpeningCurrentlyPlayingMedia) {
+                  router.push("/casting-player");
                 }
               }
             });
@@ -231,6 +192,7 @@ export const PlayButton: React.FC<Props> = ({
   }, [
     item,
     client,
+    castDevice,
     settings,
     api,
     user,

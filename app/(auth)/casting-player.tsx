@@ -44,6 +44,7 @@ import { useCasting } from "@/hooks/useCasting";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { loadCastMedia } from "@/utils/casting/castLoad";
 import {
   calculateEndingTime,
   formatTime,
@@ -51,10 +52,6 @@ import {
   getPosterUrl,
   truncateTitle,
 } from "@/utils/casting/helpers";
-import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export default function CastingPlayerScreen() {
@@ -292,15 +289,8 @@ export default function CastingPlayerScreen() {
       }
 
       try {
-        // Save current playback position
         const currentPosition = mediaStatus?.streamPosition ?? 0;
 
-        // Get new stream URL with updated settings
-        const enableH265 = settings.enableH265ForChromecast;
-
-        // Resolve subtitle index:
-        // - options.subtitleIndex is explicitly provided: null = disable (-1), number = specific track
-        // - options.subtitleIndex is undefined: preserve current selection
         let resolvedSubtitleIndex: number | undefined;
         if (options.subtitleIndex === undefined) {
           resolvedSubtitleIndex = selectedSubtitleTrackIndex ?? undefined;
@@ -310,32 +300,29 @@ export default function CastingPlayerScreen() {
           resolvedSubtitleIndex = options.subtitleIndex;
         }
 
-        const data = await getStreamUrl({
+        const result = await loadCastMedia({
+          client: remoteMediaClient,
+          device: castDevice,
           api,
           item: currentItem,
-          deviceProfile: enableH265 ? chromecasth265 : chromecast,
-          startTimeTicks: Math.floor(currentPosition * 10000000), // Convert seconds to ticks
           userId: user.Id,
-          audioStreamIndex:
-            options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
-          subtitleStreamIndex: resolvedSubtitleIndex,
-          maxStreamingBitrate: options.bitrateValue,
+          profileMode: settings.chromecastProfile,
+          maxBitrateSetting: settings.chromecastMaxBitrate,
+          options: {
+            audioStreamIndex:
+              options.audioIndex ?? selectedAudioTrackIndex ?? undefined,
+            subtitleStreamIndex: resolvedSubtitleIndex,
+            maxBitrate: options.bitrateValue,
+            startPositionMs: currentPosition * 1000,
+          },
         });
 
-        if (!data?.url) {
-          console.error("[Casting Player] Failed to get stream URL");
-          return;
+        if (!result.ok) {
+          console.error(
+            "[Casting Player] Failed to reload stream:",
+            result.error,
+          );
         }
-
-        // Reload media with new URL
-        await remoteMediaClient.loadMedia({
-          mediaInfo: buildCastMediaInfo({
-            item: currentItem,
-            streamUrl: data.url,
-            api,
-          }),
-          startTime: currentPosition, // Resume at same position
-        });
       } catch (error) {
         console.error("[Casting Player] Failed to reload stream:", error);
       }
@@ -345,8 +332,10 @@ export default function CastingPlayerScreen() {
       user?.Id,
       currentItem,
       remoteMediaClient,
+      castDevice,
       mediaStatus?.streamPosition,
-      settings.enableH265ForChromecast,
+      settings.chromecastProfile,
+      settings.chromecastMaxBitrate,
       selectedAudioTrackIndex,
       selectedSubtitleTrackIndex,
     ],
@@ -358,39 +347,42 @@ export default function CastingPlayerScreen() {
       if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
 
       try {
-        const enableH265 = settings.enableH265ForChromecast;
-        const data = await getStreamUrl({
+        const startPositionMs =
+          (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000;
+
+        const result = await loadCastMedia({
+          client: remoteMediaClient,
+          device: castDevice,
           api,
           item: episode,
-          deviceProfile: enableH265 ? chromecasth265 : chromecast,
-          startTimeTicks: episode.UserData?.PlaybackPositionTicks ?? 0,
           userId: user.Id,
+          profileMode: settings.chromecastProfile,
+          maxBitrateSetting: settings.chromecastMaxBitrate,
+          options: { startPositionMs },
         });
 
-        if (!data?.url) {
+        if (!result.ok) {
           console.error(
-            "[Casting Player] Failed to get stream URL for episode",
+            "[Casting Player] Failed to load episode:",
+            result.error,
           );
           return;
         }
 
-        await remoteMediaClient.loadMedia({
-          mediaInfo: buildCastMediaInfo({
-            item: episode,
-            streamUrl: data.url,
-            api,
-          }),
-          startTime: (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000000,
-        });
-
-        // Reset track selections for new episode
         setSelectedAudioTrackIndex(null);
         setSelectedSubtitleTrackIndex(null);
       } catch (error) {
         console.error("[Casting Player] Failed to load episode:", error);
       }
     },
-    [api, user?.Id, remoteMediaClient, settings.enableH265ForChromecast],
+    [
+      api,
+      user?.Id,
+      remoteMediaClient,
+      castDevice,
+      settings.chromecastProfile,
+      settings.chromecastMaxBitrate,
+    ],
   );
 
   // Fetch season data for season poster
