@@ -5,7 +5,7 @@
 
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, ScrollView, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
@@ -17,7 +17,7 @@ import GoogleCast, {
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import Animated, { useSharedValue } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
 import { CastPlayerEpisodeControls } from "@/components/casting/player/CastPlayerEpisodeControls";
@@ -35,8 +35,8 @@ import { useCastDismissGesture } from "@/hooks/useCastDismissGesture";
 import { useCastEpisodes } from "@/hooks/useCastEpisodes";
 import { useCasting } from "@/hooks/useCasting";
 import { useCastPlayerItem } from "@/hooks/useCastPlayerItem";
+import { useCastPlayerProgress } from "@/hooks/useCastPlayerProgress";
 import { useCastSelection } from "@/hooks/useCastSelection";
-import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { detectCapabilities } from "@/utils/casting/capabilities";
@@ -59,30 +59,6 @@ export default function CastingPlayerScreen() {
   // Keep hook active for connection - used by remoteMediaClient from useCasting
   useRemoteMediaClient();
 
-  // Shared values for progress slider (must be initialized before any early returns)
-  const sliderProgress = useSharedValue(0);
-  const sliderMin = useSharedValue(0);
-  const sliderMax = useSharedValue(100);
-  const isScrubbing = useRef(false);
-
-  // Trickplay time display
-  const [trickplayTime, setTrickplayTime] = useState({
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
-
-  // Track scrub percentage for trickplay bubble positioning
-  const [scrubPercentage, setScrubPercentage] = useState(0);
-
-  // Live progress tracking - update every second
-  const [liveProgress, setLiveProgress] = useState(0);
-  const lastSyncPositionRef = useRef(0);
-  const lastSyncTimestampRef = useRef(Date.now());
-
-  // Last stable playback position (seconds), for resuming across reloads.
-  const resumePositionRef = useRef(0);
-
   // Fetch full item data from Jellyfin by ID and derive the effective item
   const { fetchedItem, currentItem } = useCastPlayerItem({
     api,
@@ -90,64 +66,29 @@ export default function CastingPlayerScreen() {
     mediaStatus,
   });
 
-  useEffect(() => {
-    // Sync refs whenever mediaStatus provides a new position
-    if (mediaStatus?.streamPosition !== undefined) {
-      lastSyncPositionRef.current = mediaStatus.streamPosition;
-      lastSyncTimestampRef.current = Date.now();
-      setLiveProgress(mediaStatus.streamPosition);
-    }
-
-    // Update every second when playing, deriving from last sync point
-    const interval = setInterval(() => {
-      if (
-        mediaStatus?.playerState === MediaPlayerState.PLAYING &&
-        mediaStatus?.streamPosition !== undefined
-      ) {
-        const elapsed = (Date.now() - lastSyncTimestampRef.current) / 1000;
-        setLiveProgress(lastSyncPositionRef.current + elapsed);
-      } else if (mediaStatus?.streamPosition !== undefined) {
-        // Sync with actual position when paused/buffering
-        setLiveProgress(mediaStatus.streamPosition);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [mediaStatus?.playerState, mediaStatus?.streamPosition]);
-
-  // Track the last stable position so a reload mid-switch resumes correctly.
-  useEffect(() => {
-    const pos = mediaStatus?.streamPosition ?? 0;
-    if (mediaStatus?.playerState === MediaPlayerState.PLAYING && pos > 0) {
-      resumePositionRef.current = pos;
-    }
-  }, [mediaStatus?.streamPosition, mediaStatus?.playerState]);
-
   // Derive state from raw Chromecast hooks
-  const progress = liveProgress; // Use live-updating progress
   const duration = mediaStatus?.mediaInfo?.streamDuration ?? 0;
   const isPlaying = mediaStatus?.playerState === MediaPlayerState.PLAYING;
   const isBuffering = mediaStatus?.playerState === MediaPlayerState.BUFFERING;
   const currentDevice = castDevice?.friendlyName ?? null;
 
-  // Trickplay for seeking preview - use fetched item with full data
-  const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
-    fetchedItem ?? null,
-  );
-
-  // Update slider max when duration changes
-  useEffect(() => {
-    if (duration > 0) {
-      sliderMax.value = duration * 1000; // Convert to milliseconds
-    }
-  }, [duration, sliderMax]);
-
-  // Update slider progress when not scrubbing
-  useEffect(() => {
-    if (!isScrubbing.current && progress > 0) {
-      sliderProgress.value = progress * 1000; // Convert to milliseconds
-    }
-  }, [progress, sliderProgress]);
+  // Progress/slider/trickplay cluster: slider shared values, scrub state,
+  // live-progress interpolation, resume-position tracking, trickplay preview.
+  const {
+    sliderProgress,
+    sliderMin,
+    sliderMax,
+    isScrubbing,
+    trickplayTime,
+    setTrickplayTime,
+    scrubPercentage,
+    setScrubPercentage,
+    progress,
+    resumePositionRef,
+    trickPlayUrl,
+    calculateTrickplayUrl,
+    trickplayInfo,
+  } = useCastPlayerProgress({ mediaStatus, fetchedItem, duration });
 
   // Only use casting controls if we have a current item to avoid "No session" errors
   const castingControls = useCasting(currentItem);
