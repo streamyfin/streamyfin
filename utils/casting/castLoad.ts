@@ -17,7 +17,7 @@ import {
 } from "@/utils/casting/capabilities";
 import { isLoadFailedError } from "@/utils/casting/castErrors";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
-import { resolveDefaultAudioIndex } from "@/utils/casting/selection";
+import { resolveSelection } from "@/utils/casting/selection";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 
 export interface CastLoadOptions {
@@ -49,9 +49,14 @@ const attemptLoad = async (
 ): Promise<void> => {
   const { api, item, userId, client, options } = params;
   const profile = buildChromecastProfile(caps);
-  const audioStreamIndex =
-    options?.audioStreamIndex ??
-    resolveDefaultAudioIndex(item, options?.mediaSourceId);
+
+  const selection = resolveSelection(item, {
+    mediaSourceId: options?.mediaSourceId,
+    audioStreamIndex: options?.audioStreamIndex,
+    subtitleStreamIndex: options?.subtitleStreamIndex,
+    maxBitrate: options?.maxBitrate,
+  });
+
   const startPositionMs = options?.startPositionMs ?? 0;
 
   const data = await getStreamUrl({
@@ -60,10 +65,10 @@ const attemptLoad = async (
     userId,
     startTimeTicks: Math.floor(startPositionMs * 10000),
     deviceProfile: profile,
-    audioStreamIndex,
-    subtitleStreamIndex: options?.subtitleStreamIndex,
-    maxStreamingBitrate: options?.maxBitrate,
-    mediaSourceId: options?.mediaSourceId,
+    audioStreamIndex: selection.audioStreamIndex,
+    subtitleStreamIndex: selection.subtitleStreamIndex,
+    maxStreamingBitrate: selection.maxBitrate,
+    mediaSourceId: selection.mediaSourceId,
   });
 
   if (!data?.url) {
@@ -76,6 +81,7 @@ const attemptLoad = async (
       streamUrl: data.url,
       api,
       playSessionId: data.sessionId ?? undefined,
+      selection,
     }),
     startTime: startPositionMs / 1000,
   });
