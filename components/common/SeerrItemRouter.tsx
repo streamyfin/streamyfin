@@ -42,7 +42,9 @@ export const TouchableSeerrRouter: React.FC<PropsWithChildren<Props>> = ({
         onPress={() => {
           if (!result) return;
 
-          // Build URL with query params - avoids Expo Router's strict type checking
+          // Build URL with query params - avoids Expo Router's strict type checking.
+          // Every value is coerced defensively: releaseYear/mediaType can be
+          // undefined or NaN at runtime, so `.toString()` would throw.
           const params = new URLSearchParams({
             ...Object.fromEntries(
               Object.entries(result).map(([key, value]) => [
@@ -50,11 +52,11 @@ export const TouchableSeerrRouter: React.FC<PropsWithChildren<Props>> = ({
                 String(value ?? ""),
               ]),
             ),
-            mediaTitle,
-            releaseYear: releaseYear.toString(),
-            canRequest: canRequest.toString(),
-            posterSrc,
-            mediaType: mediaType.toString(),
+            mediaTitle: mediaTitle ?? "",
+            releaseYear: String(releaseYear ?? ""),
+            canRequest: String(canRequest ?? false),
+            posterSrc: posterSrc ?? "",
+            mediaType: String(mediaType ?? ""),
           });
 
           router.push(
