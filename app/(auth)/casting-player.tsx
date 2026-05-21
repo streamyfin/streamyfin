@@ -3,14 +3,13 @@
  * Protocol-agnostic full-screen player for all supported casting protocols
  */
 
-import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import GoogleCast, {
   CastState,
@@ -33,6 +32,7 @@ import { CastPlayerHeader } from "@/components/casting/player/CastPlayerHeader";
 import { CastPlayerPoster } from "@/components/casting/player/CastPlayerPoster";
 import { CastPlayerProgressBar } from "@/components/casting/player/CastPlayerProgressBar";
 import { CastPlayerTitle } from "@/components/casting/player/CastPlayerTitle";
+import { CastPlayerTransportControls } from "@/components/casting/player/CastPlayerTransportControls";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
@@ -743,90 +743,15 @@ export default function CastingPlayerScreen() {
             />
 
             {/* Playback controls */}
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 32,
-                marginBottom: 24,
-              }}
-            >
-              {/* Rewind (use settings) */}
-              <Pressable
-                onPress={() => skipBackward(settings?.rewindSkipTime ?? 10)}
-                style={{
-                  position: "relative",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons
-                  name='refresh-outline'
-                  size={48}
-                  color='white'
-                  style={{ transform: [{ scaleY: -1 }, { rotate: "180deg" }] }}
-                />
-                {settings?.rewindSkipTime != null && (
-                  <Text
-                    style={{
-                      position: "absolute",
-                      color: "white",
-                      fontSize: 15,
-                      fontWeight: "bold",
-                      bottom: 10,
-                    }}
-                  >
-                    {settings.rewindSkipTime}
-                  </Text>
-                )}
-              </Pressable>
-
-              {/* Play/Pause */}
-              <Pressable
-                onPress={togglePlayPause}
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: protocolColor,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={36}
-                  color='white'
-                  style={{ marginLeft: isPlaying ? 0 : 4 }}
-                />
-              </Pressable>
-
-              {/* Forward (use settings) */}
-              <Pressable
-                onPress={() => skipForward(settings?.forwardSkipTime ?? 10)}
-                style={{
-                  position: "relative",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons name='refresh-outline' size={48} color='white' />
-                {settings?.forwardSkipTime != null && (
-                  <Text
-                    style={{
-                      position: "absolute",
-                      color: "white",
-                      fontSize: 15,
-                      fontWeight: "bold",
-                      bottom: 10,
-                    }}
-                  >
-                    {settings.forwardSkipTime}
-                  </Text>
-                )}
-              </Pressable>
-            </View>
+            <CastPlayerTransportControls
+              isPlaying={isPlaying}
+              togglePlayPause={togglePlayPause}
+              skipBackward={skipBackward}
+              skipForward={skipForward}
+              rewindSkipTime={settings?.rewindSkipTime}
+              forwardSkipTime={settings?.forwardSkipTime}
+              protocolColor={protocolColor}
+            />
           </View>
 
           {/* Modals */}
