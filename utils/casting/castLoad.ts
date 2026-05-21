@@ -17,6 +17,7 @@ import {
 } from "@/utils/casting/capabilities";
 import { isLoadFailedError } from "@/utils/casting/castErrors";
 import { buildCastMediaInfo } from "@/utils/casting/mediaInfo";
+import { resolveDefaultAudioIndex } from "@/utils/casting/selection";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 
 export interface CastLoadOptions {
@@ -41,26 +42,6 @@ export interface CastLoadParams {
 }
 
 export type CastLoadResult = { ok: true } | { ok: false; error: unknown };
-
-/**
- * Resolve the default audio stream index for an item.
- * Fixes the previous `audioStreamIndex = 0` default, which selected the video stream.
- */
-export const resolveDefaultAudioIndex = (
-  item: BaseItemDto,
-  mediaSourceId?: string,
-): number | undefined => {
-  const source = mediaSourceId
-    ? item.MediaSources?.find((s) => s.Id === mediaSourceId)
-    : item.MediaSources?.[0];
-  if (source?.DefaultAudioStreamIndex != null) {
-    return source.DefaultAudioStreamIndex;
-  }
-  const audio =
-    item.MediaStreams?.find((s) => s.Type === "Audio" && s.IsDefault) ??
-    item.MediaStreams?.find((s) => s.Type === "Audio");
-  return audio?.Index ?? undefined;
-};
 
 const attemptLoad = async (
   params: CastLoadParams,

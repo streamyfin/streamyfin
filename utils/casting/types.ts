@@ -70,3 +70,18 @@ export const DEFAULT_CAST_STATE: CastPlayerState = {
   volume: 0.5,
   isBuffering: false,
 };
+
+/**
+ * What is currently loaded on the cast — the single source of truth for
+ * audio / subtitle / quality / version selection.
+ */
+export interface CastSelection {
+  /** MediaSource (version) id. */
+  mediaSourceId: string;
+  /** Absolute MediaStream index of the audio track. */
+  audioStreamIndex: number;
+  /** Absolute MediaStream index of the subtitle track; -1 = subtitles off. */
+  subtitleStreamIndex: number;
+  /** Quality cap in bits/second; undefined = unconstrained. */
+  maxBitrate?: number;
+}
