@@ -543,11 +543,6 @@ export default function page() {
     ],
   );
 
-  /** Gets the initial playback position in seconds. */
-  const _startPosition = useMemo(() => {
-    return ticksToSeconds(getInitialPlaybackTicks());
-  }, [getInitialPlaybackTicks]);
-
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
     if (!stream?.url) return undefined;
@@ -1103,6 +1098,13 @@ export default function page() {
 
     applySubtitleSettings();
   }, [isVideoLoaded, settings]);
+
+  // Seek to resume position after file is loaded (MPV_EVENT_FILE_LOADED)
+  useEffect(() => {
+    if (!tracksReady || !videoRef.current) return;
+    const ticks = getInitialPlaybackTicks();
+    videoRef.current?.seekTo?.(ticksToSeconds(ticks));
+  }, [tracksReady, getInitialPlaybackTicks]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
