@@ -142,11 +142,12 @@ thinner and gives sub-project C (the file split) a clean unit to extract.
 - `availableQualities` — the bitrate-cap options, a **separate axis** from version;
   this is the real `maxStreamingBitrate` transcode cap, no longer disguised as media
   sources. It reuses the app-wide `BITRATES` constant
-  (`components/BitRateSheet.tsx`) — no cast-specific list — and `BITRATES` is
+  (`components/BitrateSelector.tsx`) — no cast-specific list — and `BITRATES` is
   expanded to the fuller Jellyfin Android TV bitrate ladder so every surface (cast,
   native player, downloads) gains the extra tiers. The cast menu filters `BITRATES`
-  to tiers within the connected device's `maxVideoBitrate` (from sub-project A's
-  `detectCapabilities`), so only usable tiers are shown.
+  to tiers at or below **both** the connected device's `maxVideoBitrate` (from
+  sub-project A's `detectCapabilities`) and the media's own bitrate, so only
+  meaningful tiers are shown.
 - `availableAudioTracks` / `availableSubtitleTracks` — derived from the **selected
   version's** `MediaStreams`, not always `MediaSources[0]`.
 - Every "selected" indicator reads from `currentSelection`.
@@ -181,7 +182,7 @@ this is consistent with audio. The `pendingSelection` covers the re-buffer gap.
 | `hooks/useCastSelection.ts` | New — A3 selection state (truth + pending) |
 | `app/(auth)/casting-player.tsx` | Replace track state with `useCastSelection`; real versions + separate quality axis |
 | `components/chromecast/ChromecastSettingsMenu.tsx` | Separate Version / Quality sections; selected rows from `currentSelection` |
-| `components/BitRateSheet.tsx` | Expand the shared `BITRATES` ladder (Jellyfin Android TV tiers) |
+| `components/BitrateSelector.tsx` | Expand the shared `BITRATES` ladder (Jellyfin Android TV tiers) |
 
 The `BITRATES` expansion is a one-array change to a shared constant. It is
 deliberately app-wide: the native player and downloads bitrate menus gain the same
