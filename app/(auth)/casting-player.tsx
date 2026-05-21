@@ -94,6 +94,9 @@ export default function CastingPlayerScreen() {
   const lastSyncPositionRef = useRef(0);
   const lastSyncTimestampRef = useRef(Date.now());
 
+  // Last stable playback position (seconds), for resuming across reloads.
+  const resumePositionRef = useRef(0);
+
   // Fetch full item data from Jellyfin by ID
   const [fetchedItem, setFetchedItem] = useState<BaseItemDto | null>(null);
 
@@ -148,6 +151,14 @@ export default function CastingPlayerScreen() {
 
     return () => clearInterval(interval);
   }, [mediaStatus?.playerState, mediaStatus?.streamPosition]);
+
+  // Track the last stable position so a reload mid-switch resumes correctly.
+  useEffect(() => {
+    const pos = mediaStatus?.streamPosition ?? 0;
+    if (mediaStatus?.playerState === MediaPlayerState.PLAYING && pos > 0) {
+      resumePositionRef.current = pos;
+    }
+  }, [mediaStatus?.streamPosition, mediaStatus?.playerState]);
 
   // Extract item from customData, or use fetched item, or create a minimal fallback
   const currentItem = useMemo(() => {
@@ -252,7 +263,7 @@ export default function CastingPlayerScreen() {
         console.warn("[Casting Player] Cannot reload - missing required data");
         return false;
       }
-      const currentPosition = mediaStatus?.streamPosition ?? 0;
+      const currentPosition = resumePositionRef.current;
       const result = await loadCastMedia({
         client: remoteMediaClient,
         device: castDevice,
@@ -284,7 +295,6 @@ export default function CastingPlayerScreen() {
       currentItem,
       remoteMediaClient,
       castDevice,
-      mediaStatus?.streamPosition,
       settings.chromecastProfile,
       settings.chromecastMaxBitrate,
     ],
@@ -365,24 +375,26 @@ export default function CastingPlayerScreen() {
   }, [currentItem?.Type, currentItem?.SeasonId, api, user?.Id]);
 
   // The MediaSource currently selected, for deriving its tracks.
+  // Derived from fetchedItem: the slim cast-customData item strips per-source
+  // MediaStreams, so only the full fetched item yields correct track lists.
   const selectedSource = useMemo(
     () =>
-      currentItem?.MediaSources?.find(
+      fetchedItem?.MediaSources?.find(
         (s) => s.Id === currentSelection?.mediaSourceId,
       ) ??
-      currentItem?.MediaSources?.[0] ??
+      fetchedItem?.MediaSources?.[0] ??
       null,
-    [currentItem?.MediaSources, currentSelection?.mediaSourceId],
+    [fetchedItem?.MediaSources, currentSelection?.mediaSourceId],
   );
 
   // Real alternate versions (multi-version items).
   const availableVersions = useMemo(
     () =>
-      (currentItem?.MediaSources ?? []).map((s, i) => ({
+      (fetchedItem?.MediaSources ?? []).map((s, i) => ({
         id: s.Id ?? `source-${i}`,
         name: s.Name || `${t("casting_player.version")} ${i + 1}`,
       })),
-    [currentItem?.MediaSources, t],
+    [fetchedItem?.MediaSources, t],
   );
 
   // Quality tiers from the shared ladder, capped to BOTH the device's
@@ -395,7 +407,7 @@ export default function CastingPlayerScreen() {
     });
     const mediaBitrate =
       selectedSource?.Bitrate ??
-      currentItem?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ??
+      fetchedItem?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ??
       Number.POSITIVE_INFINITY;
     const ceiling = Math.min(caps.maxVideoBitrate, mediaBitrate);
     return BITRATES.filter((b) => b.value === undefined || b.value <= ceiling);
@@ -404,11 +416,11 @@ export default function CastingPlayerScreen() {
     settings.chromecastProfile,
     settings.chromecastMaxBitrate,
     selectedSource,
-    currentItem?.MediaStreams,
+    fetchedItem?.MediaStreams,
   ]);
 
   const availableAudioTracks = useMemo(() => {
-    const streams = selectedSource?.MediaStreams ?? currentItem?.MediaStreams;
+    const streams = selectedSource?.MediaStreams ?? fetchedItem?.MediaStreams;
     if (!streams) return [];
     return streams
       .filter((stream) => stream.Type === "Audio")
@@ -422,10 +434,10 @@ export default function CastingPlayerScreen() {
         channels: stream.Channels,
         bitrate: stream.BitRate,
       }));
-  }, [selectedSource, currentItem?.MediaStreams]);
+  }, [selectedSource, fetchedItem?.MediaStreams]);
 
   const availableSubtitleTracks = useMemo(() => {
-    const streams = selectedSource?.MediaStreams ?? currentItem?.MediaStreams;
+    const streams = selectedSource?.MediaStreams ?? fetchedItem?.MediaStreams;
     if (!streams) return [];
     return streams
       .filter((stream) => stream.Type === "Subtitle")
@@ -443,7 +455,7 @@ export default function CastingPlayerScreen() {
         isForced: stream.IsForced || false,
         isExternal: stream.IsExternal || false,
       }));
-  }, [selectedSource, currentItem?.MediaStreams]);
+  }, [selectedSource, fetchedItem?.MediaStreams]);
 
   // Fetch episodes for TV shows
   useEffect(() => {
@@ -1384,10 +1396,11 @@ export default function CastingPlayerScreen() {
             versions={availableVersions}
             selectedVersionId={currentSelection?.mediaSourceId ?? ""}
             onVersionChange={(id) => {
-              if (!currentItem) return;
-              applySelection(
-                resolveSelection(currentItem, { mediaSourceId: id }),
-              );
+              if (!fetchedItem) return;
+              applySelection({
+                ...resolveSelection(fetchedItem, { mediaSourceId: id }),
+                maxBitrate: currentSelection?.maxBitrate,
+              });
             }}
             qualities={availableQualities}
             selectedMaxBitrate={currentSelection?.maxBitrate}
