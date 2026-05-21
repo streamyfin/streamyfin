@@ -10,36 +10,31 @@ export type Bitrate = {
 };
 
 export const BITRATES: Bitrate[] = [
-  {
-    key: "Max",
-    value: undefined,
-  },
-  {
-    key: "8 Mb/s",
-    value: 8000000,
-    height: 1080,
-  },
-  {
-    key: "4 Mb/s",
-    value: 4000000,
-    height: 1080,
-  },
-  {
-    key: "2 Mb/s",
-    value: 2000000,
-  },
-  {
-    key: "1 Mb/s",
-    value: 1000000,
-  },
-  {
-    key: "500 Kb/s",
-    value: 500000,
-  },
-  {
-    key: "250 Kb/s",
-    value: 250000,
-  },
+  { key: "Max", value: undefined },
+  { key: "200 Mb/s", value: 200000000 },
+  { key: "180 Mb/s", value: 180000000 },
+  { key: "140 Mb/s", value: 140000000 },
+  { key: "120 Mb/s", value: 120000000 },
+  { key: "110 Mb/s", value: 110000000 },
+  { key: "100 Mb/s", value: 100000000 },
+  { key: "90 Mb/s", value: 90000000 },
+  { key: "80 Mb/s", value: 80000000 },
+  { key: "70 Mb/s", value: 70000000 },
+  { key: "60 Mb/s", value: 60000000 },
+  { key: "50 Mb/s", value: 50000000 },
+  { key: "40 Mb/s", value: 40000000 },
+  { key: "30 Mb/s", value: 30000000 },
+  { key: "20 Mb/s", value: 20000000 },
+  { key: "15 Mb/s", value: 15000000 },
+  { key: "10 Mb/s", value: 10000000 },
+  { key: "8 Mb/s", value: 8000000 },
+  { key: "5 Mb/s", value: 5000000 },
+  { key: "4 Mb/s", value: 4000000 },
+  { key: "3 Mb/s", value: 3000000 },
+  { key: "2 Mb/s", value: 2000000 },
+  { key: "1 Mb/s", value: 1000000 },
+  { key: "720 Kb/s", value: 720000 },
+  { key: "420 Kb/s", value: 420000 },
 ].sort(
   (a, b) =>
     (b.value || Number.POSITIVE_INFINITY) -
