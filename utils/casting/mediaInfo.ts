@@ -6,6 +6,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { MediaStreamType } from "react-native-google-cast";
+import type { CastSelection } from "@/utils/casting/types";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -24,6 +25,7 @@ export const buildCastMediaInfo = ({
   contentType,
   isLive = false,
   playSessionId,
+  selection,
 }: {
   item: BaseItemDto;
   streamUrl: string;
@@ -34,6 +36,8 @@ export const buildCastMediaInfo = ({
   isLive?: boolean;
   /** Jellyfin PlaySessionId, embedded in customData for progress reporting. */
   playSessionId?: string;
+  /** Active track / quality / version selection, embedded in customData. */
+  selection?: CastSelection;
 }) => {
   if (!item.Id) {
     throw new Error("Missing item.Id for media load — cannot build contentId");
@@ -87,8 +91,12 @@ export const buildCastMediaInfo = ({
   // Build a slim customData payload with only the fields the casting-player needs.
   // Sending the full BaseItemDto can exceed the Cast protocol's ~64KB message limit,
   // especially for movies with many chapters, media sources, and people.
-  const slimCustomData: Partial<BaseItemDto> & { playSessionId?: string } = {
+  const slimCustomData: Partial<BaseItemDto> & {
+    playSessionId?: string;
+    selection?: CastSelection;
+  } = {
     playSessionId,
+    selection,
     Id: item.Id,
     Name: item.Name,
     Type: item.Type,
