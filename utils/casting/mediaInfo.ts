@@ -23,6 +23,7 @@ export const buildCastMediaInfo = ({
   api,
   contentType,
   isLive = false,
+  playSessionId,
 }: {
   item: BaseItemDto;
   streamUrl: string;
@@ -31,6 +32,8 @@ export const buildCastMediaInfo = ({
   contentType?: string;
   /** Set true for live TV streams to use MediaStreamType.LIVE. */
   isLive?: boolean;
+  /** Jellyfin PlaySessionId, embedded in customData for progress reporting. */
+  playSessionId?: string;
 }) => {
   if (!item.Id) {
     throw new Error("Missing item.Id for media load — cannot build contentId");
@@ -84,7 +87,8 @@ export const buildCastMediaInfo = ({
   // Build a slim customData payload with only the fields the casting-player needs.
   // Sending the full BaseItemDto can exceed the Cast protocol's ~64KB message limit,
   // especially for movies with many chapters, media sources, and people.
-  const slimCustomData: Partial<BaseItemDto> = {
+  const slimCustomData: Partial<BaseItemDto> & { playSessionId?: string } = {
+    playSessionId,
     Id: item.Id,
     Name: item.Name,
     Type: item.Type,
