@@ -304,6 +304,19 @@ const loadSettings = (): Partial<Settings> => {
     const loadedValues: Partial<Settings> =
       jsonValue != null ? JSON.parse(jsonValue) : {};
 
+    // Migration: jellyseerrServerUrl -> seerrServerUrl (renamed in the Seerr rebrand).
+    // Without this, users who configured Seerr before the rename lose their server URL.
+    const legacy = loadedValues as Partial<Settings> & {
+      jellyseerrServerUrl?: string;
+    };
+    if (legacy.jellyseerrServerUrl !== undefined) {
+      if (legacy.seerrServerUrl === undefined) {
+        legacy.seerrServerUrl = legacy.jellyseerrServerUrl;
+      }
+      delete legacy.jellyseerrServerUrl;
+      storage.set("settings", JSON.stringify(loadedValues));
+    }
+
     return loadedValues;
   } catch (error) {
     console.error("Failed to load settings:", error);

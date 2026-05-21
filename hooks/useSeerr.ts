@@ -65,6 +65,35 @@ interface SearchResults {
 const SEERR_USER = "SEERR_USER";
 const SEERR_COOKIES = "SEERR_COOKIES";
 
+// One-time migration of the legacy Jellyseerr storage keys to the Seerr-branded
+// keys. Runs at module load, before seerrUserAtom reads SEERR_USER, so logged-in
+// users keep their session through the rename instead of being silently logged out.
+const LEGACY_USER_KEY = "JELLYSEERR_USER";
+const LEGACY_COOKIES_KEY = "JELLYSEERR_COOKIES";
+
+function migrateLegacySeerrStorage() {
+  const legacyUser = storage.get<SeerrUser>(LEGACY_USER_KEY);
+  if (
+    legacyUser !== undefined &&
+    storage.get<SeerrUser>(SEERR_USER) === undefined
+  ) {
+    storage.setAny(SEERR_USER, legacyUser);
+  }
+
+  const legacyCookies = storage.get<string[]>(LEGACY_COOKIES_KEY);
+  if (
+    legacyCookies !== undefined &&
+    storage.get<string[]>(SEERR_COOKIES) === undefined
+  ) {
+    storage.setAny(SEERR_COOKIES, legacyCookies);
+  }
+
+  storage.remove(LEGACY_USER_KEY);
+  storage.remove(LEGACY_COOKIES_KEY);
+}
+
+migrateLegacySeerrStorage();
+
 export const clearSeerrStorageData = () => {
   storage.remove(SEERR_USER);
   storage.remove(SEERR_COOKIES);
