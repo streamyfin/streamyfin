@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import type { ChromecastProfileMode } from "@/utils/casting/capabilities";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
 
@@ -181,6 +182,10 @@ export type Settings = {
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
+  /** Chromecast profile selection mode. "auto" detects per device. */
+  chromecastProfile: ChromecastProfileMode;
+  /** Optional manual Chromecast video bitrate cap, in bits per second. */
+  chromecastMaxBitrate?: number;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
@@ -272,6 +277,8 @@ export const defaultValues: Settings = {
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
+  chromecastProfile: "auto",
+  chromecastMaxBitrate: undefined,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
