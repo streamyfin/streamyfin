@@ -3,8 +3,6 @@
  * Protocol-agnostic full-screen player for all supported casting protocols
  */
 
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +36,7 @@ import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisode
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
+import { useCastEpisodes } from "@/hooks/useCastEpisodes";
 import { useCasting } from "@/hooks/useCasting";
 import { useCastPlayerItem } from "@/hooks/useCastPlayerItem";
 import { useCastSelection } from "@/hooks/useCastSelection";
@@ -178,9 +177,6 @@ export default function CastingPlayerScreen() {
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [showDeviceSheet, setShowDeviceSheet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [episodes, setEpisodes] = useState<BaseItemDto[]>([]);
-  const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null);
-  const [seasonData, setSeasonData] = useState<BaseItemDto | null>(null);
 
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
 
@@ -234,73 +230,15 @@ export default function CastingPlayerScreen() {
     reload: reloadWithSelection,
   });
 
-  // Load a different episode on the Chromecast
-  const loadEpisode = useCallback(
-    async (episode: BaseItemDto) => {
-      if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
-
-      try {
-        const startPositionMs =
-          (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000;
-
-        const result = await loadCastMedia({
-          client: remoteMediaClient,
-          device: castDevice,
-          api,
-          item: episode,
-          userId: user.Id,
-          profileMode: settings.chromecastProfile,
-          maxBitrateSetting: settings.chromecastMaxBitrate,
-          options: { startPositionMs },
-        });
-
-        if (!result.ok) {
-          console.error(
-            "[Casting Player] Failed to load episode:",
-            result.error,
-          );
-          return;
-        }
-      } catch (error) {
-        console.error("[Casting Player] Failed to load episode:", error);
-      }
-    },
-    [
-      api,
-      user?.Id,
-      remoteMediaClient,
-      castDevice,
-      settings.chromecastProfile,
-      settings.chromecastMaxBitrate,
-    ],
-  );
-
-  // Fetch season data for season poster
-  useEffect(() => {
-    if (
-      currentItem?.Type !== "Episode" ||
-      !currentItem.SeasonId ||
-      !api ||
-      !user?.Id
-    )
-      return;
-
-    const fetchSeasonData = async () => {
-      try {
-        const userLibraryApi = getUserLibraryApi(api);
-        const response = await userLibraryApi.getItem({
-          itemId: currentItem.SeasonId!,
-          userId: user.Id!,
-        });
-        setSeasonData(response.data);
-      } catch (error) {
-        console.error("[Casting Player] Failed to fetch season data:", error);
-        setSeasonData(null);
-      }
-    };
-
-    fetchSeasonData();
-  }, [currentItem?.Type, currentItem?.SeasonId, api, user?.Id]);
+  // Episode/season cluster: episode list, next episode, season data, loader
+  const { episodes, nextEpisode, seasonData, loadEpisode } = useCastEpisodes({
+    api,
+    user,
+    currentItem,
+    remoteMediaClient,
+    castDevice,
+    settings,
+  });
 
   // The MediaSource currently selected, for deriving its tracks.
   // Derived from fetchedItem: the slim cast-customData item strips per-source
@@ -384,47 +322,6 @@ export default function CastingPlayerScreen() {
         isExternal: stream.IsExternal || false,
       }));
   }, [selectedSource, fetchedItem?.MediaStreams]);
-
-  // Fetch episodes for TV shows
-  useEffect(() => {
-    if (currentItem?.Type !== "Episode" || !currentItem.SeriesId || !api)
-      return;
-
-    const fetchEpisodes = async () => {
-      try {
-        const tvShowsApi = getTvShowsApi(api);
-        // Fetch ALL episodes from ALL seasons by removing seasonId filter
-        const response = await tvShowsApi.getEpisodes({
-          seriesId: currentItem.SeriesId!,
-          // Don't filter by seasonId - get all seasons
-          userId: api.accessToken ? undefined : "",
-        });
-
-        const episodeList = response.data.Items || [];
-        setEpisodes(episodeList);
-
-        // Find next episode
-        const currentIndex = episodeList.findIndex(
-          (ep) => ep.Id === currentItem.Id,
-        );
-        if (currentIndex >= 0 && currentIndex < episodeList.length - 1) {
-          setNextEpisode(episodeList[currentIndex + 1]);
-        } else {
-          setNextEpisode(null);
-        }
-      } catch (error) {
-        console.error("Failed to fetch episodes:", error);
-      }
-    };
-
-    fetchEpisodes();
-  }, [
-    currentItem?.Type,
-    currentItem?.SeriesId,
-    currentItem?.SeasonId,
-    currentItem?.Id,
-    api,
-  ]);
 
   // NOTE: Auto-navigation to casting-player is handled by higher-level
   // components (e.g., CastingMiniPlayer or Chromecast button). We intentionally
