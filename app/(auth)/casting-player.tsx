@@ -36,6 +36,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES } from "@/components/BitrateSelector";
+import { CastPlayerHeader } from "@/components/casting/player/CastPlayerHeader";
+import { CastPlayerTitle } from "@/components/casting/player/CastPlayerTitle";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
@@ -53,7 +55,6 @@ import {
   formatTime,
   formatTrickplayTime,
   getPosterUrl,
-  truncateTitle,
 } from "@/utils/casting/helpers";
 import { resolveSelection } from "@/utils/casting/selection";
 import type { CastSelection } from "@/utils/casting/types";
@@ -667,113 +668,22 @@ export default function CastingPlayerScreen() {
           ]}
         >
           {/* Header - Fixed at top */}
-          <View
-            style={{
-              position: "absolute",
-              top: insets.top + 8,
-              left: 20,
-              right: 20,
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              zIndex: 100,
-            }}
-          >
-            <Pressable
-              onPress={dismissModal}
-              style={{ padding: 8, marginLeft: -8 }}
-            >
-              <Ionicons name='chevron-down' size={32} color='white' />
-            </Pressable>
-
-            {/* Connection indicator */}
-            <Pressable
-              onPress={() => setShowDeviceSheet(true)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                backgroundColor: "#1a1a1a",
-                borderRadius: 16,
-              }}
-            >
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: protocolColor,
-                }}
-              />
-              <Text
-                style={{
-                  color: protocolColor,
-                  fontSize: 14,
-                  fontWeight: "500",
-                }}
-              >
-                {currentDevice || t("casting_player.unknown_device")}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => setShowSettings(true)}
-              style={{ padding: 8, marginRight: -8 }}
-            >
-              <Ionicons name='settings-outline' size={24} color='white' />
-            </Pressable>
-          </View>
+          <CastPlayerHeader
+            insetTop={insets.top}
+            protocolColor={protocolColor}
+            currentDevice={currentDevice}
+            t={t}
+            onDismiss={dismissModal}
+            onPressConnectionIndicator={() => setShowDeviceSheet(true)}
+            onPressSettings={() => setShowSettings(true)}
+          />
 
           {/* Title Area */}
-          <View
-            style={{
-              position: "absolute",
-              top: insets.top + 50,
-              left: 0,
-              right: 0,
-              zIndex: 95,
-              alignItems: "center",
-              backgroundColor: "rgba(0, 0, 0, 0.8)",
-              paddingVertical: 16,
-              paddingHorizontal: 20,
-            }}
-          >
-            {/* Title */}
-            <Text
-              style={{
-                color: "white",
-                fontSize: 20,
-                fontWeight: "700",
-                textAlign: "center",
-                marginBottom: 6,
-              }}
-            >
-              {truncateTitle(
-                currentItem.Name || t("casting_player.unknown"),
-                50,
-              )}
-            </Text>
-
-            {/* Grey episode/season info */}
-            {currentItem.Type === "Episode" &&
-              currentItem.ParentIndexNumber !== undefined &&
-              currentItem.IndexNumber !== undefined && (
-                <Text
-                  style={{
-                    color: "#999",
-                    fontSize: 15,
-                    textAlign: "center",
-                  }}
-                >
-                  {t("casting_player.season_episode_format", {
-                    season: currentItem.ParentIndexNumber,
-                    episode: currentItem.IndexNumber,
-                  })}
-                </Text>
-              )}
-          </View>
+          <CastPlayerTitle
+            insetTop={insets.top}
+            currentItem={currentItem}
+            t={t}
+          />
 
           {/* Scrollable content area */}
           <ScrollView
