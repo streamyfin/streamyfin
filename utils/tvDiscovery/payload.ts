@@ -25,30 +25,60 @@ export interface TVDiscoveryPayload {
   sections: TVDiscoverySection[];
 }
 
-function getTVDiscoveryImageUrl(
+function getTVDiscoveryImage(
   item: BaseItemDto,
   api: Api,
-): string | undefined {
+): { url: string } | undefined {
   const baseUrl = api.basePath;
 
-  if (item.Type === "Episode") {
-    if (item.SeriesId && item.SeriesPrimaryImageTag) {
-      return `${baseUrl}/Items/${item.SeriesId}/Images/Primary?quality=90&tag=${encodeURIComponent(item.SeriesPrimaryImageTag)}&width=500`;
-    }
-
-    if (item.ParentPrimaryImageItemId && item.ParentPrimaryImageTag) {
-      return `${baseUrl}/Items/${item.ParentPrimaryImageItemId}/Images/Primary?quality=90&tag=${encodeURIComponent(item.ParentPrimaryImageTag)}&width=500`;
-    }
+  // 1. Episode backdrop
+  const episodeBackdrop = item.BackdropImageTags?.[0];
+  if (item.Id && episodeBackdrop) {
+    return {
+      url:
+        `${baseUrl}/Items/${item.Id}/Images/Backdrop/0` +
+        `?fillWidth=1920` +
+        `&fillHeight=1080` +
+        `&quality=90` +
+        `&tag=${encodeURIComponent(episodeBackdrop)}`,
+    };
   }
 
+  // 2. Series backdrop
+  if (item.SeriesId) {
+    return {
+      url:
+        `${baseUrl}/Items/${item.SeriesId}/Images/Backdrop` +
+        `?fillWidth=1920` +
+        `&fillHeight=1080` +
+        `&quality=90`,
+    };
+  }
+
+  // 3. Generic item backdrop
+  const backdrop = item.BackdropImageTags?.[0];
+  if (item.Id && backdrop) {
+    return {
+      url:
+        `${baseUrl}/Items/${item.Id}/Images/Backdrop/0` +
+        `?fillWidth=1920` +
+        `&fillHeight=1080` +
+        `&quality=90` +
+        `&tag=${encodeURIComponent(backdrop)}`,
+    };
+  }
+
+  // 4. Last resort: crop poster into landscape
   const primaryTag = item.ImageTags?.Primary;
   if (item.Id && primaryTag) {
-    return `${baseUrl}/Items/${item.Id}/Images/Primary?quality=90&tag=${encodeURIComponent(primaryTag)}&width=500`;
-  }
-
-  const backdropTag = item.BackdropImageTags?.[0];
-  if (item.Id && backdropTag) {
-    return `${baseUrl}/Items/${item.Id}/Images/Backdrop/0?quality=90&tag=${encodeURIComponent(backdropTag)}&width=800`;
+    return {
+      url:
+        `${baseUrl}/Items/${item.Id}/Images/Primary` +
+        `?fillWidth=1920` +
+        `&fillHeight=1080` +
+        `&quality=90` +
+        `&tag=${encodeURIComponent(primaryTag)}`,
+    };
   }
 
   return undefined;
@@ -98,15 +128,18 @@ function sectionFromItems(
   const payloadItems = (items || [])
     .filter((item) => item.Id && item.Name)
     .slice(0, TV_DISCOVERY_ITEM_LIMIT)
-    .map((item) => ({
-      id: item.Id!,
-      itemType: item.Type || undefined,
-      title: getTVDiscoveryTitle(item),
-      subtitle: getTVDiscoverySubtitle(item),
-      imageUrl: getTVDiscoveryImageUrl(item, api),
-      route: `streamyfin://topshelf/item?id=${encodeURIComponent(item.Id!)}&type=${encodeURIComponent(item.Type || "")}`,
-      playRoute: `streamyfin://topshelf/play?id=${encodeURIComponent(item.Id!)}`,
-    }));
+    .map((item) => {
+      const image = getTVDiscoveryImage(item, api);
+      return {
+        id: item.Id!,
+        itemType: item.Type || undefined,
+        title: getTVDiscoveryTitle(item),
+        subtitle: getTVDiscoverySubtitle(item),
+        imageUrl: image?.url,
+        route: `streamyfin://topshelf/item?id=${encodeURIComponent(item.Id!)}&type=${encodeURIComponent(item.Type || "")}`,
+        playRoute: `streamyfin://topshelf/play?id=${encodeURIComponent(item.Id!)}`,
+      };
+    });
 
   if (payloadItems.length === 0) return null;
 
