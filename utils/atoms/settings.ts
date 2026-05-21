@@ -181,7 +181,6 @@ export type Settings = {
   jellyseerrServerUrl?: string;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
-  enableH265ForChromecast: boolean;
   /** Chromecast profile selection mode. "auto" detects per device. */
   chromecastProfile: ChromecastProfileMode;
   /** Optional manual Chromecast video bitrate cap, in bits per second. */
@@ -276,7 +275,6 @@ export const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   useKefinTweaks: false,
   hiddenLibraries: [],
-  enableH265ForChromecast: false,
   chromecastProfile: "auto",
   chromecastMaxBitrate: undefined,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
