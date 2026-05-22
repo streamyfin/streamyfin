@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { toast } from "sonner-native";
@@ -36,6 +37,17 @@ export const StorageSettings = () => {
     } catch (_e) {
       errorHapticFeedback();
       toast.error(t("home.settings.toasts.error_deleting_files"));
+    }
+  };
+
+  const onClearImageCacheClicked = async () => {
+    try {
+      await Promise.all([Image.clearMemoryCache(), Image.clearDiskCache()]);
+      successHapticFeedback();
+      toast.success(t("home.settings.storage.image_cache_cleared"));
+    } catch (_e) {
+      errorHapticFeedback();
+      toast.error(t("home.settings.storage.error_clearing_image_cache"));
     }
   };
 
@@ -103,6 +115,10 @@ export const StorageSettings = () => {
       </View>
       {!Platform.isTV && (
         <ListGroup>
+          <ListItem
+            onPress={onClearImageCacheClicked}
+            title={t("home.settings.storage.clear_image_cache")}
+          />
           <ListItem
             textColor='red'
             onPress={onDeleteClicked}

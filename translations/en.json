@@ -406,7 +406,10 @@
         "music_cache_cleared": "Music cache cleared",
         "delete_all_downloaded_songs": "Delete All Downloaded Songs",
         "downloaded_songs_size": "{{size}} downloaded",
-        "downloaded_songs_deleted": "Downloaded songs deleted"
+        "downloaded_songs_deleted": "Downloaded songs deleted",
+        "clear_image_cache": "Clear Image Cache",
+        "image_cache_cleared": "Image cache cleared",
+        "error_clearing_image_cache": "Failed to clear image cache"
       },
       "intro": {
         "title": "Intro",
