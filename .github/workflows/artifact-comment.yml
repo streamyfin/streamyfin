@@ -188,6 +188,17 @@ jobs:
             if (latestAppsRun) {
               console.log(`Getting individual job statuses for run ${latestAppsRun.id} (status: ${latestAppsRun.status}, conclusion: ${latestAppsRun.conclusion || 'none'})`);
               
+              // Map job names to our build targets. Declared outside the try so
+              // the catch fallback can reuse the same keys.
+              const jobMappings = {
+                'Android Phone': ['🤖 Build Android APK (Phone)', 'build-android-phone'],
+                'Android TV': ['🤖 Build Android APK (TV)', 'build-android-tv'],
+                'iOS': ['🍎 Build iOS IPA (Phone)', 'build-ios-phone'],
+                'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', 'build-ios-phone-unsigned'],
+                'tvOS': ['🍎 Build tvOS IPA', 'build-ios-tv'],
+                'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)', 'build-ios-tv-unsigned']
+              };
+
               try {
                 // Get all jobs for this workflow run
                 const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
@@ -216,16 +227,6 @@ jobs:
                   return; // Exit early
                 }
                 
-                // Map job names to our build targets
-                const jobMappings = {
-                  'Android Phone': ['🤖 Build Android APK (Phone)', 'build-android-phone'],
-                  'Android TV': ['🤖 Build Android APK (TV)', 'build-android-tv'],  
-                  'iOS': ['🍎 Build iOS IPA (Phone)', 'build-ios-phone'],
-                  'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)', 'build-ios-phone-unsigned'],
-                  'tvOS': ['🍎 Build tvOS IPA', 'build-ios-tv'],
-                  'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)', 'build-ios-tv-unsigned']
-                };
-                
                 // Create individual status for each job
                 for (const [platform, jobNames] of Object.entries(jobMappings)) {
                   const job = jobs.jobs.find(j => 
@@ -239,7 +240,9 @@ jobs:
                       conclusion: job.conclusion,
                       url: job.html_url,
                       runId: latestAppsRun.id,
-                      created_at: job.started_at || latestAppsRun.created_at
+                      created_at: job.started_at || latestAppsRun.created_at,
+                      started_at: job.started_at,
+                      completed_at: job.completed_at
                     };
                     console.log(`Mapped ${platform} to job: ${job.name} (${job.status}/${job.conclusion || 'none'})`);
                   } else {
@@ -250,22 +253,30 @@ jobs:
                       conclusion: latestAppsRun.conclusion,
                       url: latestAppsRun.html_url,
                       runId: latestAppsRun.id,
-                      created_at: latestAppsRun.created_at
+                      created_at: latestAppsRun.created_at,
+                      started_at: latestAppsRun.run_started_at,
+                      completed_at: latestAppsRun.updated_at
                     };
                   }
                 }
                 
               } catch (error) {
                 console.log(`Failed to get jobs for run ${latestAppsRun.id}:`, error.message);
-                // Fallback to workflow-level status
-                buildStatuses['Android Phone'] = buildStatuses['Android TV'] = buildStatuses['iOS Phone'] = {
+                // Fallback to workflow-level status for every build target.
+                // Keys must match jobMappings / buildTargets statusKey values.
+                const fallbackStatus = {
                   name: latestAppsRun.name,
                   status: latestAppsRun.status,
                   conclusion: latestAppsRun.conclusion,
                   url: latestAppsRun.html_url,
                   runId: latestAppsRun.id,
-                  created_at: latestAppsRun.created_at
+                  created_at: latestAppsRun.created_at,
+                  started_at: latestAppsRun.run_started_at,
+                  completed_at: latestAppsRun.updated_at
                 };
+                for (const platform of Object.keys(jobMappings)) {
+                  buildStatuses[platform] = fallbackStatus;
+                }
               }
               
               // Collect artifacts if any job has completed successfully
@@ -358,8 +369,8 @@ jobs:
             const buildTargets = [
               { name: 'Android Phone', platform: '🤖', device: '📱 Phone', statusKey: 'Android Phone', artifactPattern: /android.*phone/i },
               { name: 'Android TV', platform: '🤖', device: '📺 TV', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
-              { name: 'iOS', platform: '🍎', device: '📱 Phone', statusKey: 'iOS Phone', artifactPattern: /ios.*phone.*ipa(?!.*unsigned)/i },
-              { name: 'iOS Unsigned', platform: '🍎', device: '📱 Phone Unsigned', statusKey: 'iOS Phone Unsigned', artifactPattern: /ios.*phone.*unsigned/i },
+              { name: 'iOS', platform: '🍎', device: '📱 Phone', statusKey: 'iOS', artifactPattern: /ios.*phone.*ipa(?!.*unsigned)/i },
+              { name: 'iOS Unsigned', platform: '🍎', device: '📱 Phone Unsigned', statusKey: 'iOS Unsigned', artifactPattern: /ios.*phone.*unsigned/i },
               { name: 'tvOS', platform: '🍎', device: '📺 TV', statusKey: 'tvOS', artifactPattern: /ios.*tv.*ipa(?!.*unsigned)/i },
               { name: 'tvOS Unsigned', platform: '🍎', device: '📺 TV Unsigned', statusKey: 'tvOS Unsigned', artifactPattern: /ios.*tv.*unsigned/i }
             ];
