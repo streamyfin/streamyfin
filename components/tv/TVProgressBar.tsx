@@ -1,5 +1,6 @@
 import React from "react";
 import { View } from "react-native";
+import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVProgressBarProps {
   /** Progress value between 0 and 1 */
@@ -23,14 +24,16 @@ export const TVProgressBar: React.FC<TVProgressBarProps> = React.memo(
     height = 4,
   }) => {
     const clampedProgress = Math.max(0, Math.min(1, progress));
+    const scaledMaxWidth = scaleSize(maxWidth);
+    const scaledHeight = scaleSize(height);
 
     return (
-      <View style={{ maxWidth, marginBottom: 24 }}>
+      <View style={{ maxWidth: scaledMaxWidth, marginBottom: scaleSize(24) }}>
         <View
           style={{
-            height,
+            height: scaledHeight,
             backgroundColor: trackColor,
-            borderRadius: height / 2,
+            borderRadius: scaledHeight / 2,
             overflow: "hidden",
           }}
         >
@@ -39,7 +42,7 @@ export const TVProgressBar: React.FC<TVProgressBarProps> = React.memo(
               width: `${clampedProgress * 100}%`,
               height: "100%",
               backgroundColor: fillColor,
-              borderRadius: height / 2,
+              borderRadius: scaledHeight / 2,
             }}
           />
         </View>

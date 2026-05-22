@@ -5,6 +5,7 @@ import { ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { TVSeriesSeasonCard } from "./TVSeriesSeasonCard";
 
 export interface TVSeriesNavigationProps {
@@ -33,7 +34,7 @@ export const TVSeriesNavigation: React.FC<TVSeriesNavigationProps> = React.memo(
             fontSize: typography.heading,
             fontWeight: "700",
             color: "#FFFFFF",
-            marginBottom: 20,
+            marginBottom: scaleSize(20),
             letterSpacing: 0.5,
           }}
         >

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { TVCancelButton } from "./TVCancelButton";
 import { TVOptionCard } from "./TVOptionCard";
 
@@ -170,21 +171,21 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       width: "100%",
     },
     blurContainer: {
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      borderTopLeftRadius: scaleSize(24),
+      borderTopRightRadius: scaleSize(24),
       overflow: "hidden",
     },
     content: {
-      paddingTop: 24,
-      paddingBottom: 50,
+      paddingTop: scaleSize(24),
+      paddingBottom: scaleSize(50),
       overflow: "visible",
     },
     title: {
       fontSize: typography.callout,
       fontWeight: "500",
       color: "rgba(255,255,255,0.6)",
-      marginBottom: 16,
-      paddingHorizontal: 48,
+      marginBottom: scaleSize(16),
+      paddingHorizontal: scaleSize(48),
       textTransform: "uppercase",
       letterSpacing: 1,
     },
@@ -192,13 +193,13 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       overflow: "visible",
     },
     scrollContent: {
-      paddingHorizontal: 48,
-      paddingVertical: 20,
-      gap: 12,
+      paddingHorizontal: scaleSize(48),
+      paddingVertical: scaleSize(20),
+      gap: scaleSize(12),
     },
     cancelButtonContainer: {
-      marginTop: 16,
-      paddingHorizontal: 48,
+      marginTop: scaleSize(16),
+      paddingHorizontal: scaleSize(48),
       alignItems: "flex-start",
     },
   });

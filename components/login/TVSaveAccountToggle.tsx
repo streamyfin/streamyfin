@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { scaleSize } from "@/utils/scaleSize";
 
 interface TVSaveAccountToggleProps {
   value: boolean;
@@ -74,9 +75,9 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
             backgroundColor: isFocused ? "#2a2a2a" : "#1a1a1a",
             borderWidth: 2,
             borderColor: isFocused ? "#FFFFFF" : "transparent",
-            borderRadius: 16,
-            paddingHorizontal: 24,
-            paddingVertical: 20,
+            borderRadius: scaleSize(16),
+            paddingHorizontal: scaleSize(24),
+            paddingVertical: scaleSize(20),
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
@@ -84,7 +85,7 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
         >
           <Text
             style={{
-              fontSize: 20,
+              fontSize: scaleSize(20),
               color: "#FFFFFF",
             }}
           >
@@ -93,19 +94,19 @@ export const TVSaveAccountToggle: React.FC<TVSaveAccountToggleProps> = ({
           <View
             pointerEvents='none'
             style={{
-              width: 60,
-              height: 34,
-              borderRadius: 17,
+              width: scaleSize(60),
+              height: scaleSize(34),
+              borderRadius: scaleSize(17),
               backgroundColor: value ? "#fff" : "#3f3f46",
               justifyContent: "center",
-              paddingHorizontal: 3,
+              paddingHorizontal: scaleSize(3),
             }}
           >
             <View
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
+                width: scaleSize(28),
+                height: scaleSize(28),
+                borderRadius: scaleSize(14),
                 backgroundColor: value ? "#000" : "#fff",
                 alignSelf: value ? "flex-end" : "flex-start",
               }}

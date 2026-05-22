@@ -2,6 +2,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVFilterButtonProps {
@@ -42,13 +43,13 @@ export const TVFilterButton: React.FC<TVFilterButtonProps> = ({
               : hasActiveFilter
                 ? "rgba(255, 255, 255, 0.25)"
                 : "rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
+            borderRadius: scaleSize(10),
+            paddingVertical: scaleSize(10),
+            paddingHorizontal: scaleSize(16),
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
-            borderWidth: hasActiveFilter && !focused ? 1 : 0,
+            gap: scaleSize(8),
+            borderWidth: hasActiveFilter && !focused ? scaleSize(1) : 0,
             borderColor: "rgba(255, 255, 255, 0.4)",
           }}
         >

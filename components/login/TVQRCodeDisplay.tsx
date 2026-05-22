@@ -57,7 +57,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
             alignItems: "center",
             paddingVertical: sectionPadding,
             paddingHorizontal: cardPadding,
-            borderRadius: 16,
+            borderRadius: scaleSize(16),
             backgroundColor: "rgba(255, 255, 255, 0.05)",
           }}
         >
@@ -66,7 +66,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
               fontSize: typography.heading,
               fontWeight: "bold",
               color: "#FFFFFF",
-              marginBottom: 8,
+              marginBottom: scaleSize(8),
             }}
           >
             {t("pairing.waiting_for_phone")}
@@ -75,7 +75,7 @@ export const TVQRCodeDisplay: React.FC<TVQRCodeDisplayProps> = ({
           <View
             style={{
               padding: cardPadding,
-              borderRadius: 12,
+              borderRadius: scaleSize(12),
               backgroundColor: "#FFFFFF",
             }}
           >

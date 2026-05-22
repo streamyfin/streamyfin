@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVTrackCardProps {
@@ -68,7 +69,7 @@ export const TVTrackCard = React.forwardRef<View, TVTrackCardProps>(
             <View style={styles.checkmark}>
               <Ionicons
                 name='checkmark'
-                size={16}
+                size={scaleSize(16)}
                 color='rgba(255,255,255,0.8)'
               />
             </View>
@@ -82,12 +83,12 @@ export const TVTrackCard = React.forwardRef<View, TVTrackCardProps>(
 const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({
     trackCard: {
-      width: 180,
-      height: 80,
-      borderRadius: 14,
+      width: scaleSize(180),
+      height: scaleSize(80),
+      borderRadius: scaleSize(14),
       justifyContent: "center",
       alignItems: "center",
-      paddingHorizontal: 12,
+      paddingHorizontal: scaleSize(12),
     },
     trackCardText: {
       fontSize: typography.callout,
@@ -95,11 +96,11 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     },
     trackCardSublabel: {
       fontSize: typography.callout,
-      marginTop: 2,
+      marginTop: scaleSize(2),
     },
     checkmark: {
       position: "absolute",
-      top: 8,
-      right: 8,
+      top: scaleSize(8),
+      right: scaleSize(8),
     },
   });

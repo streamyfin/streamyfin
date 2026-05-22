@@ -9,6 +9,7 @@ import {
   GlassPosterView,
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
+import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVSeriesSeasonCardProps {
   title: string;
@@ -66,10 +67,10 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         style={{
           width: sizes.posters.poster,
           aspectRatio: 10 / 15,
-          borderRadius: 24,
+          borderRadius: scaleSize(24),
           overflow: "hidden",
           backgroundColor: "rgba(255,255,255,0.1)",
-          borderWidth: 2,
+          borderWidth: scaleSize(2),
           borderColor: focused ? "#FFFFFF" : "transparent",
         }}
       >
@@ -87,7 +88,11 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
               alignItems: "center",
             }}
           >
-            <Ionicons name='film' size={56} color='rgba(255,255,255,0.4)' />
+            <Ionicons
+              name='film'
+              size={scaleSize(56)}
+              color='rgba(255,255,255,0.4)'
+            />
           </View>
         )}
       </View>
@@ -129,7 +134,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         </Animated.View>
       </Pressable>
 
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: scaleSize(12) }}>
         <Text
           style={{
             fontSize: typography.body,
@@ -145,7 +150,7 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
             style={{
               fontSize: typography.callout,
               color: "#9CA3AF",
-              marginTop: 4,
+              marginTop: scaleSize(4),
             }}
             numberOfLines={1}
           >
