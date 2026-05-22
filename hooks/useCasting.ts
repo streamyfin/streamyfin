@@ -60,6 +60,13 @@ export const useCasting = (item: BaseItemDto | null) => {
         | undefined
     )?.playSessionId ?? mediaStatus?.mediaInfo?.contentId;
 
+  const playMethod =
+    (
+      mediaStatus?.mediaInfo?.customData as
+        | { playMethod?: "Transcode" | "DirectPlay" }
+        | undefined
+    )?.playMethod ?? "Transcode";
+
   // Detect which protocol is active - use CastState for reliable detection
   const chromecastConnected = castState === CastState.CONNECTED;
   // Future: Add detection for other protocols here
@@ -143,8 +150,7 @@ export const useCasting = (item: BaseItemDto | null) => {
           playbackStartInfo: {
             ItemId: item.Id,
             PositionTicks: Math.floor(currentState.progress * 10000),
-            PlayMethod:
-              activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
+            PlayMethod: playMethod,
             VolumeLevel: Math.floor(currentState.volume * 100),
             IsMuted: currentState.volume === 0,
             PlaySessionId: playSessionId,
@@ -183,8 +189,7 @@ export const useCasting = (item: BaseItemDto | null) => {
             ItemId: item.Id,
             PositionTicks: progressTicks,
             IsPaused: !s.isPlaying,
-            PlayMethod:
-              activeProtocol === "chromecast" ? "DirectStream" : "DirectPlay",
+            PlayMethod: playMethod,
             VolumeLevel: Math.floor(s.volume * 100),
             IsMuted: s.volume === 0,
             PlaySessionId: playSessionId,
@@ -198,7 +203,15 @@ export const useCasting = (item: BaseItemDto | null) => {
     // Report progress on a fixed interval, reading latest state from ref
     const interval = setInterval(reportProgress, 10000);
     return () => clearInterval(interval);
-  }, [api, item?.Id, user?.Id, isConnected, activeProtocol, playSessionId]);
+  }, [
+    api,
+    item?.Id,
+    user?.Id,
+    isConnected,
+    activeProtocol,
+    playSessionId,
+    playMethod,
+  ]);
 
   // Play/Pause controls
   const play = useCallback(async () => {

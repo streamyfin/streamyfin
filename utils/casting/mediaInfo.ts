@@ -26,6 +26,7 @@ export const buildCastMediaInfo = ({
   isLive = false,
   playSessionId,
   selection,
+  playMethod,
 }: {
   item: BaseItemDto;
   streamUrl: string;
@@ -38,6 +39,8 @@ export const buildCastMediaInfo = ({
   playSessionId?: string;
   /** Active track / quality / version selection, embedded in customData. */
   selection?: CastSelection;
+  /** "Transcode" when the stream is a server transcode, else "DirectPlay". */
+  playMethod?: "Transcode" | "DirectPlay";
 }) => {
   if (!item.Id) {
     throw new Error("Missing item.Id for media load — cannot build contentId");
@@ -94,9 +97,11 @@ export const buildCastMediaInfo = ({
   const slimCustomData: Partial<BaseItemDto> & {
     playSessionId?: string;
     selection?: CastSelection;
+    playMethod?: "Transcode" | "DirectPlay";
   } = {
     playSessionId,
     selection,
+    playMethod,
     Id: item.Id,
     Name: item.Name,
     Type: item.Type,

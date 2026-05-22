@@ -75,6 +75,11 @@ const attemptLoad = async (
     throw new Error("getStreamUrl returned no URL");
   }
 
+  const playMethod: "Transcode" | "DirectPlay" = data.mediaSource
+    ?.TranscodingUrl
+    ? "Transcode"
+    : "DirectPlay";
+
   await client.loadMedia({
     mediaInfo: buildCastMediaInfo({
       item,
@@ -82,6 +87,7 @@ const attemptLoad = async (
       api,
       playSessionId: data.sessionId ?? undefined,
       selection,
+      playMethod,
     }),
     startTime: startPositionMs / 1000,
   });
