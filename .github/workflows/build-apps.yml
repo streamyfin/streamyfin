@@ -300,7 +300,9 @@ jobs:
           retention-days: 7
 
   build-ios-tv:
-    if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
+    # Temporarily disabled until feat/tv-interface is merged (TV UI not ready).
+    # Re-enable by removing the `false &&` prefix below.
+    if: false && (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
     runs-on: macos-26
     name: 🍎 Build tvOS IPA
     permissions:
@@ -364,7 +366,9 @@ jobs:
           retention-days: 7
 
   build-ios-tv-unsigned:
-    if: (!contains(github.event.head_commit.message, '[skip ci]'))
+    # Temporarily disabled until feat/tv-interface is merged (TV UI not ready).
+    # Re-enable by removing the `false &&` prefix below.
+    if: false && (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: macos-26
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:

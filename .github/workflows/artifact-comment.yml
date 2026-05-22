@@ -387,7 +387,12 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              if (matchingStatus) {
+              // tvOS builds are temporarily disabled until feat/tv-interface
+              // is merged - show them as disabled instead of stuck pending.
+              if (target.name === 'tvOS' || target.name === 'tvOS Unsigned') {
+                status = '💤 Disabled';
+                downloadLink = '*Disabled until feat/tv-interface is merged*';
+              } else if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
                   const directLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/artifacts/${matchingArtifact.id}`;
