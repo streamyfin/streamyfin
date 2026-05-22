@@ -44,6 +44,10 @@ import { loadCastMedia } from "@/utils/casting/castLoad";
 import { getPosterUrl } from "@/utils/casting/helpers";
 import { resolveSelection } from "@/utils/casting/selection";
 import type { CastSelection } from "@/utils/casting/types";
+import {
+  type PlaybackController,
+  useRegisterPlaybackController,
+} from "@/utils/playback/playbackController";
 
 export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
@@ -176,6 +180,47 @@ export default function CastingPlayerScreen() {
     castDevice,
     settings,
   });
+
+  // Expose this player to the app-wide remote-control surface while a cast
+  // session is connected. `castingControls` is the live useCasting result.
+  const castController = useMemo<PlaybackController>(
+    () => ({
+      playPause: () => {
+        castingControls.togglePlayPause();
+      },
+      pause: () => {
+        castingControls.pause();
+      },
+      unpause: () => {
+        castingControls.play();
+      },
+      stop: () => {
+        castingControls.stop();
+      },
+      seek: (positionMs) => {
+        castingControls.seek(positionMs);
+      },
+      next: () => {
+        if (nextEpisode) loadEpisode(nextEpisode);
+      },
+      previous: () => {
+        const idx = episodes.findIndex((e) => e.Id === currentItem?.Id);
+        if (idx > 0) loadEpisode(episodes[idx - 1]);
+      },
+      setVolume: (level) => {
+        castingControls.setVolume(level);
+      },
+      toggleMute: () => {
+        castingControls.setVolume(castingControls.volume > 0 ? 0 : 1);
+      },
+    }),
+    [castingControls, episodes, nextEpisode, loadEpisode, currentItem?.Id],
+  );
+
+  useRegisterPlaybackController(
+    castController,
+    castState === CastState.CONNECTED,
+  );
 
   // The MediaSource currently selected, for deriving its tracks.
   // Derived from fetchedItem: the slim cast-customData item strips per-source
