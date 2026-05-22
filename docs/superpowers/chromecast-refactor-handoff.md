@@ -113,7 +113,9 @@ stop / seek / next / volume / "send message" against the cast and the native pla
 - **UX player sub-project** (not started) — 5 items the user reported:
   1. Trickplay preview window is truncated at the right screen edge / does not track
      the cursor.
-  2. The progress-bar touch zone overlaps the 4-button episode row.
+  2. The progress-bar touch zone is too large — it overlaps and **blocks** the
+     4-button control row. (The user intends to tune the exact touch-zone size
+     themselves, e.g. by visualising it with a temporary coloured overlay.)
   3. The purple time label should sit directly above the progress cursor.
   4. Trickplay on the mini-player progress bar.
   5. A stop button on the mini-player.
@@ -173,3 +175,27 @@ stop / seek / next / volume / "send message" against the cast and the native pla
 - **Long-term goal:** support AirPlay and other cast protocols — the casting layer is
   kept protocol-agnostic (`CastProtocol`). The user has an iOS phone and an
   AirPlay-capable Samsung screen for testing.
+
+---
+
+## 11. Player feature ideas (proposed, not yet scoped)
+
+Candidate enhancements for the cast player — each would be its own brainstorm →
+spec → plan → execute cycle. The user reacted positively to all of these.
+
+1. **Autoplay next episode + countdown** — an "Next episode in 10s · Cancel" overlay
+   when an episode ends on the cast. The native player already has go-to-next-episode
+   countdown logic to port.
+2. **Sleep timer** — "stop after this episode / in 30 min".
+3. **Resume prompt** — "Resume at 12:34 / Start over" when casting a partially-watched
+   item.
+4. **Chapter markers on the progress bar** — Jellyfin exposes chapters; show ticks +
+   tap-to-jump.
+5. **OS media controls** — control the cast from the OS media notification /
+   lock screen. **Must be cross-platform:** Android media notification *and* iOS
+   Now Playing / Control Center. iOS infrastructure already exists
+   (`modules/mpv-player/ios/MPVNowPlayingManager.swift`) and there are existing PRs
+   touching the iOS mini-controller / now-playing — reference them before designing.
+6. **SyncPlay on cast** (larger) — synchronised group viewing; a `feat/syncplay`
+   branch exists.
+
