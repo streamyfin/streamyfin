@@ -194,6 +194,10 @@ export type Settings = {
   skipRecap: SegmentSkipMode;
   skipCommercial: SegmentSkipMode;
   skipPreview: SegmentSkipMode;
+  /** Native player next-episode countdown, in seconds. */
+  autoplayCountdownSeconds: number;
+  /** Chromecast next-episode countdown, in seconds. */
+  castAutoplayCountdownSeconds: number;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -286,6 +290,8 @@ export const defaultValues: Settings = {
   skipRecap: "ask",
   skipCommercial: "ask",
   skipPreview: "ask",
+  autoplayCountdownSeconds: 15,
+  castAutoplayCountdownSeconds: 30,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
