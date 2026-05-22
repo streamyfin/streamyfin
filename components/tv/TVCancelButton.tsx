@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVCancelButtonProps {
@@ -33,18 +34,18 @@ export const TVCancelButton: React.FC<TVCancelButtonProps> = ({
           animatedStyle,
           {
             backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 10,
+            paddingHorizontal: scaleSize(20),
+            paddingVertical: scaleSize(12),
+            borderRadius: scaleSize(10),
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
+            gap: scaleSize(8),
           },
         ]}
       >
         <Ionicons
           name='close'
-          size={20}
+          size={scaleSize(20)}
           color={focused ? "#000" : "rgba(255,255,255,0.8)"}
         />
         <Text

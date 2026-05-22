@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVOptionCardProps {
@@ -49,12 +50,14 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
               backgroundColor: focused
                 ? "#fff"
                 : selected
-                  ? "rgba(255,255,255,0.2)"
+                  ? "rgba(255,255,255,0.15)"
                   : "rgba(255,255,255,0.08)",
-              borderRadius: 14,
+              borderRadius: scaleSize(14),
+              borderWidth: focused ? 0 : selected ? scaleSize(2) : 0,
+              borderColor: "rgba(255,255,255,0.6)",
               justifyContent: "center",
               alignItems: "center",
-              paddingHorizontal: 12,
+              paddingHorizontal: scaleSize(12),
             },
           ]}
         >
@@ -75,7 +78,7 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
                 fontSize: typography.callout,
                 color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)",
                 textAlign: "center",
-                marginTop: 2,
+                marginTop: scaleSize(2),
               }}
               numberOfLines={1}
             >

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import ReanimatedModule, { useAnimatedStyle } from "react-native-reanimated";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 const ReanimatedView = ReanimatedModule.View;
@@ -35,7 +36,7 @@ export interface TVFocusableProgressBarProps {
   style?: ViewStyle;
 }
 
-const PROGRESS_BAR_HEIGHT = 14;
+const PROGRESS_BAR_HEIGHT = scaleSize(14);
 
 export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
   React.memo(
@@ -124,21 +125,21 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
 const styles = StyleSheet.create({
   pressableContainer: {
     // Add padding for focus scale animation to not clip
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: scaleSize(8),
+    paddingHorizontal: scaleSize(4),
   },
   animatedContainer: {
-    height: PROGRESS_BAR_HEIGHT + 8,
+    height: PROGRESS_BAR_HEIGHT + scaleSize(8),
     justifyContent: "center",
-    borderRadius: 12,
-    paddingHorizontal: 4,
+    borderRadius: scaleSize(12),
+    paddingHorizontal: scaleSize(4),
   },
   animatedContainerFocused: {
     // Subtle glow effect when focused
     shadowColor: "#fff",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowRadius: scaleSize(12),
   },
   progressTrackWrapper: {
     position: "relative",
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: PROGRESS_BAR_HEIGHT,
     backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 8,
+    borderRadius: scaleSize(8),
     overflow: "hidden",
   },
   progressTrackFocused: {
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
     left: 0,
     height: "100%",
     backgroundColor: "rgba(255,255,255,0.3)",
-    borderRadius: 8,
+    borderRadius: scaleSize(8),
   },
   progressFill: {
     position: "absolute",
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
     left: 0,
     height: "100%",
     backgroundColor: "#fff",
-    borderRadius: 8,
+    borderRadius: scaleSize(8),
   },
   chapterMarkersContainer: {
     position: "absolute",
@@ -179,11 +180,11 @@ const styles = StyleSheet.create({
   },
   chapterMarker: {
     position: "absolute",
-    width: 2,
-    height: PROGRESS_BAR_HEIGHT + 5,
+    width: scaleSize(2),
+    height: PROGRESS_BAR_HEIGHT + scaleSize(5),
     bottom: 0,
     backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: 1,
-    transform: [{ translateX: -1 }],
+    borderRadius: scaleSize(1),
+    transform: [{ translateX: -scaleSize(1) }],
   },
 });

@@ -23,6 +23,7 @@ import Animated, {
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVNextEpisodeCountdownProps {
@@ -44,8 +45,8 @@ export interface TVNextEpisodeCountdownProps {
 }
 
 // Position constants
-const BOTTOM_WITH_CONTROLS = 300;
-const BOTTOM_WITHOUT_CONTROLS = 120;
+const BOTTOM_WITH_CONTROLS = scaleSize(300);
+const BOTTOM_WITHOUT_CONTROLS = scaleSize(120);
 
 export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   nextItem,
@@ -74,7 +75,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   const imageUrl = getPrimaryImageUrl({
     api,
     item: nextItem,
-    width: 360,
+    width: scaleSize(360),
     quality: 80,
   });
 
@@ -198,17 +199,17 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({
     container: {
       position: "absolute",
-      right: 80,
+      right: scaleSize(80),
       zIndex: 100,
     },
     focusedCard: {
       shadowColor: "#fff",
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.6,
-      shadowRadius: 16,
+      shadowRadius: scaleSize(16),
     },
     blur: {
-      borderRadius: 16,
+      borderRadius: scaleSize(16),
       overflow: "hidden",
     },
     innerContainer: {
@@ -216,42 +217,42 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       alignItems: "stretch",
     },
     thumbnail: {
-      width: 180,
+      width: scaleSize(180),
       backgroundColor: "rgba(0,0,0,0.3)",
     },
     content: {
-      padding: 16,
+      padding: scaleSize(16),
       justifyContent: "center",
-      width: 280,
+      width: scaleSize(280),
     },
     label: {
       fontSize: typography.callout,
       color: "rgba(255,255,255,0.5)",
       textTransform: "uppercase",
       letterSpacing: 1,
-      marginBottom: 4,
+      marginBottom: scaleSize(4),
     },
     seriesName: {
       fontSize: typography.callout,
       color: "rgba(255,255,255,0.7)",
-      marginBottom: 2,
+      marginBottom: scaleSize(2),
     },
     episodeInfo: {
       fontSize: typography.body,
       color: "#fff",
       fontWeight: "600",
-      marginBottom: 12,
+      marginBottom: scaleSize(12),
     },
     progressContainer: {
-      height: 4,
+      height: scaleSize(4),
       backgroundColor: "rgba(255,255,255,0.2)",
-      borderRadius: 2,
+      borderRadius: scaleSize(2),
       overflow: "hidden",
     },
     progressBar: {
       height: "100%",
       backgroundColor: "#fff",
-      borderRadius: 2,
+      borderRadius: scaleSize(2),
     },
     returnFocusGuide: {
       height: 1,

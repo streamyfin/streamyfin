@@ -15,6 +15,7 @@ import {
   type PairingCredentials,
   startPairingListener,
 } from "@/utils/pairingService";
+import { scaleSize } from "@/utils/scaleSize";
 import {
   type AccountSecurityType,
   getPreviousServers,
@@ -700,17 +701,17 @@ export const TVLogin: React.FC = () => {
           >
             <Text
               style={{
-                fontSize: 24,
+                fontSize: scaleSize(24),
                 fontWeight: "bold",
                 color: "#FFFFFF",
-                marginBottom: 12,
+                marginBottom: scaleSize(12),
               }}
             >
               {t("pairing.logging_in")}
             </Text>
             <Text
               style={{
-                fontSize: 16,
+                fontSize: scaleSize(16),
                 color: "#9CA3AF",
               }}
             >

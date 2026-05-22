@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
+import { scaleSize } from "@/utils/scaleSize";
 import { Loader } from "./Loader";
 
 const getColorClasses = (
@@ -135,16 +136,26 @@ export const Button: React.FC<PropsWithChildren<ButtonProps>> = ({
           shadowColor: "#ffffff",
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: focused ? 0.5 : 0,
-          shadowRadius: focused ? 10 : 0,
+          shadowRadius: focused ? scaleSize(10) : 0,
           elevation: focused ? 12 : 0, // Android glow
         }}
       >
         <View
-          className={`rounded-2xl py-5 items-center justify-center 
-            ${colorClasses}
-            ${className}`}
+          style={{
+            borderRadius: scaleSize(16),
+            paddingVertical: scaleSize(14),
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          className={`${colorClasses} ${className}`}
         >
-          <Text className={`${textColorClass} text-xl font-bold`}>
+          <Text
+            style={{
+              fontSize: scaleSize(20),
+              fontWeight: "bold",
+            }}
+            className={textColorClass}
+          >
             {children}
           </Text>
         </View>

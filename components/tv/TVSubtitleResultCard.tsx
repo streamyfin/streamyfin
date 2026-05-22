@@ -10,6 +10,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import type { SubtitleSearchResult } from "@/hooks/useRemoteSubtitles";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVSubtitleResultCardProps {
@@ -202,18 +203,18 @@ export const TVSubtitleResultCard = React.forwardRef<
 const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({
     resultCard: {
-      width: 220,
-      minHeight: 120,
-      borderRadius: 14,
-      padding: 14,
-      borderWidth: 1,
+      width: scaleSize(220),
+      minHeight: scaleSize(120),
+      borderRadius: scaleSize(14),
+      padding: scaleSize(14),
+      borderWidth: scaleSize(1),
     },
     providerBadge: {
       alignSelf: "flex-start",
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 6,
-      marginBottom: 8,
+      paddingHorizontal: scaleSize(8),
+      paddingVertical: scaleSize(3),
+      borderRadius: scaleSize(6),
+      marginBottom: scaleSize(8),
     },
     providerText: {
       fontSize: typography.callout,
@@ -224,14 +225,14 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     resultName: {
       fontSize: typography.callout,
       fontWeight: "500",
-      marginBottom: 8,
-      lineHeight: 18,
+      marginBottom: scaleSize(8),
+      lineHeight: scaleSize(18),
     },
     resultMeta: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      marginBottom: 8,
+      gap: scaleSize(12),
+      marginBottom: scaleSize(8),
     },
     resultMetaText: {
       fontSize: typography.callout,
@@ -239,22 +240,22 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     ratingContainer: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 3,
+      gap: scaleSize(3),
     },
     downloadCountContainer: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 3,
+      gap: scaleSize(3),
     },
     flagsContainer: {
       flexDirection: "row",
-      gap: 6,
+      gap: scaleSize(6),
       flexWrap: "wrap",
     },
     flag: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 4,
+      paddingHorizontal: scaleSize(6),
+      paddingVertical: scaleSize(2),
+      borderRadius: scaleSize(4),
     },
     flagText: {
       fontSize: typography.callout,
@@ -264,7 +265,7 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     downloadingOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: "rgba(0,0,0,0.5)",
-      borderRadius: 14,
+      borderRadius: scaleSize(14),
       justifyContent: "center",
       alignItems: "center",
     },

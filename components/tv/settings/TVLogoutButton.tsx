@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVLogoutButtonProps {
@@ -41,9 +42,9 @@ export const TVLogoutButton: React.FC<TVLogoutButtonProps> = ({
         <View
           style={{
             backgroundColor: focused ? "#ef4444" : "rgba(239, 68, 68, 0.8)",
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: 48,
+            borderRadius: scaleSize(12),
+            paddingVertical: scaleSize(18),
+            paddingHorizontal: scaleSize(48),
             alignItems: "center",
             justifyContent: "center",
           }}

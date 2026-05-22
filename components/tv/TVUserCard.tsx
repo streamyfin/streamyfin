@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
@@ -89,36 +90,44 @@ export const TVUserCard = React.forwardRef<View, TVUserCardProps>(
               flexDirection: "row",
               alignItems: "center",
               backgroundColor: getBackgroundColor(),
-              borderRadius: 14,
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              gap: 14,
+              borderRadius: scaleSize(14),
+              paddingHorizontal: scaleSize(16),
+              paddingVertical: scaleSize(14),
+              gap: scaleSize(14),
             },
           ]}
         >
           {/* User Avatar */}
           <View
             style={{
-              width: 44,
-              height: 44,
+              width: scaleSize(44),
+              height: scaleSize(44),
               backgroundColor: isCurrent
                 ? "rgba(255,255,255,0.08)"
                 : focused
                   ? "rgba(0,0,0,0.1)"
                   : "rgba(255,255,255,0.15)",
-              borderRadius: 22,
+              borderRadius: scaleSize(22),
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Ionicons name='person' size={24} color={getTextColor()} />
+            <Ionicons
+              name='person'
+              size={scaleSize(24)}
+              color={getTextColor()}
+            />
           </View>
 
           {/* Text column */}
-          <View style={{ gap: 4 }}>
+          <View style={{ gap: scaleSize(4) }}>
             {/* Username */}
             <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: scaleSize(8),
+              }}
             >
               <Text
                 style={{
@@ -148,12 +157,12 @@ export const TVUserCard = React.forwardRef<View, TVUserCardProps>(
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 4,
+                gap: scaleSize(4),
               }}
             >
               <Ionicons
                 name={getSecurityIcon()}
-                size={12}
+                size={scaleSize(12)}
                 color={getSecondaryColor()}
               />
               <Text

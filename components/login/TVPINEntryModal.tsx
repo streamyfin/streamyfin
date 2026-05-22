@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "@/components/common/Text";
+import { scaleSize } from "@/utils/scaleSize";
 import { verifyAccountPIN } from "@/utils/secureCredentials";
 
 interface TVPINEntryModalProps {
@@ -130,15 +131,15 @@ const ForgotPINLink: React.FC<{
       <Animated.View
         style={{
           transform: [{ scale }],
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          borderRadius: 8,
+          paddingHorizontal: scaleSize(16),
+          paddingVertical: scaleSize(10),
+          borderRadius: scaleSize(8),
           backgroundColor: focused ? "rgba(255,255,255,0.15)" : "transparent",
         }}
       >
         <Text
           style={{
-            fontSize: 16,
+            fontSize: scaleSize(16),
             color: focused ? "#fff" : "rgba(255,255,255,0.5)",
           }}
         >
@@ -417,36 +418,36 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   blurContainer: {
-    borderRadius: 24,
+    borderRadius: scaleSize(24),
     overflow: "hidden",
   },
   content: {
-    padding: 40,
+    padding: scaleSize(40),
     alignItems: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: scaleSize(28),
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 8,
+    marginBottom: scaleSize(8),
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: scaleSize(18),
     color: "rgba(255,255,255,0.6)",
-    marginBottom: 32,
+    marginBottom: scaleSize(32),
     textAlign: "center",
   },
   pinDotsContainer: {
     flexDirection: "row",
-    gap: 16,
-    marginBottom: 32,
+    gap: scaleSize(16),
+    marginBottom: scaleSize(32),
   },
   pinDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
+    width: scaleSize(20),
+    height: scaleSize(20),
+    borderRadius: scaleSize(10),
+    borderWidth: scaleSize(2),
     borderColor: "rgba(255,255,255,0.4)",
     backgroundColor: "transparent",
   },
@@ -459,26 +460,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#ef4444",
   },
   numberPad: {
-    gap: 12,
-    marginBottom: 24,
+    gap: scaleSize(12),
+    marginBottom: scaleSize(24),
   },
   numberRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: scaleSize(12),
   },
   numberButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: scaleSize(72),
+    height: scaleSize(72),
+    borderRadius: scaleSize(36),
     justifyContent: "center",
     alignItems: "center",
   },
   numberButtonPlaceholder: {
-    width: 72,
-    height: 72,
+    width: scaleSize(72),
+    height: scaleSize(72),
   },
   numberText: {
-    fontSize: 28,
+    fontSize: scaleSize(28),
     fontWeight: "600",
   },
   forgotContainer: {

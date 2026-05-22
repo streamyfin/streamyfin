@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { Animated, Pressable, TextInput } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsTextInputProps {
@@ -48,10 +49,10 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
             backgroundColor: focused
               ? "rgba(255, 255, 255, 0.15)"
               : "rgba(255, 255, 255, 0.05)",
-            borderRadius: 12,
-            paddingVertical: 16,
-            paddingHorizontal: 24,
-            marginBottom: 8,
+            borderRadius: scaleSize(12),
+            paddingVertical: scaleSize(16),
+            paddingHorizontal: scaleSize(24),
+            marginBottom: scaleSize(8),
           },
         ]}
       >
@@ -59,7 +60,7 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#9CA3AF",
-            marginBottom: 8,
+            marginBottom: scaleSize(8),
           }}
         >
           {label}
@@ -78,10 +79,10 @@ export const TVSettingsTextInput: React.FC<TVSettingsTextInputProps> = ({
             fontSize: typography.body,
             color: "#FFFFFF",
             backgroundColor: "rgba(255, 255, 255, 0.05)",
-            borderRadius: 8,
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderWidth: focused ? 2 : 1,
+            borderRadius: scaleSize(8),
+            paddingVertical: scaleSize(12),
+            paddingHorizontal: scaleSize(16),
+            borderWidth: focused ? scaleSize(2) : scaleSize(1),
             borderColor: focused ? "#FFFFFF" : "#4B5563",
           }}
         />

@@ -4,6 +4,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVActorCardProps {
@@ -40,23 +41,23 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
             animatedStyle,
             {
               alignItems: "center",
-              width: 160,
+              width: scaleSize(160),
               shadowColor: "#fff",
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: focused ? 0.5 : 0,
-              shadowRadius: focused ? 16 : 0,
+              shadowRadius: focused ? scaleSize(16) : 0,
             },
           ]}
         >
           <View
             style={{
-              width: 140,
-              height: 140,
-              borderRadius: 70,
+              width: scaleSize(140),
+              height: scaleSize(140),
+              borderRadius: scaleSize(70),
               overflow: "hidden",
               backgroundColor: "rgba(255,255,255,0.1)",
-              marginBottom: 14,
-              borderWidth: 2,
+              marginBottom: scaleSize(14),
+              borderWidth: scaleSize(2),
               borderColor: focused ? "#FFFFFF" : "transparent",
             }}
           >
@@ -76,7 +77,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
               >
                 <Ionicons
                   name='person'
-                  size={56}
+                  size={scaleSize(56)}
                   color='rgba(255,255,255,0.4)'
                 />
               </View>
@@ -89,9 +90,9 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
               fontWeight: "600",
               color: focused ? "#fff" : "rgba(255,255,255,0.9)",
               textAlign: "center",
-              marginBottom: 4,
+              marginBottom: scaleSize(4),
             }}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {person.Name}
           </Text>
@@ -105,7 +106,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
                   : "rgba(255,255,255,0.5)",
                 textAlign: "center",
               }}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {person.Role}
             </Text>

@@ -14,6 +14,7 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVPinInput, type TVPinInputRef } from "@/components/inputs/TVPinInput";
 import { TVOptionCard, useTVFocusAnimation } from "@/components/tv";
+import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 
 interface TVSaveAccountModalProps {
@@ -79,24 +80,24 @@ const TVSaveButton: React.FC<{
               : disabled
                 ? "#4a4a4a"
                 : "rgba(255,255,255,0.15)",
-            paddingHorizontal: 24,
-            paddingVertical: 14,
-            borderRadius: 10,
+            paddingHorizontal: scaleSize(24),
+            paddingVertical: scaleSize(14),
+            borderRadius: scaleSize(10),
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
+            gap: scaleSize(8),
             opacity: disabled ? 0.5 : 1,
           },
         ]}
       >
         <Ionicons
           name='checkmark'
-          size={20}
+          size={scaleSize(20)}
           color={focused ? "#000" : "#fff"}
         />
         <Text
           style={{
-            fontSize: 16,
+            fontSize: scaleSize(16),
             color: focused ? "#000" : "#fff",
             fontWeight: "600",
           }}
@@ -129,23 +130,23 @@ const TVBackButton: React.FC<{
           animatedStyle,
           {
             backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.15)",
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 10,
+            paddingHorizontal: scaleSize(20),
+            paddingVertical: scaleSize(12),
+            borderRadius: scaleSize(10),
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
+            gap: scaleSize(8),
           },
         ]}
       >
         <Ionicons
           name='chevron-back'
-          size={20}
+          size={scaleSize(20)}
           color={focused ? "#000" : "rgba(255,255,255,0.8)"}
         />
         <Text
           style={{
-            fontSize: 16,
+            fontSize: scaleSize(16),
             color: focused ? "#000" : "rgba(255,255,255,0.8)",
             fontWeight: "500",
           }}
@@ -378,35 +379,35 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   blurContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: scaleSize(24),
+    borderTopRightRadius: scaleSize(24),
     overflow: "hidden",
   },
   content: {
-    paddingTop: 24,
-    paddingBottom: 50,
+    paddingTop: scaleSize(24),
+    paddingBottom: scaleSize(50),
     overflow: "visible",
   },
   header: {
-    paddingHorizontal: 48,
-    marginBottom: 20,
+    paddingHorizontal: scaleSize(48),
+    marginBottom: scaleSize(20),
   },
   title: {
-    fontSize: 28,
+    fontSize: scaleSize(28),
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 4,
+    marginBottom: scaleSize(4),
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: scaleSize(16),
     color: "rgba(255,255,255,0.6)",
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: scaleSize(16),
     fontWeight: "500",
     color: "rgba(255,255,255,0.6)",
-    marginBottom: 16,
-    paddingHorizontal: 48,
+    marginBottom: scaleSize(16),
+    paddingHorizontal: scaleSize(48),
     textTransform: "uppercase",
     letterSpacing: 1,
   },
@@ -414,26 +415,26 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   scrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 10,
-    gap: 12,
+    paddingHorizontal: scaleSize(48),
+    paddingVertical: scaleSize(10),
+    gap: scaleSize(12),
   },
   buttonRow: {
-    marginTop: 20,
-    paddingHorizontal: 48,
+    marginTop: scaleSize(20),
+    paddingHorizontal: scaleSize(48),
     flexDirection: "row",
-    gap: 16,
+    gap: scaleSize(16),
     alignItems: "center",
   },
   pinContainer: {
-    paddingHorizontal: 48,
+    paddingHorizontal: scaleSize(48),
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: scaleSize(10),
   },
   errorText: {
     color: "#ef4444",
-    fontSize: 14,
-    marginTop: 12,
+    fontSize: scaleSize(14),
+    marginTop: scaleSize(12),
     textAlign: "center",
   },
 });

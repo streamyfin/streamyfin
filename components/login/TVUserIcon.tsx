@@ -6,6 +6,7 @@ import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { getUserImageUrl } from "@/utils/jellyfin/image/getUserImageUrl";
+import { scaleSize } from "@/utils/scaleSize";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 
 export interface TVUserIconProps {
@@ -76,27 +77,27 @@ export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
             animatedStyle,
             {
               alignItems: "center",
-              width: 160,
+              width: scaleSize(160),
               overflow: "visible",
               shadowColor: "#fff",
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: focused ? 0.5 : 0,
-              shadowRadius: focused ? 16 : 0,
+              shadowRadius: focused ? scaleSize(16) : 0,
             },
           ]}
         >
           <View style={{ position: "relative" }}>
             <View
               style={{
-                width: 140,
-                height: 140,
-                borderRadius: 70,
+                width: scaleSize(140),
+                height: scaleSize(140),
+                borderRadius: scaleSize(70),
                 overflow: "hidden",
                 backgroundColor: focused
                   ? "rgba(255,255,255,0.2)"
                   : "rgba(255,255,255,0.1)",
-                marginBottom: 14,
-                borderWidth: focused ? 3 : 0,
+                marginBottom: scaleSize(14),
+                borderWidth: focused ? scaleSize(3) : 0,
                 borderColor: "#fff",
                 justifyContent: "center",
                 alignItems: "center",
@@ -105,14 +106,14 @@ export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
               {imageUrl ? (
                 <Image
                   source={{ uri: imageUrl }}
-                  style={{ width: 140, height: 140 }}
+                  style={{ width: scaleSize(140), height: scaleSize(140) }}
                   contentFit='cover'
                   onError={() => setImageError(true)}
                 />
               ) : (
                 <Ionicons
                   name='person'
-                  size={56}
+                  size={scaleSize(56)}
                   color={
                     focused ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.4)"
                   }
@@ -125,21 +126,25 @@ export const TVUserIcon = React.forwardRef<View, TVUserIconProps>(
               <View
                 style={{
                   position: "absolute",
-                  bottom: 10,
-                  right: 10,
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  bottom: scaleSize(10),
+                  right: scaleSize(10),
+                  width: scaleSize(32),
+                  height: scaleSize(32),
+                  borderRadius: scaleSize(16),
                   backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.9)",
                   justifyContent: "center",
                   alignItems: "center",
                   shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
+                  shadowOffset: { width: 0, height: scaleSize(2) },
                   shadowOpacity: 0.3,
-                  shadowRadius: 4,
+                  shadowRadius: scaleSize(4),
                 }}
               >
-                <Ionicons name={getSecurityIcon()} size={16} color='#000' />
+                <Ionicons
+                  name={getSecurityIcon()}
+                  size={scaleSize(16)}
+                  color='#000'
+                />
               </View>
             )}
           </View>

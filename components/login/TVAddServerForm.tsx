@@ -5,6 +5,7 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { scaleSize } from "@/utils/scaleSize";
 import { TVInput } from "./TVInput";
 
 interface TVAddServerFormProps {
@@ -48,7 +49,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 60,
+        paddingVertical: scaleSize(60),
       }}
       showsVerticalScrollIndicator={false}
     >
@@ -56,7 +57,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         style={{
           width: "100%",
           maxWidth: 800,
-          paddingHorizontal: 60,
+          paddingHorizontal: scaleSize(60),
         }}
       >
         {/* Title */}
@@ -66,15 +67,20 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
             fontWeight: "bold",
             color: "#FFFFFF",
             textAlign: "left",
-            marginBottom: 24,
-            paddingHorizontal: 8,
+            marginBottom: scaleSize(24),
+            paddingHorizontal: scaleSize(8),
           }}
         >
           {t("server.enter_url_to_jellyfin_server")}
         </Text>
 
         {/* Server URL Input */}
-        <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
+        <View
+          style={{
+            marginBottom: scaleSize(24),
+            paddingHorizontal: scaleSize(8),
+          }}
+        >
           <TVInput
             placeholder={t("server.server_url_placeholder")}
             value={serverURL}
@@ -89,7 +95,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         </View>
 
         {/* Connect Button */}
-        <View style={{ marginBottom: 24 }}>
+        <View style={{ marginBottom: scaleSize(24) }}>
           <Button
             onPress={handleConnect}
             loading={loading}

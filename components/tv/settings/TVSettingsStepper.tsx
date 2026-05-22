@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsStepperProps {
@@ -38,10 +39,10 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           labelAnim.focused || minusAnim.focused || plusAnim.focused
             ? "rgba(255, 255, 255, 0.15)"
             : "rgba(255, 255, 255, 0.05)",
-        borderRadius: 12,
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        marginBottom: 8,
+        borderRadius: scaleSize(12),
+        paddingVertical: scaleSize(16),
+        paddingHorizontal: scaleSize(24),
+        marginBottom: scaleSize(8),
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
@@ -72,9 +73,9 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
             style={[
               minusAnim.animatedStyle,
               {
-                width: 40,
-                height: 40,
-                borderRadius: 10,
+                width: scaleSize(40),
+                height: scaleSize(40),
+                borderRadius: scaleSize(10),
                 backgroundColor: minusAnim.focused ? "#FFFFFF" : "#4B5563",
                 justifyContent: "center",
                 alignItems: "center",
@@ -83,7 +84,7 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           >
             <Ionicons
               name='remove'
-              size={24}
+              size={scaleSize(24)}
               color={minusAnim.focused ? "#000000" : "#FFFFFF"}
             />
           </Animated.View>
@@ -92,9 +93,9 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#FFFFFF",
-            minWidth: 60,
+            minWidth: scaleSize(60),
             textAlign: "center",
-            marginHorizontal: 16,
+            marginHorizontal: scaleSize(16),
           }}
         >
           {displayValue}
@@ -110,9 +111,9 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
             style={[
               plusAnim.animatedStyle,
               {
-                width: 40,
-                height: 40,
-                borderRadius: 10,
+                width: scaleSize(40),
+                height: scaleSize(40),
+                borderRadius: scaleSize(10),
                 backgroundColor: plusAnim.focused ? "#FFFFFF" : "#4B5563",
                 justifyContent: "center",
                 alignItems: "center",
@@ -121,7 +122,7 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
           >
             <Ionicons
               name='add'
-              size={24}
+              size={scaleSize(24)}
               color={plusAnim.focused ? "#000000" : "#FFFFFF"}
             />
           </Animated.View>

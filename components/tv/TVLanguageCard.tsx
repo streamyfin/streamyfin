@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVLanguageCardProps {
@@ -63,7 +64,7 @@ export const TVLanguageCard = React.forwardRef<View, TVLanguageCardProps>(
             <View style={styles.checkmark}>
               <Ionicons
                 name='checkmark'
-                size={16}
+                size={scaleSize(16)}
                 color='rgba(255,255,255,0.8)'
               />
             </View>
@@ -77,12 +78,12 @@ export const TVLanguageCard = React.forwardRef<View, TVLanguageCardProps>(
 const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({
     languageCard: {
-      width: 120,
-      height: 60,
-      borderRadius: 12,
+      width: scaleSize(120),
+      height: scaleSize(60),
+      borderRadius: scaleSize(12),
       justifyContent: "center",
       alignItems: "center",
-      paddingHorizontal: 12,
+      paddingHorizontal: scaleSize(12),
     },
     languageCardText: {
       fontSize: typography.callout,
@@ -90,11 +91,11 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     },
     languageCardCode: {
       fontSize: typography.callout,
-      marginTop: 2,
+      marginTop: scaleSize(2),
     },
     checkmark: {
       position: "absolute",
-      top: 8,
-      right: 8,
+      top: scaleSize(8),
+      right: scaleSize(8),
     },
   });
