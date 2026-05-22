@@ -16,6 +16,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVSkipSegmentCardProps {
@@ -102,7 +103,7 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
             },
           ]}
         >
-          <Ionicons name='play-forward' size={20} color='#fff' />
+          <Ionicons name='play-forward' size={scaleSize(20)} color='#fff' />
           <Text style={styles.label}>{labelText}</Text>
         </RNAnimated.View>
       </Pressable>
@@ -119,20 +120,20 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    right: 80,
+    right: scaleSize(80),
     zIndex: 100,
   },
   button: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    borderWidth: 2,
-    gap: 8,
+    paddingVertical: scaleSize(10),
+    paddingHorizontal: scaleSize(18),
+    borderRadius: scaleSize(12),
+    borderWidth: scaleSize(2),
+    gap: scaleSize(8),
   },
   label: {
-    fontSize: 20,
+    fontSize: scaleSize(20),
     color: "#fff",
     fontWeight: "600",
   },

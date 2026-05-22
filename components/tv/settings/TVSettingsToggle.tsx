@@ -2,6 +2,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsToggleProps {
@@ -39,10 +40,10 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
             backgroundColor: focused
               ? "rgba(255, 255, 255, 0.15)"
               : "rgba(255, 255, 255, 0.05)",
-            borderRadius: 12,
-            paddingVertical: 16,
-            paddingHorizontal: 24,
-            marginBottom: 8,
+            borderRadius: scaleSize(12),
+            paddingVertical: scaleSize(16),
+            paddingHorizontal: scaleSize(24),
+            marginBottom: scaleSize(8),
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
@@ -54,19 +55,19 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
         </Text>
         <View
           style={{
-            width: 56,
-            height: 32,
-            borderRadius: 16,
+            width: scaleSize(56),
+            height: scaleSize(32),
+            borderRadius: scaleSize(16),
             backgroundColor: value ? "#FFFFFF" : "#4B5563",
             justifyContent: "center",
-            paddingHorizontal: 2,
+            paddingHorizontal: scaleSize(2),
           }}
         >
           <View
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
+              width: scaleSize(28),
+              height: scaleSize(28),
+              borderRadius: scaleSize(14),
               backgroundColor: value ? "#000000" : "#FFFFFF",
               alignSelf: value ? "flex-end" : "flex-start",
             }}

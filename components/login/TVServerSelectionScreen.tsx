@@ -5,6 +5,7 @@ import { Alert, ScrollView, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import type { SavedServer } from "@/utils/secureCredentials";
 import { TVAddIcon } from "./TVAddIcon";
 import { TVServerIcon } from "./TVServerIcon";
@@ -56,7 +57,7 @@ export const TVServerSelectionScreen: React.FC<
         flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 60,
+        paddingVertical: scaleSize(60),
       }}
       showsVerticalScrollIndicator={false}
     >
@@ -64,14 +65,14 @@ export const TVServerSelectionScreen: React.FC<
         style={{
           width: "100%",
           alignItems: "center",
-          paddingHorizontal: 60,
+          paddingHorizontal: scaleSize(60),
         }}
       >
         {/* Logo */}
-        <View style={{ alignItems: "center", marginBottom: 16 }}>
+        <View style={{ alignItems: "center", marginBottom: scaleSize(16) }}>
           <Image
             source={require("@/assets/images/icon-ios-plain.png")}
-            style={{ width: 150, height: 150 }}
+            style={{ width: scaleSize(150), height: scaleSize(150) }}
             contentFit='contain'
           />
         </View>
@@ -83,7 +84,7 @@ export const TVServerSelectionScreen: React.FC<
             fontWeight: "bold",
             color: "#FFFFFF",
             textAlign: "center",
-            marginBottom: 8,
+            marginBottom: scaleSize(8),
           }}
         >
           Streamyfin
@@ -93,7 +94,7 @@ export const TVServerSelectionScreen: React.FC<
             fontSize: typography.body,
             color: "#9CA3AF",
             textAlign: "center",
-            marginBottom: 48,
+            marginBottom: scaleSize(48),
           }}
         >
           {hasServers
@@ -106,8 +107,8 @@ export const TVServerSelectionScreen: React.FC<
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
-            gap: 24,
+            paddingHorizontal: scaleSize(20),
+            gap: scaleSize(24),
           }}
           style={{ overflow: "visible" }}
         >

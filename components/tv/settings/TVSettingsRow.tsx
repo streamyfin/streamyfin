@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "../hooks/useTVFocusAnimation";
 
 export interface TVSettingsRowProps {
@@ -42,10 +43,10 @@ export const TVSettingsRow: React.FC<TVSettingsRowProps> = ({
             backgroundColor: focused
               ? "rgba(255, 255, 255, 0.15)"
               : "rgba(255, 255, 255, 0.05)",
-            borderRadius: 12,
-            paddingVertical: 16,
-            paddingHorizontal: 24,
-            marginBottom: 8,
+            borderRadius: scaleSize(12),
+            paddingVertical: scaleSize(16),
+            paddingHorizontal: scaleSize(24),
+            marginBottom: scaleSize(8),
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
@@ -60,13 +61,17 @@ export const TVSettingsRow: React.FC<TVSettingsRowProps> = ({
             style={{
               fontSize: typography.callout,
               color: "#9CA3AF",
-              marginRight: showChevron ? 12 : 0,
+              marginRight: showChevron ? scaleSize(12) : 0,
             }}
           >
             {value}
           </Text>
           {showChevron && (
-            <Ionicons name='chevron-forward' size={20} color='#6B7280' />
+            <Ionicons
+              name='chevron-forward'
+              size={scaleSize(20)}
+              color='#6B7280'
+            />
           )}
         </View>
       </Animated.View>

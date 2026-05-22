@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVMetadataBadgesProps {
   year?: number | null;
@@ -22,8 +23,8 @@ export const TVMetadataBadges: React.FC<TVMetadataBadgesProps> = React.memo(
           flexDirection: "row",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: 16,
-          marginBottom: 24,
+          gap: scaleSize(16),
+          marginBottom: scaleSize(24),
         }}
       >
         {year != null && (

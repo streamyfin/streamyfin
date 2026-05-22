@@ -5,6 +5,7 @@ import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { scaleSize } from "@/utils/scaleSize";
 import { TVInput } from "./TVInput";
 import { TVSaveAccountToggle } from "./TVSaveAccountToggle";
 
@@ -61,7 +62,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 60,
+        paddingVertical: scaleSize(60),
       }}
       showsVerticalScrollIndicator={false}
     >
@@ -69,7 +70,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         style={{
           width: "100%",
           maxWidth: 800,
-          paddingHorizontal: 60,
+          paddingHorizontal: scaleSize(60),
         }}
       >
         {/* Title */}
@@ -78,7 +79,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
             fontSize: typography.title,
             fontWeight: "bold",
             color: "#FFFFFF",
-            marginBottom: 8,
+            marginBottom: scaleSize(8),
           }}
         >
           {serverName ? (
@@ -94,14 +95,19 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
           style={{
             fontSize: typography.callout,
             color: "#9CA3AF",
-            marginBottom: 40,
+            marginBottom: scaleSize(40),
           }}
         >
           {serverAddress}
         </Text>
 
         {/* Username Input */}
-        <View style={{ marginBottom: 24, paddingHorizontal: 8 }}>
+        <View
+          style={{
+            marginBottom: scaleSize(24),
+            paddingHorizontal: scaleSize(8),
+          }}
+        >
           <TVInput
             placeholder={t("login.username_placeholder")}
             value={credentials.username}
@@ -118,7 +124,12 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         </View>
 
         {/* Password Input */}
-        <View style={{ marginBottom: 32, paddingHorizontal: 8 }}>
+        <View
+          style={{
+            marginBottom: scaleSize(32),
+            paddingHorizontal: scaleSize(8),
+          }}
+        >
           <TVInput
             placeholder={t("login.password_placeholder")}
             value={credentials.password}
@@ -134,7 +145,12 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         </View>
 
         {/* Save Account Toggle */}
-        <View style={{ marginBottom: 40, paddingHorizontal: 8 }}>
+        <View
+          style={{
+            marginBottom: scaleSize(40),
+            paddingHorizontal: scaleSize(8),
+          }}
+        >
           <TVSaveAccountToggle
             value={saveAccount}
             onValueChange={setSaveAccount}
@@ -144,7 +160,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         </View>
 
         {/* Login Button */}
-        <View style={{ marginBottom: 16 }}>
+        <View style={{ marginBottom: scaleSize(16) }}>
           <Button
             onPress={handleLogin}
             loading={loading}

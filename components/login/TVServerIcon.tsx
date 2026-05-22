@@ -4,6 +4,7 @@ import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 
 // Sci-fi gradient color pairs (from, to) - cyberpunk/neon vibes
 const SERVER_GRADIENTS: [string, string][] = [
@@ -131,22 +132,22 @@ export const TVServerIcon = React.forwardRef<View, TVServerIconProps>(
             animatedStyle,
             {
               alignItems: "center",
-              width: 160,
+              width: scaleSize(160),
               shadowColor: gradientStart,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: focused ? 0.7 : 0,
-              shadowRadius: focused ? 24 : 0,
+              shadowRadius: focused ? scaleSize(24) : 0,
             },
           ]}
         >
           <View
             style={{
-              width: 140,
-              height: 140,
-              borderRadius: 70,
+              width: scaleSize(140),
+              height: scaleSize(140),
+              borderRadius: scaleSize(70),
               overflow: "hidden",
-              marginBottom: 14,
-              borderWidth: focused ? 3 : 0,
+              marginBottom: scaleSize(14),
+              borderWidth: focused ? scaleSize(3) : 0,
               borderColor: "#fff",
             }}
           >
@@ -164,7 +165,7 @@ export const TVServerIcon = React.forwardRef<View, TVServerIconProps>(
             >
               <Text
                 style={{
-                  fontSize: 48,
+                  fontSize: scaleSize(48),
                   fontWeight: "bold",
                   color: "#fff",
                   textShadowColor: "rgba(0,0,0,0.3)",
@@ -183,9 +184,9 @@ export const TVServerIcon = React.forwardRef<View, TVServerIconProps>(
               fontWeight: "600",
               color: focused ? "#fff" : "rgba(255,255,255,0.9)",
               textAlign: "center",
-              marginBottom: 4,
+              marginBottom: scaleSize(4),
             }}
-            numberOfLines={2}
+            numberOfLines={3}
           >
             {displayName}
           </Text>
@@ -199,7 +200,7 @@ export const TVServerIcon = React.forwardRef<View, TVServerIconProps>(
                   : "rgba(255,255,255,0.5)",
                 textAlign: "center",
               }}
-              numberOfLines={1}
+              numberOfLines={3}
             >
               {address.replace(/^https?:\/\//, "")}
             </Text>
