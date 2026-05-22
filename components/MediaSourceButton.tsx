@@ -6,8 +6,8 @@ import type {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import { BITRATES } from "@/components/BitrateSelector";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
-import { BITRATES } from "./BitRateSheet";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
