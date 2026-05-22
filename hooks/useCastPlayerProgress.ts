@@ -40,8 +40,6 @@ interface UseCastPlayerProgressResult {
   setScrubPercentage: (value: number) => void;
   /** Current playback progress, in seconds (live-updating). */
   progress: number;
-  /** Live-updating playback position, in seconds. */
-  liveProgress: number;
   /** Last stable playback position (seconds), for resuming across reloads. */
   resumePositionRef: RefObject<number>;
   /** Current trickplay image URL/coordinates, or null. */
@@ -151,7 +149,6 @@ export function useCastPlayerProgress({
     scrubPercentage,
     setScrubPercentage,
     progress,
-    liveProgress,
     resumePositionRef,
     trickPlayUrl,
     calculateTrickplayUrl,
