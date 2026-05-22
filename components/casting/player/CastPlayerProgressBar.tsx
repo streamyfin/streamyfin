@@ -12,7 +12,6 @@ import type { SharedValue } from "react-native-reanimated";
 import { CastTrickplayBubble } from "@/components/casting/player/CastTrickplayBubble";
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import type { useTrickplay } from "@/hooks/useTrickplay";
-import { DEBUG_TOUCH_ZONES } from "@/utils/casting/debug";
 import { calculateEndingTime, formatTime } from "@/utils/casting/helpers";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
@@ -136,20 +135,6 @@ export function CastPlayerProgressBar({
           durationMs={duration * 1000}
           height={4}
         />
-        {__DEV__ && DEBUG_TOUCH_ZONES && (
-          <View
-            pointerEvents='none'
-            style={{
-              position: "absolute",
-              top: -12,
-              bottom: -12,
-              left: -10,
-              right: -10,
-              borderWidth: 1,
-              borderColor: "red",
-            }}
-          />
-        )}
       </View>
 
       {/* Time display */}

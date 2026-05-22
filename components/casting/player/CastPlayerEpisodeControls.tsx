@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import type { RemoteMediaClient } from "react-native-google-cast";
 import { Text } from "@/components/common/Text";
-import { DEBUG_TOUCH_ZONES } from "@/utils/casting/debug";
 
 interface CastPlayerEpisodeControlsProps {
   /** Bottom safe-area inset, used to offset the fixed control row. */
@@ -171,21 +170,6 @@ export function CastPlayerEpisodeControls({
           </Text>
         )}
       </Pressable>
-
-      {__DEV__ && DEBUG_TOUCH_ZONES && (
-        <View
-          pointerEvents='none'
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            borderWidth: 1,
-            borderColor: "lime",
-          }}
-        />
-      )}
     </View>
   );
 }
