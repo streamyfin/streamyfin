@@ -98,6 +98,48 @@ export const PlaybackControlsSettings: React.FC = () => {
     [settings?.maxAutoPlayEpisodeCount?.key, t, updateSettings],
   );
 
+  // Clamp persisted value to the 5-60s bounds so the dropdown always shows a
+  // valid selection even if an out-of-range value was stored previously.
+  const autoplayCountdown = Math.min(
+    60,
+    Math.max(5, settings?.autoplayCountdownSeconds ?? 15),
+  );
+  const castAutoplayCountdown = Math.min(
+    60,
+    Math.max(5, settings?.castAutoplayCountdownSeconds ?? 30),
+  );
+
+  const autoplayCountdownOptions = useMemo(
+    () => [
+      {
+        options: AUTOPLAY_COUNTDOWN_SECONDS.map((seconds) => ({
+          type: "radio" as const,
+          label: String(seconds),
+          value: String(seconds),
+          selected: seconds === autoplayCountdown,
+          onPress: () => updateSettings({ autoplayCountdownSeconds: seconds }),
+        })),
+      },
+    ],
+    [autoplayCountdown, updateSettings],
+  );
+
+  const castAutoplayCountdownOptions = useMemo(
+    () => [
+      {
+        options: AUTOPLAY_COUNTDOWN_SECONDS.map((seconds) => ({
+          type: "radio" as const,
+          label: String(seconds),
+          value: String(seconds),
+          selected: seconds === castAutoplayCountdown,
+          onPress: () =>
+            updateSettings({ castAutoplayCountdownSeconds: seconds }),
+        })),
+      },
+    ],
+    [castAutoplayCountdown, updateSettings],
+  );
+
   const playbackSpeedOptions = useMemo(
     () => [
       {
@@ -259,6 +301,48 @@ export const PlaybackControlsSettings: React.FC = () => {
         >
           <Ionicons name='chevron-forward' size={20} color='#8E8D91' />
         </ListItem>
+
+        <ListItem
+          title={t("home.settings.other.autoplay_countdown_seconds")}
+          disabled={!settings.autoPlayNextEpisode}
+        >
+          <PlatformDropdown
+            groups={autoplayCountdownOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>{autoplayCountdown}</Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.other.autoplay_countdown_seconds")}
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.other.cast_autoplay_countdown_seconds")}
+          disabled={!settings.autoPlayNextEpisode}
+        >
+          <PlatformDropdown
+            groups={castAutoplayCountdownOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {castAutoplayCountdown}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.other.cast_autoplay_countdown_seconds")}
+          />
+        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );
@@ -279,3 +363,6 @@ const AUTOPLAY_EPISODES_COUNT = (
   { key: "6", value: 6 },
   { key: "7", value: 7 },
 ];
+
+// Selectable next-episode countdown durations, bounded to 5-60 seconds.
+const AUTOPLAY_COUNTDOWN_SECONDS: number[] = [5, 10, 15, 20, 30, 45, 60];

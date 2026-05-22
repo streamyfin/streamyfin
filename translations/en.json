@@ -405,6 +405,8 @@
         "segment_skip_none": "None",
         "segment_skip_ask": "Show Skip Button",
         "segment_skip_auto": "Auto Skip",
+        "autoplay_countdown_seconds": "Player countdown (seconds)",
+        "cast_autoplay_countdown_seconds": "Chromecast countdown (seconds)",
         "disabled": "Disabled"
       },
       "downloads": {
