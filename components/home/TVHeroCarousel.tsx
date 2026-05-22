@@ -378,14 +378,16 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
 
   if (items.length === 0) return null;
 
+  // Extra top padding for tvOS to clear the menu bar
+  const tvosTopPadding = Platform.OS === "ios" ? scaleSize(30) : 0;
   const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
 
   return (
     <View
       style={{
-        height: heroHeight + insets.top,
+        height: heroHeight + insets.top + tvosTopPadding,
         width: "100%",
-        paddingTop: insets.top,
+        paddingTop: insets.top + tvosTopPadding,
       }}
     >
       {/* Backdrop layers with crossfade */}
