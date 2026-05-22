@@ -5,7 +5,7 @@
 
 import { router, Stack } from "expo-router";
 import { useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, ScrollView, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
@@ -189,23 +189,37 @@ export default function CastingPlayerScreen() {
     loadingEpisodeId != null && loadingEpisodeId !== currentItem?.Id;
 
   // Expose this player to the app-wide remote-control surface while a cast
-  // session is connected. `castingControls` is the live useCasting result.
+  // session is connected. The individual useCasting methods are each
+  // useCallback-wrapped and stable, so depend on them directly rather than on
+  // the whole `castingControls` object literal (rebuilt every render).
+  const {
+    togglePlayPause: castTogglePlayPause,
+    pause: castPause,
+    play: castPlay,
+    stop: castStop,
+    seek: castSeek,
+    setVolume: castSetVolume,
+  } = castingControls;
+  // toggleMute reads the latest volume without making `volume` a useMemo dep.
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+
   const castController = useMemo<PlaybackController>(
     () => ({
       playPause: () => {
-        castingControls.togglePlayPause();
+        castTogglePlayPause();
       },
       pause: () => {
-        castingControls.pause();
+        castPause();
       },
       unpause: () => {
-        castingControls.play();
+        castPlay();
       },
       stop: () => {
-        castingControls.stop();
+        castStop();
       },
       seek: (positionMs) => {
-        castingControls.seek(positionMs);
+        castSeek(positionMs);
       },
       next: () => {
         if (nextEpisode) loadEpisode(nextEpisode);
@@ -215,13 +229,24 @@ export default function CastingPlayerScreen() {
         if (idx > 0) loadEpisode(episodes[idx - 1]);
       },
       setVolume: (level) => {
-        castingControls.setVolume(level);
+        castSetVolume(level);
       },
       toggleMute: () => {
-        castingControls.setVolume(castingControls.volume > 0 ? 0 : 1);
+        castSetVolume(volumeRef.current > 0 ? 0 : 1);
       },
     }),
-    [castingControls, episodes, nextEpisode, loadEpisode, currentItem?.Id],
+    [
+      castTogglePlayPause,
+      castPause,
+      castPlay,
+      castStop,
+      castSeek,
+      castSetVolume,
+      episodes,
+      nextEpisode,
+      loadEpisode,
+      currentItem?.Id,
+    ],
   );
 
   useRegisterPlaybackController(

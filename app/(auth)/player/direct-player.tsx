@@ -343,26 +343,6 @@ export default function page() {
     reportPlaybackStart();
   }, [stream, api, offline]);
 
-  const togglePlay = async () => {
-    lightHapticFeedback();
-    setIsPlaying(!isPlaying);
-    if (isPlaying) {
-      await videoRef.current?.pause();
-      const progressInfo = currentPlayStateInfo();
-      if (progressInfo) {
-        playbackManager.reportPlaybackProgress(progressInfo);
-      }
-    } else {
-      videoRef.current?.play();
-      const progressInfo = currentPlayStateInfo();
-      if (!offline && api) {
-        await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
-        });
-      }
-    }
-  };
-
   const reportPlaybackStopped = useCallback(async () => {
     if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
@@ -429,6 +409,35 @@ export default function page() {
     progress,
     isPlaying,
     isMuted,
+  ]);
+
+  // Declared after currentPlayStateInfo so the dependency array can reference
+  // it without hitting the temporal dead zone.
+  const togglePlay = useCallback(async () => {
+    lightHapticFeedback();
+    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      await videoRef.current?.pause();
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        playbackManager.reportPlaybackProgress(progressInfo);
+      }
+    } else {
+      videoRef.current?.play();
+      const progressInfo = currentPlayStateInfo();
+      if (!offline && api) {
+        await getPlaystateApi(api).reportPlaybackStart({
+          playbackStartInfo: progressInfo,
+        });
+      }
+    }
+  }, [
+    lightHapticFeedback,
+    isPlaying,
+    currentPlayStateInfo,
+    playbackManager,
+    offline,
+    api,
   ]);
 
   const lastUrlUpdateTime = useSharedValue(0);

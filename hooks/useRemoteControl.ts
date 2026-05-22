@@ -5,7 +5,7 @@
  */
 
 import { useAtomValue } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner-native";
 import { activePlaybackControllerAtom } from "@/utils/playback/playbackController";
 import {
@@ -16,9 +16,11 @@ import {
 /** Handle one remote-control message (call it whenever a new WS message arrives). */
 export const useRemoteControl = (lastMessage: RemoteWsMessage | null): void => {
   const controller = useAtomValue(activePlaybackControllerAtom);
+  const handledRef = useRef<RemoteWsMessage | null>(null);
 
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!lastMessage || lastMessage === handledRef.current) return;
+    handledRef.current = lastMessage;
     const action = mapRemoteCommand(lastMessage);
     if (!action) return;
 
