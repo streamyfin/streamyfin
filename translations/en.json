@@ -47,7 +47,11 @@
     "downloaded_file_message": "Do you want to play the downloaded file?",
     "downloaded_file_yes": "Yes",
     "downloaded_file_no": "No",
-    "downloaded_file_cancel": "Cancel"
+    "downloaded_file_cancel": "Cancel",
+    "up_next": "Up next",
+    "next_episode_in": "Next episode in {{seconds}}s",
+    "play_now": "Play now",
+    "cancel": "Cancel"
   },
   "casting_player": {
     "buffering": "Buffering...",
