@@ -8,8 +8,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { Router } from "expo-router";
+import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import type { RemoteMediaClient } from "react-native-google-cast";
+import { Text } from "@/components/common/Text";
 
 interface CastPlayerEpisodeControlsProps {
   /** Bottom safe-area inset, used to offset the fixed control row. */
@@ -40,6 +42,8 @@ export function CastPlayerEpisodeControls({
   loadEpisode,
   router,
 }: CastPlayerEpisodeControlsProps) {
+  const { t } = useTranslation();
+
   const hasEpisodeList = episodes.length > 0;
   const hasPrevious = episodes.findIndex((ep) => ep.Id === currentItemId) > 0;
   const hasNext = nextEpisode != null;
@@ -47,6 +51,9 @@ export function CastPlayerEpisodeControls({
   // Count of buttons actually rendered (Stop is always rendered).
   const buttonCount =
     1 + (hasEpisodeList ? 1 : 0) + (hasPrevious ? 1 : 0) + (hasNext ? 1 : 0);
+
+  // When Stop is the only button (movies), render it full-width with a label.
+  const isLoneStop = buttonCount === 1;
 
   // Each button stretches evenly only when the row holds more than one;
   // a lone Stop button keeps its intrinsic size and stays centered.
@@ -137,9 +144,14 @@ export function CastPlayerEpisodeControls({
             }
           }
         }}
-        style={buttonStyle}
+        style={[buttonStyle, isLoneStop && { flex: 1, gap: 8 }]}
       >
         <Ionicons name='stop-circle' size={22} color='white' />
+        {isLoneStop && (
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>
+            {t("casting_player.stop")}
+          </Text>
+        )}
       </Pressable>
     </View>
   );
