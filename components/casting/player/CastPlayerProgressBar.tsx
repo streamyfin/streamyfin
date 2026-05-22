@@ -3,18 +3,14 @@
  * Progress slider with trickplay preview bubble and current/end time display.
  */
 
-import { Image } from "expo-image";
 import type { TFunction } from "i18next";
-import { Dimensions, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import type { RemoteMediaClient } from "react-native-google-cast";
 import type { SharedValue } from "react-native-reanimated";
+import { CastTrickplayBubble } from "@/components/casting/player/CastTrickplayBubble";
 import type { useTrickplay } from "@/hooks/useTrickplay";
-import {
-  calculateEndingTime,
-  formatTime,
-  formatTrickplayTime,
-} from "@/utils/casting/helpers";
+import { calculateEndingTime, formatTime } from "@/utils/casting/helpers";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 type TrickplayReturn = ReturnType<typeof useTrickplay>;
@@ -28,10 +24,6 @@ interface CastPlayerProgressBarProps {
   sliderMax: SharedValue<number>;
   /** Mutable ref flag set true while the user is scrubbing. */
   isScrubbing: { current: boolean };
-  /** Current scrub percentage (0-1), used to position the trickplay bubble. */
-  scrubPercentage: number;
-  /** Updates the scrub percentage. */
-  setScrubPercentage: (value: number) => void;
   /** Trickplay time display state for the bubble. */
   trickplayTime: { hours: number; minutes: number; seconds: number };
   /** Updates the trickplay time display state. */
@@ -63,8 +55,6 @@ export function CastPlayerProgressBar({
   sliderMin,
   sliderMax,
   isScrubbing,
-  scrubPercentage,
-  setScrubPercentage,
   trickplayTime,
   setTrickplayTime,
   trickPlayUrl,
@@ -107,12 +97,6 @@ export function CastPlayerProgressBar({
             const minutes = Math.floor((progressInSeconds % 3600) / 60);
             const seconds = progressInSeconds % 60;
             setTrickplayTime({ hours, minutes, seconds });
-
-            // Track scrub percentage for bubble positioning
-            const durationMs = duration * 1000;
-            if (durationMs > 0) {
-              setScrubPercentage(value / durationMs);
-            }
           }}
           onSlidingComplete={(value) => {
             isScrubbing.current = false;
@@ -126,134 +110,18 @@ export function CastPlayerProgressBar({
                 });
             }
           }}
-          renderBubble={() => {
-            // Calculate bubble position with edge clamping
-            const screenWidth = Dimensions.get("window").width;
-            const containerPadding = 20; // left/right padding of slider container (matches style)
-            const thumbWidth = 16; // matches thumbWidth prop on Slider
-            const sliderWidth = screenWidth - containerPadding * 2;
-            // Adjust thumb position to account for thumb width affecting travel range
-            const effectiveTrackWidth = sliderWidth - thumbWidth;
-            const thumbPosition =
-              thumbWidth / 2 + scrubPercentage * effectiveTrackWidth;
-
-            if (!trickPlayUrl || !trickplayInfo) {
-              // Show simple time bubble when no trickplay
-              const timeBubbleWidth = 80;
-              // Clamp position so bubble stays on screen
-              // minLeft prevents going off left edge, maxLeft prevents going off right edge
-              const minLeft = -thumbPosition;
-              const maxLeft = sliderWidth - thumbPosition - timeBubbleWidth;
-              const centeredLeft = -timeBubbleWidth / 2;
-              const clampedLeft = Math.max(
-                minLeft,
-                Math.min(maxLeft, centeredLeft),
-              );
-
-              return (
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 20,
-                    left: clampedLeft,
-                    backgroundColor: protocolColor,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 6,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#fff",
-                      fontSize: 14,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {formatTrickplayTime(trickplayTime)}
-                  </Text>
-                </View>
-              );
-            }
-
-            const { x, y, url } = trickPlayUrl;
-            const tileWidth = 220; // Larger preview for casting player
-            const tileHeight = tileWidth / (trickplayInfo.aspectRatio ?? 1.78);
-
-            // Calculate clamped position for trickplay preview
-            // minLeft: furthest left (when thumb is at left edge)
-            // maxLeft: furthest right (when thumb is at right edge)
-            const minLeft = -thumbPosition;
-            const maxLeft = sliderWidth - thumbPosition - tileWidth;
-            const centeredLeft = -tileWidth / 2;
-            const clampedLeft = Math.max(
-              minLeft,
-              Math.min(maxLeft, centeredLeft),
-            );
-
-            return (
-              <View
-                style={{
-                  position: "absolute",
-                  bottom: 20,
-                  left: clampedLeft,
-                  width: tileWidth,
-                  alignItems: "center",
-                }}
-              >
-                {/* Trickplay image preview */}
-                <View
-                  style={{
-                    width: tileWidth,
-                    height: tileHeight,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    backgroundColor: "#1a1a1a",
-                  }}
-                >
-                  <Image
-                    cachePolicy='memory-disk'
-                    style={{
-                      width: tileWidth * (trickplayInfo.data?.TileWidth ?? 1),
-                      height:
-                        (tileWidth / (trickplayInfo.aspectRatio ?? 1.78)) *
-                        (trickplayInfo.data?.TileHeight ?? 1),
-                      transform: [
-                        { translateX: -x * tileWidth },
-                        { translateY: -y * tileHeight },
-                      ],
-                    }}
-                    source={{ uri: url }}
-                    contentFit='cover'
-                  />
-                </View>
-                {/* Time overlay */}
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 4,
-                    left: 4,
-                    backgroundColor: "rgba(0, 0, 0, 0.7)",
-                    paddingHorizontal: 6,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#fff",
-                      fontSize: 12,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {formatTrickplayTime(trickplayTime)}
-                  </Text>
-                </View>
-              </View>
-            );
-          }}
+          renderBubble={() => (
+            <CastTrickplayBubble
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              trickplayTime={trickplayTime}
+              tileWidth={220}
+            />
+          )}
+          bubbleWidth={trickPlayUrl && trickplayInfo ? 220 : 64}
           sliderHeight={6}
           thumbWidth={16}
-          panHitSlop={{ top: 30, bottom: 30, left: 10, right: 10 }}
+          panHitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
         />
       </View>
 

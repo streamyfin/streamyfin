@@ -85,8 +85,6 @@ export default function CastingPlayerScreen() {
     isScrubbing,
     trickplayTime,
     setTrickplayTime,
-    scrubPercentage,
-    setScrubPercentage,
     progress,
     resumePositionRef,
     trickPlayUrl,
@@ -538,8 +536,6 @@ export default function CastingPlayerScreen() {
               sliderMin={sliderMin}
               sliderMax={sliderMax}
               isScrubbing={isScrubbing}
-              scrubPercentage={scrubPercentage}
-              setScrubPercentage={setScrubPercentage}
               trickplayTime={trickplayTime}
               setTrickplayTime={setTrickplayTime}
               trickPlayUrl={trickPlayUrl}

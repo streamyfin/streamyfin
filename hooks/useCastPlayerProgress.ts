@@ -34,10 +34,6 @@ interface UseCastPlayerProgressResult {
   trickplayTime: TrickplayTime;
   /** Updates the trickplay time display state. */
   setTrickplayTime: (time: TrickplayTime) => void;
-  /** Current scrub percentage (0-1), used to position the trickplay bubble. */
-  scrubPercentage: number;
-  /** Updates the scrub percentage. */
-  setScrubPercentage: (value: number) => void;
   /** Current playback progress, in seconds (live-updating). */
   progress: number;
   /** Last stable playback position (seconds), for resuming across reloads. */
@@ -72,9 +68,6 @@ export function useCastPlayerProgress({
     minutes: 0,
     seconds: 0,
   });
-
-  // Track scrub percentage for trickplay bubble positioning
-  const [scrubPercentage, setScrubPercentage] = useState(0);
 
   // Live progress tracking - update every second
   const [liveProgress, setLiveProgress] = useState(0);
@@ -146,8 +139,6 @@ export function useCastPlayerProgress({
     isScrubbing,
     trickplayTime,
     setTrickplayTime,
-    scrubPercentage,
-    setScrubPercentage,
     progress,
     resumePositionRef,
     trickPlayUrl,
