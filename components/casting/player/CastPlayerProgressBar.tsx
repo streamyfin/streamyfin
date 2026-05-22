@@ -134,6 +134,7 @@ export function CastPlayerProgressBar({
           chapters={chapters}
           durationMs={duration * 1000}
           height={4}
+          color='#cccccc'
         />
       </View>
 

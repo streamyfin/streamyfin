@@ -42,7 +42,7 @@ export function ChapterTicks({
             top: "50%",
             marginTop: -height / 2,
             height,
-            width: 2,
+            width: 1.5,
             backgroundColor: color,
           }}
         />
