@@ -1,6 +1,8 @@
 /**
  * Casting Player Episode Controls
- * Fixed 4-button control row for episodes: episode list, previous, next, stop.
+ * Fixed control row: episode list, previous, next, stop.
+ * Episode-specific buttons (list / previous / next) are conditional;
+ * Stop is always rendered so movies still get a Stop button.
  */
 
 import { Ionicons } from "@expo/vector-icons";
@@ -38,6 +40,26 @@ export function CastPlayerEpisodeControls({
   loadEpisode,
   router,
 }: CastPlayerEpisodeControlsProps) {
+  const hasEpisodeList = episodes.length > 0;
+  const hasPrevious = episodes.findIndex((ep) => ep.Id === currentItemId) > 0;
+  const hasNext = nextEpisode != null;
+
+  // Count of buttons actually rendered (Stop is always rendered).
+  const buttonCount =
+    1 + (hasEpisodeList ? 1 : 0) + (hasPrevious ? 1 : 0) + (hasNext ? 1 : 0);
+
+  // Each button stretches evenly only when the row holds more than one;
+  // a lone Stop button keeps its intrinsic size and stays centered.
+  const buttonStyle = {
+    ...(buttonCount > 1 ? { flex: 1 } : {}),
+    backgroundColor: "#1a1a1a",
+    padding: 12,
+    borderRadius: 12,
+    flexDirection: "row" as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+  };
+
   return (
     <View
       style={{
@@ -52,24 +74,15 @@ export function CastPlayerEpisodeControls({
         paddingHorizontal: 20,
       }}
     >
-      {/* Episodes button */}
-      <Pressable
-        onPress={onPressEpisodes}
-        style={{
-          flex: 1,
-          backgroundColor: "#1a1a1a",
-          padding: 12,
-          borderRadius: 12,
-          flexDirection: "row",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Ionicons name='list' size={22} color='white' />
-      </Pressable>
+      {/* Episodes button - only rendered when an episode list exists (not for movies) */}
+      {hasEpisodeList && (
+        <Pressable onPress={onPressEpisodes} style={buttonStyle}>
+          <Ionicons name='list' size={22} color='white' />
+        </Pressable>
+      )}
 
       {/* Previous episode button - only rendered when a previous episode exists */}
-      {episodes.findIndex((ep) => ep.Id === currentItemId) > 0 && (
+      {hasPrevious && (
         <Pressable
           onPress={async () => {
             const currentIndex = episodes.findIndex(
@@ -79,43 +92,27 @@ export function CastPlayerEpisodeControls({
               await loadEpisode(episodes[currentIndex - 1]);
             }
           }}
-          style={{
-            flex: 1,
-            backgroundColor: "#1a1a1a",
-            padding: 12,
-            borderRadius: 12,
-            flexDirection: "row",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+          style={buttonStyle}
         >
           <Ionicons name='play-skip-back' size={22} color='white' />
         </Pressable>
       )}
 
       {/* Next episode button - only rendered when a next episode exists */}
-      {nextEpisode && (
+      {hasNext && (
         <Pressable
           onPress={async () => {
             if (nextEpisode) {
               await loadEpisode(nextEpisode);
             }
           }}
-          style={{
-            flex: 1,
-            backgroundColor: "#1a1a1a",
-            padding: 12,
-            borderRadius: 12,
-            flexDirection: "row",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+          style={buttonStyle}
         >
           <Ionicons name='play-skip-forward' size={22} color='white' />
         </Pressable>
       )}
 
-      {/* Stop playback button - stops media but stays connected to Chromecast */}
+      {/* Stop playback button - always rendered; stops media but stays connected to Chromecast */}
       <Pressable
         onPress={async () => {
           try {
@@ -140,15 +137,7 @@ export function CastPlayerEpisodeControls({
             }
           }
         }}
-        style={{
-          flex: 1,
-          backgroundColor: "#1a1a1a",
-          padding: 12,
-          borderRadius: 12,
-          flexDirection: "row",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
+        style={buttonStyle}
       >
         <Ionicons name='stop-circle' size={22} color='white' />
       </Pressable>

@@ -509,19 +509,18 @@ export default function CastingPlayerScreen() {
             />
           </ScrollView>
 
-          {/* Fixed 4-button control row for episodes - positioned independently */}
-          {currentItem.Type === "Episode" && (
-            <CastPlayerEpisodeControls
-              insetBottom={insets.bottom}
-              currentItemId={currentItem.Id}
-              episodes={episodes}
-              nextEpisode={nextEpisode}
-              remoteMediaClient={remoteMediaClient}
-              onPressEpisodes={() => setShowEpisodeList(true)}
-              loadEpisode={loadEpisode}
-              router={router}
-            />
-          )}
+          {/* Fixed control row - positioned independently. Episode-specific
+              buttons are conditional inside; Stop is always available. */}
+          <CastPlayerEpisodeControls
+            insetBottom={insets.bottom}
+            currentItemId={currentItem.Id}
+            episodes={episodes}
+            nextEpisode={nextEpisode}
+            remoteMediaClient={remoteMediaClient}
+            onPressEpisodes={() => setShowEpisodeList(true)}
+            loadEpisode={loadEpisode}
+            router={router}
+          />
 
           {/* Fixed bottom controls area */}
           <View
