@@ -462,7 +462,19 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleFontSize(size: Int) {
         MPVLib.setPropertyInt("sub-font-size", size)
     }
-    
+
+    fun setSubtitleBorderStyle(style: String) {
+        MPVLib.setPropertyString("sub-border-style", style)
+    }
+
+    fun setSubtitleBackgroundColor(color: String) {
+        MPVLib.setPropertyString("sub-back-color", color)
+    }
+
+    fun setSubtitleAssOverride(mode: String) {
+        MPVLib.setPropertyString("sub-ass-override", mode)
+    }
+
     // MARK: - Audio Track Controls
     
     fun getAudioTracks(): List<Map<String, Any>> {
