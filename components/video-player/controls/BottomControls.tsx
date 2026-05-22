@@ -164,10 +164,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Pressable
               onPress={() => setChapterListVisible(true)}
               hitSlop={10}
-              className='justify-center'
+              className='justify-center mr-4'
               accessibilityRole='button'
               accessibilityLabel={t("chapters.open")}
-              style={{ marginBottom: 6 }}
             >
               <Ionicons name='list' size={24} color='white' />
             </Pressable>
