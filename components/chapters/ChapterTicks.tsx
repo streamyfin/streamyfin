@@ -14,12 +14,15 @@ interface ChapterTicksProps {
   durationMs: number;
   /** Tick colour. */
   color?: string;
+  /** Tick height in px — slightly less than the slider track thickness. */
+  height?: number;
 }
 
 export function ChapterTicks({
   chapters,
   durationMs,
   color = "#fff",
+  height = 6,
 }: ChapterTicksProps) {
   const markers = chapterMarkers(chapters, durationMs);
   // One chapter (typically a single marker at 0) is not worth marking.
@@ -36,8 +39,9 @@ export function ChapterTicks({
           style={{
             position: "absolute",
             left: `${marker.percent}%`,
-            top: "25%",
-            height: "50%",
+            top: "50%",
+            marginTop: -height / 2,
+            height,
             width: 2,
             backgroundColor: color,
           }}

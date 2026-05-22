@@ -131,7 +131,11 @@ export function CastPlayerProgressBar({
           thumbWidth={16}
           panHitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
         />
-        <ChapterTicks chapters={chapters} durationMs={duration * 1000} />
+        <ChapterTicks
+          chapters={chapters}
+          durationMs={duration * 1000}
+          height={4}
+        />
         {__DEV__ && DEBUG_TOUCH_ZONES && (
           <View
             pointerEvents='none'
