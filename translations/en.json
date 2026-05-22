@@ -685,7 +685,9 @@
   },
   "chapters": {
     "title": "Chapters",
-    "chapter_number": "Chapter {{number}}"
+    "chapter_number": "Chapter {{number}}",
+    "open": "Open chapters",
+    "close": "Close chapters"
   },
   "item_card": {
     "next_up": "Next Up",

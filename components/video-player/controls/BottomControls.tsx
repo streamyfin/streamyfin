@@ -3,7 +3,8 @@ import type {
   BaseItemDto,
   ChapterInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { type FC, useState } from "react";
+import { type FC, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { type SharedValue } from "react-native-reanimated";
@@ -106,11 +107,16 @@ export const BottomControls: FC<BottomControlsProps> = ({
   time,
 }) => {
   const { settings } = useSettings();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [chapterListVisible, setChapterListVisible] = useState(false);
 
   // Only expose chapter UI when there are at least two real markers.
-  const hasChapters = chapterMarkers(chapters, durationMs).length > 1;
+  const chapterMarkerList = useMemo(
+    () => chapterMarkers(chapters, durationMs),
+    [chapters, durationMs],
+  );
+  const hasChapters = chapterMarkerList.length > 1;
 
   return (
     <View
@@ -159,6 +165,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
               onPress={() => setChapterListVisible(true)}
               hitSlop={10}
               className='justify-center'
+              accessibilityRole='button'
+              accessibilityLabel={t("chapters.open")}
+              style={{ marginBottom: 6 }}
             >
               <Ionicons name='list' size={24} color='white' />
             </Pressable>

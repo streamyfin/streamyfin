@@ -4,8 +4,7 @@
  */
 
 import type { ChapterInfo } from "@jellyfin/sdk/lib/generated-client/models";
-
-const TICKS_PER_MS = 10000;
+import { ticksToMs } from "@/utils/time";
 
 export interface ChapterMarker {
   /** Chapter start, in milliseconds. */
@@ -25,9 +24,10 @@ export const sortedChapters = (
   chapters: ChapterInfo[] | null | undefined,
 ): ChapterEntry[] =>
   (chapters ?? [])
+    .filter((c) => c.StartPositionTicks != null)
     .map((chapter) => ({
       chapter,
-      positionMs: (chapter.StartPositionTicks ?? 0) / TICKS_PER_MS,
+      positionMs: ticksToMs(chapter.StartPositionTicks),
     }))
     .sort((a, b) => a.positionMs - b.positionMs);
 
@@ -36,7 +36,8 @@ export const chapterStartsMs = (
   chapters: ChapterInfo[] | null | undefined,
 ): number[] =>
   (chapters ?? [])
-    .map((c) => (c.StartPositionTicks ?? 0) / TICKS_PER_MS)
+    .filter((c) => c.StartPositionTicks != null)
+    .map((c) => ticksToMs(c.StartPositionTicks))
     .sort((a, b) => a - b);
 
 /** Chapter markers within [0, durationMs]; empty when duration is unknown. */
@@ -46,7 +47,7 @@ export const chapterMarkers = (
 ): ChapterMarker[] => {
   if (durationMs <= 0) return [];
   return chapterStartsMs(chapters)
-    .filter((ms) => ms >= 0 && ms <= durationMs)
+    .filter((ms) => ms >= 0 && ms < durationMs)
     .map((ms) => ({ positionMs: ms, percent: (ms / durationMs) * 100 }));
 };
 

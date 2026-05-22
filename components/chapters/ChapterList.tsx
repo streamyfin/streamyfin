@@ -72,13 +72,18 @@ export function ChapterList({
             <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
               {t("chapters.title")}
             </Text>
-            <Pressable onPress={onClose} hitSlop={10}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={10}
+              accessibilityRole='button'
+              accessibilityLabel={t("chapters.close")}
+            >
               <Ionicons name='close' size={24} color='#fff' />
             </Pressable>
           </View>
           <FlatList
             data={entries}
-            keyExtractor={(_, i) => String(i)}
+            keyExtractor={(item, index) => `${item.positionMs}-${index}`}
             renderItem={({ item, index }) => {
               const positionMs = item.positionMs;
               const isActive = index === activeIndex;

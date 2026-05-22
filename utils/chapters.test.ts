@@ -32,6 +32,18 @@ describe("chapterMarkers", () => {
     expect(chapterMarkers(null, 120_000)).toEqual([]);
     expect(chapterMarkers(undefined, 120_000)).toEqual([]);
   });
+
+  test("excludes a chapter exactly at the duration", () => {
+    expect(chapterMarkers([ch(0), ch(120_000)], 120_000)).toEqual([
+      { positionMs: 0, percent: 0 },
+    ]);
+  });
+
+  test("skips chapters with no StartPositionTicks", () => {
+    expect(
+      chapterMarkers([{ StartPositionTicks: undefined }, ch(30_000)], 120_000),
+    ).toEqual([{ positionMs: 30_000, percent: 25 }]);
+  });
 });
 
 describe("currentChapterIndex", () => {
