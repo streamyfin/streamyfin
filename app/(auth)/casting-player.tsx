@@ -545,6 +545,7 @@ export default function CastingPlayerScreen() {
               duration={duration}
               remoteMediaClient={remoteMediaClient}
               protocolColor={protocolColor}
+              chapters={currentItem?.Chapters}
               t={t}
             />
 

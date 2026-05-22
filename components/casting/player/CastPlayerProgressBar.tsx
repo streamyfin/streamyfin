@@ -3,12 +3,14 @@
  * Progress slider with trickplay preview bubble and current/end time display.
  */
 
+import type { ChapterInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import type { TFunction } from "i18next";
 import { Text, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import type { RemoteMediaClient } from "react-native-google-cast";
 import type { SharedValue } from "react-native-reanimated";
 import { CastTrickplayBubble } from "@/components/casting/player/CastTrickplayBubble";
+import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import type { useTrickplay } from "@/hooks/useTrickplay";
 import { DEBUG_TOUCH_ZONES } from "@/utils/casting/debug";
 import { calculateEndingTime, formatTime } from "@/utils/casting/helpers";
@@ -47,6 +49,8 @@ interface CastPlayerProgressBarProps {
   remoteMediaClient: RemoteMediaClient | null;
   /** Theme color used for the slider track and bubbles. */
   protocolColor: string;
+  /** Chapter markers for the current item, or null/undefined if none. */
+  chapters?: ChapterInfo[] | null;
   /** Translation function. */
   t: TFunction;
 }
@@ -65,6 +69,7 @@ export function CastPlayerProgressBar({
   duration,
   remoteMediaClient,
   protocolColor,
+  chapters,
   t,
 }: CastPlayerProgressBarProps) {
   return (
@@ -126,6 +131,7 @@ export function CastPlayerProgressBar({
           thumbWidth={16}
           panHitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
         />
+        <ChapterTicks chapters={chapters} durationMs={duration * 1000} />
         {__DEV__ && DEBUG_TOUCH_ZONES && (
           <View
             pointerEvents='none'
