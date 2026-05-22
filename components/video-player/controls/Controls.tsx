@@ -670,6 +670,7 @@ export const Controls: FC<Props> = ({
               skipIntro={skipIntro}
               skipCredit={skipCredit}
               nextItem={nextItem}
+              api={api}
               handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
               handleNextEpisodeManual={handleNextEpisodeManual}
               handleControlsInteraction={handleControlsInteraction}
