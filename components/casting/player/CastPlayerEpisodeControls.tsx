@@ -68,53 +68,52 @@ export function CastPlayerEpisodeControls({
         <Ionicons name='list' size={22} color='white' />
       </Pressable>
 
-      {/* Previous episode button */}
-      <Pressable
-        onPress={async () => {
-          const currentIndex = episodes.findIndex(
-            (ep) => ep.Id === currentItemId,
-          );
-          if (currentIndex > 0) {
-            await loadEpisode(episodes[currentIndex - 1]);
-          }
-        }}
-        disabled={episodes.findIndex((ep) => ep.Id === currentItemId) <= 0}
-        style={{
-          flex: 1,
-          backgroundColor: "#1a1a1a",
-          padding: 12,
-          borderRadius: 12,
-          flexDirection: "row",
-          justifyContent: "center",
-          alignItems: "center",
-          opacity:
-            episodes.findIndex((ep) => ep.Id === currentItemId) <= 0 ? 0.4 : 1,
-        }}
-      >
-        <Ionicons name='play-skip-back' size={22} color='white' />
-      </Pressable>
+      {/* Previous episode button - only rendered when a previous episode exists */}
+      {episodes.findIndex((ep) => ep.Id === currentItemId) > 0 && (
+        <Pressable
+          onPress={async () => {
+            const currentIndex = episodes.findIndex(
+              (ep) => ep.Id === currentItemId,
+            );
+            if (currentIndex > 0) {
+              await loadEpisode(episodes[currentIndex - 1]);
+            }
+          }}
+          style={{
+            flex: 1,
+            backgroundColor: "#1a1a1a",
+            padding: 12,
+            borderRadius: 12,
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Ionicons name='play-skip-back' size={22} color='white' />
+        </Pressable>
+      )}
 
-      {/* Next episode button */}
-      <Pressable
-        onPress={async () => {
-          if (nextEpisode) {
-            await loadEpisode(nextEpisode);
-          }
-        }}
-        disabled={!nextEpisode}
-        style={{
-          flex: 1,
-          backgroundColor: "#1a1a1a",
-          padding: 12,
-          borderRadius: 12,
-          flexDirection: "row",
-          justifyContent: "center",
-          alignItems: "center",
-          opacity: nextEpisode ? 1 : 0.4,
-        }}
-      >
-        <Ionicons name='play-skip-forward' size={22} color='white' />
-      </Pressable>
+      {/* Next episode button - only rendered when a next episode exists */}
+      {nextEpisode && (
+        <Pressable
+          onPress={async () => {
+            if (nextEpisode) {
+              await loadEpisode(nextEpisode);
+            }
+          }}
+          style={{
+            flex: 1,
+            backgroundColor: "#1a1a1a",
+            padding: 12,
+            borderRadius: 12,
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Ionicons name='play-skip-forward' size={22} color='white' />
+        </Pressable>
+      )}
 
       {/* Stop playback button - stops media but stays connected to Chromecast */}
       <Pressable
