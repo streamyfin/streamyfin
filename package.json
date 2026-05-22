@@ -15,6 +15,7 @@
     "android:tv": "cross-env EXPO_TV=1 expo run:android",
     "build:android:local": "cd android && cross-env NODE_ENV=production ./gradlew assembleRelease",
     "ios:unsigned-build": "cross-env EXPO_TV=0 bun scripts/ios/build-ios.ts --production",
+    "ios:unsigned-build:tv": "cross-env EXPO_TV=1 bun scripts/ios/build-ios.ts --production",
     "prepare": "husky",
     "typecheck": "node scripts/typecheck.js",
     "check": "biome check . --max-diagnostics 1000",
