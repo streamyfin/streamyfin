@@ -3,6 +3,7 @@ import React from "react";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVItemCardTextProps {
   item: BaseItemDto;
@@ -12,7 +13,7 @@ export const TVItemCardText: React.FC<TVItemCardTextProps> = ({ item }) => {
   const typography = useScaledTVTypography();
 
   return (
-    <View style={{ marginTop: 12 }}>
+    <View style={{ marginTop: scaleSize(12) }}>
       <Text
         numberOfLines={1}
         style={{ fontSize: typography.callout, color: "#FFFFFF" }}
@@ -23,7 +24,7 @@ export const TVItemCardText: React.FC<TVItemCardTextProps> = ({ item }) => {
         style={{
           fontSize: typography.callout - 2,
           color: "#9CA3AF",
-          marginTop: 2,
+          marginTop: scaleSize(2),
         }}
       >
         {item.ProductionYear}

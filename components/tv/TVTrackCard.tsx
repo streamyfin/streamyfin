@@ -96,7 +96,7 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     },
     trackCardSublabel: {
       fontSize: typography.callout,
-      marginTop: 2,
+      marginTop: scaleSize(2),
     },
     checkmark: {
       position: "absolute",

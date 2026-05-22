@@ -240,12 +240,12 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     ratingContainer: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 3,
+      gap: scaleSize(3),
     },
     downloadCountContainer: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 3,
+      gap: scaleSize(3),
     },
     flagsContainer: {
       flexDirection: "row",
