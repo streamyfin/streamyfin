@@ -207,7 +207,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
   const api = useAtomValue(apiAtom);
-  const _insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   // Active item for featured display (debounced)
@@ -381,7 +381,13 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
 
   return (
-    <View style={{ height: heroHeight, width: "100%" }}>
+    <View
+      style={{
+        height: heroHeight + insets.top,
+        width: "100%",
+        paddingTop: insets.top,
+      }}
+    >
       {/* Backdrop layers with crossfade */}
       <View
         style={{
