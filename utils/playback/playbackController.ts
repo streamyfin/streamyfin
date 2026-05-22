@@ -6,7 +6,7 @@
  */
 
 import { atom, useSetAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export interface PlaybackController {
   playPause(): void;
@@ -29,19 +29,46 @@ export const activePlaybackControllerAtom = atom<PlaybackController | null>(
 
 /**
  * Register `controller` as the active playback controller while `active` is
- * true. Clears the atom on unmount or when `active` becomes false — but only if
- * the atom still holds this exact controller (so a newer registration wins).
+ * true. Cleared on unmount or when `active` becomes false.
+ *
+ * The registered value is a *stable proxy* whose identity never changes — it
+ * forwards each call to whatever `controller` is current (tracked via a ref).
+ * This keeps the registration effect's dependencies stable (`active` only), so
+ * a `controller` that is recreated every render does NOT re-run the effect and
+ * cannot cause a `setState`/render loop.
  */
 export const useRegisterPlaybackController = (
   controller: PlaybackController | null,
   active: boolean,
 ): void => {
   const setController = useSetAtom(activePlaybackControllerAtom);
-  useEffect(() => {
-    if (!active || !controller) return;
-    setController(controller);
-    return () => {
-      setController((current) => (current === controller ? null : current));
+
+  // Always points at the latest controller passed in.
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
+
+  // Created once; its identity is stable for the component's lifetime.
+  const proxyRef = useRef<PlaybackController | null>(null);
+  if (proxyRef.current === null) {
+    proxyRef.current = {
+      playPause: () => controllerRef.current?.playPause(),
+      pause: () => controllerRef.current?.pause(),
+      unpause: () => controllerRef.current?.unpause(),
+      stop: () => controllerRef.current?.stop(),
+      seek: (positionMs) => controllerRef.current?.seek(positionMs),
+      next: () => controllerRef.current?.next(),
+      previous: () => controllerRef.current?.previous(),
+      setVolume: (level) => controllerRef.current?.setVolume(level),
+      toggleMute: () => controllerRef.current?.toggleMute(),
     };
-  }, [active, controller, setController]);
+  }
+
+  useEffect(() => {
+    if (!active) return;
+    const proxy = proxyRef.current;
+    setController(proxy);
+    return () => {
+      setController((current) => (current === proxy ? null : current));
+    };
+  }, [active, setController]);
 };
