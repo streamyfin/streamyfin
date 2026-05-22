@@ -33,6 +33,10 @@ import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { storage } from "@/utils/mmkv";
+import {
+  type PlaybackController,
+  useRegisterPlaybackController,
+} from "@/utils/playback/playbackController";
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -1528,6 +1532,43 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     settings?.audioLookaheadEnabled,
     settings?.audioLookaheadCount,
   ]);
+
+  // App-wide remote-control surface: wraps the existing music controls so
+  // remote commands can target whatever player is currently active.
+  const isMusicActive = state.currentTrack !== null;
+
+  const playbackController = useMemo<PlaybackController>(
+    () => ({
+      playPause: () => {
+        togglePlayPause();
+      },
+      pause: () => {
+        pause();
+      },
+      unpause: () => {
+        resume();
+      },
+      stop: () => {
+        stop();
+      },
+      // TrackPlayer works in seconds; the controller contract is milliseconds.
+      seek: (positionMs: number) => {
+        seek(positionMs / 1000);
+      },
+      next: () => {
+        next();
+      },
+      previous: () => {
+        previous();
+      },
+      // The music player exposes no volume API — keep these as no-ops.
+      setVolume: () => {},
+      toggleMute: () => {},
+    }),
+    [togglePlayPause, pause, resume, stop, seek, next, previous],
+  );
+
+  useRegisterPlaybackController(playbackController, isMusicActive);
 
   const value = useMemo(
     () => ({
