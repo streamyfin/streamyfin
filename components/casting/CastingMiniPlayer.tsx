@@ -9,7 +9,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import {
   MediaPlayerState,
@@ -23,14 +23,11 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CastTrickplayBubble } from "@/components/casting/player/CastTrickplayBubble";
 import { Text } from "@/components/common/Text";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import {
-  formatTime,
-  formatTrickplayTime,
-  getPosterUrl,
-} from "@/utils/casting/helpers";
+import { formatTime, getPosterUrl } from "@/utils/casting/helpers";
 import { CASTING_CONSTANTS } from "@/utils/casting/types";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
@@ -54,7 +51,6 @@ export const CastingMiniPlayer: React.FC = () => {
     minutes: 0,
     seconds: 0,
   });
-  const [scrubPercentage, setScrubPercentage] = useState(0);
   const isScrubbing = useRef(false);
 
   // Slider shared values
@@ -223,11 +219,6 @@ export const CastingMiniPlayer: React.FC = () => {
             const minutes = Math.floor((progressInSeconds % 3600) / 60);
             const seconds = progressInSeconds % 60;
             setTrickplayTime({ hours, minutes, seconds });
-
-            // Track scrub percentage for bubble positioning
-            if (duration > 0) {
-              setScrubPercentage(value / duration);
-            }
           }}
           onSlidingComplete={(value) => {
             isScrubbing.current = false;
@@ -241,119 +232,15 @@ export const CastingMiniPlayer: React.FC = () => {
                 });
             }
           }}
-          renderBubble={() => {
-            // Calculate bubble position with edge clamping
-            const screenWidth = Dimensions.get("window").width;
-            const sliderPadding = 8;
-            const thumbWidth = 10; // matches thumbWidth prop on Slider
-            const sliderWidth = screenWidth - sliderPadding * 2;
-            // Adjust thumb position to account for thumb width affecting travel range
-            const effectiveTrackWidth = sliderWidth - thumbWidth;
-            const thumbPosition =
-              thumbWidth / 2 + scrubPercentage * effectiveTrackWidth;
-
-            if (!trickPlayUrl || !trickplayInfo) {
-              // Show simple time bubble when no trickplay
-              const timeBubbleWidth = 70;
-              const minLeft = -thumbPosition;
-              const maxLeft = sliderWidth - thumbPosition - timeBubbleWidth;
-              const centeredLeft = -timeBubbleWidth / 2;
-              const clampedLeft = Math.max(
-                minLeft,
-                Math.min(maxLeft, centeredLeft),
-              );
-
-              return (
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 12,
-                    left: clampedLeft,
-                    backgroundColor: protocolColor,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 4,
-                  }}
-                >
-                  <Text
-                    style={{ color: "#fff", fontSize: 11, fontWeight: "600" }}
-                  >
-                    {formatTrickplayTime(trickplayTime)}
-                  </Text>
-                </View>
-              );
-            }
-
-            const { x, y, url } = trickPlayUrl;
-            const tileWidth = 140; // Smaller preview for mini player
-            const tileHeight = tileWidth / (trickplayInfo.aspectRatio ?? 1.78);
-
-            // Calculate clamped position for trickplay preview
-            const minLeft = -thumbPosition;
-            const maxLeft = sliderWidth - thumbPosition - tileWidth;
-            const centeredLeft = -tileWidth / 2;
-            const clampedLeft = Math.max(
-              minLeft,
-              Math.min(maxLeft, centeredLeft),
-            );
-
-            return (
-              <View
-                style={{
-                  position: "absolute",
-                  bottom: 12,
-                  left: clampedLeft,
-                  width: tileWidth,
-                  alignItems: "center",
-                }}
-              >
-                {/* Trickplay image preview */}
-                <View
-                  style={{
-                    width: tileWidth,
-                    height: tileHeight,
-                    borderRadius: 6,
-                    overflow: "hidden",
-                    backgroundColor: "#1a1a1a",
-                  }}
-                >
-                  <Image
-                    cachePolicy='memory-disk'
-                    style={{
-                      width: tileWidth * (trickplayInfo.data?.TileWidth ?? 1),
-                      height:
-                        (tileWidth / (trickplayInfo.aspectRatio ?? 1.78)) *
-                        (trickplayInfo.data?.TileHeight ?? 1),
-                      transform: [
-                        { translateX: -x * tileWidth },
-                        { translateY: -y * tileHeight },
-                      ],
-                    }}
-                    source={{ uri: url }}
-                    contentFit='cover'
-                  />
-                </View>
-                {/* Time overlay */}
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 2,
-                    left: 2,
-                    backgroundColor: "rgba(0, 0, 0, 0.7)",
-                    paddingHorizontal: 4,
-                    paddingVertical: 1,
-                    borderRadius: 3,
-                  }}
-                >
-                  <Text
-                    style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}
-                  >
-                    {formatTrickplayTime(trickplayTime)}
-                  </Text>
-                </View>
-              </View>
-            );
-          }}
+          renderBubble={() => (
+            <CastTrickplayBubble
+              trickPlayUrl={trickPlayUrl}
+              trickplayInfo={trickplayInfo}
+              trickplayTime={trickplayTime}
+              tileWidth={140}
+            />
+          )}
+          bubbleWidth={trickPlayUrl && trickplayInfo ? 140 : 60}
           sliderHeight={3}
           thumbWidth={10}
           panHitSlop={{ top: 20, bottom: 20, left: 5, right: 5 }}
@@ -435,6 +322,19 @@ export const CastingMiniPlayer: React.FC = () => {
               </Text>
             </View>
           </View>
+
+          {/* Stop button */}
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              remoteMediaClient?.stop()?.catch((error: unknown) => {
+                console.error("[CastingMiniPlayer] Stop error:", error);
+              });
+            }}
+            style={{ padding: 8 }}
+          >
+            <Ionicons name='stop' size={24} color='white' />
+          </Pressable>
 
           {/* Play/Pause button */}
           <Pressable
