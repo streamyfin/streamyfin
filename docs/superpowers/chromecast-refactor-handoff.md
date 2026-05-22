@@ -10,9 +10,10 @@ resumed in a later session. Specs and plans for each sub-project live in
 
 ## 1. Summary
 
-The Chromecast casting code (PR #1402) was refactored in four sub-projects plus one
-prep task. All four are **implemented, type-checked, and unit-tested**; the branch is
-86 commits ahead of `develop`, **46 commits unpushed** to `origin/refactor-chromecast`.
+The Chromecast casting code (PR #1402) was refactored across five sub-projects, a
+prep task, and small cleanups. All sub-projects are **implemented, type-checked, and
+unit-tested**; the branch has dozens of commits unpushed to
+`origin/refactor-chromecast` (run `git log origin/refactor-chromecast..HEAD`).
 
 | Sub-project | What | Status |
 |---|---|---|
@@ -21,6 +22,8 @@ prep task. All four are **implemented, type-checked, and unit-tested**; the bran
 | **B** — Track switching | `CastSelection` source-of-truth via customData, audio/subtitle/quality/version switching, multi-version | ✅ done, **verified on hardware** |
 | **C** — Player split | `casting-player.tsx` 1428→574 lines: 6 components + 4 hooks | ✅ done, **needs manual re-test** |
 | **D** — Session & remote control | Correct PlayMethod, conditional episode buttons, `loadEpisode` race fix, app-wide Jellyfin remote control | ✅ done, **needs manual test** |
+| **UX player** — Trickplay & mini-player | Trickplay bubble clamp via `bubbleWidth`, shared `CastTrickplayBubble`, plain-text time, mini-player stop button, `DEBUG_TOUCH_ZONES` overlay | ✅ done, **needs manual test** |
+| Loose ends | Dead `liveProgress` export removed, `BitRateSheet` duplicate removed, full-width labelled stop button for movies | ✅ done |
 
 Verification gate for the whole branch: `bun run typecheck` ✅, `bun test utils/` ✅
 (32 tests). Note: project-wide `bun run check` shows ~124 pre-existing CRLF errors —
@@ -110,20 +113,15 @@ stop / seek / next / volume / "send message" against the cast and the native pla
 
 ## 7. Pending work (queue)
 
-- **UX player sub-project** (not started) — 5 items the user reported:
-  1. Trickplay preview window is truncated at the right screen edge / does not track
-     the cursor.
-  2. The progress-bar touch zone is too large — it overlaps and **blocks** the
-     4-button control row. (The user intends to tune the exact touch-zone size
-     themselves, e.g. by visualising it with a temporary coloured overlay.)
-  3. The purple time label should sit directly above the progress cursor.
-  4. Trickplay on the mini-player progress bar.
-  5. A stop button on the mini-player.
-  These now live in clean post-C files (`CastPlayerProgressBar`, `CastingMiniPlayer`).
+- **UX player sub-project** — ✅ done (see the UX player row in §1; spec/plan
+  `2026-05-22-chromecast-ux-player`). Trickplay truncation, time display, mini-player
+  trickplay + stop button all fixed. Remaining there: the user hand-calibrates the
+  slider `panHitSlop` using the `DEBUG_TOUCH_ZONES` overlay (flag in
+  `utils/casting/debug.ts` — flip to `true`, calibrate, flip back).
 - **Repo hygiene** — add `* text=auto eol=lf` to `.gitattributes` (fixes the ~124
-  CRLF errors in `bun run check`); de-duplicate `BitRateSheet.tsx` vs
-  `BitrateSelector.tsx`; remove the unused `liveProgress` export from
-  `useCastPlayerProgress.ts`.
+  CRLF errors in `bun run check`); this is best done as a separate PR off `develop`,
+  since a `git add --renormalize` touches the whole tree. (The `BitRateSheet.tsx`
+  duplicate and the unused `liveProgress` export have already been removed.)
 - **Custom Cast receiver** (deferred from sub-project A) — PR #1521 builds a custom
   CAF receiver. Decided to defer; revisit as its own sub-project. It would own
   subtitle rendering/styling (ASS, custom style — issues #1452, #1543) and cleaner
