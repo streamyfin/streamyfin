@@ -44,9 +44,7 @@ import {
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-
 import { useSettings } from "@/utils/atoms/settings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -55,6 +53,10 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
+import {
+  type PlaybackController,
+  useRegisterPlaybackController,
+} from "@/utils/playback/playbackController";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
@@ -772,6 +774,47 @@ export default function page() {
   const getTechnicalInfo = useCallback(async () => {
     return (await videoRef.current?.getTechnicalInfo?.()) ?? {};
   }, []);
+
+  // App-wide remote control: wrap the player's existing handlers so remote
+  // commands (e.g. dashboard, WebSocket) route to whatever is playing.
+  const playbackController = useMemo<PlaybackController>(
+    () => ({
+      // togglePlay flips play/pause and reports progress to the server.
+      playPause: () => {
+        void togglePlay();
+      },
+      pause: () => {
+        pause();
+      },
+      unpause: () => {
+        play();
+      },
+      stop: () => {
+        stop();
+      },
+      // PlaybackController seeks in ms; the player's seek already expects ms.
+      seek: (positionMs: number) => {
+        seek(positionMs);
+      },
+      // The player screen has no episode-loading path of its own — episode
+      // navigation is handled inside <Controls> via router replacement — so
+      // next/previous are honest no-ops here.
+      next: () => {},
+      previous: () => {},
+      // Volume is device-level (react-native-volume-manager); the slider sends
+      // 0-1 while setVolumeCb expects 0-100.
+      setVolume: (level: number) => {
+        void setVolumeCb(level * 100);
+      },
+      toggleMute: () => {
+        void toggleMuteCb();
+      },
+    }),
+    [togglePlay, pause, play, stop, seek, setVolumeCb, toggleMuteCb],
+  );
+
+  // Active for the whole lifetime of the player screen; cleared on unmount.
+  useRegisterPlaybackController(playbackController, true);
 
   // Determine play method based on stream URL and media source
   const playMethod = useMemo<
