@@ -46,7 +46,7 @@ import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
 const HORIZONTAL_PADDING = scaleSize(60);
 const TOP_PADDING = scaleSize(100);
 // Generous gap between sections for Apple TV+ aesthetic
-const SECTION_GAP = scaleSize(10);
+const SECTION_GAP = scaleSize(24);
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
