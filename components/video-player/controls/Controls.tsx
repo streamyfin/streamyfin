@@ -655,6 +655,8 @@ export const Controls: FC<Props> = ({
           >
             <BottomControls
               item={item}
+              chapters={item.Chapters}
+              durationMs={maxMs}
               showControls={showControls}
               isSliding={isSliding}
               showRemoteBubble={showRemoteBubble}

@@ -1,11 +1,18 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import type { FC } from "react";
-import { View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import type {
+  BaseItemDto,
+  ChapterInfo,
+} from "@jellyfin/sdk/lib/generated-client";
+import { type FC, useState } from "react";
+import { Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChapterList } from "@/components/chapters/ChapterList";
+import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
 import { useSettings } from "@/utils/atoms/settings";
+import { chapterMarkers } from "@/utils/chapters";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 import { TimeDisplay } from "./TimeDisplay";
@@ -13,6 +20,10 @@ import { TrickplayBubble } from "./TrickplayBubble";
 
 interface BottomControlsProps {
   item: BaseItemDto;
+  /** Item chapters, used for the tick overlay and chapter list. */
+  chapters?: ChapterInfo[] | null;
+  /** Total media duration in milliseconds. */
+  durationMs: number;
   showControls: boolean;
   isSliding: boolean;
   showRemoteBubble: boolean;
@@ -63,6 +74,8 @@ interface BottomControlsProps {
 
 export const BottomControls: FC<BottomControlsProps> = ({
   item,
+  chapters,
+  durationMs,
   showControls,
   isSliding,
   showRemoteBubble,
@@ -94,6 +107,10 @@ export const BottomControls: FC<BottomControlsProps> = ({
 }) => {
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
+  const [chapterListVisible, setChapterListVisible] = useState(false);
+
+  // Only expose chapter UI when there are at least two real markers.
+  const hasChapters = chapterMarkers(chapters, durationMs).length > 1;
 
   return (
     <View
@@ -136,7 +153,16 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Text className='text-xs opacity-50'>{item?.Album}</Text>
           )}
         </View>
-        <View className='flex flex-row space-x-2 shrink-0'>
+        <View className='flex flex-row items-center space-x-2 shrink-0'>
+          {hasChapters && (
+            <Pressable
+              onPress={() => setChapterListVisible(true)}
+              hitSlop={10}
+              className='justify-center'
+            >
+              <Ionicons name='list' size={24} color='white' />
+            </Pressable>
+          )}
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
@@ -216,6 +242,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               minimumValue={min}
               maximumValue={max}
             />
+            <ChapterTicks chapters={chapters} durationMs={durationMs} />
           </View>
           <TimeDisplay
             currentTime={currentTime}
@@ -223,6 +250,13 @@ export const BottomControls: FC<BottomControlsProps> = ({
           />
         </View>
       </View>
+      <ChapterList
+        visible={chapterListVisible}
+        chapters={chapters}
+        currentPositionMs={currentTime}
+        onSeek={(ms) => handleSliderComplete(ms)}
+        onClose={() => setChapterListVisible(false)}
+      />
     </View>
   );
 };
