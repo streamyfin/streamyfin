@@ -20,6 +20,13 @@ interface UseCastEpisodesResult {
   nextEpisode: BaseItemDto | null;
   seasonData: BaseItemDto | null;
   loadEpisode: (episode: BaseItemDto) => Promise<void>;
+  /**
+   * Id of the episode currently being loaded onto the cast device, or null
+   * when no load is pending. The cast `customData` (and thus `currentItem`)
+   * lags behind the load, so consumers use this to detect the stale window
+   * between a `loadEpisode` call and the cast reporting the new episode.
+   */
+  loadingEpisodeId: string | null;
 }
 
 export function useCastEpisodes({
@@ -33,12 +40,15 @@ export function useCastEpisodes({
   const [episodes, setEpisodes] = useState<BaseItemDto[]>([]);
   const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null);
   const [seasonData, setSeasonData] = useState<BaseItemDto | null>(null);
+  // Target episode id while a load is in flight; cleared once it resolves.
+  const [loadingEpisodeId, setLoadingEpisodeId] = useState<string | null>(null);
 
   // Load a different episode on the Chromecast
   const loadEpisode = useCallback(
     async (episode: BaseItemDto) => {
       if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
 
+      setLoadingEpisodeId(episode.Id);
       try {
         const startPositionMs =
           (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000;
@@ -63,6 +73,10 @@ export function useCastEpisodes({
         }
       } catch (error) {
         console.error("[Casting Player] Failed to load episode:", error);
+      } finally {
+        // Clear regardless of outcome: on success `currentItem` catches up via
+        // customData; on failure the stale guard must not stay stuck.
+        setLoadingEpisodeId(null);
       }
     },
     [
@@ -143,5 +157,5 @@ export function useCastEpisodes({
     api,
   ]);
 
-  return { episodes, nextEpisode, seasonData, loadEpisode };
+  return { episodes, nextEpisode, seasonData, loadEpisode, loadingEpisodeId };
 }

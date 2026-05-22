@@ -172,14 +172,21 @@ export default function CastingPlayerScreen() {
   });
 
   // Episode/season cluster: episode list, next episode, season data, loader
-  const { episodes, nextEpisode, seasonData, loadEpisode } = useCastEpisodes({
-    api,
-    user,
-    currentItem,
-    remoteMediaClient,
-    castDevice,
-    settings,
-  });
+  const { episodes, nextEpisode, seasonData, loadEpisode, loadingEpisodeId } =
+    useCastEpisodes({
+      api,
+      user,
+      currentItem,
+      remoteMediaClient,
+      castDevice,
+      settings,
+    });
+
+  // True while a `loadEpisode` is in flight and `currentItem` (derived from the
+  // cast customData) still describes the previous episode. Used to suppress
+  // episode-dependent secondary UI that would otherwise flash stale data.
+  const isEpisodeTransitioning =
+    loadingEpisodeId != null && loadingEpisodeId !== currentItem?.Id;
 
   // Expose this player to the app-wide remote-control surface while a cast
   // session is connected. `castingControls` is the live useCasting result.
@@ -442,12 +449,15 @@ export default function CastingPlayerScreen() {
             onPressSettings={() => setShowSettings(true)}
           />
 
-          {/* Title Area */}
-          <CastPlayerTitle
-            insetTop={insets.top}
-            currentItem={currentItem}
-            t={t}
-          />
+          {/* Title Area — hidden during an episode change to avoid flashing
+              the previous episode's title/season-episode numbers. */}
+          {!isEpisodeTransitioning && (
+            <CastPlayerTitle
+              insetTop={insets.top}
+              currentItem={currentItem}
+              t={t}
+            />
+          )}
 
           {/* Scrollable content area */}
           <ScrollView
@@ -458,10 +468,11 @@ export default function CastingPlayerScreen() {
             }}
             showsVerticalScrollIndicator={false}
           >
-            {/* Poster with buffering overlay */}
+            {/* Poster with buffering overlay — force the overlay during an
+                episode change so the loading state covers the stale poster. */}
             <CastPlayerPoster
               posterUrl={posterUrl}
-              isBuffering={isBuffering}
+              isBuffering={isBuffering || isEpisodeTransitioning}
               currentSegment={currentSegment}
               skipIntro={skipIntro}
               skipCredits={skipCredits}
@@ -596,12 +607,14 @@ export default function CastingPlayerScreen() {
             qualities={availableQualities}
             selectedMaxBitrate={currentSelection?.maxBitrate}
             onQualityChange={(value) => applySelection({ maxBitrate: value })}
-            audioTracks={availableAudioTracks}
+            audioTracks={isEpisodeTransitioning ? [] : availableAudioTracks}
             selectedAudioIndex={currentSelection?.audioStreamIndex ?? -1}
             onAudioChange={(index) =>
               applySelection({ audioStreamIndex: index })
             }
-            subtitleTracks={availableSubtitleTracks}
+            subtitleTracks={
+              isEpisodeTransitioning ? [] : availableSubtitleTracks
+            }
             selectedSubtitleIndex={currentSelection?.subtitleStreamIndex ?? -1}
             onSubtitleChange={(index) =>
               applySelection({ subtitleStreamIndex: index })
