@@ -243,6 +243,7 @@ internal object TvRecommendationsPublisher {
       .setContentId(providerId)
       .setIntentUri(buildIntentUri(context, item.optString("playRoute").ifBlank { item.optString("route") }))
       .setWeight(weight)
+      .setPosterArtAspectRatio(TvContractCompat.PreviewPrograms.ASPECT_RATIO_16_9)
 
     item.optString("subtitle").takeIf { it.isNotBlank() }?.let {
       builder.setDescription(it)
@@ -250,7 +251,6 @@ internal object TvRecommendationsPublisher {
 
     imageUrl.takeIf { it.isNotBlank() }?.let {
       val imageUri = Uri.parse(it)
-      builder.setPosterArtUri(imageUri)
       builder.setThumbnailUri(imageUri)
     }
 

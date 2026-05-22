@@ -438,7 +438,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           position: "relative",
           width,
           aspectRatio,
-          borderRadius: scaleSize(4),
+          borderRadius: scaleSize(24),
           overflow: "hidden",
           backgroundColor: "#1a1a1a",
           borderWidth: scaleSize(2),
