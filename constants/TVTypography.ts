@@ -47,10 +47,10 @@ export const useScaledTVTypography = () => {
     scaleMultipliers[TVTypographyScale.Default];
 
   return {
-    display: Math.round(TVTypography.display * scale),
-    title: Math.round(TVTypography.title * scale),
-    heading: Math.round(TVTypography.heading * scale),
-    body: Math.round(TVTypography.body * scale),
-    callout: Math.round(TVTypography.callout * scale),
+    display: Math.round(scaleSize(TVTypography.display) * scale),
+    title: Math.round(scaleSize(TVTypography.title) * scale),
+    heading: Math.round(scaleSize(TVTypography.heading) * scale),
+    body: Math.round(scaleSize(TVTypography.body) * scale),
+    callout: Math.round(scaleSize(TVTypography.callout) * scale),
   };
 };
