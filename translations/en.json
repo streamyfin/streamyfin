@@ -683,6 +683,10 @@
   "custom_links": {
     "no_links": "No Links"
   },
+  "chapters": {
+    "title": "Chapters",
+    "chapter_number": "Chapter {{number}}"
+  },
   "item_card": {
     "next_up": "Next Up",
     "no_items_to_display": "No Items to Display",

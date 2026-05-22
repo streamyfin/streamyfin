@@ -30,9 +30,9 @@ export function ChapterTicks({
       pointerEvents='none'
       style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}
     >
-      {markers.map((marker) => (
+      {markers.map((marker, index) => (
         <View
-          key={marker.positionMs}
+          key={`${marker.positionMs}-${index}`}
           style={{
             position: "absolute",
             left: `${marker.percent}%`,

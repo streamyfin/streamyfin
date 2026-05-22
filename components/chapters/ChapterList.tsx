@@ -6,12 +6,13 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import type { ChapterInfo } from "@jellyfin/sdk/lib/generated-client/models";
+import { useTranslation } from "react-i18next";
 import { FlatList, Modal, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import {
-  chapterStartsMs,
   currentChapterIndex,
   formatChapterTime,
+  sortedChapters,
 } from "@/utils/chapters";
 
 interface ChapterListProps {
@@ -31,9 +32,9 @@ export function ChapterList({
   onSeek,
   onClose,
 }: ChapterListProps) {
-  const starts = chapterStartsMs(chapters);
+  const { t } = useTranslation();
+  const entries = sortedChapters(chapters);
   const activeIndex = currentChapterIndex(currentPositionMs, chapters);
-  const list = chapters ?? [];
 
   return (
     <Modal
@@ -69,17 +70,17 @@ export function ChapterList({
             }}
           >
             <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
-              Chapters
+              {t("chapters.title")}
             </Text>
             <Pressable onPress={onClose} hitSlop={10}>
               <Ionicons name='close' size={24} color='#fff' />
             </Pressable>
           </View>
           <FlatList
-            data={list}
+            data={entries}
             keyExtractor={(_, i) => String(i)}
             renderItem={({ item, index }) => {
-              const positionMs = starts[index] ?? 0;
+              const positionMs = item.positionMs;
               const isActive = index === activeIndex;
               return (
                 <Pressable
@@ -104,7 +105,8 @@ export function ChapterList({
                     }}
                     numberOfLines={1}
                   >
-                    {item.Name || `Chapter ${index + 1}`}
+                    {item.chapter.Name ||
+                      t("chapters.chapter_number", { number: index + 1 })}
                   </Text>
                   <Text style={{ color: "#999", fontSize: 13, marginLeft: 12 }}>
                     {formatChapterTime(positionMs)}

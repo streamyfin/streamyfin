@@ -3,6 +3,7 @@ import {
   chapterMarkers,
   currentChapterIndex,
   formatChapterTime,
+  sortedChapters,
 } from "./chapters";
 
 // Helper: a ChapterInfo with a start in milliseconds.
@@ -45,6 +46,23 @@ describe("currentChapterIndex", () => {
     expect(currentChapterIndex(-5, chapters)).toBe(-1);
     expect(currentChapterIndex(10_000, [])).toBe(-1);
     expect(currentChapterIndex(10_000, null)).toBe(-1);
+  });
+});
+
+describe("sortedChapters", () => {
+  test("pairs each chapter with its ms start, sorted ascending", () => {
+    const a = ch(60_000, "C");
+    const b = ch(0, "A");
+    const c = ch(30_000, "B");
+    expect(sortedChapters([a, b, c])).toEqual([
+      { chapter: b, positionMs: 0 },
+      { chapter: c, positionMs: 30_000 },
+      { chapter: a, positionMs: 60_000 },
+    ]);
+  });
+  test("returns [] for null/undefined", () => {
+    expect(sortedChapters(null)).toEqual([]);
+    expect(sortedChapters(undefined)).toEqual([]);
   });
 });
 

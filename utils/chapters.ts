@@ -14,6 +14,23 @@ export interface ChapterMarker {
   percent: number;
 }
 
+export interface ChapterEntry {
+  chapter: ChapterInfo;
+  /** Chapter start, in milliseconds. */
+  positionMs: number;
+}
+
+/** Chapters paired with their millisecond start, sorted ascending by start. */
+export const sortedChapters = (
+  chapters: ChapterInfo[] | null | undefined,
+): ChapterEntry[] =>
+  (chapters ?? [])
+    .map((chapter) => ({
+      chapter,
+      positionMs: (chapter.StartPositionTicks ?? 0) / TICKS_PER_MS,
+    }))
+    .sort((a, b) => a.positionMs - b.positionMs);
+
 /** Chapter start positions in milliseconds, ascending. */
 export const chapterStartsMs = (
   chapters: ChapterInfo[] | null | undefined,
