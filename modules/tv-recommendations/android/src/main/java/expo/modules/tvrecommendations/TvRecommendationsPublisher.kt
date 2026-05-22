@@ -251,6 +251,7 @@ internal object TvRecommendationsPublisher {
 
     imageUrl.takeIf { it.isNotBlank() }?.let {
       val imageUri = Uri.parse(it)
+      builder.setPosterArtUri(imageUri)
       builder.setThumbnailUri(imageUri)
     }
 

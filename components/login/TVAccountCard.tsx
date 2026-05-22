@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { scaleSize } from "@/utils/scaleSize";
 import type { SavedServerAccount } from "@/utils/secureCredentials";
 
 interface TVAccountCardProps {
@@ -97,9 +98,9 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
             backgroundColor: isFocused ? "#2a2a2a" : "#262626",
             borderWidth: 2,
             borderColor: isFocused ? "#FFFFFF" : "transparent",
-            borderRadius: 16,
-            paddingHorizontal: 24,
-            paddingVertical: 20,
+            borderRadius: scaleSize(16),
+            paddingHorizontal: scaleSize(24),
+            paddingVertical: scaleSize(20),
             flexDirection: "row",
             alignItems: "center",
           }}
@@ -107,23 +108,23 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
           {/* Avatar */}
           <View
             style={{
-              width: 56,
-              height: 56,
+              width: scaleSize(56),
+              height: scaleSize(56),
               backgroundColor: "#404040",
-              borderRadius: 28,
+              borderRadius: scaleSize(28),
               alignItems: "center",
               justifyContent: "center",
-              marginRight: 20,
+              marginRight: scaleSize(20),
             }}
           >
-            <Ionicons name='person' size={28} color='white' />
+            <Ionicons name='person' size={scaleSize(28)} color='white' />
           </View>
 
           {/* Account Info */}
           <View style={{ flex: 1 }}>
             <Text
               style={{
-                fontSize: 22,
+                fontSize: scaleSize(22),
                 fontWeight: "600",
                 color: "#FFFFFF",
               }}
@@ -132,9 +133,9 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
             </Text>
             <Text
               style={{
-                fontSize: 16,
+                fontSize: scaleSize(16),
                 color: "#9CA3AF",
-                marginTop: 4,
+                marginTop: scaleSize(4),
               }}
             >
               {getSecurityText()}
@@ -142,7 +143,11 @@ export const TVAccountCard: React.FC<TVAccountCardProps> = ({
           </View>
 
           {/* Security Icon */}
-          <Ionicons name={getSecurityIcon()} size={24} color='#fff' />
+          <Ionicons
+            name={getSecurityIcon()}
+            size={scaleSize(24)}
+            color='#fff'
+          />
         </View>
       </Animated.View>
     </Pressable>

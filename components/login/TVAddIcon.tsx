@@ -4,6 +4,7 @@ import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVAddIconProps {
   label: string;
@@ -33,24 +34,24 @@ export const TVAddIcon = React.forwardRef<View, TVAddIconProps>(
             animatedStyle,
             {
               alignItems: "center",
-              width: 160,
+              width: scaleSize(160),
               shadowColor: "#fff",
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: focused ? 0.5 : 0,
-              shadowRadius: focused ? 16 : 0,
+              shadowRadius: focused ? scaleSize(16) : 0,
             },
           ]}
         >
           <View
             style={{
-              width: 140,
-              height: 140,
-              borderRadius: 70,
+              width: scaleSize(140),
+              height: scaleSize(140),
+              borderRadius: scaleSize(70),
               backgroundColor: focused
                 ? "rgba(255,255,255,0.15)"
                 : "rgba(255,255,255,0.05)",
-              marginBottom: 14,
-              borderWidth: 2,
+              marginBottom: scaleSize(14),
+              borderWidth: scaleSize(2),
               borderColor: focused ? "#fff" : "rgba(255,255,255,0.3)",
               borderStyle: "dashed",
               justifyContent: "center",
@@ -59,7 +60,7 @@ export const TVAddIcon = React.forwardRef<View, TVAddIconProps>(
           >
             <Ionicons
               name='add'
-              size={56}
+              size={scaleSize(56)}
               color={focused ? "#fff" : "rgba(255,255,255,0.5)"}
             />
           </View>

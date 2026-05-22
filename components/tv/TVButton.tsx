@@ -1,5 +1,6 @@
 import React from "react";
 import { Animated, Pressable, View, type ViewStyle } from "react-native";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVButtonProps {
@@ -98,13 +99,13 @@ export const TVButton: React.FC<TVButtonProps> = ({
             backgroundColor: buttonStyles.backgroundColor,
             borderWidth: buttonStyles.borderWidth,
             borderColor: buttonStyles.borderColor,
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: square ? 18 : 32,
+            borderRadius: scaleSize(12),
+            paddingVertical: scaleSize(18),
+            paddingHorizontal: square ? scaleSize(18) : scaleSize(32),
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            minWidth: square ? undefined : 180,
+            minWidth: square ? undefined : scaleSize(180),
           }}
         >
           {children}

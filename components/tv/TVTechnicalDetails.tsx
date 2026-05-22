@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 
 export interface TVTechnicalDetailsProps {
   mediaStreams: MediaStream[];
@@ -22,18 +23,18 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
     }
 
     return (
-      <View style={{ marginBottom: 32 }}>
+      <View style={{ marginBottom: scaleSize(32) }}>
         <Text
           style={{
             fontSize: typography.heading,
             fontWeight: "600",
             color: "#FFFFFF",
-            marginBottom: 20,
+            marginBottom: scaleSize(20),
           }}
         >
           {t("item_card.technical_details")}
         </Text>
-        <View style={{ flexDirection: "row", gap: 40 }}>
+        <View style={{ flexDirection: "row", gap: scaleSize(40) }}>
           {videoStream && (
             <View>
               <Text
@@ -42,7 +43,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
-                  marginBottom: 4,
+                  marginBottom: scaleSize(4),
                 }}
               >
                 {t("common.video")}
@@ -61,7 +62,7 @@ export const TVTechnicalDetails: React.FC<TVTechnicalDetailsProps> = React.memo(
                   color: "#6B7280",
                   textTransform: "uppercase",
                   letterSpacing: 1,
-                  marginBottom: 4,
+                  marginBottom: scaleSize(4),
                 }}
               >
                 {t("common.audio")}

@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv";
+import { scaleSize } from "@/utils/scaleSize";
 
 interface TVPasswordEntryModalProps {
   visible: boolean;
@@ -51,14 +52,14 @@ const TVSubmitButton: React.FC<{
               : isDisabled
                 ? "#4a4a4a"
                 : "rgba(255,255,255,0.15)",
-            paddingHorizontal: 24,
-            paddingVertical: 14,
-            borderRadius: 10,
+            paddingHorizontal: scaleSize(24),
+            paddingVertical: scaleSize(14),
+            borderRadius: scaleSize(10),
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            gap: 8,
-            minWidth: 120,
+            gap: scaleSize(8),
+            minWidth: scaleSize(120),
             opacity: isDisabled ? 0.5 : 1,
           },
         ]}
@@ -69,12 +70,12 @@ const TVSubmitButton: React.FC<{
           <>
             <Ionicons
               name='log-in-outline'
-              size={20}
+              size={scaleSize(20)}
               color={focused ? "#000" : "#fff"}
             />
             <Text
               style={{
-                fontSize: 16,
+                fontSize: scaleSize(16),
                 color: focused ? "#000" : "#fff",
                 fontWeight: "600",
               }}
@@ -121,11 +122,11 @@ const TVPasswordInput: React.FC<{
           animatedStyle,
           {
             backgroundColor: "#1F2937",
-            borderRadius: 12,
-            borderWidth: 2,
+            borderRadius: scaleSize(12),
+            borderWidth: scaleSize(2),
             borderColor: focused ? "#fff" : "#374151",
-            paddingHorizontal: 16,
-            paddingVertical: 14,
+            paddingHorizontal: scaleSize(16),
+            paddingVertical: scaleSize(14),
           },
         ]}
       >
@@ -140,7 +141,7 @@ const TVPasswordInput: React.FC<{
           autoCorrect={false}
           style={{
             color: "#fff",
-            fontSize: 18,
+            fontSize: scaleSize(18),
           }}
           onSubmitEditing={onSubmitEditing}
           returnKeyType='done'
@@ -299,45 +300,45 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   blurContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: scaleSize(24),
+    borderTopRightRadius: scaleSize(24),
     overflow: "hidden",
   },
   content: {
-    paddingTop: 24,
-    paddingBottom: 50,
+    paddingTop: scaleSize(24),
+    paddingBottom: scaleSize(50),
     overflow: "visible",
   },
   header: {
-    paddingHorizontal: 48,
-    marginBottom: 24,
+    paddingHorizontal: scaleSize(48),
+    marginBottom: scaleSize(24),
   },
   title: {
-    fontSize: 28,
+    fontSize: scaleSize(28),
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 4,
+    marginBottom: scaleSize(4),
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: scaleSize(16),
     color: "rgba(255,255,255,0.6)",
   },
   inputContainer: {
-    paddingHorizontal: 48,
-    marginBottom: 20,
+    paddingHorizontal: scaleSize(48),
+    marginBottom: scaleSize(20),
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: scaleSize(14),
     color: "rgba(255,255,255,0.6)",
-    marginBottom: 8,
+    marginBottom: scaleSize(8),
   },
   errorText: {
     color: "#ef4444",
-    fontSize: 14,
-    marginTop: 8,
+    fontSize: scaleSize(14),
+    marginTop: scaleSize(8),
   },
   buttonContainer: {
-    paddingHorizontal: 48,
+    paddingHorizontal: scaleSize(48),
     alignItems: "flex-start",
   },
 });

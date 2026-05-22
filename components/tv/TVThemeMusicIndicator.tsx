@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 import { AnimatedEqualizer } from "@/components/music/AnimatedEqualizer";
+import { scaleSize } from "@/utils/scaleSize";
 
 interface TVThemeMusicIndicatorProps {
   isPlaying: boolean;
@@ -51,16 +52,16 @@ export const TVThemeMusicIndicator: React.FC<TVThemeMusicIndicatorProps> = ({
           backgroundColor: focused
             ? "rgba(255,255,255,0.25)"
             : "rgba(255,255,255,0.1)",
-          borderRadius: 12,
-          padding: 12,
+          borderRadius: scaleSize(12),
+          padding: scaleSize(12),
           alignItems: "center",
           justifyContent: "center",
-          width: 48,
-          height: 48,
+          width: scaleSize(48),
+          height: scaleSize(48),
         }}
       >
         {isMuted ? (
-          <Ionicons name='volume-mute' size={22} color='#FFFFFF' />
+          <Ionicons name='volume-mute' size={scaleSize(22)} color='#FFFFFF' />
         ) : (
           <View style={{ marginRight: 0 }}>
             <AnimatedEqualizer

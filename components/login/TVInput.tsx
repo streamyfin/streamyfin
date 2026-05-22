@@ -6,6 +6,7 @@ import {
   TextInput,
   type TextInputProps,
 } from "react-native";
+import { scaleSize } from "@/utils/scaleSize";
 
 interface TVInputProps extends TextInputProps {
   label?: string;
@@ -58,7 +59,7 @@ export const TVInput: React.FC<TVInputProps> = ({
       <Animated.View
         style={{
           transform: [{ scale }],
-          borderRadius: 12,
+          borderRadius: scaleSize(12),
           backgroundColor: isFocused
             ? "rgba(255,255,255,0.15)"
             : "rgba(255,255,255,0.08)",
@@ -73,10 +74,10 @@ export const TVInput: React.FC<TVInputProps> = ({
           allowFontScaling={false}
           style={[
             {
-              height: 64,
-              fontSize: 22,
+              height: scaleSize(64),
+              fontSize: scaleSize(22),
               color: "#FFFFFF",
-              paddingHorizontal: 20,
+              paddingHorizontal: scaleSize(20),
             },
             style,
           ]}

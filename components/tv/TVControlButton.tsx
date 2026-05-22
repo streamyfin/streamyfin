@@ -6,6 +6,7 @@ import {
   StyleSheet,
   type View,
 } from "react-native";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVControlButtonProps {
@@ -63,7 +64,7 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
           },
         ]}
       >
-        <Ionicons name={icon} size={size} color='#fff' />
+        <Ionicons name={icon} size={scaleSize(size)} color='#fff' />
       </RNAnimated.View>
     </Pressable>
   );
@@ -71,10 +72,10 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
+    width: scaleSize(64),
+    height: scaleSize(64),
+    borderRadius: scaleSize(32),
+    borderWidth: scaleSize(2),
     justifyContent: "center",
     alignItems: "center",
   },

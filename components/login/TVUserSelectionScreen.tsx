@@ -4,6 +4,7 @@ import { ScrollView, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { scaleSize } from "@/utils/scaleSize";
 import type {
   SavedServer,
   SavedServerAccount,
@@ -47,7 +48,7 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
         flexGrow: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingVertical: 60,
+        paddingVertical: scaleSize(60),
       }}
       showsVerticalScrollIndicator={false}
     >
@@ -55,18 +56,18 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
         style={{
           width: "100%",
           alignItems: "center",
-          paddingHorizontal: 60,
+          paddingHorizontal: scaleSize(60),
         }}
       >
         {/* Server Info Header */}
-        <View style={{ marginBottom: 48, alignItems: "center" }}>
+        <View style={{ marginBottom: scaleSize(48), alignItems: "center" }}>
           <Text
             style={{
               fontSize: typography.title,
               fontWeight: "bold",
               color: "#FFFFFF",
               textAlign: "center",
-              marginBottom: 8,
+              marginBottom: scaleSize(8),
             }}
           >
             {server.name || server.address}
@@ -87,7 +88,7 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
               fontSize: typography.body,
               color: "#6B7280",
               textAlign: "center",
-              marginTop: 16,
+              marginTop: scaleSize(16),
             }}
           >
             {hasAccounts
@@ -101,8 +102,8 @@ export const TVUserSelectionScreen: React.FC<TVUserSelectionScreenProps> = ({
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: 20,
-            gap: 24,
+            paddingHorizontal: scaleSize(20),
+            gap: scaleSize(24),
           }}
           style={{ overflow: "visible" }}
         >

@@ -23,6 +23,7 @@ import Animated, {
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVNextEpisodeCountdownProps {
@@ -198,17 +199,17 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
   StyleSheet.create({
     container: {
       position: "absolute",
-      right: 80,
+      right: scaleSize(80),
       zIndex: 100,
     },
     focusedCard: {
       shadowColor: "#fff",
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.6,
-      shadowRadius: 16,
+      shadowRadius: scaleSize(16),
     },
     blur: {
-      borderRadius: 16,
+      borderRadius: scaleSize(16),
       overflow: "hidden",
     },
     innerContainer: {
@@ -216,31 +217,31 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       alignItems: "stretch",
     },
     thumbnail: {
-      width: 180,
+      width: scaleSize(180),
       backgroundColor: "rgba(0,0,0,0.3)",
     },
     content: {
-      padding: 16,
+      padding: scaleSize(16),
       justifyContent: "center",
-      width: 280,
+      width: scaleSize(280),
     },
     label: {
       fontSize: typography.callout,
       color: "rgba(255,255,255,0.5)",
       textTransform: "uppercase",
       letterSpacing: 1,
-      marginBottom: 4,
+      marginBottom: scaleSize(4),
     },
     seriesName: {
       fontSize: typography.callout,
       color: "rgba(255,255,255,0.7)",
-      marginBottom: 2,
+      marginBottom: scaleSize(2),
     },
     episodeInfo: {
       fontSize: typography.body,
       color: "#fff",
       fontWeight: "600",
-      marginBottom: 12,
+      marginBottom: scaleSize(12),
     },
     progressContainer: {
       height: 4,
