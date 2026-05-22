@@ -26,6 +26,7 @@ import { CastPlayerPoster } from "@/components/casting/player/CastPlayerPoster";
 import { CastPlayerProgressBar } from "@/components/casting/player/CastPlayerProgressBar";
 import { CastPlayerTitle } from "@/components/casting/player/CastPlayerTitle";
 import { CastPlayerTransportControls } from "@/components/casting/player/CastPlayerTransportControls";
+import { ChapterList } from "@/components/chapters/ChapterList";
 import { ChromecastDeviceSheet } from "@/components/chromecast/ChromecastDeviceSheet";
 import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisodeList";
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
@@ -44,6 +45,7 @@ import { loadCastMedia } from "@/utils/casting/castLoad";
 import { getPosterUrl } from "@/utils/casting/helpers";
 import { resolveSelection } from "@/utils/casting/selection";
 import type { CastSelection } from "@/utils/casting/types";
+import { chapterMarkers } from "@/utils/chapters";
 import {
   type PlaybackController,
   useRegisterPlaybackController,
@@ -116,6 +118,11 @@ export default function CastingPlayerScreen() {
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [showDeviceSheet, setShowDeviceSheet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [chapterListVisible, setChapterListVisible] = useState(false);
+
+  // Chapter markers (shown for both episodes and movies).
+  const chapters = currentItem?.Chapters;
+  const hasChapters = chapterMarkers(chapters, duration * 1000).length > 1;
 
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1);
 
@@ -516,6 +523,8 @@ export default function CastingPlayerScreen() {
             nextEpisode={nextEpisode}
             remoteMediaClient={remoteMediaClient}
             onPressEpisodes={() => setShowEpisodeList(true)}
+            hasChapters={hasChapters}
+            onPressChapters={() => setChapterListVisible(true)}
             loadEpisode={loadEpisode}
             router={router}
           />
@@ -611,6 +620,16 @@ export default function CastingPlayerScreen() {
               setShowEpisodeList(false);
               await loadEpisode(episode);
             }}
+          />
+
+          <ChapterList
+            visible={chapterListVisible}
+            chapters={chapters}
+            currentPositionMs={progress * 1000}
+            onSeek={(ms) => {
+              remoteMediaClient?.seek({ position: ms / 1000 });
+            }}
+            onClose={() => setChapterListVisible(false)}
           />
 
           <ChromecastSettingsMenu

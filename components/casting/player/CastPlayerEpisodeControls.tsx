@@ -27,6 +27,10 @@ interface CastPlayerEpisodeControlsProps {
   remoteMediaClient: RemoteMediaClient | null;
   /** Open the episode list modal. */
   onPressEpisodes: () => void;
+  /** Whether the current item exposes chapter markers. */
+  hasChapters: boolean;
+  /** Open the chapter list modal. */
+  onPressChapters: () => void;
   /** Load a different episode on the Chromecast. */
   loadEpisode: (episode: BaseItemDto) => Promise<void>;
   /** Expo Router instance for navigation on stop. */
@@ -40,6 +44,8 @@ export function CastPlayerEpisodeControls({
   nextEpisode,
   remoteMediaClient,
   onPressEpisodes,
+  hasChapters,
+  onPressChapters,
   loadEpisode,
   router,
 }: CastPlayerEpisodeControlsProps) {
@@ -51,7 +57,11 @@ export function CastPlayerEpisodeControls({
 
   // Count of buttons actually rendered (Stop is always rendered).
   const buttonCount =
-    1 + (hasEpisodeList ? 1 : 0) + (hasPrevious ? 1 : 0) + (hasNext ? 1 : 0);
+    1 +
+    (hasEpisodeList ? 1 : 0) +
+    (hasChapters ? 1 : 0) +
+    (hasPrevious ? 1 : 0) +
+    (hasNext ? 1 : 0);
 
   // When Stop is the only button (movies), render it full-width with a label.
   const isLoneStop = buttonCount === 1;
@@ -86,6 +96,13 @@ export function CastPlayerEpisodeControls({
       {hasEpisodeList && (
         <Pressable onPress={onPressEpisodes} style={buttonStyle}>
           <Ionicons name='list' size={22} color='white' />
+        </Pressable>
+      )}
+
+      {/* Chapter list button - rendered for both episodes and movies when chapters exist */}
+      {hasChapters && (
+        <Pressable onPress={onPressChapters} style={buttonStyle}>
+          <Ionicons name='bookmarks' size={22} color='white' />
         </Pressable>
       )}
 
