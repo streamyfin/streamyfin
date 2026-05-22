@@ -1,9 +1,10 @@
 /**
  * Shared scrub-preview bubble for the casting progress bars.
  *
- * Renders the trickplay tile (when trickplay data is available) with the scrub
- * time as plain text above it, or just the scrub time as plain text. It does NO
- * positioning of its own — the slider places it via its `bubbleWidth` prop.
+ * The slider (`react-native-awesome-slider`) sizes, centres and clamps this
+ * bubble on the thumb via its `bubbleMaxWidth` / `bubbleWidth` props. This
+ * component therefore does NO horizontal positioning — it only anchors itself
+ * vertically (`bottom: 0`, growing upward) so it sits above the progress bar.
  */
 
 import { Image } from "expo-image";
@@ -47,16 +48,39 @@ export function CastTrickplayBubble({
     </Text>
   );
 
-  // No trickplay: just the plain time text.
+  // Anchored to the bottom of the slider-positioned container, growing upward,
+  // and filling the container width (left/right: 0) so it stays centred on the
+  // thumb. No horizontal maths here — the slider owns horizontal placement.
   if (!trickPlayUrl || !trickplayInfo) {
-    return timeText;
+    return (
+      <View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          alignItems: "center",
+        }}
+      >
+        {timeText}
+      </View>
+    );
   }
 
   const { x, y, url } = trickPlayUrl;
   const tileHeight = tileWidth / (trickplayInfo.aspectRatio ?? 1.78);
 
   return (
-    <View style={{ width: tileWidth, alignItems: "center", gap: 4 }}>
+    <View
+      style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
       {timeText}
       <View
         style={{

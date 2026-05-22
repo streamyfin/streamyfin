@@ -4,7 +4,6 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useAtomValue } from "jotai";
@@ -25,22 +24,22 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CastTrickplayBubble } from "@/components/casting/player/CastTrickplayBubble";
 import { Text } from "@/components/common/Text";
+import { useCastPlayerItem } from "@/hooks/useCastPlayerItem";
 import { useTrickplay } from "@/hooks/useTrickplay";
-import { apiAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { formatTime, getPosterUrl } from "@/utils/casting/helpers";
 import { CASTING_CONSTANTS } from "@/utils/casting/types";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 export const CastingMiniPlayer: React.FC = () => {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const insets = useSafeAreaInsets();
   const castDevice = useCastDevice();
   const mediaStatus = useMediaStatus();
   const remoteMediaClient = useRemoteMediaClient();
 
-  const currentItem = useMemo(() => {
-    return mediaStatus?.mediaInfo?.customData as BaseItemDto | undefined;
-  }, [mediaStatus?.mediaInfo?.customData]);
+  const { currentItem } = useCastPlayerItem({ api, user, mediaStatus });
 
   // Trickplay support - pass currentItem as BaseItemDto or null
   const { trickPlayUrl, calculateTrickplayUrl, trickplayInfo } = useTrickplay(
@@ -237,12 +236,14 @@ export const CastingMiniPlayer: React.FC = () => {
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
               trickplayTime={trickplayTime}
-              tileWidth={140}
+              tileWidth={190}
             />
           )}
-          bubbleWidth={trickPlayUrl && trickplayInfo ? 140 : 60}
+          bubbleMaxWidth={190}
+          bubbleWidth={190}
+          bubbleTranslateY={-20}
           sliderHeight={3}
-          thumbWidth={10}
+          thumbWidth={14}
           panHitSlop={{ top: 20, bottom: 20, left: 5, right: 5 }}
         />
       </View>

@@ -119,7 +119,9 @@ export function CastPlayerProgressBar({
               tileWidth={220}
             />
           )}
-          bubbleWidth={trickPlayUrl && trickplayInfo ? 220 : 64}
+          bubbleMaxWidth={220}
+          bubbleWidth={220}
+          bubbleTranslateY={-20}
           sliderHeight={6}
           thumbWidth={16}
           panHitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
