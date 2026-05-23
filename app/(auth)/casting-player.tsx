@@ -407,6 +407,9 @@ export default function CastingPlayerScreen() {
   const autoplayPosterUrl = useMemo(() => {
     if (!castAutoplay || !api?.basePath) return null;
     const ep = castAutoplay.nextEpisode;
+    // `BaseItemDto.Id` is `string | undefined`; bail if missing so we never
+    // call the helper with `undefined`. AutoplayCountdown handles null.
+    if (!ep?.Id) return null;
     return getPosterUrl(api.basePath, ep.Id, ep.ImageTags?.Primary, 260, 390);
   }, [castAutoplay, api?.basePath]);
 

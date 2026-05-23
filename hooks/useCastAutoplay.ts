@@ -17,7 +17,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom, useAtomValue } from "jotai";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   MediaPlayerIdleReason,
   MediaPlayerState,
@@ -105,6 +105,10 @@ export const useCastAutoplay = (): void => {
   // from Jellyfin). `mediaInfo` clears at IDLE so we must capture as it plays.
   const capturedItemRef = useRef<BaseItemDto | null>(null);
   const capturedItemIdRef = useRef<string | null>(null);
+  // State mirror of the captured item id so downstream effects/hooks re-run
+  // *after* the async getItem resolves — depending on `contentId` directly
+  // would fire them before the ref is populated and they'd read stale data.
+  const [capturedItemId, setCapturedItemId] = useState<string | null>(null);
 
   // Cached next-episode resolution per (seriesId, currentEpisodeId).
   const nextEpisodeCacheRef = useRef<NextEpisodeCache | null>(null);
@@ -142,7 +146,14 @@ export const useCastAutoplay = (): void => {
 
   // --- 1. Capture the currently-playing item, full BaseItemDto. ---
   useEffect(() => {
-    if (!contentId || !api || !user?.Id) return;
+    if (!contentId || !api || !user?.Id) {
+      // No active content: clear all captured state so downstream effects /
+      // useSegments stop using a stale previous-item id.
+      capturedItemRef.current = null;
+      capturedItemIdRef.current = null;
+      setCapturedItemId(null);
+      return;
+    }
 
     // If the captured id changed, reset the trigger guard immediately — the
     // user moved to another episode, and that new episode should be eligible.
@@ -162,6 +173,10 @@ export const useCastAutoplay = (): void => {
         if (cancelled) return;
         capturedItemRef.current = res.data;
         capturedItemIdRef.current = contentId;
+        // Publish the captured id as state *after* the ref is set, so the
+        // next-episode-resolve effect (keyed on this state) sees a populated
+        // ref by the time it runs.
+        setCapturedItemId(contentId);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
@@ -223,16 +238,18 @@ export const useCastAutoplay = (): void => {
     return () => {
       cancelled = true;
     };
-    // We intentionally depend on contentId (captured item id surrogate) — the
-    // captured ref updates synchronously in the effect above using the same
-    // dep, so by the time this runs the ref already points to the new item.
-  }, [contentId, api, user]);
+    // Depend on the *state* mirror of the captured id rather than `contentId`
+    // directly: `contentId` flips synchronously on the new episode, but
+    // `capturedItemRef.current` is only populated after the async getItem
+    // resolves. Keying on `capturedItemId` (set right after the ref write)
+    // guarantees the ref points at the new item by the time we read it here.
+  }, [capturedItemId, api, user]);
 
   // --- 3. Media segments for the captured item (Outro). ---
   // Matches `useChromecastSegments`: cast playback is online, no downloaded
   // files context to thread through.
   const { data: segmentData } = useSegments(
-    capturedItemIdRef.current ?? "",
+    capturedItemId ?? "",
     false,
     undefined,
     api,
@@ -383,8 +400,11 @@ export const useCastAutoplay = (): void => {
             return;
           }
 
+          // Read the freshest count at the moment of the write — the
+          // overlay's "Play now" can reset this to 0 in parallel, and using
+          // a snapshot taken before the await would clobber that reset.
           updateSettingsRef.current({
-            autoPlayEpisodeCount: settingsLocal.autoPlayEpisodeCount + 1,
+            autoPlayEpisodeCount: settingsRef.current.autoPlayEpisodeCount + 1,
           });
           toast("Playing next episode");
         } catch (error) {

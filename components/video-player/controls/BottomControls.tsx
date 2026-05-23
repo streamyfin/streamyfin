@@ -147,14 +147,22 @@ export const BottomControls: FC<BottomControlsProps> = ({
   autoPlayHandlerRef.current = handleNextEpisodeAutoPlay;
 
   useEffect(() => {
-    if (!showNextEpisodeCountdown) {
-      // Show-condition flipped off: clear the timer and reset for the next episode.
+    if (!showNextEpisodeCountdown || autoplayCancelled) {
+      // Either the show-condition flipped off OR the user cancelled.
+      // In both cases, stop the running timer immediately so autoplay
+      // can't fire after Cancel was pressed.
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      setAutoplayCancelled(false);
-      setSecondsRemaining(settings.autoplayCountdownSeconds);
+      // Only reset cancellation + seconds when the show-condition itself
+      // flipped off — a fresh credits/end-of-video window then starts a
+      // brand-new countdown. If we got here because autoplayCancelled
+      // just flipped true, keep it true so the countdown stays stopped.
+      if (!showNextEpisodeCountdown) {
+        setAutoplayCancelled(false);
+        setSecondsRemaining(settings.autoplayCountdownSeconds);
+      }
       return;
     }
 
@@ -179,7 +187,11 @@ export const BottomControls: FC<BottomControlsProps> = ({
         intervalRef.current = null;
       }
     };
-  }, [showNextEpisodeCountdown, settings.autoplayCountdownSeconds]);
+  }, [
+    showNextEpisodeCountdown,
+    autoplayCancelled,
+    settings.autoplayCountdownSeconds,
+  ]);
 
   const nextEpisodePosterUrl = useMemo(
     () =>
