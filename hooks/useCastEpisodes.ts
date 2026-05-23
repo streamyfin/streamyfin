@@ -1,10 +1,11 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto, UserDto } from "@jellyfin/sdk/lib/generated-client";
-import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useCallback, useEffect, useState } from "react";
 import type { Device, RemoteMediaClient } from "react-native-google-cast";
 import type { Settings } from "@/utils/atoms/settings";
 import { loadCastMedia } from "@/utils/casting/castLoad";
+import { fetchSeriesEpisodes, findNextEpisode } from "@/utils/casting/episodes";
 
 interface UseCastEpisodesParams {
   api: Api | null;
@@ -118,31 +119,24 @@ export function useCastEpisodes({
 
   // Fetch episodes for TV shows
   useEffect(() => {
-    if (currentItem?.Type !== "Episode" || !currentItem.SeriesId || !api)
+    if (
+      currentItem?.Type !== "Episode" ||
+      !currentItem.SeriesId ||
+      !api ||
+      !user
+    )
       return;
 
     const fetchEpisodes = async () => {
       try {
-        const tvShowsApi = getTvShowsApi(api);
-        // Fetch ALL episodes from ALL seasons by removing seasonId filter
-        const response = await tvShowsApi.getEpisodes({
-          seriesId: currentItem.SeriesId!,
-          // Don't filter by seasonId - get all seasons
-          userId: api.accessToken ? undefined : "",
-        });
-
-        const episodeList = response.data.Items || [];
-        setEpisodes(episodeList);
-
-        // Find next episode
-        const currentIndex = episodeList.findIndex(
-          (ep) => ep.Id === currentItem.Id,
+        // Fetch ALL episodes from ALL seasons (no season filter).
+        const episodeList = await fetchSeriesEpisodes(
+          api,
+          user,
+          currentItem.SeriesId!,
         );
-        if (currentIndex >= 0 && currentIndex < episodeList.length - 1) {
-          setNextEpisode(episodeList[currentIndex + 1]);
-        } else {
-          setNextEpisode(null);
-        }
+        setEpisodes(episodeList);
+        setNextEpisode(findNextEpisode(episodeList, currentItem.Id));
       } catch (error) {
         console.error("Failed to fetch episodes:", error);
       }
@@ -155,6 +149,7 @@ export function useCastEpisodes({
     currentItem?.SeasonId,
     currentItem?.Id,
     api,
+    user,
   ]);
 
   return { episodes, nextEpisode, seasonData, loadEpisode, loadingEpisodeId };
