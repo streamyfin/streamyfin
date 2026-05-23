@@ -154,6 +154,13 @@ export default function page() {
     : BITRATES[0].value;
 
   const [item, setItem] = useState<BaseItemDto | null>(null);
+  const initialSeekDoneRef = useRef(false);
+
+  const initialPlaybackTicksRef = useRef<number>(
+    playbackPositionFromUrl
+      ? Number.parseInt(playbackPositionFromUrl, 10)
+      : (item?.UserData?.PlaybackPositionTicks ?? 0),
+  );
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
   );
@@ -214,12 +221,25 @@ export default function page() {
   );
 
   /** Gets the initial playback position from the URL. */
-  const getInitialPlaybackTicks = useCallback((): number => {
-    if (playbackPositionFromUrl) {
-      return Number.parseInt(playbackPositionFromUrl, 10);
+  // const getInitialPlaybackTicks = useCallback((): number => {
+  //   if (playbackPositionFromUrl) {
+  //     return Number.parseInt(playbackPositionFromUrl, 10);
+  //   }
+  //   return item?.UserData?.PlaybackPositionTicks ?? 0;
+  // }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
+
+  useEffect(() => {
+    if (!tracksReady || !videoRef.current) return;
+    if (initialSeekDoneRef.current) return;
+
+    initialSeekDoneRef.current = true;
+
+    const ticks = initialPlaybackTicksRef.current;
+
+    if (ticks > 0) {
+      videoRef.current.seekTo(ticksToSeconds(ticks));
     }
-    return item?.UserData?.PlaybackPositionTicks ?? 0;
-  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
+  }, [tracksReady]);
 
   useEffect(() => {
     const fetchItemData = async () => {
@@ -587,6 +607,11 @@ export default function page() {
       ? Number.parseInt(playbackPositionFromUrl, 10)
       : (item?.UserData?.PlaybackPositionTicks ?? 0);
     const startPos = ticksToSeconds(startTicks);
+
+    console.log(
+      `[DirectPlayer] Resume position — ticks: ${startTicks}, seconds: ${startPos}, ` +
+        `fromUrl: ${playbackPositionFromUrl}, itemTicks: ${item?.UserData?.PlaybackPositionTicks ?? 0}`,
+    );
 
     // Build source config - headers only needed for online streaming
     const source: MpvVideoSource = {
@@ -1098,13 +1123,6 @@ export default function page() {
 
     applySubtitleSettings();
   }, [isVideoLoaded, settings]);
-
-  // Seek to resume position after file is loaded (MPV_EVENT_FILE_LOADED)
-  useEffect(() => {
-    if (!tracksReady || !videoRef.current) return;
-    const ticks = getInitialPlaybackTicks();
-    videoRef.current?.seekTo?.(ticksToSeconds(ticks));
-  }, [tracksReady, getInitialPlaybackTicks]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
