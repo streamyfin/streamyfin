@@ -4,7 +4,7 @@
  */
 
 import { router, Stack } from "expo-router";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, ScrollView, View } from "react-native";
@@ -32,6 +32,7 @@ import { ChromecastEpisodeList } from "@/components/chromecast/ChromecastEpisode
 import { ChromecastSettingsMenu } from "@/components/chromecast/ChromecastSettingsMenu";
 import { useChromecastSegments } from "@/components/chromecast/hooks/useChromecastSegments";
 import { Text } from "@/components/common/Text";
+import { AutoplayCountdown } from "@/components/player/AutoplayCountdown";
 import { useCastDismissGesture } from "@/hooks/useCastDismissGesture";
 import { useCastEpisodes } from "@/hooks/useCastEpisodes";
 import { useCasting } from "@/hooks/useCasting";
@@ -39,6 +40,7 @@ import { useCastPlayerItem } from "@/hooks/useCastPlayerItem";
 import { useCastPlayerProgress } from "@/hooks/useCastPlayerProgress";
 import { useCastSelection } from "@/hooks/useCastSelection";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { castAutoplayAtom } from "@/utils/atoms/castAutoplay";
 import { useSettings } from "@/utils/atoms/settings";
 import { detectCapabilities } from "@/utils/casting/capabilities";
 import { loadCastMedia } from "@/utils/casting/castLoad";
@@ -55,8 +57,13 @@ export default function CastingPlayerScreen() {
   const insets = useSafeAreaInsets();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const { t } = useTranslation();
+
+  // Chromecast autoplay countdown — watcher hook drives this atom; we render
+  // the overlay here when set, and handle Play-now / Cancel from the user.
+  const castAutoplay = useAtomValue(castAutoplayAtom);
+  const setCastAutoplay = useSetAtom(castAutoplayAtom);
 
   // Get raw Chromecast state directly - same as old implementation
   const castState = useCastState();
@@ -342,6 +349,67 @@ export default function CastingPlayerScreen() {
       }));
   }, [selectedSource, fetchedItem?.MediaStreams]);
 
+  // Autoplay overlay's "Play now" — load the queued next episode immediately.
+  // Mirrors `useCastEpisodes.loadEpisode` exactly (same `loadCastMedia` shape,
+  // same start-position derivation) so the cast load is identical regardless
+  // of whether it is triggered by the user or by the countdown timer.
+  const onAutoplayPlayNow = useCallback(async () => {
+    if (!castAutoplay) return;
+    const episode = castAutoplay.nextEpisode;
+    if (!api || !user?.Id || !remoteMediaClient || !episode?.Id) {
+      setCastAutoplay(null);
+      return;
+    }
+    try {
+      const startPositionMs =
+        (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000;
+      const result = await loadCastMedia({
+        client: remoteMediaClient,
+        device: castDevice,
+        api,
+        item: episode,
+        userId: user.Id,
+        profileMode: settings.chromecastProfile,
+        maxBitrateSetting: settings.chromecastMaxBitrate,
+        options: { startPositionMs },
+      });
+      if (!result.ok) {
+        console.error(
+          "[Casting Player] Failed to load next episode (play now):",
+          result.error,
+        );
+        return;
+      }
+      // Reset the autoplay counter on explicit user action.
+      updateSettings({ autoPlayEpisodeCount: 0 });
+    } catch (error) {
+      console.error(
+        "[Casting Player] Failed to load next episode (play now):",
+        error,
+      );
+    } finally {
+      setCastAutoplay(null);
+    }
+  }, [
+    castAutoplay,
+    api,
+    user?.Id,
+    remoteMediaClient,
+    castDevice,
+    settings.chromecastProfile,
+    settings.chromecastMaxBitrate,
+    updateSettings,
+    setCastAutoplay,
+  ]);
+
+  // Poster URL for the queued next episode (mirrors `posterUrl` for the
+  // currently-playing item — same helper, same dimensions).
+  const autoplayPosterUrl = useMemo(() => {
+    if (!castAutoplay || !api?.basePath) return null;
+    const ep = castAutoplay.nextEpisode;
+    return getPosterUrl(api.basePath, ep.Id, ep.ImageTags?.Primary, 260, 390);
+  }, [castAutoplay, api?.basePath]);
+
   // NOTE: Auto-navigation to casting-player is handled by higher-level
   // components (e.g., CastingMiniPlayer or Chromecast button). We intentionally
   // do NOT call router.replace("/casting-player") here because this component
@@ -569,6 +637,31 @@ export default function CastingPlayerScreen() {
               protocolColor={protocolColor}
             />
           </View>
+
+          {/* Autoplay countdown overlay — bottom-centred above the episode
+              control row and main controls. 320 wide card; centred via
+              left/right:0 + alignItems:"center". */}
+          {castAutoplay && (
+            <View
+              style={{
+                position: "absolute",
+                bottom: insets.bottom + 280,
+                left: 0,
+                right: 0,
+                alignItems: "center",
+                zIndex: 99,
+              }}
+              pointerEvents='box-none'
+            >
+              <AutoplayCountdown
+                nextEpisode={castAutoplay.nextEpisode}
+                posterUrl={autoplayPosterUrl}
+                secondsRemaining={castAutoplay.secondsRemaining}
+                onPlayNow={onAutoplayPlayNow}
+                onCancel={() => setCastAutoplay(null)}
+              />
+            </View>
+          )}
 
           {/* Modals */}
           <ChromecastDeviceSheet

@@ -11,6 +11,7 @@ import { withLayoutContext } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { CastAutoplayWatcher } from "@/components/casting/CastAutoplayWatcher";
 import { CastingMiniPlayer } from "@/components/casting/CastingMiniPlayer";
 import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
 import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
@@ -120,6 +121,7 @@ export default function TabLayout() {
         />
       </NativeTabs>
       <CastingMiniPlayer />
+      <CastAutoplayWatcher />
       <MiniPlayerBar />
       <MusicPlaybackEngine />
     </View>
