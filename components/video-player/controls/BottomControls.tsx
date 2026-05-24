@@ -249,7 +249,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               accessibilityRole='button'
               accessibilityLabel={t("chapters.open")}
             >
-              <Ionicons name='list' size={24} color='white' />
+              <Ionicons name='bookmarks' size={24} color='white' />
             </Pressable>
           )}
           <SkipButton
