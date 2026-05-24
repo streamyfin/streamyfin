@@ -14,6 +14,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Pressable,
   StyleSheet,
   TVFocusGuideView,
   useWindowDimensions,
@@ -277,6 +278,9 @@ export const Controls: FC<Props> = ({
   const minimalSeekBarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  // Ref for the invisible focus-stealing overlay (prevents hidden buttons from receiving select events)
+  const focusOverlayRef = useRef<View>(null);
 
   const audioTracks = useMemo(() => {
     return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
@@ -908,6 +912,19 @@ export const Controls: FC<Props> = ({
     setFocusPlayButton(false);
   }, [setShowControls]);
 
+  // When controls hide (and no skip/countdown overlay is visible), move focus
+  // to the invisible overlay so hidden buttons can't receive select events.
+  useEffect(() => {
+    if (!showControls && !isSkipOrCountdownVisible) {
+      // Small delay to let the controls fade-out animation start and
+      // the focus engine settle before stealing focus
+      const t = setTimeout(() => {
+        focusOverlayRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [showControls, isSkipOrCountdownVisible]);
+
   const handleBack = useCallback(() => {
     router.back();
   }, [router]);
@@ -1023,6 +1040,24 @@ export const Controls: FC<Props> = ({
       <Animated.View
         style={[styles.darkOverlay, overlayAnimatedStyle]}
         pointerEvents='none'
+      />
+
+      {/* Invisible overlay that steals focus when controls are hidden.
+          Prevents hidden control buttons from receiving select/enter events
+          from the TV remote. Pressing center button here toggles play/pause. */}
+      <Pressable
+        ref={focusOverlayRef}
+        style={styles.focusStealingOverlay}
+        pointerEvents={
+          showControls || isSkipOrCountdownVisible ? "none" : "auto"
+        }
+        focusable={!showControls && !isSkipOrCountdownVisible}
+        hasTVPreferredFocus={!showControls && !isSkipOrCountdownVisible}
+        onPress={() => {
+          togglePlay();
+          setShowControls(true);
+          setFocusPlayButton(true);
+        }}
       />
 
       {getTechnicalInfo && (
@@ -1177,6 +1212,7 @@ export const Controls: FC<Props> = ({
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
         pointerEvents={showControls ? "auto" : "none"}
+        focusable={showControls}
       >
         <View
           style={[
@@ -1378,6 +1414,10 @@ const styles = StyleSheet.create({
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
+  },
+  focusStealingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
   },
   bottomContainer: {
     position: "absolute",
