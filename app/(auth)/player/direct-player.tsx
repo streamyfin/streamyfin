@@ -768,7 +768,7 @@ export default function page() {
             currentPlayStateInfo() as PlaybackProgressInfo,
           );
         }
-        if (!Platform.isTV) await activateKeepAwakeAsync();
+        await activateKeepAwakeAsync();
         return;
       }
 
@@ -781,7 +781,7 @@ export default function page() {
             currentPlayStateInfo() as PlaybackProgressInfo,
           );
         }
-        if (!Platform.isTV) await deactivateKeepAwake();
+        await deactivateKeepAwake();
         return;
       }
 
