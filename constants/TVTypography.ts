@@ -37,10 +37,10 @@ export type TVTypographyKey = keyof typeof TVTypography;
 // =============================================================================
 
 const scaleMultipliers: Record<TVTypographyScale, number> = {
-  [TVTypographyScale.Small]: 0.85,
-  [TVTypographyScale.Default]: 1.0,
-  [TVTypographyScale.Large]: 1.2,
-  [TVTypographyScale.ExtraLarge]: 1.4,
+  [TVTypographyScale.Small]: 0.6,
+  [TVTypographyScale.Default]: 0.7,
+  [TVTypographyScale.Large]: 0.84,
+  [TVTypographyScale.ExtraLarge]: 0.98,
 };
 
 // =============================================================================

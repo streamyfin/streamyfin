@@ -78,7 +78,7 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
                 fontSize: typography.callout,
                 color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)",
                 textAlign: "center",
-                marginTop: 2,
+                marginTop: scaleSize(2),
               }}
               numberOfLines={1}
             >

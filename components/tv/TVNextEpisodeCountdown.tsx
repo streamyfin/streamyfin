@@ -45,8 +45,8 @@ export interface TVNextEpisodeCountdownProps {
 }
 
 // Position constants
-const BOTTOM_WITH_CONTROLS = 300;
-const BOTTOM_WITHOUT_CONTROLS = 120;
+const BOTTOM_WITH_CONTROLS = scaleSize(300);
+const BOTTOM_WITHOUT_CONTROLS = scaleSize(120);
 
 export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   nextItem,
@@ -75,7 +75,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   const imageUrl = getPrimaryImageUrl({
     api,
     item: nextItem,
-    width: 360,
+    width: scaleSize(360),
     quality: 80,
   });
 
@@ -244,15 +244,15 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       marginBottom: scaleSize(12),
     },
     progressContainer: {
-      height: 4,
+      height: scaleSize(4),
       backgroundColor: "rgba(255,255,255,0.2)",
-      borderRadius: 2,
+      borderRadius: scaleSize(2),
       overflow: "hidden",
     },
     progressBar: {
       height: "100%",
       backgroundColor: "#fff",
-      borderRadius: 2,
+      borderRadius: scaleSize(2),
     },
     returnFocusGuide: {
       height: 1,

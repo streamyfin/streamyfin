@@ -120,10 +120,14 @@ export const TVUserCard = React.forwardRef<View, TVUserCardProps>(
           </View>
 
           {/* Text column */}
-          <View style={{ gap: 4 }}>
+          <View style={{ gap: scaleSize(4) }}>
             {/* Username */}
             <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: scaleSize(8),
+              }}
             >
               <Text
                 style={{
@@ -153,7 +157,7 @@ export const TVUserCard = React.forwardRef<View, TVUserCardProps>(
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 4,
+                gap: scaleSize(4),
               }}
             >
               <Ionicons
