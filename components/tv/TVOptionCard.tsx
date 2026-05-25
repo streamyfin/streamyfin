@@ -68,7 +68,7 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
               fontWeight: focused || selected ? "600" : "400",
               textAlign: "center",
             }}
-            numberOfLines={2}
+            numberOfLines={4}
           >
             {label}
           </Text>
