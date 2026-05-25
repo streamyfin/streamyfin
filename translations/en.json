@@ -209,6 +209,12 @@
         "max_cache_size": "Max Cache Size",
         "max_backward_cache": "Max Backward Cache"
       },
+      "vo_driver": {
+        "title": "Video Output",
+        "vo_mode": "VO Driver",
+        "gpu_next": "gpu-next (Recommended)",
+        "gpu": "gpu"
+      },
       "gesture_controls": {
         "gesture_controls_title": "Gesture Controls",
         "horizontal_swipe_skip": "Horizontal Swipe to Skip",

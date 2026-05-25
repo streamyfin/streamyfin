@@ -54,6 +54,8 @@ export type VideoSource = {
     /** Maximum backward cache size in MB (default: 50, range: 25-200) */
     maxBackBytes?: number;
   };
+  /** MPV video output driver (Android only) */
+  voDriver?: "gpu-next" | "gpu";
 };
 
 export type MpvPlayerViewProps = {
@@ -137,4 +139,8 @@ export type TechnicalInfo = {
   audioBitrate?: number;
   cacheSeconds?: number;
   droppedFrames?: number;
+  /** Active video output driver (read from MPV at runtime) */
+  voDriver?: string;
+  /** Active hardware decoder (read from MPV at runtime) */
+  hwdec?: string;
 };

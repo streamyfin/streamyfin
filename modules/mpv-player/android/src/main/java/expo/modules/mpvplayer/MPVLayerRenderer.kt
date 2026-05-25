@@ -105,7 +105,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     val duration: Double
         get() = cachedDuration
     
-    fun start() {
+    /**
+     * The VO driver to use. Stored so attachSurface can re-enable the same driver.
+     */
+    private var voDriver: String = "gpu-next"
+
+    fun start(voDriver: String = "gpu-next") {
         if (isRunning) return
         
         try {
@@ -159,7 +164,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("config-dir", mpvDir.path)
             
             // Configure mpv options before initialization (based on Findroid)
-            MPVLib.setOptionString("vo", "gpu")
+            this.voDriver = voDriver
+            MPVLib.setOptionString("vo", voDriver)
             MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("opengl-es", "yes")
             
@@ -239,8 +245,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.attachSurface(surface)
             // Re-enable video output after attaching surface (Findroid approach)
             MPVLib.setOptionString("force-window", "yes")
-            MPVLib.setOptionString("vo", "gpu")
-            Log.i(TAG, "Surface attached, video output re-enabled")
+            MPVLib.setOptionString("vo", voDriver)
+            Log.i(TAG, "Surface attached, video output re-enabled (vo=$voDriver)")
         }
     }
     
@@ -571,6 +577,16 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         // Dropped frames
         MPVLib.getPropertyInt("frame-drop-count")?.let {
             info["droppedFrames"] = it
+        }
+
+        // Active video output driver (read from MPV to confirm what's actually applied)
+        MPVLib.getPropertyString("vo")?.let {
+            info["voDriver"] = it
+        }
+
+        // Active hardware decoder
+        MPVLib.getPropertyString("hwdec-active")?.let {
+            info["hwdec"] = it
         }
 
         return info

@@ -168,6 +168,7 @@ export enum InactivityTimeout {
 
 // MPV cache mode - controls how caching is enabled
 export type MpvCacheMode = "auto" | "yes" | "no";
+export type MpvVoDriver = "gpu-next" | "gpu";
 
 export type Settings = {
   home?: Home | null;
@@ -221,6 +222,8 @@ export type Settings = {
   mpvCacheSeconds?: number;
   mpvDemuxerMaxBytes?: number; // MB
   mpvDemuxerMaxBackBytes?: number; // MB
+  // MPV video output driver (Android only)
+  mpvVoDriver?: MpvVoDriver;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -322,6 +325,8 @@ export const defaultValues: Settings = {
   mpvCacheSeconds: 10,
   mpvDemuxerMaxBytes: 150, // MB
   mpvDemuxerMaxBackBytes: 50, // MB
+  // MPV video output driver defaults (Android only)
+  mpvVoDriver: "gpu-next",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,

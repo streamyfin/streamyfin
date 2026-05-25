@@ -608,11 +608,6 @@ export default function page() {
       : (item?.UserData?.PlaybackPositionTicks ?? 0);
     const startPos = ticksToSeconds(startTicks);
 
-    console.log(
-      `[DirectPlayer] Resume position — ticks: ${startTicks}, seconds: ${startPos}, ` +
-        `fromUrl: ${playbackPositionFromUrl}, itemTicks: ${item?.UserData?.PlaybackPositionTicks ?? 0}`,
-    );
-
     // Build source config - headers only needed for online streaming
     const source: MpvVideoSource = {
       url: stream.url,
@@ -627,6 +622,8 @@ export default function page() {
         maxBytes: settings.mpvDemuxerMaxBytes,
         maxBackBytes: settings.mpvDemuxerMaxBackBytes,
       },
+      // Pass VO driver setting (Android only)
+      voDriver: settings.mpvVoDriver,
     };
 
     // Add external subtitles only for online playback
@@ -671,6 +668,7 @@ export default function page() {
     settings.mpvCacheSeconds,
     settings.mpvDemuxerMaxBytes,
     settings.mpvDemuxerMaxBackBytes,
+    settings.mpvVoDriver,
   ]);
 
   const volumeUpCb = useCallback(async () => {

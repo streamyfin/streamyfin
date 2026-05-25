@@ -912,20 +912,6 @@ export const Controls: FC<Props> = ({
     setFocusPlayButton(false);
   }, [setShowControls]);
 
-  // On initial mount when controls start visible, focus the play button.
-  // playButtonRef transitions from null → View on first render; once set,
-  // this effect won't re-fire (playButtonRef is a stable reference).
-  const initialFocusDone = useRef(false);
-  useEffect(() => {
-    if (!initialFocusDone.current && playButtonRef && showControls) {
-      initialFocusDone.current = true;
-      const t = setTimeout(() => {
-        playButtonRef.focus();
-      }, 100);
-      return () => clearTimeout(t);
-    }
-  }, [showControls, playButtonRef]);
-
   // When controls hide (and no skip/countdown overlay is visible), move focus
   // to the invisible overlay so hidden buttons can't receive select events.
   useEffect(() => {
@@ -1226,7 +1212,6 @@ export const Controls: FC<Props> = ({
       <Animated.View
         style={[styles.bottomContainer, bottomAnimatedStyle]}
         pointerEvents={showControls ? "auto" : "none"}
-        focusable={showControls}
       >
         <View
           style={[

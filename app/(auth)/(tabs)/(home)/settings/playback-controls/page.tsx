@@ -4,6 +4,7 @@ import { GestureControls } from "@/components/settings/GestureControls";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MediaToggles } from "@/components/settings/MediaToggles";
 import { MpvBufferSettings } from "@/components/settings/MpvBufferSettings";
+import { MpvVoSettings } from "@/components/settings/MpvVoSettings";
 import { PlaybackControlsSettings } from "@/components/settings/PlaybackControlsSettings";
 import { ChromecastSettings } from "../../../../../../components/settings/ChromecastSettings";
 
@@ -28,6 +29,7 @@ export default function PlaybackControlsPage() {
             <GestureControls className='mb-4' />
             <PlaybackControlsSettings />
             <MpvBufferSettings />
+            <MpvVoSettings />
           </MediaProvider>
         </View>
         {!Platform.isTV && <ChromecastSettings />}

@@ -350,6 +350,12 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
               Buffer: {info.cacheSeconds.toFixed(1)}s
             </Text>
           )}
+          {info?.voDriver && (
+            <Text style={textStyle}>
+              VO: {info.voDriver}
+              {info.hwdec ? ` / ${info.hwdec}` : ""}
+            </Text>
+          )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (
             <Text style={[textStyle, styles.warningText]}>
               Dropped: {info.droppedFrames} frames
