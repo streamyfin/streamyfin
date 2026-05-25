@@ -2,6 +2,7 @@ import React from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVTabButtonProps {
@@ -48,10 +49,10 @@ export const TVTabButton: React.FC<TVTabButtonProps> = ({
                 ? "rgba(255,255,255,0.2)"
                 : "transparent",
             borderBottomColor: active ? "#fff" : "transparent",
-            borderBottomWidth: 2,
-            paddingHorizontal: 20,
-            paddingVertical: 12,
-            borderRadius: 8,
+            borderBottomWidth: scaleSize(2),
+            paddingHorizontal: scaleSize(20),
+            paddingVertical: scaleSize(12),
+            borderRadius: scaleSize(8),
           },
         ]}
       >

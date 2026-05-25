@@ -91,7 +91,7 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
     },
     languageCardCode: {
       fontSize: typography.callout,
-      marginTop: 2,
+      marginTop: scaleSize(2),
     },
     checkmark: {
       position: "absolute",

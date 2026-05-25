@@ -3,6 +3,7 @@ import React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVOptionButtonProps {
@@ -42,12 +43,12 @@ export const TVOptionButton = React.forwardRef<View, TVOptionButtonProps>(
             <View
               style={{
                 backgroundColor: "#fff",
-                borderRadius: 8,
-                paddingVertical: 10,
-                paddingHorizontal: 16,
+                borderRadius: scaleSize(8),
+                paddingVertical: scaleSize(10),
+                paddingHorizontal: scaleSize(16),
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 8,
+                gap: scaleSize(8),
                 maxWidth,
               }}
             >

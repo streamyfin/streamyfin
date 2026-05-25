@@ -66,10 +66,10 @@ export const TVThemeMusicIndicator: React.FC<TVThemeMusicIndicatorProps> = ({
           <View style={{ marginRight: 0 }}>
             <AnimatedEqualizer
               color='#FFFFFF'
-              barWidth={3}
+              barWidth={scaleSize(3)}
               barCount={3}
-              height={18}
-              gap={2}
+              height={scaleSize(18)}
+              gap={scaleSize(2)}
             />
           </View>
         )}
