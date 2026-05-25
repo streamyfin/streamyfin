@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { useAtomValue } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -11,13 +11,17 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
+import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
 
 export default function TVOptionModal() {
   const router = useRouter();
   const modalState = useAtomValue(tvOptionModalAtom);
+  const typography = useScaledTVTypography();
 
   const [isReady, setIsReady] = useState(false);
   const firstCardRef = useRef<View>(null);
@@ -76,12 +80,25 @@ export default function TVOptionModal() {
     router.back();
   };
 
+  const handleClose = useCallback(() => {
+    store.set(tvOptionModalAtom, null);
+    router.back();
+  }, [router]);
+
+  // Intercept back/menu press to close the modal instead of the player
+  useTVBackPress(() => {
+    handleClose();
+    return true;
+  }, [handleClose]);
+
   // If no modal state, just go back (shouldn't happen in normal usage)
   if (!modalState) {
     return null;
   }
 
-  const { title, options, cardWidth = 160, cardHeight = 75 } = modalState;
+  const { title, options } = modalState;
+  const scaledCardWidth = scaleSize(160);
+  const scaledCardHeight = scaleSize(75);
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -100,7 +117,9 @@ export default function TVOptionModal() {
             trapFocusRight
             style={styles.content}
           >
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { fontSize: typography.callout }]}>
+              {title}
+            </Text>
             {isReady && (
               <ScrollView
                 horizontal
@@ -119,8 +138,8 @@ export default function TVOptionModal() {
                     selected={option.selected}
                     hasTVPreferredFocus={index === initialSelectedIndex}
                     onPress={() => handleSelect(option.value)}
-                    width={cardWidth}
-                    height={cardHeight}
+                    width={scaledCardWidth}
+                    height={scaledCardHeight}
                   />
                 ))}
               </ScrollView>
@@ -142,21 +161,20 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   blurContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: scaleSize(24),
+    borderTopRightRadius: scaleSize(24),
     overflow: "hidden",
   },
   content: {
-    paddingTop: 24,
-    paddingBottom: 50,
+    paddingTop: scaleSize(24),
+    paddingBottom: scaleSize(50),
     overflow: "visible",
   },
   title: {
-    fontSize: 18,
     fontWeight: "500",
     color: "rgba(255,255,255,0.6)",
-    marginBottom: 16,
-    paddingHorizontal: 48,
+    marginBottom: scaleSize(16),
+    paddingHorizontal: scaleSize(48),
     textTransform: "uppercase",
     letterSpacing: 1,
   },
@@ -164,8 +182,8 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   scrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 20,
-    gap: 12,
+    paddingHorizontal: scaleSize(48),
+    paddingVertical: scaleSize(20),
+    gap: scaleSize(12),
   },
 });

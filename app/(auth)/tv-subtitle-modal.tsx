@@ -22,14 +22,17 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVTabButton, useTVFocusAnimation } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
   type SubtitleSearchResult,
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
+import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useSettings } from "@/utils/atoms/settings";
 import { tvSubtitleModalAtom } from "@/utils/atoms/tvSubtitleModal";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
+import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
 
 type TabType = "tracks" | "download" | "settings";
@@ -72,10 +75,10 @@ const TVTrackCard = React.forwardRef<
         <Text
           style={[
             styles.trackCardText,
-            { color: focused ? "#000" : "#fff" },
+            { color: focused ? "#000" : "#fff", fontSize: scaleSize(16) },
             (focused || selected) && { fontWeight: "600" },
           ]}
-          numberOfLines={2}
+          numberOfLines={3}
         >
           {label}
         </Text>
@@ -83,7 +86,10 @@ const TVTrackCard = React.forwardRef<
           <Text
             style={[
               styles.trackCardSublabel,
-              { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
+              {
+                color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)",
+                fontSize: scaleSize(12),
+              },
             ]}
             numberOfLines={1}
           >
@@ -94,7 +100,7 @@ const TVTrackCard = React.forwardRef<
           <View style={styles.checkmark}>
             <Ionicons
               name='checkmark'
-              size={16}
+              size={scaleSize(16)}
               color='rgba(255,255,255,0.8)'
             />
           </View>
@@ -142,7 +148,7 @@ const LanguageCard = React.forwardRef<
         <Text
           style={[
             styles.languageCardText,
-            { color: focused ? "#000" : "#fff" },
+            { color: focused ? "#000" : "#fff", fontSize: scaleSize(15) },
             (focused || selected) && { fontWeight: "600" },
           ]}
           numberOfLines={1}
@@ -152,7 +158,10 @@ const LanguageCard = React.forwardRef<
         <Text
           style={[
             styles.languageCardCode,
-            { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
+            {
+              color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)",
+              fontSize: scaleSize(11),
+            },
           ]}
         >
           {code.toUpperCase()}
@@ -161,7 +170,7 @@ const LanguageCard = React.forwardRef<
           <View style={styles.checkmark}>
             <Ionicons
               name='checkmark'
-              size={16}
+              size={scaleSize(16)}
               color='rgba(255,255,255,0.8)'
             />
           </View>
@@ -219,7 +228,10 @@ const SubtitleResultCard = React.forwardRef<
           <Text
             style={[
               styles.providerText,
-              { color: focused ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.7)" },
+              {
+                color: focused ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.7)",
+                fontSize: scaleSize(11),
+              },
             ]}
           >
             {result.providerName}
@@ -228,7 +240,10 @@ const SubtitleResultCard = React.forwardRef<
 
         {/* Name */}
         <Text
-          style={[styles.resultName, { color: focused ? "#000" : "#fff" }]}
+          style={[
+            styles.resultName,
+            { color: focused ? "#000" : "#fff", fontSize: scaleSize(14) },
+          ]}
           numberOfLines={2}
         >
           {result.name}
@@ -240,7 +255,10 @@ const SubtitleResultCard = React.forwardRef<
           <Text
             style={[
               styles.resultMetaText,
-              { color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)" },
+              {
+                color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)",
+                fontSize: scaleSize(12),
+              },
             ]}
           >
             {result.format?.toUpperCase()}
@@ -252,7 +270,7 @@ const SubtitleResultCard = React.forwardRef<
               <View style={styles.ratingContainer}>
                 <Ionicons
                   name='star'
-                  size={12}
+                  size={scaleSize(12)}
                   color={focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)"}
                 />
                 <Text
@@ -262,6 +280,7 @@ const SubtitleResultCard = React.forwardRef<
                       color: focused
                         ? "rgba(0,0,0,0.6)"
                         : "rgba(255,255,255,0.5)",
+                      fontSize: scaleSize(12),
                     },
                   ]}
                 >
@@ -275,7 +294,7 @@ const SubtitleResultCard = React.forwardRef<
             <View style={styles.downloadCountContainer}>
               <Ionicons
                 name='download-outline'
-                size={12}
+                size={scaleSize(12)}
                 color={focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.5)"}
               />
               <Text
@@ -285,6 +304,7 @@ const SubtitleResultCard = React.forwardRef<
                     color: focused
                       ? "rgba(0,0,0,0.6)"
                       : "rgba(255,255,255,0.5)",
+                    fontSize: scaleSize(12),
                   },
                 ]}
               >
@@ -307,7 +327,9 @@ const SubtitleResultCard = React.forwardRef<
                 },
               ]}
             >
-              <Text style={styles.flagText}>Hash Match</Text>
+              <Text style={[styles.flagText, { fontSize: scaleSize(10) }]}>
+                Hash Match
+              </Text>
             </View>
           )}
           {result.hearingImpaired && (
@@ -323,7 +345,7 @@ const SubtitleResultCard = React.forwardRef<
             >
               <Ionicons
                 name='ear-outline'
-                size={12}
+                size={scaleSize(12)}
                 color={focused ? "#000" : "#fff"}
               />
             </View>
@@ -339,7 +361,9 @@ const SubtitleResultCard = React.forwardRef<
                 },
               ]}
             >
-              <Text style={styles.flagText}>AI</Text>
+              <Text style={[styles.flagText, { fontSize: scaleSize(10) }]}>
+                AI
+              </Text>
             </View>
           )}
         </View>
@@ -389,7 +413,7 @@ const TVStepperButton: React.FC<{
       >
         <Ionicons
           name={icon}
-          size={28}
+          size={scaleSize(28)}
           color={focused ? "#000" : disabled ? "rgba(255,255,255,0.4)" : "#fff"}
         />
       </Animated.View>
@@ -485,7 +509,7 @@ const TVAlignmentCard: React.FC<{
         <Text
           style={[
             styles.alignmentCardText,
-            { color: focused ? "#000" : "#fff" },
+            { color: focused ? "#000" : "#fff", fontSize: scaleSize(15) },
             (focused || selected) && { fontWeight: "600" },
           ]}
         >
@@ -495,7 +519,7 @@ const TVAlignmentCard: React.FC<{
           <View style={styles.alignmentCheckmark}>
             <Ionicons
               name='checkmark'
-              size={14}
+              size={scaleSize(14)}
               color='rgba(255,255,255,0.8)'
             />
           </View>
@@ -510,6 +534,7 @@ export default function TVSubtitleModal() {
   const { t } = useTranslation();
   const modalState = useAtomValue(tvSubtitleModalAtom);
   const { settings, updateSettings } = useSettings();
+  const typography = useScaledTVTypography();
 
   const [activeTab, setActiveTab] = useState<TabType>("tracks");
   const [selectedLanguage, setSelectedLanguage] = useState("eng");
@@ -603,6 +628,12 @@ export default function TVSubtitleModal() {
     store.set(tvSubtitleModalAtom, null);
     router.back();
   }, [router]);
+
+  // Intercept back/menu press to close the modal instead of the player
+  useTVBackPress(() => {
+    handleClose();
+    return true;
+  }, [handleClose]);
 
   const handleLanguageSelect = useCallback(
     (code: string) => {
@@ -745,7 +776,7 @@ export default function TVSubtitleModal() {
           >
             {/* Header with tabs */}
             <View style={styles.header}>
-              <Text style={styles.title}>
+              <Text style={[styles.title, { fontSize: typography.heading }]}>
                 {t("item_card.subtitles.label") || "Subtitles"}
               </Text>
 
@@ -802,7 +833,9 @@ export default function TVSubtitleModal() {
               <>
                 {/* Language Selector */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>
+                  <Text
+                    style={[styles.sectionTitle, { fontSize: scaleSize(14) }]}
+                  >
                     {t("player.language") || "Language"}
                   </Text>
                   <ScrollView
@@ -829,7 +862,9 @@ export default function TVSubtitleModal() {
 
                 {/* Results Section */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>
+                  <Text
+                    style={[styles.sectionTitle, { fontSize: scaleSize(14) }]}
+                  >
                     {t("player.results") || "Results"}
                     {searchResults && ` (${searchResults.length})`}
                   </Text>
@@ -846,13 +881,17 @@ export default function TVSubtitleModal() {
                     <View style={styles.errorContainer}>
                       <Ionicons
                         name='alert-circle-outline'
-                        size={32}
+                        size={scaleSize(32)}
                         color='rgba(255,100,100,0.8)'
                       />
-                      <Text style={styles.errorText}>
+                      <Text
+                        style={[styles.errorText, { fontSize: scaleSize(16) }]}
+                      >
                         {t("player.search_failed") || "Search failed"}
                       </Text>
-                      <Text style={styles.errorHint}>
+                      <Text
+                        style={[styles.errorHint, { fontSize: scaleSize(13) }]}
+                      >
                         {!hasOpenSubtitlesApiKey
                           ? t("player.no_subtitle_provider") ||
                             "No subtitle provider configured on server"
@@ -869,10 +908,15 @@ export default function TVSubtitleModal() {
                       <View style={styles.emptyContainer}>
                         <Ionicons
                           name='document-text-outline'
-                          size={32}
+                          size={scaleSize(32)}
                           color='rgba(255,255,255,0.4)'
                         />
-                        <Text style={styles.emptyText}>
+                        <Text
+                          style={[
+                            styles.emptyText,
+                            { fontSize: scaleSize(14) },
+                          ]}
+                        >
                           {t("player.no_subtitles_found") ||
                             "No subtitles found"}
                         </Text>
@@ -907,10 +951,15 @@ export default function TVSubtitleModal() {
                   <View style={styles.apiKeyHint}>
                     <Ionicons
                       name='information-circle-outline'
-                      size={16}
+                      size={scaleSize(16)}
                       color='rgba(255,255,255,0.4)'
                     />
-                    <Text style={styles.apiKeyHintText}>
+                    <Text
+                      style={[
+                        styles.apiKeyHintText,
+                        { fontSize: scaleSize(12) },
+                      ]}
+                    >
                       {t("player.add_opensubtitles_key_hint") ||
                         "Add OpenSubtitles API key in settings for client-side fallback"}
                     </Text>
@@ -942,7 +991,12 @@ export default function TVSubtitleModal() {
                       }}
                       hasTVPreferredFocus={true}
                     />
-                    <Text style={styles.settingLabel}>
+                    <Text
+                      style={[
+                        styles.settingLabel,
+                        { fontSize: typography.callout },
+                      ]}
+                    >
                       {t("home.settings.subtitles.mpv_subtitle_scale") ||
                         "Subtitle Scale"}
                     </Text>
@@ -960,7 +1014,12 @@ export default function TVSubtitleModal() {
                         updateSettings({ mpvSubtitleMarginY: newValue });
                       }}
                     />
-                    <Text style={styles.settingLabel}>
+                    <Text
+                      style={[
+                        styles.settingLabel,
+                        { fontSize: typography.callout },
+                      ]}
+                    >
                       {t("home.settings.subtitles.mpv_subtitle_margin_y") ||
                         "Vertical Margin"}
                     </Text>
@@ -984,7 +1043,12 @@ export default function TVSubtitleModal() {
                         />
                       ))}
                     </View>
-                    <Text style={styles.settingLabel}>
+                    <Text
+                      style={[
+                        styles.settingLabel,
+                        { fontSize: typography.callout },
+                      ]}
+                    >
                       {t("home.settings.subtitles.mpv_subtitle_align_x") ||
                         "Horizontal Align"}
                     </Text>
@@ -1008,7 +1072,12 @@ export default function TVSubtitleModal() {
                         />
                       ))}
                     </View>
-                    <Text style={styles.settingLabel}>
+                    <Text
+                      style={[
+                        styles.settingLabel,
+                        { fontSize: typography.callout },
+                      ]}
+                    >
                       {t("home.settings.subtitles.mpv_subtitle_align_y") ||
                         "Vertical Align"}
                     </Text>
@@ -1033,218 +1102,201 @@ const styles = StyleSheet.create({
     maxHeight: "70%",
   },
   blurContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: scaleSize(24),
+    borderTopRightRadius: scaleSize(24),
     overflow: "hidden",
   },
   content: {
-    paddingTop: 24,
-    paddingBottom: 48,
+    paddingTop: scaleSize(24),
+    paddingBottom: scaleSize(48),
   },
   header: {
-    paddingHorizontal: 48,
-    marginBottom: 20,
+    paddingHorizontal: scaleSize(48),
+    marginBottom: scaleSize(20),
   },
   title: {
-    fontSize: 24,
     fontWeight: "600",
     color: "#fff",
-    marginBottom: 16,
+    marginBottom: scaleSize(16),
   },
   tabRow: {
     flexDirection: "row",
-    gap: 24,
+    gap: scaleSize(24),
   },
   section: {
-    marginBottom: 20,
+    marginBottom: scaleSize(20),
   },
   sectionTitle: {
-    fontSize: 14,
     fontWeight: "500",
     color: "rgba(255,255,255,0.5)",
     textTransform: "uppercase",
     letterSpacing: 1,
-    marginBottom: 12,
-    paddingHorizontal: 48,
+    marginBottom: scaleSize(12),
+    paddingHorizontal: scaleSize(48),
   },
   tracksScroll: {
     overflow: "visible",
   },
   tracksScrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 8,
-    gap: 12,
+    paddingHorizontal: scaleSize(48),
+    paddingVertical: scaleSize(8),
+    gap: scaleSize(12),
   },
   trackCard: {
-    width: 180,
-    height: 80,
-    borderRadius: 14,
+    width: scaleSize(180),
+    height: scaleSize(80),
+    borderRadius: scaleSize(14),
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: scaleSize(12),
   },
   trackCardText: {
-    fontSize: 16,
     textAlign: "center",
   },
   trackCardSublabel: {
-    fontSize: 12,
-    marginTop: 2,
+    marginTop: scaleSize(2),
   },
   checkmark: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: scaleSize(8),
+    right: scaleSize(8),
   },
   languageScroll: {
     overflow: "visible",
   },
   languageScrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 8,
-    gap: 10,
+    paddingHorizontal: scaleSize(48),
+    paddingVertical: scaleSize(8),
+    gap: scaleSize(10),
   },
   languageCard: {
-    width: 120,
-    height: 60,
-    borderRadius: 12,
+    width: scaleSize(120),
+    height: scaleSize(60),
+    borderRadius: scaleSize(12),
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: scaleSize(12),
   },
   languageCardText: {
-    fontSize: 15,
     fontWeight: "500",
   },
   languageCardCode: {
-    fontSize: 11,
-    marginTop: 2,
+    marginTop: scaleSize(2),
   },
   resultsScroll: {
     overflow: "visible",
   },
   resultsScrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 8,
-    gap: 12,
+    paddingHorizontal: scaleSize(48),
+    paddingVertical: scaleSize(8),
+    gap: scaleSize(12),
   },
   resultCard: {
-    width: 220,
-    height: 130,
-    borderRadius: 14,
-    padding: 14,
+    width: scaleSize(220),
+    height: scaleSize(130),
+    borderRadius: scaleSize(14),
+    padding: scaleSize(14),
     borderWidth: 1,
     overflow: "hidden",
   },
   providerBadge: {
     alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 8,
+    paddingHorizontal: scaleSize(8),
+    paddingVertical: scaleSize(3),
+    borderRadius: scaleSize(6),
+    marginBottom: scaleSize(8),
   },
   providerText: {
-    fontSize: 11,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   resultName: {
-    fontSize: 14,
     fontWeight: "500",
-    marginBottom: 8,
-    lineHeight: 18,
+    marginBottom: scaleSize(8),
+    lineHeight: scaleSize(18),
   },
   resultMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 8,
+    gap: scaleSize(12),
+    marginBottom: scaleSize(8),
   },
-  resultMetaText: {
-    fontSize: 12,
-  },
+  resultMetaText: {},
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: scaleSize(3),
   },
   downloadCountContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: scaleSize(3),
   },
   flagsContainer: {
     flexDirection: "row",
-    gap: 6,
+    gap: scaleSize(6),
     flexWrap: "wrap",
   },
   flag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: scaleSize(6),
+    paddingVertical: scaleSize(2),
+    borderRadius: scaleSize(4),
   },
   flagText: {
-    fontSize: 10,
     fontWeight: "600",
     color: "#fff",
   },
   downloadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 14,
+    borderRadius: scaleSize(14),
     justifyContent: "center",
     alignItems: "center",
   },
   loadingContainer: {
-    paddingVertical: 20,
+    paddingVertical: scaleSize(20),
     alignItems: "center",
   },
   errorContainer: {
-    paddingVertical: 40,
-    paddingHorizontal: 48,
+    paddingVertical: scaleSize(40),
+    paddingHorizontal: scaleSize(48),
     alignItems: "center",
   },
   errorText: {
     color: "rgba(255,100,100,0.9)",
-    marginTop: 8,
-    fontSize: 16,
+    marginTop: scaleSize(8),
     fontWeight: "500",
   },
   errorHint: {
     color: "rgba(255,255,255,0.5)",
-    marginTop: 4,
-    fontSize: 13,
+    marginTop: scaleSize(4),
     textAlign: "center",
   },
   emptyContainer: {
-    paddingVertical: 40,
+    paddingVertical: scaleSize(40),
     alignItems: "center",
   },
   emptyText: {
     color: "rgba(255,255,255,0.5)",
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: scaleSize(8),
   },
   apiKeyHint: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 48,
-    paddingTop: 8,
+    gap: scaleSize(8),
+    paddingHorizontal: scaleSize(48),
+    paddingTop: scaleSize(8),
   },
-  apiKeyHintText: {
-    color: "rgba(255,255,255,0.4)",
-    fontSize: 12,
-  },
+  apiKeyHintText: {},
   // Settings tab styles
   settingsScroll: {
-    maxHeight: 300,
+    maxHeight: scaleSize(300),
   },
   settingsScrollContent: {
-    paddingHorizontal: 48,
-    paddingVertical: 8,
-    gap: 24,
+    paddingHorizontal: scaleSize(48),
+    paddingVertical: scaleSize(8),
+    gap: scaleSize(24),
   },
   settingRow: {
     flexDirection: "row",
@@ -1252,49 +1304,47 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   settingLabel: {
-    fontSize: 18,
     fontWeight: "500",
     color: "#fff",
   },
   sizeControlContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: scaleSize(16),
   },
   stepperButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: scaleSize(56),
+    height: scaleSize(56),
+    borderRadius: scaleSize(14),
     justifyContent: "center",
     alignItems: "center",
   },
   sizeValueContainer: {
-    width: 80,
+    width: scaleSize(80),
     alignItems: "center",
   },
   sizeValueText: {
-    fontSize: 24,
     fontWeight: "600",
     color: "#fff",
+    fontSize: scaleSize(24),
   },
   alignmentRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: scaleSize(10),
   },
   alignmentCard: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    minWidth: 90,
+    paddingHorizontal: scaleSize(20),
+    paddingVertical: scaleSize(14),
+    borderRadius: scaleSize(12),
+    minWidth: scaleSize(90),
     alignItems: "center",
   },
   alignmentCardText: {
-    fontSize: 15,
     textTransform: "capitalize",
   },
   alignmentCheckmark: {
     position: "absolute",
-    top: 6,
-    right: 6,
+    top: scaleSize(6),
+    right: scaleSize(6),
   },
 });

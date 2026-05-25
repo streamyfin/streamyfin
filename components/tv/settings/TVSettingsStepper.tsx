@@ -49,6 +49,7 @@ export const TVSettingsStepper: React.FC<TVSettingsStepperProps> = ({
       }}
     >
       <Pressable
+        style={{ flex: 1 }}
         onFocus={labelAnim.handleFocus}
         onBlur={labelAnim.handleBlur}
         hasTVPreferredFocus={isFirst && !disabled}
