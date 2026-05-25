@@ -37,7 +37,8 @@ class MpvPlayerModule : Module() {
                     startPosition = (source["startPosition"] as? Number)?.toDouble(),
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
-                    initialAudioId = (source["initialAudioId"] as? Number)?.toInt()
+                    initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
+                    voDriver = source["voDriver"] as? String
                 )
                 
                 view.loadVideo(config)

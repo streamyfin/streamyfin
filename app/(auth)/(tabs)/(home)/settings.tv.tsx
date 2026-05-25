@@ -26,6 +26,7 @@ import {
   AudioTranscodeMode,
   InactivityTimeout,
   type MpvCacheMode,
+  type MpvVoDriver,
   TVTypographyScale,
   useSettings,
 } from "@/utils/atoms/settings";
@@ -171,6 +172,7 @@ export default function SettingsTV() {
   const currentTypographyScale =
     settings.tvTypographyScale || TVTypographyScale.Default;
   const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
+  const currentVoDriver = settings.mpvVoDriver ?? "gpu-next";
   const currentLanguage = settings.preferedLanguage;
 
   // Audio transcoding options
@@ -283,6 +285,23 @@ export default function SettingsTV() {
       },
     ],
     [t, currentCacheMode],
+  );
+
+  // VO driver options
+  const voDriverOptions: TVOptionItem<MpvVoDriver>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.vo_driver.gpu_next"),
+        value: "gpu-next",
+        selected: currentVoDriver === "gpu-next",
+      },
+      {
+        label: t("home.settings.vo_driver.gpu"),
+        value: "gpu",
+        selected: currentVoDriver === "gpu",
+      },
+    ],
+    [t, currentVoDriver],
   );
 
   // Typography scale options
@@ -410,6 +429,11 @@ export default function SettingsTV() {
     const option = cacheModeOptions.find((o) => o.selected);
     return option?.label || t("home.settings.buffer.cache_auto");
   }, [cacheModeOptions, t]);
+
+  const voDriverLabel = useMemo(() => {
+    const option = voDriverOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.vo_driver.gpu_next");
+  }, [voDriverOptions, t]);
 
   const languageLabel = useMemo(() => {
     if (!currentLanguage) return t("home.settings.languages.system");
@@ -633,6 +657,20 @@ export default function SettingsTV() {
                 title: t("home.settings.buffer.cache_mode"),
                 options: cacheModeOptions,
                 onSelect: (value) => updateSettings({ mpvCacheEnabled: value }),
+              })
+            }
+          />
+
+          {/* Video Output Section */}
+          <TVSectionHeader title={t("home.settings.vo_driver.title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.vo_driver.vo_mode")}
+            value={voDriverLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.vo_driver.vo_mode"),
+                options: voDriverOptions,
+                onSelect: (value) => updateSettings({ mpvVoDriver: value }),
               })
             }
           />
