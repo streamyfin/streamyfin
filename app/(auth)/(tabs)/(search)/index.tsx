@@ -305,6 +305,9 @@ export default function search() {
         },
         hideWhenScrolling: false,
         autoFocus: false,
+        // Android: placeholder and icon color
+        hintTextColor: "#fff",
+        headerIconColor: "#fff",
       },
     });
   }, [navigation]);
@@ -938,7 +941,7 @@ export default function search() {
               </Text>
             </View>
           ) : debouncedSearch.length === 0 ? (
-            <View className='mt-4 flex flex-col items-center space-y-2'>
+            <View className='mt-2 flex flex-col items-center space-y-2'>
               {exampleSearches.map((e) => (
                 <TouchableOpacity
                   onPress={() => {
