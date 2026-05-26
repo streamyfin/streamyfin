@@ -55,7 +55,7 @@ export const CenterControls: FC<CenterControlsProps> = ({
         justifyContent: "space-between",
         alignItems: "center",
         transform: [{ translateY: -22.5 }],
-        paddingHorizontal: "28%",
+        paddingHorizontal: hasChapters ? "18%" : "28%",
       }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
