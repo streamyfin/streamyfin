@@ -18,7 +18,7 @@ export default function page() {
     >
       <DisabledSetting
         disabled={pluginSettings?.jellyseerrServerUrl?.locked === true}
-        className='px-4'
+        className='p-4'
       >
         <JellyseerrSettings />
       </DisabledSetting>
