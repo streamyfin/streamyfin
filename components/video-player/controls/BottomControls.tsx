@@ -114,7 +114,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
       onTouchStart={handleControlsInteraction}
     >
       <View
-        className='shrink flex flex-col justify-center h-full'
+        className='shrink flex flex-col justify-center'
         style={{
           flexDirection: "row",
           justifyContent: "space-between",
