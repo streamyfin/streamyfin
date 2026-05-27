@@ -70,9 +70,16 @@ export const chapterNameAt = (
   positionMs: number,
   chapters: ChapterInfo[] | null | undefined,
 ): string | null => {
-  const idx = currentChapterIndex(positionMs, chapters);
-  if (idx < 0) return null;
+  // Sort once, derive both the active index and the entry from the same array
+  // — `chapterNameAt` runs on every playback tick, so paying for one `sort()`
+  // instead of two is worth the duplication of the index loop here.
   const sorted = sortedChapters(chapters);
+  let idx = -1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (positionMs >= sorted[i].positionMs) idx = i;
+    else break;
+  }
+  if (idx < 0) return null;
   const name = sorted[idx]?.chapter.Name;
   return name && name.length > 0 ? name : null;
 };

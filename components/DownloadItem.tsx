@@ -9,7 +9,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api/user-library-api";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";

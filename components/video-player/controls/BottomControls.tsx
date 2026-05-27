@@ -189,7 +189,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
               onPress={() => setChapterListVisible(true)}
               hitSlop={10}
               className='justify-center mr-4'
-              style={{ marginTop: 10 }}
               accessibilityRole='button'
               accessibilityLabel={t("chapters.open")}
             >

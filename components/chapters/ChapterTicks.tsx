@@ -4,7 +4,7 @@
  * so the slider underneath still receives touches.
  */
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { type LayoutChangeEvent, PixelRatio, View } from "react-native";
 import type { ChapterMarker } from "@/utils/chapters";
 
@@ -19,7 +19,7 @@ interface ChapterTicksProps {
   width?: number;
 }
 
-export function ChapterTicks({
+function ChapterTicksComponent({
   markers,
   // Semi-transparent black contrasts against both the filled progress
   // (#fff) and the unfilled track (rgba(255,255,255,0.2)) so the ticks
@@ -83,3 +83,5 @@ export function ChapterTicks({
     </View>
   );
 }
+
+export const ChapterTicks = memo(ChapterTicksComponent);

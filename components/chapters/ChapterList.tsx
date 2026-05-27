@@ -6,7 +6,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import type { ChapterInfo } from "@jellyfin/sdk/lib/generated-client/models";
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Modal, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
@@ -30,7 +30,7 @@ interface ChapterListProps {
 
 const ROW_HEIGHT = 48;
 
-export function ChapterList({
+function ChapterListComponent({
   visible,
   chapters,
   currentPositionMs,
@@ -150,6 +150,8 @@ export function ChapterList({
     </Modal>
   );
 }
+
+export const ChapterList = memo(ChapterListComponent);
 
 const styles = StyleSheet.create({
   backdrop: {

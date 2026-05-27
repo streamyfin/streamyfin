@@ -52,8 +52,9 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
       style={{
         position: "absolute",
         left: -62,
-        // Drop the bubble closer to the slider — less floating-high feel.
-        bottom: -20,
+        // Sit just above the slider — high enough not to overlap the
+        // progress bar, low enough to feel anchored to the thumb.
+        bottom: 0,
         paddingTop: 12,
         paddingBottom: 5,
         width: tileWidth * 1.5,
