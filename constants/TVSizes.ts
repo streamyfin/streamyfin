@@ -19,13 +19,13 @@ import { scaleSize } from "@/utils/scaleSize";
  */
 export const TVPosterSizes = {
   /** Portrait posters (movies, series) - 10:15 aspect ratio */
-  poster: 210,
+  poster: 270,
 
   /** Landscape posters (continue watching, thumbs, hero) - 16:9 aspect ratio */
-  landscape: 340,
+  landscape: 430,
 
   /** Episode cards - 16:9 aspect ratio */
-  episode: 320,
+  episode: 400,
 } as const;
 
 /**
