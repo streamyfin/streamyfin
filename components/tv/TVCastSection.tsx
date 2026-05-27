@@ -15,6 +15,8 @@ export interface TVCastSectionProps {
   firstActorRefSetter?: (ref: View | null) => void;
   /** Ref to focus guide destination for upward navigation */
   upwardFocusDestination?: View | null;
+  /** Custom horizontal padding (overrides default 80) */
+  horizontalPadding?: number;
 }
 
 export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
@@ -24,6 +26,7 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
     onActorPress,
     firstActorRefSetter,
     upwardFocusDestination,
+    horizontalPadding = 80,
   }) => {
     const typography = useScaledTVTypography();
     const sizes = useScaledTVSizes();
@@ -55,9 +58,9 @@ export const TVCastSection: React.FC<TVCastSectionProps> = React.memo(
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ marginHorizontal: -80, overflow: "visible" }}
+          style={{ marginHorizontal: -horizontalPadding, overflow: "visible" }}
           contentContainerStyle={{
-            paddingHorizontal: 80,
+            paddingHorizontal: horizontalPadding,
             paddingVertical: 16,
             gap: sizes.gaps.item,
           }}

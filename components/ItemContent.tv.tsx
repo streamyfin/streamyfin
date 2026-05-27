@@ -938,6 +938,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 apiBasePath={api?.basePath}
                 onActorPress={handleActorPress}
                 firstActorRefSetter={setFirstActorCardRef}
+                horizontalPadding={insets.left + 80}
               />
             )}
 
