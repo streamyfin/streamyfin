@@ -79,8 +79,8 @@ export const TVAnimation = {
  * Applied to poster sizes and gaps.
  */
 const sizeScaleMultipliers: Record<TVTypographyScale, number> = {
-  [TVTypographyScale.Small]: 0.63,
-  [TVTypographyScale.Default]: 0.7,
+  [TVTypographyScale.Small]: 0.53,
+  [TVTypographyScale.Default]: 0.63,
   [TVTypographyScale.Large]: 0.77,
   [TVTypographyScale.ExtraLarge]: 0.84,
 };
