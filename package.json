@@ -167,6 +167,6 @@
     "react-native-screens@4.18.0": "bun-patches/react-native-screens@4.18.0.patch",
     "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch",
     "@react-native/codegen@0.83.6": "bun-patches/@react-native%2Fcodegen@0.83.6.patch",
-    "react-native-bottom-tabs@1.2.0": "bun-patches/react-native-bottom-tabs@1.2.0.patch"
+    "react-native-bottom-tabs@1.2.0": "patches/react-native-bottom-tabs@1.2.0.patch"
   }
 }

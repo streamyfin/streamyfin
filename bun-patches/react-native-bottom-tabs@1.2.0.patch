@@ -1,3 +1,6 @@
+diff --git a/node_modules/react-native-bottom-tabs/.bun-tag-b32ab1c60a5dfcf7 b/.bun-tag-b32ab1c60a5dfcf7
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/ios/BottomAccessoryProvider.swift b/ios/BottomAccessoryProvider.swift
 index 539efee7156599e1fc795e11bf411b7dfaf12ec7..b2af39a2e6b014e9b1ae0a51b21115c19280df69 100644
 --- a/ios/BottomAccessoryProvider.swift
@@ -12,7 +15,7 @@ index 539efee7156599e1fc795e11bf411b7dfaf12ec7..b2af39a2e6b014e9b1ae0a51b21115c1
    public func emitPlacementChanged(_ placement: TabViewBottomAccessoryPlacement?) {
      var placementValue = "none"
 diff --git a/ios/TabView/NewTabView.swift b/ios/TabView/NewTabView.swift
-index 22c52cdf25ad0f7398d89197cb431ca8dc8e0f99..f85364ad1d53395a336c2eedbbd8cde8eed6c94a 100644
+index 22c52cdf25ad0f7398d89197cb431ca8dc8e0f99..81411376e68803de8bd83515d42565cfa95daf2b 100644
 --- a/ios/TabView/NewTabView.swift
 +++ b/ios/TabView/NewTabView.swift
 @@ -78,11 +78,11 @@ struct ConditionalBottomAccessoryModifier: ViewModifier {
@@ -52,7 +55,7 @@ index 22c52cdf25ad0f7398d89197cb431ca8dc8e0f99..f85364ad1d53395a336c2eedbbd8cde8
    }
  }
  #endif
-+#endif
++
 diff --git a/ios/TabViewImpl.swift b/ios/TabViewImpl.swift
 index 72938be90540ea3a483d7db9a80fb74c04d31272..277278ffdd9268a96cb09869eb1d0c0d5e6ad300 100644
 --- a/ios/TabViewImpl.swift
