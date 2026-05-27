@@ -137,7 +137,8 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
       <View style={{ marginTop: scaleSize(12) }}>
         <Text
           style={{
-            fontSize: typography.body,
+            fontSize: typography.callout,
+            fontWeight: "500",
             color: "#FFFFFF",
           }}
           numberOfLines={2}
