@@ -131,6 +131,11 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
         }
       },
     );
+
+    // Cancel animation on unmount to prevent onFinish from firing after exit
+    return () => {
+      cancelAnimation(progress);
+    };
   }, [show, isPlaying, progress]);
 
   const progressStyle = useAnimatedStyle(() => ({

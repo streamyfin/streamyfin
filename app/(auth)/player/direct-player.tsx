@@ -1041,7 +1041,7 @@ export default function page() {
 
   // TV: Navigate to next item
   const goToNextItem = useCallback(() => {
-    if (!nextItem || !settings) return;
+    if (!nextItem || !settings || isPlaybackStopped) return;
 
     const {
       mediaSource: newMediaSource,
@@ -1074,6 +1074,7 @@ export default function page() {
     stream?.mediaSource,
     bitrateValue,
     router,
+    isPlaybackStopped,
   ]);
 
   // Apply subtitle settings when video loads

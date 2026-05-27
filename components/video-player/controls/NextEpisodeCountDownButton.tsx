@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   runOnJS,
   useAnimatedStyle,
@@ -45,6 +46,11 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
           }
         },
       );
+
+      // Cancel animation on unmount to prevent onFinish from firing after exit
+      return () => {
+        cancelAnimation(progress);
+      };
     }
   }, [show, onFinish]);
 
