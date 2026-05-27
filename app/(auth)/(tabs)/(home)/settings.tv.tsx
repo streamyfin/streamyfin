@@ -1,4 +1,7 @@
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { Directory, Paths } from "expo-file-system";
+import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,7 +24,13 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
 import { APP_LANGUAGES } from "@/i18n";
-import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
+import { clearCache as clearAudioCache } from "@/providers/AudioStorage";
+import {
+  apiAtom,
+  cacheVersionAtom,
+  useJellyfin,
+  userAtom,
+} from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
   InactivityTimeout,
@@ -30,11 +39,13 @@ import {
   TVTypographyScale,
   useSettings,
 } from "@/utils/atoms/settings";
+import { storage } from "@/utils/mmkv";
 import {
   getPreviousServers,
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
+import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 export default function SettingsTV() {
   const { t } = useTranslation();
@@ -43,9 +54,11 @@ export default function SettingsTV() {
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
+  const [, setCacheVersion] = useAtom(cacheVersionAtom);
   const { showOptions } = useTVOptionModal();
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
+  const queryClient = useQueryClient();
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -161,6 +174,86 @@ export default function SettingsTV() {
     showUserSwitchModal(currentServer, user.Id, {
       onAccountSelect: handleAccountSelect,
     });
+  };
+
+  // Handle clearing all cache in the entire app
+  const handleClearCache = async () => {
+    Alert.alert(
+      t("home.settings.storage.clear_all_cache_confirm", "Clear All Cache?"),
+      t(
+        "home.settings.storage.clear_all_cache_confirm_desc",
+        "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
+      ),
+      [
+        {
+          text: t("common.cancel", "Cancel"),
+          style: "cancel",
+        },
+        {
+          text: t("common.ok", "OK"),
+          onPress: async () => {
+            try {
+              // 1. Clear React Query Cache (memory & MMKV)
+              storage.remove("REACT_QUERY_OFFLINE_CACHE");
+              await queryClient.resetQueries();
+
+              // 2. Clear expo-image cache (memory & disk)
+              await Image.clearDiskCache();
+              Image.clearMemoryCache();
+
+              // 3. Clear AudioStorage (music) cache
+              await clearAudioCache();
+
+              // 4. Clear TopShelf cache
+              clearTopShelfCacheSafely();
+
+              // 5. Clear Subtitle Cache
+              storage.remove("downloadedSubtitles.json");
+              const subtitlesDir = new Directory(
+                Paths.cache,
+                "streamyfin-subtitles",
+              );
+              if (subtitlesDir.exists) {
+                await subtitlesDir.delete();
+              }
+
+              // 6. Clear MMKV caches like extracted image colors and other non-essential storage keys
+              const keysToKeep = [
+                "settings",
+                "serverUrl",
+                "token",
+                "user",
+                "deviceId",
+                "previousServers",
+                "hasAskedForNotificationPermission",
+                "hasShownIntro",
+                "multiAccountMigrated",
+                "selectedTVServer",
+                "downloads.v2.json",
+              ];
+              const allKeys = storage.getAllKeys();
+              for (const key of allKeys) {
+                if (!keysToKeep.includes(key)) {
+                  storage.remove(key);
+                }
+              }
+
+              // 7. Increment cache version to force remount of components
+              setCacheVersion((v) => v + 1);
+            } catch (error) {
+              console.error("Failed to clear cache:", error);
+              Alert.alert(
+                t("home.settings.toasts.error_deleting_files", "Error"),
+                t(
+                  "home.settings.storage.clear_all_cache_error_desc",
+                  "An error occurred while clearing the cache.",
+                ),
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   const currentAudioTranscode =
@@ -788,6 +881,15 @@ export default function SettingsTV() {
             label={t("home.settings.appearance.theme_music")}
             value={settings.tvThemeMusicEnabled}
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
+          />
+
+          {/* Storage Section */}
+          <TVSectionHeader title={t("home.settings.storage.storage_title")} />
+          <TVSettingsOptionButton
+            label={t("home.settings.storage.clear_all_cache")}
+            value=''
+            onPress={handleClearCache}
+            isFirst
           />
 
           {/* User Section */}

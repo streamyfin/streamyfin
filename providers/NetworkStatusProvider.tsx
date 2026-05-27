@@ -35,8 +35,8 @@ async function checkApiReachable(basePath?: string): Promise<boolean> {
 }
 
 export function NetworkStatusProvider({ children }: { children: ReactNode }) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [serverConnected, setServerConnected] = useState<boolean | null>(null);
+  const [isConnected, setIsConnected] = useState(true);
+  const [serverConnected, setServerConnected] = useState<boolean | null>(true);
   const [loading, setLoading] = useState(false);
   const [api] = useAtom(apiAtom);
   const queryClient = useQueryClient();

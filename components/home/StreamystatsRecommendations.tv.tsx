@@ -210,7 +210,8 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
           style={{
             flexDirection: "row",
             gap: sizes.gaps.item,
-            paddingHorizontal: sizes.padding.scale,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
             paddingVertical: sizes.padding.scale,
           }}
         >
@@ -221,10 +222,31 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
                   backgroundColor: "#262626",
                   width: sizes.posters.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: scaleSize(12),
-                  marginBottom: scaleSize(8),
+                  borderRadius: scaleSize(24),
                 }}
               />
+              <View
+                style={{
+                  marginTop: scaleSize(12),
+                  paddingHorizontal: scaleSize(4),
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  marginBottom: 4,
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#262626",
+                    backgroundColor: "#262626",
+                    borderRadius: 6,
+                    fontSize: typography.callout,
+                  }}
+                  numberOfLines={1}
+                >
+                  Placeholder text here
+                </Text>
+              </View>
             </View>
           ))}
         </View>
