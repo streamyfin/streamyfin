@@ -25,7 +25,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "1.1.0",
+    "@bottom-tabs/react-navigation": "1.2.0",
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~55.0.11",
     "@expo/react-native-action-sheet": "^4.1.1",
@@ -83,7 +83,7 @@
     "react-i18next": "16.5.3",
     "react-native": "npm:react-native-tvos@0.83.6-0",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-bottom-tabs": "1.1.0",
+    "react-native-bottom-tabs": "1.2.0",
     "react-native-circular-progress": "^1.4.1",
     "react-native-collapsible": "^1.6.2",
     "react-native-country-flag": "^2.0.2",
@@ -165,6 +165,8 @@
   ],
   "patchedDependencies": {
     "react-native-screens@4.18.0": "bun-patches/react-native-screens@4.18.0.patch",
-    "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch"
+    "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch",
+    "@react-native/codegen@0.83.6": "bun-patches/@react-native%2Fcodegen@0.83.6.patch",
+    "react-native-bottom-tabs@1.2.0": "bun-patches/react-native-bottom-tabs@1.2.0.patch"
   }
 }
