@@ -362,8 +362,8 @@ function Layout() {
                   url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
                   // summarized season notification for multiple episodes. Bring them to series season
                 } else {
-                  const seriesId = data.seriesId;
-                  const seasonIndex = data.seasonIndex;
+                  const seriesId = data?.seriesId;
+                  const seasonIndex = data?.seasonIndex;
                   if (seasonIndex) {
                     url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
                   } else {

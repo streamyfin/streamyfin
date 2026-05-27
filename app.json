@@ -7,8 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
-    "jsEngine": "hermes",
-    "newArchEnabled": true,
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
@@ -38,7 +36,6 @@
       "appleTeamId": "MWD5K362T8"
     },
     "android": {
-      "jsEngine": "hermes",
       "versionCode": 92,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",

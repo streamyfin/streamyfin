@@ -73,4 +73,4 @@ modules/background-downloader/android/build/*
 
 # ios:unsigned-build Artifacts
 build/
-.claude/settings.local.json
+.claude/
