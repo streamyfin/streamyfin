@@ -19,7 +19,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { AppState, Platform } from "react-native";
-import { getDeviceName } from "react-native-device-info";
+import { getDeviceNameSync } from "react-native-device-info";
 import uuid from "react-native-uuid";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
@@ -45,9 +45,44 @@ interface Server {
   address: string;
 }
 
-export const apiAtom = atom<Api | null>(null);
-export const userAtom = atom<UserDto | null>(null);
+const initialApi = (() => {
+  try {
+    const token = storage.getString("token") || null;
+    const serverUrl = storage.getString("serverUrl") || null;
+    if (serverUrl && token) {
+      const id = getOrSetDeviceId();
+      const deviceName = getDeviceNameSync();
+      const jellyfinInstance = new Jellyfin({
+        clientInfo: { name: "Streamyfin", version: "0.52.0" },
+        deviceInfo: {
+          name: deviceName,
+          id,
+        },
+      });
+      return jellyfinInstance.createApi(serverUrl, token);
+    }
+  } catch (e) {
+    console.error("Failed to initialize API synchronously:", e);
+  }
+  return null;
+})();
+
+const initialUser = (() => {
+  try {
+    const userStr = storage.getString("user");
+    if (userStr) {
+      return JSON.parse(userStr) as UserDto;
+    }
+  } catch (e) {
+    console.error("Failed to parse initial user synchronously:", e);
+  }
+  return null;
+})();
+
+export const apiAtom = atom<Api | null>(initialApi);
+export const userAtom = atom<UserDto | null>(initialUser);
 export const wsAtom = atom<WebSocket | null>(null);
+export const cacheVersionAtom = atom<number>(0);
 
 interface LoginOptions {
   saveAccount?: boolean;
@@ -88,28 +123,31 @@ const JellyfinContext = createContext<JellyfinContextValue | undefined>(
 export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [jellyfin, setJellyfin] = useState<Jellyfin | undefined>(undefined);
-  const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
+  const [jellyfin] = useState<Jellyfin | undefined>(() => {
+    try {
+      const id = getOrSetDeviceId();
+      const deviceName = getDeviceNameSync();
+      return new Jellyfin({
+        clientInfo: { name: "Streamyfin", version: "0.52.0" },
+        deviceInfo: {
+          name: deviceName,
+          id,
+        },
+      });
+    } catch (e) {
+      console.error("Failed to initialize Jellyfin synchronously in state:", e);
+      return undefined;
+    }
+  });
+  const [deviceId] = useState<string | undefined>(() => {
+    try {
+      return getOrSetDeviceId();
+    } catch {
+      return undefined;
+    }
+  });
 
   const { t } = useTranslation();
-
-  useEffect(() => {
-    (async () => {
-      const id = getOrSetDeviceId();
-      const deviceName = await getDeviceName();
-      setJellyfin(
-        () =>
-          new Jellyfin({
-            clientInfo: { name: "Streamyfin", version: "0.52.0" },
-            deviceInfo: {
-              name: deviceName,
-              id,
-            },
-          }),
-      );
-      setDeviceId(id);
-    })();
-  }, []);
 
   const [api, setApi] = useAtom(apiAtom);
   const [user, setUser] = useAtom(userAtom);

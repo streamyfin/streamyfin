@@ -27,7 +27,7 @@ import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { scaleSize } from "@/utils/scaleSize";
 
 // Extra padding to accommodate scale animation (1.05x) and glow shadow
-const SCALE_PADDING = scaleSize(20);
+const _SCALE_PADDING = scaleSize(20);
 
 interface Props extends ViewProps {
   title?: string | null;
@@ -276,8 +276,9 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           style={{
             flexDirection: "row",
             gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
-            paddingVertical: SCALE_PADDING,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
+            paddingVertical: sizes.gaps.small,
           }}
         >
           {[1, 2, 3, 4, 5].map((i) => (
@@ -287,12 +288,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                   backgroundColor: "#262626",
                   width: itemWidth,
                   aspectRatio: orientation === "horizontal" ? 16 / 9 : 10 / 15,
-                  borderRadius: scaleSize(12),
-                  marginBottom: scaleSize(8),
+                  borderRadius: scaleSize(24),
                 }}
               />
               <View
                 style={{
+                  marginTop: scaleSize(12),
+                  paddingHorizontal: scaleSize(4),
                   borderRadius: 6,
                   overflow: "hidden",
                   marginBottom: 4,

@@ -158,7 +158,8 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
           style={{
             flexDirection: "row",
             gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
             paddingVertical: SCALE_PADDING,
           }}
         >
@@ -169,10 +170,31 @@ const WatchlistSection: React.FC<WatchlistSectionProps> = ({
                   backgroundColor: "#262626",
                   width: posterSizes.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: scaleSize(12),
-                  marginBottom: scaleSize(8),
+                  borderRadius: scaleSize(24),
                 }}
               />
+              <View
+                style={{
+                  marginTop: scaleSize(12),
+                  paddingHorizontal: scaleSize(4),
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  marginBottom: 4,
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#262626",
+                    backgroundColor: "#262626",
+                    borderRadius: 6,
+                    fontSize: typography.callout,
+                  }}
+                  numberOfLines={1}
+                >
+                  Placeholder text here
+                </Text>
+              </View>
             </View>
           ))}
         </View>
@@ -217,6 +239,7 @@ export const StreamystatsPromotedWatchlists: React.FC<
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { settings } = useSettings();
+  const typography = useScaledTVTypography();
 
   const streamyStatsEnabled = useMemo(() => {
     return Boolean(settings?.streamyStatsServerUrl);
@@ -291,15 +314,16 @@ export const StreamystatsPromotedWatchlists: React.FC<
             width: scaleSize(128),
             backgroundColor: "#262626",
             borderRadius: scaleSize(4),
-            marginLeft: SCALE_PADDING,
-            marginBottom: scaleSize(16),
+            marginLeft: sizes.padding.horizontal,
+            marginBottom: scaleSize(20),
           }}
         />
         <View
           style={{
             flexDirection: "row",
             gap: ITEM_GAP,
-            paddingHorizontal: SCALE_PADDING,
+            paddingLeft: sizes.padding.horizontal,
+            paddingRight: sizes.padding.horizontal,
             paddingVertical: SCALE_PADDING,
           }}
         >
@@ -310,10 +334,31 @@ export const StreamystatsPromotedWatchlists: React.FC<
                   backgroundColor: "#262626",
                   width: posterSizes.poster,
                   aspectRatio: 10 / 15,
-                  borderRadius: scaleSize(12),
-                  marginBottom: scaleSize(8),
+                  borderRadius: scaleSize(24),
                 }}
               />
+              <View
+                style={{
+                  marginTop: scaleSize(12),
+                  paddingHorizontal: scaleSize(4),
+                  borderRadius: 6,
+                  overflow: "hidden",
+                  marginBottom: 4,
+                  alignSelf: "flex-start",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#262626",
+                    backgroundColor: "#262626",
+                    borderRadius: 6,
+                    fontSize: typography.callout,
+                  }}
+                  numberOfLines={1}
+                >
+                  Placeholder text here
+                </Text>
+              </View>
             </View>
           ))}
         </View>

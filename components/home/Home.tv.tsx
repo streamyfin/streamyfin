@@ -37,7 +37,11 @@ import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  apiAtom,
+  cacheVersionAtom,
+  userAtom,
+} from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
@@ -69,6 +73,7 @@ export const Home = () => {
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  const cacheVersion = useAtomValue(cacheVersionAtom);
   const insets = useSafeAreaInsets();
   const { settings } = useSettings();
   const scrollRef = useRef<ScrollView>(null);
@@ -669,7 +674,7 @@ export const Home = () => {
     );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#000000" }}>
+    <View key={cacheVersion} style={{ flex: 1, backgroundColor: "#000000" }}>
       {/* Dynamic backdrop with crossfade - only shown when hero is disabled */}
       {!showHero && settings.showHomeBackdrop && (
         <View
