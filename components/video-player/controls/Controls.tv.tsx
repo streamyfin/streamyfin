@@ -38,9 +38,8 @@ import {
 import { TVFocusableProgressBar } from "@/components/tv/TVFocusableProgressBar";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useSegmentSkipper } from "@/hooks/useSegmentSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -51,7 +50,14 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
+import { useSegments } from "@/utils/segments";
+import {
+  formatTimeString,
+  msToSeconds,
+  msToTicks,
+  secondsToMs,
+  ticksToMs,
+} from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
 import { useChapterNavigation } from "./hooks/useChapterNavigation";
@@ -98,6 +104,9 @@ interface Props {
 
 const TV_SEEKBAR_HEIGHT = 14;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
+
+// Stable no-op so the generic skip card keeps a constant onPress when idle.
+const noop = () => {};
 
 // Trickplay bubble positioning constants
 const TV_TRICKPLAY_SCALE = 2;
@@ -427,30 +436,139 @@ export const Controls: FC<Props> = ({
     seek,
   });
 
-  // Skip intro/credits hooks
-  // Note: hooks expect seek callback that takes ms, and seek prop already expects ms
+  // Segment skipping (intro + outro/credits) via the unified hook.
   const offline = useOfflineMode();
-  const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    _play,
+
+  const { data: segments } = useSegments(
+    item.Id ?? "",
     offline,
-    api,
     downloadedFiles,
+    api,
   );
 
-  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
-    useCreditSkipper(
-      item.Id!,
-      currentTime,
-      seek,
-      _play,
-      offline,
-      api,
-      downloadedFiles,
-      max.value,
-    );
+  const currentTimeSeconds = msToSeconds(currentTime);
+  const maxSeconds = msToSeconds(maxMs);
+
+  // useSegmentSkipper deals in seconds; the player seek expects ms. The 200ms
+  // delayed play() mirrors the mobile controls: some seeks otherwise resume
+  // from the pre-seek position.
+  const playSegmentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  useEffect(() => {
+    return () => {
+      if (playSegmentTimeoutRef.current) {
+        clearTimeout(playSegmentTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const seekSeconds = useCallback(
+    (timeInSeconds: number) => {
+      if (playSegmentTimeoutRef.current) {
+        clearTimeout(playSegmentTimeoutRef.current);
+      }
+      seek(secondsToMs(timeInSeconds));
+      playSegmentTimeoutRef.current = setTimeout(() => {
+        _play();
+        playSegmentTimeoutRef.current = null;
+      }, 200);
+    },
+    [seek, _play],
+  );
+
+  const introSkipper = useSegmentSkipper({
+    segments: segments?.introSegments ?? [],
+    segmentType: "Intro",
+    currentTime: currentTimeSeconds,
+    seek: seekSeconds,
+    isPaused: !isPlaying,
+  });
+
+  const outroSkipper = useSegmentSkipper({
+    segments: segments?.creditSegments ?? [],
+    segmentType: "Outro",
+    currentTime: currentTimeSeconds,
+    totalDuration: maxSeconds,
+    seek: seekSeconds,
+    isPaused: !isPlaying,
+  });
+
+  const recapSkipper = useSegmentSkipper({
+    segments: segments?.recapSegments ?? [],
+    segmentType: "Recap",
+    currentTime: currentTimeSeconds,
+    seek: seekSeconds,
+    isPaused: !isPlaying,
+  });
+
+  const commercialSkipper = useSegmentSkipper({
+    segments: segments?.commercialSegments ?? [],
+    segmentType: "Commercial",
+    currentTime: currentTimeSeconds,
+    seek: seekSeconds,
+    isPaused: !isPlaying,
+  });
+
+  const previewSkipper = useSegmentSkipper({
+    segments: segments?.previewSegments ?? [],
+    segmentType: "Preview",
+    currentTime: currentTimeSeconds,
+    seek: seekSeconds,
+    isPaused: !isPlaying,
+  });
+
+  // Priority when multiple segments overlap: Commercial > Recap > Intro > Preview > Outro.
+  // The outro keeps its dedicated card (it composes with the Next Episode
+  // countdown); the other four share one generic skip card. Including the outro
+  // here keeps the two cards mutually exclusive.
+  const activeSegment = useMemo(() => {
+    if (commercialSkipper.currentSegment)
+      return {
+        type: "commercial" as const,
+        skipSegment: commercialSkipper.skipSegment,
+      };
+    if (recapSkipper.currentSegment)
+      return { type: "recap" as const, skipSegment: recapSkipper.skipSegment };
+    if (introSkipper.currentSegment)
+      return { type: "intro" as const, skipSegment: introSkipper.skipSegment };
+    if (previewSkipper.currentSegment)
+      return {
+        type: "preview" as const,
+        skipSegment: previewSkipper.skipSegment,
+      };
+    if (outroSkipper.currentSegment)
+      return { type: "outro" as const, skipSegment: outroSkipper.skipSegment };
+    return null;
+  }, [
+    commercialSkipper.currentSegment,
+    commercialSkipper.skipSegment,
+    recapSkipper.currentSegment,
+    recapSkipper.skipSegment,
+    introSkipper.currentSegment,
+    introSkipper.skipSegment,
+    previewSkipper.currentSegment,
+    previewSkipper.skipSegment,
+    outroSkipper.currentSegment,
+    outroSkipper.skipSegment,
+  ]);
+
+  const isOutroActive = activeSegment?.type === "outro";
+
+  // Generic card (intro/recap/commercial/preview).
+  const showSkipButton = !!activeSegment && !isOutroActive;
+  const skipActiveSegment = activeSegment?.skipSegment ?? noop;
+  const activeSegmentType = isOutroActive
+    ? "intro"
+    : (activeSegment?.type ?? "intro");
+
+  // Outro card (composes with the Next Episode countdown).
+  const showSkipCreditButton = isOutroActive;
+  const skipCredit = outroSkipper.skipSegment;
+  const hasContentAfterCredits =
+    outroSkipper.currentSegment && maxSeconds
+      ? outroSkipper.currentSegment.endTime < maxSeconds
+      : false;
 
   // Countdown logic
   const isCountdownActive = useMemo(() => {
@@ -1126,11 +1244,11 @@ export const Controls: FC<Props> = ({
         />
       )}
 
-      {/* Skip intro card */}
+      {/* Generic skip card (intro / recap / commercial / preview) */}
       <TVSkipSegmentCard
         show={showSkipButton && !isCountdownActive}
-        onPress={skipIntro}
-        type='intro'
+        onPress={skipActiveSegment}
+        type={activeSegmentType}
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
         hasTVPreferredFocus={!showControls}

@@ -19,10 +19,27 @@ import { Text } from "@/components/common/Text";
 import { scaleSize } from "@/utils/scaleSize";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
+export type TVSkipSegmentType =
+  | "intro"
+  | "credits"
+  | "outro"
+  | "recap"
+  | "commercial"
+  | "preview";
+
+const SEGMENT_LABEL_KEY: Record<TVSkipSegmentType, string> = {
+  intro: "player.skip_intro",
+  credits: "player.skip_credits",
+  outro: "player.skip_outro",
+  recap: "player.skip_recap",
+  commercial: "player.skip_commercial",
+  preview: "player.skip_preview",
+};
+
 export interface TVSkipSegmentCardProps {
   show: boolean;
   onPress: () => void;
-  type: "intro" | "credits";
+  type: TVSkipSegmentType;
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
   /** Callback ref setter for focus guide destination pattern */
@@ -72,8 +89,7 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
     bottom: bottomPosition.value,
   }));
 
-  const labelText =
-    type === "intro" ? t("player.skip_intro") : t("player.skip_credits");
+  const labelText = t(SEGMENT_LABEL_KEY[type]);
 
   if (!show) return null;
 

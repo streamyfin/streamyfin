@@ -4,7 +4,15 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useState } from "react";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -16,17 +24,17 @@ import Animated, {
 } from "react-native-reanimated";
 import ContinueWatchingOverlay from "@/components/video-player/controls/ContinueWatchingOverlay";
 import useRouter from "@/hooks/useAppRouter";
-import { useCreditSkipper } from "@/hooks/useCreditSkipper";
 import { useHaptic } from "@/hooks/useHaptic";
-import { useIntroSkipper } from "@/hooks/useIntroSkipper";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import { useSegmentSkipper } from "@/hooks/useSegmentSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { ticksToMs } from "@/utils/time";
+import { useSegments } from "@/utils/segments";
+import { msToSeconds, ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
@@ -42,6 +50,9 @@ import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
 import { type AspectRatio } from "./VideoScalingModeSelector";
+
+// No-op function to avoid creating new references on every render
+const noop = () => {};
 
 interface Props {
   item: BaseItemDto;
@@ -110,6 +121,24 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+
+  // Ref to track pending play timeout for cleanup and cancellation
+  const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Mutable ref tracking isPlaying to avoid stale closures in seekMs timeout
+  const playingRef = useRef(isPlaying);
+  useEffect(() => {
+    playingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -316,27 +345,140 @@ export const Controls: FC<Props> = ({
     subtitleIndex: string;
   }>();
 
-  const { showSkipButton, skipIntro } = useIntroSkipper(
-    item.Id!,
-    currentTime,
-    seek,
-    play,
+  // Fetch all segments for the current item
+  const { data: segments } = useSegments(
+    item.Id ?? "",
     offline,
-    api,
     downloadedFiles,
+    api,
   );
 
-  const { showSkipCreditButton, skipCredit, hasContentAfterCredits } =
-    useCreditSkipper(
-      item.Id!,
-      currentTime,
-      seek,
-      play,
-      offline,
-      api,
-      downloadedFiles,
-      maxMs,
-    );
+  const currentTimeSeconds = msToSeconds(currentTime);
+  const maxSeconds = maxMs ? msToSeconds(maxMs) : undefined;
+
+  // Segment hook deals in seconds; player API in ms. The 200ms delayed play()
+  // is a workaround: some seeks otherwise resume from the pre-seek position.
+  const seekMs = useCallback(
+    (timeInSeconds: number) => {
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+      }
+      seek(timeInSeconds * 1000);
+      playTimeoutRef.current = setTimeout(() => {
+        // playingRef avoids a stale closure: re-check current isPlaying.
+        if (playingRef.current) {
+          play();
+        }
+        playTimeoutRef.current = null;
+      }, 200);
+    },
+    [seek, play],
+  );
+
+  const introSkipper = useSegmentSkipper({
+    segments: segments?.introSegments || [],
+    segmentType: "Intro",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const outroSkipper = useSegmentSkipper({
+    segments: segments?.creditSegments || [],
+    segmentType: "Outro",
+    currentTime: currentTimeSeconds,
+    totalDuration: maxSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const recapSkipper = useSegmentSkipper({
+    segments: segments?.recapSegments || [],
+    segmentType: "Recap",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const commercialSkipper = useSegmentSkipper({
+    segments: segments?.commercialSegments || [],
+    segmentType: "Commercial",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  const previewSkipper = useSegmentSkipper({
+    segments: segments?.previewSegments || [],
+    segmentType: "Preview",
+    currentTime: currentTimeSeconds,
+    seek: seekMs,
+    isPaused: !isPlaying,
+  });
+
+  // Priority when multiple segments overlap: Commercial > Recap > Intro > Preview > Outro.
+  const activeSegment = useMemo(() => {
+    if (commercialSkipper.currentSegment)
+      return {
+        type: "Commercial" as const,
+        currentSegment: commercialSkipper.currentSegment,
+        skipSegment: commercialSkipper.skipSegment,
+      };
+    if (recapSkipper.currentSegment)
+      return {
+        type: "Recap" as const,
+        currentSegment: recapSkipper.currentSegment,
+        skipSegment: recapSkipper.skipSegment,
+      };
+    if (introSkipper.currentSegment)
+      return {
+        type: "Intro" as const,
+        currentSegment: introSkipper.currentSegment,
+        skipSegment: introSkipper.skipSegment,
+      };
+    if (previewSkipper.currentSegment)
+      return {
+        type: "Preview" as const,
+        currentSegment: previewSkipper.currentSegment,
+        skipSegment: previewSkipper.skipSegment,
+      };
+    if (outroSkipper.currentSegment)
+      return {
+        type: "Outro" as const,
+        currentSegment: outroSkipper.currentSegment,
+        skipSegment: outroSkipper.skipSegment,
+      };
+    return null;
+  }, [
+    commercialSkipper.currentSegment,
+    commercialSkipper.skipSegment,
+    recapSkipper.currentSegment,
+    recapSkipper.skipSegment,
+    introSkipper.currentSegment,
+    introSkipper.skipSegment,
+    previewSkipper.currentSegment,
+    previewSkipper.skipSegment,
+    outroSkipper.currentSegment,
+    outroSkipper.skipSegment,
+  ]);
+
+  // Outro gets a dedicated button (so it can compose with Next Episode logic);
+  // every other segment type shares the generic skip button.
+  const showSkipSegmentButton =
+    !!activeSegment && activeSegment.type !== "Outro";
+  const onSkipSegment = activeSegment?.skipSegment ?? noop;
+  const showSkipOutroButton = activeSegment?.type === "Outro";
+  const onSkipOutro = outroSkipper.skipSegment;
+  const hasContentAfterCredits =
+    outroSkipper.currentSegment && maxSeconds
+      ? outroSkipper.currentSegment.endTime < maxSeconds
+      : false;
+
+  const { t } = useTranslation();
+  const skipSegmentButtonText = activeSegment
+    ? t(`player.skip_${activeSegment.type.toLowerCase()}`)
+    : t("player.skip_intro");
+  const skipOutroButtonText = t("player.skip_outro");
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -570,11 +712,13 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipButton={showSkipButton}
-              showSkipCreditButton={showSkipCreditButton}
+              showSkipSegmentButton={showSkipSegmentButton}
+              skipSegmentButtonText={skipSegmentButtonText}
+              showSkipOutroButton={showSkipOutroButton}
+              skipOutroButtonText={skipOutroButtonText}
               hasContentAfterCredits={hasContentAfterCredits}
-              skipIntro={skipIntro}
-              skipCredit={skipCredit}
+              onSkipSegment={onSkipSegment}
+              onSkipOutro={onSkipOutro}
               nextItem={nextItem}
               handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
               handleNextEpisodeManual={handleNextEpisodeManual}
