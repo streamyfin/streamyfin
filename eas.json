@@ -43,6 +43,13 @@
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
+    "preview_tv": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_TV": "1",
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
+      }
+    },
     "production": {
       "environment": "production",
       "channel": "0.52.0",
@@ -68,9 +75,20 @@
       "env": {
         "EXPO_TV": "1"
       }
+    },
+    "production_tv": {
+      "environment": "production",
+      "channel": "0.52.0",
+      "env": {
+        "EXPO_TV": "1"
+      },
+      "ios": {
+        "credentialsSource": "local"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "production_tv": {}
   }
 }

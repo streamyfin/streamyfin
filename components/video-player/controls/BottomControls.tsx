@@ -6,6 +6,7 @@ import { type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useSettings } from "@/utils/atoms/settings";
+import { ChapterMarkers } from "./ChapterMarkers";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 import { TimeDisplay } from "./TimeDisplay";
@@ -57,6 +58,9 @@ interface BottomControlsProps {
     minutes: number;
     seconds: number;
   };
+
+  // Chapter props
+  chapterPositions?: number[];
 }
 
 export const BottomControls: FC<BottomControlsProps> = ({
@@ -87,6 +91,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
+  chapterPositions = [],
 }) => {
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
@@ -109,7 +114,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
       onTouchStart={handleControlsInteraction}
     >
       <View
-        className='shrink flex flex-col justify-center h-full'
+        className='shrink flex flex-col justify-center'
         style={{
           flexDirection: "row",
           justifyContent: "space-between",
@@ -176,6 +181,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               height: 10,
               justifyContent: "center",
               alignItems: "stretch",
+              position: "relative",
             }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -212,6 +218,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               minimumValue={min}
               maximumValue={max}
             />
+            <ChapterMarkers chapterPositions={chapterPositions} />
           </View>
           <TimeDisplay
             currentTime={currentTime}

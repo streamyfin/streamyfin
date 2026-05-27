@@ -69,6 +69,7 @@ export const PlayButton: React.FC<Props> = ({
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
     });
 
     const queryString = queryParams.toString();

@@ -43,7 +43,7 @@ export default function IndexLayout() {
       <Stack.Screen
         name='downloads/index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
@@ -62,7 +62,7 @@ export default function IndexLayout() {
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -81,6 +81,26 @@ export default function IndexLayout() {
         name='settings'
         options={{
           title: t("home.settings.settings_title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => _router.back()}
+              className='pl-0.5'
+              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
+            >
+              <Feather name='chevron-left' size={28} color='white' />
+            </Pressable>
+          ),
+        }}
+      />
+      <Stack.Screen
+        name='companion-login'
+        options={{
+          title: t("companion_login.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -99,6 +119,7 @@ export default function IndexLayout() {
         name='settings/playback-controls/page'
         options={{
           title: t("home.settings.playback_controls.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -117,6 +138,7 @@ export default function IndexLayout() {
         name='settings/audio-subtitles/page'
         options={{
           title: t("home.settings.audio_subtitles.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -135,6 +157,7 @@ export default function IndexLayout() {
         name='settings/appearance/page'
         options={{
           title: t("home.settings.appearance.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -153,6 +176,7 @@ export default function IndexLayout() {
         name='settings/music/page'
         options={{
           title: t("home.settings.music.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -171,6 +195,7 @@ export default function IndexLayout() {
         name='settings/appearance/hide-libraries/page'
         options={{
           title: t("home.settings.other.hide_libraries"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -189,6 +214,7 @@ export default function IndexLayout() {
         name='settings/plugins/page'
         options={{
           title: t("home.settings.plugins.plugins_title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -207,6 +233,7 @@ export default function IndexLayout() {
         name='settings/plugins/marlin-search/page'
         options={{
           title: "Marlin Search",
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -225,6 +252,7 @@ export default function IndexLayout() {
         name='settings/plugins/jellyseerr/page'
         options={{
           title: "Jellyseerr",
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -243,6 +271,7 @@ export default function IndexLayout() {
         name='settings/plugins/streamystats/page'
         options={{
           title: "Streamystats",
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -261,6 +290,7 @@ export default function IndexLayout() {
         name='settings/plugins/kefinTweaks/page'
         options={{
           title: "KefinTweaks",
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -279,6 +309,7 @@ export default function IndexLayout() {
         name='settings/intro/page'
         options={{
           title: t("home.settings.intro.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -297,6 +328,7 @@ export default function IndexLayout() {
         name='settings/logs/page'
         options={{
           title: t("home.settings.logs.logs_title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -315,6 +347,7 @@ export default function IndexLayout() {
         name='settings/network/page'
         options={{
           title: t("home.settings.network.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -341,7 +374,7 @@ export default function IndexLayout() {
               <Feather name='chevron-left' size={28} color='white' />
             </Pressable>
           ),
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,

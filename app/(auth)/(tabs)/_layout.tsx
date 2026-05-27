@@ -11,11 +11,18 @@ import { withLayoutContext } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
-import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
-import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
+import { useTVHomeBackHandler } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+
+// Music components are not available on tvOS (TrackPlayer not supported)
+const MiniPlayerBar = Platform.isTV
+  ? () => null
+  : require("@/components/music/MiniPlayerBar").MiniPlayerBar;
+const MusicPlaybackEngine = Platform.isTV
+  ? () => null
+  : require("@/components/music/MusicPlaybackEngine").MusicPlaybackEngine;
 
 const { Navigator } = createNativeBottomTabNavigator();
 
@@ -29,6 +36,9 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
+
+  // Handle TV back button - prevent app exit when at root
+  useTVHomeBackHandler();
 
   return (
     <View style={{ flex: 1 }}>
@@ -115,6 +125,17 @@ export default function TabLayout() {
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.png")
                 : (_e) => ({ sfSymbol: "list.dash.fill" }),
+          }}
+        />
+        <NativeTabs.Screen
+          name='(settings)'
+          options={{
+            title: t("tabs.settings"),
+            tabBarItemHidden: !Platform.isTV,
+            tabBarIcon:
+              Platform.OS === "android"
+                ? (_e) => require("@/assets/icons/gear.png") //Should maybe use other libraries to have it uniform
+                : (_e) => ({ sfSymbol: "gearshape.fill" }),
           }}
         />
       </NativeTabs>

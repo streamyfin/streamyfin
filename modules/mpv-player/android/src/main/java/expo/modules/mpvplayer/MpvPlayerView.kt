@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.os.Build
 import android.util.Log
+import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.FrameLayout
@@ -21,7 +22,8 @@ data class VideoLoadConfig(
     val startPosition: Double? = null,
     val autoplay: Boolean = true,
     val initialSubtitleId: Int? = null,
-    val initialAudioId: Int? = null
+    val initialAudioId: Int? = null,
+    val voDriver: String? = null
 )
 
 /**
@@ -52,10 +54,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var intendedPlayState: Boolean = false
     private var surfaceReady: Boolean = false
     private var pendingConfig: VideoLoadConfig? = null
-    
+    private var rendererStarted: Boolean = false
+    private var pendingSurface: Surface? = null
+
     init {
         setBackgroundColor(Color.BLACK)
-        
+
         // Create SurfaceView for video rendering
         surfaceView = SurfaceView(context).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -65,11 +69,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             holder.addCallback(this@MpvPlayerView)
         }
         addView(surfaceView)
-        
-        // Initialize renderer
-        renderer = MPVLayerRenderer(context)
-        renderer?.delegate = this
-        
+
         // Initialize PiP controller with Expo's AppContext for proper activity access
         pipController = PiPController(context, appContext)
         pipController?.setPlayerView(surfaceView)
@@ -77,19 +77,39 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             override fun onPlay() {
                 play()
             }
-            
+
             override fun onPause() {
                 pause()
             }
-            
+
             override fun onSeekBy(seconds: Double) {
                 seekBy(seconds)
             }
         }
-        
-        // Start the renderer
+
+        // Renderer is created lazily in loadVideo once we have the voDriver setting
+        renderer = MPVLayerRenderer(context)
+        renderer?.delegate = this
+    }
+
+    /**
+     * Start the renderer with the given VO driver.
+     * Called lazily on first loadVideo so the voDriver setting is available.
+     */
+    private fun ensureRendererStarted(voDriver: String?) {
+        if (rendererStarted) return
+
         try {
-            renderer?.start()
+            renderer?.start(voDriver ?: "gpu-next")
+            rendererStarted = true
+            Log.i(TAG, "Renderer started with vo=$voDriver")
+
+            // If surface was created before renderer started, attach it now
+            pendingSurface?.let { surface ->
+                renderer?.attachSurface(surface)
+                pendingSurface = null
+                Log.i(TAG, "Attached pending surface after renderer start")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start renderer: ${e.message}")
             onError(mapOf("error" to "Failed to start renderer: ${e.message}"))
@@ -101,10 +121,18 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     override fun surfaceCreated(holder: SurfaceHolder) {
         Log.i(TAG, "Surface created")
         surfaceReady = true
-        renderer?.attachSurface(holder.surface)
-        
+
+        if (rendererStarted) {
+            renderer?.attachSurface(holder.surface)
+        } else {
+            // Renderer not started yet - store surface to attach after start
+            pendingSurface = holder.surface
+            Log.i(TAG, "Surface created before renderer started, storing as pending")
+        }
+
         // If we have a pending load, execute it now
         pendingConfig?.let { config ->
+            ensureRendererStarted(config.voDriver)
             loadVideoInternal(config)
             pendingConfig = null
         }
@@ -135,6 +163,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             pendingConfig = config
             return
         }
+
+        // Ensure renderer is started with the configured VO driver
+        ensureRendererStarted(config.voDriver)
 
         loadVideoInternal(config)
     }
@@ -271,7 +302,19 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSubtitleFontSize(size: Int) {
         renderer?.setSubtitleFontSize(size)
     }
-    
+
+    fun setSubtitleBorderStyle(style: String) {
+        renderer?.setSubtitleBorderStyle(style)
+    }
+
+    fun setSubtitleBackgroundColor(color: String) {
+        renderer?.setSubtitleBackgroundColor(color)
+    }
+
+    fun setSubtitleAssOverride(mode: String) {
+        renderer?.setSubtitleAssOverride(mode)
+    }
+
     // MARK: - Audio Track Controls
     
     fun getAudioTracks(): List<Map<String, Any>> {

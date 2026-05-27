@@ -2,6 +2,7 @@ import { ItemFields } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
+import { Platform } from "react-native";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
@@ -49,6 +50,8 @@ export const useItemQuery = (
       return response.data.Items?.[0];
     },
     enabled: !!itemId,
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,

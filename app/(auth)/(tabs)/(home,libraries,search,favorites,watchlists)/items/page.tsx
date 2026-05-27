@@ -3,9 +3,8 @@ import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -14,6 +13,10 @@ import { Text } from "@/components/common/Text";
 import { ItemContent } from "@/components/ItemContent";
 import { useItemQuery } from "@/hooks/useItemQuery";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+
+const ItemContentSkeletonTV = Platform.isTV
+  ? require("@/components/ItemContentSkeleton.tv").ItemContentSkeletonTV
+  : null;
 
 const Page: React.FC = () => {
   const { id } = useLocalSearchParams() as { id: string };
@@ -24,7 +27,11 @@ const Page: React.FC = () => {
 
   // Exclude MediaSources/MediaStreams from initial fetch for faster loading
   // (especially important for plugins like Gelato)
-  const { data: item, isError } = useItemQuery(id, isOffline, undefined, [
+  const {
+    data: item,
+    isError,
+    isLoading,
+  } = useItemQuery(id, isOffline, undefined, [
     ItemFields.MediaSources,
     ItemFields.MediaSourceCount,
     ItemFields.MediaStreams,
@@ -40,33 +47,14 @@ const Page: React.FC = () => {
     };
   });
 
-  const fadeOut = (callback: any) => {
-    setTimeout(() => {
-      opacity.value = withTiming(0, { duration: 500 }, (finished) => {
-        if (finished) {
-          runOnJS(callback)();
-        }
-      });
-    }, 100);
-  };
-
-  const fadeIn = (callback: any) => {
-    setTimeout(() => {
-      opacity.value = withTiming(1, { duration: 500 }, (finished) => {
-        if (finished) {
-          runOnJS(callback)();
-        }
-      });
-    }, 100);
-  };
-
+  // Fast fade out when item loads (no setTimeout delay)
   useEffect(() => {
     if (item) {
-      fadeOut(() => {});
+      opacity.value = withTiming(0, { duration: 150 });
     } else {
-      fadeIn(() => {});
+      opacity.value = withTiming(1, { duration: 150 });
     }
-  }, [item]);
+  }, [item, opacity]);
 
   if (isError)
     return (
@@ -78,31 +66,46 @@ const Page: React.FC = () => {
   return (
     <OfflineModeProvider isOffline={isOffline}>
       <View className='flex flex-1 relative'>
-        <Animated.View
-          pointerEvents={"none"}
-          style={[animatedStyle]}
-          className='absolute top-0 left-0 flex flex-col items-start h-screen w-screen px-4 z-50 bg-black'
-        >
-          <View
-            style={{
-              height: item?.Type === "Episode" ? 300 : 450,
-            }}
-            className='bg-transparent rounded-lg mb-4 w-full'
-          />
-          <View className='h-6 bg-neutral-900 rounded mb-4 w-14' />
-          <View className='h-10 bg-neutral-900 rounded-lg mb-2 w-1/2' />
-          <View className='h-3 bg-neutral-900 rounded mb-3 w-8' />
-          <View className='flex flex-row space-x-1 mb-8'>
-            <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
-            <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
-            <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
-          </View>
-          <View className='h-3 bg-neutral-900 rounded w-2/3 mb-1' />
-          <View className='h-10 bg-neutral-900 rounded-lg w-full mb-2' />
-          <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
-          <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
-        </Animated.View>
-        {item && <ItemContent item={item} itemWithSources={itemWithSources} />}
+        {/* Always render ItemContent - it handles loading state internally on TV */}
+        <ItemContent
+          item={item}
+          itemWithSources={itemWithSources}
+          isLoading={isLoading}
+        />
+
+        {/* Skeleton overlay - fades out when content loads */}
+        {!item && (
+          <Animated.View
+            pointerEvents={"none"}
+            style={[animatedStyle]}
+            className='absolute top-0 left-0 flex flex-col items-start h-screen w-screen z-50 bg-black'
+          >
+            {Platform.isTV && ItemContentSkeletonTV ? (
+              <ItemContentSkeletonTV />
+            ) : (
+              <View style={{ paddingHorizontal: 16, width: "100%" }}>
+                <View
+                  style={{
+                    height: 450,
+                  }}
+                  className='bg-transparent rounded-lg mb-4 w-full'
+                />
+                <View className='h-6 bg-neutral-900 rounded mb-4 w-14' />
+                <View className='h-10 bg-neutral-900 rounded-lg mb-2 w-1/2' />
+                <View className='h-3 bg-neutral-900 rounded mb-3 w-8' />
+                <View className='flex flex-row space-x-1 mb-8'>
+                  <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
+                  <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
+                  <View className='h-6 bg-neutral-900 rounded mb-3 w-14' />
+                </View>
+                <View className='h-3 bg-neutral-900 rounded w-2/3 mb-1' />
+                <View className='h-10 bg-neutral-900 rounded-lg w-full mb-2' />
+                <View className='h-12 bg-neutral-900 rounded-lg w-full mb-2' />
+                <View className='h-24 bg-neutral-900 rounded-lg mb-1 w-full' />
+              </View>
+            )}
+          </Animated.View>
+        )}
       </View>
     </OfflineModeProvider>
   );

@@ -7,8 +7,9 @@ import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
+import { orderBy, uniqBy } from "lodash";
 import {
   useCallback,
   useEffect,
@@ -22,9 +23,11 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
-import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
-import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
+import {
+  getItemNavigation,
+  TouchableItemRouter,
+} from "@/components/common/TouchableItemRouter";
 import { ItemCardText } from "@/components/ItemCardText";
 import {
   JellyseerrSearchSort,
@@ -36,12 +39,20 @@ import { DiscoverFilters } from "@/components/search/DiscoverFilters";
 import { LoadingSkeleton } from "@/components/search/LoadingSkeleton";
 import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
+import { TVSearchPage } from "@/components/search/TVSearchPage";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { MediaType } from "@/utils/jellyseerr/server/constants/media";
+import type {
+  MovieResult,
+  PersonResult,
+  TvResult,
+} from "@/utils/jellyseerr/server/models/Search";
 import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
@@ -59,6 +70,9 @@ export default function search() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { showItemActions } = useTVItemActionModal();
+  const segments = useSegments();
+  const from = (segments as string[])[2] || "(search)";
 
   const [user] = useAtom(userAtom);
 
@@ -199,9 +213,7 @@ export default function search() {
           return [];
         }
 
-        const url = `${
-          settings.marlinServerUrl
-        }/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
+        const url = `${settings.marlinServerUrl}/search?q=${encodeURIComponent(query)}&includeItemTypes=${types
           .map((type) => encodeURIComponent(type))
           .join("&includeItemTypes=")}`;
 
@@ -293,6 +305,9 @@ export default function search() {
         },
         hideWhenScrolling: false,
         autoFocus: false,
+        // Android: placeholder and icon color
+        hintTextColor: "#fff",
+        headerIconColor: "#fff",
       },
     });
   }, [navigation]);
@@ -440,6 +455,180 @@ export default function search() {
     return l1 || l2 || l3 || l7 || l8 || l9 || l10 || l11 || l12;
   }, [l1, l2, l3, l7, l8, l9, l10, l11, l12]);
 
+  // TV item press handler
+  const handleItemPress = useCallback(
+    (item: BaseItemDto) => {
+      const navigation = getItemNavigation(item, from);
+      router.push(navigation as any);
+    },
+    [from, router],
+  );
+
+  // Jellyseerr search for TV
+  const { data: jellyseerrTVResults, isFetching: jellyseerrTVLoading } =
+    useQuery({
+      queryKey: ["search", "jellyseerr", "tv", debouncedSearch],
+      queryFn: async () => {
+        const params = {
+          query: new URLSearchParams(debouncedSearch || "").toString(),
+        };
+        return await Promise.all([
+          jellyseerrApi?.search({ ...params, page: 1 }),
+          jellyseerrApi?.search({ ...params, page: 2 }),
+          jellyseerrApi?.search({ ...params, page: 3 }),
+          jellyseerrApi?.search({ ...params, page: 4 }),
+        ]).then((all) =>
+          uniqBy(
+            all.flatMap((v) => v?.results || []),
+            "id",
+          ),
+        );
+      },
+      enabled:
+        Platform.isTV &&
+        !!jellyseerrApi &&
+        searchType === "Discover" &&
+        debouncedSearch.length > 0,
+    });
+
+  // Process Jellyseerr results for TV
+  const jellyseerrMovieResults = useMemo(
+    () =>
+      orderBy(
+        jellyseerrTVResults?.filter(
+          (r) => r.mediaType === MediaType.MOVIE,
+        ) as MovieResult[],
+        [(m) => m?.title?.toLowerCase() === debouncedSearch.toLowerCase()],
+        "desc",
+      ),
+    [jellyseerrTVResults, debouncedSearch],
+  );
+
+  const jellyseerrTvResults = useMemo(
+    () =>
+      orderBy(
+        jellyseerrTVResults?.filter(
+          (r) => r.mediaType === MediaType.TV,
+        ) as TvResult[],
+        [(t) => t?.name?.toLowerCase() === debouncedSearch.toLowerCase()],
+        "desc",
+      ),
+    [jellyseerrTVResults, debouncedSearch],
+  );
+
+  const jellyseerrPersonResults = useMemo(
+    () =>
+      orderBy(
+        jellyseerrTVResults?.filter(
+          (r) => r.mediaType === "person",
+        ) as PersonResult[],
+        [(p) => p?.name?.toLowerCase() === debouncedSearch.toLowerCase()],
+        "desc",
+      ),
+    [jellyseerrTVResults, debouncedSearch],
+  );
+
+  const jellyseerrTVNoResults = useMemo(() => {
+    return (
+      !jellyseerrMovieResults?.length &&
+      !jellyseerrTvResults?.length &&
+      !jellyseerrPersonResults?.length
+    );
+  }, [jellyseerrMovieResults, jellyseerrTvResults, jellyseerrPersonResults]);
+
+  // Fetch discover settings for TV (when no search query in Discover mode)
+  const { data: discoverSliders } = useQuery({
+    queryKey: ["search", "jellyseerr", "discoverSettings", "tv"],
+    queryFn: async () => jellyseerrApi?.discoverSettings(),
+    enabled:
+      Platform.isTV &&
+      !!jellyseerrApi &&
+      searchType === "Discover" &&
+      debouncedSearch.length === 0,
+  });
+
+  // TV Jellyseerr press handlers
+  const handleJellyseerrMoviePress = useCallback(
+    (item: MovieResult) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(search)/jellyseerr/page",
+        params: {
+          mediaTitle: item.title,
+          releaseYear: String(new Date(item.releaseDate || "").getFullYear()),
+          canRequest: "true",
+          posterSrc: jellyseerrApi?.imageProxy(item.posterPath) || "",
+          mediaType: MediaType.MOVIE,
+          id: String(item.id),
+          backdropPath: item.backdropPath || "",
+          overview: item.overview || "",
+        },
+      });
+    },
+    [router, jellyseerrApi],
+  );
+
+  const handleJellyseerrTvPress = useCallback(
+    (item: TvResult) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(search)/jellyseerr/page",
+        params: {
+          mediaTitle: item.name,
+          releaseYear: String(new Date(item.firstAirDate || "").getFullYear()),
+          canRequest: "true",
+          posterSrc: jellyseerrApi?.imageProxy(item.posterPath) || "",
+          mediaType: MediaType.TV,
+          id: String(item.id),
+          backdropPath: item.backdropPath || "",
+          overview: item.overview || "",
+        },
+      });
+    },
+    [router, jellyseerrApi],
+  );
+
+  const handleJellyseerrPersonPress = useCallback(
+    (item: PersonResult) => {
+      router.push(`/(auth)/jellyseerr/person/${item.id}` as any);
+    },
+    [router],
+  );
+
+  // Render TV search page
+  if (Platform.isTV) {
+    return (
+      <TVSearchPage
+        search={search}
+        setSearch={setSearch}
+        debouncedSearch={debouncedSearch}
+        movies={movies}
+        series={series}
+        episodes={episodes}
+        collections={collections}
+        actors={actors}
+        artists={artists}
+        albums={albums}
+        songs={songs}
+        playlists={playlists}
+        loading={loading}
+        noResults={noResults}
+        onItemPress={handleItemPress}
+        onItemLongPress={showItemActions}
+        searchType={searchType}
+        setSearchType={setSearchType}
+        showDiscover={!!jellyseerrApi}
+        jellyseerrMovies={jellyseerrMovieResults}
+        jellyseerrTv={jellyseerrTvResults}
+        jellyseerrPersons={jellyseerrPersonResults}
+        jellyseerrLoading={jellyseerrTVLoading}
+        jellyseerrNoResults={jellyseerrTVNoResults}
+        onJellyseerrMoviePress={handleJellyseerrMoviePress}
+        onJellyseerrTvPress={handleJellyseerrTvPress}
+        onJellyseerrPersonPress={handleJellyseerrPersonPress}
+        discoverSliders={discoverSliders}
+      />
+    );
+  }
+
   return (
     <ScrollView
       keyboardDismissMode='on-drag'
@@ -450,26 +639,6 @@ export default function search() {
         paddingBottom: 60,
       }}
     >
-      {/* <View
-        className='flex flex-col'
-        style={{
-          marginTop: Platform.OS === "android" ? 16 : 0,
-        }}
-      > */}
-      {Platform.isTV && (
-        <Input
-          placeholder={t("search.search")}
-          onChangeText={(text) => {
-            router.setParams({ q: "" });
-            setSearch(text);
-          }}
-          keyboardType='default'
-          returnKeyType='done'
-          autoCapitalize='none'
-          clearButtonMode='while-editing'
-          maxLength={500}
-        />
-      )}
       <View
         className='flex flex-col'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
@@ -772,7 +941,7 @@ export default function search() {
               </Text>
             </View>
           ) : debouncedSearch.length === 0 ? (
-            <View className='mt-4 flex flex-col items-center space-y-2'>
+            <View className='mt-2 flex flex-col items-center space-y-2'>
               {exampleSearches.map((e) => (
                 <TouchableOpacity
                   onPress={() => {

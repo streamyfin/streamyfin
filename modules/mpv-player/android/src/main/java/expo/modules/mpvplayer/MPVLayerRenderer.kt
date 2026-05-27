@@ -1,6 +1,8 @@
 package expo.modules.mpvplayer
 
+import android.app.UiModeManager
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.AssetManager
 import android.os.Handler
 import android.os.Looper
@@ -27,7 +29,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         const val MPV_FORMAT_DOUBLE = 5
         const val MPV_FORMAT_NODE = 6
     }
-    
+
+    private fun isTvDevice(): Boolean {
+        val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
     interface Delegate {
         fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double)
         fun onPauseChanged(isPaused: Boolean)
@@ -98,7 +105,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     val duration: Double
         get() = cachedDuration
     
-    fun start() {
+    /**
+     * The VO driver to use. Stored so attachSurface can re-enable the same driver.
+     */
+    private var voDriver: String = "gpu-next"
+
+    fun start(voDriver: String = "gpu-next") {
         if (isRunning) return
         
         try {
@@ -152,12 +164,21 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("config-dir", mpvDir.path)
             
             // Configure mpv options before initialization (based on Findroid)
-            MPVLib.setOptionString("vo", "gpu")
+            this.voDriver = voDriver
+            MPVLib.setOptionString("vo", voDriver)
             MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("opengl-es", "yes")
             
             // Hardware video decoding
-            MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            // TV: zero-copy (mediacodec) for better performance on low-power devices
+            // Mobile: copy mode (mediacodec-copy) for better compatibility
+            val isTV = isTvDevice()
+            if (isTV) {
+                MPVLib.setOptionString("hwdec", "mediacodec")
+                MPVLib.setOptionString("profile", "fast")
+            } else {
+                MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            }
             MPVLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
             
             // Cache settings for better network streaming
@@ -224,8 +245,8 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.attachSurface(surface)
             // Re-enable video output after attaching surface (Findroid approach)
             MPVLib.setOptionString("force-window", "yes")
-            MPVLib.setOptionString("vo", "gpu")
-            Log.i(TAG, "Surface attached, video output re-enabled")
+            MPVLib.setOptionString("vo", voDriver)
+            Log.i(TAG, "Surface attached, video output re-enabled (vo=$voDriver)")
         }
     }
     
@@ -447,7 +468,19 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleFontSize(size: Int) {
         MPVLib.setPropertyInt("sub-font-size", size)
     }
-    
+
+    fun setSubtitleBorderStyle(style: String) {
+        MPVLib.setPropertyString("sub-border-style", style)
+    }
+
+    fun setSubtitleBackgroundColor(color: String) {
+        MPVLib.setPropertyString("sub-back-color", color)
+    }
+
+    fun setSubtitleAssOverride(mode: String) {
+        MPVLib.setPropertyString("sub-ass-override", mode)
+    }
+
     // MARK: - Audio Track Controls
     
     fun getAudioTracks(): List<Map<String, Any>> {
@@ -544,6 +577,16 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         // Dropped frames
         MPVLib.getPropertyInt("frame-drop-count")?.let {
             info["droppedFrames"] = it
+        }
+
+        // Active video output driver (read from MPV to confirm what's actually applied)
+        MPVLib.getPropertyString("vo")?.let {
+            info["voDriver"] = it
+        }
+
+        // Active hardware decoder
+        MPVLib.getPropertyString("hwdec-active")?.let {
+            info["hwdec"] = it
         }
 
         return info

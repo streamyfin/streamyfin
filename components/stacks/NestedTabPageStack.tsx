@@ -12,7 +12,7 @@ type ICommonScreenOptions =
 
 export const commonScreenOptions: ICommonScreenOptions = {
   title: "",
-  headerShown: true,
+  headerShown: !Platform.isTV,
   headerTransparent: Platform.OS === "ios",
   headerShadowVisible: false,
   headerBlurEffect: "none",

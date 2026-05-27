@@ -1,0 +1,72 @@
+diff --git a/node_modules/react-native-bottom-tabs/ios/BottomAccessoryProvider.swift b/node_modules/react-native-bottom-tabs/ios/BottomAccessoryProvider.swift
+--- a/node_modules/react-native-bottom-tabs/ios/BottomAccessoryProvider.swift
++++ b/node_modules/react-native-bottom-tabs/ios/BottomAccessoryProvider.swift
+@@ -8,7 +8,7 @@
+     self.delegate = delegate
+   }
+
+-  #if !os(macOS)
++  #if !os(macOS) && !os(tvOS)
+   @available(iOS 26.0, *)
+   public func emitPlacementChanged(_ placement: TabViewBottomAccessoryPlacement?) {
+     var placementValue = "none"
+diff --git a/node_modules/react-native-bottom-tabs/ios/TabView/NewTabView.swift b/node_modules/react-native-bottom-tabs/ios/TabView/NewTabView.swift
+--- a/node_modules/react-native-bottom-tabs/ios/TabView/NewTabView.swift
++++ b/node_modules/react-native-bottom-tabs/ios/TabView/NewTabView.swift
+@@ -67,11 +67,11 @@
+   }
+
+   func body(content: Content) -> some View {
+-    #if os(macOS)
+-    // tabViewBottomAccessory is not available on macOS
++    #if os(macOS) || os(tvOS)
++    // tabViewBottomAccessory is not available on macOS or tvOS
+     content
+     #else
+-    if #available(iOS 26.0, tvOS 26.0, visionOS 3.0, *), bottomAccessoryView != nil {
++    if #available(iOS 26.0, visionOS 3.0, *), bottomAccessoryView != nil {
+       content
+         .tabViewBottomAccessory {
+           renderBottomAccessoryView()
+@@ -84,7 +84,7 @@
+
+   @ViewBuilder
+   private func renderBottomAccessoryView() -> some View {
+-    #if !os(macOS)
++    #if !os(macOS) && !os(tvOS)
+     if let bottomAccessoryView {
+       if #available(iOS 26.0, *) {
+         BottomAccessoryRepresentableView(view: bottomAccessoryView)
+@@ -94,7 +94,7 @@
+   }
+ }
+
+-#if !os(macOS)
++#if !os(macOS) && !os(tvOS)
+ @available(iOS 26.0, *)
+ struct BottomAccessoryRepresentableView: PlatformViewRepresentable {
+   @Environment(\.tabViewBottomAccessoryPlacement) var tabViewBottomAccessoryPlacement
+diff --git a/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift b/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift
+--- a/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift
++++ b/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift
+@@ -281,7 +281,7 @@
+
+   @ViewBuilder
+   func tabBarMinimizeBehavior(_ behavior: MinimizeBehavior?) -> some View {
+-    #if compiler(>=6.2)
++    #if compiler(>=6.2) && !os(tvOS)
+     if #available(iOS 26.0, macOS 26.0, *) {
+         if let behavior {
+           self.tabBarMinimizeBehavior(behavior.convert())
+diff --git a/node_modules/react-native-bottom-tabs/ios/TabViewProps.swift b/node_modules/react-native-bottom-tabs/ios/TabViewProps.swift
+--- a/node_modules/react-native-bottom-tabs/ios/TabViewProps.swift
++++ b/node_modules/react-native-bottom-tabs/ios/TabViewProps.swift
+@@ -6,7 +6,7 @@
+   case onScrollUp
+   case onScrollDown
+
+-#if compiler(>=6.2)
++#if compiler(>=6.2) && !os(tvOS)
+   @available(iOS 26.0, macOS 26.0, *)
+   func convert() -> TabBarMinimizeBehavior {
+ #if os(macOS)
