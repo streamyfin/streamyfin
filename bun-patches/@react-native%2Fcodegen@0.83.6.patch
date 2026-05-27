@@ -1,0 +1,29 @@
+diff --git a/lib/generators/modules/GenerateModuleObjCpp/index.js b/lib/generators/modules/GenerateModuleObjCpp/index.js
+index 927711514d2deaa3c795fb98e676e0a1f596eddc..0364d66204a76fccd3e06a0dc72bf801aa04a50d 100644
+--- a/lib/generators/modules/GenerateModuleObjCpp/index.js
++++ b/lib/generators/modules/GenerateModuleObjCpp/index.js
+@@ -67,9 +67,12 @@ const HeaderFileTemplate = ({
+  * must have a single output. More files => more genrule()s => slower builds.
+  */
+ 
+-#ifndef __cplusplus
+-#error This file must be compiled as Obj-C++. If you are importing it, you must change your file extension to .mm.
+-#endif
++// Patched: guard the Obj-C++ body with __cplusplus instead of hard-#error-ing.
++// With use_frameworks! :static + New Arch, plain Obj-C .m TUs can trigger a
++// Clang module build (via Swift-interop -Swift.h umbrellas) that pulls this
++// header in Obj-C mode. Skipping the body (instead of erroring) lets the module
++// build; .mm consumers still get the full Obj-C++ contents unchanged.
++#if defined(__cplusplus)
+ 
+ // Avoid multiple includes of ${headerFileNameWithNoExt} symbols
+ #ifndef ${headerFileNameWithNoExt}_H
+@@ -93,7 +96,7 @@ const HeaderFileTemplate = ({
+     structInlineMethods +
+     (assumeNonnull ? '\nNS_ASSUME_NONNULL_END\n' : '\n') +
+     `#endif // ${headerFileNameWithNoExt}_H` +
+-    '\n'
++    '\n#endif // defined(__cplusplus)\n'
+   );
+ };
+ const SourceFileTemplate = ({headerFileName, moduleImplementations}) => `/**
