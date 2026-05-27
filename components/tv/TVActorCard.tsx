@@ -86,7 +86,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
 
           <Text
             style={{
-              fontSize: typography.body,
+              fontSize: typography.callout,
               fontWeight: "600",
               color: focused ? "#fff" : "rgba(255,255,255,0.9)",
               textAlign: "center",
@@ -100,7 +100,7 @@ export const TVActorCard = React.forwardRef<View, TVActorCardProps>(
           {person.Role && (
             <Text
               style={{
-                fontSize: typography.callout,
+                fontSize: typography.callout * 0.8,
                 color: focused
                   ? "rgba(255,255,255,0.8)"
                   : "rgba(255,255,255,0.5)",
