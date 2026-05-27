@@ -379,7 +379,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   if (items.length === 0) return null;
 
   // Extra top padding for tvOS to clear the menu bar
-  const tvosTopPadding = Platform.OS === "ios" ? scaleSize(180) : 0;
+  const tvosTopPadding = Platform.OS === "ios" ? scaleSize(145) : 0;
   const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
 
   return (
