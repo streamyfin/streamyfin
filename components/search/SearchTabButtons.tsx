@@ -1,5 +1,7 @@
 import { Button, Host } from "@expo/ui/swift-ui";
+import { buttonStyle } from "@expo/ui/swift-ui/modifiers";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/common/Text";
 import { Tag } from "@/components/GenreTags";
 
 type SearchType = "Library" | "Discover";
@@ -28,10 +30,14 @@ export const SearchTabButtons: React.FC<SearchTabButtonsProps> = ({
           }}
         >
           <Button
-            variant={searchType === "Library" ? "glassProminent" : "glass"}
+            modifiers={[
+              buttonStyle(
+                searchType === "Library" ? "glassProminent" : "glass",
+              ),
+            ]}
             onPress={() => setSearchType("Library")}
           >
-            {t("search.library")}
+            <Text>{t("search.library")}</Text>
           </Button>
         </Host>
         <Host
@@ -44,10 +50,14 @@ export const SearchTabButtons: React.FC<SearchTabButtonsProps> = ({
           }}
         >
           <Button
-            variant={searchType === "Discover" ? "glassProminent" : "glass"}
+            modifiers={[
+              buttonStyle(
+                searchType === "Discover" ? "glassProminent" : "glass",
+              ),
+            ]}
             onPress={() => setSearchType("Discover")}
           >
-            {t("search.discover")}
+            <Text>{t("search.discover")}</Text>
           </Button>
         </Host>
       </>

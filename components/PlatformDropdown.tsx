@@ -1,4 +1,11 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
+import {
+  Button,
+  ContextMenu,
+  Host,
+  Picker,
+  Text as SwiftUIText,
+} from "@expo/ui/swift-ui";
+import { disabled, tag } from "@expo/ui/swift-ui/modifiers";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect } from "react";
@@ -255,22 +262,31 @@ const PlatformDropdownComponent = ({
               if (radioOptions.length > 0) {
                 if (group.title) {
                   // Use Picker for grouped options
+                  const selectedRadio = radioOptions.find(
+                    (opt) => opt.selected,
+                  );
                   items.push(
                     <Picker
                       key={`picker-${groupIndex}`}
                       label={group.title}
-                      options={radioOptions.map((opt) => opt.label)}
-                      variant='menu'
-                      selectedIndex={radioOptions.findIndex(
-                        (opt) => opt.selected,
-                      )}
-                      onOptionSelected={(event: any) => {
-                        const index = event.nativeEvent.index;
-                        const selectedOption = radioOptions[index];
+                      selection={selectedRadio?.value}
+                      onSelectionChange={(value) => {
+                        const selectedOption = radioOptions.find(
+                          (opt) => opt.value === value,
+                        );
                         selectedOption?.onPress();
                         onOptionSelect?.(selectedOption?.value);
                       }}
-                    />,
+                    >
+                      {radioOptions.map((opt) => (
+                        <SwiftUIText
+                          key={String(opt.value)}
+                          modifiers={[tag(opt.value)]}
+                        >
+                          {opt.label}
+                        </SwiftUIText>
+                      ))}
+                    </Picker>,
                   );
                 } else {
                   // Render radio options as direct buttons
@@ -281,13 +297,15 @@ const PlatformDropdownComponent = ({
                         systemImage={
                           option.selected ? "checkmark.circle.fill" : "circle"
                         }
+                        modifiers={
+                          option.disabled ? [disabled(true)] : undefined
+                        }
                         onPress={() => {
                           option.onPress();
                           onOptionSelect?.(option.value);
                         }}
-                        disabled={option.disabled}
                       >
-                        {option.label}
+                        <Text>{option.label}</Text>
                       </Button>,
                     );
                   });
@@ -302,13 +320,13 @@ const PlatformDropdownComponent = ({
                     systemImage={
                       option.value ? "checkmark.circle.fill" : "circle"
                     }
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onToggle();
                       onOptionSelect?.(option.value);
                     }}
-                    disabled={option.disabled}
                   >
-                    {option.label}
+                    <Text>{option.label}</Text>
                   </Button>,
                 );
               });
@@ -318,12 +336,12 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`action-${groupIndex}-${optionIndex}`}
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onPress();
                     }}
-                    disabled={option.disabled}
                   >
-                    {option.label}
+                    <Text>{option.label}</Text>
                   </Button>,
                 );
               });

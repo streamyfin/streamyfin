@@ -1,4 +1,11 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
+import {
+  Button,
+  ContextMenu,
+  Host,
+  Picker,
+  Text as SwiftUIText,
+} from "@expo/ui/swift-ui";
+import { buttonStyle, tag } from "@expo/ui/swift-ui/modifiers";
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
@@ -43,38 +50,37 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         <ContextMenu>
           <ContextMenu.Trigger>
             <Button
-              variant='glass'
-              modifiers={[]}
+              modifiers={[buttonStyle("glass")]}
               systemImage='line.3.horizontal.decrease.circle'
             ></Button>
           </ContextMenu.Trigger>
           <ContextMenu.Items>
             <Picker
               label={t("library.filters.sort_by")}
-              options={sortOptions.map((item) =>
-                t(`home.settings.plugins.jellyseerr.order_by.${item}`),
-              )}
-              variant='menu'
-              selectedIndex={sortOptions.indexOf(
-                jellyseerrOrderBy as unknown as string,
-              )}
-              onOptionSelected={(event: any) => {
-                const index = event.nativeEvent.index;
-                setJellyseerrOrderBy(
-                  sortOptions[index] as unknown as JellyseerrSearchSort,
-                );
+              selection={jellyseerrOrderBy as unknown as string}
+              onSelectionChange={(value) => {
+                setJellyseerrOrderBy(value as unknown as JellyseerrSearchSort);
               }}
-            />
+            >
+              {sortOptions.map((item) => (
+                <SwiftUIText key={item} modifiers={[tag(item)]}>
+                  {t(`home.settings.plugins.jellyseerr.order_by.${item}`)}
+                </SwiftUIText>
+              ))}
+            </Picker>
             <Picker
               label={t("library.filters.sort_order")}
-              options={orderOptions.map((item) => t(`library.filters.${item}`))}
-              variant='menu'
-              selectedIndex={orderOptions.indexOf(jellyseerrSortOrder)}
-              onOptionSelected={(event: any) => {
-                const index = event.nativeEvent.index;
-                setJellyseerrSortOrder(orderOptions[index]);
+              selection={jellyseerrSortOrder}
+              onSelectionChange={(value) => {
+                setJellyseerrSortOrder(value as "asc" | "desc");
               }}
-            />
+            >
+              {orderOptions.map((item) => (
+                <SwiftUIText key={item} modifiers={[tag(item)]}>
+                  {t(`library.filters.${item}`)}
+                </SwiftUIText>
+              ))}
+            </Picker>
           </ContextMenu.Items>
         </ContextMenu>
       </Host>

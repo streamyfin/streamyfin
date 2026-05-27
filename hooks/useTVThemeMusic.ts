@@ -1,7 +1,10 @@
 import { getLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import type { Audio as AudioType } from "expo-av";
-import { Audio } from "expo-av";
+import {
+  type AudioPlayer,
+  createAudioPlayer,
+  setAudioModeAsync,
+} from "expo-audio";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
 import { Platform } from "react-native";
@@ -18,7 +21,7 @@ const FADE_STEP_MS = 50;
  * Returns a cleanup function that cancels the fade.
  */
 function fadeVolume(
-  sound: AudioType.Sound,
+  player: AudioPlayer,
   from: number,
   to: number,
   duration: number,
@@ -38,23 +41,19 @@ function fadeVolume(
     const tick = () => {
       if (cancelled || step >= steps) {
         if (!cancelled) {
-          sound.setVolumeAsync(to).catch(() => {});
+          player.volume = to;
         }
         resolve();
         return;
       }
       step++;
       current += delta;
-      sound
-        .setVolumeAsync(Math.max(0, Math.min(1, current)))
-        .catch(() => {})
-        .then(() => {
-          if (!cancelled) {
-            setTimeout(tick, FADE_STEP_MS);
-          } else {
-            resolve();
-          }
-        });
+      player.volume = Math.max(0, Math.min(1, current));
+      if (!cancelled) {
+        setTimeout(tick, FADE_STEP_MS);
+      } else {
+        resolve();
+      }
     };
 
     tick();
@@ -64,41 +63,35 @@ function fadeVolume(
 }
 
 // --- Module-level singleton state ---
-let sharedSound: AudioType.Sound | null = null;
+let sharedPlayer: AudioPlayer | null = null;
 let currentSongId: string | null = null;
 let ownerCount = 0;
 let activeFade: { cancel: () => void } | null = null;
 let cleanupPromise: Promise<void> | null = null;
 
-/** Fade out, stop, and unload the shared sound. */
-async function teardownSharedSound(): Promise<void> {
-  const sound = sharedSound;
-  if (!sound) return;
+/** Fade out, stop, and release the shared player. */
+async function teardownSharedPlayer(): Promise<void> {
+  const player = sharedPlayer;
+  if (!player) return;
 
   activeFade?.cancel();
   activeFade = null;
 
   try {
-    const status = await sound.getStatusAsync();
-    if (status.isLoaded) {
-      const currentVolume = status.volume ?? TARGET_VOLUME;
-      const fade = fadeVolume(sound, currentVolume, 0, FADE_OUT_DURATION);
+    if (player.isLoaded) {
+      const currentVolume = player.volume ?? TARGET_VOLUME;
+      const fade = fadeVolume(player, currentVolume, 0, FADE_OUT_DURATION);
       activeFade = fade;
       await fade.promise;
       activeFade = null;
-      await sound.stopAsync();
-      await sound.unloadAsync();
+      player.pause();
     }
   } catch {
-    try {
-      await sound.unloadAsync();
-    } catch {
-      // ignore
-    }
+    // ignore
   }
 
-  if (sharedSound === sound) {
-    sharedSound = null;
+  if (sharedPlayer === player) {
+    sharedPlayer = null;
     currentSongId = null;
   }
 }
@@ -106,7 +99,7 @@ async function teardownSharedSound(): Promise<void> {
 /** Begin cleanup idempotently; returns the shared promise. */
 function beginCleanup(): Promise<void> {
   if (!cleanupPromise) {
-    cleanupPromise = teardownSharedSound().finally(() => {
+    cleanupPromise = teardownSharedPlayer().finally(() => {
       cleanupPromise = null;
     });
   }
@@ -154,12 +147,12 @@ export function useTVThemeMusic(itemId: string | undefined) {
 
     const startPlayback = async () => {
       // If the same song is already playing, keep it going
-      if (currentSongId === songId && sharedSound) {
+      if (currentSongId === songId && sharedPlayer) {
         return;
       }
 
       // If a different song is playing (or cleanup is in progress), tear it down first
-      if (sharedSound || cleanupPromise) {
+      if (sharedPlayer || cleanupPromise) {
         activeFade?.cancel();
         activeFade = null;
         await beginCleanup();
@@ -167,14 +160,14 @@ export function useTVThemeMusic(itemId: string | undefined) {
 
       if (!mounted) return;
 
-      const sound = new Audio.Sound();
-      sharedSound = sound;
+      const player = createAudioPlayer(null);
+      sharedPlayer = player;
       currentSongId = songId;
 
       try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
         });
 
         const params = new URLSearchParams({
@@ -190,19 +183,19 @@ export function useTVThemeMusic(itemId: string | undefined) {
           EnableRemoteMedia: "false",
         });
         const url = `${api.basePath}/Audio/${themeItem.Id}/universal?${params.toString()}`;
-        await sound.loadAsync({ uri: url });
+        player.replace({ uri: url });
 
-        if (!mounted || sharedSound !== sound) {
-          await sound.unloadAsync();
+        if (!mounted || sharedPlayer !== player) {
+          player.pause();
           return;
         }
 
-        await sound.setIsLoopingAsync(true);
-        await sound.setVolumeAsync(0);
-        await sound.playAsync();
+        player.loop = true;
+        player.volume = 0;
+        player.play();
 
-        if (mounted && sharedSound === sound) {
-          const fade = fadeVolume(sound, 0, TARGET_VOLUME, FADE_IN_DURATION);
+        if (mounted && sharedPlayer === player) {
+          const fade = fadeVolume(player, 0, TARGET_VOLUME, FADE_IN_DURATION);
           activeFade = fade;
           await fade.promise;
           activeFade = null;
