@@ -917,6 +917,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   onEpisodePress={handleEpisodePress}
                   onEpisodeLongPress={showItemActions}
                   firstEpisodeRefSetter={setFirstEpisodeRef}
+                  horizontalPadding={insets.left + 80}
                 />
               </View>
             )}
