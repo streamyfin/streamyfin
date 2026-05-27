@@ -1,5 +1,14 @@
+diff --git a/node_modules/react-native-screens/.bun-tag-10a3b0add1bd4de6 b/.bun-tag-10a3b0add1bd4de6
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/react-native-screens/.bun-tag-6a8504b742d5cfff b/.bun-tag-6a8504b742d5cfff
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/react-native-screens/.bun-tag-d28396854bc27a3d b/.bun-tag-d28396854bc27a3d
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/ios/RNSScreenStack.mm b/ios/RNSScreenStack.mm
-index 47a671928338ae7fb4f85532d9fd1ed2d594f823..e4eecb7d5f9d3c3afc8a090fb953010e4e1b8a08 100644
+index 51f021831aed26a4eed3c85014020423b7b3108b..2f621547932806b94ab1e75ecc73772facd209d0 100644
 --- a/ios/RNSScreenStack.mm
 +++ b/ios/RNSScreenStack.mm
 @@ -34,6 +34,11 @@
@@ -27,11 +36,10 @@ index 47a671928338ae7fb4f85532d9fd1ed2d594f823..e4eecb7d5f9d3c3afc8a090fb953010e
  @interface RNSScreenStackView () <
      UINavigationControllerDelegate,
      UIAdaptivePresentationControllerDelegate,
-@@ -61,6 +72,57 @@
- @end
+@@ -62,6 +73,57 @@ namespace react = facebook::react;
  
  @implementation RNSNavigationController
-+
+ 
 +#if TARGET_OS_TV
 +- (void)viewDidLoad
 +{
@@ -82,6 +90,102 @@ index 47a671928338ae7fb4f85532d9fd1ed2d594f823..e4eecb7d5f9d3c3afc8a090fb953010e
 +                                                                  target:nil];
 +}
 +#endif // TARGET_OS_TV
- 
++
  #if !TARGET_OS_TV
  - (UIViewController *)childViewControllerForStatusBarStyle
+ {
+diff --git a/ios/gamma/split-view/RNSSplitViewAppearanceApplicator.swift b/ios/gamma/split-view/RNSSplitViewAppearanceApplicator.swift
+index 95c76ccf3528d3a8828e90b272a1d79b0828a139..f29d4df21440d23523ae7a2f6fe71c32154e3928 100644
+--- a/ios/gamma/split-view/RNSSplitViewAppearanceApplicator.swift
++++ b/ios/gamma/split-view/RNSSplitViewAppearanceApplicator.swift
+@@ -79,11 +79,13 @@ class RNSSplitViewAppearanceApplicator {
+       maxWidth: splitView.maximumSupplementaryColumnWidth)
+ 
+     #if compiler(>=6.2)
++      #if !os(tvOS)
+       if #available(iOS 26.0, *) {
+         validateColumnConstraints(
+           minWidth: splitView.minimumInspectorColumnWidth,
+           maxWidth: splitView.maximumInspectorColumnWidth)
+       }
++      #endif
+     #endif
+ 
+     // Step 2.2 - applying updates to columns
+@@ -126,6 +128,7 @@ class RNSSplitViewAppearanceApplicator {
+     }
+ 
+     #if compiler(>=6.2)
++      #if !os(tvOS)
+       if #available(iOS 26.0, *) {
+         if splitView.minimumSecondaryColumnWidth >= 0 {
+           splitViewController.minimumSecondaryColumnWidth = splitView.minimumSecondaryColumnWidth
+@@ -159,6 +162,7 @@ class RNSSplitViewAppearanceApplicator {
+             splitView.preferredInspectorColumnWidthOrFraction
+         }
+       }
++      #endif
+     #endif
+ 
+     // Step 2.3 - manipulating with inspector column
+diff --git a/ios/gamma/split-view/RNSSplitViewHostController.swift b/ios/gamma/split-view/RNSSplitViewHostController.swift
+index 0421e3ea92fc7bcdf57417b5ee3a62348fce34f5..cd878ab638d3c78a661e2df4c4c1b21011dfcf48 100644
+--- a/ios/gamma/split-view/RNSSplitViewHostController.swift
++++ b/ios/gamma/split-view/RNSSplitViewHostController.swift
+@@ -386,7 +386,7 @@ extension RNSSplitViewHostController: RNSSplitViewNavigationControllerViewFrameO
+     /// @param inspectors An array of inspector-type RNSSplitViewScreenComponentView subviews.
+     ///
+     func maybeSetupInspector(_ inspectors: [RNSSplitViewScreenComponentView]) {
+-
++      #if !os(tvOS)
+       if #available(iOS 26.0, *) {
+         let inspector = inspectors.first
+         if inspector != nil {
+@@ -395,6 +395,7 @@ extension RNSSplitViewHostController: RNSSplitViewNavigationControllerViewFrameO
+           setViewController(inspectorViewController, for: .inspector)
+         }
+       }
++      #endif
+     }
+ 
+     ///
+@@ -404,9 +405,11 @@ extension RNSSplitViewHostController: RNSSplitViewNavigationControllerViewFrameO
+     /// Uses the UISplitViewController's new API introduced in iOS 26 to show the inspector column.
+     ///
+     func maybeShowInspector() {
++      #if !os(tvOS)
+       if #available(iOS 26.0, *) {
+         show(.inspector)
+       }
++      #endif
+     }
+ 
+     ///
+@@ -416,9 +419,11 @@ extension RNSSplitViewHostController: RNSSplitViewNavigationControllerViewFrameO
+     /// Uses the UISplitViewController's new API introduced in iOS 26 to hide the inspector column.
+     ///
+     func maybeHideInspector() {
++      #if !os(tvOS)
+       if #available(iOS 26.0, *) {
+         hide(.inspector)
+       }
++      #endif
+     }
+   }
+ #endif
+@@ -444,6 +449,7 @@ extension RNSSplitViewHostController: UISplitViewControllerDelegate {
+     public func splitViewController(
+       _ svc: UISplitViewController, didHide column: UISplitViewController.Column
+     ) {
++      #if !os(tvOS)
+       if #available(iOS 26.0, *) {
+         // TODO: we may consider removing this logic, because it could be handled by onViewDidDisappear on the column level
+         // On the other hand, maybe dedicated event related to the inspector would be a better approach.
+@@ -461,6 +467,7 @@ extension RNSSplitViewHostController: UISplitViewControllerDelegate {
+           }
+         }
+       }
++      #endif
+     }
+   #endif
+ 
