@@ -2,8 +2,8 @@ import { Image, type ImageProps } from "expo-image";
 import { useHeadersForUrl } from "@/hooks/useHeadersForUrl";
 
 /**
- * Drop-in replacement for expo-image's <Image> when loading from a URI string.
- * Automatically injects the correct HTTP headers based on the URL:
+ * Wrapper around expo-image's <Image> for remote server image URIs.
+ * Injects the correct HTTP headers based on the URL:
  *   - Jellyfin server URLs  → Cloudflare / custom auth headers
  *   - Jellyseerr server URLs → Jellyseerr integration headers
  *   - External URLs (TMDB, etc.) → no headers
