@@ -16,28 +16,43 @@ name: TVCF-FlowDev
 - tapOn: "http\\(s\\)://your-server\\.com"
 - inputText: "${MAESTRO_SERVER_URL}"
 - hideKeyboard
-- tapOn: "Advanced \\(Custom Headers\\)"
-- tapOn: "Cloudflare Zero Trust"
+# Android TV focus starts on the URL input. Navigate to Advanced, then choose
+# the Cloudflare preset with the remote D-pad.
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Center"
+- extendedWaitUntil:
+    visible: "Cloudflare Zero Trust"
+    timeout: 10000
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Center"
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/02-cloudflare-preset
-- tapOn:
-    text: "Header value"
-    index: 0
+- extendedWaitUntil:
+    visible: "Header value"
+    timeout: 10000
+# Focus remains on the Cloudflare preset. Move to the first Header value field.
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Center"
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_ID}"
-- tapOn:
-    text: "Header value"
-    index: 1
+- hideKeyboard
+# Move from the first Header value field to the second Header value field.
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Down"
+- pressKey: "Remote Dpad Center"
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
 - hideKeyboard
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
-- scrollUntilVisible:
-    element: "Connect"
-    direction: UP
-    timeout: 10000
-- tapOn:
-    text: "Connect"
-    enabled: true
+# Move back up from the second Header value field to Connect.
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Center"
 - extendedWaitUntil:
     visible: "Username"
     timeout: 60000
