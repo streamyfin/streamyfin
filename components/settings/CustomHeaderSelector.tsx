@@ -9,17 +9,16 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { HEADER_PRESETS } from "@/utils/customHeaderPresets";
-import { storage } from "@/utils/mmkv";
+import {
+  type HeaderConfig,
+  type HeaderSource,
+  getIntegrationHeaderConfig,
+  updateIntegrationHeaderConfig,
+} from "@/utils/integrationHeaders";
 import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
 import type { CustomHeader } from "@/utils/secureCredentials";
 import { getServerCustomHeaders } from "@/utils/secureCredentials";
-
-type HeaderSource = "jellyfin" | "custom" | "none";
-
-interface HeaderConfig {
-  source: HeaderSource;
-  customHeaders: CustomHeader[];
-}
+import { storage } from "@/utils/mmkv";
 
 interface CustomHeaderSelectorProps {
   integrationKey: string; // e.g., "jellyseerr", "jellystat", etc.
@@ -27,8 +26,6 @@ interface CustomHeaderSelectorProps {
   description?: string;
   onHeadersChange?: (headers: Record<string, string>) => void;
 }
-
-const STORAGE_KEY_PREFIX = "custom_headers_config_";
 
 export function CustomHeaderSelector({
   integrationKey,
@@ -39,26 +36,15 @@ export function CustomHeaderSelector({
   const { t } = useTranslation();
   const serverUrl = storage.getString("serverUrl");
 
-  const [config, setConfig] = useState<HeaderConfig>(() => {
-    const stored = storage.getString(`${STORAGE_KEY_PREFIX}${integrationKey}`);
-    if (stored) {
-      try {
-        return JSON.parse(stored) as HeaderConfig;
-      } catch {
-        // fall through to default
-      }
-    }
-    return { source: "jellyfin", customHeaders: [] };
-  });
+  const [config, setConfig] = useState<HeaderConfig>(() =>
+    getIntegrationHeaderConfig(integrationKey),
+  );
 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Save config when it changes
   useEffect(() => {
-    storage.set(
-      `${STORAGE_KEY_PREFIX}${integrationKey}`,
-      JSON.stringify(config),
-    );
+    updateIntegrationHeaderConfig(integrationKey, config);
   }, [config, integrationKey]);
 
   // Calculate effective headers

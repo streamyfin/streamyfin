@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import { storage } from "./mmkv";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
+const CUSTOM_HEADER_VALUE_KEY_PREFIX = "custom_header_value_";
 const MULTI_ACCOUNT_MIGRATED_KEY = "multiAccountMigrated";
 
 /**
@@ -52,6 +53,7 @@ export interface CustomHeader {
   key: string; // Header name, e.g. "CF-Access-Client-Id"
   value: string; // Header value
   enabled: boolean; // Whether to include this header in requests
+  secureValueKey?: string; // SecureStore key containing the header value
 }
 
 /**
@@ -102,6 +104,66 @@ export function credentialKey(serverUrl: string, userId: string): string {
   const combined = `${serverUrl}:${userId}`;
   const encoded = btoa(combined).replace(/[^a-zA-Z0-9]/g, "_");
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
+}
+
+function encodeStorageKey(input: string): string {
+  return btoa(input).replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+function customHeaderValueKey(scope: string, index: number): string {
+  return `${CUSTOM_HEADER_VALUE_KEY_PREFIX}${encodeStorageKey(scope)}_${index}`;
+}
+
+function getSecureHeaderValue(header: CustomHeader): string {
+  if (!header.secureValueKey) return header.value;
+  return SecureStore.getItem(header.secureValueKey) ?? "";
+}
+
+/**
+ * Resolves secure header values for display or request injection.
+ */
+export function resolveCustomHeaderValues(headers: CustomHeader[]): CustomHeader[] {
+  return headers.map((header) => ({
+    ...header,
+    value: getSecureHeaderValue(header),
+  }));
+}
+
+/**
+ * Stores header values in SecureStore and returns MMKV-safe header metadata.
+ */
+export function secureCustomHeaderMetadata(
+  scope: string,
+  headers: CustomHeader[],
+  previousHeaders: CustomHeader[] = [],
+): CustomHeader[] {
+  for (const header of previousHeaders) {
+    if (header.secureValueKey) {
+      SecureStore.deleteItem(header.secureValueKey);
+    }
+  }
+
+  return headers.map((header, index) => {
+    const secureValueKey = customHeaderValueKey(scope, index);
+    SecureStore.setItem(secureValueKey, header.value);
+    return {
+      key: header.key,
+      value: "",
+      enabled: header.enabled,
+      secureValueKey,
+    };
+  });
+}
+
+/**
+ * Deletes SecureStore values associated with custom header metadata.
+ */
+export function deleteSecureCustomHeaderValues(headers: CustomHeader[]): void {
+  for (const header of headers) {
+    if (header.secureValueKey) {
+      SecureStore.deleteItem(header.secureValueKey);
+    }
+  }
 }
 
 /**
@@ -331,6 +393,7 @@ export async function removeServerFromList(serverUrl: string): Promise<void> {
       const key = credentialKey(serverUrl, account.userId);
       await SecureStore.deleteItemAsync(key);
     }
+    deleteSecureCustomHeaderValues(server.customHeaders ?? []);
   }
 
   // Remove server from list
@@ -408,18 +471,27 @@ export function updateServerCustomHeaders(
 ): void {
   const servers = getPreviousServers();
   const existingServerIndex = servers.findIndex((s) => s.address === serverUrl);
+  const previousHeaders =
+    existingServerIndex >= 0
+      ? (servers[existingServerIndex].customHeaders ?? [])
+      : [];
+  const secureHeaders = secureCustomHeaderMetadata(
+    `server:${serverUrl}`,
+    resolveCustomHeaderValues(headers),
+    previousHeaders,
+  );
 
   if (existingServerIndex >= 0) {
     // Update existing server
     servers[existingServerIndex] = {
       ...servers[existingServerIndex],
-      customHeaders: headers,
+      customHeaders: secureHeaders,
     };
   } else {
     // Create new server entry with URL, headers, and empty accounts array
     servers.push({
       address: serverUrl,
-      customHeaders: headers,
+      customHeaders: secureHeaders,
       accounts: [],
     } as SavedServer);
   }
@@ -433,7 +505,12 @@ export function updateServerCustomHeaders(
 export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
   const servers = getPreviousServers();
   const server = servers.find((s) => s.address === serverUrl);
-  return server?.customHeaders ?? [];
+  const customHeaders = server?.customHeaders ?? [];
+  if (customHeaders.some((header) => header.value && !header.secureValueKey)) {
+    updateServerCustomHeaders(serverUrl, customHeaders);
+    return getServerCustomHeaders(serverUrl);
+  }
+  return resolveCustomHeaderValues(customHeaders);
 }
 
 /**
