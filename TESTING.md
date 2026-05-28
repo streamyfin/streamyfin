@@ -48,16 +48,15 @@ MAESTRO_PASSWORD=
 Start an Android emulator, then install the release-variant phone app:
 
 ```sh
-make ui-test-install-android
+make install-android
 ```
 
 Run the flows:
 
 ```sh
-make ui-test-simple
-make ui-test-cf
-make ui-test-cf-dev
-make ui-test-all
+make test-android
+make test-android-cf
+make test-android-cf-dev
 ```
 
 Do not use `bun run android` before Maestro UI tests. That installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
@@ -69,15 +68,15 @@ Android TV uses different login screens, so it has separate Maestro flows and ta
 Start an Android TV emulator, then install the release-variant TV app:
 
 ```sh
-make ui-test-install-android-tv
+make install-android-tv
 ```
 
 Run the TV flows:
 
 ```sh
-make ui-test-tv-simple
-make ui-test-tv-cf
-make ui-test-tv-cf-dev
+make test-android-tv
+make test-android-tv-cf
+make test-android-tv-cf-dev
 ```
 
 The package scripts are also wired:
@@ -98,15 +97,15 @@ iOS phone uses the same visible login flow as Android phone. The iOS targets reu
 Start an iOS simulator, then install the release-configuration phone app:
 
 ```sh
-make ui-test-install-ios
+make install-ios
 ```
 
 Run the iOS flows:
 
 ```sh
-make ui-test-ios-simple
-make ui-test-ios-cf
-make ui-test-ios-cf-dev
+make test-ios
+make test-ios-cf
+make test-ios-cf-dev
 ```
 
 The package scripts are also wired:

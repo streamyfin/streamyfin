@@ -73,22 +73,21 @@ bun run ui:test:all
 Makefile runners:
 
 ```sh
-make ui-test-install-android
-make ui-test-install-android-tv
-make ui-test-install-ios
-make ui-test-simple
-make ui-test-simple-dev
-make ui-test-cf
-make ui-test-cf-dev
-make ui-test-ios-simple
-make ui-test-ios-simple-dev
-make ui-test-ios-cf
-make ui-test-ios-cf-dev
-make ui-test-tv-simple
-make ui-test-tv-simple-dev
-make ui-test-tv-cf
-make ui-test-tv-cf-dev
-make ui-test-all
+make install-android
+make install-android-tv
+make install-ios
+make test-android
+make test-android-dev
+make test-android-cf
+make test-android-cf-dev
+make test-ios
+make test-ios-dev
+make test-ios-cf
+make test-ios-cf-dev
+make test-android-tv
+make test-android-tv-dev
+make test-android-tv-cf
+make test-android-tv-cf-dev
 ```
 
 Direct runner:
@@ -112,11 +111,11 @@ sh tests/ui-testing/run-flow.sh all
 The runner accepts only `simple`, `simple-dev`, `cf`, `cf-dev`, `ios-simple`, `ios-simple-dev`, `ios-cf`, `ios-cf-dev`, `tv-simple`, `tv-simple-dev`, `tv-cf`, `tv-cf-dev`, or `all`. It fails before running a flow if Maestro is missing or required variables are not set.
 The runner and Makefile automatically prepend `$HOME/.maestro/bin` to `PATH` when that directory exists, so the default Maestro installer location works without changing your shell profile.
 
-Before running Maestro, install a release-variant Android phone build with `make ui-test-install-android` or `bun run android:ui-test`. Avoid `bun run android` for UI testing because it installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
+Before running Maestro, install a release-variant Android phone build with `make install-android` or `bun run android:ui-test`. Avoid `bun run android` for UI testing because it installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
 
-For Android TV, start an Android TV emulator and install the release-variant TV build with `make ui-test-install-android-tv` or `bun run android:tv:ui-test`. Use `make ui-test-tv-simple`, `make ui-test-tv-cf`, or the matching `bun run ui:test:tv:*` commands for TV runs. The phone flows are not expected to work against Android TV because the TV login flow starts with an `Add Server` screen and uses TV-specific focus behavior.
+For Android TV, start an Android TV emulator and install the release-variant TV build with `make install-android-tv` or `bun run android:tv:ui-test`. Use `make test-android-tv`, `make test-android-tv-cf`, or the matching `bun run ui:test:tv:*` commands for TV runs. The phone flows are not expected to work against Android TV because the TV login flow starts with an `Add Server` screen and uses TV-specific focus behavior.
 
-For iOS phone, start an iOS simulator and install the release-configuration phone build with `make ui-test-install-ios` or `bun run ios:ui-test`. Use `make ui-test-ios-simple`, `make ui-test-ios-cf`, or the matching `bun run ui:test:ios:*` commands. iOS uses the same `com.fredrikburmester.streamyfin` app id from `app.json`.
+For iOS phone, start an iOS simulator and install the release-configuration phone build with `make install-ios` or `bun run ios:ui-test`. Use `make test-ios`, `make test-ios-cf`, or the matching `bun run ui:test:ios:*` commands. iOS uses the same `com.fredrikburmester.streamyfin` app id from `app.json`.
 
 ## SimpleFlow
 
@@ -193,26 +192,25 @@ git switch feature/jeeftor-tv-test-with-testing
 bun install --frozen-lockfile
 cp tests/ui-testing/.env.example tests/ui-testing/.env.local
 # Fill in real values.
-make ui-test-install-android
-make ui-test-simple
-make ui-test-cf
-make ui-test-all
+make install-android
+make test-android
+make test-android-cf
 ```
 
 For Android TV on the same branch:
 
 ```sh
-make ui-test-install-android-tv
-make ui-test-tv-simple
-make ui-test-tv-cf
+make install-android-tv
+make test-android-tv
+make test-android-tv-cf
 ```
 
 For iOS phone on the same branch:
 
 ```sh
-make ui-test-install-ios
-make ui-test-ios-simple
-make ui-test-ios-cf
+make install-ios
+make test-ios
+make test-ios-cf
 ```
 
 The flows can also run without `.env.local`:
@@ -220,7 +218,7 @@ The flows can also run without `.env.local`:
 ```sh
 MAESTRO_SERVER_URL=https://example.test \
 MAESTRO_USERNAME=test-user \
-make ui-test-simple
+make test-android
 ```
 
 For Cloudflare:
@@ -230,7 +228,7 @@ MAESTRO_SERVER_URL=https://example.test \
 MAESTRO_USERNAME=test-user \
 MAESTRO_CF_ACCESS_CLIENT_ID=example-client-id \
 MAESTRO_CF_ACCESS_CLIENT_SECRET=example-client-secret \
-make ui-test-cf
+make test-android-cf
 ```
 
 Inspect screenshots after each run:
