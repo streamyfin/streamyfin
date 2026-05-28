@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import type React from "react";
 import {
   createContext,
@@ -33,6 +33,7 @@ import {
   type AccountSecurityType,
   addAccountToServer,
   addServerToList,
+  customHeadersVersionAtom,
   deleteAccountCredential,
   getAccountCredential,
   getServerCustomHeaders,
@@ -154,6 +155,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const [api, setApi] = useAtom(apiAtom);
   const [user, setUser] = useAtom(userAtom);
+  const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
   const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
@@ -202,7 +204,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         },
       );
     }
-  }, [api]);
+  }, [api, customHeadersVersion]);
 
   const initiateQuickConnect = useCallback(async () => {
     if (!api || !deviceId) return;

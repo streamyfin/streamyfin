@@ -1,10 +1,18 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+import { atom } from "jotai";
 import { storage } from "./mmkv";
+import { store } from "./store";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
 const CUSTOM_HEADER_VALUE_KEY_PREFIX = "custom_header_value_";
 const MULTI_ACCOUNT_MIGRATED_KEY = "multiAccountMigrated";
+
+export const customHeadersVersionAtom = atom(0);
+
+export function bumpCustomHeadersVersion(): void {
+  store.set(customHeadersVersionAtom, (version) => version + 1);
+}
 
 /**
  * Security type for saved accounts.
@@ -497,6 +505,7 @@ export function updateServerCustomHeaders(
   }
 
   storage.set("previousServers", JSON.stringify(servers));
+  bumpCustomHeadersVersion();
 }
 
 /**

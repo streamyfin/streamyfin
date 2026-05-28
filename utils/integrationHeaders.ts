@@ -1,6 +1,7 @@
 import { storage } from "@/utils/mmkv";
 import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
 import {
+  bumpCustomHeadersVersion,
   type CustomHeader,
   getServerCustomHeaders,
   resolveCustomHeaderValues,
@@ -48,6 +49,7 @@ export function updateIntegrationHeaderConfig(
     configStorageKey(integrationKey),
     JSON.stringify({ ...config, customHeaders }),
   );
+  bumpCustomHeadersVersion();
 }
 
 export function getIntegrationHeaderConfig(

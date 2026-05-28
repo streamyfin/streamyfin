@@ -4,6 +4,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
+import { customHeadersVersionAtom } from "@/utils/secureCredentials";
 
 function normalizeBase(url: string): string {
   if (!url.match(/^https?:\/\//i)) return `https://${url}`;
@@ -21,6 +22,7 @@ export function useHeadersForUrl(
   uri?: string | null,
 ): Record<string, string> | undefined {
   const api = useAtomValue(apiAtom);
+  const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
   const { settings } = useSettings();
 
   return useMemo(() => {
@@ -47,5 +49,5 @@ export function useHeadersForUrl(
 
     // External URL — no custom headers
     return undefined;
-  }, [uri, api?.basePath, settings?.jellyseerrServerUrl]);
+  }, [uri, api?.basePath, settings?.jellyseerrServerUrl, customHeadersVersion]);
 }
