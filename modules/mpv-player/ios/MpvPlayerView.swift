@@ -154,6 +154,7 @@ class MpvPlayerView: ExpoView {
 		} catch {
 			print("Failed to configure audio session: \(error)")
 		}
+	}
 	// MARK: - Audio Session & Notifications
 
 	private func setupNotifications() {
