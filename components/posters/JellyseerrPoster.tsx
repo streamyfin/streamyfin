@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
@@ -8,6 +7,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { TouchableJellyseerrRouter } from "@/components/common/JellyseerrItemRouter";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Tag, Tags } from "@/components/GenreTags";
 import { textShadowStyle } from "@/components/jellyseerr/discover/GenericSlideCard";
@@ -134,11 +134,11 @@ const JellyseerrPoster: React.FC<Props> = ({
           className={`relative rounded-lg overflow-hidden border border-neutral-900 ${size} aspect-[${ratio}]`}
         >
           <Animated.View style={imageAnimatedStyle}>
-            <Image
+            <ServerImage
               className='w-full'
               key={item?.id}
               id={item?.id.toString()}
-              source={{ uri: horizontal ? backdropSrc : posterSrc }}
+              uri={horizontal ? backdropSrc : posterSrc}
               cachePolicy={"memory-disk"}
               contentFit='cover'
               style={{

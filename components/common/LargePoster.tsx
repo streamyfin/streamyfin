@@ -1,5 +1,5 @@
-import { Image } from "expo-image";
 import { View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 
 export const LargePoster: React.FC<{ url?: string | null }> = ({ url }) => {
   if (!url)
@@ -11,8 +11,8 @@ export const LargePoster: React.FC<{ url?: string | null }> = ({ url }) => {
 
   return (
     <View className='p-4 rounded-xl overflow-hidden '>
-      <Image
-        source={{ uri: url }}
+      <ServerImage
+        uri={url}
         className='w-full aspect-video rounded-xl overflow-hidden border border-neutral-800'
       />
     </View>

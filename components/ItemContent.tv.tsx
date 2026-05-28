@@ -8,7 +8,6 @@ import { getTvShowsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { File } from "expo-file-system";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -22,6 +21,7 @@ import { Alert, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
@@ -625,8 +625,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             <View style={{ flex: 1, justifyContent: "center" }}>
               {/* Logo or Title */}
               {logoUrl ? (
-                <Image
-                  source={{ uri: logoUrl }}
+                <ServerImage
+                  uri={logoUrl}
                   style={{
                     height: 150,
                     width: "80%",
@@ -871,13 +871,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 }}
               >
                 {item.Type === "Episode" ? (
-                  <Image
-                    source={{
-                      uri:
-                        settings.showSeriesPosterOnEpisode && seriesThumbUrl
-                          ? seriesThumbUrl
-                          : episodeThumbnailUrl!,
-                    }}
+                  <ServerImage
+                    uri={
+                      settings.showSeriesPosterOnEpisode && seriesThumbUrl
+                        ? seriesThumbUrl
+                        : episodeThumbnailUrl!
+                    }
                     style={{ width: "100%", height: "100%" }}
                     contentFit='cover'
                   />

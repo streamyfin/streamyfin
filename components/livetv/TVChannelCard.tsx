@@ -1,7 +1,8 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import React from "react";
-import { Animated, Image, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -63,10 +64,10 @@ export const TVChannelCard: React.FC<TVChannelCardProps> = ({
         {/* Channel logo or number */}
         <View style={styles.logoContainer}>
           {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
+            <ServerImage
+              uri={imageUrl}
               style={styles.logo}
-              resizeMode='contain'
+              contentFit='contain'
             />
           ) : (
             <View

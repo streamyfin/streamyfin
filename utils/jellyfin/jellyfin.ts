@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
+import { normalizeCustomHeaders } from "../normalizeCustomHeaders";
 import { getServerCustomHeaders } from "../secureCredentials";
 
 /**
@@ -19,14 +20,7 @@ export const getAuthHeaders = (api: Api): Record<string, string> => ({
  * @returns {Record<string, string>} - The custom headers.
  */
 export const getCustomHeaders = (serverUrl: string): Record<string, string> => {
-  const headers: Record<string, string> = {};
-  const customHeaders = getServerCustomHeaders(serverUrl);
-  for (const { key, value, enabled } of customHeaders) {
-    if (enabled && key.trim()) {
-      headers[key] = value;
-    }
-  }
-  return headers;
+  return normalizeCustomHeaders(getServerCustomHeaders(serverUrl));
 };
 
 /**

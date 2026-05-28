@@ -1,5 +1,9 @@
 import { Image } from "expo-image";
+import { useAtomValue } from "jotai";
+import { useMemo } from "react";
 import { View } from "react-native";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 
 type PosterProps = {
   id?: string | null;
@@ -9,6 +13,11 @@ type PosterProps = {
 };
 
 const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
+  const api = useAtomValue(apiAtom);
+  const customHeaders = useMemo(
+    () => (api?.basePath ? getCustomHeaders(api.basePath) : {}),
+    [api?.basePath],
+  );
   if (!id && !url)
     return (
       <View
@@ -35,6 +44,10 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
           url
             ? {
                 uri: url,
+                headers:
+                  Object.keys(customHeaders).length > 0
+                    ? customHeaders
+                    : undefined,
               }
             : null
         }

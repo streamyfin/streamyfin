@@ -6,7 +6,6 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -23,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
@@ -262,8 +262,8 @@ export const TrackOptionsSheet: React.FC<Props> = ({
             }}
           >
             {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
+              <ServerImage
+                uri={imageUrl}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
                 cachePolicy='memory-disk'

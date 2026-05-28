@@ -1,6 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { ImageSource } from "expo-image";
+import { getCustomHeaders } from "./jellyfin/jellyfin";
 
 interface Props {
   item: BaseItemDto;
@@ -28,6 +29,10 @@ export const getItemImage = ({
 }: Props) => {
   if (!api) return null;
 
+  const headers = getCustomHeaders(api.basePath);
+  const headersOrUndefined =
+    Object.keys(headers).length > 0 ? headers : undefined;
+
   let tag: string | null | undefined;
   let blurhash: string | null | undefined;
   let src: ImageSource | null = null;
@@ -41,6 +46,7 @@ export const getItemImage = ({
         src = {
           uri: `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop/0?quality=${quality}&tag=${tag}&width=${width}`,
           blurhash,
+          headers: headersOrUndefined,
         };
         break;
       }
@@ -51,6 +57,7 @@ export const getItemImage = ({
       src = {
         uri: `${api.basePath}/Items/${item.Id}/Images/Backdrop/0?quality=${quality}&tag=${tag}&width=${width}`,
         blurhash,
+        headers: headersOrUndefined,
       };
       break;
     case "Primary":
@@ -61,6 +68,7 @@ export const getItemImage = ({
       src = {
         uri: `${api.basePath}/Items/${item.Id}/Images/Primary?quality=${quality}&tag=${tag}&width=${width}`,
         blurhash,
+        headers: headersOrUndefined,
       };
       break;
     case "Thumb":
@@ -71,12 +79,14 @@ export const getItemImage = ({
       src = {
         uri: `${api.basePath}/Items/${item.Id}/Images/Backdrop?quality=${quality}&tag=${tag}&width=${width}`,
         blurhash,
+        headers: headersOrUndefined,
       };
       break;
     default:
       tag = item.ImageTags?.Primary;
       src = {
         uri: `${api.basePath}/Items/${item.Id}/Images/Primary?quality=${quality}&tag=${tag}&width=${width}`,
+        headers: headersOrUndefined,
       };
       break;
   }

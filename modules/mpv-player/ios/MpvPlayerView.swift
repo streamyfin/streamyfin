@@ -348,6 +348,16 @@ class MpvPlayerView: ExpoView {
 		return renderer?.getTechnicalInfo() ?? [:]
 	}
 
+	// MARK: - Now Playing Metadata
+
+	private var nowPlayingMetadata: [String: String] = [:]
+
+	func setNowPlayingMetadata(_ metadata: [String: String]) {
+		nowPlayingMetadata = metadata
+		// TODO: Implement MPNowPlayingInfoCenter integration for Control Center
+		// This would set the title, artist, artwork, etc. for the system Now Playing UI
+	}
+
 	deinit {
 		if let observer = appStateObserver {
 			NotificationCenter.default.removeObserver(observer)

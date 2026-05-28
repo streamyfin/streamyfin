@@ -1,6 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
 import React, {
@@ -21,6 +20,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProgressBar } from "@/components/common/ProgressBar";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { type ScaledTVSizes, useScaledTVSizes } from "@/constants/TVSizes";
@@ -167,8 +167,8 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
           }}
         >
           {posterUrl ? (
-            <Image
-              source={{ uri: posterUrl }}
+            <ServerImage
+              uri={posterUrl}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -256,12 +256,6 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     let isCancelled = false;
 
     const performCrossfade = async () => {
-      try {
-        await Image.prefetch(backdropUrl);
-      } catch {
-        // Continue even if prefetch fails
-      }
-
       if (isCancelled) return;
 
       const incomingLayer = activeLayer === 0 ? 1 : 0;
@@ -410,8 +404,8 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           }}
         >
           {layer0Url && (
-            <Image
-              source={{ uri: layer0Url }}
+            <ServerImage
+              uri={layer0Url}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -427,8 +421,8 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
           }}
         >
           {layer1Url && (
-            <Image
-              source={{ uri: layer1Url }}
+            <ServerImage
+              uri={layer1Url}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -489,8 +483,8 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
       >
         {/* Logo or Title */}
         {logoUrl ? (
-          <Image
-            source={{ uri: logoUrl }}
+          <ServerImage
+            uri={logoUrl}
             style={{
               height: scaleSize(100),
               width: SCREEN_WIDTH * 0.35,

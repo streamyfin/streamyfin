@@ -6,7 +6,6 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import { orderBy, uniqBy } from "lodash";
@@ -23,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
@@ -777,8 +777,8 @@ export default function search() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />
@@ -816,8 +816,8 @@ export default function search() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />
@@ -858,8 +858,8 @@ export default function search() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />
@@ -900,8 +900,8 @@ export default function search() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />

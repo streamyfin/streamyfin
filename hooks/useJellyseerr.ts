@@ -13,6 +13,7 @@ import "@/augmentations";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
+import { getIntegrationHeaders } from "@/components/settings/CustomHeaderSelector";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
@@ -113,14 +114,16 @@ export type TestResult =
 
 export class JellyseerrApi {
   axios: AxiosInstance;
+  private customHeaders: Record<string, string>;
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, customHeaders?: Record<string, string>) {
     this.axios = axios.create({
       baseURL: baseUrl,
       withCredentials: true,
       withXSRFToken: true,
       xsrfHeaderName: "XSRF-TOKEN",
     });
+    this.customHeaders = customHeaders || {};
 
     this.setInterceptors();
   }
@@ -412,6 +415,13 @@ export class JellyseerrApi {
 
     this.axios.interceptors.request.use(
       async (config) => {
+        // Add custom headers (e.g., Cloudflare Access)
+        for (const [key, value] of Object.entries(this.customHeaders)) {
+          if (key.trim()) {
+            config.headers[key.trim()] = value.trim();
+          }
+        }
+
         const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
         if (cookies) {
           const headerName = this.axios.defaults.xsrfHeaderName!;
@@ -441,7 +451,12 @@ export const useJellyseerr = () => {
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
     if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
-      return new JellyseerrApi(settings?.jellyseerrServerUrl);
+      // Get headers from integration config (jellyfin, custom, or none)
+      const headersToInject = getIntegrationHeaders("jellyseerr");
+      return new JellyseerrApi(
+        settings.jellyseerrServerUrl,
+        Object.keys(headersToInject).length > 0 ? headersToInject : undefined,
+      );
     }
     return undefined;
   }, [settings?.jellyseerrServerUrl, jellyseerrUser]);

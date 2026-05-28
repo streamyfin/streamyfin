@@ -16,7 +16,25 @@ import {
   isCloseToBlack,
 } from "@/utils/atoms/primaryColor";
 import { getItemImage } from "@/utils/getItemImage";
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import { storage } from "@/utils/mmkv";
+
+async function fetchImageAsDataUri(
+  uri: string,
+  headers: Record<string, string>,
+): Promise<string> {
+  const response = await fetch(uri, { headers });
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("FileReader result is not a string"));
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 export interface ThemeColors {
   primary: string;
@@ -88,16 +106,31 @@ export const useImageColorsReturn = ({
       // Extract colors from the image
       if (!ImageColors?.getColors) return;
 
-      ImageColors.getColors(source.uri, {
-        fallback: "#fff",
-        cache: false,
-      })
-        .then((colors: ImageColorsType.ImageColorsResult) => {
+      const customHeaders = api?.basePath ? getCustomHeaders(api.basePath) : {};
+      const hasHeaders = Object.keys(customHeaders).length > 0;
+
+      // react-native-image-colors doesn't support custom HTTP headers.
+      // Pre-fetch as a base64 data URI when CF headers are needed.
+      // If that fails (native decoder may reject data URIs), skip silently.
+      const resolveUri = hasHeaders
+        ? fetchImageAsDataUri(source.uri, customHeaders).catch(() => null)
+        : Promise.resolve(source.uri as string | null);
+
+      resolveUri
+        .then((uri) => {
+          if (!uri) return undefined; // headers required but fetch failed — skip
+          return ImageColors!.getColors(uri, {
+            fallback: "#fff",
+            cache: false,
+          });
+        })
+        .then((colors) => {
+          if (!colors) return;
+
           let primary = "#fff";
           let text = "#000";
           let backup = "#fff";
 
-          // Select the appropriate color based on the platform
           if (colors.platform === "android") {
             primary = colors.dominant;
             backup = colors.vibrant;
@@ -106,34 +139,26 @@ export const useImageColorsReturn = ({
             backup = colors.primary;
           }
 
-          // Adjust the primary color if it's too close to black
           if (primary && isCloseToBlack(primary)) {
             if (backup && !isCloseToBlack(backup)) primary = backup;
             primary = adjustToNearBlack(primary);
           }
 
-          // Calculate the text color based on the primary color
           if (primary) text = calculateTextColor(primary);
 
-          const newColors = {
-            primary,
-            text,
-          };
+          setColors({ primary, text });
 
-          setColors(newColors);
-
-          // Cache the colors in storage
           if (source.uri && primary) {
             storage.set(`${source.uri}-primary`, primary);
             storage.set(`${source.uri}-text`, text);
           }
         })
-        .catch((error: any) => {
-          console.error("Error getting colors", error);
+        .catch(() => {
+          // Silently fall back — non-fatal, just loses dynamic theme color
           setColors(DEFAULT_COLORS);
         });
     }
-  }, [isTv, source?.uri, disabled, item, url]);
+  }, [isTv, source?.uri, disabled, item, url, api]);
 
   return colors;
 };

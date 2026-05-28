@@ -53,6 +53,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
   getMpvAudioId,
@@ -645,6 +646,11 @@ export default function page() {
       // Add any required headers from the media source (e.g., for external/remote streams)
       if (stream?.requiredHttpHeaders) {
         Object.assign(headers, stream.requiredHttpHeaders);
+      }
+
+      // Add custom headers (Cloudflare Zero Trust, Pangolin, etc.)
+      if (api?.basePath) {
+        Object.assign(headers, getCustomHeaders(api.basePath));
       }
 
       if (Object.keys(headers).length > 0) {

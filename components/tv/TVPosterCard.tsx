@@ -21,6 +21,7 @@ import {
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -107,6 +108,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   imageUrlGetter,
 }) => {
   const api = useAtomValue(apiAtom);
+  const customHeaders = useMemo(
+    () => (api?.basePath ? getCustomHeaders(api.basePath) : {}),
+    [api?.basePath],
+  );
   const posterSizes = useScaledTVPosterSizes();
   const typography = useScaledTVTypography();
 
@@ -449,7 +454,11 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           placeholder={{ blurhash }}
           key={item.Id}
           id={item.Id}
-          source={{ uri: imageUrl }}
+          source={{
+            uri: imageUrl,
+            headers:
+              Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
+          }}
           cachePolicy='memory-disk'
           contentFit='cover'
           style={{

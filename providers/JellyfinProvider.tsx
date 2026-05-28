@@ -26,6 +26,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import { writeDebugLog, writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
@@ -383,8 +384,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
+            const jellyseerrHeaders = getIntegrationHeaders("jellyseerr");
             const jellyseerrApi = new JellyseerrApi(
               recentPluginSettings.jellyseerrServerUrl.value,
+              Object.keys(jellyseerrHeaders).length > 0
+                ? jellyseerrHeaders
+                : undefined,
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {

@@ -12,7 +12,7 @@ import {
   getUserViewsApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { type QueryFunction, useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
+
 import { LinearGradient } from "expo-linear-gradient";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists.tv";
@@ -135,13 +136,6 @@ export const Home = () => {
     let isCancelled = false;
 
     const performCrossfade = async () => {
-      // Prefetch the image before starting the crossfade
-      try {
-        await Image.prefetch(backdropUrl);
-      } catch {
-        // Continue even if prefetch fails
-      }
-
       if (isCancelled) return;
 
       // Determine which layer to fade in
@@ -696,8 +690,8 @@ export const Home = () => {
             }}
           >
             {layer0Url && (
-              <Image
-                source={{ uri: layer0Url }}
+              <ServerImage
+                uri={layer0Url}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
               />
@@ -713,8 +707,8 @@ export const Home = () => {
             }}
           >
             {layer1Url && (
-              <Image
-                source={{ uri: layer1Url }}
+              <ServerImage
+                uri={layer1Url}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
               />

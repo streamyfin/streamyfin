@@ -1,7 +1,11 @@
+import { useAtomValue } from "jotai";
 import { useCallback } from "react";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import { storage } from "@/utils/mmkv";
 
 const useImageStorage = () => {
+  const api = useAtomValue(apiAtom);
   const saveBase64Image = useCallback(async (base64: string, key: string) => {
     try {
       // Save the base64 string to storage
@@ -12,37 +16,44 @@ const useImageStorage = () => {
     }
   }, []);
 
-  const image2Base64 = useCallback(async (url?: string | null) => {
-    if (!url) return null;
+  const image2Base64 = useCallback(
+    async (url?: string | null) => {
+      if (!url) return null;
 
-    let blob: Blob;
-    try {
-      // Fetch the data from the URL
-      const response = await fetch(url);
-      blob = await response.blob();
-    } catch (error) {
-      console.warn("Error fetching image:", error);
-      return null;
-    }
+      const customHeaders = api?.basePath ? getCustomHeaders(api.basePath) : {};
 
-    // Create a FileReader instance
-    const reader = new FileReader();
+      let blob: Blob;
+      try {
+        // Fetch the data from the URL
+        const response = await fetch(url, {
+          headers: customHeaders,
+        });
+        blob = await response.blob();
+      } catch (error) {
+        console.warn("Error fetching image:", error);
+        return null;
+      }
 
-    // Convert blob to base64
-    return new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          // Extract the base64 string (remove the data URL prefix)
-          const base64 = reader.result.split(",")[1];
-          resolve(base64);
-        } else {
-          reject(new Error("Failed to convert image to base64"));
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }, []);
+      // Create a FileReader instance
+      const reader = new FileReader();
+
+      // Convert blob to base64
+      return new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            // Extract the base64 string (remove the data URL prefix)
+            const base64 = reader.result.split(",")[1];
+            resolve(base64);
+          } else {
+            reject(new Error("Failed to convert image to base64"));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    },
+    [api?.basePath],
+  );
 
   const saveImage = useCallback(
     async (key?: string | null, imageUrl?: string | null) => {

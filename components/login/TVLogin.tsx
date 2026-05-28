@@ -16,14 +16,17 @@ import {
   startPairingListener,
 } from "@/utils/pairingService";
 import { scaleSize } from "@/utils/scaleSize";
+import type { CustomHeader } from "@/utils/secureCredentials";
 import {
   type AccountSecurityType,
   getPreviousServers,
+  getServerCustomHeaders,
   hashPIN,
   removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
   saveAccountCredential,
+  updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
 import { TVAddServerForm } from "./TVAddServerForm";
 import { TVAddUserForm } from "./TVAddUserForm";
@@ -175,29 +178,45 @@ export const TVLogin: React.FC = () => {
   }, [serverName, navigation]);
 
   // Server URL checking
-  const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
-    const baseUrl = url.replace(/^https?:\/\//i, "");
-    const protocols = ["https", "http"];
-    try {
-      return checkHttp(baseUrl, protocols);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Server too old") {
-        throw e;
+  const checkUrl = useCallback(
+    async (url: string, headers?: CustomHeader[]) => {
+      setLoadingServerCheck(true);
+      const baseUrl = url.replace(/^https?:\/\//i, "");
+      const protocols = ["https", "http"];
+      try {
+        return checkHttp(baseUrl, protocols, headers);
+      } catch (e) {
+        if (e instanceof Error && e.message === "Server too old") {
+          throw e;
+        }
+        return undefined;
+      } finally {
+        setLoadingServerCheck(false);
       }
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  async function checkHttp(baseUrl: string, protocols: string[]) {
+  async function checkHttp(
+    baseUrl: string,
+    protocols: string[],
+    customHeaders?: CustomHeader[],
+  ) {
     for (const protocol of protocols) {
       try {
-        const response = await fetch(
-          `${protocol}://${baseUrl}/System/Info/Public`,
-          { mode: "cors" },
-        );
+        const serverUrl = `${protocol}://${baseUrl}`;
+
+        // Build headers: use customHeaders if provided, otherwise fall back to stored
+        const headersToInject: Record<string, string> = {};
+        const source = customHeaders ?? getServerCustomHeaders(serverUrl);
+        for (const { key, value, enabled } of source) {
+          if (enabled && key.trim()) headersToInject[key] = value;
+        }
+
+        const response = await fetch(`${serverUrl}/System/Info/Public`, {
+          mode: "cors",
+          headers: headersToInject,
+        });
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
           const serverVersion = data.Version?.split(".");
@@ -210,8 +229,12 @@ export const TVLogin: React.FC = () => {
               throw new Error("Server too old");
             }
           }
+          // Save headers after successful connection
+          if (customHeaders && customHeaders.length > 0) {
+            updateServerCustomHeaders(serverUrl, customHeaders);
+          }
           setServerName(data.ServerName || "");
-          return `${protocol}://${baseUrl}`;
+          return serverUrl;
         }
       } catch (e) {
         if (e instanceof Error && e.message === "Server too old") {
@@ -224,10 +247,10 @@ export const TVLogin: React.FC = () => {
 
   // Handle connecting to a new server
   const handleConnect = useCallback(
-    async (url: string) => {
+    async (url: string, headers?: CustomHeader[]) => {
       url = url.trim().replace(/\/$/, "");
       try {
-        const result = await checkUrl(url);
+        const result = await checkUrl(url, headers);
         if (result === undefined) {
           Alert.alert(
             t("login.connection_failed"),

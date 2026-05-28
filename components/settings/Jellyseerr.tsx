@@ -7,11 +7,13 @@ import { toast } from "sonner-native";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { CustomHeaderSelector } from "./CustomHeaderSelector";
 
 export const JellyseerrSettings = () => {
   const { jellyseerrUser, setJellyseerrUser, clearAllJellyseerData } =
@@ -36,8 +38,19 @@ export const JellyseerrSettings = () => {
         throw new Error("Missing server url");
       if (!user?.Name)
         throw new Error("Missing required information for login");
+
+      // Get headers from the CustomHeaderSelector config
+      const headersToInject = getIntegrationHeaders("jellyseerr");
+
+      // Ensure URL has protocol
+      let url = jellyseerrServerUrl || settings.jellyseerrServerUrl || "";
+      if (!url.match(/^https?:\/\//i)) {
+        url = `https://${url}`;
+      }
+
       const jellyseerrTempApi = new JellyseerrApi(
-        jellyseerrServerUrl || settings.jellyseerrServerUrl || "",
+        url,
+        Object.keys(headersToInject).length > 0 ? headersToInject : undefined,
       );
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
@@ -128,9 +141,7 @@ export const JellyseerrSettings = () => {
             </View>
             <Input
               className='border border-neutral-800 mb-2'
-              placeholder={t(
-                "home.settings.plugins.jellyseerr.server_url_placeholder",
-              )}
+              placeholder='https://jellyseerr.example.com'
               value={jellyseerrServerUrl ?? settings?.jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
@@ -142,6 +153,7 @@ export const JellyseerrSettings = () => {
               onChangeText={setjellyseerrServerUrl}
               editable={!loginToJellyseerrMutation.isPending}
             />
+
             <View>
               <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
@@ -163,11 +175,17 @@ export const JellyseerrSettings = () => {
                 onChangeText={setJellyseerrPassword}
                 editable={!loginToJellyseerrMutation.isPending}
               />
+              <CustomHeaderSelector
+                integrationKey='jellyseerr'
+                title='Custom Headers'
+                description='Choose how to authenticate with Jellyseerr server'
+              />
+
               <Button
                 loading={loginToJellyseerrMutation.isPending}
                 disabled={loginToJellyseerrMutation.isPending}
                 color='purple'
-                className='h-12 mt-2'
+                className='h-12 mt-4'
                 onPress={() => loginToJellyseerrMutation.mutate()}
               >
                 {t("home.settings.plugins.jellyseerr.login_button")}

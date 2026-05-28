@@ -5,7 +5,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -33,6 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TextTicker from "react-native-text-ticker";
 import type { VolumeResult } from "react-native-volume-manager";
 import { Badge } from "@/components/Badge";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
 import { PlaylistPickerSheet } from "@/components/music/PlaylistPickerSheet";
@@ -466,8 +466,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         }}
       >
         {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
+          <ServerImage
+            uri={imageUrl}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
             cachePolicy='memory-disk'
@@ -764,8 +764,8 @@ const QueueView: React.FC<QueueViewProps> = ({
             {/* Album art */}
             <View className='w-12 h-12 rounded overflow-hidden bg-neutral-800 mr-3'>
               {imageUrl ? (
-                <Image
-                  source={{ uri: imageUrl }}
+                <ServerImage
+                  uri={imageUrl}
                   style={{ width: "100%", height: "100%" }}
                   contentFit='cover'
                   cachePolicy='memory-disk'

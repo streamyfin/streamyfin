@@ -1,6 +1,6 @@
-import { Image } from "expo-image";
 import type { FC } from "react";
 import { View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { CONTROLS_CONSTANTS } from "./constants";
 
@@ -74,7 +74,7 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
         }}
         className='bg-neutral-800 overflow-hidden'
       >
-        <Image
+        <ServerImage
           cachePolicy='memory-disk'
           style={{
             width: tileWidth * (trickplayInfo.data.TileWidth ?? 1),
@@ -86,7 +86,7 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
               { translateY: -y * tileHeight },
             ],
           }}
-          source={{ uri: url }}
+          uri={url}
           contentFit='cover'
         />
       </View>

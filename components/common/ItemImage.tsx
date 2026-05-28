@@ -77,6 +77,7 @@ export const ItemImage: FC<Props> = ({
       }}
       source={{
         uri: source?.uri,
+        headers: source?.headers as Record<string, string> | undefined,
       }}
       {...props}
     />
