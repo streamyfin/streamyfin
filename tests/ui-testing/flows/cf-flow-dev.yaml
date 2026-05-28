@@ -15,7 +15,7 @@ name: CF-FlowDev
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_ID}"
 - tapOn:
     text: "Header value"
-    index: 0
+    index: 1
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
 - hideKeyboard
 - takeScreenshot:
