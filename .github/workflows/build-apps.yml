@@ -366,9 +366,10 @@ jobs:
           retention-days: 7
 
   build-ios-tv-unsigned:
-    # Temporarily disabled until feat/tv-interface is merged (TV UI not ready).
-    # Re-enable by removing the `false &&` prefix below.
-    if: false && (!contains(github.event.head_commit.message, '[skip ci]'))
+    # Unsigned tvOS build is enabled (compiles without Apple credentials).
+    # The signed tvOS job above stays disabled until tvOS provisioning
+    # profiles are set up in EAS (app + TopShelf targets).
+    if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: macos-26
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
