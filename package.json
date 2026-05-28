@@ -35,6 +35,7 @@
     "@gorhom/bottom-sheet": "5.2.8",
     "@jellyfin/sdk": "^0.13.0",
     "@react-native-community/netinfo": "^12.0.0",
+    "@react-navigation/native": "^7.2.5",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/query-sync-storage-persister": "^5.90.18",
     "@tanstack/react-pacer": "^0.19.1",
