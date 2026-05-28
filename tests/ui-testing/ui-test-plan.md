@@ -29,7 +29,6 @@ Required for SimpleFlow:
 MAESTRO_APP_ID=com.fredrikburmester.streamyfin
 MAESTRO_SERVER_URL=https://jellyfin.example.com
 MAESTRO_USERNAME=test-user
-MAESTRO_PASSWORD=test-password
 ```
 
 Required in addition for CF-Flow:
@@ -40,6 +39,7 @@ MAESTRO_CF_ACCESS_CLIENT_SECRET=example-client-secret
 ```
 
 `MAESTRO_APP_ID` defaults to `com.fredrikburmester.streamyfin` in the runner, but it can be overridden for alternate builds.
+`MAESTRO_PASSWORD` is optional. If it is unset or set to a blank value such as `MAESTRO_PASSWORD=`, the runner exports it as an empty string and the flows skip filling the password field.
 
 ## Commands
 
@@ -71,7 +71,7 @@ The runner accepts only `simple`, `cf`, or `all`. It fails before running a flow
 
 ## SimpleFlow
 
-SimpleFlow starts from a cleared app state, launches Streamyfin, enters the Jellyfin server URL, connects, waits for the username/password screen, enters credentials, logs in, and waits for an authenticated home-state signal.
+SimpleFlow starts from a cleared app state, launches Streamyfin, enters the Jellyfin server URL, connects, waits for the username/password screen, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 
@@ -83,7 +83,7 @@ Screenshots:
 
 ## CF-Flow
 
-CF-Flow starts from a cleared app state, launches Streamyfin, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, logs in, and waits for an authenticated home-state signal.
+CF-Flow starts from a cleared app state, launches Streamyfin, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 
@@ -139,7 +139,6 @@ The flows can also run without `.env.local`:
 ```sh
 MAESTRO_SERVER_URL=https://example.test \
 MAESTRO_USERNAME=test-user \
-MAESTRO_PASSWORD=test-password \
 make ui-test-simple
 ```
 
@@ -148,7 +147,6 @@ For Cloudflare:
 ```sh
 MAESTRO_SERVER_URL=https://example.test \
 MAESTRO_USERNAME=test-user \
-MAESTRO_PASSWORD=test-password \
 MAESTRO_CF_ACCESS_CLIENT_ID=example-client-id \
 MAESTRO_CF_ACCESS_CLIENT_SECRET=example-client-secret \
 make ui-test-cf

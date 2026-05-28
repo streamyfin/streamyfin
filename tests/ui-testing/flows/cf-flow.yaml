@@ -36,8 +36,12 @@ name: CF-Flow
     path: ${MAESTRO_ARTIFACT_DIR}/04-login-screen
 - tapOn: "Username"
 - inputText: "${MAESTRO_USERNAME}"
-- tapOn: "Password"
-- inputText: "${MAESTRO_PASSWORD}"
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != ""}
+    commands:
+      - tapOn: "Password"
+      - inputText: "${MAESTRO_PASSWORD}"
 - hideKeyboard
 - tapOn:
     text: "Log In"

@@ -52,8 +52,8 @@ load_env_file() {
       \'*\') value=${value#\'}; value=${value%\'} ;;
     esac
 
-    eval "current=\${$key-}"
-    if [ -z "$current" ]; then
+    eval "is_set=\${$key+x}"
+    if [ -z "$is_set" ]; then
       export "$key=$value"
     fi
   done < "$ENV_FILE"
@@ -107,16 +107,18 @@ esac
 load_env_file
 : "${MAESTRO_APP_ID:=$DEFAULT_APP_ID}"
 export MAESTRO_APP_ID
+: "${MAESTRO_PASSWORD=}"
+export MAESTRO_PASSWORD
 
 case "$selected_flow" in
   simple)
-    require_vars simple MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_PASSWORD
+    require_vars simple MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME
     ;;
   cf)
-    require_vars cf MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_PASSWORD MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
+    require_vars cf MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
     ;;
   all)
-    require_vars all MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_PASSWORD MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
+    require_vars all MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
     ;;
 esac
 

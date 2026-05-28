@@ -23,8 +23,12 @@ name: SimpleFlow
     path: ${MAESTRO_ARTIFACT_DIR}/03-login-screen
 - tapOn: "Username"
 - inputText: "${MAESTRO_USERNAME}"
-- tapOn: "Password"
-- inputText: "${MAESTRO_PASSWORD}"
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != ""}
+    commands:
+      - tapOn: "Password"
+      - inputText: "${MAESTRO_PASSWORD}"
 - hideKeyboard
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/04-credentials-entered
