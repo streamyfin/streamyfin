@@ -18,7 +18,8 @@ protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
-    func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double, didSelectAudioOutput audioOutput: String)
+    func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
+    func renderer(_ renderer: MPVLayerRenderer, didSelectAudioOutput audioOutput: String)
 }
 
 /// MPV player using vo_avfoundation for video output.
