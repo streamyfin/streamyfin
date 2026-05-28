@@ -238,26 +238,10 @@ export const Login: React.FC = () => {
           if (enabled && trimmedKey) headersToInject[trimmedKey] = trimmedValue;
         }
 
-        console.log(
-          `[checkHttp] Trying ${serverUrl} with headers:`,
-          headersToInject,
-        );
         const response = await fetch(`${serverUrl}/System/Info/Public`, {
           mode: "cors",
           headers: headersToInject,
         });
-        console.log(
-          `[checkHttp] Response: ${response.status} ${response.statusText}`,
-        );
-        if (!response.ok) {
-          const text = await response.text();
-          console.log(`[checkHttp] Error body:`, text.substring(0, 200));
-          // DEBUG: Show what headers were sent
-          Alert.alert(
-            `Debug: HTTP ${response.status}`,
-            `Headers sent:\n${JSON.stringify(headersToInject, null, 2)}`,
-          );
-        }
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
           const serverVersion = data.Version?.split(".");
