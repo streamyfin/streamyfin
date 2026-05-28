@@ -55,6 +55,7 @@ name: TVCF-FlowDev
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/03b-connect-focused
 - pressKey: "Remote Dpad Center"
