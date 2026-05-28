@@ -45,8 +45,6 @@ name: TVCF-FlowDev
 - pressKey: "Remote Dpad Center"
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
 - hideKeyboard
-- takeScreenshot:
-    path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
 # Move up through the TV form from the second Header value field to Connect.
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
@@ -57,7 +55,7 @@ name: TVCF-FlowDev
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
 - takeScreenshot:
-    path: ${MAESTRO_ARTIFACT_DIR}/03b-connect-focused
+    path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
 - pressKey: "Remote Dpad Center"
 - extendedWaitUntil:
     visible: "Username"

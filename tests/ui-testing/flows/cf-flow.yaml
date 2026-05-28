@@ -5,17 +5,7 @@ name: CF-Flow
 - launchApp
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/01-launched
-# Handle Expo dev client launcher screen (appears after clearState)
-- runFlow:
-    when:
-      visible: "DEVELOPMENT SERVERS"
-    commands:
-      - tapOn: "http://10.0.2.2:8081"
-      - extendedWaitUntil:
-          visible: "Continue"
-          timeout: 15000
-      - tapOn: "Continue"
 - extendedWaitUntil:
     visible: "Enter the URL to your Jellyfin server"
     timeout: 30000
-- runFlow: tests/ui-testing/flows/cf-flow-dev.yaml
+- runFlow: cf-flow-dev.yaml

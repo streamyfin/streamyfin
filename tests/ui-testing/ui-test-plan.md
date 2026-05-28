@@ -104,7 +104,7 @@ For Android TV, start an Android TV emulator and install the release-variant TV 
 
 ## SimpleFlow
 
-SimpleFlow starts from a cleared app state, launches Streamyfin, handles the Expo Dev Client launcher when present, waits until the server URL screen is visible, then delegates to SimpleFlowDev for the login steps. SimpleFlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, connects, waits for the username/password screen, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
+SimpleFlow starts from a cleared app state, launches the release-installed Streamyfin app, waits until the server URL screen is visible, then delegates to SimpleFlowDev for the login steps. SimpleFlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, connects, waits for the username/password screen, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 
@@ -116,7 +116,7 @@ Screenshots:
 
 ## CF-Flow
 
-CF-Flow starts from a cleared app state, launches Streamyfin, handles the Expo Dev Client launcher when present, waits until the server URL screen is visible, then delegates to CF-FlowDev for the Cloudflare login steps. CF-FlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
+CF-Flow starts from a cleared app state, launches the release-installed Streamyfin app, waits until the server URL screen is visible, then delegates to CF-FlowDev for the Cloudflare login steps. CF-FlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 
