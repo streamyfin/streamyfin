@@ -3,7 +3,7 @@ export PATH := $(MAESTRO_BIN):$(PATH)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help e2e e2e-setup run-android run-android-tv ui-clean ui-test-install-android ui-test-install-android-tv ui-test-simple ui-test-simple-dev ui-test-cf ui-test-cf-dev ui-test-tv-simple ui-test-tv-simple-dev ui-test-tv-cf ui-test-tv-cf-dev ui-test-all
+.PHONY: help e2e e2e-setup run-android run-android-tv run-ios ui-clean ui-test-install-android ui-test-install-android-tv ui-test-install-ios ui-test-simple ui-test-simple-dev ui-test-cf ui-test-cf-dev ui-test-ios-simple ui-test-ios-simple-dev ui-test-ios-cf ui-test-ios-cf-dev ui-test-tv-simple ui-test-tv-simple-dev ui-test-tv-cf ui-test-tv-cf-dev ui-test-all
 
 help:
 	@printf '\n%s\n' 'Streamyfin targets'
@@ -14,16 +14,23 @@ help:
 	@printf '  %-28s %s\n\n' 'ui-clean' 'Remove local UI test screenshots.'
 	@printf '%s\n' 'Run development builds'
 	@printf '  %-28s %s\n' 'run-android' 'Prebuild and run the Android phone app.'
-	@printf '  %-28s %s\n\n' 'run-android-tv' 'Prebuild and run the Android TV app.'
+	@printf '  %-28s %s\n' 'run-android-tv' 'Prebuild and run the Android TV app.'
+	@printf '  %-28s %s\n\n' 'run-ios' 'Prebuild and run the iOS phone app.'
 	@printf '%s\n' 'Install UI test builds'
 	@printf '  %-28s %s\n' 'ui-test-install-android' 'Install the Android phone release variant.'
-	@printf '  %-28s %s\n\n' 'ui-test-install-android-tv' 'Install the Android TV release variant.'
+	@printf '  %-28s %s\n' 'ui-test-install-android-tv' 'Install the Android TV release variant.'
+	@printf '  %-28s %s\n\n' 'ui-test-install-ios' 'Install the iOS phone release configuration.'
 	@printf '%s\n' 'Android phone UI tests'
 	@printf '  %-28s %s\n' 'ui-test-simple' 'Run SimpleFlow from a cleared app launch.'
 	@printf '  %-28s %s\n' 'ui-test-simple-dev' 'Run SimpleFlow from the server URL screen.'
 	@printf '  %-28s %s\n' 'ui-test-cf' 'Run Cloudflare flow from a cleared app launch.'
 	@printf '  %-28s %s\n' 'ui-test-cf-dev' 'Run Cloudflare flow from the server URL screen.'
 	@printf '  %-28s %s\n\n' 'ui-test-all' 'Run phone SimpleFlow and Cloudflare flows.'
+	@printf '%s\n' 'iOS phone UI tests'
+	@printf '  %-28s %s\n' 'ui-test-ios-simple' 'Run iOS SimpleFlow from a cleared app launch.'
+	@printf '  %-28s %s\n' 'ui-test-ios-simple-dev' 'Run iOS SimpleFlow from the server URL screen.'
+	@printf '  %-28s %s\n' 'ui-test-ios-cf' 'Run iOS Cloudflare flow from a cleared app launch.'
+	@printf '  %-28s %s\n\n' 'ui-test-ios-cf-dev' 'Run iOS Cloudflare flow from the server URL screen.'
 	@printf '%s\n' 'Android TV UI tests'
 	@printf '  %-28s %s\n' 'ui-test-tv-simple' 'Run TV SimpleFlow from a cleared app launch.'
 	@printf '  %-28s %s\n' 'ui-test-tv-simple-dev' 'Run TV SimpleFlow from Add Server or URL screen.'
@@ -47,6 +54,10 @@ run-android-tv:
 	bun run prebuild:tv
 	bun run android:tv
 
+run-ios:
+	bun run prebuild
+	bun run ios
+
 ui-clean:
 	find tests/ui-testing/artifacts -mindepth 1 ! -name .gitkeep -exec rm -rf {} +
 
@@ -57,6 +68,10 @@ ui-test-install-android:
 ui-test-install-android-tv:
 	bun run prebuild:tv
 	bun run android:tv:ui-test
+
+ui-test-install-ios:
+	bun run prebuild
+	bun run ios:ui-test
 
 ui-test-simple:
 	sh tests/ui-testing/run-flow.sh simple
@@ -69,6 +84,18 @@ ui-test-cf:
 
 ui-test-cf-dev:
 	sh tests/ui-testing/run-flow.sh cf-dev
+
+ui-test-ios-simple:
+	sh tests/ui-testing/run-flow.sh ios-simple
+
+ui-test-ios-simple-dev:
+	sh tests/ui-testing/run-flow.sh ios-simple-dev
+
+ui-test-ios-cf:
+	sh tests/ui-testing/run-flow.sh ios-cf
+
+ui-test-ios-cf-dev:
+	sh tests/ui-testing/run-flow.sh ios-cf-dev
 
 ui-test-tv-simple:
 	sh tests/ui-testing/run-flow.sh tv-simple

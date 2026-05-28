@@ -1,6 +1,6 @@
 # Testing
 
-This project uses repo-native checks for code quality and Maestro for Android phone and Android TV UI smoke tests.
+This project uses repo-native checks for code quality and Maestro for Android phone, iOS phone, and Android TV UI smoke tests.
 
 ## Static Checks
 
@@ -90,6 +90,35 @@ bun run ui:test:tv:cf:dev
 ```
 
 Use the `*-dev` TV flows only when the TV app is already open on the `Add Server` landing screen or the Jellyfin URL form.
+
+## iOS Phone UI Tests
+
+iOS phone uses the same visible login flow as Android phone. The iOS targets reuse the phone Maestro flow files and write iOS-specific artifact directories.
+
+Start an iOS simulator, then install the release-configuration phone app:
+
+```sh
+make ui-test-install-ios
+```
+
+Run the iOS flows:
+
+```sh
+make ui-test-ios-simple
+make ui-test-ios-cf
+make ui-test-ios-cf-dev
+```
+
+The package scripts are also wired:
+
+```sh
+bun run ios:ui-test
+bun run ui:test:ios:simple
+bun run ui:test:ios:cf
+bun run ui:test:ios:cf:dev
+```
+
+Use the `*-dev` iOS flows only when the iOS app is already open on the Jellyfin URL form.
 
 Screenshots are written to:
 
