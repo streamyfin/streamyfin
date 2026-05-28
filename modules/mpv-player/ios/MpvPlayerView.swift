@@ -512,11 +512,13 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 			self.onTracksReady([:])
 		}
 	}
-
-	func renderer(_: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double, didSelectAudioOutput audioOutput: String) {
+	func renderer(_: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double) {
 		#if os(tvOS)
 		setDisplayCriteria(for: mode, fps: Float(fps))
 		#endif
+	}
+
+	func renderer(_: MPVLayerRenderer, didSelectAudioOutput audioOutput: String) {
 		// Audio output is now active - this is the right time to activate audio session and set Now Playing
 		print("[MPV] Audio output ready (\(audioOutput)), activating audio session and syncing Now Playing")
 		nowPlayingManager.activateAudioSession()
