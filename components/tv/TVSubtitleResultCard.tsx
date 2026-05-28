@@ -263,7 +263,7 @@ const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
       color: "#fff",
     },
     downloadingOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: "rgba(0,0,0,0.5)",
       borderRadius: scaleSize(14),
       justifyContent: "center",
