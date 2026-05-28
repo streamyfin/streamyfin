@@ -3,11 +3,11 @@ name: TVCF-Flow
 ---
 - clearState
 - launchApp
-- takeScreenshot:
-    path: ${MAESTRO_ARTIFACT_DIR}/01-launched
 - extendedWaitUntil:
     visible: "Add Server|Enter the URL to your Jellyfin server"
     timeout: 30000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/01-launched
 - runFlow:
     when:
       visible: "Add Server"
