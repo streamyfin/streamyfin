@@ -2,13 +2,13 @@ appId: ${MAESTRO_APP_ID}
 name: CF-FlowDev
 ---
 - assertVisible: "Enter the URL to your Jellyfin server"
-- tapOn: "Server URL"
-- inputText: "${MAESTRO_SERVER_URL}"
-- hideKeyboard
 - tapOn: "Advanced \\(Custom Headers\\)"
 - tapOn: "Cloudflare Zero Trust"
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/02-cloudflare-preset
+- tapOn: "Server URL"
+- inputText: "${MAESTRO_SERVER_URL}"
+- hideKeyboard
 - tapOn:
     text: "Header value"
     index: 0

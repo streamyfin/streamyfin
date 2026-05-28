@@ -116,7 +116,7 @@ Screenshots:
 
 ## CF-Flow
 
-CF-Flow starts from a cleared app state, launches the release-installed Streamyfin app, waits until the server URL screen is visible, then delegates to CF-FlowDev for the Cloudflare login steps. CF-FlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
+CF-Flow starts from a cleared app state, launches the release-installed Streamyfin app, waits until the server URL screen is visible, then delegates to CF-FlowDev for the Cloudflare login steps. CF-FlowDev assumes the app is already open on the server URL screen, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, captures the empty preset fields, then enters the Jellyfin server URL and Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 
