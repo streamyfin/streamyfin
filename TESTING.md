@@ -24,7 +24,7 @@ That command includes formatting and lint write steps, so review the resulting d
 
 The Maestro tests live under `tests/ui-testing/`. They cover first-login smoke tests for direct Jellyfin server login and Cloudflare Access custom-header login across Android phone, iOS phone, and Android TV.
 
-This test harness was added to support the custom auth-header work in the stacked PR branch. It verifies that protected Jellyfin servers can be configured from the login screens and that the direct-login path still works while those header controls exist.
+The harness verifies that protected Jellyfin servers can be configured from the login screens and that the direct-login path still works while those header controls exist.
 
 The runner files are:
 
@@ -137,20 +137,14 @@ Clean local screenshot artifacts:
 make clean-artifacts
 ```
 
-## Package Scripts
+## Native Install Scripts
 
-Package scripts are wired for the same UI test flows:
+Make is the primary UI test command surface. The install targets call these underlying package scripts:
 
 ```sh
 bun run android:ui-test
 bun run android:tv:ui-test
 bun run ios:ui-test
-bun run ui:test:simple
-bun run ui:test:cf
-bun run ui:test:ios:simple
-bun run ui:test:ios:cf
-bun run ui:test:tv:simple
-bun run ui:test:tv:cf
 ```
 
 ## Direct Runner
@@ -283,8 +277,6 @@ Screenshots may contain server URLs, usernames, and Cloudflare header values. Ke
 On a machine with Android or iOS tooling:
 
 ```sh
-git fetch origin
-git switch feature/jeeftor-tv-test-with-testing
 bun install --frozen-lockfile
 cp tests/ui-testing/.env.example tests/ui-testing/.env.local
 # Fill in real values.
