@@ -72,7 +72,7 @@ export function CustomHeaderSelector({
 
   const handleAddPreset = useCallback(() => {
     Alert.alert(
-      t("home.settings.network.custom_headers_presets_title"),
+      t("custom_headers.presets_title"),
       undefined,
       [
         ...HEADER_PRESETS.map((preset) => ({
@@ -84,7 +84,7 @@ export function CustomHeaderSelector({
               customHeaders: [...prev.customHeaders, ...preset.headers],
             }));
             toast.success(
-              t("home.settings.network.custom_headers_preset_added", {
+              t("custom_headers.preset_added", {
                 name: preset.label,
               }),
             );
@@ -152,20 +152,20 @@ export function CustomHeaderSelector({
           selected={config.source === "jellyfin"}
           onPress={() => handleSourceChange("jellyfin")}
           icon='link'
-          label='Jellyfin'
+          label={t("custom_headers.source_jellyfin")}
           disabled={!serverUrl}
         />
         <SourceButton
           selected={config.source === "custom"}
           onPress={() => handleSourceChange("custom")}
           icon='code-working'
-          label='Custom'
+          label={t("custom_headers.source_custom")}
         />
         <SourceButton
           selected={config.source === "none"}
           onPress={() => handleSourceChange("none")}
           icon='close-circle'
-          label='None'
+          label={t("custom_headers.source_none")}
         />
       </View>
 
@@ -173,11 +173,11 @@ export function CustomHeaderSelector({
       {config.source === "jellyfin" && serverUrl && (
         <View className='bg-neutral-900 rounded-xl p-3'>
           <Text className='text-xs text-neutral-500 mb-2'>
-            Using headers from Jellyfin server:
+            {t("custom_headers.using_jellyfin_headers")}
           </Text>
           {Object.keys(effectiveHeaders).length === 0 ? (
             <Text className='text-xs text-neutral-400 italic'>
-              No custom headers configured for Jellyfin server
+              {t("custom_headers.no_jellyfin_headers")}
             </Text>
           ) : (
             Object.entries(effectiveHeaders).map(([key]) => (
@@ -200,7 +200,7 @@ export function CustomHeaderSelector({
           {config.customHeaders.length === 0 ? (
             <View className='bg-neutral-900 rounded-xl p-4 mb-2'>
               <Text className='text-neutral-400 text-sm text-center'>
-                No custom headers configured
+                {t("custom_headers.no_headers")}
               </Text>
             </View>
           ) : (
@@ -212,7 +212,7 @@ export function CustomHeaderSelector({
                       <View className='gap-2'>
                         <Input
                           placeholder={t(
-                            "home.settings.network.custom_headers_header_key",
+                            "custom_headers.header_key",
                           )}
                           value={header.key}
                           onChangeText={(text) =>
@@ -224,7 +224,7 @@ export function CustomHeaderSelector({
                         />
                         <Input
                           placeholder={t(
-                            "home.settings.network.custom_headers_header_value",
+                            "custom_headers.header_value",
                           )}
                           value={header.value}
                           onChangeText={(text) =>
@@ -246,10 +246,12 @@ export function CustomHeaderSelector({
                     ) : (
                       <TouchableOpacity onPress={() => setEditingIndex(index)}>
                         <Text className='text-white font-medium text-sm'>
-                          {header.key || "Header Name"}
+                          {header.key || t("custom_headers.header_key")}
                         </Text>
                         <Text className='text-neutral-400 text-xs'>
-                          {header.value ? "••••••••" : "No value"}
+                          {header.value
+                            ? "••••••••"
+                            : t("custom_headers.no_value")}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -276,10 +278,10 @@ export function CustomHeaderSelector({
 
           <View className='flex-row gap-2 mt-2'>
             <Button onPress={handleAddPreset} className='flex-1'>
-              Add Preset
+              {t("custom_headers.add_preset")}
             </Button>
             <Button onPress={handleAddCustom} className='flex-1'>
-              Add Custom
+              {t("custom_headers.add_custom")}
             </Button>
           </View>
         </View>
@@ -288,7 +290,7 @@ export function CustomHeaderSelector({
       {config.source === "none" && (
         <View className='bg-neutral-900 rounded-xl p-3'>
           <Text className='text-xs text-neutral-500'>
-            No custom headers will be sent to this integration
+            {t("custom_headers.integration_none")}
           </Text>
         </View>
       )}

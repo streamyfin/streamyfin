@@ -177,8 +177,8 @@ export const JellyseerrSettings = () => {
               />
               <CustomHeaderSelector
                 integrationKey='jellyseerr'
-                title='Custom Headers'
-                description='Choose how to authenticate with Jellyseerr server'
+                title={t("custom_headers.title")}
+                description={t("custom_headers.integration_description")}
               />
 
               <Button

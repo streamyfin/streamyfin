@@ -70,14 +70,14 @@ export function CustomHeadersSettings(): React.ReactElement | null {
     (index: number) => {
       const updated = headers.filter((_, i) => i !== index);
       saveHeaders(updated);
-      toast.success(t("home.settings.network.custom_headers_removed"));
+      toast.success(t("custom_headers.removed"));
     },
     [headers, saveHeaders, t],
   );
 
   const handleAddPreset = useCallback(() => {
     Alert.alert(
-      t("home.settings.network.custom_headers_presets_title"),
+      t("custom_headers.presets_title"),
       undefined,
       [
         ...HEADER_PRESETS.map((preset) => ({
@@ -86,7 +86,7 @@ export function CustomHeadersSettings(): React.ReactElement | null {
             const newHeaders = [...headers, ...preset.headers];
             saveHeaders(newHeaders);
             toast.success(
-              t("home.settings.network.custom_headers_preset_added", {
+              t("custom_headers.preset_added", {
                 name: preset.label,
               }),
             );
@@ -116,17 +116,17 @@ export function CustomHeadersSettings(): React.ReactElement | null {
   return (
     <View>
       <ListGroup
-        title={t("home.settings.network.custom_headers")}
+        title={t("custom_headers.title")}
         description={
           <Text className='text-[#8E8D91] text-xs'>
-            {t("home.settings.network.custom_headers_description")}
+            {t("custom_headers.description")}
           </Text>
         }
       >
         {headers.length === 0 && (
           <ListItem
-            title={t("home.settings.network.custom_headers_no_headers")}
-            subtitle={t("home.settings.network.custom_headers_no_headers_hint")}
+            title={t("custom_headers.no_headers")}
+            subtitle={t("custom_headers.no_headers_hint")}
           />
         )}
 
@@ -141,7 +141,7 @@ export function CustomHeadersSettings(): React.ReactElement | null {
                   <View className='gap-2'>
                     <Input
                       placeholder={t(
-                        "home.settings.network.custom_headers_header_key",
+                        "custom_headers.header_key",
                       )}
                       value={header.key}
                       onChangeText={(text) => handleUpdateKey(index, text)}
@@ -150,7 +150,7 @@ export function CustomHeadersSettings(): React.ReactElement | null {
                     />
                     <Input
                       placeholder={t(
-                        "home.settings.network.custom_headers_header_value",
+                        "custom_headers.header_value",
                       )}
                       value={header.value}
                       onChangeText={(text) => handleUpdateValue(index, text)}
@@ -170,13 +170,13 @@ export function CustomHeadersSettings(): React.ReactElement | null {
                   <TouchableOpacity onPress={() => setEditingIndex(index)}>
                     <Text className='text-white font-medium'>
                       {header.key ||
-                        t("home.settings.network.custom_headers_header_key")}
+                        t("custom_headers.header_key")}
                     </Text>
                     <Text className='text-neutral-400 text-sm'>
                       {header.value
                         ? "••••••••"
                         : t(
-                            "home.settings.network.custom_headers_header_value",
+                            "custom_headers.header_value",
                           )}
                     </Text>
                   </TouchableOpacity>
@@ -204,16 +204,16 @@ export function CustomHeadersSettings(): React.ReactElement | null {
 
       <View className='py-2 gap-2'>
         <Button onPress={handleAddPreset}>
-          {t("home.settings.network.custom_headers_add_preset")}
+          {t("custom_headers.add_preset")}
         </Button>
         <Button onPress={handleAddCustom}>
-          {t("home.settings.network.custom_headers_add_custom")}
+          {t("custom_headers.add_custom")}
         </Button>
       </View>
 
       <View className='px-4 py-2 bg-neutral-900 rounded-xl mt-2'>
         <Text className='text-neutral-400 text-xs'>
-          ℹ️ {t("home.settings.network.custom_headers_security_note")}
+          ℹ️ {t("custom_headers.security_note")}
         </Text>
       </View>
     </View>
