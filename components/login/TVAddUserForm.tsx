@@ -145,7 +145,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
               setCredentials((prev) => ({ ...prev, password: text }))
             }
             onSubmitEditing={handleLogin}
-            secureTextEntry={false}
+            secureTextEntry
             autoCapitalize='none'
             textContentType='password'
             returnKeyType='done'
