@@ -56,6 +56,7 @@ expo-env.d.ts
 .continuerc.json
 .env
 .env.local
+tests/ui-testing/.env.local
 
 # Secrets and Credentials
 pc-api-7079014811501811218-719-3b9f15aeccf8.json
@@ -74,3 +75,7 @@ modules/background-downloader/android/build/*
 # ios:unsigned-build Artifacts
 build/
 .claude/
+
+# UI test artifacts
+tests/ui-testing/artifacts/*
+!tests/ui-testing/artifacts/.gitkeep

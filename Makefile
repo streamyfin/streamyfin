@@ -3,4 +3,13 @@ e2e:
 	maestro test login.yaml
 
 e2e-setup:
-curl -fsSL "https://get.maestro.mobile.dev" | bash
+	curl -fsSL "https://get.maestro.mobile.dev" | bash
+
+ui-test-simple:
+	sh tests/ui-testing/run-flow.sh simple
+
+ui-test-cf:
+	sh tests/ui-testing/run-flow.sh cf
+
+ui-test-all:
+	sh tests/ui-testing/run-flow.sh all
