@@ -15,6 +15,9 @@ ui-test-install-android:
 ui-test-simple:
 	sh tests/ui-testing/run-flow.sh simple
 
+ui-test-simple-dev:
+	sh tests/ui-testing/run-flow.sh simple-dev
+
 ui-test-cf:
 	sh tests/ui-testing/run-flow.sh cf
 

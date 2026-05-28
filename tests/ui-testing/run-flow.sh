@@ -105,7 +105,7 @@ run_flow() {
 }
 
 case "${1-}" in
-  simple|cf|all) selected_flow=$1 ;;
+  simple|simple-dev|cf|all) selected_flow=$1 ;;
   *) usage; exit 2 ;;
 esac
 
@@ -116,7 +116,7 @@ export MAESTRO_APP_ID
 export MAESTRO_PASSWORD
 
 case "$selected_flow" in
-  simple)
+  simple|simple-dev)
     require_vars simple MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME
     ;;
   cf)
@@ -135,6 +135,10 @@ case "$selected_flow" in
   simple)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-simple"
     run_flow simple "$UI_TEST_DIR/flows/simple-flow.yaml" "$final_artifact_dir"
+    ;;
+  simple-dev)
+    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-simple-dev"
+    run_flow simple-dev "$UI_TEST_DIR/flows/simple-flow-dev.yaml" "$final_artifact_dir"
     ;;
   cf)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-cf"
