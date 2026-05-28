@@ -1,6 +1,17 @@
 appId: ${MAESTRO_APP_ID}
 name: TVCF-FlowDev
 ---
+- extendedWaitUntil:
+    visible: "Add Server|Enter the URL to your Jellyfin server"
+    timeout: 30000
+- runFlow:
+    when:
+      visible: "Add Server"
+    commands:
+      - tapOn: "Add Server"
+- extendedWaitUntil:
+    visible: "Enter the URL to your Jellyfin server"
+    timeout: 30000
 - assertVisible: "Enter the URL to your Jellyfin server"
 - tapOn: "http\\(s\\)://your-server\\.com"
 - inputText: "${MAESTRO_SERVER_URL}"

@@ -89,7 +89,7 @@ bun run ui:test:tv:cf
 bun run ui:test:tv:cf:dev
 ```
 
-Use the `*-dev` TV flows only when the TV app is already open on the add-server screen.
+Use the `*-dev` TV flows only when the TV app is already open on the `Add Server` landing screen or the Jellyfin URL form.
 
 Screenshots are written to:
 

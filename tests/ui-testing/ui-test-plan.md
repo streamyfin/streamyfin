@@ -12,9 +12,9 @@ This machine does not need Android tooling to keep the files in the repo. Run th
 - `tests/ui-testing/flows/cf-flow.yaml` covers Jellyfin login through Cloudflare Access custom headers.
 - `tests/ui-testing/flows/cf-flow-dev.yaml` covers the same Cloudflare login steps after the app is already open on the server URL screen.
 - `tests/ui-testing/flows/tv-simple-flow.yaml` covers Android TV direct Jellyfin server login.
-- `tests/ui-testing/flows/tv-simple-flow-dev.yaml` covers the same Android TV login steps after the TV app is already open on the add-server screen.
+- `tests/ui-testing/flows/tv-simple-flow-dev.yaml` covers the same Android TV login steps after the TV app is already open on the `Add Server` landing screen or URL form.
 - `tests/ui-testing/flows/tv-cf-flow.yaml` covers Android TV Jellyfin login through Cloudflare Access custom headers.
-- `tests/ui-testing/flows/tv-cf-flow-dev.yaml` covers the same Android TV Cloudflare login steps after the TV app is already open on the add-server screen.
+- `tests/ui-testing/flows/tv-cf-flow-dev.yaml` covers the same Android TV Cloudflare login steps after the TV app is already open on the `Add Server` landing screen or URL form.
 - `tests/ui-testing/.env.example` documents placeholder values.
 - `tests/ui-testing/.env.local` is optional, ignored, and intended for local secrets.
 - `tests/ui-testing/artifacts/` stores local screenshots from each run and is ignored except for `.gitkeep`.
@@ -128,7 +128,7 @@ Screenshots:
 
 ## Android TV Flows
 
-The Android TV flows mirror SimpleFlow and CF-Flow, but they first handle the TV server selection screen by tapping `Add Server`. The TV `*-dev` flows assume the app is already on the TV add-server screen.
+The Android TV flows mirror SimpleFlow and CF-Flow, but they first handle the TV server selection screen by tapping `Add Server`. The TV `*-dev` flows can start from the TV `Add Server` landing screen or from the TV URL form.
 
 TV screenshots use the same checkpoint names as the phone flows:
 

@@ -26,9 +26,9 @@ help:
 	@printf '  %-28s %s\n\n' 'ui-test-all' 'Run phone SimpleFlow and Cloudflare flows.'
 	@printf '%s\n' 'Android TV UI tests'
 	@printf '  %-28s %s\n' 'ui-test-tv-simple' 'Run TV SimpleFlow from a cleared app launch.'
-	@printf '  %-28s %s\n' 'ui-test-tv-simple-dev' 'Run TV SimpleFlow from the add-server screen.'
+	@printf '  %-28s %s\n' 'ui-test-tv-simple-dev' 'Run TV SimpleFlow from Add Server or URL screen.'
 	@printf '  %-28s %s\n' 'ui-test-tv-cf' 'Run TV Cloudflare flow from a cleared app launch.'
-	@printf '  %-28s %s\n\n' 'ui-test-tv-cf-dev' 'Run TV Cloudflare flow from the add-server screen.'
+	@printf '  %-28s %s\n\n' 'ui-test-tv-cf-dev' 'Run TV Cloudflare flow from Add Server or URL screen.'
 	@printf '%s\n' 'Legacy'
 	@printf '  %-28s %s\n\n' 'e2e' 'Start Maestro Android device and run login.yaml.'
 
