@@ -130,6 +130,10 @@ TV platform integration notes:
 
 - [TV Discovery](./docs/tv-discovery.md)
 
+Testing notes:
+
+- [Testing](./TESTING.md)
+
 ## 👋 Get in Touch with Us
 
 Need assistance or have any questions?
