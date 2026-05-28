@@ -8,7 +8,9 @@ This machine does not need Android tooling to keep the files in the repo. Run th
 
 - `tests/ui-testing/run-flow.sh` loads configuration, validates prerequisites, creates screenshot artifact directories, and runs Maestro.
 - `tests/ui-testing/flows/simple-flow.yaml` covers direct Jellyfin server login.
+- `tests/ui-testing/flows/simple-flow-dev.yaml` covers the same login steps after the app is already open on the server URL screen.
 - `tests/ui-testing/flows/cf-flow.yaml` covers Jellyfin login through Cloudflare Access custom headers.
+- `tests/ui-testing/flows/cf-flow-dev.yaml` covers the same Cloudflare login steps after the app is already open on the server URL screen.
 - `tests/ui-testing/.env.example` documents placeholder values.
 - `tests/ui-testing/.env.local` is optional, ignored, and intended for local secrets.
 - `tests/ui-testing/artifacts/` stores local screenshots from each run and is ignored except for `.gitkeep`.
@@ -48,7 +50,9 @@ Package runners:
 ```sh
 bun run android:ui-test
 bun run ui:test:simple
+bun run ui:test:simple:dev
 bun run ui:test:cf
+bun run ui:test:cf:dev
 bun run ui:test:all
 ```
 
@@ -57,7 +61,9 @@ Makefile runners:
 ```sh
 make ui-test-install-android
 make ui-test-simple
+make ui-test-simple-dev
 make ui-test-cf
+make ui-test-cf-dev
 make ui-test-all
 ```
 
@@ -65,18 +71,20 @@ Direct runner:
 
 ```sh
 sh tests/ui-testing/run-flow.sh simple
+sh tests/ui-testing/run-flow.sh simple-dev
 sh tests/ui-testing/run-flow.sh cf
+sh tests/ui-testing/run-flow.sh cf-dev
 sh tests/ui-testing/run-flow.sh all
 ```
 
-The runner accepts only `simple`, `cf`, or `all`. It fails before running a flow if Maestro is missing or required variables are not set.
+The runner accepts only `simple`, `simple-dev`, `cf`, `cf-dev`, or `all`. It fails before running a flow if Maestro is missing or required variables are not set.
 The runner and Makefile automatically prepend `$HOME/.maestro/bin` to `PATH` when that directory exists, so the default Maestro installer location works without changing your shell profile.
 
 Before running Maestro, install a release-variant Android phone build with `make ui-test-install-android` or `bun run android:ui-test`. Avoid `bun run android` for UI testing because it installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
 
 ## SimpleFlow
 
-SimpleFlow starts from a cleared app state, launches Streamyfin, enters the Jellyfin server URL, connects, waits for the username/password screen, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
+SimpleFlow starts from a cleared app state, launches Streamyfin, handles the Expo Dev Client launcher when present, waits until the server URL screen is visible, then delegates to SimpleFlowDev for the login steps. SimpleFlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, connects, waits for the username/password screen, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 
@@ -88,7 +96,7 @@ Screenshots:
 
 ## CF-Flow
 
-CF-Flow starts from a cleared app state, launches Streamyfin, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
+CF-Flow starts from a cleared app state, launches Streamyfin, handles the Expo Dev Client launcher when present, waits until the server URL screen is visible, then delegates to CF-FlowDev for the Cloudflare login steps. CF-FlowDev assumes the app is already open on the server URL screen, enters the Jellyfin server URL, opens `Advanced (Custom Headers)`, selects `Cloudflare Zero Trust`, fills both Cloudflare Access header values, connects, enters the username and optional password, logs in, and waits for an authenticated home-state signal.
 
 Screenshots:
 

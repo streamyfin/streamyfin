@@ -5,7 +5,6 @@ name: SimpleFlow
 - launchApp
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/01-launched
-- assertVisible: "Streamyfin"
 # Handle Expo dev client launcher screen (appears after clearState)
 - runFlow:
     when:
@@ -16,4 +15,7 @@ name: SimpleFlow
           visible: "Continue"
           timeout: 15000
       - tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Enter the URL to your Jellyfin server"
+    timeout: 30000
 - runFlow: tests/ui-testing/flows/simple-flow-dev.yaml

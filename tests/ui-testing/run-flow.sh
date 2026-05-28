@@ -14,7 +14,7 @@ fi
 
 usage() {
   cat >&2 <<EOF
-Usage: sh tests/ui-testing/run-flow.sh simple|cf|all
+Usage: sh tests/ui-testing/run-flow.sh simple|simple-dev|cf|cf-dev|all
 
 Set required values in your shell environment or in:
   tests/ui-testing/.env.local
@@ -105,7 +105,7 @@ run_flow() {
 }
 
 case "${1-}" in
-  simple|simple-dev|cf|all) selected_flow=$1 ;;
+  simple|simple-dev|cf|cf-dev|all) selected_flow=$1 ;;
   *) usage; exit 2 ;;
 esac
 
@@ -119,7 +119,7 @@ case "$selected_flow" in
   simple|simple-dev)
     require_vars simple MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME
     ;;
-  cf)
+  cf|cf-dev)
     require_vars cf MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
     ;;
   all)
@@ -143,6 +143,10 @@ case "$selected_flow" in
   cf)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-cf"
     run_flow cf "$UI_TEST_DIR/flows/cf-flow.yaml" "$final_artifact_dir"
+    ;;
+  cf-dev)
+    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-cf-dev"
+    run_flow cf-dev "$UI_TEST_DIR/flows/cf-flow-dev.yaml" "$final_artifact_dir"
     ;;
   all)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-all"

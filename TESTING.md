@@ -56,6 +56,7 @@ Run the flows:
 ```sh
 make ui-test-simple
 make ui-test-cf
+make ui-test-cf-dev
 make ui-test-all
 ```
 

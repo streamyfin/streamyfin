@@ -21,5 +21,8 @@ ui-test-simple-dev:
 ui-test-cf:
 	sh tests/ui-testing/run-flow.sh cf
 
+ui-test-cf-dev:
+	sh tests/ui-testing/run-flow.sh cf-dev
+
 ui-test-all:
 	sh tests/ui-testing/run-flow.sh all

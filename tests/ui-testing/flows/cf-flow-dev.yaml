@@ -1,0 +1,48 @@
+appId: ${MAESTRO_APP_ID}
+name: CF-FlowDev
+---
+- assertVisible: "Enter the URL to your Jellyfin server"
+- tapOn: "Server URL"
+- inputText: "${MAESTRO_SERVER_URL}"
+- hideKeyboard
+- tapOn: "Advanced \\(Custom Headers\\)"
+- tapOn: "Cloudflare Zero Trust"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/02-cloudflare-preset
+- tapOn:
+    text: "Header value"
+    index: 0
+- inputText: "${MAESTRO_CF_ACCESS_CLIENT_ID}"
+- tapOn:
+    text: "Header value"
+    index: 0
+- inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
+- hideKeyboard
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
+- tapOn:
+    text: "Connect"
+    enabled: true
+- extendedWaitUntil:
+    visible: "Username"
+    timeout: 30000
+- assertVisible: "Password"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/04-login-screen
+- tapOn: "Username"
+- inputText: "${MAESTRO_USERNAME}"
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
+    commands:
+      - tapOn: "Password"
+      - inputText: "${MAESTRO_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    text: "Log In"
+    enabled: true
+- extendedWaitUntil:
+    visible: "Home|Welcome to Streamyfin|Continue Watching|Next Up|No Items"
+    timeout: 45000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/05-home
