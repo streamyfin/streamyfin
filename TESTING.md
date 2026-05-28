@@ -100,6 +100,8 @@ make test-android-cf
 
 `make help` is the default Make target and prints grouped command help.
 
+The install and run targets use `scripts/detect-prebuild-type.sh` to skip `bun run prebuild` or `bun run prebuild:tv` when the existing native prebuild already matches the requested phone or TV mode.
+
 Install release/test builds:
 
 ```sh

@@ -3,7 +3,7 @@ export PATH := $(MAESTRO_BIN):$(PATH)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help e2e e2e-setup run-android run-android-tv run-ios clean-artifacts install-android install-android-tv install-ios test-android test-android-cf test-ios test-ios-cf test-android-tv test-android-tv-cf
+.PHONY: help e2e e2e-setup ensure-prebuild-phone ensure-prebuild-tv run-android run-android-tv run-ios clean-artifacts install-android install-android-tv install-ios test-android test-android-cf test-ios test-ios-cf test-android-tv test-android-tv-cf
 
 help:
 	@printf '\n%s\n' 'Streamyfin targets'
@@ -11,15 +11,17 @@ help:
 	@printf '%s\n' 'Setup'
 	@printf '  %-28s %s\n' 'help' 'Show this help.'
 	@printf '  %-28s %s\n' 'e2e-setup' 'Install the Maestro CLI.'
+	@printf '  %-28s %s\n' 'ensure-prebuild-phone' 'Prebuild phone only when needed.'
+	@printf '  %-28s %s\n' 'ensure-prebuild-tv' 'Prebuild TV only when needed.'
 	@printf '  %-28s %s\n\n' 'clean-artifacts' 'Remove local UI test screenshots.'
 	@printf '%s\n' 'Run development builds'
-	@printf '  %-28s %s\n' 'run-android' 'Prebuild and run the Android phone app.'
-	@printf '  %-28s %s\n' 'run-android-tv' 'Prebuild and run the Android TV app.'
-	@printf '  %-28s %s\n\n' 'run-ios' 'Prebuild and run the iOS phone app.'
+	@printf '  %-28s %s\n' 'run-android' 'Ensure phone prebuild, then run Android.'
+	@printf '  %-28s %s\n' 'run-android-tv' 'Ensure TV prebuild, then run Android TV.'
+	@printf '  %-28s %s\n\n' 'run-ios' 'Ensure phone prebuild, then run iOS.'
 	@printf '%s\n' 'Install UI test builds'
-	@printf '  %-28s %s\n' 'install-android' 'Install the Android phone release variant.'
-	@printf '  %-28s %s\n' 'install-android-tv' 'Install the Android TV release variant.'
-	@printf '  %-28s %s\n\n' 'install-ios' 'Install the iOS phone release configuration.'
+	@printf '  %-28s %s\n' 'install-android' 'Ensure phone prebuild, then install Android release.'
+	@printf '  %-28s %s\n' 'install-android-tv' 'Ensure TV prebuild, then install Android TV release.'
+	@printf '  %-28s %s\n\n' 'install-ios' 'Ensure phone prebuild, then install iOS release.'
 	@printf '%s\n' 'Android phone UI tests'
 	@printf '  %-28s %s\n' 'test-android' 'Run SimpleFlow from a cleared app launch.'
 	@printf '  %-28s %s\n\n' 'test-android-cf' 'Run Cloudflare flow from a cleared app launch.'
@@ -39,31 +41,43 @@ e2e:
 e2e-setup:
 	curl -fsSL "https://get.maestro.mobile.dev" | bash
 
-run-android:
-	bun run prebuild
+ensure-prebuild-phone:
+	@prebuild_type=$$(sh scripts/detect-prebuild-type.sh); \
+	if [ "$$prebuild_type" = "phone" ]; then \
+		printf '%s\n' 'Prebuild already matches phone; skipping bun run prebuild.'; \
+	else \
+		printf 'Current prebuild type: %s; running bun run prebuild.\n' "$$prebuild_type"; \
+		bun run prebuild; \
+	fi
+
+ensure-prebuild-tv:
+	@prebuild_type=$$(sh scripts/detect-prebuild-type.sh); \
+	if [ "$$prebuild_type" = "tv" ]; then \
+		printf '%s\n' 'Prebuild already matches TV; skipping bun run prebuild:tv.'; \
+	else \
+		printf 'Current prebuild type: %s; running bun run prebuild:tv.\n' "$$prebuild_type"; \
+		bun run prebuild:tv; \
+	fi
+
+run-android: ensure-prebuild-phone
 	bun run android
 
-run-android-tv:
-	bun run prebuild:tv
+run-android-tv: ensure-prebuild-tv
 	bun run android:tv
 
-run-ios:
-	bun run prebuild
+run-ios: ensure-prebuild-phone
 	bun run ios
 
 clean-artifacts:
-	find tests/ui-testing/artifacts -mindepth 1 ! -name .gitkeep -exec rm -rf {} +
+	find tests/ui-testing/artifacts -mindepth 1 -maxdepth 1 ! -name .gitkeep -exec rm -rf {} +
 
-install-android:
-	bun run prebuild
+install-android: ensure-prebuild-phone
 	bun run android:ui-test
 
-install-android-tv:
-	bun run prebuild:tv
+install-android-tv: ensure-prebuild-tv
 	bun run android:tv:ui-test
 
-install-ios:
-	bun run prebuild
+install-ios: ensure-prebuild-phone
 	bun run ios:ui-test
 
 test-android:

@@ -21,7 +21,7 @@ detect_ios() {
 	fi
 
 	# Marker 2: Xcode project has TV-specific build settings
-	local pbx="$IOS_DIR/Streamyfin.xcodeproj/project.pbxproj"
+	pbx="$IOS_DIR/Streamyfin.xcodeproj/project.pbxproj"
 	if [ -f "$pbx" ]; then
 		if grep -q "TARGETED_DEVICE_FAMILY = 3" "$pbx" 2>/dev/null; then
 			printf 'tv\n'; return 0
@@ -53,7 +53,7 @@ detect_ios() {
 }
 
 detect_android() {
-	local manifest="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
+	manifest="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
 	if [ -f "$manifest" ]; then
 		# Marker 1: leanback feature present
 		if grep -q "android.software.leanback" "$manifest"; then
