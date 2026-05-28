@@ -1,6 +1,6 @@
 # Testing
 
-This project uses repo-native checks for code quality and Maestro for Android phone UI smoke tests.
+This project uses repo-native checks for code quality and Maestro for Android phone and Android TV UI smoke tests.
 
 ## Static Checks
 
@@ -20,7 +20,7 @@ bun run test
 
 That command includes formatting and lint write steps, so review the resulting diff before committing.
 
-## Android UI Tests
+## Android Phone UI Tests
 
 The Android phone UI smoke tests live under `tests/ui-testing/` and use Maestro.
 
@@ -61,6 +61,35 @@ make ui-test-all
 ```
 
 Do not use `bun run android` before Maestro UI tests. That installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
+
+## Android TV UI Tests
+
+Android TV uses different login screens, so it has separate Maestro flows and targets.
+
+Start an Android TV emulator, then install the release-variant TV app:
+
+```sh
+make ui-test-install-android-tv
+```
+
+Run the TV flows:
+
+```sh
+make ui-test-tv-simple
+make ui-test-tv-cf
+make ui-test-tv-cf-dev
+```
+
+The package scripts are also wired:
+
+```sh
+bun run android:tv:ui-test
+bun run ui:test:tv:simple
+bun run ui:test:tv:cf
+bun run ui:test:tv:cf:dev
+```
+
+Use the `*-dev` TV flows only when the TV app is already open on the add-server screen.
 
 Screenshots are written to:
 
