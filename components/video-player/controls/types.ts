@@ -28,4 +28,4 @@ type Track = {
   localPath?: string;
 };
 
-export type { EmbeddedSubtitle, ExternalSubtitle, TranscodedSubtitle, Track };
+export type { EmbeddedSubtitle, ExternalSubtitle, Track, TranscodedSubtitle };

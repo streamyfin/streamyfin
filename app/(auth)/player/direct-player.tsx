@@ -63,7 +63,7 @@ import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
-export default function page() {
+export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -317,7 +317,7 @@ export default function page() {
         }
 
         let result: Stream | null = null;
-        if (offline && downloadedItem && downloadedItem.mediaSource) {
+        if (offline && downloadedItem?.mediaSource) {
           const url = downloadedItem.videoFilePath;
           if (item) {
             result = {

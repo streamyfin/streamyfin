@@ -180,4 +180,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { CARD_WIDTH, CARD_HEIGHT };
+export { CARD_HEIGHT, CARD_WIDTH };
