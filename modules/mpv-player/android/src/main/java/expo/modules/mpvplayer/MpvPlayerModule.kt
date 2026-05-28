@@ -44,6 +44,12 @@ class MpvPlayerModule : Module() {
                 view.loadVideo(config)
             }
 
+            // Now Playing metadata for media controls (iOS-only, no-op on Android)
+            // Android handles media session differently via MediaSessionCompat
+            Prop("nowPlayingMetadata") { _: MpvPlayerView, _: Map<String, String>? ->
+                // No-op on Android - media session integration would require MediaSessionCompat
+            }
+
             // Async function to play video
             AsyncFunction("play") { view: MpvPlayerView ->
                 view.play()

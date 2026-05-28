@@ -53,6 +53,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
   getMpvAudioId,
@@ -562,6 +563,31 @@ export default function page() {
       isBuffering,
     ],
   );
+
+  /** Prepare metadata for iOS native media controls (Control Center, Lock Screen) */
+  const nowPlayingMetadata = useMemo(() => {
+    if (!item || !api) return undefined;
+
+    const artworkUri = getPrimaryImageUrl({
+      api,
+      item,
+      quality: 90,
+      width: 500,
+    });
+
+    return {
+      title: item.Name || "",
+      artist:
+        item.Type === "Episode"
+          ? item.SeriesName || ""
+          : item.AlbumArtist || "",
+      albumTitle:
+        item.Type === "Episode" && item.SeasonName
+          ? item.SeasonName
+          : undefined,
+      artworkUri: artworkUri || undefined,
+    };
+  }, [item, api]);
 
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
@@ -1218,6 +1244,7 @@ export default function page() {
                 ref={videoRef}
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}
+                nowPlayingMetadata={nowPlayingMetadata}
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onLoad={() => setIsVideoLoaded(true)}

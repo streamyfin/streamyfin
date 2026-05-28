@@ -18,7 +18,7 @@ protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
-    func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
+    func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double, didSelectAudioOutput audioOutput: String)
 }
 
 /// MPV player using vo_avfoundation for video output.
@@ -191,13 +191,13 @@ final class MPVLayerRenderer {
         // Use AVFoundation video output - required for PiP support
         checkError(mpv_set_option_string(handle, "vo", "avfoundation"))
 
-        // Composite OSD mode - renders subtitles directly onto video frames using GPU
-        // CRITICAL: This option MUST be set immediately after vo=avfoundation, before hwdec options.
-        // On tvOS, moving this elsewhere causes the app to freeze when exiting the player.
-        // - iOS: "yes" for PiP subtitle support (subtitles baked into video)
-        // - tvOS: "no" - composite OSD breaks subtitle rendering entirely on tvOS
-        //         Note: This means subtitle styling (background colors) won't work on tvOS
-        #if os(tvOS)
+        // Composite OSD mode - renders subtitles directly onto video frames using GPU.
+        // CRITICAL: Must be set immediately after vo=avfoundation, before hwdec options.
+        // Moving this elsewhere causes tvOS to freeze when exiting the player.
+        // tvOS: "no" (breaks subtitle rendering; note: subtitle styling won't work).
+        // Simulator: "no" (no VideoToolbox support).
+        // iOS device: "yes" for PiP subtitle support.
+        #if os(tvOS) || targetEnvironment(simulator)
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "no"))
         #else
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
@@ -427,7 +427,8 @@ final class MPVLayerRenderer {
             ("pause", MPV_FORMAT_FLAG),
             ("track-list/count", MPV_FORMAT_INT64),
             ("paused-for-cache", MPV_FORMAT_FLAG),
-            ("demuxer-cache-duration", MPV_FORMAT_DOUBLE)
+            ("demuxer-cache-duration", MPV_FORMAT_DOUBLE),
+            ("current-ao", MPV_FORMAT_STRING)
         ]
         for (name, format) in properties {
             mpv_observe_property(handle, 0, name, format)
@@ -633,6 +634,15 @@ final class MPVLayerRenderer {
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.delegate?.renderer(self, didBecomeTracksReady: true)
+                }
+            }
+        case "current-ao":
+            // Audio output is now active - notify delegate
+            if let aoName = getStringProperty(handle: handle, name: name) {
+                print("[MPV] 🔊 Audio output selected: \(aoName)")
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.renderer(self, didSelectAudioOutput: aoName)
                 }
             }
         default:

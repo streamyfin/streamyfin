@@ -50,6 +50,21 @@ public class MpvPlayerModule: Module {
         view.loadVideo(config: config)
       }
 
+      // Now Playing metadata for iOS Control Center and Lock Screen
+      Prop("nowPlayingMetadata") { (view: MpvPlayerView, metadata: [String: Any]?) in
+        guard let metadata = metadata else { return }
+        // Convert Any values to String, filtering out nil/null values
+        var stringMetadata: [String: String] = [:]
+        for (key, value) in metadata {
+          if let stringValue = value as? String {
+            stringMetadata[key] = stringValue
+          }
+        }
+        if !stringMetadata.isEmpty {
+          view.setNowPlayingMetadata(stringMetadata)
+        }
+      }
+
       // Async function to play video
       AsyncFunction("play") { (view: MpvPlayerView) in
         view.play()
