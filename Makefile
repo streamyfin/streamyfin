@@ -1,6 +1,8 @@
 MAESTRO_BIN ?= $(HOME)/.maestro/bin
 export PATH := $(MAESTRO_BIN):$(PATH)
 
+.DEFAULT_GOAL := help
+
 .PHONY: help e2e e2e-setup ui-test-install-android ui-test-simple ui-test-simple-dev ui-test-cf ui-test-cf-dev ui-test-all
 
 help:
