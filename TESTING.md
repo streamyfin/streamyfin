@@ -29,14 +29,10 @@ This test harness was added to support the custom auth-header work in the stacke
 The runner files are:
 
 - `tests/ui-testing/run-flow.sh`: loads config, validates prerequisites, creates screenshot artifact directories, and runs Maestro.
-- `tests/ui-testing/flows/simple-flow.yaml`: Android/iOS phone direct-login wrapper that clears app state and launches the app.
-- `tests/ui-testing/flows/simple-flow-dev.yaml`: Android/iOS phone direct-login steps when the app is already on the server URL screen.
-- `tests/ui-testing/flows/cf-flow.yaml`: Android/iOS phone Cloudflare wrapper that clears app state and launches the app.
-- `tests/ui-testing/flows/cf-flow-dev.yaml`: Android/iOS phone Cloudflare steps when the app is already on the server URL screen.
-- `tests/ui-testing/flows/tv-simple-flow.yaml`: Android TV direct-login wrapper.
-- `tests/ui-testing/flows/tv-simple-flow-dev.yaml`: Android TV direct-login steps from `Add Server` or the URL form.
-- `tests/ui-testing/flows/tv-cf-flow.yaml`: Android TV Cloudflare wrapper.
-- `tests/ui-testing/flows/tv-cf-flow-dev.yaml`: Android TV Cloudflare steps from `Add Server` or the URL form.
+- `tests/ui-testing/flows/simple-flow.yaml`: Android/iOS phone direct-login flow from a cleared app launch.
+- `tests/ui-testing/flows/cf-flow.yaml`: Android/iOS phone Cloudflare flow from a cleared app launch.
+- `tests/ui-testing/flows/tv-simple-flow.yaml`: Android TV direct-login flow from a cleared app launch.
+- `tests/ui-testing/flows/tv-cf-flow.yaml`: Android TV Cloudflare flow from a cleared app launch.
 - `tests/ui-testing/.env.example`: placeholder-only environment template.
 - `tests/ui-testing/.env.local`: optional ignored local secrets file.
 - `tests/ui-testing/artifacts/`: ignored screenshot output, except for `.gitkeep`.
@@ -116,27 +112,21 @@ Run Android phone UI tests:
 
 ```sh
 make test-android
-make test-android-dev
 make test-android-cf
-make test-android-cf-dev
 ```
 
 Run iOS phone UI tests:
 
 ```sh
 make test-ios
-make test-ios-dev
 make test-ios-cf
-make test-ios-cf-dev
 ```
 
 Run Android TV UI tests:
 
 ```sh
 make test-android-tv
-make test-android-tv-dev
 make test-android-tv-cf
-make test-android-tv-cf-dev
 ```
 
 Clean local screenshot artifacts:
@@ -154,18 +144,11 @@ bun run android:ui-test
 bun run android:tv:ui-test
 bun run ios:ui-test
 bun run ui:test:simple
-bun run ui:test:simple:dev
 bun run ui:test:cf
-bun run ui:test:cf:dev
 bun run ui:test:ios:simple
-bun run ui:test:ios:simple:dev
 bun run ui:test:ios:cf
-bun run ui:test:ios:cf:dev
 bun run ui:test:tv:simple
-bun run ui:test:tv:simple:dev
 bun run ui:test:tv:cf
-bun run ui:test:tv:cf:dev
-bun run ui:test:all
 ```
 
 ## Direct Runner
@@ -174,18 +157,11 @@ The runner accepts these flow names:
 
 ```sh
 sh tests/ui-testing/run-flow.sh simple
-sh tests/ui-testing/run-flow.sh simple-dev
 sh tests/ui-testing/run-flow.sh cf
-sh tests/ui-testing/run-flow.sh cf-dev
 sh tests/ui-testing/run-flow.sh ios-simple
-sh tests/ui-testing/run-flow.sh ios-simple-dev
 sh tests/ui-testing/run-flow.sh ios-cf
-sh tests/ui-testing/run-flow.sh ios-cf-dev
 sh tests/ui-testing/run-flow.sh tv-simple
-sh tests/ui-testing/run-flow.sh tv-simple-dev
 sh tests/ui-testing/run-flow.sh tv-cf
-sh tests/ui-testing/run-flow.sh tv-cf-dev
-sh tests/ui-testing/run-flow.sh all
 ```
 
 The runner fails before executing a flow if Maestro is missing or required variables are not set.
@@ -203,7 +179,6 @@ Run the flows:
 ```sh
 make test-android
 make test-android-cf
-make test-android-cf-dev
 ```
 
 Do not use `bun run android` before Maestro UI tests. That installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
@@ -221,10 +196,9 @@ Run the TV flows:
 ```sh
 make test-android-tv
 make test-android-tv-cf
-make test-android-tv-cf-dev
 ```
 
-Use the `*-dev` TV flows only when the TV app is already open on the `Add Server` landing screen or the Jellyfin URL form. The phone flows are not expected to work against Android TV because the TV login flow starts with an `Add Server` screen and uses TV-specific focus behavior.
+The phone flows are not expected to work against Android TV because the TV login flow starts with an `Add Server` screen and uses TV-specific focus behavior.
 
 ## iOS Phone
 
@@ -241,17 +215,14 @@ Run the iOS flows:
 ```sh
 make test-ios
 make test-ios-cf
-make test-ios-cf-dev
 ```
-
-Use the `*-dev` iOS flows only when the iOS app is already open on the Jellyfin URL form.
 
 ## Flow Coverage
 
 Direct-login flows:
 
-1. Clear app state for non-dev runs.
-2. Launch the app for non-dev runs.
+1. Clear app state.
+2. Launch the app.
 3. Capture `01-launched`.
 4. Enter the Jellyfin server URL.
 5. Capture `02-server-url-entered`.
@@ -266,8 +237,8 @@ Direct-login flows:
 
 Cloudflare flows:
 
-1. Clear app state for non-dev runs.
-2. Launch the app for non-dev runs.
+1. Clear app state.
+2. Launch the app.
 3. Capture `01-launched`.
 4. Open `Advanced (Custom Headers)`.
 5. Choose `Cloudflare Zero Trust`.
@@ -301,8 +272,6 @@ tests/ui-testing/artifacts/2026-05-28_120000-ios-simple/
 tests/ui-testing/artifacts/2026-05-28_120000-ios-cf/
 tests/ui-testing/artifacts/2026-05-28_120000-tv-simple/
 tests/ui-testing/artifacts/2026-05-28_120000-tv-cf/
-tests/ui-testing/artifacts/2026-05-28_120000-all/simple/
-tests/ui-testing/artifacts/2026-05-28_120000-all/cf/
 ```
 
 Screenshots may contain server URLs, usernames, and Cloudflare header values. Keep artifacts local unless they have been reviewed and redacted.

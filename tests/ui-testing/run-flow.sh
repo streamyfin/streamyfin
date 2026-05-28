@@ -14,7 +14,7 @@ fi
 
 usage() {
   cat >&2 <<EOF
-Usage: sh tests/ui-testing/run-flow.sh simple|simple-dev|cf|cf-dev|ios-simple|ios-simple-dev|ios-cf|ios-cf-dev|tv-simple|tv-simple-dev|tv-cf|tv-cf-dev|all
+Usage: sh tests/ui-testing/run-flow.sh simple|cf|ios-simple|ios-cf|tv-simple|tv-cf
 
 Set required values in your shell environment or in:
   tests/ui-testing/.env.local
@@ -105,7 +105,7 @@ run_flow() {
 }
 
 case "${1-}" in
-  simple|simple-dev|cf|cf-dev|ios-simple|ios-simple-dev|ios-cf|ios-cf-dev|tv-simple|tv-simple-dev|tv-cf|tv-cf-dev|all) selected_flow=$1 ;;
+  simple|cf|ios-simple|ios-cf|tv-simple|tv-cf) selected_flow=$1 ;;
   *) usage; exit 2 ;;
 esac
 
@@ -116,14 +116,11 @@ export MAESTRO_APP_ID
 export MAESTRO_PASSWORD
 
 case "$selected_flow" in
-  simple|simple-dev|ios-simple|ios-simple-dev|tv-simple|tv-simple-dev)
+  simple|ios-simple|tv-simple)
     require_vars "$selected_flow" MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME
     ;;
-  cf|cf-dev|ios-cf|ios-cf-dev|tv-cf|tv-cf-dev)
+  cf|ios-cf|tv-cf)
     require_vars "$selected_flow" MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
-    ;;
-  all)
-    require_vars all MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME MAESTRO_CF_ACCESS_CLIENT_ID MAESTRO_CF_ACCESS_CLIENT_SECRET
     ;;
 esac
 
@@ -136,54 +133,25 @@ case "$selected_flow" in
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-simple"
     run_flow simple "$UI_TEST_DIR/flows/simple-flow.yaml" "$final_artifact_dir"
     ;;
-  simple-dev)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-simple-dev"
-    run_flow simple-dev "$UI_TEST_DIR/flows/simple-flow-dev.yaml" "$final_artifact_dir"
-    ;;
   cf)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-cf"
     run_flow cf "$UI_TEST_DIR/flows/cf-flow.yaml" "$final_artifact_dir"
-    ;;
-  cf-dev)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-cf-dev"
-    run_flow cf-dev "$UI_TEST_DIR/flows/cf-flow-dev.yaml" "$final_artifact_dir"
     ;;
   ios-simple)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-ios-simple"
     run_flow ios-simple "$UI_TEST_DIR/flows/simple-flow.yaml" "$final_artifact_dir"
     ;;
-  ios-simple-dev)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-ios-simple-dev"
-    run_flow ios-simple-dev "$UI_TEST_DIR/flows/simple-flow-dev.yaml" "$final_artifact_dir"
-    ;;
   ios-cf)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-ios-cf"
     run_flow ios-cf "$UI_TEST_DIR/flows/cf-flow.yaml" "$final_artifact_dir"
-    ;;
-  ios-cf-dev)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-ios-cf-dev"
-    run_flow ios-cf-dev "$UI_TEST_DIR/flows/cf-flow-dev.yaml" "$final_artifact_dir"
     ;;
   tv-simple)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-tv-simple"
     run_flow tv-simple "$UI_TEST_DIR/flows/tv-simple-flow.yaml" "$final_artifact_dir"
     ;;
-  tv-simple-dev)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-tv-simple-dev"
-    run_flow tv-simple-dev "$UI_TEST_DIR/flows/tv-simple-flow-dev.yaml" "$final_artifact_dir"
-    ;;
   tv-cf)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-tv-cf"
     run_flow tv-cf "$UI_TEST_DIR/flows/tv-cf-flow.yaml" "$final_artifact_dir"
-    ;;
-  tv-cf-dev)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-tv-cf-dev"
-    run_flow tv-cf-dev "$UI_TEST_DIR/flows/tv-cf-flow-dev.yaml" "$final_artifact_dir"
-    ;;
-  all)
-    final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-all"
-    run_flow simple "$UI_TEST_DIR/flows/simple-flow.yaml" "$final_artifact_dir/simple"
-    run_flow cf "$UI_TEST_DIR/flows/cf-flow.yaml" "$final_artifact_dir/cf"
     ;;
 esac
 
