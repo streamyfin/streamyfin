@@ -13,9 +13,9 @@ import "@/augmentations";
 import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
-import { getIntegrationHeaders } from "@/components/settings/CustomHeaderSelector";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
   IssueStatus,
