@@ -20,12 +20,16 @@ name: CF-FlowDev
 - hideKeyboard
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
+- scrollUntilVisible:
+    element: "Connect"
+    direction: UP
+    timeout: 10000
 - tapOn:
     text: "Connect"
     enabled: true
 - extendedWaitUntil:
     visible: "Username"
-    timeout: 30000
+    timeout: 60000
 - assertVisible: "Password"
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/04-login-screen
