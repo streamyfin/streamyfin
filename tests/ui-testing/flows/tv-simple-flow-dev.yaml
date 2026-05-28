@@ -12,7 +12,6 @@ name: TVSimpleFlowDev
 - extendedWaitUntil:
     visible: "Enter the URL to your Jellyfin server"
     timeout: 30000
-- assertVisible: "Enter the URL to your Jellyfin server"
 - tapOn: "http\\(s\\)://your-server\\.com"
 - inputText: "${MAESTRO_SERVER_URL}"
 - hideKeyboard

@@ -12,7 +12,6 @@ name: TVCF-FlowDev
 - extendedWaitUntil:
     visible: "Enter the URL to your Jellyfin server"
     timeout: 30000
-- assertVisible: "Enter the URL to your Jellyfin server"
 # Android TV focus starts on the URL input. Navigate to Advanced, then choose
 # the Cloudflare preset with the remote D-pad.
 - pressKey: "Remote Dpad Down"
