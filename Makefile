@@ -8,6 +8,10 @@ e2e:
 e2e-setup:
 	curl -fsSL "https://get.maestro.mobile.dev" | bash
 
+ui-test-install-android:
+	bun run prebuild
+	bun run android:ui-test
+
 ui-test-simple:
 	sh tests/ui-testing/run-flow.sh simple
 

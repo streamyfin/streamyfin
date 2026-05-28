@@ -46,6 +46,7 @@ MAESTRO_CF_ACCESS_CLIENT_SECRET=example-client-secret
 Package runners:
 
 ```sh
+bun run android:ui-test
 bun run ui:test:simple
 bun run ui:test:cf
 bun run ui:test:all
@@ -54,6 +55,7 @@ bun run ui:test:all
 Makefile runners:
 
 ```sh
+make ui-test-install-android
 make ui-test-simple
 make ui-test-cf
 make ui-test-all
@@ -69,6 +71,8 @@ sh tests/ui-testing/run-flow.sh all
 
 The runner accepts only `simple`, `cf`, or `all`. It fails before running a flow if Maestro is missing or required variables are not set.
 The runner and Makefile automatically prepend `$HOME/.maestro/bin` to `PATH` when that directory exists, so the default Maestro installer location works without changing your shell profile.
+
+Before running Maestro, install a release-variant Android phone build with `make ui-test-install-android` or `bun run android:ui-test`. Avoid `bun run android` for UI testing because it installs a development build with Expo Dev Client, which can open the development server launcher instead of Streamyfin's login screen.
 
 ## SimpleFlow
 
@@ -127,9 +131,9 @@ On an Android-capable machine:
 git fetch origin
 git switch feature/jeeftor-tv-test-with-testing
 bun install --frozen-lockfile
-bun run android
 cp tests/ui-testing/.env.example tests/ui-testing/.env.local
 # Fill in real values.
+make ui-test-install-android
 make ui-test-simple
 make ui-test-cf
 make ui-test-all
