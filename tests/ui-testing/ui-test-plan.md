@@ -68,6 +68,7 @@ sh tests/ui-testing/run-flow.sh all
 ```
 
 The runner accepts only `simple`, `cf`, or `all`. It fails before running a flow if Maestro is missing or required variables are not set.
+The runner and Makefile automatically prepend `$HOME/.maestro/bin` to `PATH` when that directory exists, so the default Maestro installer location works without changing your shell profile.
 
 ## SimpleFlow
 

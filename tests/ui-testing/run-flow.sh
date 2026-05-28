@@ -7,6 +7,11 @@ UI_TEST_DIR="tests/ui-testing"
 ENV_FILE="$REPO_ROOT/$UI_TEST_DIR/.env.local"
 DEFAULT_APP_ID="com.fredrikburmester.streamyfin"
 
+if [ -n "${HOME:-}" ] && [ -d "$HOME/.maestro/bin" ]; then
+  PATH="$HOME/.maestro/bin:$PATH"
+  export PATH
+fi
+
 usage() {
   cat >&2 <<EOF
 Usage: sh tests/ui-testing/run-flow.sh simple|cf|all
@@ -81,7 +86,7 @@ require_vars() {
 
 check_maestro() {
   if ! command -v maestro >/dev/null 2>&1; then
-    die "maestro is not installed or is not on PATH. Install it with: curl -fsSL https://get.maestro.mobile.dev | bash"
+    die "maestro is not installed or is not on PATH. Install it with: curl -fsSL https://get.maestro.mobile.dev | bash. The runner also checks \$HOME/.maestro/bin automatically."
   fi
 }
 

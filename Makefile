@@ -1,3 +1,6 @@
+MAESTRO_BIN ?= $(HOME)/.maestro/bin
+export PATH := $(MAESTRO_BIN):$(PATH)
+
 e2e:
 	maestro start-device --platform android
 	maestro test login.yaml
