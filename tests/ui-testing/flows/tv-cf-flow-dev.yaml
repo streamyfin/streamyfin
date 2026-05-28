@@ -31,7 +31,9 @@ name: TVCF-FlowDev
 - extendedWaitUntil:
     visible: "Header value"
     timeout: 10000
-# Focus remains on the Cloudflare preset. Move to the first Header value field.
+# Focus remains on the Cloudflare preset. Move past the first header name to
+# the first Header value field.
+- pressKey: "Remote Dpad Down"
 - pressKey: "Remote Dpad Down"
 - pressKey: "Remote Dpad Down"
 - pressKey: "Remote Dpad Center"
