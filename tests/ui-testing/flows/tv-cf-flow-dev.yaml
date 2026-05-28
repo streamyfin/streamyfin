@@ -24,19 +24,11 @@ name: TVCF-FlowDev
 - pressKey: "Remote Dpad Center"
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/02-cloudflare-preset
-- pressKey: "Remote Dpad Up"
-- pressKey: "Remote Dpad Up"
-- pressKey: "Remote Dpad Up"
-- pressKey: "Remote Dpad Center"
-- inputText: "${MAESTRO_SERVER_URL}"
-- hideKeyboard
 - extendedWaitUntil:
     visible: "Header value"
     timeout: 10000
-# Focus is back on the URL input. Move past Connect, Advanced, the preset,
-# and the first header name to the first Header value field.
-- pressKey: "Remote Dpad Down"
-- pressKey: "Remote Dpad Down"
+# Focus is on the Cloudflare preset. Move past the first header name to the
+# first Header value field.
 - pressKey: "Remote Dpad Down"
 - pressKey: "Remote Dpad Down"
 - pressKey: "Remote Dpad Down"
@@ -49,7 +41,7 @@ name: TVCF-FlowDev
 - pressKey: "Remote Dpad Center"
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
 - hideKeyboard
-# Move up through the TV form from the second Header value field to Connect.
+# Move back to the URL input, enter the server URL, then move down to Connect.
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
@@ -58,6 +50,12 @@ name: TVCF-FlowDev
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
 - pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Up"
+- pressKey: "Remote Dpad Center"
+- inputText: "${MAESTRO_SERVER_URL}"
+- hideKeyboard
+- pressKey: "Remote Dpad Down"
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
 - pressKey: "Remote Dpad Center"
