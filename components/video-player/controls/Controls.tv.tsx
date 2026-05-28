@@ -59,6 +59,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { TrickplayBubble } from "./TrickplayBubble";
+import type { Track } from "./types";
 import { useControlsTimeout } from "./useControlsTimeout";
 
 interface Props {
@@ -314,6 +315,20 @@ export const Controls: FC<Props> = ({
     },
     [onSubtitleIndexChange],
   );
+
+  // Re-fetch subtitle streams from the server (e.g. after a server-side
+  // download) and map them to the modal's Track shape. setTrack drives the
+  // player through the same handler used for manual subtitle selection.
+  const refreshSubtitleTracks = useCallback(async (): Promise<Track[]> => {
+    const streams = (await onRefreshSubtitleTracks?.()) ?? [];
+    return streams.map((stream) => ({
+      name:
+        stream.DisplayTitle ||
+        `${stream.Language || "Unknown"} (${stream.Codec})`,
+      index: stream.Index ?? -1,
+      setTrack: () => onSubtitleIndexChange?.(stream.Index ?? -1),
+    }));
+  }, [onRefreshSubtitleTracks, onSubtitleIndexChange]);
 
   const {
     trickPlayUrl,
@@ -572,6 +587,9 @@ export const Controls: FC<Props> = ({
         disableTrack?.setTrack();
       },
       onLocalSubtitleDownloaded: handleLocalSubtitleDownloaded,
+      refreshSubtitleTracks: onRefreshSubtitleTracks
+        ? refreshSubtitleTracks
+        : undefined,
     });
     controlsInteractionRef.current();
   }, [
@@ -581,6 +599,8 @@ export const Controls: FC<Props> = ({
     videoContextSubtitleTracks,
     subtitleIndex,
     handleLocalSubtitleDownloaded,
+    onRefreshSubtitleTracks,
+    refreshSubtitleTracks,
   ]);
 
   const handleToggleTechnicalInfo = useCallback(() => {
