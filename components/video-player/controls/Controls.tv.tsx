@@ -320,14 +320,25 @@ export const Controls: FC<Props> = ({
   // download) and map them to the modal's Track shape. setTrack drives the
   // player through the same handler used for manual subtitle selection.
   const refreshSubtitleTracks = useCallback(async (): Promise<Track[]> => {
-    const streams = (await onRefreshSubtitleTracks?.()) ?? [];
-    return streams.map((stream) => ({
-      name:
-        stream.DisplayTitle ||
-        `${stream.Language || "Unknown"} (${stream.Codec})`,
-      index: stream.Index ?? -1,
-      setTrack: () => onSubtitleIndexChange?.(stream.Index ?? -1),
-    }));
+    try {
+      const streams = (await onRefreshSubtitleTracks?.()) ?? [];
+      // Skip streams without a real index: `?? -1` would alias them to the
+      // "disable subtitles" sentinel and mis-route selection.
+      return streams
+        .filter((stream) => typeof stream.Index === "number")
+        .map((stream) => {
+          const index = stream.Index as number;
+          return {
+            name:
+              stream.DisplayTitle ||
+              `${stream.Language || "Unknown"} (${stream.Codec})`,
+            index,
+            setTrack: () => onSubtitleIndexChange?.(index),
+          };
+        });
+    } catch {
+      return [];
+    }
   }, [onRefreshSubtitleTracks, onSubtitleIndexChange]);
 
   const {
