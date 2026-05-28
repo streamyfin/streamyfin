@@ -52,14 +52,14 @@
     },
     "production": {
       "environment": "production",
-      "channel": "0.52.0",
+      "channel": "0.54.0",
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
       "environment": "production",
-      "channel": "0.52.0",
+      "channel": "0.54.0",
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -67,7 +67,7 @@
     },
     "production-apk-tv": {
       "environment": "production",
-      "channel": "0.52.0",
+      "channel": "0.54.0",
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -78,7 +78,7 @@
     },
     "production_tv": {
       "environment": "production",
-      "channel": "0.52.0",
+      "channel": "0.54.0",
       "env": {
         "EXPO_TV": "1"
       },

@@ -1,8 +1,21 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
+import {
+  Button,
+  Host,
+  Menu,
+  Picker,
+  Text as SwiftUIText,
+} from "@expo/ui/swift-ui";
+import { disabled, tag } from "@expo/ui/swift-ui/modifiers";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import React, { useEffect } from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  type LayoutChangeEvent,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -201,6 +214,24 @@ const PlatformDropdownComponent = ({
 }: PlatformDropdownProps) => {
   const { showModal, hideModal, isVisible } = useGlobalModal();
 
+  // @expo/ui's <Host> (SDK 55) fills its available space by default, and
+  // `matchContents` doesn't help here: it reports the native Menu's size via
+  // setStyleSize and overrides any explicit size. Instead we measure the
+  // trigger's intrinsic size in plain RN (off-layout) and pin it on the Host.
+  const [triggerSize, setTriggerSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const handleMeasureTrigger = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setTriggerSize((prev) =>
+      prev && prev.width === width && prev.height === height
+        ? prev
+        : { width, height },
+    );
+  };
+
   // Handle controlled open state for Android
   useEffect(() => {
     if (Platform.OS === "android" && controlledOpen === true) {
@@ -232,10 +263,24 @@ const PlatformDropdownComponent = ({
 
   if (Platform.OS === "ios") {
     return (
-      <Host style={expoUIConfig?.hostStyle}>
-        <ContextMenu>
-          <ContextMenu.Trigger>{trigger}</ContextMenu.Trigger>
-          <ContextMenu.Items>
+      <View>
+        {/* Hidden measurer: lays the trigger out normally to capture its
+            intrinsic size, which we then pin onto the Host below. */}
+        <View style={StyleSheet.absoluteFill} pointerEvents='none' aria-hidden>
+          <View
+            style={{ alignSelf: "flex-start" }}
+            onLayout={handleMeasureTrigger}
+          >
+            {trigger}
+          </View>
+        </View>
+        <Host
+          style={[
+            triggerSize ?? { opacity: 0 },
+            expoUIConfig?.hostStyle as any,
+          ]}
+        >
+          <Menu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -254,23 +299,37 @@ const PlatformDropdownComponent = ({
               // Otherwise render as individual buttons
               if (radioOptions.length > 0) {
                 if (group.title) {
-                  // Use Picker for grouped options
+                  // Use Picker for grouped options.
+                  // Use the option index (a stable primitive) as the
+                  // tag/selection value and React key. Option `value`s can be
+                  // objects (e.g. bitrate / media source), which collapse to
+                  // "[object Object]" as a key and never match the Picker's
+                  // primitive selection.
+                  const selectedRadioIndex = radioOptions.findIndex(
+                    (opt) => opt.selected,
+                  );
                   items.push(
                     <Picker
                       key={`picker-${groupIndex}`}
                       label={group.title}
-                      options={radioOptions.map((opt) => opt.label)}
-                      variant='menu'
-                      selectedIndex={radioOptions.findIndex(
-                        (opt) => opt.selected,
-                      )}
-                      onOptionSelected={(event: any) => {
-                        const index = event.nativeEvent.index;
-                        const selectedOption = radioOptions[index];
+                      selection={
+                        selectedRadioIndex >= 0 ? selectedRadioIndex : undefined
+                      }
+                      onSelectionChange={(index) => {
+                        const selectedOption = radioOptions[index as number];
                         selectedOption?.onPress();
                         onOptionSelect?.(selectedOption?.value);
                       }}
-                    />,
+                    >
+                      {radioOptions.map((opt, optionIndex) => (
+                        <SwiftUIText
+                          key={`radio-${groupIndex}-${optionIndex}`}
+                          modifiers={[tag(optionIndex)]}
+                        >
+                          {opt.label}
+                        </SwiftUIText>
+                      ))}
+                    </Picker>,
                   );
                 } else {
                   // Render radio options as direct buttons
@@ -278,17 +337,18 @@ const PlatformDropdownComponent = ({
                     items.push(
                       <Button
                         key={`radio-${groupIndex}-${optionIndex}`}
+                        label={option.label}
                         systemImage={
                           option.selected ? "checkmark.circle.fill" : "circle"
+                        }
+                        modifiers={
+                          option.disabled ? [disabled(true)] : undefined
                         }
                         onPress={() => {
                           option.onPress();
                           onOptionSelect?.(option.value);
                         }}
-                        disabled={option.disabled}
-                      >
-                        {option.label}
-                      </Button>,
+                      />,
                     );
                   });
                 }
@@ -299,17 +359,16 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`toggle-${groupIndex}-${optionIndex}`}
+                    label={option.label}
                     systemImage={
                       option.value ? "checkmark.circle.fill" : "circle"
                     }
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onToggle();
                       onOptionSelect?.(option.value);
                     }}
-                    disabled={option.disabled}
-                  >
-                    {option.label}
-                  </Button>,
+                  />,
                 );
               });
 
@@ -318,21 +377,20 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`action-${groupIndex}-${optionIndex}`}
+                    label={option.label}
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onPress();
                     }}
-                    disabled={option.disabled}
-                  >
-                    {option.label}
-                  </Button>,
+                  />,
                 );
               });
 
               return items;
             })}
-          </ContextMenu.Items>
-        </ContextMenu>
-      </Host>
+          </Menu>
+        </Host>
+      </View>
     );
   }
 
