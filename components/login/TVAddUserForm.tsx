@@ -171,6 +171,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         {/* Login Button */}
         <View style={{ marginBottom: scaleSize(16) }}>
           <Button
+            testID='login-button'
             onPress={handleLogin}
             loading={loading}
             disabled={!credentials.username.trim() || loading}

@@ -101,6 +101,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         {/* Connect Button */}
         <View style={{ marginBottom: scaleSize(24) }}>
           <Button
+            testID='connect-button'
             onPress={handleConnect}
             loading={loading}
             disabled={loading || !serverURL.trim()}
@@ -113,6 +114,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         {/* Advanced: Custom Headers */}
         <View style={{ marginBottom: scaleSize(24) }}>
           <Button
+            testID='advanced-custom-headers'
             onPress={() => setShowAdvanced(!showAdvanced)}
             className='bg-neutral-800 border border-neutral-700'
           >
@@ -135,6 +137,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
               {HEADER_PRESETS.map((preset) => (
                 <Button
                   key={preset.id}
+                  testID={`preset-${preset.id}`}
                   onPress={() => setPendingHeaders(preset.headers)}
                   className='bg-neutral-800'
                 >
@@ -152,6 +155,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
                 style={{ marginBottom: scaleSize(12), gap: scaleSize(8) }}
               >
                 <TVInput
+                  testID={`header-key-${header.key}`}
                   placeholder={t("custom_headers.header_name_placeholder")}
                   value={header.key}
                   onChangeText={(text) => {
@@ -163,6 +167,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
                   autoCorrect={false}
                 />
                 <TVInput
+                  testID={`header-value-${header.key}`}
                   placeholder={t("custom_headers.header_value_placeholder")}
                   value={header.value}
                   onChangeText={(text) => {

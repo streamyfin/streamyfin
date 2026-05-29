@@ -337,6 +337,7 @@ export const Login: React.FC = () => {
                 </Text>
                 <Text className='text-xs text-neutral-400'>{api.basePath}</Text>
                 <Input
+                  aria-label='Username'
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
                     setCredentials((prev) => ({ ...prev, username: text }))
@@ -361,6 +362,7 @@ export const Login: React.FC = () => {
                 />
 
                 <Input
+                  aria-label='Password'
                   placeholder={t("login.password_placeholder")}
                   onChangeText={(text) =>
                     setCredentials((prev) => ({ ...prev, password: text }))

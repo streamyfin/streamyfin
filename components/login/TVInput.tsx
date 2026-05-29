@@ -22,6 +22,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>(
       hasTVPreferredFocus,
       disabled = false,
       style,
+      testID,
       ...props
     },
     ref,
@@ -30,8 +31,8 @@ export const TVInput = forwardRef<TextInput, TVInputProps>(
     const localRef = useRef<TextInput>(null);
     const scale = useRef(new Animated.Value(1)).current;
 
-    // Use forwarded ref or local ref
-    const inputRef = ref || localRef;
+    // Always use localRef for internal .current access (ref may be a callback)
+    const inputRef = localRef;
 
     const animateFocus = (focused: boolean) => {
       Animated.timing(scale, {
@@ -56,6 +57,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>(
 
     return (
       <Pressable
+        testID={testID}
         onPress={() => inputRef.current?.focus()}
         onFocus={handleFocus}
         onBlur={handleBlur}
@@ -75,7 +77,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>(
           }}
         >
           <TextInput
-            ref={inputRef}
+            ref={ref}
             placeholder={displayPlaceholder}
             placeholderTextColor='rgba(255,255,255,0.35)'
             allowFontScaling={false}
