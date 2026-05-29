@@ -18,5 +18,6 @@ export type ServerImageProps = Omit<ImageProps, "source"> & {
 export function ServerImage({ uri, ...props }: ServerImageProps) {
   const headers = useHeadersForUrl(uri);
   if (!uri) return null;
-  return <Image source={{ uri, headers }} {...props} />;
+  const source = headers ? { uri, headers } : { uri };
+  return <Image source={source} {...props} />;
 }

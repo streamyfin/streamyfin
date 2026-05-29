@@ -64,6 +64,10 @@ export const ItemImage: FC<Props> = ({
       </View>
     );
 
+  const imageSource = source.headers
+    ? { uri: source.uri, headers: source.headers as Record<string, string> }
+    : { uri: source.uri };
+
   return (
     <Image
       cachePolicy={"memory-disk"}
@@ -75,10 +79,7 @@ export const ItemImage: FC<Props> = ({
         width: "100%",
         height: "100%",
       }}
-      source={{
-        uri: source?.uri,
-        headers: source?.headers as Record<string, string> | undefined,
-      }}
+      source={imageSource}
       {...props}
     />
   );
