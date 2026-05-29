@@ -115,6 +115,7 @@
     },
   },
   "patchedDependencies": {
+    "react-native-ios-utilities@5.2.0": "bun-patches/react-native-ios-utilities@5.2.0.patch",
     "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch",
     "react-native-bottom-tabs@1.2.0": "bun-patches/react-native-bottom-tabs@1.2.0.patch",
   },
