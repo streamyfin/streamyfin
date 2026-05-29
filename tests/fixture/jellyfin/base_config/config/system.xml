@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ServerConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <LogFileRetentionDays>3</LogFileRetentionDays>
+  <IsStartupWizardCompleted>true</IsStartupWizardCompleted>
+  <EnableMetrics>false</EnableMetrics>
+  <EnableNormalizedItemByNameIds>true</EnableNormalizedItemByNameIds>
+  <IsPortAuthorized>true</IsPortAuthorized>
+  <QuickConnectAvailable>true</QuickConnectAvailable>
+  <EnableCaseSensitiveItemIds>true</EnableCaseSensitiveItemIds>
+  <DisableLiveTvChannelUserDataName>true</DisableLiveTvChannelUserDataName>
+  <MetadataPath />
+  <PreferredMetadataLanguage>en</PreferredMetadataLanguage>
+  <MetadataCountryCode>US</MetadataCountryCode>
+  <SortReplaceCharacters>
+    <string>.</string>
+    <string>+</string>
+    <string>%</string>
+  </SortReplaceCharacters>
+  <SortRemoveCharacters>
+    <string>,</string>
+    <string>&amp;</string>
+    <string>-</string>
+    <string>{</string>
+    <string>}</string>
+    <string>'</string>
+  </SortRemoveCharacters>
+  <SortRemoveWords>
+    <string>the</string>
+    <string>a</string>
+    <string>an</string>
+  </SortRemoveWords>
+  <MinResumePct>5</MinResumePct>
+  <MaxResumePct>90</MaxResumePct>
+  <MinResumeDurationSeconds>300</MinResumeDurationSeconds>
+  <MinAudiobookResume>5</MinAudiobookResume>
+  <MaxAudiobookResume>5</MaxAudiobookResume>
+  <InactiveSessionThreshold>0</InactiveSessionThreshold>
+  <LibraryMonitorDelay>60</LibraryMonitorDelay>
+  <LibraryUpdateDuration>30</LibraryUpdateDuration>
+  <CacheSize>1000</CacheSize>
+  <ImageSavingConvention>Legacy</ImageSavingConvention>
+  <MetadataOptions>
+    <MetadataOptions>
+      <ItemType>Book</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers />
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>Movie</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers />
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>MusicVideo</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers>
+        <string>The Open Movie Database</string>
+      </DisabledMetadataFetchers>
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers>
+        <string>The Open Movie Database</string>
+      </DisabledImageFetchers>
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>Series</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers />
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>MusicAlbum</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers>
+        <string>TheAudioDB</string>
+      </DisabledMetadataFetchers>
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>MusicArtist</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers>
+        <string>TheAudioDB</string>
+      </DisabledMetadataFetchers>
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>BoxSet</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers />
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>Season</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers />
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+    <MetadataOptions>
+      <ItemType>Episode</ItemType>
+      <DisabledMetadataSavers />
+      <LocalMetadataReaderOrder />
+      <DisabledMetadataFetchers />
+      <MetadataFetcherOrder />
+      <DisabledImageFetchers />
+      <ImageFetcherOrder />
+    </MetadataOptions>
+  </MetadataOptions>
+  <SkipDeserializationForBasicTypes>true</SkipDeserializationForBasicTypes>
+  <ServerName>JellyfinDemoServer</ServerName>
+  <UICulture>en-US</UICulture>
+  <SaveMetadataHidden>false</SaveMetadataHidden>
+  <ContentTypes />
+  <RemoteClientBitrateLimit>0</RemoteClientBitrateLimit>
+  <EnableFolderView>false</EnableFolderView>
+  <EnableGroupingMoviesIntoCollections>false</EnableGroupingMoviesIntoCollections>
+  <EnableGroupingShowsIntoCollections>false</EnableGroupingShowsIntoCollections>
+  <DisplaySpecialsWithinSeasons>true</DisplaySpecialsWithinSeasons>
+  <CodecsUsed />
+  <PluginRepositories>
+    <RepositoryInfo>
+      <Name>Jellyfin Stable</Name>
+      <Url>https://repo.jellyfin.org/files/plugin/manifest.json</Url>
+      <Enabled>true</Enabled>
+    </RepositoryInfo>
+  </PluginRepositories>
+  <EnableExternalContentInSuggestions>true</EnableExternalContentInSuggestions>
+  <ImageExtractionTimeoutMs>0</ImageExtractionTimeoutMs>
+  <PathSubstitutions />
+  <EnableSlowResponseWarning>true</EnableSlowResponseWarning>
+  <SlowResponseThresholdMs>500</SlowResponseThresholdMs>
+  <CorsHosts>
+    <string>*</string>
+  </CorsHosts>
+  <ActivityLogRetentionDays>30</ActivityLogRetentionDays>
+  <LibraryScanFanoutConcurrency>0</LibraryScanFanoutConcurrency>
+  <LibraryMetadataRefreshConcurrency>0</LibraryMetadataRefreshConcurrency>
+  <AllowClientLogUpload>true</AllowClientLogUpload>
+  <DummyChapterDuration>0</DummyChapterDuration>
+  <ChapterImageResolution>MatchSource</ChapterImageResolution>
+  <ParallelImageEncodingLimit>0</ParallelImageEncodingLimit>
+  <CastReceiverApplications>
+    <CastReceiverApplication>
+      <Id>F007D354</Id>
+      <Name>Stable</Name>
+    </CastReceiverApplication>
+    <CastReceiverApplication>
+      <Id>6F511C87</Id>
+      <Name>Unstable</Name>
+    </CastReceiverApplication>
+  </CastReceiverApplications>
+  <TrickplayOptions>
+    <EnableHwAcceleration>false</EnableHwAcceleration>
+    <EnableHwEncoding>false</EnableHwEncoding>
+    <EnableKeyFrameOnlyExtraction>false</EnableKeyFrameOnlyExtraction>
+    <ScanBehavior>NonBlocking</ScanBehavior>
+    <ProcessPriority>BelowNormal</ProcessPriority>
+    <Interval>10000</Interval>
+    <WidthResolutions>
+      <int>320</int>
+    </WidthResolutions>
+    <TileWidth>10</TileWidth>
+    <TileHeight>10</TileHeight>
+    <Qscale>4</Qscale>
+    <JpegQuality>90</JpegQuality>
+    <ProcessThreads>1</ProcessThreads>
+  </TrickplayOptions>
+  <EnableLegacyAuthorization>true</EnableLegacyAuthorization>
+</ServerConfiguration>

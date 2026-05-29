@@ -1,22 +1,52 @@
 appId: ${MAESTRO_APP_ID}
 ---
 # Shared: Enter credentials, login, handle intro, wait for home screen
+
+# Screenshot: Before entering credentials
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-01-entering-credentials
+
 - tapOn: "Username"
 - inputText: "${MAESTRO_USERNAME}"
+
 - runFlow:
     when:
       true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
     commands:
       - tapOn: "Password"
       - inputText: "${MAESTRO_PASSWORD}"
+
+# Screenshot: After entering credentials, before login
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-02-credentials-entered
+
 - tapOn:
     id: "login-button"
+
+# Screenshot: After login button tap
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-03-login-submitted
+
+- runFlow:
+    when:
+      visible: "Save Password?"
+    commands:
+      - takeScreenshot:
+          path: ${MAESTRO_ARTIFACT_DIR}/login-03a-save-password-dialog
+      - tapOn: "Not Now"
+
 - runFlow:
     when:
       visible: "Welcome to Streamyfin"
     commands:
+      - takeScreenshot:
+          path: ${MAESTRO_ARTIFACT_DIR}/login-04-intro-screen
       - tapOn:
           id: "intro-done-button"
+
+# Screenshot: On home screen
 - extendedWaitUntil:
     visible: "Streamyfin"
     timeout: 60000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-05-home-screen

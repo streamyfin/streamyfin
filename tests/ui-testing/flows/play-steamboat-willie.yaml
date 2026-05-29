@@ -1,0 +1,39 @@
+appId: ${MAESTRO_APP_ID}
+name: PlaySteamboatWillie
+---
+# Play a movie from the home screen
+# Assumes already logged in and on home screen
+
+# Take screenshot of home screen
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/01-home-screen
+
+# Tap on Steamboat Willie movie
+- tapOn: "Steamboat Willie"
+
+# Wait for item detail screen and take screenshot
+- extendedWaitUntil:
+    visible: "7m"
+    timeout: 10000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/02-movie-detail
+
+# Tap the play button (the button with "7m" and play icon)
+- tapOn:
+    text: "7m"
+
+# Wait for player to load
+- extendedWaitUntil:
+    visible: "Player"
+    timeout: 30000
+
+# Take screenshot of playing video
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/03-playing
+
+# Wait a bit to let video actually start playing
+- wait: 5000
+
+# Take final screenshot
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/04-playing-5s

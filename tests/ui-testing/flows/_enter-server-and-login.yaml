@@ -1,0 +1,57 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared: Enter server URL, connect, and login (assumes app is already open on server URL screen)
+
+- extendedWaitUntil:
+    visible: "Server URL"
+    timeout: 10000
+
+- tapOn: "Server URL"
+- waitForAnimationToEnd
+- inputText: "${MAESTRO_SERVER_URL}"
+- waitForAnimationToEnd
+- hideKeyboard
+
+- tapOn:
+    id: "connect-button"
+
+- extendedWaitUntil:
+    visible: "Username"
+    timeout: 30000
+- assertVisible: "Password"
+
+- tapOn: "Username"
+- waitForAnimationToEnd
+- inputText: "${MAESTRO_USERNAME}"
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
+    commands:
+      - tapOn: "Password"
+      - waitForAnimationToEnd
+      - inputText: "${MAESTRO_PASSWORD}"
+      - waitForAnimationToEnd
+
+- hideKeyboard
+
+- tapOn:
+    id: "login-button"
+
+- runFlow:
+    when:
+      visible: "Save Password?"
+    commands:
+      - tapOn: "Not Now"
+
+- runFlow:
+    when:
+      visible: "Welcome to Streamyfin"
+    commands:
+      - tapOn:
+          id: "intro-done-button"
+
+- extendedWaitUntil:
+    visible: "Streamyfin"
+    timeout: 60000

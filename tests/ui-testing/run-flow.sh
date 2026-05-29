@@ -118,6 +118,22 @@ export MAESTRO_APP_ID
 : "${MAESTRO_PASSWORD=}"
 export MAESTRO_PASSWORD
 
+# Print current configuration
+printf '\n📱 Maestro Test Configuration:\n'
+printf '  App ID:     %s\n' "$MAESTRO_APP_ID"
+printf '  Server URL: %s\n' "${MAESTRO_SERVER_URL:-(not set)}"
+printf '  Username:   %s\n\n' "${MAESTRO_USERNAME:-(not set)}"
+
+# Auto-detect if running on Android emulator and URL is localhost
+if [ "${MAESTRO_SERVER_URL:-}" = "http://localhost:8096" ]; then
+  # Check if Android emulator is connected
+  if command -v adb >/dev/null 2>&1 && adb devices | grep -q "emulator"; then
+    printf '⚠️  WARNING: Using localhost with Android emulator detected.\n'
+    printf '   Consider setting MAESTRO_SERVER_URL=http://10.0.2.2:8096\n'
+    printf '   Or run: make jellyfin-set-external-url\n\n'
+  fi
+fi
+
 case "$selected_flow" in
   simple|ios-simple|tv-simple)
     require_vars "$selected_flow" MAESTRO_APP_ID MAESTRO_SERVER_URL MAESTRO_USERNAME

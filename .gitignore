@@ -29,6 +29,19 @@ Streamyfin.app
 *.ipa
 *.aab
 
+# User-specific environment and scripts
+.envrc
+userscripts/
+Justfile
+
+# Jellyfin test fixture runtime data (keep base_config/)
+tests/fixture/jellyfin/config/
+tests/fixture/jellyfin/cache/
+
+# Test artifacts
+tests/ui-testing/artifacts/
+undefined/
+
 # Certificates and Keys
 *.jks
 *.p8
@@ -80,3 +93,4 @@ build/
 # UI test artifacts
 tests/ui-testing/artifacts/*
 !tests/ui-testing/artifacts/.gitkeep
+undefined/

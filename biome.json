@@ -11,7 +11,8 @@
       "!expo-env.d.ts",
       "!modules/**/android/build",
       "!.expo",
-      "!docs/jellyfin-openapi-stable.json"
+      "!docs/jellyfin-openapi-stable.json",
+      "!tests/fixture/jellyfin/base_config"
     ]
   },
   "linter": {

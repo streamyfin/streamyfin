@@ -1,0 +1,9 @@
+# Runtime directories (generated from static config)
+/config
+/cache
+
+# Docker volumes
+/data
+
+# Logs
+*.log
