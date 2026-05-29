@@ -78,8 +78,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "16.4",
-            "useFrameworks": "static"
+            "deploymentTarget": "16.4"
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
