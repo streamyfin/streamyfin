@@ -21,7 +21,7 @@ export const useSessions = ({
   const { data, isLoading } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
-      if (!api || !user || !user.Policy?.IsAdministrator) {
+      if (!api || !user?.Policy?.IsAdministrator) {
         return [];
       }
       const response = await getSessionApi(api).getSessions({
@@ -55,7 +55,7 @@ export const useAllSessions = ({
   const { data, isLoading } = useQuery({
     queryKey: ["allSessions"],
     queryFn: async () => {
-      if (!api || !user || !user.Policy?.IsAdministrator) {
+      if (!api || !user?.Policy?.IsAdministrator) {
         return [];
       }
       const response = await getSessionApi(api).getSessions({

@@ -122,7 +122,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
   const handlePlayCommand = useCallback(
     (data: any) => {
-      if (!data || !data.ItemIds || !data.ItemIds.length) {
+      if (!data?.ItemIds?.length) {
         return;
       }
 
@@ -150,7 +150,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, [connectWebSocket]);
 
   useEffect(() => {
-    if (!deviceId || !api || !api?.accessToken || !isNetworkConnected) {
+    if (!deviceId || !api?.accessToken || !isNetworkConnected) {
       return;
     }
 

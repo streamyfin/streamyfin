@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv";
+import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { scaleSize } from "@/utils/scaleSize";
 
 interface TVPasswordEntryModalProps {
@@ -200,6 +201,13 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
     }
     setIsReady(false);
   }, [visible]);
+
+  // Close the modal on the TV remote back/menu button while it is open.
+  useTVBackPress(() => {
+    if (!visible) return false;
+    onClose();
+    return true;
+  }, [visible, onClose]);
 
   const handleSubmit = async () => {
     if (!password) {

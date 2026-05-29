@@ -17,7 +17,7 @@ const ITEMS_PER_PAGE = 20;
 
 const MemoizedLiveTVGuideRow = React.memo(LiveTVGuideRow);
 
-export default function page() {
+export default function LiveTvGuidePage() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
