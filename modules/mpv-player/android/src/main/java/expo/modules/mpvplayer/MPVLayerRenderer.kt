@@ -340,7 +340,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     
     private fun updateHttpHeaders(headers: Map<String, String>?) {
         if (headers.isNullOrEmpty()) {
-            // Clear headers
+            MPVLib.setPropertyString("http-header-fields", "")
             return
         }
         
@@ -724,4 +724,3 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         }
     }
 }
-
