@@ -80,7 +80,7 @@
           "ios": {
             "deploymentTarget": "16.4",
             "useFrameworks": "static",
-            "forceStaticLinking": ["ExpoUI", "GlassEffectView"]
+            "forceStaticLinking": ["ExpoUI", "GlassEffectView", "GlassPoster"]
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
