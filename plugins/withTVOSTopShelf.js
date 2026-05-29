@@ -15,7 +15,7 @@ function getBundleIdentifier(config) {
 }
 
 function getAppGroupIdentifier(config) {
-  return `group.${getBundleIdentifier(config)}`;
+  return `group.${getBundleIdentifier(config)}.tvtopshelf`;
 }
 
 function getKeychainAccessGroupIdentifier(config) {
@@ -83,7 +83,7 @@ const withTVOSTopShelf = (config) => {
   const keychainAccessGroupIdentifier =
     getKeychainAccessGroupIdentifier(config);
   const bundleIdentifier = getBundleIdentifier(config);
-  const extensionBundleIdentifier = `${bundleIdentifier}.TopShelf`;
+  const extensionBundleIdentifier = `${bundleIdentifier}.tvtopshelf`;
   const isTVBuild = process.env.EXPO_TV === "1";
 
   if (isTVBuild) {
