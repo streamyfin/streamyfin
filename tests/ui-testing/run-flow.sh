@@ -4,7 +4,7 @@ set -eu
 SCRIPT_DIR=$(CDPATH=; cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH=; cd -- "$SCRIPT_DIR/../.." && pwd)
 UI_TEST_DIR="tests/ui-testing"
-ENV_FILE="$REPO_ROOT/$UI_TEST_DIR/.env.local"
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/$UI_TEST_DIR/.env.local}"
 DEFAULT_APP_ID="com.fredrikburmester.streamyfin"
 
 if [ -n "${HOME:-}" ] && [ -d "$HOME/.maestro/bin" ]; then
@@ -17,9 +17,12 @@ usage() {
 Usage: sh tests/ui-testing/run-flow.sh simple|cf|ios-simple|ios-cf|tv-simple|tv-cf
 
 Set required values in your shell environment or in:
-  tests/ui-testing/.env.local
+  tests/ui-testing/.env.local (default)
 
-Shell environment values take precedence over .env.local values.
+Override the env file with:
+  ENV_FILE=tests/ui-testing/.env.jeef sh tests/ui-testing/run-flow.sh ios-cf
+
+Shell environment values take precedence over env file values.
 EOF
 }
 
@@ -79,7 +82,7 @@ require_vars() {
 
   if [ -n "$missing" ]; then
     printf 'error: missing required environment variables for %s flow:%s\n' "$flow_name" "$missing" >&2
-    printf 'Set them in your shell or in %s.\n' "$UI_TEST_DIR/.env.local" >&2
+    printf 'Set them in your shell or in %s.\n' "$ENV_FILE" >&2
     exit 1
   fi
 }

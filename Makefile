@@ -3,11 +3,15 @@ export PATH := $(MAESTRO_BIN):$(PATH)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help e2e e2e-setup ensure-prebuild-phone ensure-prebuild-tv run-android run-android-tv run-ios clean-artifacts install-android install-android-tv install-ios test-android test-android-cf test-ios test-ios-cf test-android-tv test-android-tv-cf
+.PHONY: help e2e e2e-setup ensure-prebuild-phone ensure-prebuild-tv run-android run-android-tv run-ios clean-artifacts install-android install-android-tv install-ios test-android test-android-cf test-ios test-ios-cf test-android-tv test-android-tv-cf jellyfin-setup jellyfin-save-config jellyfin-up jellyfin-down jellyfin-reset jellyfin-status jellyfin-logs jellyfin-api-test
+
+ENV_FILE ?= tests/ui-testing/.env.local
 
 help:
 	@printf '\n%s\n' 'Streamyfin targets'
-	@printf '%s\n\n' 'Usage: make <target>'
+	@printf '%s\n\n' 'Usage: make <target> [ENV_FILE=tests/ui-testing/.env.jeef]'
+	@printf '%s\n' 'Environment'
+	@printf '  %-28s %s\n' 'ENV_FILE' 'Env file for Maestro tests (default: tests/ui-testing/.env.local)'
 	@printf '%s\n' 'Setup'
 	@printf '  %-28s %s\n' 'help' 'Show this help.'
 	@printf '  %-28s %s\n' 'e2e-setup' 'Install the Maestro CLI.'
@@ -33,6 +37,15 @@ help:
 	@printf '  %-28s %s\n\n' 'test-android-tv-cf' 'Run TV Cloudflare flow from a cleared app launch.'
 	@printf '%s\n' 'Legacy'
 	@printf '  %-28s %s\n\n' 'e2e' 'Start Maestro Android device and run login.yaml.'
+	@printf '%s\n' 'Jellyfin Test Fixture'
+	@printf '  %-28s %s\n' 'jellyfin-setup' 'Start blank Jellyfin for manual setup'
+	@printf '  %-28s %s\n' 'jellyfin-save-config' 'Save current config as static snapshot'
+	@printf '  %-28s %s\n' 'jellyfin-up' 'Start Jellyfin test container'
+	@printf '  %-28s %s\n' 'jellyfin-down' 'Stop Jellyfin container'
+	@printf '  %-28s %s\n' 'jellyfin-reset' 'Reset Jellyfin to clean state'
+	@printf '  %-28s %s\n' 'jellyfin-status' 'Check Jellyfin status'
+	@printf '  %-28s %s\n' 'jellyfin-logs' 'Show Jellyfin logs'
+	@printf '  %-28s %s\n\n' 'jellyfin-api-test' 'Test Jellyfin API connectivity'
 
 e2e:
 	maestro start-device --platform android
@@ -97,3 +110,28 @@ test-android-tv:
 
 test-android-tv-cf:
 	sh tests/ui-testing/run-flow.sh tv-cf
+
+# Jellyfin Test Fixture
+jellyfin-setup:
+	$(MAKE) -C tests/fixture/jellyfin setup
+
+jellyfin-save-config:
+	$(MAKE) -C tests/fixture/jellyfin save-config
+
+jellyfin-up:
+	$(MAKE) -C tests/fixture/jellyfin up
+
+jellyfin-down:
+	$(MAKE) -C tests/fixture/jellyfin down
+
+jellyfin-reset:
+	$(MAKE) -C tests/fixture/jellyfin reset
+
+jellyfin-status:
+	$(MAKE) -C tests/fixture/jellyfin status
+
+jellyfin-logs:
+	$(MAKE) -C tests/fixture/jellyfin logs
+
+jellyfin-api-test:
+	$(MAKE) -C tests/fixture/jellyfin api-test
