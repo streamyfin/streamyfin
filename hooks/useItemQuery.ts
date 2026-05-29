@@ -12,11 +12,17 @@ export const excludeFields = (fieldsToExclude: ItemFields[]) => {
   );
 };
 
+type ExtraQueryOptions = {
+  gcTime?: number;
+  staleTime?: number;
+};
+
 export const useItemQuery = (
   itemId: string | undefined,
   isOffline?: boolean,
   fields?: ItemFields[],
   excludeFields?: ItemFields[],
+  queryOptions?: ExtraQueryOptions,
 ) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -53,5 +59,6 @@ export const useItemQuery = (
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     networkMode: "always",
+    ...queryOptions,
   });
 };
