@@ -1,0 +1,9 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared: Tap connect and wait for login screen
+- tapOn:
+    id: "connect-button"
+- extendedWaitUntil:
+    visible: "Username"
+    timeout: 60000
+- assertVisible: "Password"

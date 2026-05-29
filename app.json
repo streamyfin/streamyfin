@@ -140,6 +140,7 @@
       ["./plugins/withTVOSAppIcon.js"],
       ["./plugins/withTVOSTopShelf.js"],
       ["./plugins/withTVXcodeEnv.js"],
+      ["./plugins/withReleaseOnlyActiveArch.js"],
       [
         "./plugins/withGitPod.js",
         {

@@ -1,0 +1,22 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared: Enter credentials, login, handle intro, wait for home screen
+- tapOn: "Username"
+- inputText: "${MAESTRO_USERNAME}"
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
+    commands:
+      - tapOn: "Password"
+      - inputText: "${MAESTRO_PASSWORD}"
+- tapOn:
+    id: "login-button"
+- runFlow:
+    when:
+      visible: "Welcome to Streamyfin"
+    commands:
+      - tapOn:
+          id: "intro-done-button"
+- extendedWaitUntil:
+    visible: "Streamyfin"
+    timeout: 60000

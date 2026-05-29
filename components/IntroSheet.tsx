@@ -183,7 +183,11 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
           </View>
 
           <View>
-            <Button onPress={handleDismiss} className='mt-4'>
+            <Button
+              testID='intro-done-button'
+              onPress={handleDismiss}
+              className='mt-4'
+            >
               {t("home.intro.done_button")}
             </Button>
             <TouchableOpacity onPress={handleGoToSettings} className='mt-4'>

@@ -14,8 +14,7 @@ name: SimpleFlow
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/02-server-url-entered
 - tapOn:
-    text: "Connect"
-    enabled: true
+    id: "connect-button"
 - extendedWaitUntil:
     visible: "Username"
     timeout: 30000
@@ -34,8 +33,7 @@ name: SimpleFlow
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/04-credentials-entered
 - tapOn:
-    text: "Log In"
-    enabled: true
+    id: "login-button"
 - extendedWaitUntil:
     visible: "Home|Welcome to Streamyfin|Continue Watching|Next Up|No Items"
     timeout: 45000

@@ -139,11 +139,11 @@ case "$selected_flow" in
     ;;
   ios-simple)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-ios-simple"
-    run_flow ios-simple "$UI_TEST_DIR/flows/simple-flow.yaml" "$final_artifact_dir"
+    run_flow ios-simple "$UI_TEST_DIR/flows/ios-simple-flow.yaml" "$final_artifact_dir"
     ;;
   ios-cf)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-ios-cf"
-    run_flow ios-cf "$UI_TEST_DIR/flows/cf-flow.yaml" "$final_artifact_dir"
+    run_flow ios-cf "$UI_TEST_DIR/flows/ios-cf-flow.yaml" "$final_artifact_dir"
     ;;
   tv-simple)
     final_artifact_dir="$UI_TEST_DIR/artifacts/$timestamp-tv-simple"

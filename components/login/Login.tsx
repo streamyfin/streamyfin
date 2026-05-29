@@ -10,6 +10,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Switch,
   TouchableOpacity,
   View,
@@ -317,7 +318,11 @@ export const Login: React.FC = () => {
         style={{ flex: 1 }}
       >
         {api?.basePath ? (
-          <View className='flex flex-col flex-1 justify-center'>
+          <ScrollView
+            className='flex-1'
+            keyboardShouldPersistTaps='handled'
+            keyboardDismissMode='interactive'
+          >
             <View className='px-4 w-full'>
               <View className='flex flex-col space-y-2'>
                 <Text className='text-2xl font-bold -mb-2'>
@@ -395,6 +400,7 @@ export const Login: React.FC = () => {
                 </TouchableOpacity>
                 <View className='flex flex-row items-center justify-between'>
                   <Button
+                    testID='login-button'
                     onPress={handleLogin}
                     loading={loading}
                     disabled={!credentials.username.trim()}
@@ -415,9 +421,13 @@ export const Login: React.FC = () => {
                 </View>
               </View>
             </View>
-          </View>
+          </ScrollView>
         ) : (
-          <View className='flex flex-col flex-1 w-full'>
+          <ScrollView
+            className='flex-1 w-full'
+            keyboardShouldPersistTaps='handled'
+            keyboardDismissMode='interactive'
+          >
             <View className='flex flex-col gap-y-2 px-4 w-full'>
               <Image
                 style={{
@@ -444,6 +454,7 @@ export const Login: React.FC = () => {
                 maxLength={500}
               />
               <Button
+                testID='connect-button'
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
@@ -456,6 +467,7 @@ export const Login: React.FC = () => {
 
               {/* Advanced: Custom Headers */}
               <TouchableOpacity
+                testID='advanced-custom-headers'
                 onPress={() => setShowAdvanced(!showAdvanced)}
                 className='flex flex-row items-center py-2'
                 activeOpacity={0.7}
@@ -492,6 +504,7 @@ export const Login: React.FC = () => {
                     <View key={index} className='flex flex-col gap-y-1'>
                       <View className='flex flex-row items-center gap-x-2'>
                         <Input
+                          testID={`header-key-${header.key}`}
                           placeholder={t(
                             "custom_headers.header_name_placeholder",
                           )}
@@ -520,6 +533,7 @@ export const Login: React.FC = () => {
                         />
                       </View>
                       <Input
+                        testID={`header-value-${header.key}`}
                         placeholder={t(
                           "custom_headers.header_value_placeholder",
                         )}
@@ -584,7 +598,7 @@ export const Login: React.FC = () => {
                 onAddAccount={handleAddAccount}
               />
             </View>
-          </View>
+          </ScrollView>
         )}
       </KeyboardAvoidingView>
 

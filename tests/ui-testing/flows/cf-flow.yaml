@@ -16,23 +16,21 @@ name: CF-Flow
 - inputText: "${MAESTRO_SERVER_URL}"
 - hideKeyboard
 - tapOn:
-    text: "Header value"
-    index: 0
+    id: "header-value-CF-Access-Client-Id"
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_ID}"
 - tapOn:
-    text: "Header value"
-    index: 1
+    id: "header-value-CF-Access-Client-Secret"
 - inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
 - hideKeyboard
 - takeScreenshot:
     path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
 - scrollUntilVisible:
-    element: "Connect"
+    element:
+      id: "connect-button"
     direction: UP
     timeout: 10000
 - tapOn:
-    text: "Connect"
-    enabled: true
+    id: "connect-button"
 - extendedWaitUntil:
     visible: "Username"
     timeout: 60000
@@ -49,8 +47,7 @@ name: CF-Flow
       - inputText: "${MAESTRO_PASSWORD}"
 - hideKeyboard
 - tapOn:
-    text: "Log In"
-    enabled: true
+    id: "login-button"
 - extendedWaitUntil:
     visible: "Home|Welcome to Streamyfin|Continue Watching|Next Up|No Items"
     timeout: 45000

@@ -1,0 +1,13 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared: Launch app, dismiss notification permission, wait for server screen
+- clearState
+- launchApp
+- runFlow:
+    when:
+      visible: "Would Like to Send You Notifications"
+    commands:
+      - tapOn: "Allow"
+- extendedWaitUntil:
+    visible: "Enter the URL to your Jellyfin server"
+    timeout: 30000
