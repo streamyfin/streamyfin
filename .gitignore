@@ -55,8 +55,9 @@ npm-debug.*
 expo-env.d.ts
 .continuerc.json
 .env
-.env.local
+.env.*
 tests/ui-testing/.env.local
+tests/ui-testing/.env.*
 
 # Secrets and Credentials
 pc-api-7079014811501811218-719-3b9f15aeccf8.json
