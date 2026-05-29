@@ -155,7 +155,7 @@ export const TVLiveTVGuide: React.FC = () => {
   );
 
   // Fetch programs for visible channels
-  const { data: programsData, isLoading: isLoadingPrograms } = useQuery({
+  const { data: programsData } = useQuery({
     queryKey: [
       "livetv",
       "tv-guide",

@@ -5,7 +5,7 @@ import { Favorites } from "@/components/home/Favorites";
 import { Favorites as TVFavorites } from "@/components/home/Favorites.tv";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 
-export default function favorites() {
+export default function FavoritesPage() {
   const invalidateCache = useInvalidatePlaybackProgressCache();
 
   const [loading, setLoading] = useState(false);

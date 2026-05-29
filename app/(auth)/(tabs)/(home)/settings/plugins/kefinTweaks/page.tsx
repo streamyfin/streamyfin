@@ -4,7 +4,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { KefinTweaksSettings } from "@/components/settings/KefinTweaks";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function KefinTweaksPage() {
   const { pluginSettings } = useSettings();
   const insets = useSafeAreaInsets();
 

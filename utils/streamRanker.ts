@@ -156,4 +156,4 @@ class StreamRanker {
   }
 }
 
-export { StreamRanker, SubtitleStreamRanker, AudioStreamRanker };
+export { AudioStreamRanker, StreamRanker, SubtitleStreamRanker };

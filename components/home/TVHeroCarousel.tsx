@@ -351,7 +351,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
 
   // Get subtitle for episodes
   const episodeSubtitle = useMemo(() => {
-    if (!activeItem || activeItem.Type !== "Episode") return null;
+    if (activeItem?.Type !== "Episode") return null;
     return `S${activeItem.ParentIndexNumber} E${activeItem.IndexNumber} · ${activeItem.Name}`;
   }, [activeItem]);
 

@@ -66,7 +66,7 @@ const exampleSearches = [
   "The Mandalorian",
 ];
 
-export default function search() {
+export default function SearchPage() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -221,7 +221,7 @@ export default function search() {
 
         const ids = response1.data.ids;
 
-        if (!ids || !ids.length) {
+        if (!ids?.length) {
           return [];
         }
 
