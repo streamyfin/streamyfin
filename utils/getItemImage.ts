@@ -1,7 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type { ImageSource } from "expo-image";
-import { getCustomHeaders } from "./jellyfin/jellyfin";
+import { getAuthHeaders, getCustomHeaders } from "./jellyfin/jellyfin";
 
 interface Props {
   item: BaseItemDto;
@@ -29,7 +29,9 @@ export const getItemImage = ({
 }: Props) => {
   if (!api) return null;
 
-  const headers = getCustomHeaders(api.basePath);
+  const authHeaders = getAuthHeaders(api);
+  const customHeaders = getCustomHeaders(api.basePath);
+  const headers = { ...authHeaders, ...customHeaders };
   const headersOrUndefined =
     Object.keys(headers).length > 0 ? headers : undefined;
 
