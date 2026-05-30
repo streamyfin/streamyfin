@@ -1,11 +1,5 @@
-import {
-  Button,
-  Host,
-  Menu,
-  Picker,
-  Text as SwiftUIText,
-} from "@expo/ui/swift-ui";
-import { disabled, tag } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import { disabled } from "@expo/ui/swift-ui/modifiers";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useState } from "react";
@@ -299,41 +293,40 @@ const PlatformDropdownComponent = ({
 
               const items = [];
 
-              // Add Picker for radio options ONLY if there's a group title
+              // Group radio options under a submenu ONLY if there's a title
               // Otherwise render as individual buttons
               if (radioOptions.length > 0) {
                 if (group.title) {
-                  // Use Picker for grouped options.
-                  // Use the option index (a stable primitive) as the
-                  // tag/selection value and React key. Option `value`s can be
-                  // objects (e.g. bitrate / media source), which collapse to
-                  // "[object Object]" as a key and never match the Picker's
-                  // primitive selection.
-                  const selectedRadioIndex = radioOptions.findIndex(
+                  // Use a nested Menu as a submenu for grouped options. This
+                  // reads as "Title: Selected" and expands to the choices on
+                  // tap, keeping the nested look while staying a dropdown.
+                  // (Menu opens on a single tap and nests cleanly; ContextMenu
+                  // would require a long-press and read as a context menu.)
+                  const selectedOption = radioOptions.find(
                     (opt) => opt.selected,
                   );
+                  const displayTitle = selectedOption
+                    ? `${group.title}: ${selectedOption.label}`
+                    : group.title;
                   items.push(
-                    <Picker
-                      key={`picker-${groupIndex}`}
-                      label={group.title}
-                      selection={
-                        selectedRadioIndex >= 0 ? selectedRadioIndex : undefined
-                      }
-                      onSelectionChange={(index) => {
-                        const selectedOption = radioOptions[index as number];
-                        selectedOption?.onPress();
-                        onOptionSelect?.(selectedOption?.value);
-                      }}
-                    >
-                      {radioOptions.map((opt, optionIndex) => (
-                        <SwiftUIText
+                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
+                      {radioOptions.map((option, optionIndex) => (
+                        <Button
                           key={`radio-${groupIndex}-${optionIndex}`}
-                          modifiers={[tag(optionIndex)]}
-                        >
-                          {opt.label}
-                        </SwiftUIText>
+                          label={option.label}
+                          systemImage={
+                            option.selected ? "checkmark.circle.fill" : "circle"
+                          }
+                          modifiers={
+                            option.disabled ? [disabled(true)] : undefined
+                          }
+                          onPress={() => {
+                            option.onPress();
+                            onOptionSelect?.(option.value);
+                          }}
+                        />
                       ))}
-                    </Picker>,
+                    </Menu>,
                   );
                 } else {
                   // Render radio options as direct buttons
