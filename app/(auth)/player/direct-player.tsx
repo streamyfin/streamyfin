@@ -822,12 +822,10 @@ export default function DirectPlayerPage() {
     ],
   );
 
-  /** PiP handler for MPV */
   const _onPictureInPictureChange = useCallback(
     (e: { nativeEvent: { isActive: boolean } }) => {
       const { isActive } = e.nativeEvent;
       setIsPipMode(isActive);
-      // Hide controls when entering PiP
       if (isActive) {
         _setShowControls(false);
       }
@@ -845,6 +843,9 @@ export default function DirectPlayerPage() {
 
   // Memoize video ref functions to prevent unnecessary re-renders
   const startPictureInPicture = useCallback(async () => {
+    // Hide controls BEFORE entering PiP so the window captures a clean view
+    _setShowControls(false);
+    setIsPipMode(true);
     return videoRef.current?.startPictureInPicture?.();
   }, []);
 
@@ -1247,6 +1248,7 @@ export default function DirectPlayerPage() {
                 nowPlayingMetadata={nowPlayingMetadata}
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
+                onPictureInPictureChange={_onPictureInPictureChange}
                 onLoad={() => setIsVideoLoaded(true)}
                 onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                   console.error("Video Error:", e.nativeEvent);
