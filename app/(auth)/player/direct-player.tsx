@@ -185,11 +185,11 @@ export default function DirectPlayerPage() {
     return undefined;
   }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
 
-  // Initialize TV audio/subtitle indices from URL params
+  // Initialize TV audio/subtitle indices from URL params.
+  // No undefined guard: when a new episode's URL omits audioIndex, reset to
+  // undefined (media default) rather than leaking the previous episode's track.
   useEffect(() => {
-    if (audioIndex !== undefined) {
-      setCurrentAudioIndex(audioIndex);
-    }
+    setCurrentAudioIndex(audioIndex);
   }, [audioIndex]);
 
   useEffect(() => {
@@ -470,8 +470,11 @@ export default function DirectPlayerPage() {
 
     return {
       ItemId: item.Id,
-      AudioStreamIndex: audioIndex ? audioIndex : undefined,
-      SubtitleStreamIndex: subtitleIndex ? subtitleIndex : undefined,
+      // Report the live selection so server-side session/resume state reflects
+      // mid-playback track changes. Note: index 0 is valid (don't treat as
+      // falsy); -1 means "off" and is reported as-is.
+      AudioStreamIndex: currentAudioIndex,
+      SubtitleStreamIndex: currentSubtitleIndex,
       MediaSourceId: mediaSourceId,
       PositionTicks: msToTicks(progress.get()),
       IsPaused: !isPlaying,
@@ -485,8 +488,8 @@ export default function DirectPlayerPage() {
   }, [
     stream,
     item?.Id,
-    audioIndex,
-    subtitleIndex,
+    currentAudioIndex,
+    currentSubtitleIndex,
     mediaSourceId,
     progress,
     isPlaying,
@@ -553,8 +556,8 @@ export default function DirectPlayerPage() {
     },
     [
       item?.Id,
-      audioIndex,
-      subtitleIndex,
+      currentAudioIndex,
+      currentSubtitleIndex,
       mediaSourceId,
       isPlaying,
       stream,
@@ -1009,8 +1012,9 @@ export default function DirectPlayerPage() {
       subtitleIndex: defaultSubtitleIndex,
     } = getDefaultPlaySettings(previousItem, settings, {
       indexes: {
-        subtitleIndex: subtitleIndex,
-        audioIndex: audioIndex,
+        // Use the live selection, not the stale URL params (see goToNextItem).
+        subtitleIndex: currentSubtitleIndex,
+        audioIndex: currentAudioIndex,
       },
       source: stream?.mediaSource ?? undefined,
     });
@@ -1029,8 +1033,8 @@ export default function DirectPlayerPage() {
   }, [
     previousItem,
     settings,
-    subtitleIndex,
-    audioIndex,
+    currentSubtitleIndex,
+    currentAudioIndex,
     stream?.mediaSource,
     bitrateValue,
     router,
@@ -1075,8 +1079,10 @@ export default function DirectPlayerPage() {
       subtitleIndex: defaultSubtitleIndex,
     } = getDefaultPlaySettings(nextItem, settings, {
       indexes: {
-        subtitleIndex: subtitleIndex,
-        audioIndex: audioIndex,
+        // Use the live selection (updated when the user changes tracks
+        // mid-playback), not the stale URL params the episode started with.
+        subtitleIndex: currentSubtitleIndex,
+        audioIndex: currentAudioIndex,
       },
       source: stream?.mediaSource ?? undefined,
     });
@@ -1095,8 +1101,8 @@ export default function DirectPlayerPage() {
   }, [
     nextItem,
     settings,
-    subtitleIndex,
-    audioIndex,
+    currentSubtitleIndex,
+    currentAudioIndex,
     stream?.mediaSource,
     bitrateValue,
     router,

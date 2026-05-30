@@ -233,14 +233,8 @@ export const Controls: FC<Props> = ({
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
   const router = useRouter();
-  const {
-    bitrateValue,
-    subtitleIndex: paramSubtitleIndex,
-    audioIndex: paramAudioIndex,
-  } = useLocalSearchParams<{
+  const { bitrateValue } = useLocalSearchParams<{
     bitrateValue: string;
-    subtitleIndex: string;
-    audioIndex: string;
   }>();
 
   const { nextItem: internalNextItem } = usePlaybackManager({
@@ -583,10 +577,22 @@ export const Controls: FC<Props> = ({
 
   const handleOpenSubtitleSheet = useCallback(() => {
     setLastOpenedModal("subtitle");
-    // Filter out the "Disable" option from VideoContext tracks since the modal adds its own "None" option
-    const tracksWithoutDisable = (videoContextSubtitleTracks ?? []).filter(
-      (track) => track.index !== -1,
-    );
+    // Filter out the "Disable" option from VideoContext tracks since the modal adds its own "None" option.
+    // Wrap each setTrack so selecting a subtitle ALSO updates the player's live
+    // index via onSubtitleIndexChange. The modal is a separate route, so the
+    // VideoContext router.setParams inside setTrack targets the modal — not the
+    // player — leaving currentSubtitleIndex stale. Without this sync, the next
+    // episode carries the previously-shown subtitle instead of the one the user
+    // just picked. (The audio sheet already uses onAudioIndexChange directly.)
+    const tracksWithoutDisable = (videoContextSubtitleTracks ?? [])
+      .filter((track) => track.index !== -1)
+      .map((track) => ({
+        ...track,
+        setTrack: () => {
+          track.setTrack();
+          onSubtitleIndexChange?.(track.index);
+        },
+      }));
     showSubtitleModal({
       item,
       mediaSourceId: mediaSource?.Id,
@@ -598,6 +604,7 @@ export const Controls: FC<Props> = ({
           (t) => t.index === -1,
         );
         disableTrack?.setTrack();
+        onSubtitleIndexChange?.(-1);
       },
       onLocalSubtitleDownloaded: handleLocalSubtitleDownloaded,
       refreshSubtitleTracks: onRefreshSubtitleTracks
@@ -611,6 +618,7 @@ export const Controls: FC<Props> = ({
     mediaSource?.Id,
     videoContextSubtitleTracks,
     subtitleIndex,
+    onSubtitleIndexChange,
     handleLocalSubtitleDownloaded,
     onRefreshSubtitleTracks,
     refreshSubtitleTracks,
@@ -1031,13 +1039,12 @@ export const Controls: FC<Props> = ({
         return;
       }
 
+      // Use the live selection passed down from the player (currentSubtitleIndex
+      // / currentAudioIndex), not the stale URL params the episode started with.
+      // This path runs on autoplay; the manual "Next" button uses goToNextItemProp.
       const previousIndexes = {
-        subtitleIndex: paramSubtitleIndex
-          ? Number.parseInt(paramSubtitleIndex, 10)
-          : undefined,
-        audioIndex: paramAudioIndex
-          ? Number.parseInt(paramAudioIndex, 10)
-          : undefined,
+        subtitleIndex,
+        audioIndex,
       };
 
       const {
@@ -1064,8 +1071,8 @@ export const Controls: FC<Props> = ({
     [
       nextItem,
       settings,
-      paramSubtitleIndex,
-      paramAudioIndex,
+      subtitleIndex,
+      audioIndex,
       mediaSource,
       bitrateValue,
       router,
