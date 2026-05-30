@@ -63,6 +63,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const progress = useSharedValue(0);
+  const cancelled = useSharedValue(false);
   const onFinishRef = useRef(onFinish);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({
@@ -120,13 +121,15 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
       return;
     }
 
+    cancelled.value = false;
+
     // Resume from current position
     const remainingDuration = (1 - progress.value) * 8000;
     progress.value = withTiming(
       1,
       { duration: remainingDuration, easing: Easing.linear },
       (finished) => {
-        if (finished) {
+        if (finished && !cancelled.value) {
           runOnJS(onFinishRef.current)();
         }
       },
@@ -134,9 +137,10 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
 
     // Cancel animation on unmount to prevent onFinish from firing after exit
     return () => {
+      cancelled.value = true;
       cancelAnimation(progress);
     };
-  }, [show, isPlaying, progress]);
+  }, [show, isPlaying, progress, cancelled]);
 
   const progressStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
