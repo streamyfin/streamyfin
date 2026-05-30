@@ -35,6 +35,7 @@ import { Loader } from "@/components/Loader";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import {
@@ -85,6 +86,10 @@ export const Home = () => {
   } = useNetworkStatus();
   const _invalidateCache = useInvalidatePlaybackProgressCache();
   const { showItemActions } = useTVItemActionModal();
+
+  // Fallback refresh for newly added content when returning to the home screen
+  // (primary path is the LibraryChanged WebSocket event).
+  useRefreshLibraryOnFocus();
 
   // Dynamic backdrop state with debounce
   const [focusedItem, setFocusedItem] = useState<BaseItemDto | null>(null);
