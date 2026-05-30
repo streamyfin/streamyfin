@@ -20,6 +20,8 @@ interface TVSearchSectionProps extends ViewProps {
   onItemPress: (item: BaseItemDto) => void;
   onItemLongPress?: (item: BaseItemDto) => void;
   imageUrlGetter?: (item: BaseItemDto) => string | undefined;
+  /** Override the horizontal edge padding (defaults to the scaled TV padding). */
+  horizontalPadding?: number;
 }
 
 export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
@@ -31,12 +33,14 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
   onItemPress,
   onItemLongPress,
   imageUrlGetter,
+  horizontalPadding,
   ...props
 }) => {
   const typography = useScaledTVTypography();
   const posterSizes = useScaledTVPosterSizes();
   const sizes = useScaledTVSizes();
   const ITEM_GAP = sizes.gaps.item;
+  const edgePadding = horizontalPadding ?? sizes.padding.horizontal;
   const flatListRef = useRef<FlatList<BaseItemDto>>(null);
   const [focusedCount, setFocusedCount] = useState(0);
   const prevFocusedCount = useRef(0);
@@ -273,7 +277,7 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
           fontWeight: "700",
           color: "#FFFFFF",
           marginBottom: 20,
-          marginLeft: sizes.padding.horizontal,
+          marginLeft: edgePadding,
           letterSpacing: 0.5,
         }}
       >
@@ -294,10 +298,10 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
         getItemLayout={getItemLayout}
         style={{ overflow: "visible" }}
         contentInset={{
-          left: sizes.padding.horizontal,
-          right: sizes.padding.horizontal,
+          left: edgePadding,
+          right: edgePadding,
         }}
-        contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
+        contentOffset={{ x: -edgePadding, y: 0 }}
         contentContainerStyle={{
           paddingVertical: SCALE_PADDING,
         }}
