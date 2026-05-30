@@ -3,11 +3,11 @@ import {
   type NativeBottomTabNavigationEventMap,
   type NativeBottomTabNavigationOptions,
 } from "@bottom-tabs/react-navigation";
+import { withLayoutContext } from "expo-router";
 import type {
   ParamListBase,
   TabNavigationState,
-} from "@react-navigation/native";
-import { withLayoutContext } from "expo-router";
+} from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
