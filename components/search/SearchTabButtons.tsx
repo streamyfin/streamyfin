@@ -1,7 +1,6 @@
-import { Button, Host } from "@expo/ui/swift-ui";
+import { Button, Host, HStack, Spacer } from "@expo/ui/swift-ui";
 import { buttonStyle } from "@expo/ui/swift-ui/modifiers";
 import { Platform, TouchableOpacity, View } from "react-native";
-import { Text } from "@/components/common/Text";
 import { Tag } from "@/components/GenreTags";
 
 type SearchType = "Library" | "Discover";
@@ -19,16 +18,8 @@ export const SearchTabButtons: React.FC<SearchTabButtonsProps> = ({
 }) => {
   if (Platform.OS === "ios") {
     return (
-      <>
-        <Host
-          style={{
-            height: 40,
-            width: 80,
-            flexDirection: "row",
-            gap: 10,
-            justifyContent: "space-between",
-          }}
-        >
+      <Host style={{ height: 40, flex: 1 }}>
+        <HStack spacing={8}>
           <Button
             modifiers={[
               buttonStyle(
@@ -36,19 +27,8 @@ export const SearchTabButtons: React.FC<SearchTabButtonsProps> = ({
               ),
             ]}
             onPress={() => setSearchType("Library")}
-          >
-            <Text>{t("search.library")}</Text>
-          </Button>
-        </Host>
-        <Host
-          style={{
-            height: 40,
-            width: 100,
-            flexDirection: "row",
-            gap: 10,
-            justifyContent: "space-between",
-          }}
-        >
+            label={t("search.library")}
+          />
           <Button
             modifiers={[
               buttonStyle(
@@ -56,11 +36,11 @@ export const SearchTabButtons: React.FC<SearchTabButtonsProps> = ({
               ),
             ]}
             onPress={() => setSearchType("Discover")}
-          >
-            <Text>{t("search.discover")}</Text>
-          </Button>
-        </Host>
-      </>
+            label={t("search.discover")}
+          />
+          <Spacer />
+        </HStack>
+      </Host>
     );
   }
 
