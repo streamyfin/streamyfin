@@ -341,6 +341,17 @@
           "tv_quota_days": "TV Quota Days",
           "reset_jellyseerr_config_button": "Reset Seerr Config",
           "unlimited": "Unlimited",
+          "auth_method": "Authentication Method",
+          "auth_methods": {
+            "jellyfin": "Jellyfin",
+            "seerr": "Seerr",
+            "other": "Other"
+          },
+          "email": "Email",
+          "login_via_web": "Login via Web",
+          "login_via_web_hint": "Use this if you use SSO or other login methods not supported by username/password login.",
+          "web_login_title": "Seerr Web Login",
+          "web_login_done": "Done",
           "plus_n_more": "+{{n}} More",
           "order_by": {
             "DEFAULT": "Default",

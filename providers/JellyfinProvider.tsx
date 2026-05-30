@@ -296,7 +296,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                jellyseerrApi
+                  .jellyfinLogin(username, password)
+                  .then(setJellyseerrUser);
               }
             });
           }
