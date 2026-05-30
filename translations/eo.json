@@ -415,7 +415,15 @@
     "movies": "Filmoj",
     "sports": "Sportoj",
     "for_kids": "Por Infanoj",
-    "news": "Novaĵoj"
+    "news": "Novaĵoj",
+    "programs": "Programoj",
+    "guide": "Gvidilo",
+    "channels": "Kanaloj",
+    "recordings": "Registradoj",
+    "favorite_add": "Aldoni al favoratoj",
+    "favorite_remove": "Forigi el favoratoj",
+    "favorite_add_confirm": "Aldoni \"{{name}}\" al viaj favoratoj?",
+    "favorite_remove_confirm": "Forigi \"{{name}}\" el viaj favoratoj?"
   },
   "jellyseerr": {
     "confirm": "Konfirmi",
@@ -471,6 +479,7 @@
     "search": "Serĉi",
     "library": "Biblioteko",
     "custom_links": "Propraj Ligiloj",
-    "favorites": "Favoratoj"
+    "favorites": "Favoratoj",
+    "live_tv": "Live TV"
   }
 }

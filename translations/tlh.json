@@ -652,7 +652,15 @@
     "movies": "DIS",
     "sports": "QI'",
     "for_kids": "puqbeq",
-    "news": "De'"
+    "news": "De'",
+    "programs": "Programs",
+    "guide": "Guide",
+    "channels": "Channels",
+    "recordings": "Recordings",
+    "favorite_add": "Add to Favorites",
+    "favorite_remove": "Remove from Favorites",
+    "favorite_add_confirm": "Add \"{{name}}\" to your favorites?",
+    "favorite_remove_confirm": "Remove \"{{name}}\" from your favorites?"
   },
   "jellyseerr": {
     "confirm": "yInej",
@@ -716,7 +724,8 @@
     "search": "Sam",
     "library": "De'wI' bom",
     "custom_links": "teqlu' ret",
-    "favorites": "wIv Doch"
+    "favorites": "wIv Doch",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

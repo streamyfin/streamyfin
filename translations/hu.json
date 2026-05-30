@@ -652,7 +652,15 @@
     "movies": "Filmek",
     "sports": "Sport",
     "for_kids": "Gyerekeknek",
-    "news": "Hírek"
+    "news": "Hírek",
+    "programs": "Műsorok",
+    "guide": "Műsorfüzet",
+    "channels": "Csatornák",
+    "recordings": "Felvételek",
+    "favorite_add": "Hozzáadás a kedvencekhez",
+    "favorite_remove": "Eltávolítás a kedvencekből",
+    "favorite_add_confirm": "\"{{name}}\" hozzáadása a kedvenceidhez?",
+    "favorite_remove_confirm": "\"{{name}}\" eltávolítása a kedvenceidből?"
   },
   "jellyseerr": {
     "confirm": "Megerősítés",
@@ -716,7 +724,8 @@
     "search": "Keresés",
     "library": "Könyvtár",
     "custom_links": "Egyéni Linkek",
-    "favorites": "Kedvencek"
+    "favorites": "Kedvencek",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

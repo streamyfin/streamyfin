@@ -652,7 +652,15 @@
     "movies": "أفلام",
     "sports": "رياضة",
     "for_kids": "للأطفال",
-    "news": "أخبار"
+    "news": "أخبار",
+    "programs": "البرامج",
+    "guide": "الدليل",
+    "channels": "القنوات",
+    "recordings": "التسجيلات",
+    "favorite_add": "إضافة إلى المفضلة",
+    "favorite_remove": "إزالة من المفضلة",
+    "favorite_add_confirm": "إضافة \"{{name}}\" إلى مفضلتك؟",
+    "favorite_remove_confirm": "إزالة \"{{name}}\" من مفضلتك؟"
   },
   "jellyseerr": {
     "confirm": "تأكيد",
@@ -716,7 +724,8 @@
     "search": "بحث",
     "library": "المكتبة",
     "custom_links": "روابط مخصصة",
-    "favorites": "المفضلة"
+    "favorites": "المفضلة",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

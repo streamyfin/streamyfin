@@ -652,7 +652,15 @@
     "movies": "סרטים",
     "sports": "ספורט",
     "for_kids": "לילדים",
-    "news": "חדשות"
+    "news": "חדשות",
+    "programs": "תוכניות",
+    "guide": "מדריך",
+    "channels": "ערוצים",
+    "recordings": "הקלטות",
+    "favorite_add": "הוסף למועדפים",
+    "favorite_remove": "הסר מהמועדפים",
+    "favorite_add_confirm": "להוסיף את \"{{name}}\" למועדפים שלך?",
+    "favorite_remove_confirm": "להסיר את \"{{name}}\" מהמועדפים שלך?"
   },
   "jellyseerr": {
     "confirm": "אשר",
@@ -716,7 +724,8 @@
     "search": "חיפוש",
     "library": "ספריה",
     "custom_links": "קישורים מותאמים אישית",
-    "favorites": "מועדפים"
+    "favorites": "מועדפים",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

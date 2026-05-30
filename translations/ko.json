@@ -652,7 +652,15 @@
     "movies": "Movies",
     "sports": "Sports",
     "for_kids": "For Kids",
-    "news": "News"
+    "news": "News",
+    "programs": "프로그램",
+    "guide": "편성표",
+    "channels": "채널",
+    "recordings": "녹화",
+    "favorite_add": "즐겨찾기에 추가",
+    "favorite_remove": "즐겨찾기에서 제거",
+    "favorite_add_confirm": "\"{{name}}\" 을(를) 즐겨찾기에 추가하시겠습니까?",
+    "favorite_remove_confirm": "\"{{name}}\" 을(를) 즐겨찾기에서 제거하시겠습니까?"
   },
   "jellyseerr": {
     "confirm": "Confirm",
@@ -716,7 +724,8 @@
     "search": "Search",
     "library": "Library",
     "custom_links": "Custom Links",
-    "favorites": "Favorites"
+    "favorites": "Favorites",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

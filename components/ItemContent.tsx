@@ -47,10 +47,11 @@ export type SelectedOptions = {
 interface ItemContentProps {
   item: BaseItemDto;
   itemWithSources?: BaseItemDto | null;
+  channelForFavorite?: BaseItemDto | null;
 }
 
 export const ItemContent: React.FC<ItemContentProps> = React.memo(
-  ({ item, itemWithSources }) => {
+  ({ item, itemWithSources, channelForFavorite }) => {
     const [api] = useAtom(apiAtom);
     const isOffline = useOfflineMode();
     const { settings } = useSettings();
@@ -104,6 +105,8 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
       defaultMediaSource,
     ]);
 
+    const favoriteItem = channelForFavorite ?? item;
+
     useEffect(() => {
       if (!Platform.isTV && itemWithSources) {
         navigation.setOptions({
@@ -112,52 +115,61 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
             (Platform.OS === "ios" ? (
               <View className='flex flex-row items-center pl-2'>
                 <Chromecast.Chromecast width={22} height={22} />
-                {item.Type !== "Program" && (
-                  <View className='flex flex-row items-center'>
-                    {!Platform.isTV && (
-                      <DownloadSingleItem item={itemWithSources} size='large' />
-                    )}
-                    {user?.Policy?.IsAdministrator &&
-                      !settings.hideRemoteSessionButton && (
-                        <PlayInRemoteSessionButton item={item} size='large' />
+                <AddToFavorites item={favoriteItem} />
+                {item.Type !== "Program" &&
+                  item.Type !== "TvChannel" &&
+                  item.Type !== "LiveTvChannel" && (
+                    <View className='flex flex-row items-center'>
+                      {!Platform.isTV && (
+                        <DownloadSingleItem
+                          item={itemWithSources}
+                          size='large'
+                        />
                       )}
-
-                    <PlayedStatus items={[item]} size='large' />
-                    <AddToFavorites item={item} />
-                    {settings.streamyStatsServerUrl &&
-                      !settings.hideWatchlistsTab && (
-                        <AddToWatchlist item={item} />
-                      )}
-                  </View>
-                )}
+                      {user?.Policy?.IsAdministrator &&
+                        !settings.hideRemoteSessionButton && (
+                          <PlayInRemoteSessionButton item={item} size='large' />
+                        )}
+                      <PlayedStatus items={[item]} size='large' />
+                      {settings.streamyStatsServerUrl &&
+                        !settings.hideWatchlistsTab && (
+                          <AddToWatchlist item={item} />
+                        )}
+                    </View>
+                  )}
               </View>
             ) : (
               <View className='flex flex-row items-center space-x-2'>
                 <Chromecast.Chromecast width={22} height={22} />
-                {item.Type !== "Program" && (
-                  <View className='flex flex-row items-center space-x-2'>
-                    {!Platform.isTV && (
-                      <DownloadSingleItem item={itemWithSources} size='large' />
-                    )}
-                    {user?.Policy?.IsAdministrator &&
-                      !settings.hideRemoteSessionButton && (
-                        <PlayInRemoteSessionButton item={item} size='large' />
+                <AddToFavorites item={favoriteItem} />
+                {item.Type !== "Program" &&
+                  item.Type !== "TvChannel" &&
+                  item.Type !== "LiveTvChannel" && (
+                    <View className='flex flex-row items-center space-x-2'>
+                      {!Platform.isTV && (
+                        <DownloadSingleItem
+                          item={itemWithSources}
+                          size='large'
+                        />
                       )}
-
-                    <PlayedStatus items={[item]} size='large' />
-                    <AddToFavorites item={item} />
-                    {settings.streamyStatsServerUrl &&
-                      !settings.hideWatchlistsTab && (
-                        <AddToWatchlist item={item} />
-                      )}
-                  </View>
-                )}
+                      {user?.Policy?.IsAdministrator &&
+                        !settings.hideRemoteSessionButton && (
+                          <PlayInRemoteSessionButton item={item} size='large' />
+                        )}
+                      <PlayedStatus items={[item]} size='large' />
+                      {settings.streamyStatsServerUrl &&
+                        !settings.hideWatchlistsTab && (
+                          <AddToWatchlist item={item} />
+                        )}
+                    </View>
+                  )}
               </View>
             )),
         });
       }
     }, [
       item,
+      favoriteItem,
       navigation,
       user,
       itemWithSources,
@@ -190,16 +202,18 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
           headerHeight={headerHeight}
           headerImage={
             <View style={[{ flex: 1 }]}>
-              <ItemImage
-                variant={
-                  item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
-                }
-                item={item}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                }}
-              />
+              {item.Type !== "TvChannel" && item.Type !== "LiveTvChannel" && (
+                <ItemImage
+                  variant={
+                    item.Type === "Movie" && logoUrl ? "Backdrop" : "Primary"
+                  }
+                  item={item}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                />
+              )}
             </View>
           }
           logo={
@@ -254,17 +268,19 @@ export const ItemContent: React.FC<ItemContentProps> = React.memo(
 
             <OverviewText text={item.Overview} className='px-4 mb-4' />
 
-            {item.Type !== "Program" && (
-              <>
-                {item.Type === "Episode" && !isOffline && (
-                  <CurrentSeries item={item} className='mb-2' />
-                )}
+            {item.Type !== "Program" &&
+              item.Type !== "TvChannel" &&
+              item.Type !== "LiveTvChannel" && (
+                <>
+                  {item.Type === "Episode" && !isOffline && (
+                    <CurrentSeries item={item} className='mb-2' />
+                  )}
 
-                <ItemPeopleSections item={item} />
+                  <ItemPeopleSections item={item} />
 
-                {!isOffline && <SimilarItems itemId={item.Id} />}
-              </>
-            )}
+                  {!isOffline && <SimilarItems itemId={item.Id} />}
+                </>
+              )}
           </View>
         </ParallaxScrollView>
       </View>

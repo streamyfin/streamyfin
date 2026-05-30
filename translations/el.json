@@ -652,7 +652,15 @@
     "movies": "Ταινίες",
     "sports": "Αθλητισμός",
     "for_kids": "Για Παιδιά",
-    "news": "Νέα"
+    "news": "Νέα",
+    "programs": "Προγράμματα",
+    "guide": "Οδηγός",
+    "channels": "Κανάλια",
+    "recordings": "Εγγραφές",
+    "favorite_add": "Προσθήκη στα αγαπημένα",
+    "favorite_remove": "Αφαίρεση από τα αγαπημένα",
+    "favorite_add_confirm": "Προσθήκη \"{{name}}\" στα αγαπημένα σου;",
+    "favorite_remove_confirm": "Αφαίρεση \"{{name}}\" από τα αγαπημένα σου;"
   },
   "jellyseerr": {
     "confirm": "Επιβεβαίωση",
@@ -716,7 +724,8 @@
     "search": "Αναζήτηση",
     "library": "Βιβλιοθήκη",
     "custom_links": "Προσαρμοσμένοι Σύνδεσμοι",
-    "favorites": "Αγαπημένα"
+    "favorites": "Αγαπημένα",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

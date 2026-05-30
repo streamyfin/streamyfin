@@ -652,7 +652,15 @@
     "movies": "Phim",
     "sports": "Thể thao",
     "for_kids": "Dành cho trẻ em",
-    "news": "Tin tức"
+    "news": "Tin tức",
+    "programs": "Chương trình",
+    "guide": "Hướng dẫn",
+    "channels": "Kênh",
+    "recordings": "Ghi hình",
+    "favorite_add": "Thêm vào yêu thích",
+    "favorite_remove": "Xóa khỏi yêu thích",
+    "favorite_add_confirm": "Thêm \"{{name}}\" vào danh sách yêu thích của bạn?",
+    "favorite_remove_confirm": "Xóa \"{{name}}\" khỏi danh sách yêu thích của bạn?"
   },
   "jellyseerr": {
     "confirm": "Xác nhận",
@@ -716,7 +724,8 @@
     "search": "Tìm kiếm",
     "library": "Thư viện",
     "custom_links": "Liên kết tùy chỉnh",
-    "favorites": "Yêu thích"
+    "favorites": "Yêu thích",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

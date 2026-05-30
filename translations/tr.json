@@ -652,7 +652,15 @@
     "movies": "Filmler",
     "sports": "Spor",
     "for_kids": "Çocuklar İçin",
-    "news": "Haberler"
+    "news": "Haberler",
+    "programs": "Programlar",
+    "guide": "Rehber",
+    "channels": "Kanallar",
+    "recordings": "Kayıtlar",
+    "favorite_add": "Favorilere ekle",
+    "favorite_remove": "Favorilerden kaldır",
+    "favorite_add_confirm": "\"{{name}}\" favorilerinize eklensin mi?",
+    "favorite_remove_confirm": "\"{{name}}\" favorilerinizden kaldırılsın mı?"
   },
   "jellyseerr": {
     "confirm": "Onayla",
@@ -716,7 +724,8 @@
     "search": "Ara",
     "library": "Kütüphane",
     "custom_links": "Özel Bağlantılar",
-    "favorites": "Favoriler"
+    "favorites": "Favoriler",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Müzik",

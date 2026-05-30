@@ -652,7 +652,15 @@
     "movies": "Фільми",
     "sports": "Спорт",
     "for_kids": "Для дітей",
-    "news": "Новини"
+    "news": "Новини",
+    "programs": "Програми",
+    "guide": "Гід",
+    "channels": "Канали",
+    "recordings": "Записи",
+    "favorite_add": "Додати до улюблених",
+    "favorite_remove": "Видалити з улюблених",
+    "favorite_add_confirm": "Додати \"{{name}}\" до улюблених?",
+    "favorite_remove_confirm": "Видалити \"{{name}}\" з улюблених?"
   },
   "jellyseerr": {
     "confirm": "Підтвердити",
@@ -716,7 +724,8 @@
     "search": "Пошук",
     "library": "Медіатека",
     "custom_links": "Ваші Посилання",
-    "favorites": "Улюблене"
+    "favorites": "Улюблене",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

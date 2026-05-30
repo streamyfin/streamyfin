@@ -412,7 +412,15 @@
     "movies": "电影",
     "sports": "体育",
     "for_kids": "儿童",
-    "news": "新闻"
+    "news": "新闻",
+    "programs": "节目",
+    "guide": "节目单",
+    "channels": "频道",
+    "recordings": "录制",
+    "favorite_add": "添加到收藏",
+    "favorite_remove": "从收藏中移除",
+    "favorite_add_confirm": "将\"{{name}}\"添加到收藏夹？",
+    "favorite_remove_confirm": "将\"{{name}}\"从收藏夹中移除？"
   },
   "jellyseerr": {
     "confirm": "确认",
@@ -468,6 +476,7 @@
     "search": "搜索",
     "library": "媒体库",
     "custom_links": "自定义链接",
-    "favorites": "收藏"
+    "favorites": "收藏",
+    "live_tv": "Live TV"
   }
 }

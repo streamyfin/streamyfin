@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { View, type ViewProps } from "react-native";
+import { Text } from "@/components/common/Text";
 import { GenreTags } from "./GenreTags";
 import { MoviesTitleHeader } from "./movies/MoviesTitleHeader";
 import { Ratings } from "./Ratings";
@@ -42,6 +43,16 @@ export const ItemHeader: React.FC<Props> = ({ item, ...props }) => {
           <View>
             <MoviesTitleHeader item={item} />
             <GenreTags genres={item.Genres!} />
+          </View>
+        )}
+        {(item.Type === "Program" || item.Type === "TvChannel") && (
+          <View>
+            <Text selectable className='font-bold text-2xl mb-1'>
+              {item.Name}
+            </Text>
+            {item.Type === "Program" && item.ChannelName && (
+              <Text className='opacity-50'>{item.ChannelName}</Text>
+            )}
           </View>
         )}
       </View>

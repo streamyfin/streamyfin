@@ -652,7 +652,15 @@
     "movies": "Film",
     "sports": "Sport",
     "for_kids": "For børn",
-    "news": "Nyheder"
+    "news": "Nyheder",
+    "programs": "Programmer",
+    "guide": "Guide",
+    "channels": "Kanaler",
+    "recordings": "Optagelser",
+    "favorite_add": "Tilføj til favoritter",
+    "favorite_remove": "Fjern fra favoritter",
+    "favorite_add_confirm": "Tilføj \"{{name}}\" til dine favoritter?",
+    "favorite_remove_confirm": "Fjern \"{{name}}\" fra dine favoritter?"
   },
   "jellyseerr": {
     "confirm": "Bekræft",
@@ -716,7 +724,8 @@
     "search": "Søg",
     "library": "Bibliotek",
     "custom_links": "Tilpassede links",
-    "favorites": "Favoritter"
+    "favorites": "Favoritter",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

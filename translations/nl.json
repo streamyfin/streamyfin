@@ -652,7 +652,15 @@
     "movies": "Films",
     "sports": "Sport",
     "for_kids": "Voor kinderen",
-    "news": "Nieuws"
+    "news": "Nieuws",
+    "programs": "Programma's",
+    "guide": "Gids",
+    "channels": "Kanalen",
+    "recordings": "Opnames",
+    "favorite_add": "Toevoegen aan favorieten",
+    "favorite_remove": "Verwijderen uit favorieten",
+    "favorite_add_confirm": "\"{{name}}\" toevoegen aan je favorieten?",
+    "favorite_remove_confirm": "\"{{name}}\" verwijderen uit je favorieten?"
   },
   "jellyseerr": {
     "confirm": "Bevestig",
@@ -716,7 +724,8 @@
     "search": "Zoeken",
     "library": "Bibliotheek",
     "custom_links": "Aangepaste links",
-    "favorites": "Favorieten"
+    "favorites": "Favorieten",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Muziek",

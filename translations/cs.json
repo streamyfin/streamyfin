@@ -652,7 +652,15 @@
     "movies": "Filmy",
     "sports": "Sporty",
     "for_kids": "Pro děti",
-    "news": "Novinky"
+    "news": "Novinky",
+    "programs": "Pořady",
+    "guide": "Průvodce",
+    "channels": "Kanály",
+    "recordings": "Nahrávky",
+    "favorite_add": "Přidat do oblíbených",
+    "favorite_remove": "Odebrat z oblíbených",
+    "favorite_add_confirm": "Přidat \"{{name}}\" do oblíbených?",
+    "favorite_remove_confirm": "Odebrat \"{{name}}\" z oblíbených?"
   },
   "jellyseerr": {
     "confirm": "Potvrdit",
@@ -716,7 +724,8 @@
     "search": "Hledat",
     "library": "Knihovna",
     "custom_links": "Vlastní odkazy",
-    "favorites": "Oblíbené"
+    "favorites": "Oblíbené",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

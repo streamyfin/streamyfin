@@ -652,7 +652,15 @@
     "movies": "映画",
     "sports": "スポーツ",
     "for_kids": "子供向け",
-    "news": "ニュース"
+    "news": "ニュース",
+    "programs": "番組",
+    "guide": "番組表",
+    "channels": "チャンネル",
+    "recordings": "録画",
+    "favorite_add": "お気に入りに追加",
+    "favorite_remove": "お気に入りから削除",
+    "favorite_add_confirm": "\"{{name}}\" をお気に入りに追加しますか？",
+    "favorite_remove_confirm": "\"{{name}}\" をお気に入りから削除しますか？"
   },
   "jellyseerr": {
     "confirm": "確認",
@@ -716,7 +724,8 @@
     "search": "検索",
     "library": "ライブラリ",
     "custom_links": "カスタムリンク",
-    "favorites": "お気に入り"
+    "favorites": "お気に入り",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

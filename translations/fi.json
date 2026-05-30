@@ -652,7 +652,15 @@
     "movies": "Elokuvat",
     "sports": "Urheilu",
     "for_kids": "Lapsille",
-    "news": "Uutiset"
+    "news": "Uutiset",
+    "programs": "Ohjelmat",
+    "guide": "Opas",
+    "channels": "Kanavat",
+    "recordings": "Tallenteet",
+    "favorite_add": "Lisää suosikkeihin",
+    "favorite_remove": "Poista suosikeista",
+    "favorite_add_confirm": "Lisätäänkö \"{{name}}\" suosikkeihisi?",
+    "favorite_remove_confirm": "Poistetaanko \"{{name}}\" suosikeistasi?"
   },
   "jellyseerr": {
     "confirm": "Vahvista",
@@ -716,7 +724,8 @@
     "search": "Haku",
     "library": "Kirjasto",
     "custom_links": "Mukautetut linkit",
-    "favorites": "Suosikit"
+    "favorites": "Suosikit",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Music",

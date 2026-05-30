@@ -652,7 +652,15 @@
     "movies": "Películas",
     "sports": "Deportes",
     "for_kids": "Para niños",
-    "news": "Noticias"
+    "news": "Noticias",
+    "programs": "Programas",
+    "guide": "Guía",
+    "channels": "Canales",
+    "recordings": "Grabaciones",
+    "favorite_add": "Añadir a favoritos",
+    "favorite_remove": "Eliminar de favoritos",
+    "favorite_add_confirm": "¿Añadir \"{{name}}\" a tus favoritos?",
+    "favorite_remove_confirm": "¿Eliminar \"{{name}}\" de tus favoritos?"
   },
   "jellyseerr": {
     "confirm": "Confirmar",
@@ -716,7 +724,8 @@
     "search": "Buscar",
     "library": "Bibliotecas",
     "custom_links": "Enlaces personalizados",
-    "favorites": "Favoritos"
+    "favorites": "Favoritos",
+    "live_tv": "Live TV"
   },
   "music": {
     "title": "Música",
