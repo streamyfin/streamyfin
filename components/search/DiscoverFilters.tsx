@@ -1,11 +1,5 @@
-import {
-  Button,
-  ContextMenu,
-  Host,
-  Picker,
-  Text as SwiftUIText,
-} from "@expo/ui/swift-ui";
-import { buttonStyle, tag } from "@expo/ui/swift-ui/modifiers";
+import { Button, Host, Menu } from "@expo/ui/swift-ui";
+import { buttonStyle } from "@expo/ui/swift-ui/modifiers";
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
@@ -47,42 +41,54 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           marginLeft: "auto",
         }}
       >
-        <ContextMenu>
-          <ContextMenu.Trigger>
+        <Menu
+          label={
             <Button
               modifiers={[buttonStyle("glass")]}
               systemImage='line.3.horizontal.decrease.circle'
-            ></Button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Items>
-            <Picker
-              label={t("library.filters.sort_by")}
-              selection={jellyseerrOrderBy as unknown as string}
-              onSelectionChange={(value) => {
-                setJellyseerrOrderBy(value as unknown as JellyseerrSearchSort);
-              }}
-            >
-              {sortOptions.map((item) => (
-                <SwiftUIText key={item} modifiers={[tag(item)]}>
-                  {t(`home.settings.plugins.jellyseerr.order_by.${item}`)}
-                </SwiftUIText>
-              ))}
-            </Picker>
-            <Picker
-              label={t("library.filters.sort_order")}
-              selection={jellyseerrSortOrder}
-              onSelectionChange={(value) => {
-                setJellyseerrSortOrder(value as "asc" | "desc");
-              }}
-            >
-              {orderOptions.map((item) => (
-                <SwiftUIText key={item} modifiers={[tag(item)]}>
-                  {t(`library.filters.${item}`)}
-                </SwiftUIText>
-              ))}
-            </Picker>
-          </ContextMenu.Items>
-        </ContextMenu>
+            />
+          }
+        >
+          <Menu
+            label={`${t("library.filters.sort_by")}: ${t(
+              `home.settings.plugins.jellyseerr.order_by.${jellyseerrOrderBy}`,
+            )}`}
+          >
+            {sortOptions.map((item) => {
+              const isSelected =
+                jellyseerrOrderBy === (item as unknown as JellyseerrSearchSort);
+              return (
+                <Button
+                  key={item}
+                  label={t(`home.settings.plugins.jellyseerr.order_by.${item}`)}
+                  systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
+                  onPress={() =>
+                    setJellyseerrOrderBy(
+                      item as unknown as JellyseerrSearchSort,
+                    )
+                  }
+                />
+              );
+            })}
+          </Menu>
+          <Menu
+            label={`${t("library.filters.sort_order")}: ${t(
+              `library.filters.${jellyseerrSortOrder}`,
+            )}`}
+          >
+            {orderOptions.map((item) => {
+              const isSelected = jellyseerrSortOrder === item;
+              return (
+                <Button
+                  key={item}
+                  label={t(`library.filters.${item}`)}
+                  systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
+                  onPress={() => setJellyseerrSortOrder(item)}
+                />
+              );
+            })}
+          </Menu>
+        </Menu>
       </Host>
     );
   }
