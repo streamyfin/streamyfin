@@ -188,6 +188,10 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
         checkError(mpv_set_option_string(handle, "hwdec-software-fallback", "yes"))
 
+        // Force NV12 pixel format for CoreImage compatibility (used by composite OSD for subtitles).
+        // CoreImage doesn't support y420 (planar YUV) but does support NV12 (420v biplanar).
+        checkError(mpv_set_option_string(handle, "vf", "format=fmt=nv12"))
+
         // Subtitle and audio settings
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
