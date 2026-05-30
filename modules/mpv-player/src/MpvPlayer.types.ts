@@ -25,6 +25,10 @@ export type OnErrorEventPayload = {
 
 export type OnTracksReadyEventPayload = Record<string, never>;
 
+export type OnPictureInPictureChangePayload = {
+  isActive: boolean;
+};
+
 export type NowPlayingMetadata = {
   title?: string;
   artist?: string;
@@ -77,6 +81,9 @@ export type MpvPlayerViewProps = {
   onProgress?: (event: { nativeEvent: OnProgressEventPayload }) => void;
   onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
+  onPictureInPictureChange?: (event: {
+    nativeEvent: OnPictureInPictureChangePayload;
+  }) => void;
 };
 
 export interface MpvPlayerViewRef {
