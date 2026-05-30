@@ -9,6 +9,7 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
@@ -195,9 +196,30 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         );
       }
       const downloadDetailsPromises = items.map(async (item) => {
+        // Ensure the snapshot we store offline carries the Chapters array.
+        // Page-level fetches sometimes use a fields filter that omits it; the
+        // offline player would then render no chapter ticks / list.
+        let itemForDownload = item;
+        if (!itemForDownload.Chapters && itemForDownload.Id) {
+          try {
+            const enriched = await getUserLibraryApi(api).getItem({
+              itemId: itemForDownload.Id,
+              userId: user.Id!,
+            });
+            if (enriched.data) {
+              itemForDownload = enriched.data;
+            }
+          } catch (e) {
+            console.warn(
+              "[DownloadItem] failed to refresh item for Chapters, falling back to original",
+              e,
+            );
+          }
+        }
+
         const { mediaSource, audioIndex, subtitleIndex } =
           itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!)
+            ? getDefaultPlaySettings(itemForDownload, settings!)
             : {
                 mediaSource: selectedOptions?.mediaSource,
                 audioIndex: selectedOptions?.audioIndex,
@@ -206,7 +228,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         const downloadDetails = await getDownloadUrl({
           api,
-          item,
+          item: itemForDownload,
           userId: user.Id!,
           mediaSource: mediaSource!,
           audioStreamIndex: audioIndex ?? -1,
@@ -218,7 +240,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         return {
           url: downloadDetails?.url,
-          item,
+          item: itemForDownload,
           mediaSource: downloadDetails?.mediaSource,
         };
       });
