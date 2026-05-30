@@ -684,11 +684,19 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                         MPVLib.command(arrayOf("sub-add", subUrl, "auto"))
                     }
                     pendingExternalSubtitles = emptyList()
-                    
-                    // Set subtitle after external subs are added
-                    initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
                 }
-                
+
+                // Apply the initial audio/subtitle selection now that the file's
+                // tracks are enumerated. Setting sid/aid before `loadfile` does not
+                // reliably stick for embedded tracks (the selection is silently
+                // dropped), so we (re)apply here for embedded and external alike.
+                // This is what makes a carried-over subtitle show up on the next
+                // episode without a manual re-selection.
+                if (initialAudioId != null && initialAudioId > 0) {
+                    setAudioTrack(initialAudioId)
+                }
+                initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
+
                 if (!isReadyToSeek) {
                     isReadyToSeek = true
                     mainHandler.post { delegate?.onReadyToSeek() }
