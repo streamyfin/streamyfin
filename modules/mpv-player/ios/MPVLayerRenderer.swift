@@ -220,20 +220,27 @@ final class MPVLayerRenderer {
         statusObservation?.invalidate()
         statusObservation = nil
         
-        queue.sync { [weak self] in
-            guard let self, let handle = self.mpv else { return }
-            
-            mpv_set_wakeup_callback(handle, nil, nil)
-            mpv_terminate_destroy(handle)
+        if let handle = self.mpv {
             self.mpv = nil
+            // Remove the wakeup callback synchronously while `self` is still
+            // alive so it can never fire against a deallocated instance.
+            mpv_set_wakeup_callback(handle, nil, nil)
+            // Destroy mpv OFF the main thread. mpv_terminate_destroy() blocks
+            // until all mpv threads (including the vo_avfoundation output thread)
+            // are joined, and that teardown needs the main run loop to finish.
+            // Calling it via queue.sync from deinit (main thread) deadlocks/freezes
+            // the UI. queue.async only references `handle`, never `self`.
+            queue.async {
+                mpv_terminate_destroy(handle)
+            }
         }
         
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+        let layer = self.displayLayer
+        DispatchQueue.main.async {
             if #available(iOS 18.0, *) {
-                self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
+                layer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
             } else {
-                self.displayLayer.flushAndRemoveImage()
+                layer.flushAndRemoveImage()
             }
         }
         
