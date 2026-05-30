@@ -236,37 +236,43 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
     
     /**
-     * Attach surface and re-enable video output.
-     * Based on Findroid's implementation.
+     * Attach surface and ensure video output is active.
+     *
+     * During PiP transitions, the surface is destroyed and recreated by Android.
+     * We keep the VO pipeline alive (not killed with vo=null) so that rendering
+     * resumes immediately when the new surface is attached — avoiding the black
+     * screen that occurs when the VO is fully re-initialized via setOptionString.
      */
     fun attachSurface(surface: Surface) {
         this.surface = surface
+        Log.i(TAG, "[PiP] attachSurface — isRunning=$isRunning, vo=$voDriver, surface=${surface.hashCode()}")
         if (isRunning) {
             MPVLib.attachSurface(surface)
-            // Re-enable video output after attaching surface (Findroid approach)
             MPVLib.setOptionString("force-window", "yes")
-            MPVLib.setOptionString("vo", voDriver)
-            Log.i(TAG, "Surface attached, video output re-enabled (vo=$voDriver)")
+            // Read back vo to confirm it's still active
+            val activeVo = try { MPVLib.getPropertyString("vo") } catch (e: Exception) { null }
+            Log.i(TAG, "[PiP] attachSurface — attached, activeVo=$activeVo")
         }
     }
-    
+
     /**
-     * Detach surface and disable video output.
-     * Based on Findroid's implementation.
+     * Detach surface without killing the VO pipeline.
+     *
+     * The previous approach (vo=null / force-window=no) destroyed the entire video
+     * output pipeline on every surface transition. During PiP mode, the rapid
+     * destroy/recreate cycle caused a black screen because setOptionString("vo", ...)
+     * did not properly re-initialize rendering into the new PiP surface.
+     *
+     * By keeping the VO alive, frames are simply dropped while no surface is
+     * attached, and rendering resumes immediately when the new surface arrives.
      */
     fun detachSurface() {
         this.surface = null
+        Log.i(TAG, "[PiP] detachSurface — isRunning=$isRunning, vo=$voDriver")
         if (isRunning) {
-            try {
-                // Disable video output before detaching surface (Findroid approach)
-                MPVLib.setOptionString("vo", "null")
-                MPVLib.setOptionString("force-window", "no")
-                Log.i(TAG, "Video output disabled before surface detach")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to disable video output: ${e.message}")
-            }
-            
             MPVLib.detachSurface()
+            val activeVo = try { MPVLib.getPropertyString("vo") } catch (e: Exception) { null }
+            Log.i(TAG, "[PiP] detachSurface — detached, activeVo=$activeVo (should still be $voDriver)")
         }
     }
     
@@ -277,7 +283,24 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun updateSurfaceSize(width: Int, height: Int) {
         if (isRunning) {
             MPVLib.setPropertyString("android-surface-size", "${width}x$height")
-            Log.i(TAG, "Surface size updated: ${width}x$height")
+            Log.i(TAG, "[PiP] updateSurfaceSize — ${width}x${height}")
+        } else {
+            Log.w(TAG, "[PiP] updateSurfaceSize — called but renderer not running")
+        }
+    }
+
+    /**
+     * Force mpv to render a frame to the current surface.
+     * Steps forward one frame then seeks back to the original position.
+     * Used after PiP entry to work around mpv stopping pixel output.
+     */
+    fun forceRedraw() {
+        if (!isRunning) return
+        val pos = cachedPosition
+        Log.i(TAG, "[PiP] forceRedraw — stepping frame then seeking to $pos")
+        MPVLib.command(arrayOf("frame-step"))
+        if (pos > 0) {
+            MPVLib.command(arrayOf("seek", pos.toString(), "absolute"))
         }
     }
     
