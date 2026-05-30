@@ -78,15 +78,16 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "deploymentTarget": "16.4",
+            "useFrameworks": "static",
+            "forceStaticLinking": ["ExpoUI", "GlassEffectView", "GlassPoster"]
           },
           "android": {
             "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
             "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
-            "kotlinVersion": "2.0.21",
+            "kotlinVersion": "2.1.20",
             "minSdkVersion": 26,
             "usesCleartextTraffic": true,
             "packagingOptions": {
