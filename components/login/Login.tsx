@@ -382,16 +382,18 @@ export const Login: React.FC = () => {
                 </View>
               </View>
             </View>
+
+            <View className='absolute bottom-0 left-0 w-full px-4 mb-2' />
           </View>
         ) : (
-          <View className='flex flex-col flex-1 w-full'>
-            <View className='flex flex-col gap-y-2 px-4 w-full'>
+          <View className='flex flex-col flex-1 items-center justify-center w-full'>
+            <View className='flex flex-col gap-y-2 px-4 w-full -mt-36'>
               <Image
                 style={{
                   width: 100,
                   height: 100,
+                  marginLeft: -23,
                   marginBottom: -20,
-                  alignSelf: "center",
                 }}
                 source={require("@/assets/images/icon-ios-plain.png")}
               />
@@ -429,8 +431,6 @@ export const Login: React.FC = () => {
                   await handleConnect(server.address);
                 }}
               />
-            </View>
-            <View className='px-4 pb-2'>
               <PreviousServersList
                 onServerSelect={async (s) => {
                   await handleConnect(s.address);
