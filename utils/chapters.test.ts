@@ -1,0 +1,138 @@
+import { describe, expect, test } from "bun:test";
+import {
+  chapterMarkers,
+  chapterNameAt,
+  chapterStartsMs,
+  currentChapterIndex,
+  formatChapterTime,
+  sortedChapters,
+} from "./chapters";
+
+// Helper: a ChapterInfo with a start in milliseconds.
+const ch = (ms: number, name?: string) => ({
+  StartPositionTicks: ms * 10000,
+  Name: name,
+});
+
+describe("chapterMarkers", () => {
+  test("maps chapters to position + percent", () => {
+    expect(chapterMarkers([ch(0), ch(30_000), ch(60_000)], 120_000)).toEqual([
+      { positionMs: 0, percent: 0 },
+      { positionMs: 30_000, percent: 25 },
+      { positionMs: 60_000, percent: 50 },
+    ]);
+  });
+
+  test("drops chapters past the duration", () => {
+    expect(chapterMarkers([ch(0), ch(200_000)], 120_000)).toEqual([
+      { positionMs: 0, percent: 0 },
+    ]);
+  });
+
+  test("returns [] when duration is 0 or chapters missing", () => {
+    expect(chapterMarkers([ch(0)], 0)).toEqual([]);
+    expect(chapterMarkers(null, 120_000)).toEqual([]);
+    expect(chapterMarkers(undefined, 120_000)).toEqual([]);
+  });
+
+  test("excludes a chapter exactly at the duration", () => {
+    expect(chapterMarkers([ch(0), ch(120_000)], 120_000)).toEqual([
+      { positionMs: 0, percent: 0 },
+    ]);
+  });
+
+  test("skips chapters with no StartPositionTicks", () => {
+    expect(
+      chapterMarkers([{ StartPositionTicks: undefined }, ch(30_000)], 120_000),
+    ).toEqual([{ positionMs: 30_000, percent: 25 }]);
+  });
+});
+
+describe("currentChapterIndex", () => {
+  const chapters = [ch(0), ch(30_000), ch(60_000)];
+  test("returns the chapter containing the position", () => {
+    expect(currentChapterIndex(0, chapters)).toBe(0);
+    expect(currentChapterIndex(15_000, chapters)).toBe(0);
+    expect(currentChapterIndex(30_000, chapters)).toBe(1);
+    expect(currentChapterIndex(90_000, chapters)).toBe(2);
+  });
+  test("returns -1 before the first chapter and for no chapters", () => {
+    expect(currentChapterIndex(-5, chapters)).toBe(-1);
+    expect(currentChapterIndex(10_000, [])).toBe(-1);
+    expect(currentChapterIndex(10_000, null)).toBe(-1);
+  });
+});
+
+describe("sortedChapters", () => {
+  test("pairs each chapter with its ms start, sorted ascending", () => {
+    const a = ch(60_000, "C");
+    const b = ch(0, "A");
+    const c = ch(30_000, "B");
+    expect(sortedChapters([a, b, c])).toEqual([
+      { chapter: b, positionMs: 0 },
+      { chapter: c, positionMs: 30_000 },
+      { chapter: a, positionMs: 60_000 },
+    ]);
+  });
+  test("returns [] for null/undefined", () => {
+    expect(sortedChapters(null)).toEqual([]);
+    expect(sortedChapters(undefined)).toEqual([]);
+  });
+});
+
+describe("chapterStartsMs", () => {
+  test("returns sorted ms positions", () => {
+    expect(chapterStartsMs([ch(60_000), ch(0), ch(30_000)])).toEqual([
+      0, 30_000, 60_000,
+    ]);
+  });
+
+  test("skips entries without StartPositionTicks", () => {
+    expect(
+      chapterStartsMs([ch(30_000), { StartPositionTicks: undefined }, ch(0)]),
+    ).toEqual([0, 30_000]);
+  });
+
+  test("returns [] for null/undefined/empty", () => {
+    expect(chapterStartsMs(null)).toEqual([]);
+    expect(chapterStartsMs(undefined)).toEqual([]);
+    expect(chapterStartsMs([])).toEqual([]);
+  });
+});
+
+describe("chapterNameAt", () => {
+  const named = [
+    { StartPositionTicks: 0, Name: "Intro" },
+    { StartPositionTicks: 30_000 * 10000, Name: "Action" },
+    { StartPositionTicks: 60_000 * 10000, Name: "Outro" },
+  ];
+
+  test("returns the chapter name for the active position", () => {
+    expect(chapterNameAt(0, named)).toBe("Intro");
+    expect(chapterNameAt(15_000, named)).toBe("Intro");
+    expect(chapterNameAt(45_000, named)).toBe("Action");
+    expect(chapterNameAt(90_000, named)).toBe("Outro");
+  });
+
+  test("returns null before the first chapter", () => {
+    expect(chapterNameAt(-1, named)).toBeNull();
+  });
+
+  test("returns null for null/undefined/empty chapters", () => {
+    expect(chapterNameAt(10_000, null)).toBeNull();
+    expect(chapterNameAt(10_000, undefined)).toBeNull();
+    expect(chapterNameAt(10_000, [])).toBeNull();
+  });
+
+  test("returns null when the active chapter has no Name", () => {
+    expect(chapterNameAt(15_000, [ch(0), ch(30_000)])).toBeNull();
+  });
+});
+
+describe("formatChapterTime", () => {
+  test("formats m:ss and h:mm:ss", () => {
+    expect(formatChapterTime(65_000)).toBe("1:05");
+    expect(formatChapterTime(3_725_000)).toBe("1:02:05");
+    expect(formatChapterTime(-100)).toBe("0:00");
+  });
+});

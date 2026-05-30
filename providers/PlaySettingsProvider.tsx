@@ -9,7 +9,7 @@ import { Platform } from "react-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { generateDeviceProfile } from "@/utils/profiles/native";
+import { generateDeviceProfile } from "../utils/profiles/native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
 
 export type PlaybackType = {

@@ -9,7 +9,7 @@ import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
 import { DiscoverSliderType } from "@/utils/jellyseerr/server/constants/discover";
 
-export default function page() {
+export default function JellyseerrGenrePage() {
   const local = useLocalSearchParams();
   const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 

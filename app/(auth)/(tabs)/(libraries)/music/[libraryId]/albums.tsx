@@ -1,8 +1,8 @@
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useRoute } from "@react-navigation/native";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
+import { useRoute } from "expo-router/react-navigation";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

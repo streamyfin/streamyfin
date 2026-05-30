@@ -4,7 +4,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { JellyseerrSettings } from "@/components/settings/Jellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function JellyseerrPluginPage() {
   const { pluginSettings } = useSettings();
   const insets = useSafeAreaInsets();
 
@@ -18,7 +18,7 @@ export default function page() {
     >
       <DisabledSetting
         disabled={pluginSettings?.jellyseerrServerUrl?.locked === true}
-        className='px-4'
+        className='p-4'
       >
         <JellyseerrSettings />
       </DisabledSetting>

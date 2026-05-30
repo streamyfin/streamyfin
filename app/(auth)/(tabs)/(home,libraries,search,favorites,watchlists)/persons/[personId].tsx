@@ -6,7 +6,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { InfiniteHorizontalScroll } from "@/components/common/InfiniteHorizontalScroll";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -15,6 +15,7 @@ import { Loader } from "@/components/Loader";
 import { MoviesTitleHeader } from "@/components/movies/MoviesTitleHeader";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { TVActorPage } from "@/components/persons/TVActorPage";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
@@ -23,6 +24,16 @@ import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 const page: React.FC = () => {
   const local = useLocalSearchParams();
   const { personId } = local as { personId: string };
+
+  // Render TV-optimized page on TV platforms
+  if (Platform.isTV) {
+    return <TVActorPage personId={personId} />;
+  }
+
+  return <MobileActorPage personId={personId} />;
+};
+
+const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
   const { t } = useTranslation();
 
   const [api] = useAtom(apiAtom);
