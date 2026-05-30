@@ -35,6 +35,7 @@ import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
@@ -88,6 +89,10 @@ const HomeMobile = () => {
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
   const { showIntro } = useIntroSheet();
+
+  // Fallback refresh for newly added content when returning to the home screen
+  // (primary path is the LibraryChanged WebSocket event).
+  useRefreshLibraryOnFocus();
 
   // Show intro modal on first launch
   useEffect(() => {

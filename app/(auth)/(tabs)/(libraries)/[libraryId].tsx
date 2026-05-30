@@ -40,6 +40,7 @@ import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useOrientation } from "@/hooks/useOrientation";
+import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
@@ -103,6 +104,10 @@ const Page = () => {
   );
 
   const { orientation } = useOrientation();
+
+  // Fallback refresh for newly added content when returning to the library
+  // (primary path is the LibraryChanged WebSocket event).
+  useRefreshLibraryOnFocus();
 
   const { t } = useTranslation();
   const router = useRouter();
