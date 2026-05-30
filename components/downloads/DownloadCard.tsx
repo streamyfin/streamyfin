@@ -116,7 +116,7 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
   }, [process?.progress]);
 
   // Return null after all hooks have been called
-  if (!process || !process.item || !process.item.Id) {
+  if (!process?.item?.Id) {
     return null;
   }
 

@@ -74,6 +74,21 @@ export function useVideoSlider({
     [seek, play, progress, isSeeking],
   );
 
+  // Programmatic seek (chapter list, hotkeys) that bypasses the slide gesture.
+  // Reads `isPlaying` directly instead of `wasPlayingRef`, which is only set
+  // during a real slide and would carry stale state on a tap-to-seek.
+  const seekTo = useCallback(
+    (value: number) => {
+      const seekValue = Math.max(0, Math.floor(value));
+      progress.value = seekValue;
+      seek(seekValue);
+      if (isPlaying) {
+        play();
+      }
+    },
+    [seek, play, progress, isPlaying],
+  );
+
   const handleSliderChange = useCallback(
     debounce((value: number) => {
       // Convert ms to ticks for trickplay
@@ -96,5 +111,6 @@ export function useVideoSlider({
     handleTouchEnd,
     handleSliderComplete,
     handleSliderChange,
+    seekTo,
   };
 }

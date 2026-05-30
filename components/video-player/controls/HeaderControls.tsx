@@ -123,7 +123,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       </View>
 
       <View className='flex flex-row items-center space-x-2'>
-        {!Platform.isTV && (
+        {/* Rotate toggle is Android-only: iOS does not reliably rotate the
+            player back to portrait programmatically. */}
+        {Platform.OS === "android" && (
           <TouchableOpacity
             onPress={toggleOrientation}
             disabled={isTogglingOrientation}

@@ -1,5 +1,7 @@
+import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View, type ViewProps } from "react-native";
 import { GlassEffectView } from "react-native-glass-effect-view";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { Text } from "./common/Text";
 
 interface Props extends ViewProps {
@@ -14,6 +16,8 @@ export const Badge: React.FC<Props> = ({
   variant = "purple",
   ...props
 }) => {
+  const typography = useScaledTVTypography();
+
   const content = (
     <View style={styles.content}>
       {iconLeft && <View style={styles.iconLeft}>{iconLeft}</View>}
@@ -28,7 +32,7 @@ export const Badge: React.FC<Props> = ({
     </View>
   );
 
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View {...props} style={[styles.container, props.style]}>
         <GlassEffectView style={{ borderRadius: 100 }}>
@@ -38,21 +42,70 @@ export const Badge: React.FC<Props> = ({
     );
   }
 
+  // On TV, use BlurView for consistent styling
+  if (Platform.isTV) {
+    return (
+      <BlurView
+        intensity={10}
+        tint='light'
+        style={{
+          borderRadius: 8,
+          overflow: "hidden",
+          alignSelf: "flex-start",
+          flexShrink: 1,
+          flexGrow: 0,
+        }}
+      >
+        <View
+          style={[
+            {
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.3)",
+            },
+            props.style,
+          ]}
+        >
+          {iconLeft && <View style={{ marginRight: 8 }}>{iconLeft}</View>}
+          <Text
+            style={{
+              fontSize: typography.callout,
+              color: "#E5E7EB",
+            }}
+          >
+            {text}
+          </Text>
+        </View>
+      </BlurView>
+    );
+  }
+
   return (
     <View
       {...props}
-      className={`
-      rounded p-1 shrink grow-0 self-start flex flex-row items-center px-1.5
-      ${variant === "purple" && "bg-purple-600"}
-      ${variant === "gray" && "bg-neutral-800"}
-      `}
+      style={[
+        {
+          borderRadius: 4,
+          padding: 4,
+          paddingHorizontal: 6,
+          flexShrink: 1,
+          flexGrow: 0,
+          alignSelf: "flex-start",
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: variant === "purple" ? "#9333ea" : "#262626",
+        },
+        props.style,
+      ]}
     >
-      {iconLeft && <View className='mr-1'>{iconLeft}</View>}
+      {iconLeft && <View style={{ marginRight: 4 }}>{iconLeft}</View>}
       <Text
-        className={`
-          text-xs
-          ${variant === "purple" && "text-white"}
-      `}
+        style={{
+          fontSize: 12,
+          color: "#fff",
+        }}
       >
         {text}
       </Text>
