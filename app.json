@@ -144,8 +144,8 @@
       [
         "./plugins/withGitPod.js",
         {
-          "podName": "MPVKit-GPL",
-          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
+          "podName": "MPVKit",
+          "podspecUrl": "https://raw.githubusercontent.com/mpv-ios/MPVKit/0.41.0-av/MPVKit.podspec"
         }
       ]
     ],
