@@ -841,5 +841,10 @@
       "show": "This show",
       "all": "All media (default)"
     }
+  },
+  "photo": {
+    "view": "Photo Viewer",
+    "notFound": "Photo could not be loaded",
+    "imageGallery": "Image Gallery"
   }
 }
