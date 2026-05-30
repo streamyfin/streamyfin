@@ -59,17 +59,17 @@ function SettingsMobile() {
 
         <QuickConnect className='mb-4' />
 
-        <TouchableOpacity
-          className='mb-4 p-4 rounded-xl bg-neutral-900 border border-neutral-800'
-          onPress={() => router.push("/(auth)/(tabs)/(home)/companion-login")}
-        >
-          <Text className='text-white font-bold text-base mb-1'>
-            {t("pairing.pair_with_phone_title")}
-          </Text>
-          <Text className='text-neutral-400 text-sm'>
-            {t("pairing.pair_with_phone_description")}
-          </Text>
-        </TouchableOpacity>
+        <View className='mb-4'>
+          <ListGroup title={t("pairing.pair_with_phone_title")}>
+            <ListItem
+              onPress={() =>
+                router.push("/(auth)/(tabs)/(home)/companion-login")
+              }
+              title={t("pairing.pair_with_phone")}
+              textColor='blue'
+            />
+          </ListGroup>
+        </View>
 
         <View className='mb-4'>
           <AppLanguageSelector />
