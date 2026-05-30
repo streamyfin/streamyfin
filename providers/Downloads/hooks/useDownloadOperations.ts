@@ -200,7 +200,7 @@ export function useDownloadOperations({
 
       if (itemToDelete) {
         try {
-          deleteAllAssociatedFiles(itemToDelete);
+          await deleteAllAssociatedFiles(itemToDelete);
           toast.success(
             t("home.downloads.toasts.file_deleted", {
               item: itemToDelete.item.Name,
@@ -229,7 +229,7 @@ export function useDownloadOperations({
 
     for (const item of allItems) {
       try {
-        deleteAllAssociatedFiles(item);
+        await deleteAllAssociatedFiles(item);
       } catch (error) {
         console.error("Failed to delete file:", error);
       }
@@ -258,7 +258,7 @@ export function useDownloadOperations({
 
       for (const item of itemsToDelete) {
         try {
-          deleteAllAssociatedFiles(item);
+          await deleteAllAssociatedFiles(item);
           removeDownloadedItem(item.item.Id || "");
         } catch (error) {
           console.error(

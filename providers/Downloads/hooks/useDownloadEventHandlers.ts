@@ -1,5 +1,6 @@
 import type { Api } from "@jellyfin/sdk";
 import { File } from "expo-file-system";
+import * as FileSystemLegacy from "expo-file-system/legacy";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,11 +11,13 @@ import type {
   DownloadStartedEvent,
 } from "@/modules";
 import { BackgroundDownloader } from "@/modules";
+import type { Settings } from "@/utils/atoms/settings";
 import { addDownloadedItem } from "../database";
 import {
   getNotificationContent,
   sendDownloadNotification,
 } from "../notifications";
+import { copyFileToSaf } from "../storagePath";
 import type { DownloadedItem, JobStatus } from "../types";
 import { filePathToUri, generateFilename } from "../utils";
 import {
@@ -34,6 +37,7 @@ interface UseDownloadEventHandlersProps {
   onSuccess?: () => void;
   onDataChange?: () => void;
   api?: Api;
+  downloadPath?: Settings["downloadPath"];
 }
 
 /**
@@ -47,6 +51,7 @@ export function useDownloadEventHandlers({
   onSuccess,
   onDataChange,
   api,
+  downloadPath,
 }: UseDownloadEventHandlersProps) {
   const { t } = useTranslation();
 
@@ -251,10 +256,80 @@ export function useDownloadEventHandlers({
             `[COMPLETE] Using pre-downloaded assets: trickplay=${!!trickPlayData}, intro=${!!introSegments}, credits=${!!creditSegments}`,
           );
 
+          // If a custom download path (SAF) is configured, copy to external storage.
+          // The app-private copy is kept for internal playback (guaranteed to work),
+          // and the SAF copy enables external app access (e.g. VR video players).
+          // After verifying the SAF copy integrity, the app-private copy is removed
+          // to save storage. Note: downloadPath reflects the setting at completion
+          // time, not download-start time.
+          let safFilePath: string | undefined;
+          if (downloadPath?.uri) {
+            console.log(`[SAF] Copying ${filename}.mp4 to external storage...`);
+            const safUri = await copyFileToSaf(
+              event.filePath,
+              downloadPath.uri,
+              `${filename}.mp4`,
+              "video/mp4",
+            );
+            if (safUri) {
+              // Verify the SAF copy size matches before removing the original
+              try {
+                const safInfo = await FileSystemLegacy.getInfoAsync(safUri);
+                const sourceInfo = await FileSystemLegacy.getInfoAsync(
+                  filePathToUri(event.filePath),
+                );
+                if (
+                  safInfo.exists &&
+                  sourceInfo.exists &&
+                  "size" in safInfo &&
+                  "size" in sourceInfo &&
+                  safInfo.size === sourceInfo.size
+                ) {
+                  safFilePath = safUri;
+                  console.log(
+                    `[SAF] Copy verified (${safInfo.size} bytes). Removing app-private copy...`,
+                  );
+                  const appPrivateFile = new File(
+                    filePathToUri(event.filePath),
+                  );
+                  if (appPrivateFile.exists) {
+                    appPrivateFile.delete();
+                    console.log(
+                      `[SAF] Removed app-private copy to save storage`,
+                    );
+                  }
+                } else {
+                  safFilePath = safUri;
+                  console.warn(
+                    `[SAF] Size mismatch or missing info — keeping both copies for safety`,
+                  );
+                }
+              } catch (verifyError) {
+                safFilePath = safUri;
+                console.warn(
+                  `[SAF] Could not verify copy, keeping both:`,
+                  verifyError,
+                );
+              }
+            } else {
+              console.warn(
+                `[SAF] Failed to copy to external storage, file remains in app storage only`,
+              );
+            }
+          }
+
+          // Use SAF path for playback if the app-private copy was removed,
+          // otherwise keep the original file:// path
+          const appPrivateExists = new File(filePathToUri(event.filePath))
+            .exists;
+          const effectiveFilePath = appPrivateExists
+            ? filePathToUri(event.filePath)
+            : (safFilePath ?? filePathToUri(event.filePath));
+
           const downloadedItem: DownloadedItem = {
             item,
             mediaSource,
-            videoFilePath: filePathToUri(event.filePath),
+            videoFilePath: effectiveFilePath,
             videoFileSize,
             videoFileName: `${filename}.mp4`,
             trickPlayData,
@@ -265,6 +340,7 @@ export function useDownloadEventHandlers({
               subtitleStreamIndex: subtitleStreamIndex ?? -1,
               isTranscoded: isTranscoding ?? false,
             },
+            safFilePath,
           };
 
           addDownloadedItem(downloadedItem);
@@ -309,6 +385,7 @@ export function useDownloadEventHandlers({
     onDataChange,
     api,
     t,
+    downloadPath,
   ]);
 
   // Handle download error events

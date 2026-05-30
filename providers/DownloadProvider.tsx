@@ -4,6 +4,7 @@ import { atom, useAtom } from "jotai";
 import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 import { Platform } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   getAllDownloadedItems,
   getDownloadedItemById,
@@ -28,6 +29,7 @@ function useDownloadProvider() {
   const [processes, setProcesses] = useAtom<JobStatus[]>(processesAtom);
   const [refreshKey, setRefreshKey] = useAtom(downloadsRefreshAtom);
   const successHapticFeedback = useHaptic("success");
+  const { settings } = useSettings();
 
   // Track task ID to process ID mapping
   const taskMapRef = useRef<Map<number | string, string>>(new Map());
@@ -107,6 +109,7 @@ function useDownloadProvider() {
     onSuccess: successHapticFeedback,
     onDataChange: triggerRefresh,
     api: api || undefined,
+    downloadPath: settings.downloadPath,
   });
 
   // Get download operation functions

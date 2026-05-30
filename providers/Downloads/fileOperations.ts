@@ -1,13 +1,20 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { getAllDownloadedItems, getDownloadedItemById } from "./database";
+import { deleteSafFile, isSafUri } from "./storagePath";
 import type { DownloadedItem } from "./types";
 import { filePathToUri } from "./utils";
 
 /**
  * Delete a video file and all associated files (subtitles, trickplay, etc.)
+ * Handles both file:// and content:// (SAF) URIs.
  */
-export function deleteVideoFile(filePath: string): void {
+export async function deleteVideoFile(filePath: string): Promise<void> {
   try {
+    if (isSafUri(filePath)) {
+      // SAF content:// URIs must be deleted through the SAF API
+      await deleteSafFile(filePath);
+      return;
+    }
     const videoFile = new File(filePathToUri(filePath));
     if (videoFile.exists) {
       videoFile.delete();
@@ -23,11 +30,13 @@ export function deleteVideoFile(filePath: string): void {
  * Delete all associated files for a downloaded item
  * Includes: video, subtitles, trickplay images
  */
-export function deleteAllAssociatedFiles(item: DownloadedItem): void {
+export async function deleteAllAssociatedFiles(
+  item: DownloadedItem,
+): Promise<void> {
   try {
-    // Delete video file
+    // Delete video file (handles both file:// and content:// URIs)
     if (item.videoFilePath) {
-      deleteVideoFile(item.videoFilePath);
+      await deleteVideoFile(item.videoFilePath);
     }
 
     // Delete subtitle files
@@ -69,6 +78,14 @@ export function deleteAllAssociatedFiles(item: DownloadedItem): void {
         }
       } catch (error) {
         console.error("[DELETE] Failed to delete trickplay directory:", error);
+      }
+    }
+    // Delete SAF copy if it exists (separate from videoFilePath)
+    if (item.safFilePath && item.safFilePath !== item.videoFilePath) {
+      try {
+        await deleteSafFile(item.safFilePath);
+      } catch (error) {
+        console.error("[DELETE] Failed to delete SAF copy:", error);
       }
     }
   } catch (error) {

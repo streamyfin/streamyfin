@@ -311,7 +311,19 @@
         "disabled": "Disabled"
       },
       "downloads": {
-        "downloads_title": "Downloads"
+        "downloads_title": "Downloads",
+        "download_location_title": "Download Location",
+        "download_location_description": "Choose where downloads are saved. Use an external folder to access files from other apps (e.g. VR video players).",
+        "current_location": "Current Location",
+        "current_location_path": "Path",
+        "app_storage_default": "App Storage (Private)",
+        "change_download_location": "Change Location",
+        "reset_download_location": "Reset to Default",
+        "download_path_updated": "Download location updated",
+        "download_path_reset": "Download location reset to default",
+        "download_path_access_denied": "Cannot access the selected folder",
+        "download_path_error": "Failed to set download location",
+        "verifying_access": "Verifying access..."
       },
       "music": {
         "title": "Music",
