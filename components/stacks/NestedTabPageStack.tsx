@@ -23,6 +23,8 @@ const routes = [
   "persons/[personId]",
   "items/page",
   "series/[id]",
+  "channels/[channelId]",
+  "channels/[channelId]/folder/[folderId]",
   "music/album/[albumId]",
   "music/artist/[artistId]",
   "music/playlist/[playlistId]",

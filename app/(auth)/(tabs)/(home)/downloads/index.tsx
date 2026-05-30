@@ -84,11 +84,23 @@ export default function page() {
     }
   }, [downloadedFiles]);
 
+  const channelContent = useMemo(() => {
+    try {
+      return downloadedFiles?.filter((f) => !!f.item.ChannelId) || [];
+    } catch {
+      setShowMigration(true);
+      return [];
+    }
+  }, [downloadedFiles]);
+
   const otherMedia = useMemo(() => {
     try {
       return (
         downloadedFiles?.filter(
-          (f) => f.item.Type !== "Movie" && f.item.Type !== "Episode",
+          (f) =>
+            f.item.Type !== "Movie" &&
+            f.item.Type !== "Episode" &&
+            !f.item.ChannelId,
         ) || []
       );
     } catch {
@@ -218,6 +230,30 @@ export default function page() {
                         key={items[0].item.SeriesId}
                       />
                     </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
+
+          {channelContent.length > 0 && (
+            <View className='mb-4'>
+              <View className='flex flex-row items-center justify-between mb-2 px-4'>
+                <Text className='text-lg font-bold'>
+                  {t("home.downloads.channel_content")}
+                </Text>
+                <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
+                  <Text className='text-xs font-bold'>
+                    {channelContent?.length}
+                  </Text>
+                </View>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View className='px-4 flex flex-row'>
+                  {channelContent?.map((item) => (
+                    <TouchableItemRouter item={item.item} key={item.item.Id}>
+                      <MovieCard item={item.item} />
+                    </TouchableItemRouter>
                   ))}
                 </View>
               </ScrollView>

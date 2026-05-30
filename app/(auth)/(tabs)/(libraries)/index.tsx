@@ -1,3 +1,4 @@
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import {
   getUserLibraryApi,
   getUserViewsApi,
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { LibraryItemCard } from "@/components/library/LibraryItemCard";
+import { useChannels } from "@/hooks/useChannels";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
@@ -35,13 +37,23 @@ export default function index() {
     staleTime: 60,
   });
 
-  const libraries = useMemo(
-    () =>
+  // Fetch channels
+  const { data: channels, isLoading: isChannelsLoading } = useChannels();
+
+  const libraries = useMemo(() => {
+    const filteredLibraries =
       data
         ?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!))
-        .filter((l) => l.CollectionType !== "books") || [],
-    [data, settings?.hiddenLibraries],
-  );
+        .filter((l) => l.CollectionType !== "books") || [];
+
+    // Merge libraries with channels
+    const allItems: BaseItemDto[] = [...filteredLibraries];
+    if (channels && channels.length > 0) {
+      allItems.push(...channels);
+    }
+
+    return allItems;
+  }, [data, settings?.hiddenLibraries, channels]);
 
   useEffect(() => {
     for (const item of data || []) {
@@ -62,7 +74,7 @@ export default function index() {
 
   const insets = useSafeAreaInsets();
 
-  if (isLoading)
+  if (isLoading || isChannelsLoading)
     return (
       <View className='justify-center items-center h-full'>
         <Loader />
