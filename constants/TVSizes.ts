@@ -49,8 +49,8 @@ export const TVGaps = {
  * Base padding values in pixels.
  */
 export const TVPadding = {
-  /** Horizontal padding from screen edges */
-  horizontal: 90,
+  /** Horizontal padding from screen edges (static — matches native search inset) */
+  horizontal: 80,
 
   /** Padding to accommodate scale animations (1.05x) */
   scale: 20,
@@ -142,7 +142,9 @@ export const useScaledTVSizes = (): ScaledTVSizes => {
       large: Math.round(scaleSize(TVGaps.large) * scale),
     },
     padding: {
-      horizontal: Math.round(scaleSize(TVPadding.horizontal) * scale),
+      // Static: matches the native tvOS search bar inset, which is a fixed
+      // point value and does not change with the typography scale setting.
+      horizontal: TVPadding.horizontal,
       scale: Math.round(scaleSize(TVPadding.scale) * scale),
       vertical: Math.round(scaleSize(TVPadding.vertical) * scale),
       heroHeight: TVPadding.heroHeight * scale,
