@@ -720,6 +720,12 @@
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
     "downloaded": "Downloaded"
   },
+  "chapters": {
+    "title": "Chapters",
+    "chapter_number": "Chapter {{number}}",
+    "open": "Open chapters",
+    "close": "Close chapters"
+  },
   "item_card": {
     "next_up": "Next Up",
     "no_items_to_display": "No Items to Display",

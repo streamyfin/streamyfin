@@ -399,6 +399,14 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
+const hasMeaningfulSettingValue = (value: unknown) =>
+  value !== undefined && value !== null && value !== "";
+
+const getEffectiveSettingValue = <K extends keyof Settings>(
+  settings: Partial<Settings> | null | undefined,
+  settingsKey: K,
+) => settings?.[settingsKey] ?? defaultValues[settingsKey];
+
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -439,12 +447,13 @@ export const useSettings = () => {
         for (const [key, setting] of Object.entries(newPluginSettings)) {
           if (setting && !setting.locked && setting.value !== undefined) {
             const settingsKey = key as keyof Settings;
-            // Apply if forceOverride is true, or if user hasn't explicitly set this value
-            if (
-              forceOverride ||
-              _settings[settingsKey] === undefined ||
-              _settings[settingsKey] === ""
-            ) {
+            const effectiveValue = getEffectiveSettingValue(
+              _settings,
+              settingsKey,
+            );
+            // Apply if forceOverride is true, or if neither persisted settings
+            // nor app defaults provide a meaningful value.
+            if (forceOverride || !hasMeaningfulSettingValue(effectiveValue)) {
               (updates as any)[settingsKey] = setting.value;
             }
           }
@@ -496,28 +505,22 @@ export const useSettings = () => {
 
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
   // If admin sets locked to false but provides a value,
-  // use user settings first and fallback on admin setting if required.
+  // use persisted settings first, then app defaults, and only fallback on the
+  // plugin value when neither provides a meaningful value.
   const settings: Settings = useMemo(() => {
-    const unlockedPluginDefaults: Partial<Settings> = {};
     const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
       Partial<Settings>
     >((acc, [key, setting]) => {
       if (setting) {
         const { value, locked } = setting;
         const settingsKey = key as keyof Settings;
-
-        // Make sure we override default settings with plugin settings when they are not locked.
-        if (
-          !locked &&
-          value !== undefined &&
-          _settings?.[settingsKey] !== value
-        ) {
-          (unlockedPluginDefaults as any)[settingsKey] = value;
-        }
+        const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
 
         (acc as any)[settingsKey] = locked
           ? value
-          : (_settings?.[settingsKey] ?? value);
+          : hasMeaningfulSettingValue(effectiveValue)
+            ? effectiveValue
+            : value;
       }
       return acc;
     }, {});

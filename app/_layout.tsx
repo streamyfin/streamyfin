@@ -395,8 +395,9 @@ function Layout() {
         maxAge: 1000 * 60 * 60 * 24, // 24 hours max cache age
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => {
-            // Only persist successful queries
-            return query.state.status === "success";
+            return (
+              query.state.status === "success" && query.options.gcTime !== 0
+            );
           },
         },
       }}
