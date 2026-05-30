@@ -14,6 +14,7 @@ import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
+import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -61,6 +62,7 @@ const page: React.FC = () => {
       });
     },
     staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
@@ -116,7 +118,8 @@ const page: React.FC = () => {
           (a.ParentIndexNumber ?? 0) - (b.ParentIndexNumber ?? 0) ||
           (a.IndexNumber ?? 0) - (b.IndexNumber ?? 0),
       ),
-    staleTime: isOffline ? Infinity : 60,
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     enabled: isOffline || (!!api && !!user?.Id),
   });
 
@@ -158,6 +161,19 @@ const page: React.FC = () => {
 
   // For offline mode, we can show the page even without backdropUrl
   if (!item || (!isOffline && !backdropUrl)) return null;
+
+  // TV version
+  if (Platform.isTV) {
+    return (
+      <OfflineModeProvider isOffline={isOffline}>
+        <TVSeriesPage
+          item={item}
+          allEpisodes={allEpisodes}
+          isLoading={isLoading}
+        />
+      </OfflineModeProvider>
+    );
+  }
 
   return (
     <OfflineModeProvider isOffline={isOffline}>

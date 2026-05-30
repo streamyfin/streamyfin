@@ -50,8 +50,6 @@ npm-debug.*
 .idea/
 .ruby-lsp
 .cursor/
-.claude/
-CLAUDE.md
 
 # Environment and Configuration
 expo-env.d.ts
@@ -63,6 +61,8 @@ expo-env.d.ts
 pc-api-7079014811501811218-719-3b9f15aeccf8.json
 credentials.json
 streamyfin-4fec1-firebase-adminsdk.json
+/profiles/
+certs/
 
 # Version and Backup Files
 /version-backup-*
@@ -73,3 +73,6 @@ modules/background-downloader/android/build/*
 
 # ios:unsigned-build Artifacts
 build/
+.claude/
+.agents/skills/**
+skills-lock.json

@@ -35,6 +35,7 @@ import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
@@ -43,6 +44,9 @@ import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 import { storage } from "@/utils/mmkv";
+
+// Conditionally load TV version
+const HomeTV = Platform.isTV ? require("./Home.tv").Home : null;
 
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
@@ -64,7 +68,7 @@ type MediaListSectionType = {
 
 type Section = InfiniteScrollingCollectionListSection | MediaListSectionType;
 
-export const Home = () => {
+const HomeMobile = () => {
   const router = useRouter();
   const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
@@ -85,6 +89,10 @@ export const Home = () => {
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
   const { showIntro } = useIntroSheet();
+
+  // Fallback refresh for newly added content when returning to the home screen
+  // (primary path is the LibraryChanged WebSocket event).
+  useRefreshLibraryOnFocus();
 
   // Show intro modal on first launch
   useEffect(() => {
@@ -595,11 +603,14 @@ export const Home = () => {
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
         {sections.map((section, index) => {
-          // Render Streamystats sections after Continue Watching and Next Up
-          // When merged, they appear after index 0; otherwise after index 1
-          const streamystatsIndex = settings.mergeNextUpAndContinueWatching
-            ? 0
-            : 1;
+          // Render Streamystats sections after Recently Added sections
+          // For default sections: place after Recently Added, before Suggested Movies (if present)
+          // For custom sections: place at the very end
+          const hasSuggestedMovies =
+            !settings?.streamyStatsMovieRecommendations &&
+            !settings?.home?.sections;
+          const streamystatsIndex =
+            sections.length - 1 - (hasSuggestedMovies ? 1 : 0);
           const hasStreamystatsContent =
             settings.streamyStatsMovieRecommendations ||
             settings.streamyStatsSeriesRecommendations ||
@@ -686,4 +697,12 @@ export const Home = () => {
       </View>
     </ScrollView>
   );
+};
+
+// Exported component that renders TV or mobile version based on platform
+export const Home = () => {
+  if (Platform.isTV && HomeTV) {
+    return <HomeTV />;
+  }
+  return <HomeMobile />;
 };

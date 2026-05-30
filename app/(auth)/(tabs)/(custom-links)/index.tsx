@@ -16,7 +16,7 @@ export interface MenuLink {
   icon: string;
 }
 
-export default function menuLinks() {
+export default function CustomLinksPage() {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
   const [menuLinks, setMenuLinks] = useState<MenuLink[]>([]);

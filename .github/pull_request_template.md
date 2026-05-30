@@ -1,91 +1,54 @@
-<!--
-  Pull Request Template for Streamyfin
-  ====================================
-  Use this template to help reviewers understand the purpose of your PR
-  and to ensure all necessary checks are completed before merging.
+<!-- 
+Use a conventional commit title for the PR title, 
+for example `feat(auth): add MFA`
+All sections below are required. Write N/A if a section is not applicable.
+If you use AI to help implement this PR, you must declare it below. It's very important that the feature or fix implemented has been tested thoroughly by you personally on all target platforms. Only adding AI generated code without proper testing is not allowed and this PR will be closed immediately.
 -->
 
 # 📦 Pull Request
 
-## 🔖 Summary
+<!-- 
+  🤖 AI ASSISTED? 
+  Uncomment the line below if AI was used to assist with this PR:
+-->
+<!-- 
+[![AI Assisted](https://img.shields.io/badge/AI_Assisted-18181b?style=for-the-badge&logo=openai&logoColor=white)](#) -->
+
+## 📝 Description
 <!--
-A concise description of the changes introduced by this PR.
-Example:
-“Add real-time currency conversion widget to dashboard.”
+A short description of the changes and why you're making them.
+Example: “Add option to clean image cache, to mitigate stuck/blank movie poster issues.”
 -->
 
 ## 🏷️ Ticket / Issue
 <!--
 Link to the related ticket, issue or user story.
-You can also indicate if this PR supersedes a previous one.
-Example:
-- Closes #123
-- Fixes STREAMYFIN-456
-- Resolves #789
-- Supersedes #120
-- Related: #130
+Example: Fixes #123
 -->
-
-## 🛠️ What’s Changed
-<!-- Use a Conventional Commit in the PR title, e.g., `feat(auth): add MFA`. 
-If this PR introduces a breaking change, include a `BREAKING CHANGE:` block in the description.
-Spec: https://www.conventionalcommits.org/ -->
-
-- Type: feat | fix | docs | style | refactor | perf | test | chore | build | ci | revert
-- Scope (optional): e.g., auth, billing, mobile
-- Short summary: what changed and why (1–2 lines)
--->
-
-## 📋 Details
-<!--
-Provide more context or background. Explain any non-obvious decisions.
-Include screenshots or GIFs for UI changes if applicable.
--->
-
-### ⚠️ Breaking Changes
-<!-- List any breaking API/contract changes and migration guidance. If none, write “None”. -->
-
-### 🔐 Security & Privacy Impact
-<!-- Data touched, new permissions/scopes, PII, secrets, threat considerations. If none, write “None”. -->
-
-### ⚡ Performance Impact
-<!-- Hot paths, memory/CPU/latency implications, benchmarks if available. -->
 
 ### 🖼️ Screenshots / GIFs (if UI)
-<!-- Before/After, dark mode, responsive states. -->
+<!-- 
+Include screenshots of relevant UI changes for both Android and iOS.
+Before/After, responsive states (if relevant). 
+-->
 
 ## ✅ Checklist
 <!--
 Review and check off items as you complete them.
 -->
 - [ ] I’ve read the [contribution guidelines](CONTRIBUTING.md)
-- [ ] Code follows project style and passes lint/format (`npm|pnpm|yarn|bun` scripts)
-- [ ] Type checks pass (tsc/biome/etc.)
-- [ ] Docs updated (README/ADR/usage/API)
-- [ ] No secrets/credentials included; env vars documented
-- [ ] Release notes/CHANGELOG entry added (if applicable)
-- [ ] Verified locally that changes behave as expected
+- [ ] Verified that changes behave as expected for all platforms
+- [ ] Code passes lint/formatting and type checks (`tsc`/`biome`)
+- [ ] No secrets, hardcoded credentials, or private config files are included
+- [ ] I've declared if AI was used to assist with this PR (by uncommenting the line at the bottom, or not)
 
 ## 🔍 Testing Instructions
 <!--
-Describe how reviewers can test your changes.
+Describe how reviewers can test your changes. This will help the PR get merged faster.
 Example:
-1. `git fetch origin pull/<PR_ID>/head:branchname && git checkout branchname`
-2. Install deps: `npm|pnpm|yarn|bun install`
-3. Start service/app: `npm|pnpm|yarn|bun run [target]` (e.g., `npm run ios` or `bun run android:tv`)
-4. Run tests: `npm|pnpm|yarn|bun test`
-5. Verification steps:
-   - [ ] Expected UI/endpoint behavior
-   - [ ] Logs show no errors
-   - [ ] Edge cases covered (list)
+1. Open the settings page and scroll to the bottom
+2. Verify that the clear data button is visible and pressable
+3. Verify that when you click the clear data button, a dialog appears prompting you to confirm
+4. Verify that when you click the confirm button, the data is cleared and a toast message is displayed
 -->
 
-## ⚙️ Deployment Notes
-<!--
-Describe any deployment considerations such as config, environment vars, or native builds.
--->
-
-## 📝 Additional Notes
-<!--
-Any other information or references related to this PR.
--->

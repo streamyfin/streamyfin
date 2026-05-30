@@ -12,8 +12,21 @@ import {
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+
+// Query keys that depend on the set of library items and should be refreshed
+// when the server reports that the library changed (items added/removed/updated).
+const LIBRARY_CHANGE_QUERY_KEYS = [
+  ["home"],
+  ["library-items"],
+  ["nextUp-all"],
+  ["nextUp"],
+  ["resumeItems"],
+  ["seasons"],
+  ["episodes"],
+] as const;
 
 interface WebSocketMessage {
   MessageType: string;
@@ -42,10 +55,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const router = useRouter();
+  const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
     return getOrSetDeviceId();
   }, []);
   const reconnectAttemptsRef = useRef(0);
+  const libraryChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const connectWebSocket = useCallback(() => {
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {
@@ -66,7 +83,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const reconnectDelay = 10000;
 
     newWebSocket.onopen = () => {
-      console.log("WebSocket connection opened");
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
       keepAliveInterval = setInterval(() => {
@@ -112,18 +128,57 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     };
   }, [api, deviceId, isNetworkConnected]);
 
+  const handleLibraryChanged = useCallback(
+    (data: any) => {
+      // Jellyfin sends LibraryChanged when a scan adds/updates/removes items.
+      // Only refresh when something actually changed in the item set.
+      const hasChanges =
+        (data?.ItemsAdded?.length ?? 0) > 0 ||
+        (data?.ItemsRemoved?.length ?? 0) > 0 ||
+        (data?.ItemsUpdated?.length ?? 0) > 0 ||
+        (data?.FoldersAddedTo?.length ?? 0) > 0 ||
+        (data?.FoldersRemovedFrom?.length ?? 0) > 0;
+
+      if (!hasChanges) {
+        return;
+      }
+
+      // A single scan can emit several LibraryChanged messages in quick
+      // succession, so debounce the invalidation to refetch only once.
+      if (libraryChangeDebounceRef.current) {
+        clearTimeout(libraryChangeDebounceRef.current);
+      }
+      libraryChangeDebounceRef.current = setTimeout(() => {
+        for (const queryKey of LIBRARY_CHANGE_QUERY_KEYS) {
+          queryClient.invalidateQueries({ queryKey: [...queryKey] });
+        }
+      }, 1000);
+    },
+    [queryClient],
+  );
+
   useEffect(() => {
     if (!lastMessage) {
       return;
     }
     if (lastMessage.MessageType === "Play") {
       handlePlayCommand(lastMessage.Data);
+    } else if (lastMessage.MessageType === "LibraryChanged") {
+      handleLibraryChanged(lastMessage.Data);
     }
-  }, [lastMessage, router]);
+  }, [lastMessage, router, handleLibraryChanged]);
+
+  useEffect(() => {
+    return () => {
+      if (libraryChangeDebounceRef.current) {
+        clearTimeout(libraryChangeDebounceRef.current);
+      }
+    };
+  }, []);
 
   const handlePlayCommand = useCallback(
     (data: any) => {
-      if (!data || !data.ItemIds || !data.ItemIds.length) {
+      if (!data?.ItemIds?.length) {
         return;
       }
 
@@ -151,7 +206,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, [connectWebSocket]);
 
   useEffect(() => {
-    if (!deviceId || !api || !api?.accessToken || !isNetworkConnected) {
+    if (!deviceId || !api?.accessToken || !isNetworkConnected) {
       return;
     }
 

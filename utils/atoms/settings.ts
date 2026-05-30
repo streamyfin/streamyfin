@@ -134,6 +134,14 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// TV Typography scale presets
+export enum TVTypographyScale {
+  Small = "small",
+  Default = "default",
+  Large = "large",
+  ExtraLarge = "extraLarge",
+}
+
 // Audio transcoding mode - controls how surround audio is handled
 // This controls server-side transcoding behavior for audio streams.
 // MPV decodes via FFmpeg and supports most formats, but mobile devices
@@ -145,6 +153,22 @@ export enum AudioTranscodeMode {
   Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
   AllowAll = "passthrough", // Direct play all audio formats
 }
+
+// Inactivity timeout for TV - auto logout after period of no activity
+export enum InactivityTimeout {
+  Disabled = 0,
+  OneMinute = 60000,
+  FiveMinutes = 300000,
+  FifteenMinutes = 900000,
+  ThirtyMinutes = 1800000,
+  OneHour = 3600000,
+  FourHours = 14400000,
+  TwentyFourHours = 86400000,
+}
+
+// MPV cache mode - controls how caching is enabled
+export type MpvCacheMode = "auto" | "yes" | "no";
+export type MpvVoDriver = "gpu-next" | "gpu";
 
 export type Settings = {
   home?: Home | null;
@@ -191,6 +215,15 @@ export type Settings = {
   mpvSubtitleAlignX?: "left" | "center" | "right";
   mpvSubtitleAlignY?: "top" | "center" | "bottom";
   mpvSubtitleFontSize?: number;
+  mpvSubtitleBackgroundEnabled?: boolean;
+  mpvSubtitleBackgroundOpacity?: number; // 0-100
+  // MPV buffer/cache settings
+  mpvCacheEnabled?: MpvCacheMode;
+  mpvCacheSeconds?: number;
+  mpvDemuxerMaxBytes?: number; // MB
+  mpvDemuxerMaxBackBytes?: number; // MB
+  // MPV video output driver (Android only)
+  mpvVoDriver?: MpvVoDriver;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
@@ -198,8 +231,13 @@ export type Settings = {
   hideVolumeSlider: boolean;
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
-  showLargeHomeCarousel: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  // TV-specific settings
+  showHomeBackdrop: boolean;
+  showTVHeroCarousel: boolean;
+  tvTypographyScale: TVTypographyScale;
+  showSeriesPosterOnEpisode: boolean;
+  tvThemeMusicEnabled: boolean;
   // Appearance
   hideRemoteSessionButton: boolean;
   hideWatchlistsTab: boolean;
@@ -211,6 +249,10 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // OpenSubtitles API key for client-side subtitle fetching
+  openSubtitlesApiKey?: string;
+  // TV-only: Inactivity timeout for auto-logout
+  inactivityTimeout: InactivityTimeout;
 };
 
 export interface Lockable<T> {
@@ -276,6 +318,15 @@ export const defaultValues: Settings = {
   mpvSubtitleAlignX: undefined,
   mpvSubtitleAlignY: undefined,
   mpvSubtitleFontSize: undefined,
+  mpvSubtitleBackgroundEnabled: false,
+  mpvSubtitleBackgroundOpacity: 75,
+  // MPV buffer/cache defaults
+  mpvCacheEnabled: "auto",
+  mpvCacheSeconds: 10,
+  mpvDemuxerMaxBytes: 150, // MB
+  mpvDemuxerMaxBackBytes: 50, // MB
+  // MPV video output driver defaults (Android only)
+  mpvVoDriver: "gpu-next",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
@@ -283,8 +334,13 @@ export const defaultValues: Settings = {
   hideVolumeSlider: false,
   hideBrightnessSlider: false,
   usePopularPlugin: true,
-  showLargeHomeCarousel: false,
   mergeNextUpAndContinueWatching: false,
+  // TV-specific settings
+  showHomeBackdrop: true,
+  showTVHeroCarousel: true,
+  tvTypographyScale: TVTypographyScale.Default,
+  showSeriesPosterOnEpisode: false,
+  tvThemeMusicEnabled: true,
   // Appearance
   hideRemoteSessionButton: false,
   hideWatchlistsTab: false,
@@ -296,6 +352,8 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // TV-only: Inactivity timeout (disabled by default)
+  inactivityTimeout: InactivityTimeout.Disabled,
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -341,6 +399,14 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
+const hasMeaningfulSettingValue = (value: unknown) =>
+  value !== undefined && value !== null && value !== "";
+
+const getEffectiveSettingValue = <K extends keyof Settings>(
+  settings: Partial<Settings> | null | undefined,
+  settingsKey: K,
+) => settings?.[settingsKey] ?? defaultValues[settingsKey];
+
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -381,12 +447,13 @@ export const useSettings = () => {
         for (const [key, setting] of Object.entries(newPluginSettings)) {
           if (setting && !setting.locked && setting.value !== undefined) {
             const settingsKey = key as keyof Settings;
-            // Apply if forceOverride is true, or if user hasn't explicitly set this value
-            if (
-              forceOverride ||
-              _settings[settingsKey] === undefined ||
-              _settings[settingsKey] === ""
-            ) {
+            const effectiveValue = getEffectiveSettingValue(
+              _settings,
+              settingsKey,
+            );
+            // Apply if forceOverride is true, or if neither persisted settings
+            // nor app defaults provide a meaningful value.
+            if (forceOverride || !hasMeaningfulSettingValue(effectiveValue)) {
               (updates as any)[settingsKey] = setting.value;
             }
           }
@@ -438,28 +505,22 @@ export const useSettings = () => {
 
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
   // If admin sets locked to false but provides a value,
-  // use user settings first and fallback on admin setting if required.
+  // use persisted settings first, then app defaults, and only fallback on the
+  // plugin value when neither provides a meaningful value.
   const settings: Settings = useMemo(() => {
-    const unlockedPluginDefaults: Partial<Settings> = {};
     const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
       Partial<Settings>
     >((acc, [key, setting]) => {
       if (setting) {
         const { value, locked } = setting;
         const settingsKey = key as keyof Settings;
-
-        // Make sure we override default settings with plugin settings when they are not locked.
-        if (
-          !locked &&
-          value !== undefined &&
-          _settings?.[settingsKey] !== value
-        ) {
-          (unlockedPluginDefaults as any)[settingsKey] = value;
-        }
+        const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
 
         (acc as any)[settingsKey] = locked
           ? value
-          : (_settings?.[settingsKey] ?? value);
+          : hasMeaningfulSettingValue(effectiveValue)
+            ? effectiveValue
+            : value;
       }
       return acc;
     }, {});
