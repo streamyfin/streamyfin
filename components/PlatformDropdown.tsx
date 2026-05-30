@@ -262,24 +262,28 @@ const PlatformDropdownComponent = ({
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
   if (Platform.OS === "ios") {
+    // Pin the wrapper to the measured trigger size. @expo/ui's <Host> (SDK 55)
+    // fills its parent and reports its own size via setStyleSize, so it can't
+    // size itself to content. If the wrapper has no size, the Host's `flex: 1`
+    // height depends on the parent while the parent depends on the Host — a
+    // circular dependency that collapses to 0 for any selector nested more than
+    // one level deep (so only the first, shallowest dropdown stays visible).
+    // Giving the wrapper the measured size breaks the cycle; the Host then
+    // fills a concrete box.
     return (
-      <View>
-        {/* Hidden measurer: lays the trigger out normally to capture its
-            intrinsic size, which we then pin onto the Host below. */}
-        <View style={StyleSheet.absoluteFill} pointerEvents='none' aria-hidden>
-          <View
-            style={{ alignSelf: "flex-start" }}
-            onLayout={handleMeasureTrigger}
-          >
-            {trigger}
-          </View>
-        </View>
-        <Host
-          style={[
-            triggerSize ?? { opacity: 0 },
-            expoUIConfig?.hostStyle as any,
-          ]}
+      <View style={triggerSize ?? { opacity: 0 }}>
+        {/* Hidden measurer: lays the trigger out off-flow to capture its
+            intrinsic size. Absolutely positioned WITHOUT right/bottom so it
+            sizes to the trigger's content rather than to its parent. */}
+        <View
+          style={{ position: "absolute", top: 0, left: 0, opacity: 0 }}
+          pointerEvents='none'
+          aria-hidden
+          onLayout={handleMeasureTrigger}
         >
+          {trigger}
+        </View>
+        <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
           <Menu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
