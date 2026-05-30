@@ -32,6 +32,7 @@ interface DropdownViewProps {
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
+  onToggleSubtitleOffset: (toggle: boolean) => void;
 }
 
 const DropdownView = ({
@@ -39,6 +40,7 @@ const DropdownView = ({
   setPlaybackSpeed,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
+  onToggleSubtitleOffset,
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
@@ -122,6 +124,17 @@ const DropdownView = ({
           selected: subtitleIndex === sub.index.toString(),
           onPress: () => sub.setTrack(),
         })),
+      });
+
+      groups.push({
+        title: "Subtitle Timing Offset",
+        options: [
+          {
+            type: "action" as const,
+            label: "Adjust Subtitle Timing Offset",
+            onPress: () => onToggleSubtitleOffset(true),
+          },
+        ],
       });
 
       // Subtitle Size Section

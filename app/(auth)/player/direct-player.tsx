@@ -84,6 +84,8 @@ export default function page() {
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
+  const [showSubtitleOffset, setShowSubtitleOffset] = useState(false);
+  const [currentSubtitleOffset, setCurrentSubtitleOffset] = useState(0);
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
@@ -763,6 +765,14 @@ export default function page() {
     videoRef.current?.seekTo?.(position / 1000);
   }, []);
 
+  const handleToggleSubtitleOffset = useCallback((toggle: boolean) => {
+    setShowSubtitleOffset(toggle);
+  }, []);
+
+  const handleSetSubtitleOffset = useCallback((offset: number) => {
+    setCurrentSubtitleOffset(offset);
+  }, []);
+
   // Technical info toggle handler
   const handleToggleTechnicalInfo = useCallback(() => {
     setShowTechnicalInfo((prev) => !prev);
@@ -899,6 +909,17 @@ export default function page() {
     applyInitialPlaybackSpeed();
   }, [isVideoLoaded, initialPlaybackSpeed]);
 
+  // Apply subtitle offset when it changes
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current) return;
+
+    const applySubtitleOffset = async () => {
+      await videoRef.current?.setSubtitleTimingOffset?.(currentSubtitleOffset);
+    };
+
+    applySubtitleOffset();
+  }, [currentSubtitleOffset]);
+
   // Show error UI first, before checking loading/missing‐data
   if (itemStatus.isError || streamStatus.isError) {
     return (
@@ -1015,6 +1036,10 @@ export default function page() {
                 downloadedFiles={downloadedFiles}
                 playbackSpeed={currentPlaybackSpeed}
                 setPlaybackSpeed={handleSetPlaybackSpeed}
+                showSubtitleOffset={showSubtitleOffset}
+                onToggleSubtitleOffset={handleToggleSubtitleOffset}
+                subtitleOffset={currentSubtitleOffset}
+                setSubtitleOffset={handleSetSubtitleOffset}
                 showTechnicalInfo={showTechnicalInfo}
                 onToggleTechnicalInfo={handleToggleTechnicalInfo}
                 getTechnicalInfo={getTechnicalInfo}

@@ -141,6 +141,10 @@ public class MpvPlayerModule: Module {
         view.addSubtitleFile(url: url, select: select)
       }
       
+      AsyncFunction("setSubtitleTimingOffset") { (view: MpvPlayerView, offset: Double) in
+        view.setSubtitleTimingOffset(offset)
+      }
+
       // Subtitle positioning functions
       AsyncFunction("setSubtitlePosition") { (view: MpvPlayerView, position: Int) in
         view.setSubtitlePosition(position)
