@@ -38,6 +38,7 @@ import {
   updateAccountToken,
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
+import { wakeServerIfNeeded } from "@/utils/wol";
 
 interface Server {
   address: string;
@@ -204,6 +205,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState === "active") {
+        const serverUrl = getServerUrlFromStorage();
+        if (serverUrl) {
+          wakeServerIfNeeded(serverUrl);
+        }
         refreshStreamyfinPluginSettings();
       }
     });
@@ -500,6 +505,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
         const storedUser = getUserFromStorage();
+
+        // Send Wake-on-LAN packet if configured for this server
+        if (serverUrl) {
+          await wakeServerIfNeeded(serverUrl);
+        }
 
         if (serverUrl && token) {
           const apiInstance = jellyfin.createApi(serverUrl, token);

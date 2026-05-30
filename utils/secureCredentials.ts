@@ -44,6 +44,14 @@ export interface LocalNetworkConfig {
 }
 
 /**
+ * Wake-on-LAN configuration for waking a server before connecting.
+ */
+export interface WakeOnLanConfig {
+  enabled: boolean;
+  macAddress: string; // Format: "AA:BB:CC:DD:EE:FF"
+}
+
+/**
  * Server with multiple saved accounts.
  */
 export interface SavedServer {
@@ -51,6 +59,7 @@ export interface SavedServer {
   name?: string;
   accounts: SavedServerAccount[];
   localNetworkConfig?: LocalNetworkConfig;
+  wolConfig?: WakeOnLanConfig;
 }
 
 /**
@@ -384,6 +393,37 @@ export function getServerLocalConfig(
   const servers = getPreviousServers();
   const server = servers.find((s) => s.address === serverUrl);
   return server?.localNetworkConfig;
+}
+
+/**
+ * Update Wake-on-LAN configuration for a server.
+ */
+export function updateServerWolConfig(
+  serverUrl: string,
+  config: WakeOnLanConfig | undefined,
+): void {
+  const servers = getPreviousServers();
+  const updatedServers = servers.map((server) => {
+    if (server.address === serverUrl) {
+      return {
+        ...server,
+        wolConfig: config,
+      };
+    }
+    return server;
+  });
+  storage.set("previousServers", JSON.stringify(updatedServers));
+}
+
+/**
+ * Get Wake-on-LAN configuration for a server.
+ */
+export function getServerWolConfig(
+  serverUrl: string,
+): WakeOnLanConfig | undefined {
+  const servers = getPreviousServers();
+  const server = servers.find((s) => s.address === serverUrl);
+  return server?.wolConfig;
 }
 
 /**
