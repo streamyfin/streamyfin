@@ -1,11 +1,12 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, TVFocusGuideView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { TvSearchView } from "@/modules/tv-search";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -16,6 +17,7 @@ import type {
   PersonResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
+import { scaleSize } from "@/utils/scaleSize";
 import { TVJellyseerrSearchResults } from "./TVJellyseerrSearchResults";
 import { TVSearchSection } from "./TVSearchSection";
 import { TVSearchTabBadges } from "./TVSearchTabBadges";
@@ -29,27 +31,32 @@ const SEARCH_AREA_HEIGHT = 250;
 const SECTION_GAP = 10;
 const SCALE_PADDING = 20;
 
-// Loading skeleton for TV
+// Loading skeleton for TV.
+// Mirrors TVSearchSection's scaled layout (poster width, item gap, edge
+// padding, heading typography, poster radius) so the placeholder lines up with
+// the real content that replaces it.
 const TVLoadingSkeleton: React.FC = () => {
   const typography = useScaledTVTypography();
-  const itemWidth = 210;
+  const sizes = useScaledTVSizes();
+  const itemWidth = sizes.posters.poster;
   return (
     <View style={{ overflow: "visible" }}>
+      {/* Section header placeholder — matches the heading typography + margins */}
       <View
         style={{
-          width: 200,
-          height: 28,
+          width: itemWidth,
+          height: typography.heading,
           backgroundColor: "#262626",
           borderRadius: 8,
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: 20,
+          marginLeft: sizes.padding.horizontal,
         }}
       />
       <View
         style={{
           flexDirection: "row",
-          gap: 16,
-          paddingHorizontal: SCALE_PADDING,
+          gap: sizes.gaps.item,
+          paddingLeft: sizes.padding.horizontal,
           paddingVertical: SCALE_PADDING,
         }}
       >
@@ -60,15 +67,14 @@ const TVLoadingSkeleton: React.FC = () => {
                 backgroundColor: "#262626",
                 width: itemWidth,
                 aspectRatio: 10 / 15,
-                borderRadius: 12,
-                marginBottom: 8,
+                borderRadius: scaleSize(24),
+                marginBottom: scaleSize(8),
               }}
             />
             <View
               style={{
                 borderRadius: 6,
                 overflow: "hidden",
-                marginBottom: 4,
                 alignSelf: "flex-start",
               }}
             >
@@ -160,9 +166,6 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
-  // Ref to the native search view, used as a TVFocusGuideView destination so
-  // focus can be routed into it from the tab bar above.
-  const [searchViewRef, setSearchViewRef] = useState<View | null>(null);
 
   // Image URL getter for music items
   const getImageUrl = useMemo(() => {
@@ -228,30 +231,18 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           paddingTop: insets.top + TOP_PADDING,
         }}
       >
-        {/* Focus bridge: routes a "down" press from the tab bar above into the
-            native search view (RN-tvOS won't traverse into the native container
-            on its own). */}
-        {searchViewRef && (
-          <TVFocusGuideView
-            destinations={[searchViewRef]}
-            style={{ height: 1, width: "100%" }}
-          />
-        )}
-
         {/* Native tvOS search field (SwiftUI `.searchable`, our `tv-search`
             module). It renders the native search bar + grid keyboard and
             forwards typed text into the existing query pipeline via setSearch;
             our own results grid renders below. */}
         <View
           style={{
-            marginTop: 50,
             marginBottom: 24,
             marginHorizontal: HORIZONTAL_PADDING,
             height: SEARCH_AREA_HEIGHT,
           }}
         >
           <TvSearchView
-            ref={setSearchViewRef}
             style={{ width: "100%", height: "100%" }}
             placeholder={t("search.search")}
             onChangeText={(e) => setSearch(e.nativeEvent.text)}
