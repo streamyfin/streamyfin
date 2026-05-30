@@ -10,6 +10,7 @@ import {
   type TextInputProps,
   View,
 } from "react-native";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 interface InputProps extends TextInputProps {
   extraClassName?: string;
@@ -20,6 +21,9 @@ export function Input(props: InputProps) {
   const inputRef = useRef<TextInput>(null);
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
+  // TV-only: scales the input font with the tvTypographyScale setting.
+  // Not consumed by the mobile branch below.
+  const tvTypography = useScaledTVTypography();
 
   const animateFocus = (focused: boolean) => {
     Animated.timing(scale, {
@@ -41,8 +45,18 @@ export function Input(props: InputProps) {
   };
 
   if (Platform.isTV) {
+    // Scale the whole input (box height, padding, icon) proportionally with the
+    // font so the component grows/shrinks with the tvTypographyScale setting.
+    // Uses the `body` token (primary reading size); it resolves to 28 at Default.
+    const fontSize = tvTypography.body;
+    const factor = fontSize / 28;
+    const height = Math.round(56 * factor);
+    const paddingLeft = Math.round(24 * factor);
+    const iconSize = Math.round(26 * factor);
+    const iconMarginRight = Math.round(14 * factor);
+
     const containerStyle = {
-      height: 48,
+      height,
       borderRadius: 50,
       borderWidth: isFocused ? 1.5 : 1,
       borderColor: isFocused
@@ -51,16 +65,16 @@ export function Input(props: InputProps) {
       overflow: "hidden" as const,
       flexDirection: "row" as const,
       alignItems: "center" as const,
-      paddingLeft: 16,
+      paddingLeft,
     };
 
     const inputElement = (
       <>
         <Ionicons
           name='search'
-          size={20}
+          size={iconSize}
           color={isFocused ? "#999" : "#666"}
-          style={{ marginRight: 12 }}
+          style={{ marginRight: iconMarginRight }}
         />
         <TextInput
           ref={inputRef}
@@ -69,8 +83,8 @@ export function Input(props: InputProps) {
           style={[
             {
               flex: 1,
-              height: 48,
-              fontSize: 18,
+              height,
+              fontSize,
               fontWeight: "400",
               color: "#FFFFFF",
               backgroundColor: "transparent",

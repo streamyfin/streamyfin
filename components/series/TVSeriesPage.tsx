@@ -193,7 +193,7 @@ const TVSeasonButton: React.FC<{
         >
           <Text
             style={{
-              fontSize: typography.body,
+              fontSize: typography.callout,
               color: focused ? "#000" : "#FFFFFF",
               fontWeight: "bold",
             }}
@@ -538,7 +538,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 />
                 <Text
                   style={{
-                    fontSize: typography.body,
+                    fontSize: typography.callout,
                     fontWeight: "bold",
                     color: "#000000",
                   }}
