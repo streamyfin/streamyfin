@@ -4,7 +4,9 @@ import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { CONTROLS_CONSTANTS } from "./constants";
 
-const BASE_IMAGE_SCALE = 1.4;
+// Slightly larger preview (scale 1.6 vs old 1.4) to give the overlay text
+// more room and feel closer to the Jellyfin web style.
+const BASE_IMAGE_SCALE = 1.6;
 const BUBBLE_LEFT_OFFSET = 62;
 const BUBBLE_WIDTH_MULTIPLIER = 1.5;
 
@@ -28,12 +30,8 @@ interface TrickplayBubbleProps {
   };
   /** Scale factor for the image (default 1). Does not affect timestamp text. */
   imageScale?: number;
-}
-
-function formatTime(hours: number, minutes: number, seconds: number): string {
-  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-  const prefix = hours > 0 ? `${hours}:` : "";
-  return `${prefix}${pad(minutes)}:${pad(seconds)}`;
+  /** Chapter name at the scrubbed position, if any. */
+  chapterName?: string | null;
 }
 
 export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
@@ -41,6 +39,7 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
   trickplayInfo,
   time,
   imageScale = 1,
+  chapterName,
 }) => {
   if (!trickPlayUrl || !trickplayInfo) {
     return null;
@@ -49,19 +48,28 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
   const { x, y, url } = trickPlayUrl;
   const tileWidth = CONTROLS_CONSTANTS.TILE_WIDTH;
   const tileHeight = tileWidth / trickplayInfo.aspectRatio!;
+  const timeStr = `${time.hours > 0 ? `${time.hours}:` : ""}${
+    time.minutes < 10 ? `0${time.minutes}` : time.minutes
+  }:${time.seconds < 10 ? `0${time.seconds}` : time.seconds}`;
+
   const finalScale = BASE_IMAGE_SCALE * imageScale;
 
   return (
     <View
       style={{
         position: "absolute",
+        // Sit just above the slider — high enough not to overlap the
+        // progress bar, low enough to feel anchored to the thumb.
         left: -BUBBLE_LEFT_OFFSET * imageScale,
         bottom: 0,
-        paddingTop: 30,
+        paddingTop: 12,
         paddingBottom: 5,
         width: tileWidth * BUBBLE_WIDTH_MULTIPLIER * imageScale,
         justifyContent: "center",
         alignItems: "center",
+        // Bring the bubble in front of the player title / overlays.
+        zIndex: 999,
+        elevation: 10,
       }}
     >
       <View
@@ -89,10 +97,51 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
           source={{ uri: url }}
           contentFit='cover'
         />
+        {/*
+         * Bottom-right overlay (Jellyfin web style) — chapter name (small,
+         * faded) above the timestamp (small, bold). Sits on top of the
+         * trickplay frame inside the same overflow:hidden container so it
+         * always stays within the bubble bounds.
+         */}
+        <View
+          pointerEvents='none'
+          style={{
+            position: "absolute",
+            left: 4,
+            bottom: 3,
+            alignItems: "flex-start",
+            paddingHorizontal: 3,
+            paddingVertical: 1,
+            borderRadius: 3,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            maxWidth: tileWidth - 8,
+          }}
+        >
+          {chapterName ? (
+            <Text
+              numberOfLines={1}
+              style={{
+                color: "#fff",
+                fontSize: 7,
+                opacity: 0.85,
+                lineHeight: 9,
+              }}
+            >
+              {chapterName}
+            </Text>
+          ) : null}
+          <Text
+            style={{
+              color: "#fff",
+              fontSize: 8,
+              fontWeight: "600",
+              lineHeight: 10,
+            }}
+          >
+            {timeStr}
+          </Text>
+        </View>
       </View>
-      <Text style={{ marginTop: 30, fontSize: 16 }}>
-        {formatTime(time.hours, time.minutes, time.seconds)}
-      </Text>
     </View>
   );
 };

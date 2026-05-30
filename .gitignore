@@ -74,3 +74,5 @@ modules/background-downloader/android/build/*
 # ios:unsigned-build Artifacts
 build/
 .claude/
+.agents/skills/**
+skills-lock.json

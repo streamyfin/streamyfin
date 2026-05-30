@@ -178,6 +178,9 @@ export const useAddToWatchlist = () => {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
+        queryKey: ["streamystats", "watchlists"],
+      });
+      queryClient.invalidateQueries({
         queryKey: ["streamystats", "watchlist", variables.watchlistId],
       });
       queryClient.invalidateQueries({
@@ -235,6 +238,9 @@ export const useRemoveFromWatchlist = () => {
       }
     },
     onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["streamystats", "watchlists"],
+      });
       queryClient.invalidateQueries({
         queryKey: ["streamystats", "watchlist", variables.watchlistId],
       });
