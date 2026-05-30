@@ -1,4 +1,4 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
+import { Button, ContextMenu, Host } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect } from "react";
@@ -254,23 +254,39 @@ const PlatformDropdownComponent = ({
               // Otherwise render as individual buttons
               if (radioOptions.length > 0) {
                 if (group.title) {
-                  // Use Picker for grouped options
+                  // Use a nested ContextMenu as a submenu for grouped options
+                  const selectedOption = radioOptions.find(
+                    (opt) => opt.selected,
+                  );
+                  const displayTitle = selectedOption
+                    ? `${group.title}: ${selectedOption.label}`
+                    : group.title;
+
                   items.push(
-                    <Picker
-                      key={`picker-${groupIndex}`}
-                      label={group.title}
-                      options={radioOptions.map((opt) => opt.label)}
-                      variant='menu'
-                      selectedIndex={radioOptions.findIndex(
-                        (opt) => opt.selected,
-                      )}
-                      onOptionSelected={(event: any) => {
-                        const index = event.nativeEvent.index;
-                        const selectedOption = radioOptions[index];
-                        selectedOption?.onPress();
-                        onOptionSelect?.(selectedOption?.value);
-                      }}
-                    />,
+                    <ContextMenu key={`submenu-${groupIndex}`}>
+                      <ContextMenu.Trigger>
+                        <Button>{displayTitle}</Button>
+                      </ContextMenu.Trigger>
+                      <ContextMenu.Items>
+                        {radioOptions.map((option, optionIndex) => (
+                          <Button
+                            key={`radio-${groupIndex}-${optionIndex}`}
+                            systemImage={
+                              option.selected
+                                ? "checkmark.circle.fill"
+                                : "circle"
+                            }
+                            onPress={() => {
+                              option.onPress();
+                              onOptionSelect?.(option.value);
+                            }}
+                            disabled={option.disabled}
+                          >
+                            {option.label}
+                          </Button>
+                        ))}
+                      </ContextMenu.Items>
+                    </ContextMenu>,
                   );
                 } else {
                   // Render radio options as direct buttons
