@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# direnv's stdlib doesn't handle it when LD_LIBRARY_PATH doesn't exist
+LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+
+### Uncomment these lines when using the `devenv` CLI
+export DIRENV_WARN_TIMEOUT=20s
+
+eval "$(devenv direnvrc)"
+
+use devenv
+
+### Uncomment these lines when using the dev shell as a Nix flake
+# use flake . --impure
+
+### Uncomment these lines when using the dev shell from flake-less nix-shell
+# use nix

@@ -73,3 +73,15 @@ modules/background-downloader/android/build/*
 
 # ios:unsigned-build Artifacts
 build/
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+local.properties
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml

@@ -94,10 +94,10 @@ To access the Streamyfin beta, you need to subscribe to the Member tier (or high
 
 ### ⚙️ Prerequisites
 
-- Your device is on the same network as the Jellyfin server (for local connections)  
-- Your Jellyfin server is up and running with remote access enabled if you plan to connect from outside your local network  
-- Your server version is up to date (older versions may cause compatibility issues)  
-- You have a valid Jellyfin user account with access to the media libraries you want to view  
+- Your device is on the same network as the Jellyfin server (for local connections)
+- Your Jellyfin server is up and running with remote access enabled if you plan to connect from outside your local network
+- Your server version is up to date (older versions may cause compatibility issues)
+- You have a valid Jellyfin user account with access to the media libraries you want to view
 - If using features such as **downloads** or **Seerr integration**, confirm the required plugins are installed and configured on your Jellyfin server
 
 ## 🙌 Contributing
@@ -108,10 +108,12 @@ We welcome contributions that improve Streamyfin. Start by forking the repositor
 
 [![Crowdin Translation Status](https://badges.crowdin.net/streamyfin/localized.svg)](https://crowdin.com/project/streamyfin)
 
-Streamyfin is available in multiple languages, and we’re always looking for contributors to help make the app accessible worldwide.  
+Streamyfin is available in multiple languages, and we’re always looking for contributors to help make the app accessible worldwide.
 You can contribute translations directly on our [Crowdin project page](https://crowdin.com/project/streamyfin).
 
 ### 👨‍💻 Development Info
+
+#### Manual Setup
 
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
@@ -123,21 +125,47 @@ You can contribute translations directly on our [Crowdin project page](https://c
 
 For the TV version suffix the npm commands with `:tv`.
 
-`npm run prebuild:tv`  
+`npm run prebuild:tv`
 `npm run ios:tv or npm run android:tv`
+
+#### Automated Setup Using Nix and Devenv
+
+Streamyfin provides a self-contained development environment using [Devenv](https://devenv.sh/) backed by the [Nix](https://nixos.org/) package manager. This development environment will provide all of the necessary dependencies, except for Xcode itself.
+
+1. Follow the [Installation steps from Devenv](https://devenv.sh/getting-started/#installation), to install Nix, as an available package manager, and then the Devenv tool itself.
+2. (Optional but recommended). Install [Direnv](https://direnv.net/) to automatically load the development environment when you `cd` into the project directory, as well as automatically set any environment variables for the project. Follow the instructions at [direnv.net](https://direnv.net/docs/installation.html) to install Direnv and to integrate it with your shell.
+
+After install, you can manually launch the development environment by entering the project directory and running `devenv shell`. If you opted to install Direnv, then the development shell will be automatically loaded after you enter the project directory and run `direnv allow` to authorize the automation.
+
+The development environment provides several scripts to easily build the different outputs:
+
+- `build-android-phone`
+- `build-android-tv`
+- `build-ios-phone-unsigned`
+
+You can also run the npm commands directly:
+
+1. run `npm run prebuild`
+2. Create an expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app
+
+For the TV version suffix the npm commands with `:tv`.
+
+`npm run prebuild:tv`
+`npm run ios:tv or npm run android:tv`
+
 
 ## 👋 Get in Touch with Us
 
 Need assistance or have any questions?
 
 - **Discord:** [Join our server](https://discord.gg/BuGG9ZNhaE)
-- **GitHub Issues:** [Report bugs or request features](https://github.com/streamyfin/streamyfin/issues)  
-- **Email:** [developer@streamyfin.app](mailto:developer@streamyfin.app)  
+- **GitHub Issues:** [Report bugs or request features](https://github.com/streamyfin/streamyfin/issues)
+- **Email:** [developer@streamyfin.app](mailto:developer@streamyfin.app)
 
 
 ## ❓ FAQ
 
-1. Q: Why can't I see my libraries in Streamyfin?  
+1. Q: Why can't I see my libraries in Streamyfin?
    A: Make sure your server is running one of the latest versions and that you have at least one library that isn't audio only
 2. Q: Why can't I see my music library?
    A: We don't currently support music and are unlikely to support music in the near future
