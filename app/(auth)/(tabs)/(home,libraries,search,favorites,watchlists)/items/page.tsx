@@ -30,8 +30,10 @@ const Page: React.FC = () => {
     ItemFields.MediaStreams,
   ]);
 
-  // Lazily preload item with full media sources in background
-  const { data: itemWithSources } = useItemQuery(id, isOffline, undefined, []);
+  // Lazily preload item with full media sources in background — never cache
+  const { data: itemWithSources } = useItemQuery(id, isOffline, undefined, [], {
+    gcTime: 0,
+  });
 
   const opacity = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => {
