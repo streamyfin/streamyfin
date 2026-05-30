@@ -1,5 +1,3 @@
-import { Button, Host, Menu } from "@expo/ui/swift-ui";
-import { disabled } from "@expo/ui/swift-ui/modifiers";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useState } from "react";
@@ -13,6 +11,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
+// A static top-level import evaluates requireNativeModule('ExpoUI') at module
+// load and crashes the entire route tree on tvOS (expo-router requires every
+// route file). Load it lazily and only off-TV; TV never renders these.
+const { Button, Host, Menu } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { disabled } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 // Option types
 export type RadioOption<T = any> = {
@@ -255,7 +264,7 @@ const PlatformDropdownComponent = ({
     }
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     // Pin the wrapper to the measured trigger size. @expo/ui's <Host> (SDK 55)
     // fills its parent and reports its own size via setStyleSize, so it can't
     // size itself to content. If the wrapper has no size, the Host's `flex: 1`

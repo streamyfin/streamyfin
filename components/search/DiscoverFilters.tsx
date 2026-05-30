@@ -1,8 +1,16 @@
-import { Button, Host, Menu } from "@expo/ui/swift-ui";
-import { buttonStyle } from "@expo/ui/swift-ui/modifiers";
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
+// A static top-level import crashes the route tree on tvOS at module load.
+// Load it lazily and only off-TV; TV never renders this component.
+const { Button, Host, Menu } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { buttonStyle } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
@@ -29,7 +37,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   setJellyseerrSortOrder,
   t,
 }) => {
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <Host
         style={{
