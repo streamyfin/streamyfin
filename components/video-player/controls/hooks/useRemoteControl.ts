@@ -35,6 +35,10 @@ interface UseRemoteControlProps {
   onLongSeekStop?: () => void;
   /** Callback when up/down D-pad pressed (to show controls with play button focused) */
   onVerticalDpad?: () => void;
+  /** Called before the exit confirmation Alert is shown (e.g., to pause countdown) */
+  onWillExit?: () => void;
+  /** Called when the user cancels the exit confirmation Alert */
+  onCancelExit?: () => void;
   // Legacy props - kept for backwards compatibility with mobile Controls.tsx
   // These are ignored in the simplified implementation
   progress?: SharedValue<number>;
@@ -72,6 +76,8 @@ export function useRemoteControl({
   onLongSeekRightStart,
   onLongSeekStop,
   onVerticalDpad,
+  onWillExit,
+  onCancelExit,
 }: UseRemoteControlProps) {
   // Keep these for backward compatibility with the component
   const remoteScrubProgress = useSharedValue<number | null>(null);
@@ -85,13 +91,24 @@ export function useRemoteControl({
   const onHideControlsRef = useRef(onHideControls);
   const onBackRef = useRef(onBack);
   const videoTitleRef = useRef(videoTitle);
+  const onWillExitRef = useRef(onWillExit);
+  const onCancelExitRef = useRef(onCancelExit);
 
   useEffect(() => {
     showControlsRef.current = showControls;
     onHideControlsRef.current = onHideControls;
     onBackRef.current = onBack;
     videoTitleRef.current = videoTitle;
-  }, [showControls, onHideControls, onBack, videoTitle]);
+    onWillExitRef.current = onWillExit;
+    onCancelExitRef.current = onCancelExit;
+  }, [
+    showControls,
+    onHideControls,
+    onBack,
+    videoTitle,
+    onWillExit,
+    onCancelExit,
+  ]);
 
   // BackHandler owns player exit: Android TV sends hardware back here, and
   // react-native-tvos maps the Apple TV menu button to the same API.
@@ -102,6 +119,9 @@ export function useRemoteControl({
       return true;
     }
     if (onBackRef.current) {
+      // Signal Controls that exit is imminent (pauses countdown, sets guard)
+      onWillExitRef.current?.();
+
       // Controls are hidden, so confirm before leaving playback.
       Alert.alert(
         "Stop Playback",
@@ -109,7 +129,11 @@ export function useRemoteControl({
           ? `Stop playing "${videoTitleRef.current}"?`
           : "Are you sure you want to stop playback?",
         [
-          { text: "Cancel", style: "cancel" },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => onCancelExitRef.current?.(),
+          },
           { text: "Stop", style: "destructive", onPress: onBackRef.current },
         ],
       );

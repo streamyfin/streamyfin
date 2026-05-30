@@ -517,6 +517,8 @@ export const Controls: FC<Props> = ({
   const goToNextItemRef = useRef<(opts?: { isAutoPlay?: boolean }) => void>(
     () => {},
   );
+  const exitingRef = useRef(false);
+  const [isExiting, setIsExiting] = useState(false);
 
   const updateSeekBubbleTime = useCallback((ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -960,6 +962,16 @@ export const Controls: FC<Props> = ({
     router.back();
   }, [router]);
 
+  const handleWillExit = useCallback(() => {
+    exitingRef.current = true;
+    setIsExiting(true);
+  }, []);
+
+  const handleCancelExit = useCallback(() => {
+    exitingRef.current = false;
+    setIsExiting(false);
+  }, []);
+
   const { isSliding: isRemoteSliding } = useRemoteControl({
     showControls: showControls,
     toggleControls,
@@ -976,6 +988,8 @@ export const Controls: FC<Props> = ({
     onVerticalDpad: handleVerticalDpad,
     onHideControls: hideControls,
     onBack: handleBack,
+    onWillExit: handleWillExit,
+    onCancelExit: handleCancelExit,
     videoTitle: item?.Name ?? undefined,
   });
 
@@ -1061,6 +1075,7 @@ export const Controls: FC<Props> = ({
   goToNextItemRef.current = goToNextItem;
 
   const handleAutoPlayFinish = useCallback(() => {
+    if (exitingRef.current) return;
     goToNextItem({ isAutoPlay: true });
   }, [goToNextItem]);
 
@@ -1135,7 +1150,7 @@ export const Controls: FC<Props> = ({
           nextItem={nextItem}
           api={api}
           show={isCountdownActive}
-          isPlaying={isPlaying}
+          isPlaying={isPlaying && !isExiting}
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
           controlsVisible={showControls}
