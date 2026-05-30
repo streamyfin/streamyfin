@@ -205,15 +205,19 @@ export function getDefaultPlaySettings(
       previous.indexes.subtitleIndex !== undefined
     ) {
       const ranker = new StreamRanker(new SubtitleStreamRanker());
-      const result = { DefaultSubtitleStreamIndex: subtitleIndex };
+      const result = {
+        DefaultSubtitleStreamIndex: subtitleIndex,
+        matched: false,
+      };
       ranker.rankStream(
         previous.indexes.subtitleIndex,
         previous.source,
         streams,
         result,
       );
-      // Check if StreamRanker found a match (changed from default)
-      if (result.DefaultSubtitleStreamIndex !== subtitleIndex) {
+      // Use the ranker's explicit match signal — this also covers a deliberate
+      // "subtitles off" (-1) and the case where the match equals the default.
+      if (result.matched) {
         subtitleIndex = result.DefaultSubtitleStreamIndex;
         matchedPreviousSubtitle = true;
       }
@@ -224,15 +228,15 @@ export function getDefaultPlaySettings(
       previous.indexes.audioIndex !== undefined
     ) {
       const ranker = new StreamRanker(new AudioStreamRanker());
-      const result = { DefaultAudioStreamIndex: audioIndex };
+      const result = { DefaultAudioStreamIndex: audioIndex, matched: false };
       ranker.rankStream(
         previous.indexes.audioIndex,
         previous.source,
         streams,
         result,
       );
-      // Check if StreamRanker found a match (changed from default)
-      if (result.DefaultAudioStreamIndex !== audioIndex) {
+      // Use the ranker's explicit match signal
+      if (result.matched) {
         audioIndex = result.DefaultAudioStreamIndex;
         matchedPreviousAudio = true;
       }
