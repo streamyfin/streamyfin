@@ -251,6 +251,7 @@ export const Controls: FC<Props> = ({
     handleTouchEnd,
     handleSliderComplete,
     handleSliderChange,
+    seekTo,
   } = useVideoSlider({
     progress,
     isSeeking,
@@ -528,6 +529,8 @@ export const Controls: FC<Props> = ({
           >
             <BottomControls
               item={item}
+              chapters={item.Chapters}
+              durationMs={maxMs}
               showControls={showControls}
               isSliding={isSliding}
               showRemoteBubble={showRemoteBubble}
@@ -551,6 +554,7 @@ export const Controls: FC<Props> = ({
               handleSliderChange={handleSliderChange}
               handleTouchStart={handleTouchStart}
               handleTouchEnd={handleTouchEnd}
+              seekTo={seekTo}
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
               time={isSliding || showRemoteBubble ? time : remoteTime}
