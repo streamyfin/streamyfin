@@ -1,13 +1,13 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { ScrollView, TVFocusGuideView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { TvSearchView } from "@/modules/tv-search";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import type DiscoverSlider from "@/utils/jellyseerr/server/entity/DiscoverSlider";
@@ -22,6 +22,10 @@ import { TVSearchTabBadges } from "./TVSearchTabBadges";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
+// Height of the native search bar itself. The tvOS grid keyboard presents as
+// its own overlay when the field is focused, so we only reserve the bar height
+// here — not the whole keyboard. Tunable once seen on device.
+const SEARCH_AREA_HEIGHT = 250;
 const SECTION_GAP = 10;
 const SCALE_PADDING = 20;
 
@@ -124,7 +128,6 @@ interface TVSearchPageProps {
 }
 
 export const TVSearchPage: React.FC<TVSearchPageProps> = ({
-  search,
   setSearch,
   debouncedSearch,
   movies,
@@ -157,6 +160,9 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
+  // Ref to the native search view, used as a TVFocusGuideView destination so
+  // focus can be routed into it from the tab bar above.
+  const [searchViewRef, setSearchViewRef] = useState<View | null>(null);
 
   // Image URL getter for music items
   const getImageUrl = useMemo(() => {
@@ -215,125 +221,141 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   const currentNoResults = isLibraryMode ? noResults : jellyseerrNoResults;
 
   return (
-    <ScrollView
-      nestedScrollEnabled
-      showsVerticalScrollIndicator={false}
-      keyboardDismissMode='on-drag'
-      contentContainerStyle={{
-        paddingTop: insets.top + TOP_PADDING,
-        paddingBottom: insets.bottom + 60,
-      }}
-    >
-      {/* Search Input */}
+    <View style={{ flex: 1 }}>
+      {/* Sticky header: search field stays pinned while results scroll below. */}
       <View
         style={{
-          marginBottom: 24,
-          marginHorizontal: HORIZONTAL_PADDING + 200,
+          paddingTop: insets.top + TOP_PADDING,
         }}
       >
-        <Input
-          placeholder={t("search.search")}
-          value={search}
-          onChangeText={setSearch}
-          keyboardType='default'
-          returnKeyType='done'
-          autoCapitalize='none'
-          clearButtonMode='while-editing'
-          maxLength={500}
-          hasTVPreferredFocus={
-            debouncedSearch.length === 0 &&
-            sections.length === 0 &&
-            !showDiscover
-          }
-        />
-      </View>
+        {/* Focus bridge: routes a "down" press from the tab bar above into the
+            native search view (RN-tvOS won't traverse into the native container
+            on its own). */}
+        {searchViewRef && (
+          <TVFocusGuideView
+            destinations={[searchViewRef]}
+            style={{ height: 1, width: "100%" }}
+          />
+        )}
 
-      {/* Search Type Tab Badges */}
-      {showDiscover && (
-        <View style={{ marginHorizontal: HORIZONTAL_PADDING }}>
-          <TVSearchTabBadges
-            searchType={searchType}
-            setSearchType={setSearchType}
-            showDiscover={showDiscover}
+        {/* Native tvOS search field (SwiftUI `.searchable`, our `tv-search`
+            module). It renders the native search bar + grid keyboard and
+            forwards typed text into the existing query pipeline via setSearch;
+            our own results grid renders below. */}
+        <View
+          style={{
+            marginTop: 50,
+            marginBottom: 24,
+            marginHorizontal: HORIZONTAL_PADDING,
+            height: SEARCH_AREA_HEIGHT,
+          }}
+        >
+          <TvSearchView
+            ref={setSearchViewRef}
+            style={{ width: "100%", height: "100%" }}
+            placeholder={t("search.search")}
+            onChangeText={(e) => setSearch(e.nativeEvent.text)}
           />
         </View>
-      )}
+      </View>
 
-      {/* Loading State */}
-      {currentLoading && (
-        <View style={{ gap: SECTION_GAP }}>
-          <TVLoadingSkeleton />
-          <TVLoadingSkeleton />
-        </View>
-      )}
-
-      {/* Library Search Results */}
-      {isLibraryMode && !loading && (
-        <View style={{ gap: SECTION_GAP }}>
-          {sections.map((section, index) => (
-            <TVSearchSection
-              key={section.key}
-              title={section.title}
-              items={section.items!}
-              orientation={section.orientation || "vertical"}
-              isFirstSection={index === 0}
-              onItemPress={onItemPress}
-              onItemLongPress={onItemLongPress}
-              imageUrlGetter={
-                ["artists", "albums", "songs", "playlists"].includes(
-                  section.key,
-                )
-                  ? getImageUrl
-                  : undefined
-              }
+      <ScrollView
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode='on-drag'
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 60,
+        }}
+      >
+        {/* Search Type Tab Badges */}
+        {showDiscover && (
+          <View style={{ marginHorizontal: HORIZONTAL_PADDING }}>
+            <TVSearchTabBadges
+              searchType={searchType}
+              setSearchType={setSearchType}
+              showDiscover={showDiscover}
             />
-          ))}
-        </View>
-      )}
+          </View>
+        )}
 
-      {/* Jellyseerr/Discover Search Results */}
-      {isDiscoverMode && !jellyseerrLoading && debouncedSearch.length > 0 && (
-        <TVJellyseerrSearchResults
-          movieResults={jellyseerrMovies}
-          tvResults={jellyseerrTv}
-          personResults={jellyseerrPersons}
-          loading={jellyseerrLoading}
-          noResults={jellyseerrNoResults}
-          searchQuery={debouncedSearch}
-          onMoviePress={onJellyseerrMoviePress || (() => {})}
-          onTvPress={onJellyseerrTvPress || (() => {})}
-          onPersonPress={onJellyseerrPersonPress || (() => {})}
-        />
-      )}
+        {/* Loading State */}
+        {currentLoading && (
+          <View style={{ gap: SECTION_GAP }}>
+            <TVLoadingSkeleton />
+            <TVLoadingSkeleton />
+          </View>
+        )}
 
-      {/* Discover Content (when no search query in Discover mode) */}
-      {isDiscoverMode && !jellyseerrLoading && debouncedSearch.length === 0 && (
-        <TVDiscover sliders={discoverSliders} />
-      )}
+        {/* Library Search Results */}
+        {isLibraryMode && !loading && (
+          <View style={{ gap: SECTION_GAP }}>
+            {sections.map((section, index) => (
+              <TVSearchSection
+                key={section.key}
+                title={section.title}
+                items={section.items!}
+                orientation={section.orientation || "vertical"}
+                isFirstSection={index === 0}
+                onItemPress={onItemPress}
+                onItemLongPress={onItemLongPress}
+                imageUrlGetter={
+                  ["artists", "albums", "songs", "playlists"].includes(
+                    section.key,
+                  )
+                    ? getImageUrl
+                    : undefined
+                }
+              />
+            ))}
+          </View>
+        )}
 
-      {/* No Results State */}
-      {!currentLoading && currentNoResults && debouncedSearch.length > 0 && (
-        <View style={{ alignItems: "center", paddingTop: 40 }}>
-          <Text
-            style={{
-              fontSize: typography.heading,
-              fontWeight: "bold",
-              color: "#FFFFFF",
-              marginBottom: 8,
-            }}
-          >
-            {t("search.no_results_found_for")}
-          </Text>
-          <Text
-            style={{
-              fontSize: typography.body,
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
-            "{debouncedSearch}"
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+        {/* Jellyseerr/Discover Search Results */}
+        {isDiscoverMode && !jellyseerrLoading && debouncedSearch.length > 0 && (
+          <TVJellyseerrSearchResults
+            movieResults={jellyseerrMovies}
+            tvResults={jellyseerrTv}
+            personResults={jellyseerrPersons}
+            loading={jellyseerrLoading}
+            noResults={jellyseerrNoResults}
+            searchQuery={debouncedSearch}
+            onMoviePress={onJellyseerrMoviePress || (() => {})}
+            onTvPress={onJellyseerrTvPress || (() => {})}
+            onPersonPress={onJellyseerrPersonPress || (() => {})}
+          />
+        )}
+
+        {/* Discover Content (when no search query in Discover mode) */}
+        {isDiscoverMode &&
+          !jellyseerrLoading &&
+          debouncedSearch.length === 0 && (
+            <TVDiscover sliders={discoverSliders} />
+          )}
+
+        {/* No Results State */}
+        {!currentLoading && currentNoResults && debouncedSearch.length > 0 && (
+          <View style={{ alignItems: "center", paddingTop: 40 }}>
+            <Text
+              style={{
+                fontSize: typography.heading,
+                fontWeight: "bold",
+                color: "#FFFFFF",
+                marginBottom: 8,
+              }}
+            >
+              {t("search.no_results_found_for")}
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.body,
+                color: "rgba(255,255,255,0.6)",
+              }}
+            >
+              "{debouncedSearch}"
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 };
