@@ -485,8 +485,7 @@ final class MPVLayerRenderer {
         switch event.event_id {
         case MPV_EVENT_FILE_LOADED:
             // Add external subtitles now that the file is loaded
-            let hadExternalSubs = !pendingExternalSubtitles.isEmpty
-            if hadExternalSubs, let handle = mpv {
+            if !pendingExternalSubtitles.isEmpty, let handle = mpv {
                 for (index, subUrl) in pendingExternalSubtitles.enumerated() {
                     print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
                     // Use commandSync to ensure subs are added in exact order (not async)
@@ -494,12 +493,20 @@ final class MPVLayerRenderer {
                     commandSync(handle, ["sub-add", subUrl, "auto"])
                 }
                 pendingExternalSubtitles = []
-                // Set subtitle after external subs are added
-                if let subId = initialSubtitleId {
-                    setSubtitleTrack(subId)
-                } else {
-                    disableSubtitles()
-                }
+            }
+            // Apply the initial audio/subtitle selection now that the file's
+            // tracks are enumerated. Setting sid/aid before `loadfile` does not
+            // reliably stick for embedded tracks (the selection is silently
+            // dropped), so we (re)apply here for embedded and external alike.
+            // This is what makes a carried-over subtitle show up on the next
+            // episode without a manual re-selection.
+            if let audioId = initialAudioId, audioId > 0 {
+                setAudioTrack(audioId)
+            }
+            if let subId = initialSubtitleId {
+                setSubtitleTrack(subId)
+            } else {
+                disableSubtitles()
             }
             if !isReadyToSeek {
                 isReadyToSeek = true
