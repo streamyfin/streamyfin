@@ -2,7 +2,7 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.54.0",
+    "version": "0.54.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
@@ -36,7 +36,7 @@
       "appleTeamId": "MWD5K362T8"
     },
     "android": {
-      "versionCode": 93,
+      "versionCode": 94,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
