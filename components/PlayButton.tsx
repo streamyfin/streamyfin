@@ -35,9 +35,9 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
-import { chromecast } from "@/utils/profiles/chromecast";
-import { chromecasth265 } from "@/utils/profiles/chromecasth265";
 import { runtimeTicksToMinutes } from "@/utils/time";
+import { chromecast } from "../utils/profiles/chromecast";
+import { chromecasth265 } from "../utils/profiles/chromecasth265";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
 import type { SelectedOptions } from "./ItemContent";
@@ -430,7 +430,7 @@ export const PlayButton: React.FC<Props> = ({
   ]);
 
   const derivedTargetWidth = useDerivedValue(() => {
-    if (!item || !item.RunTimeTicks) return 0;
+    if (!item?.RunTimeTicks) return 0;
     const userData = item.UserData;
     if (userData?.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0

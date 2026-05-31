@@ -1,6 +1,15 @@
-import { Button, Host } from "@expo/ui/swift-ui";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Tag } from "@/components/GenreTags";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
+// A static top-level import crashes the route tree on tvOS at module load.
+// Load it lazily and only off-TV; TV never renders this component.
+const { Button, Host, HStack, Spacer } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { buttonStyle } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 type SearchType = "Library" | "Discover";
 
@@ -15,42 +24,31 @@ export const SearchTabButtons: React.FC<SearchTabButtonsProps> = ({
   setSearchType,
   t,
 }) => {
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
-      <>
-        <Host
-          style={{
-            height: 40,
-            width: 80,
-            flexDirection: "row",
-            gap: 10,
-            justifyContent: "space-between",
-          }}
-        >
+      <Host style={{ height: 40, flex: 1 }}>
+        <HStack spacing={8}>
           <Button
-            variant={searchType === "Library" ? "glassProminent" : "glass"}
+            modifiers={[
+              buttonStyle(
+                searchType === "Library" ? "glassProminent" : "glass",
+              ),
+            ]}
             onPress={() => setSearchType("Library")}
-          >
-            {t("search.library")}
-          </Button>
-        </Host>
-        <Host
-          style={{
-            height: 40,
-            width: 100,
-            flexDirection: "row",
-            gap: 10,
-            justifyContent: "space-between",
-          }}
-        >
+            label={t("search.library")}
+          />
           <Button
-            variant={searchType === "Discover" ? "glassProminent" : "glass"}
+            modifiers={[
+              buttonStyle(
+                searchType === "Discover" ? "glassProminent" : "glass",
+              ),
+            ]}
             onPress={() => setSearchType("Discover")}
-          >
-            {t("search.discover")}
-          </Button>
-        </Host>
-      </>
+            label={t("search.discover")}
+          />
+          <Spacer />
+        </HStack>
+      </Host>
     );
   }
 

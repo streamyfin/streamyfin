@@ -80,7 +80,7 @@ export const usePlaybackManager = ({
   const { data: adjacentItems } = useQuery({
     queryKey: ["adjacentItems", item?.Id, item?.SeriesId, isOffline],
     queryFn: async (): Promise<BaseItemDto[] | null> => {
-      if (!item || !item.SeriesId) {
+      if (!item?.SeriesId) {
         return null;
       }
 

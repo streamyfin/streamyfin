@@ -525,10 +525,23 @@ function displayBuildError(
       console.error(line);
     }
     console.error("--- End Build Errors ---\n");
-  } else if (stdout.trim()) {
+  }
+
+  // Linker failures ("Undefined symbols for architecture …", the SwiftUICore
+  // autolink rejection, "ld: …") don't carry an "error:" token, so the pattern
+  // filter above drops the symbol name and "referenced from" context that
+  // actually pinpoints the culprit. Surface that block explicitly.
+  const stdoutLines = stdout.split("\n");
+  const undefIdx = stdoutLines.findIndex((line: string) =>
+    line.includes("Undefined symbols"),
+  );
+  if (undefIdx >= 0) {
+    console.error("\n--- Linker error detail ---");
+    console.error(stdoutLines.slice(undefIdx, undefIdx + 40).join("\n"));
+    console.error("--- End linker error detail ---\n");
+  } else if (errorLines.length === 0 && stdout.trim()) {
     // No specific error patterns found, show last N lines of stdout
-    const lines = stdout.split("\n");
-    const lastLines = lines.slice(-ERROR_OUTPUT_TAIL_LINES).join("\n");
+    const lastLines = stdoutLines.slice(-ERROR_OUTPUT_TAIL_LINES).join("\n");
     console.error(
       `\n--- Last ${ERROR_OUTPUT_TAIL_LINES} lines of build output ---`,
     );

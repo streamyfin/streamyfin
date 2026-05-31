@@ -1,0 +1,84 @@
+diff --git a/node_modules/react-native-bottom-tabs/.bun-tag-b32ab1c60a5dfcf7 b/.bun-tag-b32ab1c60a5dfcf7
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/ios/BottomAccessoryProvider.swift b/ios/BottomAccessoryProvider.swift
+index 539efee7156599e1fc795e11bf411b7dfaf12ec7..b2af39a2e6b014e9b1ae0a51b21115c19280df69 100644
+--- a/ios/BottomAccessoryProvider.swift
++++ b/ios/BottomAccessoryProvider.swift
+@@ -8,7 +8,7 @@ import SwiftUI
+     self.delegate = delegate
+   }
+ 
+-  #if !os(macOS)
++  #if !os(macOS) && !os(tvOS)
+   @available(iOS 26.0, *)
+   public func emitPlacementChanged(_ placement: TabViewBottomAccessoryPlacement?) {
+     var placementValue = "none"
+diff --git a/ios/TabView/NewTabView.swift b/ios/TabView/NewTabView.swift
+index 22c52cdf25ad0f7398d89197cb431ca8dc8e0f99..81411376e68803de8bd83515d42565cfa95daf2b 100644
+--- a/ios/TabView/NewTabView.swift
++++ b/ios/TabView/NewTabView.swift
+@@ -78,11 +78,11 @@ struct ConditionalBottomAccessoryModifier: ViewModifier {
+   }
+ 
+   func body(content: Content) -> some View {
+-    #if os(macOS)
+-    // tabViewBottomAccessory is not available on macOS
++    #if os(macOS) || os(tvOS)
++    // tabViewBottomAccessory is not available on macOS or tvOS
+     content
+     #else
+-    if #available(iOS 26.0, tvOS 26.0, visionOS 3.0, *), bottomAccessoryView != nil {
++    if #available(iOS 26.0, visionOS 3.0, *), bottomAccessoryView != nil {
+       content
+         .tabViewBottomAccessory {
+           renderBottomAccessoryView()
+@@ -95,7 +95,7 @@ struct ConditionalBottomAccessoryModifier: ViewModifier {
+ 
+   @ViewBuilder
+   private func renderBottomAccessoryView() -> some View {
+-    #if !os(macOS)
++    #if !os(macOS) && !os(tvOS)
+     if let bottomAccessoryView {
+       if #available(iOS 26.0, *) {
+         BottomAccessoryRepresentableView(view: bottomAccessoryView)
+@@ -105,7 +105,7 @@ struct ConditionalBottomAccessoryModifier: ViewModifier {
+   }
+ }
+ 
+-#if !os(macOS)
++#if !os(macOS) && !os(tvOS)
+ @available(iOS 26.0, *)
+ struct BottomAccessoryRepresentableView: PlatformViewRepresentable {
+   @Environment(\.tabViewBottomAccessoryPlacement) var tabViewBottomAccessoryPlacement
+@@ -135,3 +135,4 @@ struct BottomAccessoryRepresentableView: PlatformViewRepresentable {
+   }
+ }
+ #endif
++
+diff --git a/ios/TabViewImpl.swift b/ios/TabViewImpl.swift
+index 72938be90540ea3a483d7db9a80fb74c04d31272..277278ffdd9268a96cb09869eb1d0c0d5e6ad300 100644
+--- a/ios/TabViewImpl.swift
++++ b/ios/TabViewImpl.swift
+@@ -281,7 +281,7 @@ extension View {
+ 
+   @ViewBuilder
+   func tabBarMinimizeBehavior(_ behavior: MinimizeBehavior?) -> some View {
+-    #if compiler(>=6.2)
++    #if compiler(>=6.2) && !os(tvOS)
+     if #available(iOS 26.0, macOS 26.0, *) {
+         if let behavior {
+           self.tabBarMinimizeBehavior(behavior.convert())
+diff --git a/ios/TabViewProps.swift b/ios/TabViewProps.swift
+index 9cfb29a983b34d3f84fc7a678d19ef4ff30e0325..6a5854483e66200b71722bbac12e100742222bd3 100644
+--- a/ios/TabViewProps.swift
++++ b/ios/TabViewProps.swift
+@@ -6,7 +6,7 @@ internal enum MinimizeBehavior: String {
+   case onScrollUp
+   case onScrollDown
+ 
+-#if compiler(>=6.2)
++#if compiler(>=6.2) && !os(tvOS)
+   @available(iOS 26.0, macOS 26.0, *)
+   func convert() -> TabBarMinimizeBehavior {
+ #if os(macOS)

@@ -5,9 +5,12 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
+
+import { BackHandler, Platform } from "react-native";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
@@ -72,6 +75,25 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
       setModalState({ content: null, options: undefined });
     });
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const onBackPress = () => {
+      if (isVisible) {
+        hideModal();
+        return true;
+      }
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [isVisible, hideModal]);
 
   const value = {
     showModal,

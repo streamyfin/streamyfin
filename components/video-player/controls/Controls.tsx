@@ -33,6 +33,7 @@ import { CONTROLS_CONSTANTS } from "./constants";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
+import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
@@ -211,6 +212,21 @@ export const Controls: FC<Props> = ({
     isSeeking,
   });
 
+  // Chapter navigation hook
+  const {
+    hasChapters,
+    hasPreviousChapter,
+    hasNextChapter,
+    goToPreviousChapter,
+    goToNextChapter,
+    chapterPositions,
+  } = useChapterNavigation({
+    chapters: item.Chapters,
+    progress,
+    maxMs,
+    seek,
+  });
+
   const toggleControls = useCallback(() => {
     if (showControls) {
       setShowAudioSlider(false);
@@ -251,6 +267,7 @@ export const Controls: FC<Props> = ({
     handleTouchEnd,
     handleSliderComplete,
     handleSliderChange,
+    seekTo,
   } = useVideoSlider({
     progress,
     isSeeking,
@@ -339,10 +356,15 @@ export const Controls: FC<Props> = ({
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(item, settings, {
-        indexes: previousIndexes,
-        source: mediaSource ?? undefined,
-      });
+      } = getDefaultPlaySettings(
+        item,
+        settings,
+        {
+          indexes: previousIndexes,
+          source: mediaSource ?? undefined,
+        },
+        { applyLanguagePreferences: true },
+      );
 
       const queryParams = new URLSearchParams({
         ...(offline && { offline: "true" }),
@@ -481,6 +503,7 @@ export const Controls: FC<Props> = ({
               getTechnicalInfo={getTechnicalInfo}
               playMethod={playMethod}
               transcodeReasons={transcodeReasons}
+              mediaSource={mediaSource}
             />
           )}
           <Animated.View
@@ -520,6 +543,11 @@ export const Controls: FC<Props> = ({
               togglePlay={togglePlay}
               handleSkipBackward={handleSkipBackward}
               handleSkipForward={handleSkipForward}
+              hasChapters={hasChapters}
+              hasPreviousChapter={hasPreviousChapter}
+              hasNextChapter={hasNextChapter}
+              goToPreviousChapter={goToPreviousChapter}
+              goToNextChapter={goToNextChapter}
             />
           </Animated.View>
           <Animated.View
@@ -528,6 +556,8 @@ export const Controls: FC<Props> = ({
           >
             <BottomControls
               item={item}
+              chapters={item.Chapters}
+              durationMs={maxMs}
               showControls={showControls}
               isSliding={isSliding}
               showRemoteBubble={showRemoteBubble}
@@ -551,9 +581,11 @@ export const Controls: FC<Props> = ({
               handleSliderChange={handleSliderChange}
               handleTouchStart={handleTouchStart}
               handleTouchEnd={handleTouchEnd}
+              seekTo={seekTo}
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
               time={isSliding || showRemoteBubble ? time : remoteTime}
+              chapterPositions={chapterPositions}
             />
           </Animated.View>
         </>

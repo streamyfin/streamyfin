@@ -69,6 +69,7 @@ export const PlayButton: React.FC<Props> = ({
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
     });
 
     const queryString = queryParams.toString();
@@ -77,7 +78,7 @@ export const PlayButton: React.FC<Props> = ({
   };
 
   const derivedTargetWidth = useDerivedValue(() => {
-    if (!item || !item.RunTimeTicks) return 0;
+    if (!item?.RunTimeTicks) return 0;
     const userData = item.UserData;
     if (userData?.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0
