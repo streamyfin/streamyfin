@@ -1,14 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import React, { useEffect, useState } from "react";
-import {
-  type LayoutChangeEvent,
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useEffect } from "react";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  MeasuredTriggerHost,
+  OptionGroupCard,
+  ToggleSwitch,
+} from "@/components/common/dropdownShared";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
@@ -16,7 +15,7 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 // A static top-level import evaluates requireNativeModule('ExpoUI') at module
 // load and crashes the entire route tree on tvOS (expo-router requires every
 // route file). Load it lazily and only off-TV; TV never renders these.
-const { Button, Host, Menu } = Platform.isTV
+const { Button, Menu } = Platform.isTV
   ? ({} as typeof import("@expo/ui/swift-ui"))
   : require("@expo/ui/swift-ui");
 const { disabled } = Platform.isTV
@@ -72,16 +71,6 @@ interface PlatformDropdownProps {
   };
 }
 
-const ToggleSwitch: React.FC<{ value: boolean }> = ({ value }) => (
-  <View
-    className={`w-12 h-7 rounded-full ${value ? "bg-purple-600" : "bg-neutral-600"} flex-row items-center`}
-  >
-    <View
-      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${value ? "translate-x-6" : "translate-x-1"}`}
-    />
-  </View>
-);
-
 const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
   option,
   isLast,
@@ -121,28 +110,15 @@ const OptionItem: React.FC<{ option: Option; isLast?: boolean }> = ({
 };
 
 const OptionGroupComponent: React.FC<{ group: OptionGroup }> = ({ group }) => (
-  <View className='mb-6'>
-    {group.title && (
-      <Text className='text-lg font-semibold mb-3 text-neutral-300'>
-        {group.title}
-      </Text>
-    )}
-    <View
-      style={{
-        borderRadius: 12,
-        overflow: "hidden",
-      }}
-      className='bg-neutral-800 rounded-xl overflow-hidden'
-    >
-      {group.options.map((option, index) => (
-        <OptionItem
-          key={index}
-          option={option}
-          isLast={index === group.options.length - 1}
-        />
-      ))}
-    </View>
-  </View>
+  <OptionGroupCard title={group.title}>
+    {group.options.map((option, index) => (
+      <OptionItem
+        key={index}
+        option={option}
+        isLast={index === group.options.length - 1}
+      />
+    ))}
+  </OptionGroupCard>
 );
 
 const BottomSheetContent: React.FC<{
@@ -217,24 +193,6 @@ const PlatformDropdownComponent = ({
 }: PlatformDropdownProps) => {
   const { showModal, hideModal, isVisible } = useGlobalModal();
 
-  // @expo/ui's <Host> (SDK 55) fills its available space by default, and
-  // `matchContents` doesn't help here: it reports the native Menu's size via
-  // setStyleSize and overrides any explicit size. Instead we measure the
-  // trigger's intrinsic size in plain RN (off-layout) and pin it on the Host.
-  const [triggerSize, setTriggerSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-
-  const handleMeasureTrigger = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    setTriggerSize((prev) =>
-      prev && prev.width === width && prev.height === height
-        ? prev
-        : { width, height },
-    );
-  };
-
   // Handle controlled open state for Android
   useEffect(() => {
     if (Platform.OS === "android" && controlledOpen === true) {
@@ -265,82 +223,42 @@ const PlatformDropdownComponent = ({
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
   if (Platform.OS === "ios" && !Platform.isTV) {
-    // Pin the wrapper to the measured trigger size. @expo/ui's <Host> (SDK 55)
-    // fills its parent and reports its own size via setStyleSize, so it can't
-    // size itself to content. If the wrapper has no size, the Host's `flex: 1`
-    // height depends on the parent while the parent depends on the Host — a
-    // circular dependency that collapses to 0 for any selector nested more than
-    // one level deep (so only the first, shallowest dropdown stays visible).
-    // Giving the wrapper the measured size breaks the cycle; the Host then
-    // fills a concrete box.
     return (
-      <View style={triggerSize ?? { opacity: 0 }}>
-        {/* Hidden measurer: lays the trigger out off-flow to capture its
-            intrinsic size. Absolutely positioned WITHOUT right/bottom so it
-            sizes to the trigger's content rather than to its parent. */}
-        <View
-          style={{ position: "absolute", top: 0, left: 0, opacity: 0 }}
-          pointerEvents='none'
-          aria-hidden
-          onLayout={handleMeasureTrigger}
-        >
-          {trigger}
-        </View>
-        <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
-          <Menu label={trigger}>
-            {groups.flatMap((group, groupIndex) => {
-              // Check if this group has radio options
-              const radioOptions = group.options.filter(
-                (opt) => opt.type === "radio",
-              ) as RadioOption[];
-              const toggleOptions = group.options.filter(
-                (opt) => opt.type === "toggle",
-              ) as ToggleOption[];
-              const actionOptions = group.options.filter(
-                (opt) => opt.type === "action",
-              ) as ActionOption[];
+      <MeasuredTriggerHost
+        trigger={trigger}
+        hostStyle={expoUIConfig?.hostStyle}
+      >
+        <Menu label={trigger}>
+          {groups.flatMap((group, groupIndex) => {
+            // Check if this group has radio options
+            const radioOptions = group.options.filter(
+              (opt) => opt.type === "radio",
+            ) as RadioOption[];
+            const toggleOptions = group.options.filter(
+              (opt) => opt.type === "toggle",
+            ) as ToggleOption[];
+            const actionOptions = group.options.filter(
+              (opt) => opt.type === "action",
+            ) as ActionOption[];
 
-              const items = [];
+            const items = [];
 
-              // Group radio options under a submenu ONLY if there's a title
-              // Otherwise render as individual buttons
-              if (radioOptions.length > 0) {
-                if (group.title) {
-                  // Use a nested Menu as a submenu for grouped options. This
-                  // reads as "Title: Selected" and expands to the choices on
-                  // tap, keeping the nested look while staying a dropdown.
-                  // (Menu opens on a single tap and nests cleanly; ContextMenu
-                  // would require a long-press and read as a context menu.)
-                  const selectedOption = radioOptions.find(
-                    (opt) => opt.selected,
-                  );
-                  const displayTitle = selectedOption
-                    ? `${group.title}: ${selectedOption.label}`
-                    : group.title;
-                  items.push(
-                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
-                      {radioOptions.map((option, optionIndex) => (
-                        <Button
-                          key={`radio-${groupIndex}-${optionIndex}`}
-                          label={option.label}
-                          systemImage={
-                            option.selected ? "checkmark.circle.fill" : "circle"
-                          }
-                          modifiers={
-                            option.disabled ? [disabled(true)] : undefined
-                          }
-                          onPress={() => {
-                            option.onPress();
-                            onOptionSelect?.(option.value);
-                          }}
-                        />
-                      ))}
-                    </Menu>,
-                  );
-                } else {
-                  // Render radio options as direct buttons
-                  radioOptions.forEach((option, optionIndex) => {
-                    items.push(
+            // Group radio options under a submenu ONLY if there's a title
+            // Otherwise render as individual buttons
+            if (radioOptions.length > 0) {
+              if (group.title) {
+                // Use a nested Menu as a submenu for grouped options. This
+                // reads as "Title: Selected" and expands to the choices on
+                // tap, keeping the nested look while staying a dropdown.
+                // (Menu opens on a single tap and nests cleanly; ContextMenu
+                // would require a long-press and read as a context menu.)
+                const selectedOption = radioOptions.find((opt) => opt.selected);
+                const displayTitle = selectedOption
+                  ? `${group.title}: ${selectedOption.label}`
+                  : group.title;
+                items.push(
+                  <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
+                    {radioOptions.map((option, optionIndex) => (
                       <Button
                         key={`radio-${groupIndex}-${optionIndex}`}
                         label={option.label}
@@ -354,49 +272,67 @@ const PlatformDropdownComponent = ({
                           option.onPress();
                           onOptionSelect?.(option.value);
                         }}
-                      />,
-                    );
-                  });
-                }
+                      />
+                    ))}
+                  </Menu>,
+                );
+              } else {
+                // Render radio options as direct buttons
+                radioOptions.forEach((option, optionIndex) => {
+                  items.push(
+                    <Button
+                      key={`radio-${groupIndex}-${optionIndex}`}
+                      label={option.label}
+                      systemImage={
+                        option.selected ? "checkmark.circle.fill" : "circle"
+                      }
+                      modifiers={option.disabled ? [disabled(true)] : undefined}
+                      onPress={() => {
+                        option.onPress();
+                        onOptionSelect?.(option.value);
+                      }}
+                    />,
+                  );
+                });
               }
+            }
 
-              // Add Buttons for toggle options
-              toggleOptions.forEach((option, optionIndex) => {
-                items.push(
-                  <Button
-                    key={`toggle-${groupIndex}-${optionIndex}`}
-                    label={option.label}
-                    systemImage={
-                      option.value ? "checkmark.circle.fill" : "circle"
-                    }
-                    modifiers={option.disabled ? [disabled(true)] : undefined}
-                    onPress={() => {
-                      option.onToggle();
-                      onOptionSelect?.(option.value);
-                    }}
-                  />,
-                );
-              });
+            // Add Buttons for toggle options
+            toggleOptions.forEach((option, optionIndex) => {
+              items.push(
+                <Button
+                  key={`toggle-${groupIndex}-${optionIndex}`}
+                  label={option.label}
+                  systemImage={
+                    option.value ? "checkmark.circle.fill" : "circle"
+                  }
+                  modifiers={option.disabled ? [disabled(true)] : undefined}
+                  onPress={() => {
+                    option.onToggle();
+                    onOptionSelect?.(option.value);
+                  }}
+                />,
+              );
+            });
 
-              // Add Buttons for action options (no icon)
-              actionOptions.forEach((option, optionIndex) => {
-                items.push(
-                  <Button
-                    key={`action-${groupIndex}-${optionIndex}`}
-                    label={option.label}
-                    modifiers={option.disabled ? [disabled(true)] : undefined}
-                    onPress={() => {
-                      option.onPress();
-                    }}
-                  />,
-                );
-              });
+            // Add Buttons for action options (no icon)
+            actionOptions.forEach((option, optionIndex) => {
+              items.push(
+                <Button
+                  key={`action-${groupIndex}-${optionIndex}`}
+                  label={option.label}
+                  modifiers={option.disabled ? [disabled(true)] : undefined}
+                  onPress={() => {
+                    option.onPress();
+                  }}
+                />,
+              );
+            });
 
-              return items;
-            })}
-          </Menu>
-        </Host>
-      </View>
+            return items;
+          })}
+        </Menu>
+      </MeasuredTriggerHost>
     );
   }
 

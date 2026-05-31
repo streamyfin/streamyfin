@@ -3,10 +3,6 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
-import {
-  type OptionGroup,
-  PlatformDropdown,
-} from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -14,20 +10,10 @@ import { useSettings } from "@/utils/atoms/settings";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
-
-// Subtitle scale presets (direct multiplier values)
-const SUBTITLE_SCALE_PRESETS = [
-  { label: "0.1x", value: 0.1 },
-  { label: "0.25x", value: 0.25 },
-  { label: "0.5x", value: 0.5 },
-  { label: "0.75x", value: 0.75 },
-  { label: "1.0x", value: 1.0 },
-  { label: "1.25x", value: 1.25 },
-  { label: "1.5x", value: 1.5 },
-  { label: "2.0x", value: 2.0 },
-  { label: "2.5x", value: 2.5 },
-  { label: "3.0x", value: 3.0 },
-] as const;
+import {
+  type OptionGroup,
+  PlayerSettingsPopover,
+} from "./PlayerSettingsPopover";
 
 interface DropdownViewProps {
   playbackSpeed?: number;
@@ -102,6 +88,7 @@ const DropdownView = ({
     if (!isOffline) {
       groups.push({
         title: "Quality",
+        icon: "gauge.with.dots.needle.50percent",
         options:
           BITRATES?.map((bitrate) => ({
             type: "radio" as const,
@@ -113,29 +100,41 @@ const DropdownView = ({
       });
     }
 
-    // Subtitle Section
+    // Subtitles section. iOS: tap the `...` opens a SwiftUI Popover with the
+    // section header "SUBTITLES" + a Track row (Menu) + a Size row (native
+    // Slider). Android: same shape in a bottom-sheet — tap the "Track" row to
+    // expand the list inline, Size shows a Material 3 Slider.
     if (subtitleTracks && subtitleTracks.length > 0) {
       groups.push({
         title: "Subtitles",
-        options: subtitleTracks.map((sub) => ({
-          type: "radio" as const,
-          label: sub.name,
-          value: sub.index.toString(),
-          selected: subtitleIndex === sub.index.toString(),
-          onPress: () => sub.setTrack(),
-        })),
-      });
-
-      // Subtitle Scale Section
-      groups.push({
-        title: "Subtitle Scale",
-        options: SUBTITLE_SCALE_PRESETS.map((preset) => ({
-          type: "radio" as const,
-          label: preset.label,
-          value: preset.value.toString(),
-          selected: (settings.mpvSubtitleScale ?? 1.0) === preset.value,
-          onPress: () => updateSettings({ mpvSubtitleScale: preset.value }),
-        })),
+        options: [
+          {
+            type: "subgroup" as const,
+            label: "Track",
+            icon: "captions.bubble",
+            options: subtitleTracks.map((sub) => ({
+              type: "radio" as const,
+              label: sub.name,
+              value: sub.index.toString(),
+              selected: subtitleIndex === sub.index.toString(),
+              onPress: () => sub.setTrack(),
+            })),
+          },
+          {
+            type: "slider" as const,
+            label: "Size",
+            icon: "textformat.size",
+            value: Math.round((settings.mpvSubtitleScale ?? 1.0) * 10) / 10,
+            step: 0.1,
+            min: 0.1,
+            max: 3.0,
+            format: (v: number) => `${v.toFixed(1)}x`,
+            onValueChange: (value: number) =>
+              updateSettings({
+                mpvSubtitleScale: Math.round(value * 10) / 10,
+              }),
+          },
+        ],
       });
     }
 
@@ -143,6 +142,7 @@ const DropdownView = ({
     if (audioTracks && audioTracks.length > 0) {
       groups.push({
         title: "Audio",
+        icon: "speaker.wave.2",
         options: audioTracks.map((track) => ({
           type: "radio" as const,
           label: track.name,
@@ -157,6 +157,7 @@ const DropdownView = ({
     if (setPlaybackSpeed) {
       groups.push({
         title: "Speed",
+        icon: "speedometer",
         options: PLAYBACK_SPEEDS.map((speed) => ({
           type: "radio" as const,
           label: speed.label,
@@ -176,6 +177,7 @@ const DropdownView = ({
             label: showTechnicalInfo
               ? "Hide Technical Info"
               : "Show Technical Info",
+            icon: "info.circle",
             onPress: onToggleTechnicalInfo,
           },
         ],
@@ -216,7 +218,7 @@ const DropdownView = ({
   if (Platform.isTV) return null;
 
   return (
-    <PlatformDropdown
+    <PlayerSettingsPopover
       title='Playback Options'
       groups={optionGroups}
       trigger={trigger}
