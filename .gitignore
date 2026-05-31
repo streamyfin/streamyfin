@@ -18,6 +18,9 @@ web-build/
 /androidmobile
 /androidtv
 
+# Gradle caches (top-level + per-module native projects)
+**/.gradle/
+
 # Module-specific Builds
 modules/mpv-player/android/build
 modules/player/android
@@ -76,3 +79,6 @@ build/
 .claude/
 .agents/skills/**
 skills-lock.json
+
+# CI-injected Google Play service account key (written at build time)
+google-service-account.json
