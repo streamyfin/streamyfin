@@ -28,6 +28,20 @@ const LIBRARY_CHANGE_QUERY_KEYS = [
   ["episodes"],
 ] as const;
 
+// Query keys that depend on per-user playback state (resume position, played
+// status, favorites) and should be refreshed when the server reports a
+// `UserDataChanged`. Scoped to the progression-based sections so finishing an
+// episode does not pointlessly refetch "recently added" or suggestions.
+const USER_DATA_CHANGE_QUERY_KEYS = [
+  ["home", "continueAndNextUp"],
+  ["home", "resumeItems"],
+  ["home", "nextUp-all"],
+  ["home", "heroItems"],
+  ["resumeItems"],
+  ["nextUp-all"],
+  ["nextUp"],
+] as const;
+
 interface WebSocketMessage {
   MessageType: string;
   Data: any;
@@ -83,6 +97,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const libraryChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const userDataChangeDebounceRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
   // subscribing/dispatching never triggers a re-render.
@@ -214,16 +231,48 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     [queryClient],
   );
 
+  const handleUserDataChanged = useCallback(
+    (data: any) => {
+      // Jellyfin sends UserDataChanged when playback position, played status
+      // or favorites change (e.g. finishing an episode). Only the
+      // progression-based home sections care about it.
+      if (!((data?.UserDataList?.length ?? 0) > 0)) {
+        return;
+      }
+
+      // Finishing an item can emit several UserDataChanged messages, so
+      // debounce to invalidate the affected sections only once.
+      if (userDataChangeDebounceRef.current) {
+        clearTimeout(userDataChangeDebounceRef.current);
+      }
+      userDataChangeDebounceRef.current = setTimeout(() => {
+        for (const queryKey of USER_DATA_CHANGE_QUERY_KEYS) {
+          queryClient.invalidateQueries({ queryKey: [...queryKey] });
+        }
+      }, 800);
+    },
+    [queryClient],
+  );
+
   // Refresh library-dependent queries when the server reports a change.
   useEffect(
     () => subscribe("LibraryChanged", handleLibraryChanged),
     [subscribe, handleLibraryChanged],
   );
 
+  // Refresh "Continue Watching" / "Next Up" when playback state changes.
+  useEffect(
+    () => subscribe("UserDataChanged", handleUserDataChanged),
+    [subscribe, handleUserDataChanged],
+  );
+
   useEffect(() => {
     return () => {
       if (libraryChangeDebounceRef.current) {
         clearTimeout(libraryChangeDebounceRef.current);
+      }
+      if (userDataChangeDebounceRef.current) {
+        clearTimeout(userDataChangeDebounceRef.current);
       }
     };
   }, []);
