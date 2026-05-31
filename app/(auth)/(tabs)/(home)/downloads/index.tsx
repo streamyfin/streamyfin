@@ -6,6 +6,7 @@ import { Alert, Platform, ScrollView, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import ActiveDownloads from "@/components/downloads/ActiveDownloads";
@@ -17,7 +18,11 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { queueAtom } from "@/utils/atoms/queue";
-import type { BottomSheetMethods } from "@/utils/expoUiBottomSheet";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { writeToLog } from "@/utils/log";
 
 export default function DownloadsPage() {
@@ -101,7 +106,7 @@ export default function DownloadsPage() {
     navigation.setOptions({
       headerRight: () => (
         <Pressable
-          onPress={bottomSheetModalRef.current?.present}
+          onPress={() => bottomSheetModalRef.current?.present()}
           className='px-2'
         >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
@@ -116,7 +121,7 @@ export default function DownloadsPage() {
     }
   }, [showMigration]);
 
-  const _deleteMovies = () =>
+  const deleteMovies = () =>
     deleteFileByType("Movie")
       .then(() =>
         toast.success(
@@ -127,7 +132,7 @@ export default function DownloadsPage() {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
       });
-  const _deleteShows = () =>
+  const deleteShows = () =>
     deleteFileByType("Episode")
       .then(() =>
         toast.success(
@@ -138,7 +143,7 @@ export default function DownloadsPage() {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
       });
-  const _deleteOtherMedia = () =>
+  const deleteOtherMedia = () =>
     Promise.all(
       otherMedia
         .filter((item) => item.item.Type)
@@ -161,6 +166,9 @@ export default function DownloadsPage() {
             }),
         ),
     );
+
+  const deleteAllMedia = async () =>
+    await Promise.all([deleteMovies(), deleteShows(), deleteOtherMedia()]);
 
   return (
     <OfflineModeProvider isOffline={true}>
@@ -256,6 +264,36 @@ export default function DownloadsPage() {
           )}
         </View>
       </ScrollView>
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        enableDynamicSizing
+        enablePanDownToClose
+        handleIndicatorStyle={{
+          backgroundColor: "white",
+        }}
+        backgroundStyle={{
+          backgroundColor: "#171717",
+        }}
+      >
+        <BottomSheetView>
+          <View className='p-4 space-y-4 mb-4'>
+            <Button color='purple' onPress={deleteMovies}>
+              {t("home.downloads.delete_all_movies_button")}
+            </Button>
+            <Button color='purple' onPress={deleteShows}>
+              {t("home.downloads.delete_all_tvseries_button")}
+            </Button>
+            {otherMedia.length > 0 && (
+              <Button color='purple' onPress={deleteOtherMedia}>
+                {t("home.downloads.delete_all_other_media_button")}
+              </Button>
+            )}
+            <Button color='red' onPress={deleteAllMedia}>
+              {t("home.downloads.delete_all_button")}
+            </Button>
+          </View>
+        </BottomSheetView>
+      </BottomSheetModal>
     </OfflineModeProvider>
   );
 }
