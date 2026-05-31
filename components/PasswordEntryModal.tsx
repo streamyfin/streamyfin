@@ -1,16 +1,15 @@
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetTextInput,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHaptic } from "@/hooks/useHaptic";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetTextInput,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
 
@@ -29,7 +28,7 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,17 +61,6 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
     [onClose],
   );
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const handleSubmit = async () => {
     if (!password) {
       setError(t("password.enter_password"));
@@ -93,18 +81,18 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
     }
   };
 
+  if (Platform.isTV) return null;
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       handleIndicatorStyle={{ backgroundColor: "white" }}
       backgroundStyle={{ backgroundColor: "#171717" }}
-      backdropComponent={renderBackdrop}
       keyboardBehavior={isAndroid ? "fillParent" : "interactive"}
       keyboardBlurBehavior='restore'
-      android_keyboardInputMode='adjustResize'
-      topInset={isAndroid ? 0 : undefined}
     >
       <BottomSheetView
         style={{

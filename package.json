@@ -32,7 +32,6 @@
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "~56.0.14",
     "@expo/vector-icons": "^15.0.3",
-    "@gorhom/bottom-sheet": "5.2.14",
     "@jellyfin/sdk": "^0.13.0",
     "@react-native-community/netinfo": "^12.0.0",
     "@react-navigation/material-top-tabs": "7.4.28",

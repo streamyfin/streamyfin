@@ -1,15 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import type { AccountSecurityType } from "@/utils/secureCredentials";
 import { Button } from "./Button";
 import { Text } from "./common/Text";
@@ -58,7 +57,7 @@ export const SaveAccountModal: React.FC<SaveAccountModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const [selectedType, setSelectedType] = useState<AccountSecurityType>("none");
   const [pinCode, setPinCode] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
@@ -93,17 +92,6 @@ export const SaveAccountModal: React.FC<SaveAccountModalProps> = ({
     setPinError(null);
   };
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const handleOptionSelect = (type: AccountSecurityType) => {
     setSelectedType(type);
     setPinCode("");
@@ -135,18 +123,18 @@ export const SaveAccountModal: React.FC<SaveAccountModalProps> = ({
     return true;
   };
 
+  if (Platform.isTV) return null;
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       handleIndicatorStyle={{ backgroundColor: "white" }}
       backgroundStyle={{ backgroundColor: "#171717" }}
-      backdropComponent={renderBackdrop}
       keyboardBehavior={isAndroid ? "fillParent" : "interactive"}
       keyboardBlurBehavior='restore'
-      android_keyboardInputMode='adjustResize'
-      topInset={isAndroid ? 0 : undefined}
     >
       <BottomSheetView
         style={{

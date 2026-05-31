@@ -1,15 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 
 export type PlaylistSortOption = "SortName" | "DateCreated";
 
@@ -43,7 +42,7 @@ export const PlaylistSortSheet: React.FC<Props> = ({
   sortOrder,
   onSortChange,
 }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
@@ -61,17 +60,6 @@ export const PlaylistSortSheet: React.FC<Props> = ({
       }
     },
     [setOpen],
-  );
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
   );
 
   const handleSortSelect = useCallback(
@@ -93,13 +81,15 @@ export const PlaylistSortSheet: React.FC<Props> = ({
     [sortBy, sortOrder, onSortChange, setOpen],
   );
 
+  if (Platform.isTV) return null;
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}

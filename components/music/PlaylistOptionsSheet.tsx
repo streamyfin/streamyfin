@@ -1,18 +1,23 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { useDeletePlaylist } from "@/hooks/usePlaylistMutations";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 
 interface Props {
   open: boolean;
@@ -25,7 +30,7 @@ export const PlaylistOptionsSheet: React.FC<Props> = ({
   setOpen,
   playlist,
 }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -45,17 +50,6 @@ export const PlaylistOptionsSheet: React.FC<Props> = ({
       }
     },
     [setOpen],
-  );
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
   );
 
   const handleDeletePlaylist = useCallback(() => {
@@ -89,14 +83,15 @@ export const PlaylistOptionsSheet: React.FC<Props> = ({
   }, [playlist, deletePlaylist, setOpen, router, t]);
 
   if (!playlist) return null;
+  if (Platform.isTV) return null;
 
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}

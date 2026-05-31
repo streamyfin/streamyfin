@@ -1,4 +1,3 @@
-import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import type React from "react";
 import {
   createContext,
@@ -11,6 +10,7 @@ import {
 } from "react";
 
 import { BackHandler, Platform } from "react-native";
+import type { BottomSheetMethods } from "@/utils/expoUiBottomSheet";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
@@ -30,7 +30,7 @@ interface GlobalModalContextType {
   hideModal: () => void;
   isVisible: boolean;
   modalState: GlobalModalState;
-  modalRef: React.RefObject<BottomSheetModal | null>;
+  modalRef: React.RefObject<BottomSheetMethods | null>;
 }
 
 const GlobalModalContext = createContext<GlobalModalContextType | undefined>(
@@ -57,7 +57,7 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
     options: undefined,
   });
   const [isVisible, setIsVisible] = useState(false);
-  const modalRef = useRef<BottomSheetModal>(null);
+  const modalRef = useRef<BottomSheetMethods>(null);
 
   const showModal = useCallback(
     (content: ReactNode, options?: ModalOptions) => {

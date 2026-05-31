@@ -1,10 +1,4 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +7,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@/utils/expoUiBottomSheet";
 import { storage } from "@/utils/mmkv";
 
 export interface IntroSheetRef {
@@ -21,7 +20,7 @@ export interface IntroSheetRef {
 }
 
 export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const bottomSheetRef = useRef<BottomSheetMethods>(null);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -36,17 +35,6 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
     },
   }));
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const handleDismiss = useCallback(() => {
     bottomSheetRef.current?.dismiss();
   }, []);
@@ -56,11 +44,13 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
     router.push("/settings");
   }, []);
 
+  if (Platform.isTV) return null;
+
   return (
     <BottomSheetModal
       ref={bottomSheetRef}
+      enablePanDownToClose
       enableDynamicSizing
-      backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#171717" }}
       handleIndicatorStyle={{ backgroundColor: "#737373" }}
     >

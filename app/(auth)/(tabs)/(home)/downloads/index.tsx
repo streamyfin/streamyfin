@@ -1,9 +1,3 @@
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +18,11 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { queueAtom } from "@/utils/atoms/queue";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { writeToLog } from "@/utils/log";
 
 export default function DownloadsPage() {
@@ -32,7 +31,7 @@ export default function DownloadsPage() {
   const [_queue, _setQueue] = useAtom(queueAtom);
   const { downloadedItems, deleteFileByType, deleteAllFiles } = useDownload();
   const router = useRouter();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
 
   const [showMigration, setShowMigration] = useState(false);
 
@@ -268,19 +267,13 @@ export default function DownloadsPage() {
       <BottomSheetModal
         ref={bottomSheetModalRef}
         enableDynamicSizing
+        enablePanDownToClose
         handleIndicatorStyle={{
           backgroundColor: "white",
         }}
         backgroundStyle={{
           backgroundColor: "#171717",
         }}
-        backdropComponent={(props: BottomSheetBackdropProps) => (
-          <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-          />
-        )}
       >
         <BottomSheetView>
           <View className='p-4 space-y-4 mb-4'>

@@ -1,10 +1,3 @@
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetTextInput,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import React, {
   useCallback,
   useEffect,
@@ -13,11 +6,17 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Keyboard } from "react-native";
+import { ActivityIndicator, Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useCreatePlaylist } from "@/hooks/usePlaylistMutations";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetTextInput,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 
 interface Props {
   open: boolean;
@@ -32,7 +31,7 @@ export const CreatePlaylistModal: React.FC<Props> = ({
   onPlaylistCreated,
   initialTrackId,
 }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const createPlaylist = useCreatePlaylist();
@@ -59,17 +58,6 @@ export const CreatePlaylistModal: React.FC<Props> = ({
     [setOpen],
   );
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const handleCreate = useCallback(async () => {
     if (!name.trim()) return;
 
@@ -86,13 +74,15 @@ export const CreatePlaylistModal: React.FC<Props> = ({
 
   const isValid = name.trim().length > 0;
 
+  if (Platform.isTV) return null;
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}

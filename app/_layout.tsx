@@ -1,6 +1,5 @@
 import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import NetInfo from "@react-native-community/netinfo";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { onlineManager, QueryClient } from "@tanstack/react-query";
@@ -412,127 +411,125 @@ function Layout() {
                     <DownloadProvider>
                       <MusicPlayerProvider>
                         <GlobalModalProvider>
-                          <BottomSheetModalProvider>
-                            <IntroSheetProvider>
-                              <ThemeProvider value={DarkTheme}>
-                                <SystemBars style='light' hidden={false} />
-                                <Stack initialRouteName='(auth)/(tabs)'>
-                                  <Stack.Screen
-                                    name='(auth)/(tabs)'
-                                    options={{
-                                      headerShown: false,
-                                      title: "",
-                                      header: () => null,
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/player'
-                                    options={{
-                                      headerShown: false,
-                                      title: "",
-                                      header: () => null,
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/now-playing'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "modal",
-                                      gestureEnabled: true,
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='login'
-                                    options={{
-                                      headerShown: true,
-                                      title: "",
-                                      headerTransparent: Platform.OS === "ios",
-                                    }}
-                                  />
-                                  <Stack.Screen name='+not-found' />
-                                  <Stack.Screen
-                                    name='(auth)/tv-option-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/tv-subtitle-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/tv-request-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/tv-season-select-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/tv-series-season-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='tv-account-action-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='tv-account-select-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                  <Stack.Screen
-                                    name='(auth)/tv-user-switch-modal'
-                                    options={{
-                                      headerShown: false,
-                                      presentation: "transparentModal",
-                                      animation: "fade",
-                                    }}
-                                  />
-                                </Stack>
-                                <Toaster
-                                  duration={4000}
-                                  toastOptions={{
-                                    style: {
-                                      backgroundColor: "#262626",
-                                      borderColor: "#363639",
-                                      borderWidth: 1,
-                                    },
-                                    titleStyle: {
-                                      color: "white",
-                                    },
+                          <IntroSheetProvider>
+                            <ThemeProvider value={DarkTheme}>
+                              <SystemBars style='light' hidden={false} />
+                              <Stack initialRouteName='(auth)/(tabs)'>
+                                <Stack.Screen
+                                  name='(auth)/(tabs)'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
                                   }}
-                                  closeButton
                                 />
-                                {!Platform.isTV && <GlobalModal />}
-                              </ThemeProvider>
-                            </IntroSheetProvider>
-                          </BottomSheetModalProvider>
+                                <Stack.Screen
+                                  name='(auth)/player'
+                                  options={{
+                                    headerShown: false,
+                                    title: "",
+                                    header: () => null,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/now-playing'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "modal",
+                                    gestureEnabled: true,
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='login'
+                                  options={{
+                                    headerShown: true,
+                                    title: "",
+                                    headerTransparent: Platform.OS === "ios",
+                                  }}
+                                />
+                                <Stack.Screen name='+not-found' />
+                                <Stack.Screen
+                                  name='(auth)/tv-option-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/tv-subtitle-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/tv-request-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/tv-season-select-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/tv-series-season-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='tv-account-action-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='tv-account-select-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                                <Stack.Screen
+                                  name='(auth)/tv-user-switch-modal'
+                                  options={{
+                                    headerShown: false,
+                                    presentation: "transparentModal",
+                                    animation: "fade",
+                                  }}
+                                />
+                              </Stack>
+                              <Toaster
+                                duration={4000}
+                                toastOptions={{
+                                  style: {
+                                    backgroundColor: "#262626",
+                                    borderColor: "#363639",
+                                    borderWidth: 1,
+                                  },
+                                  titleStyle: {
+                                    color: "white",
+                                  },
+                                }}
+                                closeButton
+                              />
+                              {!Platform.isTV && <GlobalModal />}
+                            </ThemeProvider>
+                          </IntroSheetProvider>
                         </GlobalModalProvider>
                       </MusicPlayerProvider>
                     </DownloadProvider>

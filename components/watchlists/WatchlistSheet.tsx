@@ -1,10 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, {
   forwardRef,
@@ -16,6 +10,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -31,6 +26,11 @@ import {
   useItemInWatchlists,
   useMyWatchlistsQuery,
 } from "@/hooks/useWatchlists";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import type { StreamystatsWatchlist } from "@/utils/streamystats/types";
 
 export interface WatchlistSheetRef {
@@ -263,7 +263,7 @@ const WatchlistSheetContent: React.FC<WatchlistSheetContentProps> = ({
 
 export const WatchlistSheet = forwardRef<WatchlistSheetRef, object>(
   (_props, ref) => {
-    const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+    const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
     const [currentItem, setCurrentItem] = React.useState<BaseItemDto | null>(
       null,
     );
@@ -283,23 +283,13 @@ export const WatchlistSheet = forwardRef<WatchlistSheetRef, object>(
       bottomSheetModalRef.current?.dismiss();
     }, []);
 
-    const renderBackdrop = useCallback(
-      (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-        />
-      ),
-      [],
-    );
+    if (Platform.isTV) return null;
 
     return (
       <BottomSheetModal
         ref={bottomSheetModalRef}
+        enablePanDownToClose
         enableDynamicSizing
-        maxDynamicContentSize={600}
-        backdropComponent={renderBackdrop}
         handleIndicatorStyle={{
           backgroundColor: "white",
         }}

@@ -39,19 +39,21 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
 
   if (Platform.OS === "ios") {
     return (
-      <Pressable
-        onPress={handlePress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
-        {...(viewProps as any)}
-      >
-        {icon ? (
-          <Ionicons
-            name={icon}
-            size={size === "large" ? 22 : 18}
-            color={color === "white" ? "white" : "#9334E9"}
-          />
-        ) : null}
-        {children ? children : null}
+      <Pressable onPress={handlePress} {...(viewProps as any)}>
+        <BlurView
+          intensity={50}
+          tint='systemChromeMaterial'
+          className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        >
+          {icon ? (
+            <Ionicons
+              name={icon}
+              size={size === "large" ? 22 : 18}
+              color={color === "white" ? "white" : "#9334E9"}
+            />
+          ) : null}
+          {children ? children : null}
+        </BlurView>
       </Pressable>
     );
   }

@@ -1,11 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetTextInput,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -31,6 +24,12 @@ import { ItemActions } from "@/components/series/SeriesActions";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetTextInput,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
 import {
   type IssueType,
@@ -76,8 +75,8 @@ const MobilePage: React.FC = () => {
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
   const [issueTypeDropdownOpen, setIssueTypeDropdownOpen] = useState(false);
-  const advancedReqModalRef = useRef<BottomSheetModal>(null);
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const advancedReqModalRef = useRef<BottomSheetMethods>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
 
   const {
     data: details,
@@ -142,17 +141,6 @@ const MobilePage: React.FC = () => {
       console.error("Failed to decline request:", error);
     }
   }, [jellyseerrApi, pendingRequest, refetch, t]);
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
 
   const submitIssue = useCallback(() => {
     if (result.id && issueType && issueMessage && details) {
@@ -478,6 +466,7 @@ const MobilePage: React.FC = () => {
         // This is till it's fixed because the menu isn't selectable on TV
         <BottomSheetModal
           ref={bottomSheetModalRef}
+          enablePanDownToClose
           enableDynamicSizing
           handleIndicatorStyle={{
             backgroundColor: "white",
@@ -485,8 +474,6 @@ const MobilePage: React.FC = () => {
           backgroundStyle={{
             backgroundColor: "#171717",
           }}
-          backdropComponent={renderBackdrop}
-          stackBehavior='push'
           onDismiss={handleIssueModalDismiss}
         >
           <BottomSheetView>

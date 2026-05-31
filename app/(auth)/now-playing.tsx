@@ -1,6 +1,5 @@
 import { ExpoAvRoutePickerView } from "@douglowder/expo-av-route-picker-view";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -222,133 +221,129 @@ export default function NowPlayingScreen() {
 
   if (!currentTrack) {
     return (
-      <BottomSheetModalProvider>
-        <View
-          className='flex-1 bg-[#121212] items-center justify-center'
-          style={{
-            paddingTop: Platform.OS === "android" ? insets.top : 0,
-            paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
-          }}
-        >
-          <Text className='text-neutral-500'>No track playing</Text>
-        </View>
-      </BottomSheetModalProvider>
-    );
-  }
-
-  return (
-    <BottomSheetModalProvider>
       <View
-        className='flex-1 bg-[#121212]'
+        className='flex-1 bg-[#121212] items-center justify-center'
         style={{
           paddingTop: Platform.OS === "android" ? insets.top : 0,
           paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
         }}
       >
-        {/* Header */}
-        <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
-          <TouchableOpacity
-            onPress={handleClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            className='p-2'
-          >
-            <Ionicons name='chevron-down' size={28} color='white' />
-          </TouchableOpacity>
-
-          <View className='flex-row'>
-            <TouchableOpacity
-              onPress={() => setViewMode("player")}
-              className='px-3 py-1'
-            >
-              <Text
-                className={
-                  viewMode === "player"
-                    ? "text-white font-semibold"
-                    : "text-neutral-500"
-                }
-              >
-                Now Playing
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setViewMode("queue")}
-              className='px-3 py-1'
-            >
-              <Text
-                className={
-                  viewMode === "queue"
-                    ? "text-white font-semibold"
-                    : "text-neutral-500"
-                }
-              >
-                Queue ({queue.length})
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {/* Empty placeholder to balance header layout */}
-          <View className='p-2' style={{ width: 44 }} />
-        </View>
-
-        {viewMode === "player" ? (
-          <PlayerView
-            api={api}
-            currentTrack={currentTrack}
-            imageUrl={imageUrl}
-            sliderProgress={sliderProgress}
-            sliderMin={sliderMin}
-            sliderMax={sliderMax}
-            progressText={progressText}
-            remainingText={remainingText}
-            isPlaying={isPlaying}
-            isLoading={isLoading}
-            repeatMode={repeatMode}
-            shuffleEnabled={shuffleEnabled}
-            canGoNext={canGoNext}
-            canGoPrevious={canGoPrevious}
-            onSliderComplete={handleSliderComplete}
-            onTogglePlayPause={togglePlayPause}
-            onNext={next}
-            onPrevious={previous}
-            onCycleRepeat={cycleRepeatMode}
-            onToggleShuffle={toggleShuffle}
-            getRepeatIcon={getRepeatIcon}
-            mediaSource={mediaSource}
-            isTranscoding={isTranscoding}
-            isFavorite={isFavorite}
-            onToggleFavorite={toggleFavorite}
-            onOptionsPress={handleOptionsPress}
-            isCastConnected={isCastConnected}
-          />
-        ) : (
-          <QueueView
-            api={api}
-            queue={queue}
-            queueIndex={queueIndex}
-            onJumpToIndex={jumpToIndex}
-            onRemoveFromQueue={removeFromQueue}
-            onReorderQueue={reorderQueue}
-          />
-        )}
-
-        <TrackOptionsSheet
-          open={trackOptionsOpen}
-          setOpen={setTrackOptionsOpen}
-          track={currentTrack}
-          onAddToPlaylist={handleAddToPlaylist}
-        />
-        <PlaylistPickerSheet
-          open={playlistPickerOpen}
-          setOpen={setPlaylistPickerOpen}
-          trackToAdd={currentTrack}
-          onCreateNew={handleCreateNewPlaylist}
-        />
-        <CreatePlaylistModal
-          open={createPlaylistOpen}
-          setOpen={setCreatePlaylistOpen}
-          initialTrackId={currentTrack?.Id}
-        />
+        <Text className='text-neutral-500'>No track playing</Text>
       </View>
-    </BottomSheetModalProvider>
+    );
+  }
+
+  return (
+    <View
+      className='flex-1 bg-[#121212]'
+      style={{
+        paddingTop: Platform.OS === "android" ? insets.top : 0,
+        paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
+      }}
+    >
+      {/* Header */}
+      <View className='flex-row items-center justify-between px-4 pt-3 pb-2'>
+        <TouchableOpacity
+          onPress={handleClose}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className='p-2'
+        >
+          <Ionicons name='chevron-down' size={28} color='white' />
+        </TouchableOpacity>
+
+        <View className='flex-row'>
+          <TouchableOpacity
+            onPress={() => setViewMode("player")}
+            className='px-3 py-1'
+          >
+            <Text
+              className={
+                viewMode === "player"
+                  ? "text-white font-semibold"
+                  : "text-neutral-500"
+              }
+            >
+              Now Playing
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setViewMode("queue")}
+            className='px-3 py-1'
+          >
+            <Text
+              className={
+                viewMode === "queue"
+                  ? "text-white font-semibold"
+                  : "text-neutral-500"
+              }
+            >
+              Queue ({queue.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {/* Empty placeholder to balance header layout */}
+        <View className='p-2' style={{ width: 44 }} />
+      </View>
+
+      {viewMode === "player" ? (
+        <PlayerView
+          api={api}
+          currentTrack={currentTrack}
+          imageUrl={imageUrl}
+          sliderProgress={sliderProgress}
+          sliderMin={sliderMin}
+          sliderMax={sliderMax}
+          progressText={progressText}
+          remainingText={remainingText}
+          isPlaying={isPlaying}
+          isLoading={isLoading}
+          repeatMode={repeatMode}
+          shuffleEnabled={shuffleEnabled}
+          canGoNext={canGoNext}
+          canGoPrevious={canGoPrevious}
+          onSliderComplete={handleSliderComplete}
+          onTogglePlayPause={togglePlayPause}
+          onNext={next}
+          onPrevious={previous}
+          onCycleRepeat={cycleRepeatMode}
+          onToggleShuffle={toggleShuffle}
+          getRepeatIcon={getRepeatIcon}
+          mediaSource={mediaSource}
+          isTranscoding={isTranscoding}
+          isFavorite={isFavorite}
+          onToggleFavorite={toggleFavorite}
+          onOptionsPress={handleOptionsPress}
+          isCastConnected={isCastConnected}
+        />
+      ) : (
+        <QueueView
+          api={api}
+          queue={queue}
+          queueIndex={queueIndex}
+          onJumpToIndex={jumpToIndex}
+          onRemoveFromQueue={removeFromQueue}
+          onReorderQueue={reorderQueue}
+        />
+      )}
+
+      <TrackOptionsSheet
+        open={trackOptionsOpen}
+        setOpen={setTrackOptionsOpen}
+        track={currentTrack}
+        onAddToPlaylist={handleAddToPlaylist}
+      />
+      <PlaylistPickerSheet
+        open={playlistPickerOpen}
+        setOpen={setPlaylistPickerOpen}
+        trackToAdd={currentTrack}
+        onCreateNew={handleCreateNewPlaylist}
+      />
+      <CreatePlaylistModal
+        open={createPlaylistOpen}
+        setOpen={setCreatePlaylistOpen}
+        initialTrackId={currentTrack?.Id}
+      />
+    </View>
   );
 }
 

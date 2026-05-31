@@ -1,15 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
 import { isEqual } from "lodash";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -17,6 +12,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@/utils/expoUiBottomSheet";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 
@@ -75,7 +75,7 @@ export const FilterSheet = <T,>({
   disableSearch = false,
   multiple = false,
 }: Props<T>) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const snapPoints = useMemo(() => ["85%"], []);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -143,24 +143,15 @@ export const FilterSheet = <T,>({
     return data;
   }, [search, filteredData, data]);
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
+  if (Platform.isTV) return null;
 
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}

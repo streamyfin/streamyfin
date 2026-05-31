@@ -1,10 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
@@ -18,6 +12,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -36,6 +31,11 @@ import {
 } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -56,7 +56,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   playlistId,
   onRemoveFromPlaylist,
 }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const router = useRouter();
@@ -126,17 +126,6 @@ export const TrackOptionsSheet: React.FC<Props> = ({
       }
     },
     [setOpen],
-  );
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
   );
 
   const handlePlayNext = useCallback(() => {
@@ -227,13 +216,14 @@ export const TrackOptionsSheet: React.FC<Props> = ({
   const hasAlbum = !!(track?.AlbumId || track?.ParentId);
 
   if (!track) return null;
+  if (Platform.isTV) return null;
 
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       enableDynamicSizing
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}

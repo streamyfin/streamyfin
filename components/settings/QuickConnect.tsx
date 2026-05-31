@@ -1,9 +1,3 @@
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -12,6 +6,11 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, View, type ViewProps } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { PinInput } from "../inputs/PinInput";
@@ -25,7 +24,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const [quickConnectCode, setQuickConnectCode] = useState<string>();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
   const snapPoints = useMemo(
@@ -35,17 +34,6 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
   const isAndroid = Platform.OS === "android";
 
   const { t } = useTranslation();
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
 
   const authorizeQuickConnect = useCallback(async () => {
     if (quickConnectCode) {
@@ -97,6 +85,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
 
       <BottomSheetModal
         ref={bottomSheetModalRef}
+        enablePanDownToClose
         snapPoints={snapPoints}
         handleIndicatorStyle={{
           backgroundColor: "white",
@@ -104,11 +93,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
         backgroundStyle={{
           backgroundColor: "#171717",
         }}
-        backdropComponent={renderBackdrop}
         keyboardBehavior={isAndroid ? "fillParent" : "interactive"}
         keyboardBlurBehavior='restore'
-        android_keyboardInputMode='adjustResize'
-        topInset={isAndroid ? 0 : undefined}
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>

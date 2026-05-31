@@ -1,10 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +14,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -29,6 +24,11 @@ import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import { useAddToPlaylist } from "@/hooks/usePlaylistMutations";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@/utils/expoUiBottomSheet";
 
 interface Props {
   open: boolean;
@@ -43,7 +43,7 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
   trackToAdd,
   onCreateNew,
 }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
@@ -101,17 +101,6 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
     [setOpen],
   );
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const handleSelectPlaylist = useCallback(
     async (playlist: BaseItemDto) => {
       if (!trackToAdd?.Id || !playlist.Id) return;
@@ -142,13 +131,15 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
     [api],
   );
 
+  if (Platform.isTV) return null;
+
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       index={0}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}
