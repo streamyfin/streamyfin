@@ -701,7 +701,7 @@
     "downloaded_file_no": "No",
     "downloaded_file_cancel": "Cancel",
     "swipe_down_settings": "Swipe down for settings",
-    "ends_at": "ends at",
+    "ends_at": "Ends at {{time}}",
     "search_subtitles": "Search Subtitles",
     "subtitle_tracks": "Tracks",
     "subtitle_search": "Search & Download",
