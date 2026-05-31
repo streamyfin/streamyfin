@@ -1,7 +1,7 @@
-diff --git a/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift b/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
+diff --git a/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift b/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
 index 09be306d5aa39337c5114c2ad6ba7513218e0751..24ff8ee2c36fef8632a7e012514fd04db9bf89fd 100644
---- a/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
-+++ b/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
+--- a/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
++++ b/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
 @@ -25,15 +25,14 @@ public extension RCTView {
      return rootView.recursivelyFindSubview(whereType: targetType);
    };
