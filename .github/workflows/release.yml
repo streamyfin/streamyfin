@@ -1,0 +1,132 @@
+name: 🚀 Release (EAS Build + Submit)
+
+# Cloud EAS build + auto-submit for iOS, tvOS and Android on merge to main.
+# A manual approval gate (the `production` GitHub Environment) pauses the run
+# before any build/submit starts. Configure required reviewers on that
+# environment in repo Settings → Environments → production.
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  approve:
+    name: 🔐 Approve release
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: ✅ Release approved
+        run: echo "Release approved for ${{ github.sha }}"
+
+  release:
+    name: 🚀 ${{ matrix.name }}
+    needs: approve
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: 🍎 iOS
+            platform: ios
+            profile: production
+          - name: 📺 tvOS
+            platform: ios
+            profile: production_tv
+          - name: 🤖 Android
+            platform: android
+            profile: production
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-cache
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🏗️ Setup EAS
+        uses: expo/expo-github-action@b184ff86a3c926240f1b6db41764c83a01c02eef # main
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          eas-cache: true
+
+      # tvOS uses local credentials (EAS can't manage tvOS provisioning
+      # remotely, including the TopShelf extension target). Restore the
+      # gitignored credentials.json + cert + profiles from secrets so the
+      # cloud build can sign with `credentialsSource: local`.
+      - name: 🔐 Restore tvOS signing credentials
+        if: matrix.profile == 'production_tv'
+        env:
+          EAS_CREDENTIALS_JSON: ${{ secrets.EAS_CREDENTIALS_JSON }}
+          TVOS_DIST_CERT_P12_BASE64: ${{ secrets.TVOS_DIST_CERT_P12_BASE64 }}
+          TVOS_APP_PROFILE_BASE64: ${{ secrets.TVOS_APP_PROFILE_BASE64 }}
+          TVOS_TOPSHELF_PROFILE_BASE64: ${{ secrets.TVOS_TOPSHELF_PROFILE_BASE64 }}
+        run: |
+          mkdir -p certs profiles
+          printf '%s' "$EAS_CREDENTIALS_JSON" > credentials.json
+          echo "$TVOS_DIST_CERT_P12_BASE64" | base64 -d > certs/distribution.p12
+          echo "$TVOS_APP_PROFILE_BASE64" | base64 -d > profiles/Streamyfin_tvOS_App_Store.mobileprovision
+          echo "$TVOS_TOPSHELF_PROFILE_BASE64" | base64 -d > profiles/Streamyfin_TopShelf_tvOS_App_Store.mobileprovision
+
+      # iOS + tvOS submit upload to App Store Connect with an ASC API key.
+      # EAS reads it from EXPO_ASC_API_KEY_PATH / EXPO_ASC_KEY_ID /
+      # EXPO_ASC_ISSUER_ID (set on the build step below). Write the .p8,
+      # tolerating either raw-PEM or base64-encoded secret content.
+      - name: 🔐 Restore App Store Connect API key
+        if: matrix.platform == 'ios'
+        env:
+          APPLE_KEY_CONTENT: ${{ secrets.APPLE_KEY_CONTENT }}
+        run: |
+          if printf '%s' "$APPLE_KEY_CONTENT" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s' "$APPLE_KEY_CONTENT" > "$RUNNER_TEMP/asc_api_key.p8"
+          else
+            printf '%s' "$APPLE_KEY_CONTENT" | base64 -d > "$RUNNER_TEMP/asc_api_key.p8"
+          fi
+
+      # Android submit needs a Google Play service account JSON. eas.json's
+      # submit.production.android.serviceAccountKeyPath points at this file.
+      - name: 🔐 Restore Google Play service account
+        if: matrix.platform == 'android'
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY" > google-service-account.json
+
+      - name: 🚀 Build & submit (${{ matrix.name }})
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          # Consumed by eas submit for iOS/tvOS; ignored for Android.
+          EXPO_ASC_API_KEY_PATH: ${{ runner.temp }}/asc_api_key.p8
+          EXPO_ASC_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.APPLE_KEY_ISSUER_ID }}
+        run: |
+          eas build \
+            --platform ${{ matrix.platform }} \
+            --profile ${{ matrix.profile }} \
+            --auto-submit \
+            --non-interactive
