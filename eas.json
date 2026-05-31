@@ -56,7 +56,8 @@
       "environment": "production",
       "autoIncrement": true,
       "android": {
-        "image": "latest"
+        "image": "latest",
+        "config": "android-production.yml"
       }
     },
     "production-apk": {
