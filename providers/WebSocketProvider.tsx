@@ -38,10 +38,30 @@ interface WebSocketProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Handler invoked for every message of a given `MessageType`. Receives the
+ * message `Data` payload and the full message.
+ */
+type WebSocketMessageHandler = (data: any, message: WebSocketMessage) => void;
+
 interface WebSocketContextType {
   ws: WebSocket | null;
   isConnected: boolean;
+  /**
+   * @deprecated Prefer `subscribe`. `lastMessage` only keeps the most recent
+   * message, so bursts arriving in the same tick are coalesced and lost. Kept
+   * for `useWebsockets` (GeneralCommand handling) until it is migrated.
+   */
   lastMessage: WebSocketMessage | null;
+  /**
+   * Subscribe to a given message type. The handler is called synchronously for
+   * every matching message (no coalescing, unlike `lastMessage`). Returns an
+   * unsubscribe function to call on cleanup.
+   */
+  subscribe: (
+    messageType: string,
+    handler: WebSocketMessageHandler,
+  ) => () => void;
   sendMessage: (message: any) => void;
   clearLastMessage: () => void;
 }
@@ -63,6 +83,40 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const libraryChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
+  // subscribing/dispatching never triggers a re-render.
+  const listenersRef = useRef<Map<string, Set<WebSocketMessageHandler>>>(
+    new Map(),
+  );
+
+  const subscribe = useCallback(
+    (messageType: string, handler: WebSocketMessageHandler) => {
+      const listeners = listenersRef.current;
+      let handlers = listeners.get(messageType);
+      if (!handlers) {
+        handlers = new Set();
+        listeners.set(messageType, handlers);
+      }
+      handlers.add(handler);
+      return () => {
+        handlers?.delete(handler);
+        if (handlers && handlers.size === 0) {
+          listeners.delete(messageType);
+        }
+      };
+    },
+    [],
+  );
+
+  const dispatchMessage = useCallback((message: WebSocketMessage) => {
+    const handlers = listenersRef.current.get(message.MessageType);
+    if (!handlers || handlers.size === 0) return;
+    // Copy to tolerate handlers that unsubscribe during dispatch.
+    for (const handler of [...handlers]) {
+      handler(message.Data, message);
+    }
+  }, []);
 
   const connectWebSocket = useCallback(() => {
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {
@@ -113,7 +167,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     newWebSocket.onmessage = (e) => {
       try {
         const message = JSON.parse(e.data);
-        setLastMessage(message); // Store the last message in context
+        // Legacy single-slot state, still consumed by useWebsockets.
+        setLastMessage(message);
+        // Pub/sub: deliver to every subscriber without coalescing.
+        dispatchMessage(message);
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
       }
@@ -126,7 +183,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }
       newWebSocket.close();
     };
-  }, [api, deviceId, isNetworkConnected]);
+  }, [api, deviceId, isNetworkConnected, dispatchMessage]);
 
   const handleLibraryChanged = useCallback(
     (data: any) => {
@@ -157,16 +214,11 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     [queryClient],
   );
 
-  useEffect(() => {
-    if (!lastMessage) {
-      return;
-    }
-    if (lastMessage.MessageType === "Play") {
-      handlePlayCommand(lastMessage.Data);
-    } else if (lastMessage.MessageType === "LibraryChanged") {
-      handleLibraryChanged(lastMessage.Data);
-    }
-  }, [lastMessage, router, handleLibraryChanged]);
+  // Refresh library-dependent queries when the server reports a change.
+  useEffect(
+    () => subscribe("LibraryChanged", handleLibraryChanged),
+    [subscribe, handleLibraryChanged],
+  );
 
   useEffect(() => {
     return () => {
@@ -198,6 +250,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       });
     },
     [router],
+  );
+
+  // Server-initiated "Play me this item" remote command.
+  useEffect(
+    () => subscribe("Play", handlePlayCommand),
+    [subscribe, handlePlayCommand],
   );
 
   useEffect(() => {
@@ -267,7 +325,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, []);
   return (
     <WebSocketContext.Provider
-      value={{ ws, isConnected, lastMessage, sendMessage, clearLastMessage }}
+      value={{
+        ws,
+        isConnected,
+        lastMessage,
+        subscribe,
+        sendMessage,
+        clearLastMessage,
+      }}
     >
       {children}
     </WebSocketContext.Provider>
