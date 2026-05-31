@@ -1,10 +1,4 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type {
   BaseItemDto,
   MediaSourceInfo,
@@ -23,6 +17,11 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getDownloadUrl } from "@/utils/jellyfin/media/getDownloadUrl";
 import { AudioTrackSelector } from "./AudioTrackSelector";
@@ -90,7 +89,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     [user],
   );
 
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
 
   const handlePresentModalPress = useCallback(() => {
     bottomSheetModalRef.current?.present();
@@ -317,17 +316,6 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }
   }, [closeModal, initiateDownload, itemsToDownload, userCanDownload]);
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   const renderButtonContent = () => {
     // For single item downloads, show progress if item is being processed
     // For multi-item downloads (season/series), show progress only if 2+ items are in progress or queued
@@ -375,6 +363,8 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }
   };
 
+  if (Platform.isTV) return null;
+
   return (
     <View {...props}>
       <RoundButton size={size} onPress={onButtonPress}>
@@ -390,10 +380,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           backgroundColor: "#171717",
         }}
         onChange={handleSheetChanges}
-        backdropComponent={renderBackdrop}
         enablePanDownToClose
-        enableDismissOnClose
-        android_keyboardInputMode='adjustResize'
         keyboardBehavior='interactive'
         keyboardBlurBehavior='restore'
       >

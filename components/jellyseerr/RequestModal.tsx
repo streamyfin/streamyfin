@@ -1,23 +1,22 @@
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type ViewProps } from "react-native";
+import { Platform, View, type ViewProps } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import type {
   QualityProfile,
   RootFolder,
   Tag,
 } from "@/utils/jellyseerr/server/api/servarr/base";
+
 import type { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
 import { writeDebugLog } from "@/utils/log";
@@ -34,7 +33,7 @@ interface Props {
 }
 
 const RequestModal = forwardRef<
-  BottomSheetModalMethods,
+  BottomSheetMethods,
   Props & Omit<ViewProps, "id">
 >(
   (
@@ -283,11 +282,13 @@ const RequestModal = forwardRef<
       defaultTags,
     ]);
 
+    if (Platform.isTV) return null;
+
     return (
       <BottomSheetModal
         ref={ref}
+        enablePanDownToClose
         enableDynamicSizing
-        enableDismissOnClose
         onDismiss={handleDismiss}
         handleIndicatorStyle={{
           backgroundColor: "white",
@@ -295,14 +296,6 @@ const RequestModal = forwardRef<
         backgroundStyle={{
           backgroundColor: "#171717",
         }}
-        backdropComponent={(sheetProps: BottomSheetBackdropProps) => (
-          <BottomSheetBackdrop
-            {...sheetProps}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-          />
-        )}
-        stackBehavior='push'
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>

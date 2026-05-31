@@ -1,4 +1,3 @@
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import React, { useCallback, useImperativeHandle, useRef } from "react";
 import {
   type StyleProp,
@@ -8,6 +7,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { BottomSheetTextInput } from "@/utils/expoUiBottomSheet";
 
 interface PinInputProps
   extends Omit<TextInputProps, "value" | "onChangeText" | "style"> {

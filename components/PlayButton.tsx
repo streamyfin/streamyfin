@@ -1,6 +1,5 @@
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect } from "react";
@@ -32,6 +31,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
+import { BottomSheetView } from "@/utils/expoUiBottomSheet";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";

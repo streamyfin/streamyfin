@@ -1,14 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type React from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Platform,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -16,6 +11,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 
 interface LibraryOptions {
   display: "row" | "list";
@@ -132,7 +132,7 @@ export const LibraryOptionsSheet: React.FC<Props> = ({
   updateSettings,
   disabled = false,
 }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
@@ -161,25 +161,14 @@ export const LibraryOptionsSheet: React.FC<Props> = ({
     [setOpen],
   );
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
   if (disabled) return null;
+  if (Platform.isTV) return null;
 
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
       enableDynamicSizing
       onChange={handleSheetChanges}
-      backdropComponent={renderBackdrop}
       handleIndicatorStyle={{
         backgroundColor: "white",
       }}
@@ -187,7 +176,6 @@ export const LibraryOptionsSheet: React.FC<Props> = ({
         backgroundColor: "#171717",
       }}
       enablePanDownToClose
-      enableDismissOnClose
     >
       <BottomSheetView>
         <View

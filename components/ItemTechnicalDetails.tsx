@@ -1,10 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
 import type {
   MediaSourceInfo,
   MediaStream,
@@ -12,8 +6,13 @@ import type {
 import type React from "react";
 import { useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { TouchableOpacity, View } from "react-native";
+import { Platform, TouchableOpacity, View } from "react-native";
 import { formatBitrate } from "@/utils/bitrate";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from "@/utils/expoUiBottomSheet";
 import { Badge } from "./Badge";
 import { Text } from "./common/Text";
 
@@ -22,8 +21,19 @@ interface Props {
 }
 
 export const ItemTechnicalDetails: React.FC<Props> = ({ source }) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
   const { t } = useTranslation();
+
+  if (Platform.isTV) {
+    return (
+      <View className='px-4 mt-2 mb-4'>
+        <Text className='text-lg font-bold mb-4'>{t("item_card.video")}</Text>
+        <View className='flex flex-row space-x-2'>
+          <VideoStreamInfo source={source} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View className='px-4 mt-2 mb-4'>
@@ -36,27 +46,27 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source }) => {
       </TouchableOpacity>
       <BottomSheetModal
         ref={bottomSheetModalRef}
-        snapPoints={["80%"]}
+        enableDynamicSizing
+        enablePanDownToClose
         handleIndicatorStyle={{
           backgroundColor: "white",
         }}
         backgroundStyle={{
           backgroundColor: "#171717",
         }}
-        backdropComponent={(props: BottomSheetBackdropProps) => (
-          <BottomSheetBackdrop
-            {...props}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-          />
-        )}
       >
         <BottomSheetScrollView>
-          <View className='flex flex-col space-y-2 p-4 mb-4'>
+          <View className='flex flex-col space-y-2 p-4'>
+            <View className='flex-row items-center justify-between mb-2'>
+              <Text className='text-lg font-bold'>{t("item_card.video")}</Text>
+              <TouchableOpacity
+                onPress={() => bottomSheetModalRef.current?.dismiss()}
+                hitSlop={12}
+              >
+                <Ionicons name='close' size={24} color='white' />
+              </TouchableOpacity>
+            </View>
             <View>
-              <Text className='text-lg font-bold mb-4'>
-                {t("item_card.video")}
-              </Text>
               <View className='flex flex-row space-x-2'>
                 <VideoStreamInfo source={source} />
               </View>

@@ -1,4 +1,3 @@
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +17,7 @@ import { useDownload } from "@/providers/DownloadProvider";
 import { type DownloadedItem } from "@/providers/Downloads/types";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { queueAtom } from "@/utils/atoms/queue";
+import type { BottomSheetMethods } from "@/utils/expoUiBottomSheet";
 import { writeToLog } from "@/utils/log";
 
 export default function DownloadsPage() {
@@ -26,7 +26,7 @@ export default function DownloadsPage() {
   const [_queue, _setQueue] = useAtom(queueAtom);
   const { downloadedItems, deleteFileByType, deleteAllFiles } = useDownload();
   const router = useRouter();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
 
   const [showMigration, setShowMigration] = useState(false);
 

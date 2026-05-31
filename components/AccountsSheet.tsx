@@ -1,10 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +6,11 @@ import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import {
   deleteAccountCredential,
   type SavedServer,
@@ -39,7 +38,7 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = useRef<BottomSheetMethods>(null);
 
   const isAndroid = Platform.OS === "android";
   const snapPoints = useMemo(
@@ -62,17 +61,6 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
       }
     },
     [setOpen],
-  );
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
   );
 
   const handleDeleteAccount = async (account: SavedServerAccount) => {
@@ -118,15 +106,16 @@ export const AccountsSheet: React.FC<AccountsSheetProps> = ({
   );
 
   if (!server) return null;
+  if (Platform.isTV) return null;
 
   return (
     <BottomSheetModal
       ref={bottomSheetModalRef}
+      enablePanDownToClose
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       handleIndicatorStyle={{ backgroundColor: "white" }}
       backgroundStyle={{ backgroundColor: "#171717" }}
-      backdropComponent={renderBackdrop}
     >
       <BottomSheetView
         style={{

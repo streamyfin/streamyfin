@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useState } from "react";
 import {
   type LayoutChangeEvent,
@@ -11,6 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
+import { BottomSheetScrollView } from "@/utils/expoUiBottomSheet";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
 // A static top-level import evaluates requireNativeModule('ExpoUI') at module
