@@ -6,6 +6,7 @@ import {
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -76,7 +77,7 @@ const MobilePage: React.FC = () => {
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
   const [issueTypeDropdownOpen, setIssueTypeDropdownOpen] = useState(false);
-  const advancedReqModalRef = useRef<BottomSheetModal>(null);
+  const advancedReqModalRef = useRef<BottomSheetModalMethods>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const {
