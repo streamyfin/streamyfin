@@ -76,6 +76,7 @@ class MpvPlayerView: ExpoView {
 		super.init(appContext: appContext)
 		setupNotifications()
 		setupView()
+		// Note: Decoder reset is handled automatically via KVO in MPVLayerRenderer
 	}
 
 	private func setupView() {

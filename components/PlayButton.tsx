@@ -30,6 +30,7 @@ import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSyncPlay } from "@/providers/SyncPlay/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
@@ -67,6 +68,14 @@ export const PlayButton: React.FC<Props> = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
+  // SyncPlay: when enabled, we DO NOT navigate locally on play — we tell the
+  // server, which broadcasts a PlayQueue: NewPlaylist update to every group
+  // member (including us). Our `setStartPlaybackHandler` in SyncPlayProvider
+  // then performs the navigation uniformly for everyone, matching
+  // jellyfin-web's playbackManager intercept (Controller.play).
+  const { isEnabled: isSyncPlayEnabled, controller: syncPlayController } =
+    useSyncPlay();
+
   // Use colors prop if provided, otherwise fallback to global atom
   const effectiveColors = colors || globalColorAtom;
 
@@ -93,6 +102,37 @@ export const PlayButton: React.FC<Props> = ({
 
   const handleNormalPlayFlow = useCallback(async () => {
     if (!item) return;
+
+    // SyncPlay intercept: in a group, route playback through sthe server so
+    // every member gets the same PlayQueue: NewPlaylist update and navigates
+    // together. Skips local navigation and the Chromecast prompt entirely —
+    // SyncPlay + Chromecast isn't a supported combination yet, same as
+    // jellyfin-web.
+    if (isSyncPlayEnabled && syncPlayController && item.Id) {
+      try {
+        // Pass the full `item` (not just the ID) so the SyncPlay controller
+        // can run `translateItemsForPlayback` with full context — this is
+        // what jellyfin-web does, and it lets us expand Series / Season /
+        // BoxSet into real episode/track IDs before broadcasting the queue.
+        // Without expansion, receivers (jellyfin-web in particular) get
+        // container IDs they can't play and silently fail to open the
+        // player.
+        await syncPlayController.play({
+          items: [item],
+          ids: [item.Id],
+          startPositionTicks: item.UserData?.PlaybackPositionTicks ?? 0,
+        });
+      } catch (error) {
+        console.error("SyncPlay: failed to start group playback", error);
+        Alert.alert(
+          t("player.client_error"),
+          t("syncplay.failed_to_start", {
+            defaultValue: "Failed to start SyncPlay group playback",
+          }),
+        );
+      }
+      return;
+    }
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
@@ -290,6 +330,8 @@ export const PlayButton: React.FC<Props> = ({
     goToPlayer,
     isOffline,
     t,
+    isSyncPlayEnabled,
+    syncPlayController,
   ]);
 
   const onPress = useCallback(async () => {

@@ -49,7 +49,8 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-
+import { useSyncPlay } from "@/providers/SyncPlay";
+import type { PlayerControls } from "@/providers/SyncPlay/types";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -128,6 +129,7 @@ export default function DirectPlayerPage() {
     bitrateValue: bitrateValueStr,
     offline: offlineStr,
     playbackPosition: playbackPositionFromUrl,
+    syncPlay: syncPlayStr,
   } = useLocalSearchParams<{
     itemId: string;
     audioIndex: string;
@@ -137,8 +139,23 @@ export default function DirectPlayerPage() {
     offline: string;
     /** Playback position in ticks. */
     playbackPosition?: string;
+    /** Whether playback was initiated by SyncPlay */
+    syncPlay?: string;
   }>();
+
+  // When opened via SyncPlay, don't auto-play - let SyncPlay commands control playback
+  const openedViaSyncPlay = syncPlayStr === "true";
   const { lockOrientation, unlockOrientation } = useOrientation();
+
+  // SyncPlay integration
+  const syncPlay = useSyncPlay();
+  const {
+    isEnabled: isSyncPlayEnabled,
+    controller: syncPlayController,
+    setPlayerControls,
+    notifyReady,
+    notifyBuffering,
+  } = syncPlay;
 
   const offline = offlineStr === "true";
 
@@ -403,8 +420,102 @@ export default function DirectPlayerPage() {
     reportPlaybackStart();
   }, [stream, api, offline]);
 
+  // SyncPlay: Connect player controls when video is ready
+  useEffect(() => {
+    if (!isVideoLoaded || !videoRef.current || offline) {
+      setPlayerControls(null);
+      return;
+    }
+
+    const controls: PlayerControls = {
+      play: () => videoRef.current?.play(),
+      pause: () => videoRef.current?.pause(),
+      seekTo: (positionMs: number) => {
+        const positionSec = positionMs / 1000;
+        console.log(
+          `PlayerControls.seekTo: ${positionMs}ms = ${positionSec}s, videoRef exists: ${!!videoRef.current}`,
+        );
+        videoRef.current?.seekTo(positionSec);
+      },
+      setSpeed: (speed: number) => videoRef.current?.setSpeed?.(speed),
+      getSpeed: () => currentPlaybackSpeed,
+      getCurrentPosition: () => progress.get(),
+      isPlaying: () => isPlaying,
+      isBuffering: () => isBuffering,
+    };
+
+    setPlayerControls(controls);
+
+    return () => {
+      setPlayerControls(null);
+    };
+  }, [
+    isVideoLoaded,
+    offline,
+    isPlaying,
+    isBuffering,
+    currentPlaybackSpeed,
+    progress,
+    setPlayerControls,
+  ]);
+
+  // SyncPlay: Report buffering/ready state to server.
+  //
+  // CRITICAL: We must report `buffering` to the server *during* initial
+  // load (before `isVideoLoaded`), otherwise the server treats us as ready
+  // and proceeds without waiting for us. jellyfin-web reports this for
+  // free via the HTML5 video element's `waiting` event; for us, the
+  // initial load itself is the buffering window.
+  useEffect(() => {
+    if (!isSyncPlayEnabled) {
+      return;
+    }
+
+    const isLocallyReady = isVideoLoaded && !isBuffering;
+    if (isLocallyReady) {
+      notifyReady();
+    } else {
+      notifyBuffering();
+    }
+  }, [
+    isSyncPlayEnabled,
+    isVideoLoaded,
+    isBuffering,
+    notifyReady,
+    notifyBuffering,
+  ]);
+
+  // SyncPlay: Pause playback when group is waiting
+  useEffect(() => {
+    if (!isSyncPlayEnabled) {
+      return;
+    }
+
+    const groupState = syncPlay.groupInfo?.State;
+    const isLocalReady = isVideoLoaded && !isBuffering;
+    const isWaitingForGroup = groupState === "Waiting";
+
+    // Pause playback when waiting for group
+    if (isLocalReady && isWaitingForGroup && isPlaying) {
+      videoRef.current?.pause();
+    }
+  }, [
+    isSyncPlayEnabled,
+    syncPlay.groupInfo?.State,
+    isVideoLoaded,
+    isBuffering,
+    isPlaying,
+  ]);
+
   const togglePlay = async () => {
     lightHapticFeedback();
+
+    // Route through SyncPlay when active
+    if (isSyncPlayEnabled && syncPlayController) {
+      syncPlayController.playPause();
+      return;
+    }
+
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
@@ -638,10 +749,12 @@ export default function DirectPlayerPage() {
     const startPos = ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
+    // When opened via SyncPlay, don't auto-play - SyncPlay commands control playback
+    const shouldAutoplay = !openedViaSyncPlay;
     const source: MpvVideoSource = {
       url: stream.url,
       startPosition: startPos,
-      autoplay: true,
+      autoplay: shouldAutoplay,
       initialSubtitleId,
       initialAudioId,
       // Pass cache/buffer settings from user preferences
@@ -860,10 +973,20 @@ export default function DirectPlayerPage() {
     videoRef.current?.pause?.();
   }, []);
 
-  const seek = useCallback((position: number) => {
-    // MPV expects seconds, convert from ms
-    videoRef.current?.seekTo?.(position / 1000);
-  }, []);
+  const seek = useCallback(
+    (position: number) => {
+      // Route through SyncPlay when active
+      if (isSyncPlayEnabled && syncPlayController) {
+        console.log("SyncPlay: seek requested via SyncPlay", position);
+        syncPlayController.seekMs(position);
+        return;
+      }
+
+      // MPV expects seconds, convert from ms
+      videoRef.current?.seekTo?.(position / 1000);
+    },
+    [isSyncPlayEnabled, syncPlayController],
+  );
 
   // TV audio track change handler
   const handleAudioIndexChange = useCallback(

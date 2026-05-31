@@ -7,6 +7,9 @@ import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageSta
 import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
+const SyncPlayButtonComponent = Platform.isTV
+  ? null
+  : require("@/components/syncplay/SyncPlayButton").SyncPlayButton;
 
 import { useAtom } from "jotai";
 import { HeaderBackButton } from "@/components/common/HeaderBackButton";
@@ -33,6 +36,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast background='transparent' />
+                  {SyncPlayButtonComponent && <SyncPlayButtonComponent />}
                   {user?.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
