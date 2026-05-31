@@ -69,6 +69,13 @@ const initialApi = (() => {
 
 const initialUser = (() => {
   try {
+    // Only return a stored user if we also have a token. Otherwise the
+    // user atom would be populated while the api atom is null (e.g. after
+    // a logout that left stale user JSON in storage), which causes
+    // useProtectedRoute to keep us inside the (auth) group instead of
+    // redirecting to /login.
+    const token = storage.getString("token");
+    if (!token) return null;
     const userStr = storage.getString("user");
     if (userStr) {
       return JSON.parse(userStr) as UserDto;
@@ -402,6 +409,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         );
 
       storage.remove("token");
+      storage.remove("user");
       clearTVDiscoverySafely();
       setUser(null);
       setApi(null);
