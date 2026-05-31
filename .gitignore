@@ -76,3 +76,6 @@ build/
 .claude/
 .agents/skills/**
 skills-lock.json
+
+# CI-injected Google Play service account key (written at build time)
+google-service-account.json

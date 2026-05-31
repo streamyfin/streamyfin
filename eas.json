@@ -93,6 +93,11 @@
       "ios": {
         "appleTeamId": "MWD5K362T8",
         "ascAppId": "6593660679"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal",
+        "releaseStatus": "completed"
       }
     },
     "production_tv": {
