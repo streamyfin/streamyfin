@@ -36,7 +36,6 @@
       "appleTeamId": "MWD5K362T8"
     },
     "android": {
-      "versionCode": 94,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
