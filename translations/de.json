@@ -608,7 +608,8 @@
     "downloaded_file_message": "Heruntergeladene Datei abspielen?",
     "downloaded_file_yes": "Ja",
     "downloaded_file_no": "Nein",
-    "downloaded_file_cancel": "Abbrechen"
+    "downloaded_file_cancel": "Abbrechen",
+    "ends_at": "Endet um {{time}}"
   },
   "item_card": {
     "next_up": "Als Nächstes",

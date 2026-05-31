@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { formatTimeString } from "@/utils/time";
@@ -16,6 +17,8 @@ export const TimeDisplay: FC<TimeDisplayProps> = ({
   currentTime,
   remainingTime,
 }) => {
+  const { t } = useTranslation();
+
   const getFinishTime = () => {
     const now = new Date();
     // remainingTime is in ms
@@ -37,7 +40,7 @@ export const TimeDisplay: FC<TimeDisplayProps> = ({
           -{formatTimeString(remainingTime, "ms")}
         </Text>
         <Text className='text-[10px] text-neutral-500 opacity-70'>
-          ends at {getFinishTime()}
+          {t("player.ends_at", { time: getFinishTime() })}
         </Text>
       </View>
     </View>
