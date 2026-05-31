@@ -89,7 +89,17 @@
     }
   },
   "submit": {
-    "production": {},
-    "production_tv": {}
+    "production": {
+      "ios": {
+        "appleTeamId": "MWD5K362T8",
+        "ascAppId": "6593660679"
+      }
+    },
+    "production_tv": {
+      "ios": {
+        "appleTeamId": "MWD5K362T8",
+        "ascAppId": "6593660679"
+      }
+    }
   }
 }
