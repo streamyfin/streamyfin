@@ -25,6 +25,25 @@
   "osvVulnerabilityAlerts": true,
   "configMigration": true,
   "separateMinorPatch": true,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+xcode-version:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}loose{{/if}}"
+    }
+  ],
+  "customDatasources": {
+    "xcode": {
+      "defaultRegistryUrlTemplate": "https://xcodereleases.com/data.json",
+      "format": "json",
+      "transformTemplates": [
+        "{ \"releases\": [$[version.release.release=true].{\"version\": version.number}] }"
+      ]
+    }
+  },
   "lockFileMaintenance": {
     "vulnerabilityAlerts": {
       "enabled": true,

@@ -47,6 +47,7 @@
  */
 
 import { SubtitleDeliveryMethod } from "@jellyfin/sdk/lib/generated-client";
+import { File } from "expo-file-system";
 import { useLocalSearchParams } from "expo-router";
 import type React from "react";
 import {
@@ -57,12 +58,18 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Platform } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import type { MpvAudioTrack } from "@/modules";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { isImageBasedSubtitle } from "@/utils/jellyfin/subtitleUtils";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
+
+// Starting index for local (client-downloaded) subtitles
+// Uses negative indices to avoid collision with Jellyfin indices
+const LOCAL_SUBTITLE_INDEX_START = -100;
 
 interface VideoContextProps {
   subtitleTracks: Track[] | null;
@@ -339,12 +346,40 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         };
       });
 
+      // TV only: Merge locally downloaded subtitles (from OpenSubtitles)
+      if (Platform.isTV && itemId) {
+        const localSubs = getSubtitlesForItem(itemId);
+        let localIdx = 0;
+        for (const localSub of localSubs) {
+          // Verify file still exists (cache may have been cleared)
+          const subtitleFile = new File(localSub.filePath);
+          if (!subtitleFile.exists) {
+            continue;
+          }
+
+          const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
+          subs.push({
+            name: localSub.name,
+            index: localIndex,
+            mpvIndex: -1, // Will be loaded dynamically via addSubtitleFile
+            isLocal: true,
+            localPath: localSub.filePath,
+            setTrack: () => {
+              // Add the subtitle file to MPV and select it
+              playerControls.addSubtitleFile(localSub.filePath, true);
+              router.setParams({ subtitleIndex: String(localIndex) });
+            },
+          });
+          localIdx++;
+        }
+      }
+
       setSubtitleTracks(subs.sort((a, b) => a.index - b.index));
       setAudioTracks(audio);
     };
 
     fetchTracks();
-  }, [tracksReady, mediaSource, offline, downloadedItem]);
+  }, [tracksReady, mediaSource, offline, downloadedItem, itemId]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>

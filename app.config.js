@@ -6,6 +6,14 @@ module.exports = ({ config }) => {
       "react-native-google-cast",
       { useDefaultExpandedMediaControls: true },
     ]);
+
+    config.plugins.push([
+      "expo-camera",
+      {
+        cameraPermission:
+          "Allow Streamyfin to access the camera to scan QR codes for TV login.",
+      },
+    ]);
   }
 
   // Only override googleServicesFile if env var is set

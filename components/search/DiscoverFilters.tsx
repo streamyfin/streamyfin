@@ -1,7 +1,16 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Platform, View } from "react-native";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { JellyseerrSearchSort } from "@/components/jellyseerr/JellyseerrIndexPage";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
+// A static top-level import crashes the route tree on tvOS at module load.
+// Load it lazily and only off-TV; TV never renders this component.
+const { Button, Host, Menu } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { buttonStyle } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 interface DiscoverFiltersProps {
   searchFilterId: string;
@@ -28,7 +37,7 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
   setJellyseerrSortOrder,
   t,
 }) => {
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <Host
         style={{
@@ -40,43 +49,54 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
           marginLeft: "auto",
         }}
       >
-        <ContextMenu>
-          <ContextMenu.Trigger>
+        <Menu
+          label={
             <Button
-              variant='glass'
-              modifiers={[]}
+              modifiers={[buttonStyle("glass")]}
               systemImage='line.3.horizontal.decrease.circle'
-            ></Button>
-          </ContextMenu.Trigger>
-          <ContextMenu.Items>
-            <Picker
-              label={t("library.filters.sort_by")}
-              options={sortOptions.map((item) =>
-                t(`home.settings.plugins.jellyseerr.order_by.${item}`),
-              )}
-              variant='menu'
-              selectedIndex={sortOptions.indexOf(
-                jellyseerrOrderBy as unknown as string,
-              )}
-              onOptionSelected={(event: any) => {
-                const index = event.nativeEvent.index;
-                setJellyseerrOrderBy(
-                  sortOptions[index] as unknown as JellyseerrSearchSort,
-                );
-              }}
             />
-            <Picker
-              label={t("library.filters.sort_order")}
-              options={orderOptions.map((item) => t(`library.filters.${item}`))}
-              variant='menu'
-              selectedIndex={orderOptions.indexOf(jellyseerrSortOrder)}
-              onOptionSelected={(event: any) => {
-                const index = event.nativeEvent.index;
-                setJellyseerrSortOrder(orderOptions[index]);
-              }}
-            />
-          </ContextMenu.Items>
-        </ContextMenu>
+          }
+        >
+          <Menu
+            label={`${t("library.filters.sort_by")}: ${t(
+              `home.settings.plugins.jellyseerr.order_by.${jellyseerrOrderBy}`,
+            )}`}
+          >
+            {sortOptions.map((item) => {
+              const isSelected =
+                jellyseerrOrderBy === (item as unknown as JellyseerrSearchSort);
+              return (
+                <Button
+                  key={item}
+                  label={t(`home.settings.plugins.jellyseerr.order_by.${item}`)}
+                  systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
+                  onPress={() =>
+                    setJellyseerrOrderBy(
+                      item as unknown as JellyseerrSearchSort,
+                    )
+                  }
+                />
+              );
+            })}
+          </Menu>
+          <Menu
+            label={`${t("library.filters.sort_order")}: ${t(
+              `library.filters.${jellyseerrSortOrder}`,
+            )}`}
+          >
+            {orderOptions.map((item) => {
+              const isSelected = jellyseerrSortOrder === item;
+              return (
+                <Button
+                  key={item}
+                  label={t(`library.filters.${item}`)}
+                  systemImage={isSelected ? "checkmark.circle.fill" : "circle"}
+                  onPress={() => setJellyseerrSortOrder(item)}
+                />
+              );
+            })}
+          </Menu>
+        </Menu>
       </Host>
     );
   }

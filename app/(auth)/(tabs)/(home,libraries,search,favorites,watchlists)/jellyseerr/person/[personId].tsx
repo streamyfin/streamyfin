@@ -11,7 +11,7 @@ import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import type { PersonCreditCast } from "@/utils/jellyseerr/server/models/Person";
 
-export default function page() {
+export default function JellyseerrPersonPage() {
   const local = useLocalSearchParams();
   const { t } = useTranslation();
 

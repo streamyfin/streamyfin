@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 9.1.0"
+    "version": ">= 9.1.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -43,16 +44,23 @@
         "EXPO_PUBLIC_WRITE_DEBUG": "1"
       }
     },
+    "preview_tv": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_TV": "1",
+        "EXPO_PUBLIC_WRITE_DEBUG": "1"
+      }
+    },
     "production": {
       "environment": "production",
-      "channel": "0.52.0",
+      "autoIncrement": true,
       "android": {
         "image": "latest"
       }
     },
     "production-apk": {
       "environment": "production",
-      "channel": "0.52.0",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -60,7 +68,7 @@
     },
     "production-apk-tv": {
       "environment": "production",
-      "channel": "0.52.0",
+      "autoIncrement": true,
       "android": {
         "buildType": "apk",
         "image": "latest"
@@ -68,9 +76,30 @@
       "env": {
         "EXPO_TV": "1"
       }
+    },
+    "production_tv": {
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_TV": "1"
+      },
+      "ios": {
+        "credentialsSource": "local"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleTeamId": "MWD5K362T8",
+        "ascAppId": "6593660679"
+      }
+    },
+    "production_tv": {
+      "ios": {
+        "appleTeamId": "MWD5K362T8",
+        "ascAppId": "6593660679"
+      }
+    }
   }
 }

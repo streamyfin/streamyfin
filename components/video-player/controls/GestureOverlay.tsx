@@ -41,6 +41,7 @@ export const GestureOverlay = ({
   });
   const [fadeAnim] = useState(new Animated.Value(0));
   const isDraggingRef = useRef(false);
+  const hideScheduledRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
   const lastUpdateTime = useRef(0);
 
@@ -51,18 +52,11 @@ export const GestureOverlay = ({
       side?: "left" | "right",
       isDuringDrag = false,
     ) => {
-      // Clear any existing timeout
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
-      }
-
-      // Defer ALL state updates to avoid useInsertionEffect warning
       requestAnimationFrame(() => {
         setFeedback({ visible: true, icon, text, side });
 
         if (!isDuringDrag) {
-          // For discrete actions (like skip), show normal animation
+          hideScheduledRef.current = false;
           Animated.sequence([
             Animated.timing(fadeAnim, {
               toValue: 1,
@@ -80,16 +74,17 @@ export const GestureOverlay = ({
               setFeedback((prev) => ({ ...prev, visible: false }));
             });
           });
-        } else if (!isDraggingRef.current) {
-          // For drag start, just fade in and stay visible
+        } else if (!isDraggingRef.current && !hideScheduledRef.current) {
+          // Cancel any pending hide from a previous drag
+          if (hideTimeoutRef.current) {
+            clearTimeout(hideTimeoutRef.current);
+            hideTimeoutRef.current = null;
+          }
+          hideScheduledRef.current = false;
           isDraggingRef.current = true;
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 200,
-            useNativeDriver: true,
-          }).start();
+          fadeAnim.stopAnimation();
+          fadeAnim.setValue(1);
         }
-        // For drag updates, just update the state, don't restart animation
       });
     },
     [fadeAnim],
@@ -97,9 +92,9 @@ export const GestureOverlay = ({
 
   const hideDragFeedback = useCallback(() => {
     isDraggingRef.current = false;
-
-    // Delay hiding slightly to avoid flicker
+    hideScheduledRef.current = true;
     hideTimeoutRef.current = setTimeout(() => {
+      fadeAnim.stopAnimation();
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 300,
@@ -107,6 +102,7 @@ export const GestureOverlay = ({
       }).start(() => {
         requestAnimationFrame(() => {
           setFeedback((prev) => ({ ...prev, visible: false }));
+          hideScheduledRef.current = false;
         });
       });
     }, 100) as unknown as number;

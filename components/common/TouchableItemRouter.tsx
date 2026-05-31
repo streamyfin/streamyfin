@@ -2,7 +2,11 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
-import { TouchableOpacity, type TouchableOpacityProps } from "react-native";
+import {
+  Platform,
+  TouchableOpacity,
+  type TouchableOpacityProps,
+} from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
@@ -121,6 +125,12 @@ export const getItemNavigation = (item: BaseItemDto, _from: string) => {
   }
 
   if (item.Type === "Playlist") {
+    if (Platform.isTV) {
+      return {
+        pathname: "/[libraryId]" as const,
+        params: { libraryId: item.Id! },
+      };
+    }
     return {
       pathname: "/music/playlist/[playlistId]" as const,
       params: { playlistId: item.Id! },

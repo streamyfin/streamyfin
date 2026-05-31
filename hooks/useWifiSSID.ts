@@ -1,5 +1,5 @@
-import * as Location from "expo-location";
 import { useCallback, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { getSSID } from "@/modules/wifi-ssid";
 
 export type PermissionStatus =
@@ -15,13 +15,28 @@ export interface UseWifiSSIDReturn {
   isLoading: boolean;
 }
 
-function mapLocationStatus(
-  status: Location.PermissionStatus,
-): PermissionStatus {
+// WiFi SSID is not available on tvOS
+if (Platform.isTV) {
+  // Export a stub hook for tvOS
+  module.exports = {
+    useWifiSSID: (): UseWifiSSIDReturn => ({
+      ssid: null,
+      permissionStatus: "unavailable" as PermissionStatus,
+      requestPermission: async () => false,
+      isLoading: false,
+    }),
+  };
+}
+
+// Only import Location on non-TV platforms
+const Location = Platform.isTV ? null : require("expo-location");
+
+function mapLocationStatus(status: number | undefined): PermissionStatus {
+  if (!Location) return "unavailable";
   switch (status) {
-    case Location.PermissionStatus.GRANTED:
+    case Location.PermissionStatus?.GRANTED:
       return "granted";
-    case Location.PermissionStatus.DENIED:
+    case Location.PermissionStatus?.DENIED:
       return "denied";
     default:
       return "undetermined";
@@ -30,17 +45,24 @@ function mapLocationStatus(
 
 export function useWifiSSID(): UseWifiSSIDReturn {
   const [ssid, setSSID] = useState<string | null>(null);
-  const [permissionStatus, setPermissionStatus] =
-    useState<PermissionStatus>("undetermined");
-  const [isLoading, setIsLoading] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>(
+    Platform.isTV ? "unavailable" : "undetermined",
+  );
+  const [isLoading, setIsLoading] = useState(!Platform.isTV);
 
   const fetchSSID = useCallback(async () => {
+    if (Platform.isTV) return;
     const result = await getSSID();
     console.log("[WiFi Debug] Native module SSID:", result);
     setSSID(result);
   }, []);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
+    if (Platform.isTV || !Location) {
+      setPermissionStatus("unavailable");
+      return false;
+    }
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       const newStatus = mapLocationStatus(status);
@@ -58,6 +80,11 @@ export function useWifiSSID(): UseWifiSSIDReturn {
   }, [fetchSSID]);
 
   useEffect(() => {
+    if (Platform.isTV || !Location) {
+      setIsLoading(false);
+      return;
+    }
+
     async function initialize() {
       setIsLoading(true);
       try {
@@ -79,6 +106,8 @@ export function useWifiSSID(): UseWifiSSIDReturn {
 
   // Refresh SSID when permission status changes to granted
   useEffect(() => {
+    if (Platform.isTV) return;
+
     if (permissionStatus === "granted") {
       fetchSSID();
 

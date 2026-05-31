@@ -1,13 +1,19 @@
 import ExpoModulesCore
+#if !os(tvOS)
 import NetworkExtension
 import SystemConfiguration.CaptiveNetwork
+#endif
 
 public class WifiSsidModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WifiSsid")
 
     // Get current WiFi SSID using NEHotspotNetwork (iOS 14+)
+    // Not available on tvOS
     AsyncFunction("getSSID") { () -> String? in
+      #if os(tvOS)
+      return nil
+      #else
       return await withCheckedContinuation { continuation in
         NEHotspotNetwork.fetchCurrent { network in
           if let ssid = network?.ssid {
@@ -21,14 +27,21 @@ public class WifiSsidModule: Module {
           }
         }
       }
+      #endif
     }
 
     // Synchronous version using only CNCopyCurrentNetworkInfo
+    // Not available on tvOS
     Function("getSSIDSync") { () -> String? in
+      #if os(tvOS)
+      return nil
+      #else
       return self.getSSIDViaCNCopy()
+      #endif
     }
   }
 
+  #if !os(tvOS)
   private func getSSIDViaCNCopy() -> String? {
     guard let interfaces = CNCopySupportedInterfaces() as? [String] else {
       print("[WifiSsid] CNCopySupportedInterfaces returned nil")
@@ -49,4 +62,5 @@ public class WifiSsidModule: Module {
     print("[WifiSsid] No SSID found via CNCopyCurrentNetworkInfo")
     return nil
   }
+  #endif
 }

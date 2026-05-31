@@ -1,4 +1,5 @@
 // GenreTags.tsx
+import { BlurView } from "expo-blur";
 import type React from "react";
 import {
   Platform,
@@ -9,6 +10,7 @@ import {
   type ViewProps,
 } from "react-native";
 import { GlassEffectView } from "react-native-glass-effect-view";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { Text } from "./common/Text";
 
 interface TagProps {
@@ -23,7 +25,10 @@ export const Tag: React.FC<
     textStyle?: StyleProp<TextStyle>;
   } & ViewProps
 > = ({ text, textClass, textStyle, ...props }) => {
-  if (Platform.OS === "ios") {
+  // Hook must be called at the top level, before any conditional returns
+  const typography = useScaledTVTypography();
+
+  if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View>
         <GlassEffectView style={styles.glass}>
@@ -37,6 +42,32 @@ export const Tag: React.FC<
           </View>
         </GlassEffectView>
       </View>
+    );
+  }
+
+  // TV-specific styling with blur background
+  if (Platform.isTV) {
+    return (
+      <BlurView
+        intensity={10}
+        tint='light'
+        style={{
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            backgroundColor: "rgba(0,0,0,0.3)",
+          }}
+        >
+          <Text style={{ fontSize: typography.callout, color: "#E5E7EB" }}>
+            {text}
+          </Text>
+        </View>
+      </BlurView>
     );
   }
 
@@ -66,7 +97,8 @@ export const Tags: React.FC<
 
   return (
     <View
-      className={`flex flex-row flex-wrap gap-1 ${props.className}`}
+      className={`flex flex-row flex-wrap ${props.className}`}
+      style={{ gap: Platform.isTV ? 12 : 4 }}
       {...props}
     >
       {tags.map((tag, idx) => (

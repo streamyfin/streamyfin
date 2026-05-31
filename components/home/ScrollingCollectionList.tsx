@@ -44,7 +44,6 @@ export const ScrollingCollectionList: React.FC<Props> = ({
     queryKey: queryKey,
     queryFn,
     staleTime: 60 * 1000, // 1 minute
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     enabled: enableLazyLoading ? isInView : true,
