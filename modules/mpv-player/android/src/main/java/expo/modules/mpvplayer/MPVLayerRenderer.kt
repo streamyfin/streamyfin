@@ -715,9 +715,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 // dropped), so we (re)apply here for embedded and external alike.
                 // This is what makes a carried-over subtitle show up on the next
                 // episode without a manual re-selection.
-                if (initialAudioId != null && initialAudioId > 0) {
-                    setAudioTrack(initialAudioId)
-                }
+                initialAudioId?.let { if (it > 0) setAudioTrack(it) }
                 initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
 
                 if (!isReadyToSeek) {

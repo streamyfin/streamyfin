@@ -88,14 +88,14 @@ const BrightnessSlider = () => {
         maximumValue={max}
         thumbWidth={0}
         onValueChange={handleValueChange}
+        renderBubble={() => null}
+        renderThumb={() => null}
         containerStyle={{
           borderRadius: 50,
         }}
         theme={{
           minimumTrackTintColor: "#FDFDFD",
           maximumTrackTintColor: "#5A5A5A",
-          bubbleBackgroundColor: "transparent", // Hide the value bubble
-          bubbleTextColor: "transparent", // Hide the value text
         }}
       />
       <Ionicons
