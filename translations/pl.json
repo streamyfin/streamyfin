@@ -4,6 +4,9 @@
     "error_title": "Błąd",
     "login_title": "Zaloguj się",
     "login_to_title": "Zaloguj się do",
+    "select_user": "Select a user to log in",
+    "add_user_to_login": "Add a user to log in",
+    "add_user": "Add User",
     "username_placeholder": "Nazwa użytkownika",
     "password_placeholder": "Hasło",
     "login_button": "Zaloguj się",
@@ -42,7 +45,13 @@
     "accounts_count": "{{count}} kont",
     "select_account": "Wybierz konto",
     "add_account": "Dodaj konto",
-    "remove_account_description": "Spowoduje to usunięcie zapisanych danych logowania dla {{username}}."
+    "remove_account_description": "Spowoduje to usunięcie zapisanych danych logowania dla {{username}}.",
+    "remove_server": "Remove Server",
+    "remove_server_description": "This will remove {{server}} and all saved accounts from your list.",
+    "select_your_server": "Select Your Server",
+    "add_server_to_get_started": "Add a server to get started",
+    "add_server": "Add Server",
+    "change_server": "Change Server"
   },
   "save_account": {
     "title": "Zapisz konto",
@@ -86,6 +95,7 @@
     "oops": "Ups!",
     "error_message": "Coś poszło nie tak.\nWyloguj się i zaloguj ponownie.",
     "continue_watching": "Kontynuuj oglądanie",
+    "continue": "Continue",
     "next_up": "Następne w kolejce",
     "continue_and_next_up": "Oglądaj dalej i Następne",
     "recently_added_in": "Ostatnio dodano w {{libraryName}}",
@@ -109,6 +119,12 @@
     "settings": {
       "settings_title": "Ustawienia",
       "log_out_button": "Wyloguj się",
+      "switch_user": {
+        "title": "Switch User",
+        "account": "Account",
+        "switch_user": "Switch User on This Server",
+        "current": "current"
+      },
       "categories": {
         "title": "Kategorie"
       },
@@ -121,7 +137,16 @@
       "appearance": {
         "title": "Wygląd",
         "merge_next_up_continue_watching": "Połącz Oglądaj dalej i Następne",
-        "hide_remote_session_button": "Ukryj przycisk Zdalnej Sesji"
+        "hide_remote_session_button": "Ukryj przycisk Zdalnej Sesji",
+        "show_home_backdrop": "Dynamic Home Backdrop",
+        "show_hero_carousel": "Hero Carousel",
+        "show_series_poster_on_episode": "Show Series Poster on Episodes",
+        "theme_music": "Theme Music",
+        "display_size": "Display Size",
+        "display_size_small": "Small",
+        "display_size_default": "Default",
+        "display_size_large": "Large",
+        "display_size_extra_large": "Extra Large"
       },
       "network": {
         "title": "Network",
@@ -173,6 +198,22 @@
         "forward_skip_length": "Długość przewijania do przodu",
         "rewind_length": "Długość przewijania do tyłu",
         "seconds_unit": "s"
+      },
+      "buffer": {
+        "title": "Buffer Settings",
+        "cache_mode": "Cache Mode",
+        "cache_auto": "Auto",
+        "cache_yes": "Enabled",
+        "cache_no": "Disabled",
+        "buffer_duration": "Buffer Duration",
+        "max_cache_size": "Max Cache Size",
+        "max_backward_cache": "Max Backward Cache"
+      },
+      "vo_driver": {
+        "title": "Video Output",
+        "vo_mode": "VO Driver",
+        "gpu_next": "gpu-next (Recommended)",
+        "gpu": "gpu"
       },
       "gesture_controls": {
         "gesture_controls_title": "Sterowanie gestami",
@@ -256,7 +297,23 @@
         "subtitle_font": "Czcionka napisów",
         "ksplayer_title": "Ustawienia KSPlayer",
         "hardware_decode": "Dekodowanie sprzętowe",
-        "hardware_decode_description": "Używaj akceleracji sprzętowej dla dekodowania wideo. Wyłącz, jeśli doświadczasz problemów z odtwarzaniem."
+        "hardware_decode_description": "Używaj akceleracji sprzętowej dla dekodowania wideo. Wyłącz, jeśli doświadczasz problemów z odtwarzaniem.",
+        "opensubtitles_title": "OpenSubtitles",
+        "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
+        "opensubtitles_api_key": "API Key",
+        "opensubtitles_api_key_placeholder": "Enter API key...",
+        "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers",
+        "mpv_subtitle_scale": "Subtitle Scale",
+        "mpv_subtitle_margin_y": "Vertical Margin",
+        "mpv_subtitle_align_x": "Horizontal Align",
+        "mpv_subtitle_align_y": "Vertical Align",
+        "align": {
+          "left": "Left",
+          "center": "Center",
+          "right": "Right",
+          "top": "Top",
+          "bottom": "Bottom"
+        }
       },
       "vlc_subtitles": {
         "title": "Ustawienia napisów VLC",
@@ -406,7 +463,13 @@
         "music_cache_cleared": "Wyczyszczono bufor muzyki",
         "delete_all_downloaded_songs": "Usuń wszystkie pobrane piosenki",
         "downloaded_songs_size": "Pobrano {{size}}",
-        "downloaded_songs_deleted": "Usunięto pobrane piosenki"
+        "downloaded_songs_deleted": "Usunięto pobrane piosenki",
+        "clear_all_cache": "Clear All Cache",
+        "clear_all_cache_confirm": "Clear All Cache?",
+        "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
+        "clear_all_cache_success": "Cache Cleared",
+        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
+        "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
         "title": "Wstęp",
@@ -430,6 +493,21 @@
         "error_deleting_files": "Błąd podczas usuwania plików",
         "background_downloads_enabled": "Pobieranie w tle włączone",
         "background_downloads_disabled": "Pobieranie w tle wyłączone"
+      },
+      "security": {
+        "title": "Security",
+        "inactivity_timeout": {
+          "title": "Inactivity Timeout",
+          "description": "Auto logout after inactivity",
+          "disabled": "Disabled",
+          "1_minute": "1 minute",
+          "5_minutes": "5 minutes",
+          "15_minutes": "15 minutes",
+          "30_minutes": "30 minutes",
+          "1_hour": "1 hour",
+          "4_hours": "4 hours",
+          "24_hours": "24 hours"
+        }
       }
     },
     "sessions": {
@@ -456,6 +534,7 @@
       "new_app_version_requires_re_download_description": "Nowa aktualizacja wymaga ponownego pobrania treści. Usuń wszystkie pobrane materiały i spróbuj ponownie.",
       "back": "Wstecz",
       "delete": "Usuń",
+      "delete_download": "Delete Download",
       "something_went_wrong": "Coś poszło nie tak",
       "could_not_get_stream_url_from_jellyfin": "Nie udało się pobrać adresu URL transmisji z Jellyfin",
       "eta": "Szacowany czas: {{eta}}",
@@ -492,22 +571,28 @@
     }
   },
   "common": {
+    "no_results": "No Results",
     "select": "Wybierz",
     "no_trailer_available": "Brak dostępnego zwiastunu",
     "video": "Wideo",
     "audio": "Dźwięk",
     "subtitle": "Napisy",
     "play": "Odtwórz",
+    "mark_as_played": "Mark as Played",
+    "mark_as_not_played": "Mark as not Played",
     "none": "Nic",
     "track": "Utwór",
     "cancel": "Anuluj",
+    "stop": "Stop",
     "delete": "Usuń",
     "ok": "OK",
     "remove": "Usuń",
     "next": "Następne",
     "back": "Poprzednie",
     "continue": "Kontynuuj",
-    "verifying": "Weryfikacja..."
+    "verifying": "Weryfikacja...",
+    "login": "Login",
+    "refresh": "Refresh"
   },
   "search": {
     "search": "Szukaj...",
@@ -556,6 +641,7 @@
       "movies": "filmy",
       "series": "seriale",
       "boxsets": "zestawy",
+      "playlists": "Playlists",
       "items": "elementy"
     },
     "options": {
@@ -566,7 +652,8 @@
       "poster": "Plakat",
       "cover": "Okładka",
       "show_titles": "Pokaż tytuły",
-      "show_stats": "Pokaż statystyki"
+      "show_stats": "Pokaż statystyki",
+      "options_title": "Options"
     },
     "filters": {
       "genres": "Gatunki",
@@ -574,7 +661,11 @@
       "sort_by": "Sortuj według",
       "filter_by": "Filtruj po",
       "sort_order": "Kolejność sortowania",
-      "tags": "Tagi"
+      "tags": "Tagi",
+      "all": "All",
+      "reset": "Reset",
+      "asc": "Ascending",
+      "desc": "Descending"
     }
   },
   "favorites": {
@@ -591,6 +682,8 @@
     "no_links": "Brak odnośników"
   },
   "player": {
+    "live": "LIVE",
+    "mpv_player_title": "MPV Player",
     "error": "Błąd",
     "failed_to_get_stream_url": "Nie udało się pobrać adresu strumienia",
     "an_error_occured_while_playing_the_video": "Wystąpił błąd podczas odtwarzania wideo. Sprawdź logi w ustawieniach.",
@@ -608,7 +701,35 @@
     "downloaded_file_message": "Chcesz odtworzyć pobrany plik?",
     "downloaded_file_yes": "Tak",
     "downloaded_file_no": "Nie",
-    "downloaded_file_cancel": "Anuluj"
+    "downloaded_file_cancel": "Anuluj",
+    "swipe_down_settings": "Swipe down for settings",
+    "ends_at": "Ends at {{time}}",
+    "search_subtitles": "Search Subtitles",
+    "subtitle_tracks": "Tracks",
+    "subtitle_search": "Search & Download",
+    "download": "Download",
+    "subtitle_download_hint": "Downloaded subtitles will be saved to your library",
+    "using_jellyfin_server": "Using Jellyfin Server",
+    "language": "Language",
+    "results": "Results",
+    "searching": "Searching...",
+    "search_failed": "Search failed",
+    "no_subtitle_provider": "No subtitle provider configured on server",
+    "no_subtitles_found": "No subtitles found",
+    "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
+    "settings": "Settings",
+    "skip_intro": "Skip Intro",
+    "skip_credits": "Skip Credits",
+    "stopPlayback": "Stop Playback",
+    "stopPlayingTitle": "Stop playing \"{{title}}\"?",
+    "stopPlayingConfirm": "Are you sure you want to stop playback?",
+    "downloaded": "Downloaded"
+  },
+  "chapters": {
+    "title": "Chapters",
+    "chapter_number": "Chapter {{number}}",
+    "open": "Open chapters",
+    "close": "Close chapters"
   },
   "item_card": {
     "next_up": "Następne",
@@ -617,6 +738,11 @@
     "series": "Serial",
     "seasons": "Sezony",
     "season": "Sezon",
+    "from_this_series": "From This Series",
+    "more_from_this_season": "More from this Season",
+    "view_series": "View Series",
+    "view_season": "View Season",
+    "select_season": "Select Season",
     "no_episodes_for_this_season": "Brak odcinków w tym sezonie",
     "overview": "Opis",
     "more_with": "Więcej z {{name}}",
@@ -627,10 +753,21 @@
     "media_options": "Ustawienia mediów",
     "quality": "Jakość",
     "audio": "Dźwięk",
-    "subtitles": "Napisy",
+    "subtitles": {
+      "label": "Subtitle",
+      "none": "None",
+      "tracks": "Tracks"
+    },
     "show_more": "Pokaż więcej",
     "show_less": "Pokaż mniej",
+    "left": "left",
+    "more_info": "More Info",
+    "director": "Director",
+    "cast": "Cast",
+    "technical_details": "Technical Details",
     "appeared_in": "Wystąpił w",
+    "movies": "Movies",
+    "shows": "Shows",
     "could_not_load_item": "Nie udało się wczytać elementu",
     "none": "Brak",
     "download": {
@@ -641,7 +778,13 @@
       "download_x_item": "Pobierz {{item_count}} elementów",
       "download_unwatched_only": "Tylko nieobejrzane",
       "download_button": "Pobierz"
-    }
+    },
+    "mark_played": "Mark as Watched",
+    "mark_unplayed": "Mark as Unwatched",
+    "resume_playback": "Resume Playback",
+    "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
+    "play_from_start": "Play from Start",
+    "continue_from": "Continue from {{time}}"
   },
   "live_tv": {
     "next": "Następny",
@@ -652,7 +795,18 @@
     "movies": "Filmy",
     "sports": "Sport",
     "for_kids": "Dla dzieci",
-    "news": "Wiadomości"
+    "news": "Wiadomości",
+    "page_of": "Page {{current}} of {{total}}",
+    "no_programs": "No programs available",
+    "no_channels": "No channels available",
+    "tabs": {
+      "programs": "Programs",
+      "guide": "Guide",
+      "channels": "Channels",
+      "recordings": "Recordings",
+      "schedule": "Schedule",
+      "series": "Series"
+    }
   },
   "jellyseerr": {
     "confirm": "Potwierdź",
@@ -697,6 +851,12 @@
     "decline": "Odrzuć",
     "requested_by": "Poproszone przez {{user}}",
     "unknown_user": "Nieznany użytkownik",
+    "select": "Select",
+    "request_all": "Request All",
+    "request_seasons": "Request Seasons",
+    "select_seasons": "Select Seasons",
+    "request_selected": "Request Selected",
+    "n_selected": "{{count}} selected",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Serwer Jellyseerr nie spełnia minimalnych wymagań wersji! Zaktualizuj go co najmniej do wersji 2.0.0",
       "jellyseerr_test_failed": "Test Jellyseerr nie powiódł się. Spróbuj ponownie.",
@@ -716,7 +876,8 @@
     "search": "Szukaj",
     "library": "Biblioteka",
     "custom_links": "Niestandardowe odnośniki",
-    "favorites": "Ulubione"
+    "favorites": "Ulubione",
+    "settings": "Settings"
   },
   "music": {
     "title": "Muzyka",
@@ -841,5 +1002,36 @@
       "show": "Ten odcinek",
       "all": "Wszystkie media (domyślne)"
     }
+  },
+  "companion_login": {
+    "title": "Pair with TV",
+    "align_qr": "Align the QR code within the frame",
+    "enter_code_manually": "Enter code manually",
+    "pairing_enter_credentials": "Enter credentials for TV",
+    "pairing_code_label": "Pairing code",
+    "server": "Server",
+    "authorize_button": "Authorize",
+    "authorizing": "Authorizing...",
+    "scan_again": "Scan Again",
+    "done": "Done",
+    "success_title": "Authorization Sent",
+    "pairing_tv_connecting": "The TV is connecting to your account",
+    "error_title": "Authorization Failed",
+    "error_invalid_qr": "Invalid QR code. Please scan the TV pairing code.",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_permission_denied": "Camera permission is required to scan QR codes.",
+    "login_as": "Log in as {{username}}?",
+    "on_server": "on {{server}}",
+    "use_different_user": "Use a different user",
+    "open_settings": "Open Settings"
+  },
+  "pairing": {
+    "pair_with_phone": "Pair with Phone",
+    "pair_with_phone_title": "Login TV",
+    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
+    "waiting_for_phone": "Waiting for phone...",
+    "scan_with_phone": "Scan with the Streamyfin app on your phone",
+    "logging_in": "Logging in...",
+    "logging_in_description": "Connecting to your server"
   }
 }
