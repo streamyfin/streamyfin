@@ -111,10 +111,20 @@ if (!matches.length) {
   process.exit(0);
 }
 
+// Neutralise other issues' titles before echoing them back: break @mentions and
+// strip markdown/HTML control chars so a maliciously-named issue can't ping people
+// or inject formatting into our comment. GitHub linkifies "#123" on its own.
+const safeTitle = (t) =>
+  (t || "")
+    .replace(/@/g, "@​")
+    .replace(/[`<>|*_~[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
 const list = matches
   .map(
     (m) =>
-      `- #${m.number} — ${m.title} _(≈ ${Math.round(m.s * 100)}% similar)_`,
+      `- #${m.number} — ${safeTitle(m.title)} (≈ ${Math.round(m.s * 100)}% similar)`,
   )
   .join("\n");
 const comment = [
