@@ -468,58 +468,37 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(
-    async (_forceOverride = false) => {
-      if (!api) {
-        return;
+  const refreshStreamyfinPluginSettings = useCallback(async () => {
+    if (!api) {
+      return;
+    }
+    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
+      ({ data }) => {
+        writeInfoLog("Got plugin settings", data?.settings);
+        return data?.settings;
+      },
+      (_err) => undefined,
+    );
+    setPluginSettings(newPluginSettings);
+
+    // Locked/unlocked values are handled by the settings memo, which
+    // applies locked values at runtime without overwriting user storage.
+    // We only handle auto-enabling Streamystats here.
+    if (newPluginSettings && _settings) {
+      const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
+      if (streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats") {
+        const newSettings = {
+          ...defaultValues,
+          ..._settings,
+          searchEngine: "Streamystats",
+        } as Settings;
+        setSettings(newSettings);
+        saveSettings(newSettings);
       }
-      const newPluginSettings = await api.getStreamyfinPluginConfig().then(
-        ({ data }) => {
-          writeInfoLog("Got plugin settings", data?.settings);
-          return data?.settings;
-        },
-        (_err) => undefined,
-      );
-      setPluginSettings(newPluginSettings);
+    }
 
-      // Apply locked plugin values to settings (unlocked values are handled
-      // by the settings memo, which respects user customizations)
-      if (newPluginSettings && _settings) {
-        const updates: Partial<Settings> = {};
-        for (const [key, setting] of Object.entries(newPluginSettings)) {
-          if (setting?.locked) {
-            const settingsKey = key as keyof Settings;
-            // Normalize and apply locked values unconditionally
-            (updates as any)[settingsKey] = normalizePluginValue(
-              settingsKey,
-              setting.value,
-            );
-          }
-        }
-
-        // Auto-enable Streamystats if server URL is provided
-        const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
-        if (
-          streamyStatsUrl?.value &&
-          _settings.searchEngine !== "Streamystats"
-        ) {
-          updates.searchEngine = "Streamystats";
-        }
-        if (Object.keys(updates).length > 0) {
-          const newSettings = {
-            ...defaultValues,
-            ..._settings,
-            ...updates,
-          } as Settings;
-          setSettings(newSettings);
-          saveSettings(newSettings);
-        }
-      }
-
-      return newPluginSettings;
-    },
-    [api, _settings],
-  );
+    return newPluginSettings;
+  }, [api, _settings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     if (!_settings) {
