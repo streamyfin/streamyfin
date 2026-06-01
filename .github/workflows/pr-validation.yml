@@ -111,8 +111,8 @@ jobs:
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
             const marker = "<!-- pr-template-check -->";
-            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
-            const existing = comments.data.find((c) => c.body?.includes(marker));
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
             const payload = `${marker}\n${body}`;
             if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: payload });
             else await github.rest.issues.createComment({ owner, repo, issue_number, body: payload });
@@ -130,7 +130,7 @@ jobs:
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
             const marker = "<!-- pr-template-check -->";
-            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
-            const existing = comments.data.find((c) => c.body?.includes(marker));
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.includes(marker));
             if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
             try { await github.rest.issues.removeLabel({ owner, repo, issue_number, name: "blocked: template" }); } catch {}

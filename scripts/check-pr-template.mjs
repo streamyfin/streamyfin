@@ -19,7 +19,13 @@ if (!bodyFile) {
   process.exit(2);
 }
 
-const body = readFileSync(bodyFile, "utf8").replace(/\r\n/g, "\n");
+let body;
+try {
+  body = readFileSync(bodyFile, "utf8").replace(/\r\n/g, "\n");
+} catch (e) {
+  console.error(`cannot read body file ${bodyFile}: ${e.message}`);
+  process.exit(2);
+}
 const association = (process.env.AUTHOR_ASSOCIATION || "").toUpperCase();
 const isMaintainer = ["OWNER", "MEMBER", "COLLABORATOR"].includes(association);
 
