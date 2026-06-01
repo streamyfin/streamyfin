@@ -37,7 +37,20 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
     return { ...item, People: people } as BaseItemDto;
   }, [item, people]);
 
-  const topPeople = useMemo(() => people.slice(0, 3), [people]);
+  // Jellyfin can list the same person several times (e.g. an actor also
+  // credited as writer). Dedupe by Id so the same actor section isn't rendered
+  // twice and we still surface 3 distinct people.
+  const topPeople = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: BaseItemPerson[] = [];
+    for (const person of people) {
+      if (!person.Id || seen.has(person.Id)) continue;
+      seen.add(person.Id);
+      unique.push(person);
+      if (unique.length >= 3) break;
+    }
+    return unique;
+  }, [people]);
 
   const renderActorSection = useCallback(
     (person: BaseItemPerson, idx: number, total: number) => {

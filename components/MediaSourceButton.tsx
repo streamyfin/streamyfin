@@ -142,7 +142,7 @@ export const MediaSourceButton: React.FC<Props> = ({
       }));
 
       groups.push({
-        title: t("item_card.subtitles"),
+        title: t("item_card.subtitles.label"),
         options: [noneOption, ...subtitleOptions],
       });
     }

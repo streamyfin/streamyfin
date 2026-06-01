@@ -7,7 +7,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import type { Router } from "expo-router";
+import type { ImperativeRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import type { RemoteMediaClient } from "react-native-google-cast";
@@ -33,7 +33,7 @@ interface CastPlayerEpisodeControlsProps {
   /** Load a different episode on the Chromecast. */
   loadEpisode: (episode: BaseItemDto) => Promise<void>;
   /** Expo Router instance for navigation on stop. */
-  router: Router;
+  router: ImperativeRouter;
 }
 
 export function CastPlayerEpisodeControls({

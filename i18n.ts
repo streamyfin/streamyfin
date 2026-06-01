@@ -29,7 +29,7 @@ import vi from "./translations/vi.json";
 import zhCN from "./translations/zh-CN.json";
 import zhTW from "./translations/zh-TW.json";
 
-export const APP_LANGUAGES = [
+const _APP_LANGUAGES = [
   { label: "Catalan", value: "ca" },
   { label: "العربية", value: "ar" },
   { label: "Dansk", value: "da" },
@@ -57,7 +57,9 @@ export const APP_LANGUAGES = [
   { label: "简体中文", value: "zh-CN" },
   { label: "繁體中文", value: "zh-TW" },
   { label: "Tiếng Việt", value: "vi" },
-];
+].sort((a, b) => a.label.localeCompare(b.label));
+
+export const APP_LANGUAGES = _APP_LANGUAGES;
 
 i18n.use(initReactI18next).init({
   compatibilityJSON: "v4",

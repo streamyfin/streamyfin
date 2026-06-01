@@ -15,16 +15,18 @@ import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
-// Subtitle size presets (stored as scale * 100, so 1.0 = 100)
-const SUBTITLE_SIZE_PRESETS = [
-  { label: "0.5", value: 50 },
-  { label: "0.6", value: 60 },
-  { label: "0.7", value: 70 },
-  { label: "0.8", value: 80 },
-  { label: "0.9", value: 90 },
-  { label: "1.0", value: 100 },
-  { label: "1.1", value: 110 },
-  { label: "1.2", value: 120 },
+// Subtitle scale presets (direct multiplier values)
+const SUBTITLE_SCALE_PRESETS = [
+  { label: "0.1x", value: 0.1 },
+  { label: "0.25x", value: 0.25 },
+  { label: "0.5x", value: 0.5 },
+  { label: "0.75x", value: 0.75 },
+  { label: "1.0x", value: 1.0 },
+  { label: "1.25x", value: 1.25 },
+  { label: "1.5x", value: 1.5 },
+  { label: "2.0x", value: 2.0 },
+  { label: "2.5x", value: 2.5 },
+  { label: "3.0x", value: 3.0 },
 ] as const;
 
 interface DropdownViewProps {
@@ -124,15 +126,15 @@ const DropdownView = ({
         })),
       });
 
-      // Subtitle Size Section
+      // Subtitle Scale Section
       groups.push({
-        title: "Subtitle Size",
-        options: SUBTITLE_SIZE_PRESETS.map((preset) => ({
+        title: "Subtitle Scale",
+        options: SUBTITLE_SCALE_PRESETS.map((preset) => ({
           type: "radio" as const,
           label: preset.label,
           value: preset.value.toString(),
-          selected: settings.subtitleSize === preset.value,
-          onPress: () => updateSettings({ subtitleSize: preset.value }),
+          selected: (settings.mpvSubtitleScale ?? 1.0) === preset.value,
+          onPress: () => updateSettings({ mpvSubtitleScale: preset.value }),
         })),
       });
     }
@@ -190,7 +192,7 @@ const DropdownView = ({
     audioTracksKey,
     subtitleIndex,
     audioIndex,
-    settings.subtitleSize,
+    settings.mpvSubtitleScale,
     updateSettings,
     playbackSpeed,
     setPlaybackSpeed,

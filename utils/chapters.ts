@@ -65,6 +65,25 @@ export const currentChapterIndex = (
   return index;
 };
 
+/** Name of the chapter containing `positionMs`, or null if none / unnamed. */
+export const chapterNameAt = (
+  positionMs: number,
+  chapters: ChapterInfo[] | null | undefined,
+): string | null => {
+  // Sort once, derive both the active index and the entry from the same array
+  // — `chapterNameAt` runs on every playback tick, so paying for one `sort()`
+  // instead of two is worth the duplication of the index loop here.
+  const sorted = sortedChapters(chapters);
+  let idx = -1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (positionMs >= sorted[i].positionMs) idx = i;
+    else break;
+  }
+  if (idx < 0) return null;
+  const name = sorted[idx]?.chapter.Name;
+  return name && name.length > 0 ? name : null;
+};
+
 /** `m:ss` (or `h:mm:ss` past an hour) label for a millisecond position. */
 export const formatChapterTime = (positionMs: number): string => {
   const total = Math.max(0, Math.floor(positionMs / 1000));

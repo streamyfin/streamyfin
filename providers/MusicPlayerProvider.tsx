@@ -15,12 +15,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import TrackPlayer, {
-  Capability,
-  type Progress,
-  RepeatMode as TPRepeatMode,
-  type Track,
-} from "react-native-track-player";
+import { Platform } from "react-native";
 import {
   downloadTrack,
   getLocalPath,
@@ -37,6 +32,22 @@ import {
   type PlaybackController,
   useRegisterPlaybackController,
 } from "@/utils/playback/playbackController";
+
+// Conditionally import TrackPlayer only on non-TV platforms
+// This prevents the native module from being loaded on TV where it doesn't exist
+const TrackPlayer = Platform.isTV
+  ? null
+  : require("react-native-track-player").default;
+
+const TrackPlayerModule = Platform.isTV
+  ? null
+  : require("react-native-track-player");
+
+// Extract types and enums from the module (only available on non-TV)
+const Capability = TrackPlayerModule?.Capability;
+const TPRepeatMode = TrackPlayerModule?.RepeatMode;
+type Track = NonNullable<typeof TrackPlayerModule>["Track"];
+type Progress = NonNullable<typeof TrackPlayerModule>["Progress"];
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -120,6 +131,28 @@ interface MusicPlayerContextType extends MusicPlayerState {
   triggerLookahead: () => void;
 }
 
+const defaultState: MusicPlayerState = {
+  currentTrack: null,
+  queue: [],
+  originalQueue: [],
+  queueIndex: 0,
+  isPlaying: false,
+  isLoading: false,
+  loadingTrackId: null,
+  progress: 0,
+  duration: 0,
+  streamUrl: null,
+  playSessionId: null,
+  repeatMode: "off",
+  shuffleEnabled: false,
+  mediaSource: null,
+  isTranscoding: false,
+  trackMediaInfoMap: {},
+};
+
+// No-op function for TV stub
+const noop = () => {};
+
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(
   undefined,
 );
@@ -135,6 +168,48 @@ export const useMusicPlayer = () => {
 interface MusicPlayerProviderProps {
   children: ReactNode;
 }
+
+// Stub provider for tvOS - music playback is not supported
+const TVMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
+  children,
+}) => {
+  const value: MusicPlayerContextType = {
+    ...defaultState,
+    playTrack: noop,
+    playQueue: noop,
+    playAlbum: noop,
+    playPlaylist: noop,
+    pause: noop,
+    resume: noop,
+    togglePlayPause: noop,
+    next: noop,
+    previous: noop,
+    seek: noop,
+    stop: noop,
+    addToQueue: noop,
+    playNext: noop,
+    removeFromQueue: noop,
+    moveInQueue: noop,
+    reorderQueue: noop,
+    clearQueue: noop,
+    jumpToIndex: noop,
+    setRepeatMode: noop,
+    toggleShuffle: noop,
+    setProgress: noop,
+    setDuration: noop,
+    setIsPlaying: noop,
+    reportProgress: noop,
+    onTrackEnd: noop,
+    syncFromTrackPlayer: noop,
+    triggerLookahead: noop,
+  };
+
+  return (
+    <MusicPlayerContext.Provider value={value}>
+      {children}
+    </MusicPlayerContext.Provider>
+  );
+};
 
 // Persistence helpers
 const saveQueueToStorage = (queue: BaseItemDto[], queueIndex: number) => {
@@ -276,7 +351,8 @@ const itemToTrack = (
   };
 };
 
-export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
+// Full implementation for non-TV platforms
+const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   children,
 }) => {
   const api = useAtomValue(apiAtom);
@@ -310,6 +386,8 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Setup TrackPlayer and AudioStorage
   useEffect(() => {
+    if (!TrackPlayer) return;
+
     const setupPlayer = async () => {
       if (playerSetupRef.current) return;
 
@@ -358,19 +436,21 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Sync repeat mode to TrackPlayer
   useEffect(() => {
+    if (!TrackPlayer) return;
+
     const syncRepeatMode = async () => {
       if (!playerSetupRef.current) return;
 
-      let tpRepeatMode: TPRepeatMode;
+      let tpRepeatMode: typeof TPRepeatMode;
       switch (state.repeatMode) {
         case "one":
-          tpRepeatMode = TPRepeatMode.Track;
+          tpRepeatMode = TPRepeatMode?.Track;
           break;
         case "all":
-          tpRepeatMode = TPRepeatMode.Queue;
+          tpRepeatMode = TPRepeatMode?.Queue;
           break;
         default:
-          tpRepeatMode = TPRepeatMode.Off;
+          tpRepeatMode = TPRepeatMode?.Off;
       }
       await TrackPlayer.setRepeatMode(tpRepeatMode);
     };
@@ -557,14 +637,13 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Load remaining tracks in the background without blocking playback
   const loadRemainingTracksInBackground = useCallback(
     async (queue: BaseItemDto[], startIndex: number, preferLocal: boolean) => {
-      if (!api || !user?.Id) return;
+      if (!api || !user?.Id || !TrackPlayer) return;
 
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
       const failedItemIds: string[] = []; // Track items that failed to prepare
 
       // Process tracks BEFORE the start index (insert at position 0, pushing current track forward)
       const beforeTracks: Track[] = [];
-      const beforeSuccessIds: string[] = []; // Track successful IDs to maintain order
       for (let i = 0; i < startIndex; i++) {
         const item = queue[i];
         if (!item.Id) continue;
@@ -572,7 +651,6 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         const prepared = await prepareTrack(item, preferLocal);
         if (prepared) {
           beforeTracks.push(prepared.track);
-          beforeSuccessIds.push(item.Id);
           if (prepared.mediaInfo) {
             mediaInfoMap[item.Id] = prepared.mediaInfo;
           }
@@ -645,7 +723,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const loadAndPlayQueue = useCallback(
     async (queue: BaseItemDto[], startIndex: number) => {
-      if (!api || !user?.Id || queue.length === 0) return;
+      if (!api || !user?.Id || queue.length === 0 || !TrackPlayer) return;
 
       const preferLocal = settings?.preferLocalAudio ?? true;
 
@@ -860,11 +938,13 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   );
 
   const pause = useCallback(async () => {
+    if (!TrackPlayer) return;
     await TrackPlayer.pause();
     setState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
   const resume = useCallback(async () => {
+    if (!TrackPlayer) return;
     if (!state.streamUrl && state.currentTrack && api && user?.Id) {
       // Need to load the track first (e.g., after app restart)
       const result = await getAudioStreamUrl(
@@ -909,6 +989,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   }, [state.isPlaying, pause, resume]);
 
   const next = useCallback(async () => {
+    if (!TrackPlayer) return;
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
     const queueLength = (await TrackPlayer.getQueue()).length;
 
@@ -968,6 +1049,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   ]);
 
   const previous = useCallback(async () => {
+    if (!TrackPlayer) return;
     const position = await TrackPlayer.getProgress().then(
       (p: Progress) => p.position,
     );
@@ -1037,11 +1119,13 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   ]);
 
   const seek = useCallback(async (position: number) => {
+    if (!TrackPlayer) return;
     await TrackPlayer.seekTo(position);
     setState((prev) => ({ ...prev, progress: position }));
   }, []);
 
   const stop = useCallback(async () => {
+    if (!TrackPlayer) return;
     if (state.currentTrack && state.playSessionId) {
       reportPlaybackStopped(
         state.currentTrack,
@@ -1091,7 +1175,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Queue management
   const addToQueue = useCallback(
     async (tracks: BaseItemDto | BaseItemDto[]) => {
-      if (!api || !user?.Id) return;
+      if (!api || !user?.Id || !TrackPlayer) return;
 
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const preferLocal = settings?.preferLocalAudio ?? true;
@@ -1124,7 +1208,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const playNext = useCallback(
     async (tracks: BaseItemDto | BaseItemDto[]) => {
-      if (!api || !user?.Id) return;
+      if (!api || !user?.Id || !TrackPlayer) return;
 
       const tracksArray = Array.isArray(tracks) ? tracks : [tracks];
       const currentIndex = await TrackPlayer.getActiveTrackIndex();
@@ -1172,6 +1256,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   );
 
   const removeFromQueue = useCallback(async (index: number) => {
+    if (!TrackPlayer) return;
     const queueLength = (await TrackPlayer.getQueue()).length;
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
 
@@ -1205,6 +1290,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const moveInQueue = useCallback(
     async (fromIndex: number, toIndex: number) => {
+      if (!TrackPlayer) return;
       const queue = await TrackPlayer.getQueue();
       if (
         fromIndex < 0 ||
@@ -1245,6 +1331,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Reorder queue with a new array (used by drag-to-reorder UI)
   const reorderQueue = useCallback(
     async (newQueue: BaseItemDto[]) => {
+      if (!TrackPlayer) return;
       // Find where the current track ended up in the new order
       const currentTrackId = state.currentTrack?.Id;
       const newIndex = currentTrackId
@@ -1257,7 +1344,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
       // Create a map of trackId -> current TrackPlayer index
       const currentPositions = new Map<string, number>();
-      tpQueue.forEach((track, idx) => {
+      tpQueue.forEach((track: Track, idx: number) => {
         currentPositions.set(track.id, idx);
       });
 
@@ -1300,6 +1387,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   );
 
   const clearQueue = useCallback(async () => {
+    if (!TrackPlayer) return;
     const currentIndex = await TrackPlayer.getActiveTrackIndex();
     const queue = await TrackPlayer.getQueue();
 
@@ -1329,6 +1417,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   const jumpToIndex = useCallback(
     async (index: number) => {
+      if (!TrackPlayer) return;
       if (
         index < 0 ||
         index >= state.queue.length ||
@@ -1464,6 +1553,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   // Sync state from TrackPlayer (called when active track changes)
   // Uses ID-based lookup instead of index to handle queue mismatches
   const syncFromTrackPlayer = useCallback(async () => {
+    if (!TrackPlayer) return;
     const activeTrack = await TrackPlayer.getActiveTrack();
     if (!activeTrack?.id) return;
 
@@ -1480,6 +1570,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Called by playback engine when track ends
   const onTrackEnd = useCallback(() => {
+    if (!TrackPlayer) return;
     if (state.repeatMode === "one") {
       TrackPlayer.seekTo(0);
       TrackPlayer.play();
@@ -1489,6 +1580,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
   // Look-ahead cache: pre-cache upcoming N tracks (excludes current track to avoid bandwidth competition)
   const triggerLookahead = useCallback(async () => {
+    if (!TrackPlayer) return;
     // Check if caching is enabled in settings
     if (settings?.audioLookaheadEnabled === false) return;
     if (!api || !user?.Id) return;
@@ -1639,3 +1731,7 @@ export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     </MusicPlayerContext.Provider>
   );
 };
+
+// Export the appropriate provider based on platform
+export const MusicPlayerProvider: React.FC<MusicPlayerProviderProps> =
+  Platform.isTV ? TVMusicPlayerProvider : MobileMusicPlayerProvider;

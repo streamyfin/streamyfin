@@ -13,6 +13,7 @@ import { CastTrickplayBubble } from "@/components/casting/player/CastTrickplayBu
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import type { useTrickplay } from "@/hooks/useTrickplay";
 import { calculateEndingTime, formatTime } from "@/utils/casting/helpers";
+import { chapterMarkers } from "@/utils/chapters";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 type TrickplayReturn = ReturnType<typeof useTrickplay>;
@@ -131,8 +132,7 @@ export function CastPlayerProgressBar({
           panHitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
         />
         <ChapterTicks
-          chapters={chapters}
-          durationMs={duration * 1000}
+          markers={chapterMarkers(chapters, duration * 1000)}
           height={4}
           color='#cccccc'
         />

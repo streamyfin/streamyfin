@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   chapterMarkers,
+  chapterNameAt,
+  chapterStartsMs,
   currentChapterIndex,
   formatChapterTime,
   sortedChapters,
@@ -75,6 +77,55 @@ describe("sortedChapters", () => {
   test("returns [] for null/undefined", () => {
     expect(sortedChapters(null)).toEqual([]);
     expect(sortedChapters(undefined)).toEqual([]);
+  });
+});
+
+describe("chapterStartsMs", () => {
+  test("returns sorted ms positions", () => {
+    expect(chapterStartsMs([ch(60_000), ch(0), ch(30_000)])).toEqual([
+      0, 30_000, 60_000,
+    ]);
+  });
+
+  test("skips entries without StartPositionTicks", () => {
+    expect(
+      chapterStartsMs([ch(30_000), { StartPositionTicks: undefined }, ch(0)]),
+    ).toEqual([0, 30_000]);
+  });
+
+  test("returns [] for null/undefined/empty", () => {
+    expect(chapterStartsMs(null)).toEqual([]);
+    expect(chapterStartsMs(undefined)).toEqual([]);
+    expect(chapterStartsMs([])).toEqual([]);
+  });
+});
+
+describe("chapterNameAt", () => {
+  const named = [
+    { StartPositionTicks: 0, Name: "Intro" },
+    { StartPositionTicks: 30_000 * 10000, Name: "Action" },
+    { StartPositionTicks: 60_000 * 10000, Name: "Outro" },
+  ];
+
+  test("returns the chapter name for the active position", () => {
+    expect(chapterNameAt(0, named)).toBe("Intro");
+    expect(chapterNameAt(15_000, named)).toBe("Intro");
+    expect(chapterNameAt(45_000, named)).toBe("Action");
+    expect(chapterNameAt(90_000, named)).toBe("Outro");
+  });
+
+  test("returns null before the first chapter", () => {
+    expect(chapterNameAt(-1, named)).toBeNull();
+  });
+
+  test("returns null for null/undefined/empty chapters", () => {
+    expect(chapterNameAt(10_000, null)).toBeNull();
+    expect(chapterNameAt(10_000, undefined)).toBeNull();
+    expect(chapterNameAt(10_000, [])).toBeNull();
+  });
+
+  test("returns null when the active chapter has no Name", () => {
+    expect(chapterNameAt(15_000, [ch(0), ch(30_000)])).toBeNull();
   });
 });
 

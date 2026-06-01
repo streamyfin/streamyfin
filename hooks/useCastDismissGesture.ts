@@ -1,4 +1,4 @@
-import type { Router } from "expo-router";
+import type { ImperativeRouter } from "expo-router";
 import { useCallback } from "react";
 import { Gesture } from "react-native-gesture-handler";
 import {
@@ -9,7 +9,7 @@ import {
 } from "react-native-reanimated";
 
 interface UseCastDismissGestureParams {
-  router: Router;
+  router: ImperativeRouter;
 }
 
 /**

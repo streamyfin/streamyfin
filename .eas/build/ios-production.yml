@@ -1,0 +1,44 @@
+# Custom EAS Build config for iOS + tvOS (App Store), forcing bun.
+#
+# Shared by both the iPhone profile (production) and the tvOS profile
+# (production_tv). The profile decides the rest:
+#   - production_tv sets EXPO_TV=1 (env) so prebuild targets tvOS, and
+#     credentialsSource: local (EAS can't manage tvOS creds remotely).
+#   - production uses remote-managed iOS credentials.
+#
+# Like the Android configs, this replaces eas/install_node_modules and
+# eas/prebuild (both auto-detect the wrong package manager) with explicit
+# bun commands, and keeps EAS built-ins for credentials/version/fastlane.
+build:
+  name: iOS/tvOS App Store (bun)
+  steps:
+    - eas/checkout
+
+    - run:
+        name: Install dependencies (bun, frozen)
+        command: bun install --frozen-lockfile
+
+    - eas/resolve_apple_team_id_from_credentials:
+        id: resolve_team
+
+    # android/ + ios/ are gitignored, so generate native code fresh.
+    # EXPO_TV (from the profile env) selects iPhone vs tvOS. --no-install
+    # skips JS + pod install; we install pods explicitly below with bun deps.
+    - run:
+        name: Prebuild (iOS/tvOS, bun)
+        command: bunx expo prebuild --platform ios --no-install
+
+    - run:
+        name: Install CocoaPods
+        working_directory: ./ios
+        command: pod install
+
+    - eas/configure_ios_credentials
+    - eas/configure_ios_version
+
+    - eas/generate_gymfile_from_template:
+        inputs:
+          credentials: ${ eas.job.secrets.buildCredentials }
+
+    - eas/run_fastlane
+    - eas/find_and_upload_build_artifacts

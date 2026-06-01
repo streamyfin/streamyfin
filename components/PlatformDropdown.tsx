@@ -1,11 +1,27 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import React, { useEffect } from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  type LayoutChangeEvent,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
+// A static top-level import evaluates requireNativeModule('ExpoUI') at module
+// load and crashes the entire route tree on tvOS (expo-router requires every
+// route file). Load it lazily and only off-TV; TV never renders these.
+const { Button, Host, Menu } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { disabled } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 // Option types
 export type RadioOption<T = any> = {
@@ -198,10 +214,30 @@ const PlatformDropdownComponent = ({
   onOpenChange: controlledOnOpenChange,
   onOptionSelect,
   expoUIConfig,
-  disabled,
+  // Aliased to avoid shadowing the module-level `disabled` SwiftUI modifier
+  // (from @expo/ui/swift-ui/modifiers) used by the iOS <Menu> renderer below.
+  disabled: isDisabled,
   bottomSheetConfig,
 }: PlatformDropdownProps) => {
   const { showModal, hideModal, isVisible } = useGlobalModal();
+
+  // @expo/ui's <Host> (SDK 55) fills its available space by default, and
+  // `matchContents` doesn't help here: it reports the native Menu's size via
+  // setStyleSize and overrides any explicit size. Instead we measure the
+  // trigger's intrinsic size in plain RN (off-layout) and pin it on the Host.
+  const [triggerSize, setTriggerSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const handleMeasureTrigger = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setTriggerSize((prev) =>
+      prev && prev.width === width && prev.height === height
+        ? prev
+        : { width, height },
+    );
+  };
 
   // Handle controlled open state for Android
   useEffect(() => {
@@ -232,19 +268,37 @@ const PlatformDropdownComponent = ({
     }
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
-  if (Platform.OS === "ios") {
-    if (disabled) {
+  if (Platform.OS === "ios" && !Platform.isTV) {
+    if (isDisabled) {
       return (
         <View style={{ opacity: 0.5 }} pointerEvents='none'>
           {trigger || <Text className='text-white'>Open Menu</Text>}
         </View>
       );
     }
+    // Pin the wrapper to the measured trigger size. @expo/ui's <Host> (SDK 55)
+    // fills its parent and reports its own size via setStyleSize, so it can't
+    // size itself to content. If the wrapper has no size, the Host's `flex: 1`
+    // height depends on the parent while the parent depends on the Host — a
+    // circular dependency that collapses to 0 for any selector nested more than
+    // one level deep (so only the first, shallowest dropdown stays visible).
+    // Giving the wrapper the measured size breaks the cycle; the Host then
+    // fills a concrete box.
     return (
-      <Host style={expoUIConfig?.hostStyle}>
-        <ContextMenu>
-          <ContextMenu.Trigger>{trigger}</ContextMenu.Trigger>
-          <ContextMenu.Items>
+      <View style={triggerSize ?? { opacity: 0 }}>
+        {/* Hidden measurer: lays the trigger out off-flow to capture its
+            intrinsic size. Absolutely positioned WITHOUT right/bottom so it
+            sizes to the trigger's content rather than to its parent. */}
+        <View
+          style={{ position: "absolute", top: 0, left: 0, opacity: 0 }}
+          pointerEvents='none'
+          aria-hidden
+          onLayout={handleMeasureTrigger}
+        >
+          {trigger}
+        </View>
+        <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
+          <Menu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -259,27 +313,40 @@ const PlatformDropdownComponent = ({
 
               const items = [];
 
-              // Add Picker for radio options ONLY if there's a group title
+              // Group radio options under a submenu ONLY if there's a title
               // Otherwise render as individual buttons
               if (radioOptions.length > 0) {
                 if (group.title) {
-                  // Use Picker for grouped options
+                  // Use a nested Menu as a submenu for grouped options. This
+                  // reads as "Title: Selected" and expands to the choices on
+                  // tap, keeping the nested look while staying a dropdown.
+                  // (Menu opens on a single tap and nests cleanly; ContextMenu
+                  // would require a long-press and read as a context menu.)
+                  const selectedOption = radioOptions.find(
+                    (opt) => opt.selected,
+                  );
+                  const displayTitle = selectedOption
+                    ? `${group.title}: ${selectedOption.label}`
+                    : group.title;
                   items.push(
-                    <Picker
-                      key={`picker-${groupIndex}`}
-                      label={group.title}
-                      options={radioOptions.map((opt) => opt.label)}
-                      variant='menu'
-                      selectedIndex={radioOptions.findIndex(
-                        (opt) => opt.selected,
-                      )}
-                      onOptionSelected={(event: any) => {
-                        const index = event.nativeEvent.index;
-                        const selectedOption = radioOptions[index];
-                        selectedOption?.onPress();
-                        onOptionSelect?.(selectedOption?.value);
-                      }}
-                    />,
+                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
+                      {radioOptions.map((option, optionIndex) => (
+                        <Button
+                          key={`radio-${groupIndex}-${optionIndex}`}
+                          label={option.label}
+                          systemImage={
+                            option.selected ? "checkmark.circle.fill" : "circle"
+                          }
+                          modifiers={
+                            option.disabled ? [disabled(true)] : undefined
+                          }
+                          onPress={() => {
+                            option.onPress();
+                            onOptionSelect?.(option.value);
+                          }}
+                        />
+                      ))}
+                    </Menu>,
                   );
                 } else {
                   // Render radio options as direct buttons
@@ -287,17 +354,18 @@ const PlatformDropdownComponent = ({
                     items.push(
                       <Button
                         key={`radio-${groupIndex}-${optionIndex}`}
+                        label={option.label}
                         systemImage={
                           option.selected ? "checkmark.circle.fill" : "circle"
+                        }
+                        modifiers={
+                          option.disabled ? [disabled(true)] : undefined
                         }
                         onPress={() => {
                           option.onPress();
                           onOptionSelect?.(option.value);
                         }}
-                        disabled={option.disabled}
-                      >
-                        {option.label}
-                      </Button>,
+                      />,
                     );
                   });
                 }
@@ -308,17 +376,16 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`toggle-${groupIndex}-${optionIndex}`}
+                    label={option.label}
                     systemImage={
                       option.value ? "checkmark.circle.fill" : "circle"
                     }
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onToggle();
                       onOptionSelect?.(option.value);
                     }}
-                    disabled={option.disabled}
-                  >
-                    {option.label}
-                  </Button>,
+                  />,
                 );
               });
 
@@ -327,21 +394,20 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`action-${groupIndex}-${optionIndex}`}
+                    label={option.label}
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onPress();
                     }}
-                    disabled={option.disabled}
-                  >
-                    {option.label}
-                  </Button>,
+                  />,
                 );
               });
 
               return items;
             })}
-          </ContextMenu.Items>
-        </ContextMenu>
-      </Host>
+          </Menu>
+        </Host>
+      </View>
     );
   }
 
@@ -365,9 +431,9 @@ const PlatformDropdownComponent = ({
     <TouchableOpacity
       onPress={handlePress}
       activeOpacity={0.7}
-      disabled={disabled}
+      disabled={isDisabled}
     >
-      <View style={disabled ? { opacity: 0.5 } : undefined}>
+      <View style={isDisabled ? { opacity: 0.5 } : undefined}>
         {trigger || <Text className='text-white'>Open Menu</Text>}
       </View>
     </TouchableOpacity>

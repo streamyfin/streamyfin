@@ -273,7 +273,10 @@ export const PlaybackControlsSettings: React.FC = () => {
 
         <ListItem
           title={t("home.settings.other.max_auto_play_episode_count")}
-          disabled={!settings.autoPlayNextEpisode}
+          disabled={
+            !settings.autoPlayNextEpisode ||
+            pluginSettings?.maxAutoPlayEpisodeCount?.locked
+          }
         >
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}

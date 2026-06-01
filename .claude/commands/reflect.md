@@ -12,26 +12,59 @@ Analyze the current conversation to extract useful facts that should be remember
 
 ## Instructions
 
-1. Read the existing facts file at `.claude/learned-facts.md`
+1. Read the Learned Facts Index section in `CLAUDE.md` and scan existing files in `.claude/learned-facts/` to understand what's already recorded
 2. Review this conversation for learnings worth preserving
 3. For each new fact:
-   - Write it concisely (1-2 sentences max)
-   - Include context for why it matters
-   - Add today's date
+   - Create a new file in `.claude/learned-facts/[kebab-case-name].md` using the template below
+   - Append a new entry to the appropriate category in the **Learned Facts Index** section of `CLAUDE.md`
 4. Skip facts that duplicate existing entries
-5. Append new facts to `.claude/learned-facts.md`
+5. If a new category is needed, add it to the index in `CLAUDE.md`
 
-## Fact Format
+## Fact File Template
 
-Use this format for each fact:
+Create each file at `.claude/learned-facts/[kebab-case-name].md`:
+
+```markdown
+# [Title]
+
+**Date**: YYYY-MM-DD
+**Category**: navigation | tv | native-modules | state-management | ui
+**Key files**: `relevant/paths.ts`
+
+## Detail
+
+[Full description of the fact, including context for why it matters]
 ```
-- **[Brief Topic]**: [Concise description of the fact] _(YYYY-MM-DD)_
+
+## Index Entry Format
+
+Append to the appropriate category in the Learned Facts Index section of `CLAUDE.md`:
+
+```
+- `kebab-case-name` | Brief one-line summary of the fact
 ```
 
-## Example Facts
+Categories: Navigation, UI/Headers, State/Data, Native Modules, TV Platform
 
-- **State management**: Use Jotai atoms for global state, NOT React Context - atoms are in `utils/atoms/` _(2025-01-09)_
-- **Package manager**: Always use `bun`, never npm or yarn - the project is configured for bun only _(2025-01-09)_
-- **TV platform**: Check `Platform.isTV` for TV-specific code paths, not just OS checks _(2025-01-09)_
+## Example
 
-After updating the file, summarize what facts you added (or note if nothing new was learned this session).
+File `.claude/learned-facts/state-management-pattern.md`:
+```markdown
+# State Management Pattern
+
+**Date**: 2025-01-09
+**Category**: state-management
+**Key files**: `utils/atoms/`
+
+## Detail
+
+Use Jotai atoms for global state, NOT React Context. Atoms are defined in `utils/atoms/`.
+```
+
+Index entry in `CLAUDE.md`:
+```
+State/Data:
+- `state-management-pattern` | Use Jotai atoms for global state, not React Context
+```
+
+After updating, summarize what facts you added (or note if nothing new was learned this session).

@@ -15,11 +15,15 @@ import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
 import { AutoplayCountdown } from "@/components/player/AutoplayCountdown";
 import { useSettings } from "@/utils/atoms/settings";
-import { chapterMarkers } from "@/utils/chapters";
+import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import SkipButton from "./SkipButton";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
+
+// Chapter tick height in dp — matches the slider track height for a clean,
+// flush look (no top/bottom overflow).
+const TICK_HEIGHT = 10;
 
 interface BottomControlsProps {
   item: BaseItemDto;
@@ -55,6 +59,8 @@ interface BottomControlsProps {
   handleSliderChange: (value: number) => void;
   handleTouchStart: () => void;
   handleTouchEnd: () => void;
+  /** Programmatic seek (chapter list, hotkeys) — bypasses slide gesture state. */
+  seekTo: (value: number) => void;
 
   // Trickplay props
   trickPlayUrl: {
@@ -74,6 +80,9 @@ interface BottomControlsProps {
     minutes: number;
     seconds: number;
   };
+
+  // Chapter props
+  chapterPositions?: number[];
 }
 
 export const BottomControls: FC<BottomControlsProps> = ({
@@ -106,9 +115,11 @@ export const BottomControls: FC<BottomControlsProps> = ({
   handleSliderChange,
   handleTouchStart,
   handleTouchEnd,
+  seekTo,
   trickPlayUrl,
   trickplayInfo,
   time,
+  chapterPositions = [],
 }) => {
   const { settings } = useSettings();
   const { t } = useTranslation();
@@ -199,6 +210,22 @@ export const BottomControls: FC<BottomControlsProps> = ({
     [api, nextItem],
   );
 
+  // Current chapter name for the always-visible header label (live playback).
+  const currentChapterName = useMemo(
+    () => (hasChapters ? chapterNameAt(currentTime, chapters) : null),
+    [hasChapters, currentTime, chapters],
+  );
+
+  // Chapter name at the scrubbed position for the trickplay bubble. `time` is
+  // an {h,m,s} object derived from the slider's dragged value — convert back
+  // to ms for the lookup. Only useful while actively scrubbing.
+  const scrubChapterName = useMemo(() => {
+    if (!hasChapters) return null;
+    const scrubMs =
+      (time.hours * 3600 + time.minutes * 60 + time.seconds) * 1000;
+    return chapterNameAt(scrubMs, chapters);
+  }, [hasChapters, time.hours, time.minutes, time.seconds, chapters]);
+
   return (
     <View
       style={[
@@ -217,7 +244,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
       onTouchStart={handleControlsInteraction}
     >
       <View
-        className='shrink flex flex-col justify-center h-full'
+        className='shrink flex flex-col justify-center'
         style={{
           flexDirection: "row",
           justifyContent: "space-between",
@@ -239,6 +266,11 @@ export const BottomControls: FC<BottomControlsProps> = ({
           {item?.Type === "Audio" && (
             <Text className='text-xs opacity-50'>{item?.Album}</Text>
           )}
+          {currentChapterName ? (
+            <Text className='text-xs opacity-70 mt-1' numberOfLines={1}>
+              {currentChapterName}
+            </Text>
+          ) : null}
         </View>
         <View className='flex flex-row items-center space-x-2 shrink-0'>
           {hasChapters && (
@@ -288,6 +320,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
               height: 10,
               justifyContent: "center",
               alignItems: "stretch",
+              // Allow chapter ticks taller than the 10px track to bleed out
+              // top/bottom (RN defaults to overflow: "hidden" on Android).
+              overflow: "visible",
             }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -315,6 +350,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
                     trickPlayUrl={trickPlayUrl}
                     trickplayInfo={trickplayInfo}
                     time={time}
+                    chapterName={scrubChapterName}
                   />
                 )
               }
@@ -324,7 +360,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               minimumValue={min}
               maximumValue={max}
             />
-            <ChapterTicks chapters={chapters} durationMs={durationMs} />
+            <ChapterTicks markers={chapterMarkerList} height={TICK_HEIGHT} />
           </View>
           <TimeDisplay
             currentTime={currentTime}
@@ -336,7 +372,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
         visible={chapterListVisible}
         chapters={chapters}
         currentPositionMs={currentTime}
-        onSeek={(ms) => handleSliderComplete(ms)}
+        onSeek={seekTo}
         onClose={() => setChapterListVisible(false)}
       />
     </View>
