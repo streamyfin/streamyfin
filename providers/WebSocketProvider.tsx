@@ -1,4 +1,5 @@
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
+import { router } from "expo-router";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -11,7 +12,6 @@ import {
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import useRouter from "@/hooks/useAppRouter";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
@@ -88,7 +88,6 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  const router = useRouter();
   const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
     return getOrSetDeviceId();
@@ -131,7 +130,16 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     if (!handlers || handlers.size === 0) return;
     // Copy to tolerate handlers that unsubscribe during dispatch.
     for (const handler of [...handlers]) {
-      handler(message.Data, message);
+      // Isolate each handler so one throwing subscriber can't abort the rest
+      // (and isn't misreported as a parse failure by the outer onmessage catch).
+      try {
+        handler(message.Data, message);
+      } catch (error) {
+        console.error(
+          `Error handling WebSocket message type "${message.MessageType}":`,
+          error,
+        );
+      }
     }
   }, []);
 
@@ -277,29 +285,26 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     };
   }, []);
 
-  const handlePlayCommand = useCallback(
-    (data: any) => {
-      if (!data?.ItemIds?.length) {
-        return;
-      }
+  const handlePlayCommand = useCallback((data: any) => {
+    if (!data?.ItemIds?.length) {
+      return;
+    }
 
-      const itemId = data.ItemIds[0];
+    const itemId = data.ItemIds[0];
 
-      router.push({
-        pathname: "/(auth)/player/direct-player",
-        params: {
-          itemId: itemId,
-          playCommand: data.PlayCommand || "PlayNow",
-          audioIndex: data.AudioStreamIndex?.toString(),
-          subtitleIndex: data.SubtitleStreamIndex?.toString(),
-          mediaSourceId: data.MediaSourceId || "",
-          bitrateValue: "",
-          offline: "false",
-        },
-      });
-    },
-    [router],
-  );
+    router.push({
+      pathname: "/(auth)/player/direct-player",
+      params: {
+        itemId: itemId,
+        playCommand: data.PlayCommand || "PlayNow",
+        audioIndex: data.AudioStreamIndex?.toString(),
+        subtitleIndex: data.SubtitleStreamIndex?.toString(),
+        mediaSourceId: data.MediaSourceId || "",
+        bitrateValue: "",
+        offline: "false",
+      },
+    });
+  }, []);
 
   // Server-initiated "Play me this item" remote command.
   useEffect(
