@@ -32,7 +32,7 @@ interface Props extends ViewProps {
   onPressSeeAll?: () => void;
   enabled?: boolean;
   onLoaded?: () => void;
-  onEmpty?: () => void;
+  onEmptyChange?: (isEmpty: boolean) => void;
 }
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
@@ -46,11 +46,12 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   onPressSeeAll,
   enabled = true,
   onLoaded,
-  onEmpty,
+  onEmptyChange,
   ...props
 }) => {
   const effectivePageSize = Math.max(1, pageSize);
   const hasCalledOnLoaded = useRef(false);
+  const lastReportedEmpty = useRef<boolean | null>(null);
   const {
     data,
     isLoading,
@@ -105,12 +106,15 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     return deduped;
   }, [data]);
 
-  // Notify parent when section is empty (so wrapper can be hidden from layout)
   useEffect(() => {
-    if (isSuccess && hideIfEmpty && allItems.length === 0) {
-      onEmpty?.();
+    if (isSuccess && hideIfEmpty) {
+      const isEmpty = allItems.length === 0;
+      if (isEmpty !== lastReportedEmpty.current) {
+        lastReportedEmpty.current = isEmpty;
+        onEmptyChange?.(isEmpty);
+      }
     }
-  }, [isSuccess, hideIfEmpty, allItems.length, onEmpty]);
+  }, [isSuccess, hideIfEmpty, allItems.length, onEmptyChange]);
 
   const snapOffsets = useMemo(() => {
     const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)

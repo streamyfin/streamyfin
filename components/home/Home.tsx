@@ -490,12 +490,18 @@ const HomeMobile = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
+  const serializeSectionKey = useCallback(
+    (queryKey: (string | undefined | null)[]) =>
+      JSON.stringify(queryKey.map((k) => k ?? null)),
+    [],
+  );
+
   // Get all high priority section keys and check if all have loaded
   const highPrioritySectionKeys = useMemo(() => {
     return sections
       .filter((s) => s.priority === 1)
-      .map((s) => s.queryKey.join("-"));
-  }, [sections]);
+      .map((s) => serializeSectionKey(s.queryKey));
+  }, [sections, serializeSectionKey]);
 
   const allHighPriorityLoaded = useMemo(() => {
     return highPrioritySectionKeys.every((key) => loadedSections.has(key));
@@ -503,18 +509,26 @@ const HomeMobile = () => {
 
   const markSectionLoaded = useCallback(
     (queryKey: (string | undefined | null)[]) => {
-      const key = queryKey.join("-");
+      const key = serializeSectionKey(queryKey);
       setLoadedSections((prev) => new Set(prev).add(key));
     },
-    [],
+    [serializeSectionKey],
   );
 
-  const markSectionEmpty = useCallback(
-    (queryKey: (string | undefined | null)[]) => {
-      const key = queryKey.join("-");
-      setEmptySections((prev) => new Set(prev).add(key));
+  const handleSectionEmptyChange = useCallback(
+    (queryKey: (string | undefined | null)[], isEmpty: boolean) => {
+      const key = serializeSectionKey(queryKey);
+      setEmptySections((prev) => {
+        const next = new Set(prev);
+        if (isEmpty) {
+          next.add(key);
+        } else {
+          next.delete(key);
+        }
+        return next;
+      });
     },
-    [],
+    [serializeSectionKey],
   );
 
   if (!isConnected || serverConnected !== true) {
@@ -658,7 +672,7 @@ const HomeMobile = () => {
             ) : null;
           if (section.type === "InfiniteScrollingCollectionList") {
             const isHighPriority = section.priority === 1;
-            const sectionKey = section.queryKey.join("-");
+            const sectionKey = serializeSectionKey(section.queryKey);
             const isHidden = emptySections.has(sectionKey);
             const handleSeeAll = section.parentId
               ? () => {
@@ -674,7 +688,7 @@ const HomeMobile = () => {
               : undefined;
             return (
               <View
-                key={index}
+                key={sectionKey}
                 className='flex flex-col space-y-4'
                 style={isHidden ? { display: "none" } : undefined}
               >
@@ -691,7 +705,9 @@ const HomeMobile = () => {
                       ? () => markSectionLoaded(section.queryKey)
                       : undefined
                   }
-                  onEmpty={() => markSectionEmpty(section.queryKey)}
+                  onEmptyChange={(isEmpty) =>
+                    handleSectionEmptyChange(section.queryKey, isEmpty)
+                  }
                   onPressSeeAll={handleSeeAll}
                 />
                 {streamystatsSections}
@@ -699,8 +715,9 @@ const HomeMobile = () => {
             );
           }
           if (section.type === "MediaListSection") {
+            const sectionKey = serializeSectionKey(section.queryKey);
             return (
-              <View key={index} className='flex flex-col space-y-4'>
+              <View key={sectionKey} className='flex flex-col space-y-4'>
                 <MediaListSection
                   queryKey={section.queryKey}
                   queryFn={section.queryFn}
