@@ -74,6 +74,9 @@ function ChapterListComponent({
       transparent
       animationType='slide'
       onRequestClose={onClose}
+      // iOS defaults <Modal> to portrait-only; without this it rotates the app
+      // back to portrait when opened from the landscape player. Android ignores it.
+      supportedOrientations={["portrait", "landscape"]}
     >
       <Pressable onPress={onClose} style={styles.backdrop}>
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.sheet}>
