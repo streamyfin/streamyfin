@@ -297,12 +297,12 @@ export const TVSearchSection: React.FC<TVSearchSectionProps> = ({
         removeClippedSubviews={false}
         getItemLayout={getItemLayout}
         style={{ overflow: "visible" }}
-        contentInset={{
-          left: edgePadding,
-          right: edgePadding,
-        }}
-        contentOffset={{ x: -edgePadding, y: 0 }}
+        // Edge padding via contentContainerStyle, NOT contentInset+contentOffset.
+        // contentOffset only applies on initial mount; since this FlatList is
+        // reused across searches (stable key), a second search left the inset
+        // without the offset and the grid snapped flush to the left edge.
         contentContainerStyle={{
+          paddingHorizontal: edgePadding,
           paddingVertical: SCALE_PADDING,
         }}
       />
