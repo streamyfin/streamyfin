@@ -132,22 +132,32 @@ const KEY_SHAPE = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$/; // dotted key, e.g. home.
 const usedStatic = new Set(); // keys passed to t(...) / i18nKey — used for MISSING detection
 const dynamicPrefixes = new Set();
 const fullyDynamic = []; // { file, line }
-let codeBlob = ""; // all source text — searched for delimited key literals
+let codeBlob = ""; // all (comment-stripped) source text — searched for delimited key literals
+
+// Strip comments so keys mentioned in comments (e.g. `// t("old.key")`) are not counted as
+// usage. Block comments and JSX {/* */} are blanked (preserving newlines for line numbers);
+// line comments are only stripped when `//` follows start/whitespace/punctuation, which keeps
+// `://` inside string URLs intact.
+const stripComments = (src) =>
+  src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[\s;{}()[\],=>])\/\/[^\n]*/g, (_m, p) => p);
 
 const files = config.srcDirs.flatMap((d) =>
   walk(join(ROOT, d === "." ? "" : d) || ROOT),
 );
 for (const file of files) {
   const text = readFileSync(file, "utf8");
-  codeBlob += `\n${text}`;
-  for (const m of text.matchAll(STATIC_RE)) usedStatic.add(m[2]);
-  for (const m of text.matchAll(TPL_STATIC_RE)) usedStatic.add(m[1]);
-  for (const m of text.matchAll(I18NKEY_RE)) usedStatic.add(m[2]);
-  for (const m of text.matchAll(TPL_DYN_RE)) {
+  const clean = stripComments(text);
+  codeBlob += `\n${clean}`;
+  for (const m of clean.matchAll(STATIC_RE)) usedStatic.add(m[2]);
+  for (const m of clean.matchAll(TPL_STATIC_RE)) usedStatic.add(m[1]);
+  for (const m of clean.matchAll(I18NKEY_RE)) usedStatic.add(m[2]);
+  for (const m of clean.matchAll(TPL_DYN_RE)) {
     const prefix = m[1];
     if (prefix?.includes(".")) dynamicPrefixes.add(prefix);
     else {
-      const idx = text.slice(0, m.index).split("\n").length;
+      const idx = clean.slice(0, m.index).split("\n").length;
       fullyDynamic.push({ file: relative(ROOT, file), line: idx });
     }
   }
@@ -169,16 +179,13 @@ const isUsed = (key) =>
 
 // ---- compute ----
 const unused = sourceKeys.filter((k) => !isUsed(k)).sort();
+// Static references are always validated, even under a dynamic prefix: a dynamic prefix only
+// affects the UNUSED calculation, never MISSING.
 const missing = [...usedStatic]
-  .filter(
-    (k) =>
-      KEY_SHAPE.test(k) &&
-      !sourceKeySet.has(k) &&
-      !prefixList.some((p) => k.startsWith(p)),
-  )
+  .filter((k) => KEY_SHAPE.test(k) && !sourceKeySet.has(k))
   .sort();
 
-// ---- optional fix: strip dead keys from all locale files ----
+// ---- optional fix: strip dead keys from the source locale (en.json) ----
 const removeKey = (obj, parts) => {
   const [head, ...rest] = parts;
   if (!(head in obj)) return;
