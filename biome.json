@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
   "files": {
     "includes": [
       "**/*",
@@ -8,6 +8,8 @@
       "!android",
       "!Streamyfin.app",
       "!utils/jellyseerr",
+      "!expo-env.d.ts",
+      "!modules/**/android/build",
       "!.expo",
       "!docs/jellyfin-openapi-stable.json"
     ]

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
-import { Platform, View, type ViewProps } from "react-native";
+import React, { useMemo } from "react";
+import { Platform, Switch, View, type ViewProps } from "react-native";
 import { Stepper } from "@/components/inputs/Stepper";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -55,7 +55,6 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
     return [{ options }];
   }, [settings?.mpvSubtitleAlignY, updateSettings]);
 
-  if (isTv) return null;
   if (!settings) return null;
 
   return (
@@ -68,65 +67,83 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
           </Text>
         }
       >
-        <ListItem title='Subtitle Scale'>
-          <Stepper
-            value={settings.mpvSubtitleScale ?? 1.0}
-            step={0.1}
-            min={0.5}
-            max={2.0}
-            onUpdate={(value) =>
-              updateSettings({ mpvSubtitleScale: Math.round(value * 10) / 10 })
+        {!isTv && (
+          <React.Fragment>
+            <ListItem title='Vertical Margin'>
+              <Stepper
+                value={settings.mpvSubtitleMarginY ?? 0}
+                step={5}
+                min={0}
+                max={100}
+                onUpdate={(value) =>
+                  updateSettings({ mpvSubtitleMarginY: value })
+                }
+              />
+            </ListItem>
+
+            <ListItem title='Horizontal Alignment'>
+              <PlatformDropdown
+                groups={alignXOptionGroups}
+                trigger={
+                  <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                    <Text className='mr-1 text-[#8E8D91]'>
+                      {alignXLabels[settings?.mpvSubtitleAlignX ?? "center"]}
+                    </Text>
+                    <Ionicons
+                      name='chevron-expand-sharp'
+                      size={18}
+                      color='#5A5960'
+                    />
+                  </View>
+                }
+                title='Horizontal Alignment'
+              />
+            </ListItem>
+
+            <ListItem title='Vertical Alignment'>
+              <PlatformDropdown
+                groups={alignYOptionGroups}
+                trigger={
+                  <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                    <Text className='mr-1 text-[#8E8D91]'>
+                      {alignYLabels[settings?.mpvSubtitleAlignY ?? "bottom"]}
+                    </Text>
+                    <Ionicons
+                      name='chevron-expand-sharp'
+                      size={18}
+                      color='#5A5960'
+                    />
+                  </View>
+                }
+                title='Vertical Alignment'
+              />
+            </ListItem>
+          </React.Fragment>
+        )}
+
+        <ListItem title='Opaque Background'>
+          <Switch
+            value={settings.mpvSubtitleBackgroundEnabled ?? false}
+            onValueChange={(value) =>
+              updateSettings({ mpvSubtitleBackgroundEnabled: value })
             }
           />
         </ListItem>
 
-        <ListItem title='Vertical Margin'>
-          <Stepper
-            value={settings.mpvSubtitleMarginY ?? 0}
-            step={5}
-            min={0}
-            max={100}
-            onUpdate={(value) => updateSettings({ mpvSubtitleMarginY: value })}
-          />
-        </ListItem>
-
-        <ListItem title='Horizontal Alignment'>
-          <PlatformDropdown
-            groups={alignXOptionGroups}
-            trigger={
-              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {alignXLabels[settings?.mpvSubtitleAlignX ?? "center"]}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title='Horizontal Alignment'
-          />
-        </ListItem>
-
-        <ListItem title='Vertical Alignment'>
-          <PlatformDropdown
-            groups={alignYOptionGroups}
-            trigger={
-              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {alignYLabels[settings?.mpvSubtitleAlignY ?? "bottom"]}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title='Vertical Alignment'
-          />
-        </ListItem>
+        {settings.mpvSubtitleBackgroundEnabled && (
+          <ListItem title='Background Opacity'>
+            <Stepper
+              value={settings.mpvSubtitleBackgroundOpacity ?? 75}
+              step={5}
+              min={10}
+              max={100}
+              appendValue='%'
+              onUpdate={(value) =>
+                updateSettings({ mpvSubtitleBackgroundOpacity: value })
+              }
+            />
+          </ListItem>
+        )}
       </ListGroup>
     </View>
   );

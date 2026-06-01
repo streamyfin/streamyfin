@@ -103,7 +103,6 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
       Boolean(jellyfinServerId) &&
       Boolean(user?.Id),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 
@@ -136,7 +135,6 @@ export const StreamystatsRecommendations: React.FC<Props> = ({
     enabled:
       Boolean(recommendationIds?.length) && Boolean(api) && Boolean(user?.Id),
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
 

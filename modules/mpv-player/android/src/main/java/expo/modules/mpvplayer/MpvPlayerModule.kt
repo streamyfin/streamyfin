@@ -38,7 +38,8 @@ class MpvPlayerModule : Module() {
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
                     initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
-                    loop = (source["loop"] as? Boolean) ?: false
+                    loop = (source["loop"] as? Boolean) ?: false,
+                    voDriver = source["voDriver"] as? String
                 )
                 
                 view.loadVideo(config)
@@ -158,6 +159,18 @@ class MpvPlayerModule : Module() {
                 view.setSubtitleStyle(config)
             }
 
+            AsyncFunction("setSubtitleBorderStyle") { view: MpvPlayerView, style: String ->
+                view.setSubtitleBorderStyle(style)
+            }
+
+            AsyncFunction("setSubtitleBackgroundColor") { view: MpvPlayerView, color: String ->
+                view.setSubtitleBackgroundColor(color)
+            }
+
+            AsyncFunction("setSubtitleAssOverride") { view: MpvPlayerView, mode: String ->
+                view.setSubtitleAssOverride(mode)
+            }
+
             // Audio track functions
             AsyncFunction("getAudioTracks") { view: MpvPlayerView ->
                 view.getAudioTracks()
@@ -186,7 +199,7 @@ class MpvPlayerModule : Module() {
             }
 
             // Defines events that the view can send to JavaScript
-            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }
     }
 }

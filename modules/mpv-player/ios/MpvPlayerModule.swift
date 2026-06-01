@@ -38,7 +38,10 @@ public class MpvPlayerModule: Module {
         guard let source = source,
               let urlString = source["url"] as? String,
               let videoURL = URL(string: urlString) else { return }
-        
+
+        // Parse cache config if provided
+        let cacheConfig = source["cacheConfig"] as? [String: Any]
+
         let config = VideoLoadConfig(
           url: videoURL,
           headers: source["headers"] as? [String: String],
@@ -47,9 +50,13 @@ public class MpvPlayerModule: Module {
           autoplay: (source["autoplay"] as? Bool) ?? true,
           initialSubtitleId: self.parseNumericTrackId(source["initialSubtitleId"]),
           initialAudioId: self.parseNumericTrackId(source["initialAudioId"]),
-          loop: (source["loop"] as? Bool) ?? false
+          loop: (source["loop"] as? Bool) ?? false,
+          cacheEnabled: cacheConfig?["enabled"] as? String,
+          cacheSeconds: cacheConfig?["cacheSeconds"] as? Int,
+          demuxerMaxBytes: cacheConfig?["maxBytes"] as? Int,
+          demuxerMaxBackBytes: cacheConfig?["maxBackBytes"] as? Int
         )
-        
+
         view.loadVideo(config: config)
       }
 
@@ -175,7 +182,19 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleStyle") { (view: MpvPlayerView, config: [String: Any]) in
         view.setSubtitleStyle(config: config)
       }
-      
+
+      AsyncFunction("setSubtitleBackgroundColor") { (view: MpvPlayerView, color: String) in
+        view.setSubtitleBackgroundColor(color)
+      }
+
+      AsyncFunction("setSubtitleBorderStyle") { (view: MpvPlayerView, style: String) in
+        view.setSubtitleBorderStyle(style)
+      }
+
+      AsyncFunction("setSubtitleAssOverride") { (view: MpvPlayerView, mode: String) in
+        view.setSubtitleAssOverride(mode)
+      }
+
       // Audio track functions
       AsyncFunction("getAudioTracks") { (view: MpvPlayerView) -> [[String: Any]] in
         return view.getAudioTracks()

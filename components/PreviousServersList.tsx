@@ -73,10 +73,19 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           setLoadingServer(server.address);
           try {
             await onQuickLogin(server.address, account.userId);
-          } catch {
-            Alert.alert(
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : t("server.session_expired");
+            const isSessionExpired = errorMessage.includes(
               t("server.session_expired"),
-              t("server.please_login_again"),
+            );
+            Alert.alert(
+              isSessionExpired
+                ? t("server.session_expired")
+                : t("login.connection_failed"),
+              isSessionExpired ? t("server.please_login_again") : errorMessage,
               [{ text: t("common.ok"), onPress: () => onServerSelect(server) }],
             );
           } finally {
@@ -122,10 +131,17 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
       setLoadingServer(selectedServer.address);
       try {
         await onQuickLogin(selectedServer.address, selectedAccount.userId);
-      } catch {
-        Alert.alert(
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : t("server.session_expired");
+        const isSessionExpired = errorMessage.includes(
           t("server.session_expired"),
-          t("server.please_login_again"),
+        );
+        Alert.alert(
+          isSessionExpired
+            ? t("server.session_expired")
+            : t("login.connection_failed"),
+          isSessionExpired ? t("server.please_login_again") : errorMessage,
           [
             {
               text: t("common.ok"),

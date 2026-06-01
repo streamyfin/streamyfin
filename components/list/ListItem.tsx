@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { PropsWithChildren, ReactNode } from "react";
+import React, { type PropsWithChildren, type ReactNode } from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "../common/Text";
 

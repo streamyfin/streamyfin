@@ -2,13 +2,11 @@
   "expo": {
     "name": "Streamyfin",
     "slug": "streamyfin",
-    "version": "0.52.0",
+    "version": "0.54.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "streamyfin",
     "userInterfaceStyle": "dark",
-    "jsEngine": "hermes",
-    "newArchEnabled": true,
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "requireFullScreen": true,
@@ -23,7 +21,8 @@
         },
         "UISupportsTrueScreenSizeOnMac": true,
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "AVInitialRouteSharingPolicy": "LongFormAudio"
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -37,8 +36,6 @@
       "appleTeamId": "MWD5K362T8"
     },
     "android": {
-      "jsEngine": "hermes",
-      "versionCode": 92,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-plain.png",
         "monochromeImage": "./assets/images/icon-android-themed.png",
@@ -55,7 +52,23 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
-      "@react-native-tvos/config-tv",
+      [
+        "@react-native-tvos/config-tv",
+        {
+          "appleTVImages": {
+            "icon": "./assets/images/icon-tvos.png",
+            "iconSmall": "./assets/images/icon-tvos-small.png",
+            "iconSmall2x": "./assets/images/icon-tvos-small-2x.png",
+            "topShelf": "./assets/images/icon-tvos-topshelf.png",
+            "topShelf2x": "./assets/images/icon-tvos-topshelf-2x.png",
+            "topShelfWide": "./assets/images/icon-tvos-topshelf-wide.png",
+            "topShelfWide2x": "./assets/images/icon-tvos-topshelf-wide-2x.png"
+          },
+          "infoPlist": {
+            "UIAppSupportsHDR": true
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-font",
@@ -69,19 +82,21 @@
         }
       ],
       "./plugins/withExcludeMedia3Dash.js",
+      "./plugins/withTVUserManagement.js",
       [
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.6",
-            "useFrameworks": "static"
+            "deploymentTarget": "16.4",
+            "useFrameworks": "static",
+            "forceStaticLinking": ["ExpoUI", "GlassEffectView", "GlassPoster"]
           },
           "android": {
-            "buildArchs": ["arm64-v8a", "x86_64"],
+            "buildArchs": ["arm64-v8a", "x86_64", "armeabi-v7a"],
             "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
-            "kotlinVersion": "2.0.21",
+            "kotlinVersion": "2.1.20",
             "minSdkVersion": 26,
             "usesCleartextTraffic": true,
             "packagingOptions": {
@@ -128,14 +143,18 @@
       "expo-web-browser",
       ["./plugins/with-runtime-framework-headers.js"],
       ["./plugins/withChangeNativeAndroidTextToWhite.js"],
+      ["./plugins/withAndroidAlertColors.js"],
       ["./plugins/withAndroidManifest.js"],
       ["./plugins/withTrustLocalCerts.js"],
       ["./plugins/withGradleProperties.js"],
+      ["./plugins/withTVOSAppIcon.js"],
+      ["./plugins/withTVOSTopShelf.js"],
+      ["./plugins/withTVXcodeEnv.js"],
       [
         "./plugins/withGitPod.js",
         {
-          "podName": "MPVKit-GPL",
-          "podspecUrl": "https://raw.githubusercontent.com/streamyfin/MPVKit/0.40.0-av/MPVKit-GPL.podspec"
+          "podName": "MPVKit",
+          "podspecUrl": "https://raw.githubusercontent.com/mpv-ios/MPVKit/0.41.0-av/MPVKit.podspec"
         }
       ]
     ],

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View, type ViewProps } from "react-native";
 import { Switch } from "react-native-gesture-handler";

@@ -1,3 +1,4 @@
+import AVFAudio
 import AVFoundation
 import CoreMedia
 import ExpoModulesCore
@@ -16,7 +17,12 @@ struct VideoLoadConfig {
 	/// MPV audio track ID to select on start (1-based, nil to use default)
 	var initialAudioId: Int?
 	var loop: Bool
-	
+	/// Cache/buffer settings
+	var cacheEnabled: String?  // "auto", "yes", or "no"
+	var cacheSeconds: Int?     // Seconds of video to buffer
+	var demuxerMaxBytes: Int?  // Max cache size in MB
+	var demuxerMaxBackBytes: Int?  // Max backward cache size in MB
+
 	init(
 		url: URL,
 		headers: [String: String]? = nil,
@@ -25,7 +31,11 @@ struct VideoLoadConfig {
 		autoplay: Bool = true,
 		initialSubtitleId: Int? = nil,
 		initialAudioId: Int? = nil,
-		loop: Bool = false
+		loop: Bool = false,
+		cacheEnabled: String? = nil,
+		cacheSeconds: Int? = nil,
+		demuxerMaxBytes: Int? = nil,
+		demuxerMaxBackBytes: Int? = nil
 	) {
 		self.url = url
 		self.headers = headers
@@ -35,6 +45,10 @@ struct VideoLoadConfig {
 		self.initialSubtitleId = initialSubtitleId
 		self.initialAudioId = initialAudioId
 		self.loop = loop
+		self.cacheEnabled = cacheEnabled
+		self.cacheSeconds = cacheSeconds
+		self.demuxerMaxBytes = demuxerMaxBytes
+		self.demuxerMaxBackBytes = demuxerMaxBackBytes
 	}
 }
 
@@ -57,6 +71,7 @@ class MpvPlayerView: ExpoView {
 	private var cachedDuration: Double = 0
 	private var intendedPlayState: Bool = false
 	private var _isZoomedToFill: Bool = false
+	private var appStateObserver: NSObjectProtocol?
 	
 	// Reference to now playing manager
 	private let nowPlayingManager = MPVNowPlayingManager.shared
@@ -70,6 +85,7 @@ class MpvPlayerView: ExpoView {
 	private func setupView() {
 		clipsToBounds = true
 		backgroundColor = .black
+		configureAudioSession()
 
 		videoContainer = UIView()
 		videoContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -79,9 +95,11 @@ class MpvPlayerView: ExpoView {
 
 		displayLayer.frame = bounds
 		displayLayer.videoGravity = .resizeAspect
+		#if !os(tvOS)
 		if #available(iOS 17.0, *) {
 			displayLayer.wantsExtendedDynamicRangeContent = true
 		}
+		#endif
 		displayLayer.backgroundColor = UIColor.black.cgColor
 		videoContainer.layer.addSublayer(displayLayer)
 
@@ -104,6 +122,17 @@ class MpvPlayerView: ExpoView {
 		} catch {
 			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
 		}
+
+		// Pause playback when app enters background on tvOS
+		#if os(tvOS)
+		appStateObserver = NotificationCenter.default.addObserver(
+			forName: UIApplication.didEnterBackgroundNotification,
+			object: nil,
+			queue: .main
+		) { [weak self] _ in
+			self?.pause()
+		}
+		#endif
 	}
 
 	override func layoutSubviews() {
@@ -116,6 +145,20 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
+	private func configureAudioSession() {
+		let audioSession = AVAudioSession.sharedInstance()
+		do {
+			try audioSession.setCategory(
+				.playback,
+				mode: .moviePlayback,
+				policy: .longFormAudio,
+				options: []
+			)
+			try audioSession.setActive(true)
+		} catch {
+			print("Failed to configure audio session: \(error)")
+		}
+	}
 	// MARK: - Audio Session & Notifications
 
 	private func setupNotifications() {
@@ -212,13 +255,17 @@ class MpvPlayerView: ExpoView {
 			externalSubtitles: config.externalSubtitles,
 			initialSubtitleId: config.initialSubtitleId,
 			initialAudioId: config.initialAudioId,
-			loop: config.loop
+			loop: config.loop,
+			cacheEnabled: config.cacheEnabled,
+			cacheSeconds: config.cacheSeconds,
+			demuxerMaxBytes: config.demuxerMaxBytes,
+			demuxerMaxBackBytes: config.demuxerMaxBackBytes
 		)
-		
+
 		if config.autoplay {
 			play()
 		}
-		
+
 		onLoad(["url": config.url.absoluteString])
 	}
 	
@@ -359,6 +406,18 @@ class MpvPlayerView: ExpoView {
 		renderer?.setSubtitleStyle(config: config)
 	}
 
+	func setSubtitleBackgroundColor(_ color: String) {
+		renderer?.setSubtitleBackgroundColor(color)
+	}
+
+	func setSubtitleBorderStyle(_ style: String) {
+		renderer?.setSubtitleBorderStyle(style)
+	}
+
+	func setSubtitleAssOverride(_ mode: String) {
+		renderer?.setSubtitleAssOverride(mode)
+	}
+
 	// MARK: - Video Scaling
 
 	func setZoomedToFill(_ zoomed: Bool) {
@@ -377,6 +436,12 @@ class MpvPlayerView: ExpoView {
 	}
 
 	deinit {
+		if let observer = appStateObserver {
+			NotificationCenter.default.removeObserver(observer)
+		}
+		#if os(tvOS)
+		resetDisplayCriteria()
+		#endif
 		pipController?.stopPictureInPicture()
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
@@ -453,7 +518,12 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 			self.onTracksReady([:])
 		}
 	}
-	
+	func renderer(_: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double) {
+		#if os(tvOS)
+		setDisplayCriteria(for: mode, fps: Float(fps))
+		#endif
+	}
+
 	func renderer(_: MPVLayerRenderer, didSelectAudioOutput audioOutput: String) {
 		// Audio output is now active - this is the right time to activate audio session and set Now Playing
 		print("[MPV] Audio output ready (\(audioOutput)), activating audio session and syncing Now Playing")
@@ -461,6 +531,93 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 		syncNowPlaying(isPlaying: !isPaused())
 	}
 }
+
+// MARK: - tvOS HDR Display Criteria
+
+#if os(tvOS)
+import AVKit
+import CoreMedia
+
+extension MpvPlayerView {
+	/// Creates a CMFormatDescription with HDR metadata for display criteria
+	private func createHDRFormatDescription(hdrMode: HDRMode) -> CMFormatDescription? {
+		var formatDescription: CMFormatDescription?
+
+		// Build extensions dictionary for HDR color properties
+		var extensions: [String: Any] = [
+			kCMFormatDescriptionExtension_FullRangeVideo as String: true
+		]
+
+		switch hdrMode {
+		case .hdr10, .dolbyVision:
+			// HDR10 and Dolby Vision use BT.2020 primaries with PQ transfer function
+			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] = kCMFormatDescriptionColorPrimaries_ITU_R_2020
+			extensions[kCMFormatDescriptionExtension_TransferFunction as String] = kCMFormatDescriptionTransferFunction_SMPTE_ST_2084_PQ
+			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] = kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
+		case .hlg:
+			// HLG uses BT.2020 primaries with HLG transfer function
+			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] = kCMFormatDescriptionColorPrimaries_ITU_R_2020
+			extensions[kCMFormatDescriptionExtension_TransferFunction as String] = kCMFormatDescriptionTransferFunction_ITU_R_2100_HLG
+			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] = kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
+		case .sdr:
+			return nil
+		}
+
+		// Create a video format description with HDR extensions
+		// Using HEVC codec type and 4K resolution as typical HDR parameters
+		let status = CMVideoFormatDescriptionCreate(
+			allocator: kCFAllocatorDefault,
+			codecType: kCMVideoCodecType_HEVC,
+			width: 3840,
+			height: 2160,
+			extensions: extensions as CFDictionary,
+			formatDescriptionOut: &formatDescription
+		)
+
+		return status == noErr ? formatDescription : nil
+	}
+
+	/// Sets the preferred display criteria for HDR content on tvOS
+	func setDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
+		guard #available(tvOS 17.0, *) else {
+			print("🎬 HDR: AVDisplayCriteria requires tvOS 17.0+")
+			return
+		}
+
+		guard let window = self.window else {
+			print("🎬 HDR: No window available for display criteria")
+			return
+		}
+
+		let manager = window.avDisplayManager
+
+		if hdrMode == .sdr {
+			print("🎬 HDR: Setting display criteria to SDR (nil)")
+			manager.preferredDisplayCriteria = nil
+			return
+		}
+
+		guard let formatDescription = createHDRFormatDescription(hdrMode: hdrMode) else {
+			print("🎬 HDR: Failed to create format description for \(hdrMode)")
+			return
+		}
+
+		print("🎬 HDR: Setting display criteria to \(hdrMode), fps: \(fps)")
+		manager.preferredDisplayCriteria = AVDisplayCriteria(
+			refreshRate: fps,
+			formatDescription: formatDescription
+		)
+	}
+
+	/// Resets display criteria when playback ends
+	func resetDisplayCriteria() {
+		guard #available(tvOS 17.0, *) else { return }
+		guard let window = self.window else { return }
+		print("🎬 HDR: Resetting display criteria")
+		window.avDisplayManager.preferredDisplayCriteria = nil
+	}
+}
+#endif
 
 // MARK: - PiPControllerDelegate
 

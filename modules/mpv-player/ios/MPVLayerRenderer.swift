@@ -4,12 +4,21 @@ import CoreMedia
 import CoreVideo
 import AVFoundation
 
+/// HDR mode detected from video properties
+enum HDRMode {
+    case sdr
+    case hdr10
+    case dolbyVision
+    case hlg
+}
+
 protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didUpdatePosition position: Double, duration: Double, cacheSeconds: Double)
     func renderer(_ renderer: MPVLayerRenderer, didChangePause isPaused: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didChangeLoading isLoading: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeReadyToSeek: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
+    func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
     func renderer(_ renderer: MPVLayerRenderer, didSelectAudioOutput audioOutput: String)
 }
 
@@ -22,8 +31,11 @@ final class MPVLayerRenderer {
     }
     
     private let displayLayer: AVSampleBufferDisplayLayer
-    private let queue = DispatchQueue(label: "mpv.avfoundation", qos: .userInitiated)
+    private let queue: DispatchQueue
     private let stateQueue = DispatchQueue(label: "mpv.avfoundation.state", attributes: .concurrent)
+
+    // Key to identify if we're on the mpv queue (to avoid deadlock in stop())
+    private static let queueKey = DispatchSpecificKey<Bool>()
     
     private var mpv: OpaquePointer?
     
@@ -35,8 +47,18 @@ final class MPVLayerRenderer {
     private var initialAudioId: Int?
     private var currentLoop: Bool = false
     
-    private var isRunning = false
-    private var isStopping = false
+    private var _isRunning = false
+    private var _isStopping = false
+
+    private var isRunning: Bool {
+        get { stateQueue.sync { _isRunning } }
+        set { stateQueue.async(flags: .barrier) { self._isRunning = newValue } }
+    }
+
+    private var isStopping: Bool {
+        get { stateQueue.sync { _isStopping } }
+        set { stateQueue.sync(flags: .barrier) { _isStopping = newValue } }  // Must be sync for stop() to work
+    }
     
     // KVO observation for display layer status
     private var statusObservation: NSKeyValueObservation?
@@ -109,6 +131,8 @@ final class MPVLayerRenderer {
     
     init(displayLayer: AVSampleBufferDisplayLayer) {
         self.displayLayer = displayLayer
+        self.queue = DispatchQueue(label: "mpv.avfoundation", qos: .userInitiated)
+        queue.setSpecific(key: Self.queueKey, value: true)
         observeDisplayLayerStatus()
     }
     
@@ -169,10 +193,13 @@ final class MPVLayerRenderer {
         // Use AVFoundation video output - required for PiP support
         checkError(mpv_set_option_string(handle, "vo", "avfoundation"))
 
-        // Enable composite OSD mode - renders subtitles directly onto video frames using GPU
-        // This is better for PiP as subtitles are baked into the video
-        // NOTE: Must be set BEFORE the #if targetEnvironment check or tvOS will freeze on player exit
-        #if targetEnvironment(simulator)
+        // Composite OSD mode - renders subtitles directly onto video frames using GPU.
+        // CRITICAL: Must be set immediately after vo=avfoundation, before hwdec options.
+        // Moving this elsewhere causes tvOS to freeze when exiting the player.
+        // tvOS: "no" (breaks subtitle rendering; note: subtitle styling won't work).
+        // Simulator: "no" (no VideoToolbox support).
+        // iOS device: "yes" for PiP subtitle support.
+        #if os(tvOS) || targetEnvironment(simulator)
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "no"))
         #else
         checkError(mpv_set_option_string(handle, "avfoundation-composite-osd", "yes"))
@@ -189,7 +216,15 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
         checkError(mpv_set_option_string(handle, "hwdec-software-fallback", "yes"))
 
+        // HDR passthrough - signal content colorspace to display system
+        // This prevents tone-mapping and allows HDR content to pass through
+        #if os(tvOS)
+        checkError(mpv_set_option_string(handle, "target-colorspace-hint", "yes"))
+        #endif
+
         // Subtitle and audio settings
+        checkError(mpv_set_option_string(mpv, "sub-scale-with-window", "no"))
+        checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
 
@@ -216,28 +251,50 @@ final class MPVLayerRenderer {
         if !isRunning, mpv == nil { return }
         isRunning = false
         isStopping = true
-        
+
         // Stop observing display layer status
         statusObservation?.invalidate()
         statusObservation = nil
-        
-        queue.sync { [weak self] in
-            guard let self, let handle = self.mpv else { return }
-            
+
+        // Clear wakeup callback first to stop event processing
+        if let handle = mpv {
             mpv_set_wakeup_callback(handle, nil, nil)
-            mpv_terminate_destroy(handle)
-            self.mpv = nil
+
+            // Send quit command and drain events on the mpv queue
+            queue.sync { [weak self] in
+                guard let self, let handle = self.mpv else { return }
+                self.commandSync(handle, ["quit"])
+
+                // Drain any remaining events after quit
+                var drainCount = 0
+                let maxDrain = 100
+                while drainCount < maxDrain, let event = mpv_wait_event(handle, 0.1)?.pointee {
+                    if event.event_id == MPV_EVENT_NONE || event.event_id == MPV_EVENT_SHUTDOWN {
+                        break
+                    }
+                    drainCount += 1
+                }
+            }
+
+            // Call mpv_terminate_destroy on a background thread to avoid blocking main
+            // mpv_terminate_destroy may need main thread for AVFoundation cleanup,
+            // so we can't call it while blocking main with queue.sync
+            let handleToDestroy = handle
+            mpv = nil  // Clear immediately so nothing else uses it
+            DispatchQueue.global(qos: .userInitiated).async {
+                mpv_terminate_destroy(handleToDestroy)
+            }
         }
-        
+
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            if #available(iOS 18.0, *) {
+            if #available(iOS 18.0, tvOS 17.0, *) {
                 self.displayLayer.sampleBufferRenderer.flush(removingDisplayedImage: true, completionHandler: nil)
             } else {
                 self.displayLayer.flushAndRemoveImage()
             }
         }
-        
+
         isStopping = false
     }
     
@@ -249,7 +306,11 @@ final class MPVLayerRenderer {
         externalSubtitles: [String]? = nil,
         initialSubtitleId: Int? = nil,
         initialAudioId: Int? = nil,
-        loop: Bool = false
+        loop: Bool = false,
+        cacheEnabled: String? = nil,
+        cacheSeconds: Int? = nil,
+        demuxerMaxBytes: Int? = nil,
+        demuxerMaxBackBytes: Int? = nil
     ) {
         currentPreset = preset
         currentURL = url
@@ -276,6 +337,20 @@ final class MPVLayerRenderer {
 
             // Set looping
             self.setProperty(name: "loop-file", value: loop ? "inf" : "no")
+
+            // Apply cache/buffer settings
+            if let cacheMode = cacheEnabled {
+                self.setProperty(name: "cache", value: cacheMode)
+            }
+            if let cacheSecs = cacheSeconds {
+                self.setProperty(name: "cache-secs", value: String(cacheSecs))
+            }
+            if let maxBytes = demuxerMaxBytes {
+                self.setProperty(name: "demuxer-max-bytes", value: "\(maxBytes)MiB")
+            }
+            if let maxBackBytes = demuxerMaxBackBytes {
+                self.setProperty(name: "demuxer-max-back-bytes", value: "\(maxBackBytes)MiB")
+            }
 
             // Set start position
             if let startPos = startPosition, startPos > 0 {
@@ -407,7 +482,7 @@ final class MPVLayerRenderer {
     private func processEvents() {
         queue.async { [weak self] in
             guard let self else { return }
-            
+
             while self.mpv != nil && !self.isStopping {
                 guard let handle = self.mpv,
                       let eventPointer = mpv_wait_event(handle, 0) else { return }
@@ -423,8 +498,7 @@ final class MPVLayerRenderer {
         switch event.event_id {
         case MPV_EVENT_FILE_LOADED:
             // Add external subtitles now that the file is loaded
-            let hadExternalSubs = !pendingExternalSubtitles.isEmpty
-            if hadExternalSubs, let handle = mpv {
+            if !pendingExternalSubtitles.isEmpty, let handle = mpv {
                 for (index, subUrl) in pendingExternalSubtitles.enumerated() {
                     print("🔧 Adding external subtitle [\(index)]: \(subUrl)")
                     // Use commandSync to ensure subs are added in exact order (not async)
@@ -432,12 +506,20 @@ final class MPVLayerRenderer {
                     commandSync(handle, ["sub-add", subUrl, "auto"])
                 }
                 pendingExternalSubtitles = []
-                // Set subtitle after external subs are added
-                if let subId = initialSubtitleId {
-                    setSubtitleTrack(subId)
-                } else {
-                    disableSubtitles()
-                }
+            }
+            // Apply the initial audio/subtitle selection now that the file's
+            // tracks are enumerated. Setting sid/aid before `loadfile` does not
+            // reliably stick for embedded tracks (the selection is silently
+            // dropped), so we (re)apply here for embedded and external alike.
+            // This is what makes a carried-over subtitle show up on the next
+            // episode without a manual re-selection.
+            if let audioId = initialAudioId, audioId > 0 {
+                setAudioTrack(audioId)
+            }
+            if let subId = initialSubtitleId {
+                setSubtitleTrack(subId)
+            } else {
+                disableSubtitles()
             }
             if !isReadyToSeek {
                 isReadyToSeek = true
@@ -454,7 +536,10 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didChangeLoading: false)
                 }
             }
-            
+
+            // Detect HDR mode for tvOS display switching
+            detectHDRMode()
+
         case MPV_EVENT_SEEK:
             // Seek started - show loading indicator and enable immediate progress updates
             isSeeking = true
@@ -822,7 +907,26 @@ final class MPVLayerRenderer {
             }
         }
     }
-    
+
+    func setSubtitleFontSize(_ size: Int) {
+        setProperty(name: "sub-font-size", value: String(size))
+    }
+
+    func setSubtitleBackgroundColor(_ color: String) {
+        setProperty(name: "sub-back-color", value: color)
+    }
+
+    func setSubtitleBorderStyle(_ style: String) {
+        // "outline-and-shadow" (default) or "background-box" (enables background color)
+        setProperty(name: "sub-border-style", value: style)
+    }
+
+    func setSubtitleAssOverride(_ mode: String) {
+        // Controls whether to override ASS subtitle styles
+        // "no" = keep ASS styles, "force" = override with user settings
+        setProperty(name: "sub-ass-override", value: mode)
+    }
+
     // MARK: - Audio Track Controls
     
     func getAudioTracks() -> [[String: Any]] {
@@ -888,6 +992,53 @@ final class MPVLayerRenderer {
         var aid: Int64 = 0
         getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
         return Int(aid)
+    }
+
+    // MARK: - HDR Detection
+
+    /// Detects the HDR mode of the currently playing video by reading mpv properties
+    private func detectHDRMode() {
+        guard let handle = mpv else { return }
+
+        // Get video color properties
+        let primaries = getStringProperty(handle: handle, name: "video-params/primaries")
+        let gamma = getStringProperty(handle: handle, name: "video-params/gamma")
+
+        // Get FPS for display criteria
+        var fps: Double = 24.0
+        getProperty(handle: handle, name: "container-fps", format: MPV_FORMAT_DOUBLE, value: &fps)
+        if fps <= 0 { fps = 24.0 }
+
+        Logger.shared.log("HDR Detection - primaries: \(primaries ?? "nil"), gamma: \(gamma ?? "nil"), fps: \(fps)", type: "Info")
+
+        // Determine HDR mode based on color properties
+        // bt.2020 primaries with PQ gamma = HDR10 or Dolby Vision
+        // bt.2020 primaries with HLG gamma = HLG
+        // Otherwise SDR
+        let hdrMode: HDRMode
+
+        if primaries == "bt.2020" || primaries == "bt.2020-ncl" {
+            if gamma == "pq" {
+                // PQ gamma indicates HDR10 or Dolby Vision
+                // We'll use hdr10 as the base, Dolby Vision detection would need codec inspection
+                // For DV Profile 8.1, HDR10 fallback should work
+                hdrMode = .hdr10
+            } else if gamma == "hlg" {
+                hdrMode = .hlg
+            } else {
+                // bt.2020 without HDR gamma - still request HDR mode for wide color
+                hdrMode = .hdr10
+            }
+        } else {
+            hdrMode = .sdr
+        }
+
+        Logger.shared.log("HDR Detection - detected mode: \(hdrMode)", type: "Info")
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.delegate?.renderer(self, didDetectHDRMode: hdrMode, fps: fps)
+        }
     }
 
     // MARK: - Technical Info

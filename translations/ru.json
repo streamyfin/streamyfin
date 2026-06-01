@@ -4,6 +4,9 @@
     "error_title": "Ошибка",
     "login_title": "Вход",
     "login_to_title": "Вход в",
+    "select_user": "Select a user to log in",
+    "add_user_to_login": "Add a user to log in",
+    "add_user": "Add User",
     "username_placeholder": "Имя пользователя",
     "password_placeholder": "Пароль",
     "login_button": "Войти",
@@ -12,25 +15,25 @@
     "failed_to_initiate_quick_connect": "Не удалось инициировать быстрое подключение",
     "got_it": "Принято",
     "connection_failed": "Соединение не удалось",
-    "could_not_connect_to_server": "Не удалось подключиться к серверу. Пожалуйста проверьте URL и ваше интернет соединение.",
+    "could_not_connect_to_server": "Не удалось подключиться к серверу. Пожалуйста, проверьте URL и ваше интернет-соединение.",
     "an_unexpected_error_occured": "Возникла непредвиденная ошибка",
     "change_server": "Поменять сервер",
     "invalid_username_or_password": "Неправильное имя пользователя или пароль",
     "user_does_not_have_permission_to_log_in": "Пользователь не имеет прав на вход",
-    "server_is_taking_too_long_to_respond_try_again_later": "Сервер долго не отвечает, попробуйте позже.",
+    "server_is_taking_too_long_to_respond_try_again_later": "Сервер долго не отвечает, попробуйте позже",
     "server_received_too_many_requests_try_again_later": "Сервер получил слишком много запросов, попробуйте позже.",
     "there_is_a_server_error": "Возникла ошибка сервера",
     "an_unexpected_error_occured_did_you_enter_the_correct_url": "Возникла непредвиденная ошибка. Вы правильно ввели URL?",
-    "too_old_server_text": "Неподдерживаемый сервер Jellyfin обнаружен",
+    "too_old_server_text": "Обнаружен неподдерживаемый сервер Jellyfin",
     "too_old_server_description": "Пожалуйста, обновите Jellyfin до последней версии"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Укажите URL на ваш Jellyfin сервер",
     "server_url_placeholder": "http(s)://your-server.com",
     "connect_button": "Подключиться",
-    "previous_servers": "предыдущие серверы",
+    "previous_servers": "Предыдущие серверы",
     "clear_button": "Очистить",
-    "swipe_to_remove": "Swipe to remove",
+    "swipe_to_remove": "Смахните для удаления",
     "search_for_local_servers": "Поиск локальных серверов",
     "searching": "Поиск...",
     "servers": "Сервера",
@@ -39,10 +42,16 @@
     "please_login_again": "Ваша сессия истекла. Пожалуйста, войдите снова.",
     "remove_saved_login": "Удалить сохраненный аккаунт",
     "remove_saved_login_description": "Ваши сохранённые данные для входа от этого сервера будут удалены. Вам придётся ввести ваши логин и пароль ещё раз.",
-    "accounts_count": "{{count}} аккаунтов",
+    "accounts_count": "Аккаунтов: {{count}}",
     "select_account": "Выбрать аккаунт",
     "add_account": "Добавить аккаунт",
-    "remove_account_description": "Данные для входа {{username}} будут удалены."
+    "remove_account_description": "Данные для входа {{username}} будут удалены.",
+    "remove_server": "Remove Server",
+    "remove_server_description": "This will remove {{server}} and all saved accounts from your list.",
+    "select_your_server": "Select Your Server",
+    "add_server_to_get_started": "Add a server to get started",
+    "add_server": "Add Server",
+    "change_server": "Change Server"
   },
   "save_account": {
     "title": "Сохранить аккаунт",
@@ -58,14 +67,14 @@
     "cancel_button": "Отмена"
   },
   "pin": {
-    "enter_pin": "Введите PIN",
-    "enter_pin_for": "Введите PIN для {{username}}",
+    "enter_pin": "Введите PIN-код",
+    "enter_pin_for": "Введите PIN-код для {{username}}",
     "enter_4_digits": "Введите 4 цифры",
-    "invalid_pin": "Некорректный PIN",
-    "setup_pin": "Установить PIN",
-    "confirm_pin": "Подтвердите PIN",
+    "invalid_pin": "Некорректный PIN-код",
+    "setup_pin": "Установить PIN-код",
+    "confirm_pin": "Подтвердите PIN-код",
     "pins_dont_match": "PIN-коды не совпадают",
-    "forgot_pin": "Забыли PIN?",
+    "forgot_pin": "Забыли PIN-код?",
     "forgot_pin_desc": "Ваши данные для входа будут удалены"
   },
   "password": {
@@ -84,8 +93,9 @@
     "server_unreachable": "Сервер недоступен",
     "server_unreachable_message": "Не удалось соединиться с сервером.\nПожалуйста, проверьте настройки сети.",
     "oops": "Упс!",
-    "error_message": "Что-то пошло не так.\nПожалуйста выйдите и зайдите снова.",
+    "error_message": "Что-то пошло не так.\nПожалуйста, выйдите и зайдите снова.",
     "continue_watching": "Продолжить",
+    "continue": "Continue",
     "next_up": "Далее",
     "continue_and_next_up": "Продолжить и Далее",
     "recently_added_in": "Недавно добавлено в {{libraryName}}",
@@ -93,13 +103,13 @@
     "suggested_episodes": "Предложенные серии",
     "intro": {
       "welcome_to_streamyfin": "Добро пожаловать в Streamyfin",
-      "a_free_and_open_source_client_for_jellyfin": "Бесплатный клиент для Jellyfin с открытым кодом",
+      "a_free_and_open_source_client_for_jellyfin": "Бесплатный клиент для Jellyfin с открытым кодом.",
       "features_title": "Функции",
       "features_description": "Streamyfin имеет множество функций и интегрируется с широким спектром программ, которое вы можете найти в меню настроек:",
       "jellyseerr_feature_description": "Подключитесь к Jellyseerr и запрашивайте фильмы прямо в приложении.",
       "downloads_feature_title": "Загрузки",
       "downloads_feature_description": "Скачивайте фильмы и сериалы для просмотра без интернета. Используйте стандартный способ или установите сервер оптимизации для загрузки файлов в фоновом режиме.",
-      "chromecast_feature_description": "Транслируйте фильмы и сериалы на ваши устройста с поддержкой Chromecast.",
+      "chromecast_feature_description": "Транслируйте фильмы и сериалы на ваши устройства с поддержкой Chromecast.",
       "centralised_settings_plugin_title": "Плагин для централизованной настройки",
       "centralised_settings_plugin_description": "Настраивайте параметры из централизованного места на сервере Jellyfin. Все настройки клиента для всех пользователей будут синхронизированы автоматически.",
       "done_button": "Готово",
@@ -109,6 +119,12 @@
     "settings": {
       "settings_title": "Настройки",
       "log_out_button": "Выйти",
+      "switch_user": {
+        "title": "Switch User",
+        "account": "Account",
+        "switch_user": "Switch User on This Server",
+        "current": "current"
+      },
       "categories": {
         "title": "Категории"
       },
@@ -121,7 +137,16 @@
       "appearance": {
         "title": "Внешний вид",
         "merge_next_up_continue_watching": "Объединить «Продолжить» и «Далее»",
-        "hide_remote_session_button": "Скрыть кнопку «Удалённый сеанс»"
+        "hide_remote_session_button": "Скрыть кнопку «Удалённый сеанс»",
+        "show_home_backdrop": "Dynamic Home Backdrop",
+        "show_hero_carousel": "Hero Carousel",
+        "show_series_poster_on_episode": "Show Series Poster on Episodes",
+        "theme_music": "Theme Music",
+        "display_size": "Display Size",
+        "display_size_small": "Small",
+        "display_size_default": "Default",
+        "display_size_large": "Large",
+        "display_size_extra_large": "Extra Large"
       },
       "network": {
         "title": "Сеть",
@@ -129,7 +154,7 @@
         "auto_switch_enabled": "Переключаться дома автоматически",
         "auto_switch_description": "Автоматически переключаться на локальный URL при присоединении к домашней WiFi сети",
         "local_url": "Локальный URL",
-        "local_url_hint": "Введите локальный URL вашего сервера (e.g., http://192.168.1.100:8096)",
+        "local_url_hint": "Введите локальный URL вашего сервера (например, http://192.168.1.100:8096)",
         "local_url_placeholder": "http://192.168.1.100:8096",
         "home_wifi_networks": "Домашние WiFi сети",
         "add_current_network": "Добавить \"{{ssid}}\"",
@@ -160,28 +185,44 @@
       },
       "quick_connect": {
         "quick_connect_title": "Быстрое подключение",
-        "authorize_button": "Авторизировать через быстрое подключение",
+        "authorize_button": "Авторизовать через быстрое подключение",
         "enter_the_quick_connect_code": "Введите код для быстрого подключения...",
         "success": "Успех",
         "quick_connect_autorized": "Быстрое подключение авторизовано",
         "error": "Ошибка",
         "invalid_code": "Неверный код",
-        "authorize": "Авторизировать"
+        "authorize": "Авторизовать"
       },
       "media_controls": {
-        "media_controls_title": "Медиа-контроль",
+        "media_controls_title": "Управление воспроизведением",
         "forward_skip_length": "Шаг перемотки вперёд",
         "rewind_length": "Шаг перемотки назад",
         "seconds_unit": "c"
       },
+      "buffer": {
+        "title": "Buffer Settings",
+        "cache_mode": "Cache Mode",
+        "cache_auto": "Auto",
+        "cache_yes": "Enabled",
+        "cache_no": "Disabled",
+        "buffer_duration": "Buffer Duration",
+        "max_cache_size": "Max Cache Size",
+        "max_backward_cache": "Max Backward Cache"
+      },
+      "vo_driver": {
+        "title": "Video Output",
+        "vo_mode": "VO Driver",
+        "gpu_next": "gpu-next (Recommended)",
+        "gpu": "gpu"
+      },
       "gesture_controls": {
         "gesture_controls_title": "Управление жестами",
-        "horizontal_swipe_skip": "Горизонтальный свайп для перемотки",
-        "horizontal_swipe_skip_description": "Проведите влево/вправо, когда элементы управления скрыты, чтобы пропустить",
-        "left_side_brightness": "Управление яркостью левой стороны",
-        "left_side_brightness_description": "Смахните вверх/вниз на левой стороне для настройки яркости",
+        "horizontal_swipe_skip": "Проведите влево/вправо для перемотки",
+        "horizontal_swipe_skip_description": "Проведите влево/вправо, когда элементы управления скрыты, чтобы перемотать",
+        "left_side_brightness": "Управление яркостью слева",
+        "left_side_brightness_description": "Проведите вверх/вниз на левой стороне для настройки яркости",
         "right_side_volume": "Управление громкостью справа",
-        "right_side_volume_description": "Свайп вверх/вниз с правой стороны для настройки громкости",
+        "right_side_volume_description": "Проведите вверх/вниз с правой стороны для настройки громкости",
         "hide_volume_slider": "Скрыть индикатор громкости",
         "hide_volume_slider_description": "Скрывает индикатор громкости в плеере",
         "hide_brightness_slider": "Скрыть индикатор яркости",
@@ -205,7 +246,7 @@
       },
       "subtitles": {
         "subtitle_title": "Субтитры",
-        "subtitle_hint": "Настройки отображения субтитров",
+        "subtitle_hint": "Настройки отображения субтитров.",
         "subtitle_language": "Язык субтитров",
         "subtitle_mode": "Режим субтитров",
         "set_subtitle_track": "Устанавливать субтитры из предыдущего элемента",
@@ -255,7 +296,23 @@
         "subtitle_font": "Шрифт субтитров",
         "ksplayer_title": "Настройки KSPlayer",
         "hardware_decode": "Аппаратное декодирование",
-        "hardware_decode_description": "Использовать аппаратное ускорение для декодирования видео. Выключите, если наблюдаете проблемы с воспроизведением."
+        "hardware_decode_description": "Использовать аппаратное ускорение для декодирования видео. Выключите, если наблюдаете проблемы с воспроизведением.",
+        "opensubtitles_title": "OpenSubtitles",
+        "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
+        "opensubtitles_api_key": "API Key",
+        "opensubtitles_api_key_placeholder": "Enter API key...",
+        "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers",
+        "mpv_subtitle_scale": "Subtitle Scale",
+        "mpv_subtitle_margin_y": "Vertical Margin",
+        "mpv_subtitle_align_x": "Horizontal Align",
+        "mpv_subtitle_align_y": "Vertical Align",
+        "align": {
+          "left": "Left",
+          "center": "Center",
+          "right": "Right",
+          "top": "Top",
+          "bottom": "Bottom"
+        }
       },
       "vlc_subtitles": {
         "title": "Настройки субтитров в VLC",
@@ -270,9 +327,9 @@
         "margin": "Отступ снизу"
       },
       "video_player": {
-        "title": "Видеоплеер",
-        "video_player": "Видеоплеер",
-        "video_player_description": "Выберите видеоплеер в iOS.",
+        "title": "Видео плеер",
+        "video_player": "Видео плеер",
+        "video_player_description": "Выберите видео плеер в iOS.",
         "ksplayer": "KSPlayer",
         "vlc": "VLC"
       },
@@ -293,12 +350,12 @@
           "UNKNOWN": "Неизвестное"
         },
         "safe_area_in_controls": "Безопасная зона в элементах управления",
-        "video_player": "Видеоплеер",
+        "video_player": "Видео плеер",
         "video_players": {
           "VLC_3": "VLC 3",
           "VLC_4": "VLC 4 (Экспериментальный + PiP)"
         },
-        "show_custom_menu_links": "Показать ссылки кастомного меню",
+        "show_custom_menu_links": "Показать ссылки пользовательского меню",
         "show_large_home_carousel": "Показывать большую карусель (beta)",
         "hide_libraries": "Скрыть библиотеки",
         "select_liraries_you_want_to_hide": "Выберите Библиотеки, которое хотите спрятать из вкладки Библиотеки и домашней страницы.",
@@ -306,7 +363,7 @@
         "default_quality": "Качество по умолчанию",
         "default_playback_speed": "Скорость воспроизведения по умолчанию",
         "auto_play_next_episode": "Автоматически воспроизводить следующий эпизод",
-        "max_auto_play_episode_count": "Максимальное количество автовоспроизведения эпизодов",
+        "max_auto_play_episode_count": "Максимальное количество авто воспроизводимых эпизодов",
         "disabled": "Отключено"
       },
       "downloads": {
@@ -318,9 +375,9 @@
         "playback_description": "Настройте воспроизведение музыки.",
         "prefer_downloaded": "Предпочитать скачанные песни",
         "caching_title": "Кеширование",
-        "caching_description": "Автоматически предкешировать следующие треки для стабильного воспроизведения.",
+        "caching_description": "Автоматически кешировать следующие треки для стабильного воспроизведения.",
         "lookahead_enabled": "Включить предкеширование",
-        "lookahead_count": "Сколько предкешировать",
+        "lookahead_count": "Сколько треков предкешировать",
         "max_cache_size": "Максимальное число предкешированных треков"
       },
       "plugins": {
@@ -328,8 +385,8 @@
         "jellyseerr": {
           "jellyseerr_warning": "Эта интеграция находится на ранней стадии. Ожидайте изменений.",
           "server_url": "URL сервера",
-          "server_url_hint": "Пример: http(s)://your-host.url\n(Добавьте порт если необходимо)",
-          "server_url_placeholder": "Jellyseerr URL...",
+          "server_url_hint": "Пример: http(s)://your-host.url\n(добавьте порт если необходимо)",
+          "server_url_placeholder": "Seerr URL...",
           "password": "Пароль",
           "password_placeholder": "Введите пароль для пользователя Jellyfin {{username}}",
           "login_button": "Войти",
@@ -348,7 +405,7 @@
           }
         },
         "marlin_search": {
-          "enable_marlin_search": "Включить Marlin Search ",
+          "enable_marlin_search": "Включить Marlin Search",
           "url": "URL-адрес",
           "server_url_placeholder": "http(s)://domain.org:port",
           "marlin_search_hint": "Введите URL для Marlin сервера. URL должен включать http or https и опционально порт.",
@@ -398,14 +455,20 @@
         "size_used": "{{used}} из {{total}} использовано",
         "delete_all_downloaded_files": "Удалить все загруженные файлы",
         "music_cache_title": "Кеш музыки",
-        "music_cache_description": "Автоматически прекешировать песни по мере прослушивания для плавного воспроизведения и поддержки отсутствия интернета",
+        "music_cache_description": "Автоматически кешировать песни по мере прослушивания для плавного воспроизведения и поддержки отсутствия интернета",
         "enable_music_cache": "Кешировать музыку",
         "clear_music_cache": "Очистить кеш музыки",
-        "music_cache_size": "{{size}} кешировано",
+        "music_cache_size": "Кешировано: {{size}}",
         "music_cache_cleared": "Кеш музыки очищен",
         "delete_all_downloaded_songs": "Удалить все скачанные песни",
-        "downloaded_songs_size": "{{size}} скачано",
-        "downloaded_songs_deleted": "Скачанные песни удалены"
+        "downloaded_songs_size": "Скачано: {{size}}",
+        "downloaded_songs_deleted": "Скачанные песни удалены",
+        "clear_all_cache": "Clear All Cache",
+        "clear_all_cache_confirm": "Clear All Cache?",
+        "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
+        "clear_all_cache_success": "Cache Cleared",
+        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
+        "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
         "title": "Вступление",
@@ -414,7 +477,7 @@
       },
       "logs": {
         "logs_title": "Логи",
-        "export_logs": "Экспорт журналов",
+        "export_logs": "Сохранить логи",
         "click_for_more_info": "Нажмите для получения дополнительной информации",
         "level": "Уровень",
         "no_logs_available": "Логи не доступны",
@@ -429,6 +492,21 @@
         "error_deleting_files": "Ошибка при удалении файлов",
         "background_downloads_enabled": "Фоновая загрузка включена",
         "background_downloads_disabled": "Фоновая загрузка отключена"
+      },
+      "security": {
+        "title": "Security",
+        "inactivity_timeout": {
+          "title": "Inactivity Timeout",
+          "description": "Auto logout after inactivity",
+          "disabled": "Disabled",
+          "1_minute": "1 minute",
+          "5_minutes": "5 minutes",
+          "15_minutes": "15 minutes",
+          "30_minutes": "30 minutes",
+          "1_hour": "1 hour",
+          "4_hours": "4 hours",
+          "24_hours": "24 hours"
+        }
       }
     },
     "sessions": {
@@ -452,9 +530,10 @@
       "no_active_downloads": "Нет активных загрузок",
       "active_downloads": "Активные",
       "new_app_version_requires_re_download": "Новая версия приложения требует повторной загрузки",
-      "new_app_version_requires_re_download_description": "Новая версия приложения требует повторной загрузки. Пожалуйста удалите всё и попробуйте заново.",
+      "new_app_version_requires_re_download_description": "Новая версия приложения требует повторной загрузки контента. Пожалуйста, удалите весь скачанный контент и попробуйте заново.",
       "back": "Назад",
       "delete": "Удалить",
+      "delete_download": "Delete Download",
       "something_went_wrong": "Что-то пошло не так",
       "could_not_get_stream_url_from_jellyfin": "Не удалось получить ссылку трансляции из Jellyfin",
       "eta": "Осталось {{eta}}",
@@ -464,53 +543,59 @@
         "failed_to_delete_all_movies": "Возникла ошибка при удалении всех фильмов",
         "deleted_all_tvseries_successfully": "Все сериалы были успешно удалены!",
         "failed_to_delete_all_tvseries": "Возникла ошибка при удалении всех сериалов",
-        "deleted_media_successfully": "Другие носители успешно удалены!",
-        "failed_to_delete_media": "Не удалось удалить другой файл",
-        "download_deleted": "Удалено",
+        "deleted_media_successfully": "Остальные медиафайлы успешно удалены!",
+        "failed_to_delete_media": "Не удалось удалить остальные медиафайлы",
+        "download_deleted": "Загруженный контент удалён",
         "download_cancelled": "Загрузка отменена",
         "could_not_delete_download": "Не удалось удалить загрузку",
         "download_paused": "На паузе",
         "could_not_pause_download": "Не удалось приостановить загрузку",
         "download_resumed": "Продолжено",
-        "could_not_resume_download": "Не удалось продолжить загрузку",
+        "could_not_resume_download": "Не удалось возобновить загрузку",
         "download_completed": "Завершено",
         "download_failed": "Не удалось загрузить",
         "download_failed_for_item": "Загрузка {{item}} провалилась с ошибкой: {{error}}",
         "download_completed_for_item": "{{item}} успешно загружен",
-        "download_started_for_item": "Загрузка началась для {{item}}",
+        "download_started_for_item": "Загрузка {{item}} началась",
         "failed_to_start_download": "Не удалось начать загрузку",
         "item_already_downloading": "{{item}} уже загружается",
         "all_files_deleted": "Все загрузки удалены",
-        "files_deleted_by_type": "{{count}} {{type}} удалён(о)",
+        "files_deleted_by_type": "Удалено: {{count}} {{type}}",
         "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и задачи были успешно удалены",
         "failed_to_clean_cache_directory": "Не удалось очистить директорию кэша",
-        "could_not_get_download_url_for_item": "Не удалось получить URL загрузки для {{itemName}}",
+        "could_not_get_download_url_for_item": "Не удалось получить URL для загрузки {{itemName}}",
         "go_to_downloads": "В загрузки",
-        "file_deleted": "{{item}} удалён"
+        "file_deleted": "Удалено: {{item}}"
       }
     }
   },
   "common": {
+    "no_results": "No Results",
     "select": "Выбрать",
     "no_trailer_available": "Трейлер недоступен",
     "video": "Видео",
     "audio": "Звук",
     "subtitle": "Субтитры",
     "play": "Воспроизвести",
+    "mark_as_played": "Mark as Played",
+    "mark_as_not_played": "Mark as not Played",
     "none": "Отсутствует",
     "track": "Трек",
     "cancel": "Отмена",
+    "stop": "Stop",
     "delete": "Удалить",
     "ok": "ОК",
     "remove": "Удалить",
     "next": "Вперед",
     "back": "Назад",
     "continue": "Продолжить",
-    "verifying": "Проверка..."
+    "verifying": "Проверка...",
+    "login": "Login",
+    "refresh": "Refresh"
   },
   "search": {
     "search": "Поиск...",
-    "x_items": "{{count}} элементов",
+    "x_items": "Элементов: {{count}}",
     "library": "Библиотека",
     "discover": "Найти новое",
     "no_results": "Ничего не найдено",
@@ -528,14 +613,14 @@
     "request_series": "Запросить сериалы",
     "recently_added": "Недавно добавлено",
     "recent_requests": "Недавно запрошено",
-    "plex_watchlist": "Список просмотра с Plex",
+    "plex_watchlist": "Список просмотра Plex",
     "trending": "В тренде",
     "popular_movies": "Популярные фильмы",
     "movie_genres": "Популярные жанры",
     "upcoming_movies": "Предстоящие фильмы",
     "studios": "Студии",
     "popular_tv": "Популярные сериалы",
-    "tv_genres": "жанры сериалов",
+    "tv_genres": "Жанры сериалов",
     "upcoming_tv": "Предстоящие сериалы",
     "networks": "Сети",
     "tmdb_movie_keyword": "TMDB Ключевые слова фильмов",
@@ -555,7 +640,8 @@
       "movies": "Фильмы",
       "series": "Сериалы",
       "boxsets": "Коллекции",
-      "items": "элементы"
+      "playlists": "Playlists",
+      "items": "Элементы"
     },
     "options": {
       "display": "Отображать",
@@ -564,8 +650,9 @@
       "image_style": "Стиль изображения",
       "poster": "Постер",
       "cover": "Обложка",
-      "show_titles": "Показывать загаловки",
-      "show_stats": "Показывать статистику"
+      "show_titles": "Показывать заголовки",
+      "show_stats": "Показывать статистику",
+      "options_title": "Options"
     },
     "filters": {
       "genres": "Жанры",
@@ -573,7 +660,11 @@
       "sort_by": "Сортировка",
       "filter_by": "Фильтр",
       "sort_order": "Порядок",
-      "tags": "Тэги"
+      "tags": "Теги",
+      "all": "All",
+      "reset": "Reset",
+      "asc": "Ascending",
+      "desc": "Descending"
     }
   },
   "favorites": {
@@ -590,6 +681,8 @@
     "no_links": "Нет ссылок"
   },
   "player": {
+    "live": "LIVE",
+    "mpv_player_title": "MPV Player",
     "error": "Ошибка",
     "failed_to_get_stream_url": "Не удалось получить URL потока",
     "an_error_occured_while_playing_the_video": "Возникла Неожиданная ошибка во время воспроизведения. Проверьте логи в настройках.",
@@ -607,7 +700,35 @@
     "downloaded_file_message": "Хотите воспроизвести скачанный файл?",
     "downloaded_file_yes": "Да",
     "downloaded_file_no": "Нет",
-    "downloaded_file_cancel": "Отмена"
+    "downloaded_file_cancel": "Отмена",
+    "swipe_down_settings": "Swipe down for settings",
+    "ends_at": "Ends at {{time}}",
+    "search_subtitles": "Search Subtitles",
+    "subtitle_tracks": "Tracks",
+    "subtitle_search": "Search & Download",
+    "download": "Download",
+    "subtitle_download_hint": "Downloaded subtitles will be saved to your library",
+    "using_jellyfin_server": "Using Jellyfin Server",
+    "language": "Language",
+    "results": "Results",
+    "searching": "Searching...",
+    "search_failed": "Search failed",
+    "no_subtitle_provider": "No subtitle provider configured on server",
+    "no_subtitles_found": "No subtitles found",
+    "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
+    "settings": "Settings",
+    "skip_intro": "Skip Intro",
+    "skip_credits": "Skip Credits",
+    "stopPlayback": "Stop Playback",
+    "stopPlayingTitle": "Stop playing \"{{title}}\"?",
+    "stopPlayingConfirm": "Are you sure you want to stop playback?",
+    "downloaded": "Downloaded"
+  },
+  "chapters": {
+    "title": "Chapters",
+    "chapter_number": "Chapter {{number}}",
+    "open": "Open chapters",
+    "close": "Close chapters"
   },
   "item_card": {
     "next_up": "Далее",
@@ -616,6 +737,11 @@
     "series": "Серии",
     "seasons": "Сезоны",
     "season": "Сезон",
+    "from_this_series": "From This Series",
+    "more_from_this_season": "More from this Season",
+    "view_series": "View Series",
+    "view_season": "View Season",
+    "select_season": "Select Season",
     "no_episodes_for_this_season": "В этом сезоне нет серий",
     "overview": "Обзор",
     "more_with": "Больше с {{name}}",
@@ -623,13 +749,24 @@
     "no_similar_items_found": "Похожие элементы не найдены",
     "video": "Видео",
     "more_details": "Больше деталей",
-    "media_options": "Media Options",
+    "media_options": "Опции медиа",
     "quality": "Качество",
     "audio": "Звук",
-    "subtitles": "Субтитры",
+    "subtitles": {
+      "label": "Subtitle",
+      "none": "None",
+      "tracks": "Tracks"
+    },
     "show_more": "Показать больше",
     "show_less": "Показать меньше",
+    "left": "left",
+    "more_info": "More Info",
+    "director": "Director",
+    "cast": "Cast",
+    "technical_details": "Technical Details",
     "appeared_in": "Появлялся в",
+    "movies": "Movies",
+    "shows": "Shows",
     "could_not_load_item": "Не удалось загрузить элемент",
     "none": "Отсутствует",
     "download": {
@@ -640,7 +777,13 @@
       "download_x_item": "Загрузить {{item_count}} элементов",
       "download_unwatched_only": "Только непросмотренные",
       "download_button": "Загрузить"
-    }
+    },
+    "mark_played": "Mark as Watched",
+    "mark_unplayed": "Mark as Unwatched",
+    "resume_playback": "Resume Playback",
+    "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
+    "play_from_start": "Play from Start",
+    "continue_from": "Continue from {{time}}"
   },
   "live_tv": {
     "next": "Далее",
@@ -651,7 +794,18 @@
     "movies": "Фильмы",
     "sports": "Спорт",
     "for_kids": "Для детей",
-    "news": "Новости"
+    "news": "Новости",
+    "page_of": "Page {{current}} of {{total}}",
+    "no_programs": "No programs available",
+    "no_channels": "No channels available",
+    "tabs": {
+      "programs": "Programs",
+      "guide": "Guide",
+      "channels": "Channels",
+      "recordings": "Recordings",
+      "schedule": "Schedule",
+      "series": "Series"
+    }
   },
   "jellyseerr": {
     "confirm": "Подтвердить",
@@ -684,26 +838,32 @@
     "currently_streaming_on": "Сейчас доступно на",
     "advanced": "Продвинутое",
     "request_as": "Запросить как",
-    "tags": "Тэги",
+    "tags": "Теги",
     "quality_profile": "Профиль качества",
     "root_folder": "Корневая папка",
     "season_all": "Сезон (все)",
     "season_number": "Сезон {{season_number}}",
-    "number_episodes": "{{episode_number}} серий",
+    "number_episodes": "Серий: {{episode_number}}",
     "born": "Рожден",
     "appearances": "Появления",
     "approve": "Одобрить",
     "decline": "Отклонить",
     "requested_by": "Запрошено {{user}}",
     "unknown_user": "Неизвестный пользователь",
+    "select": "Select",
+    "request_all": "Request All",
+    "request_seasons": "Request Seasons",
+    "select_seasons": "Select Seasons",
+    "request_selected": "Request Selected",
+    "n_selected": "{{count}} selected",
     "toasts": {
       "jellyseer_does_not_meet_requirements": "Сервер Jellyseerr не соответствует минимальным требованиям версии! Пожалуйста, обновите до версии не ниже 2.0.0",
       "jellyseerr_test_failed": "Тест Jellyseerr не пройден. Попробуйте еще раз.",
-      "failed_to_test_jellyseerr_server_url": "Не удалось проверить URL-адрес сервера jellyseerr",
+      "failed_to_test_jellyseerr_server_url": "Не удалось проверить URL-адрес сервера Seerr",
       "issue_submitted": "Проблема отправлена!",
       "requested_item": "Запрошено {{item}}!",
       "you_dont_have_permission_to_request": "У вас нет разрешения на запрос!",
-      "something_went_wrong_requesting_media": "Что-то пошло не так при запросе медиафайлов!",
+      "something_went_wrong_requesting_media": "Что-то пошло не так при запросе медиа!",
       "request_approved": "Запрос одобрен!",
       "request_declined": "Запрос отклонён!",
       "failed_to_approve_request": "Не удалось одобрить запрос",
@@ -715,7 +875,8 @@
     "search": "Поиск",
     "library": "Библиотека",
     "custom_links": "Ссылки",
-    "favorites": "Избранное"
+    "favorites": "Избранное",
+    "settings": "Settings"
   },
   "music": {
     "title": "Музыка",
@@ -800,7 +961,7 @@
     "name_label": "Название",
     "name_placeholder": "Введите название списка",
     "description_label": "Описание",
-    "description_placeholder": "Введите описание (не обязательно)",
+    "description_placeholder": "Введите описание (необязательно)",
     "is_public_label": "Публичный",
     "is_public_description": "Разрешить остальным пользователям видеть этот список",
     "allowed_type_label": "Тип контента",
@@ -840,5 +1001,36 @@
       "show": "Ко всему сериалу",
       "all": "Ко всем файлам (по умолчанию)"
     }
+  },
+  "companion_login": {
+    "title": "Pair with TV",
+    "align_qr": "Align the QR code within the frame",
+    "enter_code_manually": "Enter code manually",
+    "pairing_enter_credentials": "Enter credentials for TV",
+    "pairing_code_label": "Pairing code",
+    "server": "Server",
+    "authorize_button": "Authorize",
+    "authorizing": "Authorizing...",
+    "scan_again": "Scan Again",
+    "done": "Done",
+    "success_title": "Authorization Sent",
+    "pairing_tv_connecting": "The TV is connecting to your account",
+    "error_title": "Authorization Failed",
+    "error_invalid_qr": "Invalid QR code. Please scan the TV pairing code.",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_permission_denied": "Camera permission is required to scan QR codes.",
+    "login_as": "Log in as {{username}}?",
+    "on_server": "on {{server}}",
+    "use_different_user": "Use a different user",
+    "open_settings": "Open Settings"
+  },
+  "pairing": {
+    "pair_with_phone": "Pair with Phone",
+    "pair_with_phone_title": "Login TV",
+    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
+    "waiting_for_phone": "Waiting for phone...",
+    "scan_with_phone": "Scan with the Streamyfin app on your phone",
+    "logging_in": "Logging in...",
+    "logging_in_description": "Connecting to your server"
   }
 }

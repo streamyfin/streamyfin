@@ -1,6 +1,8 @@
 package expo.modules.mpvplayer
 
+import android.app.UiModeManager
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.AssetManager
 import android.os.Handler
 import android.os.Looper
@@ -27,7 +29,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         const val MPV_FORMAT_DOUBLE = 5
         const val MPV_FORMAT_NODE = 6
     }
-    
+
+    private fun isTvDevice(): Boolean {
+        val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
+        return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
     interface Delegate {
         fun onPositionChanged(position: Double, duration: Double, cacheSeconds: Double)
         fun onPauseChanged(isPaused: Boolean)
@@ -98,7 +105,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     val duration: Double
         get() = cachedDuration
     
-    fun start() {
+    /**
+     * The VO driver to use. Stored so attachSurface can re-enable the same driver.
+     */
+    private var voDriver: String = "gpu-next"
+
+    fun start(voDriver: String = "gpu-next") {
         if (isRunning) return
         
         try {
@@ -147,12 +159,21 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("config-dir", mpvDir.path)
             
             // Configure mpv options before initialization (based on Findroid)
-            MPVLib.setOptionString("vo", "gpu")
+            this.voDriver = voDriver
+            MPVLib.setOptionString("vo", voDriver)
             MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("opengl-es", "yes")
             
             // Hardware video decoding
-            MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            // TV: zero-copy (mediacodec) for better performance on low-power devices
+            // Mobile: copy mode (mediacodec-copy) for better compatibility
+            val isTV = isTvDevice()
+            if (isTV) {
+                MPVLib.setOptionString("hwdec", "mediacodec")
+                MPVLib.setOptionString("profile", "fast")
+            } else {
+                MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            }
             MPVLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
             
             // Cache settings for better network streaming
@@ -268,37 +289,43 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
     
     /**
-     * Attach surface and re-enable video output.
-     * Based on Findroid's implementation.
+     * Attach surface and ensure video output is active.
+     *
+     * During PiP transitions, the surface is destroyed and recreated by Android.
+     * We keep the VO pipeline alive (not killed with vo=null) so that rendering
+     * resumes immediately when the new surface is attached — avoiding the black
+     * screen that occurs when the VO is fully re-initialized via setOptionString.
      */
     fun attachSurface(surface: Surface) {
         this.surface = surface
+        Log.i(TAG, "[PiP] attachSurface — isRunning=$isRunning, vo=$voDriver, surface=${surface.hashCode()}")
         if (isRunning) {
             MPVLib.attachSurface(surface)
-            // Re-enable video output after attaching surface (Findroid approach)
             MPVLib.setOptionString("force-window", "yes")
-            MPVLib.setOptionString("vo", "gpu")
-            Log.i(TAG, "Surface attached, video output re-enabled")
+            // Read back vo to confirm it's still active
+            val activeVo = try { MPVLib.getPropertyString("vo") } catch (e: Exception) { null }
+            Log.i(TAG, "[PiP] attachSurface — attached, activeVo=$activeVo")
         }
     }
-    
+
     /**
-     * Detach surface and disable video output.
-     * Based on Findroid's implementation.
+     * Detach surface without killing the VO pipeline.
+     *
+     * The previous approach (vo=null / force-window=no) destroyed the entire video
+     * output pipeline on every surface transition. During PiP mode, the rapid
+     * destroy/recreate cycle caused a black screen because setOptionString("vo", ...)
+     * did not properly re-initialize rendering into the new PiP surface.
+     *
+     * By keeping the VO alive, frames are simply dropped while no surface is
+     * attached, and rendering resumes immediately when the new surface arrives.
      */
     fun detachSurface() {
         this.surface = null
+        Log.i(TAG, "[PiP] detachSurface — isRunning=$isRunning, vo=$voDriver")
         if (isRunning) {
-            try {
-                // Disable video output before detaching surface (Findroid approach)
-                MPVLib.setOptionString("vo", "null")
-                MPVLib.setOptionString("force-window", "no")
-                Log.i(TAG, "Video output disabled before surface detach")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to disable video output: ${e.message}")
-            }
-            
             MPVLib.detachSurface()
+            val activeVo = try { MPVLib.getPropertyString("vo") } catch (e: Exception) { null }
+            Log.i(TAG, "[PiP] detachSurface — detached, activeVo=$activeVo (should still be $voDriver)")
         }
     }
     
@@ -309,7 +336,24 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun updateSurfaceSize(width: Int, height: Int) {
         if (isRunning) {
             MPVLib.setPropertyString("android-surface-size", "${width}x$height")
-            Log.i(TAG, "Surface size updated: ${width}x$height")
+            Log.i(TAG, "[PiP] updateSurfaceSize — ${width}x${height}")
+        } else {
+            Log.w(TAG, "[PiP] updateSurfaceSize — called but renderer not running")
+        }
+    }
+
+    /**
+     * Force mpv to render a frame to the current surface.
+     * Steps forward one frame then seeks back to the original position.
+     * Used after PiP entry to work around mpv stopping pixel output.
+     */
+    fun forceRedraw() {
+        if (!isRunning) return
+        val pos = cachedPosition
+        Log.i(TAG, "[PiP] forceRedraw — stepping frame then seeking to $pos")
+        MPVLib.command(arrayOf("frame-step"))
+        if (pos > 0) {
+            MPVLib.command(arrayOf("seek", pos.toString(), "absolute"))
         }
     }
     
@@ -539,7 +583,23 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             }
         }
     }
-    
+
+    fun setSubtitleFontSize(size: Int) {
+        MPVLib.setPropertyInt("sub-font-size", size)
+    }
+
+    fun setSubtitleBorderStyle(style: String) {
+        MPVLib.setPropertyString("sub-border-style", style)
+    }
+
+    fun setSubtitleBackgroundColor(color: String) {
+        MPVLib.setPropertyString("sub-back-color", color)
+    }
+
+    fun setSubtitleAssOverride(mode: String) {
+        MPVLib.setPropertyString("sub-ass-override", mode)
+    }
+
     // MARK: - Audio Track Controls
     
     fun getAudioTracks(): List<Map<String, Any>> {
@@ -638,6 +698,16 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             info["droppedFrames"] = it
         }
 
+        // Active video output driver (read from MPV to confirm what's actually applied)
+        MPVLib.getPropertyString("vo")?.let {
+            info["voDriver"] = it
+        }
+
+        // Active hardware decoder
+        MPVLib.getPropertyString("hwdec-active")?.let {
+            info["hwdec"] = it
+        }
+
         return info
     }
 
@@ -733,11 +803,17 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                         MPVLib.command(arrayOf("sub-add", subUrl, "auto"))
                     }
                     pendingExternalSubtitles = emptyList()
-                    
-                    // Set subtitle after external subs are added
-                    initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
                 }
-                
+
+                // Apply the initial audio/subtitle selection now that the file's
+                // tracks are enumerated. Setting sid/aid before `loadfile` does not
+                // reliably stick for embedded tracks (the selection is silently
+                // dropped), so we (re)apply here for embedded and external alike.
+                // This is what makes a carried-over subtitle show up on the next
+                // episode without a manual re-selection.
+                initialAudioId?.let { if (it > 0) setAudioTrack(it) }
+                initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
+
                 if (!isReadyToSeek) {
                     isReadyToSeek = true
                     mainHandler.post { delegate?.onReadyToSeek() }

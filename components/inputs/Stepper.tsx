@@ -1,3 +1,4 @@
+import React from "react";
 import { TouchableOpacity } from "react-native";
 import { Text } from "@/components/common/Text";
 import DisabledSetting from "@/components/settings/DisabledSetting";

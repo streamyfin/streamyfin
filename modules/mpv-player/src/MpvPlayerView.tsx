@@ -11,6 +11,8 @@ import {
 const NativeView: React.ComponentType<MpvPlayerViewProps & { ref?: any }> =
   requireNativeView("MpvPlayer");
 
+const PIP_LOG = "[PiP] MpvPlayerView.tsx:";
+
 export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
   function MpvPlayerView(props, ref) {
     const nativeRef = useRef<any>(null);
@@ -44,16 +46,24 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         return await nativeRef.current?.getDuration();
       },
       startPictureInPicture: async () => {
+        console.log(PIP_LOG, "startPictureInPicture → native");
         await nativeRef.current?.startPictureInPicture();
+        console.log(PIP_LOG, "startPictureInPicture ← native returned");
       },
       stopPictureInPicture: async () => {
+        console.log(PIP_LOG, "stopPictureInPicture → native");
         await nativeRef.current?.stopPictureInPicture();
+        console.log(PIP_LOG, "stopPictureInPicture ← native returned");
       },
       isPictureInPictureSupported: async () => {
-        return await nativeRef.current?.isPictureInPictureSupported();
+        const result = await nativeRef.current?.isPictureInPictureSupported();
+        console.log(PIP_LOG, "isPictureInPictureSupported =", result);
+        return result;
       },
       isPictureInPictureActive: async () => {
-        return await nativeRef.current?.isPictureInPictureActive();
+        const result = await nativeRef.current?.isPictureInPictureActive();
+        console.log(PIP_LOG, "isPictureInPictureActive =", result);
+        return result;
       },
       getSubtitleTracks: async () => {
         return await nativeRef.current?.getSubtitleTracks();
@@ -85,8 +95,22 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       setSubtitleAlignY: async (alignment: "top" | "center" | "bottom") => {
         await nativeRef.current?.setSubtitleAlignY(alignment);
       },
+      setSubtitleFontSize: async (size: number) => {
+        await nativeRef.current?.setSubtitleFontSize(size);
+      },
       setSubtitleStyle: async (style: SubtitleStyleConfig) => {
         await nativeRef.current?.setSubtitleStyle(style);
+      },
+      setSubtitleBackgroundColor: async (color: string) => {
+        await nativeRef.current?.setSubtitleBackgroundColor(color);
+      },
+      setSubtitleBorderStyle: async (
+        style: "outline-and-shadow" | "background-box",
+      ) => {
+        await nativeRef.current?.setSubtitleBorderStyle(style);
+      },
+      setSubtitleAssOverride: async (mode: "no" | "force") => {
+        await nativeRef.current?.setSubtitleAssOverride(mode);
       },
       // Audio controls
       getAudioTracks: async () => {
