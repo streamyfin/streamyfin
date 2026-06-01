@@ -34,5 +34,8 @@ export const fetchSeriesEpisodes = async (
     seriesId,
     userId: api.accessToken ? undefined : "",
   });
-  return res.data.Items ?? [];
+  // Drop "Virtual" (missing) episodes — e.g. an empty Specials/Season 0 entry
+  // that has no media file. They must not appear in the cast episode list nor
+  // be offered as prev/next/autoplay targets (they can't be cast).
+  return (res.data.Items ?? []).filter((e) => e.LocationType !== "Virtual");
 };
