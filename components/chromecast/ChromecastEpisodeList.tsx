@@ -127,7 +127,12 @@ export const ChromecastEpisodeList: React.FC<ChromecastEpisodeListProps> = ({
         style={{
           flexDirection: "row",
           padding: 12,
-          backgroundColor: isCurrentEpisode ? "#a855f7" : "transparent",
+          // Translucent (not solid) purple so the dark base shows through and
+          // the row's text — incl. the purple S:E label — stays readable. The
+          // play-circle icon also marks the current episode.
+          backgroundColor: isCurrentEpisode
+            ? "rgba(168, 85, 247, 0.25)"
+            : "transparent",
           borderRadius: 8,
           marginBottom: 8,
         }}
