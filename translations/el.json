@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Επόμενο Επάνω",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Προστέθηκε πρόσφατα στο {{libraryName}}",
     "suggested_movies": "Προτεινόμενες Ταινίες",
     "suggested_episodes": "Προτεινόμενα Επεισόδια",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Μετάβαση στις λήψεις",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Τελευταία στο {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

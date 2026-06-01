@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "A continuació",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Afegit recentment a {{libraryName}}",
     "suggested_movies": "Pel·lícules suggerides",
     "suggested_episodes": "Episodis suggerits",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Ves a les descàrregues",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Més recents a {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Sonraki",
     "continue_and_next_up": "İzlemeye Devam Et & Sıradakiler",
-    "recently_added_in": "{{libraryName}} Kütüphanesine Son Eklenenler",
     "suggested_movies": "Önerilen Filmler",
     "suggested_episodes": "Önerilen Bölümler",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "İndirmelere git",
         "file_deleted": "{{item}} silindi"
       }
-    }
+    },
+    "latest": "{{libraryName}} En Yeniler"
   },
   "common": {
     "no_results": "No Results",

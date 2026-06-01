@@ -98,7 +98,6 @@
     "continue": "Fortsätt",
     "next_up": "Näst på tur",
     "continue_and_next_up": "Fortsätt titta & nästa avsnitt",
-    "recently_added_in": "Nyligen tillagt i {{libraryName}}",
     "suggested_movies": "Filmförslag",
     "suggested_episodes": "Föreslagna avsnitt",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Gå till nedladdningar",
         "file_deleted": "{{item}} Raderad"
       }
-    }
+    },
+    "latest": "Senaste {{libraryName}}"
   },
   "common": {
     "no_results": "Inga resultat",

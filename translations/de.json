@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Als nächstes",
     "continue_and_next_up": "\"Weiterschauen\" und \"Als Nächstes\"",
-    "recently_added_in": "Kürzlich hinzugefügt in {{libraryName}}",
     "suggested_movies": "Empfohlene Filme",
     "suggested_episodes": "Empfohlene Episoden",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Zu Downloads gehen",
         "file_deleted": "{{item}} gelöscht"
       }
-    }
+    },
+    "latest": "Neueste in {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

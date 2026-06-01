@@ -254,7 +254,7 @@ const HomeMobile = () => {
         c.CollectionType === "tvshows" || c.CollectionType === "movies"
           ? []
           : ["Movie"];
-      const title = t("home.recently_added_in", { libraryName: c.Name });
+      const title = t("home.latest", { libraryName: c.Name });
       const queryKey: string[] = [
         "home",
         `recentlyAddedIn${c.CollectionType}`,

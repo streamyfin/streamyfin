@@ -41,7 +41,6 @@
     "error_message": "Algo deu errado.\nPor favor, saia e entre novamente.",
     "continue_watching": "Continue assistindo",
     "next_up": "Próximo em",
-    "recently_added_in": "Adicionados recentemente em {{libraryName}}",
     "suggested_movies": "Filmes sugeridos",
     "suggested_episodes": "Episódios sugeridos",
     "intro": {
@@ -271,7 +270,8 @@
         "an_error_occured_while_deleting_files_and_jobs": "Ocorreu um erro ao remover os arquivos e jobs",
         "go_to_downloads": "Vá para downloads"
       }
-    }
+    },
+    "latest": "Recentes em {{libraryName}}"
   },
   "search": {
     "search_here": "Busque aqui...",

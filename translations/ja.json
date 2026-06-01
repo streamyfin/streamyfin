@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "次の動画",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "{{libraryName}}に最近追加された",
     "suggested_movies": "おすすめ映画",
     "suggested_episodes": "おすすめエピソード",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "ダウンロードに移動",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "{{libraryName}}の最新"
   },
   "common": {
     "no_results": "No Results",

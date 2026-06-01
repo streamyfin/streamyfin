@@ -41,7 +41,6 @@
     "error_message": "Io misfunkciis.\nBonvolu elsaluti kaj reensaluti.",
     "continue_watching": "Daŭrigi Spektadon",
     "next_up": "Sekva",
-    "recently_added_in": "Ĵus Aldonita en {{libraryName}}",
     "suggested_movies": "Sugestitaj Filmoj",
     "suggested_episodes": "Sugestitaj Epizodoj",
     "intro": {
@@ -273,7 +272,8 @@
         "an_error_occured_while_deleting_files_and_jobs": "Eraro okazis dum forigo de dosieroj kaj taskoj",
         "go_to_downloads": "Iri al elŝutoj"
       }
-    }
+    },
+    "latest": "Plej novaj en {{libraryName}}"
   },
   "search": {
     "search_here": "Serĉu ĉi tie...",

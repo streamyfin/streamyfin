@@ -41,7 +41,6 @@
     "error_message": "出错了。\n请注销重新登录。",
     "continue_watching": "继续观看",
     "next_up": "下一个",
-    "recently_added_in": "最近添加于 {{libraryName}}",
     "suggested_movies": "推荐电影",
     "suggested_episodes": "推荐剧集",
     "intro": {
@@ -268,7 +267,8 @@
         "an_error_occured_while_deleting_files_and_jobs": "删除文件和任务时发生错误",
         "go_to_downloads": "前往下载"
       }
-    }
+    },
+    "latest": "最新 {{libraryName}}"
   },
   "search": {
     "search_here": "在此搜索...",

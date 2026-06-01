@@ -41,7 +41,6 @@
     "error_message": "Diçka shkoj keq.\nJu lutemi dilni dhe hyni përsëri.",
     "continue_watching": "Vazhdo shikimin",
     "next_up": "I ardhshëm",
-    "recently_added_in": "Shtuar kohët e fundit në {{libraryName}}",
     "suggested_movies": "Filma të sugjeruar",
     "suggested_episodes": "Episodat të sugjeruara",
     "intro": {
@@ -273,7 +272,8 @@
         "an_error_occured_while_deleting_files_and_jobs": "Ndodhi një gabim gjatë fshirjes së skedarëve dhe detyrave",
         "go_to_downloads": "Shko te shkarkimet"
       }
-    }
+    },
+    "latest": "Të fundit në {{libraryName}}"
   },
   "search": {
     "search_here": "Kërko këtu...",

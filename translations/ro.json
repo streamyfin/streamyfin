@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Urmează",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Adăugat recent în {{libraryName}}",
     "suggested_movies": "Filme sugerate",
     "suggested_episodes": "Episoade sugerate",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Accesați descărcările",
         "file_deleted": "{{item}} șters"
       }
-    }
+    },
+    "latest": "Cele mai recente în {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

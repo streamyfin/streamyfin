@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Далее",
     "continue_and_next_up": "Продолжить и Далее",
-    "recently_added_in": "Недавно добавлено в {{libraryName}}",
     "suggested_movies": "Предложенные фильмы",
     "suggested_episodes": "Предложенные серии",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "В загрузки",
         "file_deleted": "Удалено: {{item}}"
       }
-    }
+    },
+    "latest": "Последнее в {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

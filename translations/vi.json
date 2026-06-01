@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Tiếp theo",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Mới thêm trong {{libraryName}}",
     "suggested_movies": "Phim gợi ý",
     "suggested_episodes": "Tập gợi ý",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Tới phần tải về",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Mới nhất trong {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

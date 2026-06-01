@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "wej",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "num tu'lu' {{libraryName}}",
     "suggested_movies": "rutlh DIS",
     "suggested_episodes": "rutlh Hem",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Qaw' Doch yIghoS",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "chu' {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

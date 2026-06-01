@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "הבא בתור",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "התווסף לאחרונה ב-{{libraryName}}",
     "suggested_movies": "סרטים מוצעים",
     "suggested_episodes": "פרקים מוצעים",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "עבור להורדות",
         "file_deleted": "{{item}} נמחק"
       }
-    }
+    },
+    "latest": "האחרונים ב-{{libraryName}}"
   },
   "common": {
     "no_results": "No Results",
