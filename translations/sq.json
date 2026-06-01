@@ -43,7 +43,6 @@
     "next_up": "I ardhshëm",
     "recently_added_in": "Shtuar kohët e fundit në {{libraryName}}",
     "suggested_movies": "Filma të sugjeruar",
-    "suggested_episodes": "Episodat të sugjeruara",
     "intro": {
       "welcome_to_streamyfin": "Mirë se vini në Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Një klient falas dhe me burim të hapur për Jellyfin.",
@@ -128,11 +127,6 @@
           "UNKNOWN": "E panjohur"
         },
         "safe_area_in_controls": "Zonë e sigurt në kontrolla",
-        "video_player": "Video lexues",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Eksperimentale + PiP)"
-        },
         "show_custom_menu_links": "Shfaq lidhje menuje të personalizuara",
         "hide_libraries": "Fsheh bibliotekat",
         "select_liraries_you_want_to_hide": "Zgjidhni bibliotekat që dëshironi të fshehni nga skeda e Bibliotekut dhe seksionet e faqes kryesore.",
@@ -140,7 +134,6 @@
         "default_quality": "Kvaliteti standard"
       },
       "downloads": {
-        "downloads_title": "Shkarkime",
         "optimized_versions_server": "Serveri i versioneve të optimizuara",
         "save_button": "Ruaj",
         "optimized_server": "Server i optimizuar",
@@ -205,8 +198,7 @@
         "export_logs": "Eksporto regjistrin",
         "click_for_more_info": "Kliko për më shumë informacion",
         "level": "Nivele",
-        "no_logs_available": "Nuk ka regjistrime të disponueshme",
-        "delete_all_logs": "Fshijë të gjitha regjistrimet"
+        "no_logs_available": "Nuk ka regjistrime të disponueshme"
       },
       "languages": {
         "title": "Gjuhët",
@@ -216,8 +208,6 @@
       },
       "toasts": {
         "error_deleting_files": "Gabim gjatë fshirjes së skedarëve",
-        "background_downloads_enabled": "Shkarkimet në sfond aktivizuar",
-        "background_downloads_disabled": "Shkarkimet në sfond deaktivizuar",
         "connected": "Lidhur",
         "could_not_connect": "Nuk u mundet te vendoset kyqja",
         "invalid_url": "URL i pavlefshme"
@@ -231,9 +221,6 @@
       "downloads_title": "Shkarkimet",
       "tvseries": "Seriale TV",
       "movies": "Filma",
-      "queue": "Rradhë",
-      "queue_hint": "Rradhat dhe shkarkimet do të humbasin pas genstartit të aplikacionit",
-      "no_items_in_queue": "Nuk ka elemente në rradhë",
       "no_downloaded_items": "Nuk ka shkarkime",
       "delete_all_movies_button": "Fshijë të gjithë filmat",
       "delete_all_tvseries_button": "Fshijë të gjitha serialet TV",
@@ -269,9 +256,7 @@
         "no_response_received_from_server": "Nuk u mor asnjë përgjigje nga serveri",
         "error_setting_up_the_request": "Gabim gjatë konfigurimit të kërkesës",
         "failed_to_start_download_for_item_unexpected_error": "Dështoj fillimi i shkarkimit për {{item}}: Gabim i papritur",
-        "all_files_folders_and_jobs_deleted_successfully": "Të gjitha skedarët, dosjet dhe detyrat u fshinë me sukses",
-        "an_error_occured_while_deleting_files_and_jobs": "Ndodhi një gabim gjatë fshirjes së skedarëve dhe detyrave",
-        "go_to_downloads": "Shko te shkarkimet"
+        "an_error_occured_while_deleting_files_and_jobs": "Ndodhi një gabim gjatë fshirjes së skedarëve dhe detyrave"
       }
     }
   },
@@ -365,12 +350,8 @@
     "video_has_finished_playing": "Videoja ka përfunduar shfaqjen!",
     "no_video_source": "Asnjë burim video...",
     "next_episode": "Epizoda e ardhshme",
-    "refresh_tracks": "Rifresko shtigjet",
     "subtitle_tracks": "Shtigjet e nënteksteve:",
-    "audio_tracks": "Shtigjet audio:",
-    "playback_state": "Gjendja e rishikimit:",
-    "no_data_available": "Nuk ka të dhëna të disponueshme",
-    "index": "Indeksi:"
+    "no_data_available": "Nuk ka të dhëna të disponueshme"
   },
   "item_card": {
     "next_up": "E ardhshme",

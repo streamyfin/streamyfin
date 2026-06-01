@@ -43,7 +43,6 @@
     "next_up": "Próximo em",
     "recently_added_in": "Adicionados recentemente em {{libraryName}}",
     "suggested_movies": "Filmes sugeridos",
-    "suggested_episodes": "Episódios sugeridos",
     "intro": {
       "welcome_to_streamyfin": "Bem-vindo ao Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Um cliente gratuito e de código livre para o Jellyfin.",
@@ -128,11 +127,6 @@
           "UNKNOWN": "Desconhecido"
         },
         "safe_area_in_controls": "Área segura nos controles",
-        "video_player": "Tocador de vídeo",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
-        },
         "show_custom_menu_links": "Mostrar Custom Links no Menu",
         "hide_libraries": "Ocultar bibliotecas",
         "select_liraries_you_want_to_hide": "Selecione as bibliotecas que você deseja ocultar das abas Biblioteca e Início.",
@@ -141,7 +135,6 @@
         "disabled": "Desativado"
       },
       "downloads": {
-        "downloads_title": "Downloads",
         "optimized_versions_server": "Servidor do optimized versions",
         "save_button": "Salvar",
         "optimized_server": "Optimized Server",
@@ -203,8 +196,7 @@
       },
       "logs": {
         "logs_title": "Logs",
-        "no_logs_available": "Sem logs disponíveis",
-        "delete_all_logs": "Remover todos os logs"
+        "no_logs_available": "Sem logs disponíveis"
       },
       "languages": {
         "title": "Idiomas",
@@ -214,8 +206,6 @@
       },
       "toasts": {
         "error_deleting_files": "Erro ao remover arquivos",
-        "background_downloads_enabled": "Downloads em segundo plano ativado",
-        "background_downloads_disabled": "Downloads em segundo plano desativado",
         "connected": "Conectado",
         "could_not_connect": "Não foi possível conectar",
         "invalid_url": "URL inválida"
@@ -229,9 +219,6 @@
       "downloads_title": "Downloads",
       "tvseries": "TV/Séries",
       "movies": "Filmes",
-      "queue": "Fila",
-      "queue_hint": "A fila e os downloads serão perdidos ao reiniciar o aplicativo",
-      "no_items_in_queue": "Nenhum item na fila",
       "no_downloaded_items": "Nenhum item baixado",
       "delete_all_movies_button": "Remover todos os filmes",
       "delete_all_tvseries_button": "Remover todos as TV/Séries",
@@ -267,9 +254,7 @@
         "no_response_received_from_server": "Sem resposta recebida do servidor",
         "error_setting_up_the_request": "Erro ao configurar a solicitação",
         "failed_to_start_download_for_item_unexpected_error": "Falha ao iniciar o download de {{item}}: Erro inesperado",
-        "all_files_folders_and_jobs_deleted_successfully": "Todos arquivos, pastas e jobs removidos com sucesso",
-        "an_error_occured_while_deleting_files_and_jobs": "Ocorreu um erro ao remover os arquivos e jobs",
-        "go_to_downloads": "Vá para downloads"
+        "an_error_occured_while_deleting_files_and_jobs": "Ocorreu um erro ao remover os arquivos e jobs"
       }
     }
   },
@@ -363,12 +348,8 @@
     "video_has_finished_playing": "O vídeo terminou!",
     "no_video_source": "Nenhuma fonte de vídeo...",
     "next_episode": "Próximo episódio",
-    "refresh_tracks": "Atualizar faixas",
     "subtitle_tracks": "Faixas da legenda:",
-    "audio_tracks": "Faixas do áudio:",
-    "playback_state": "Playback State:",
     "no_data_available": "Nenhum dado disponível",
-    "index": "Índice:",
     "continue_watching": "Continuar assistindo",
     "go_back": "Voltar"
   },

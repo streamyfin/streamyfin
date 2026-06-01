@@ -100,7 +100,6 @@
     "continue_and_next_up": "Doorgaan & Volgende",
     "recently_added_in": "Recent toegevoegd in {{libraryName}}",
     "suggested_movies": "Voorgestelde films",
-    "suggested_episodes": "Voorgestelde Afleveringen",
     "intro": {
       "welcome_to_streamyfin": "Welkom bij Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Een gratis en open-source client voor Jellyfin.",
@@ -261,43 +260,6 @@
           "None": "Geen",
           "OnlyForced": "Alleen Geforceerd"
         },
-        "text_color": "Tekst kleur",
-        "background_color": "Achtergrond Kleur",
-        "outline_color": "Kleur omlijning",
-        "outline_thickness": "Dikte omlijning",
-        "background_opacity": "Transparantie achtergrond",
-        "outline_opacity": "Doorzichtigheid omlijning",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Zwart",
-          "Gray": "Grijs",
-          "Silver": "Zilver",
-          "White": "Wit",
-          "Maroon": "Kastanjebruin",
-          "Red": "Rood",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Geel",
-          "Olive": "Olijf",
-          "Green": "Groen",
-          "Teal": "Groenblauw",
-          "Lime": "Lichtgroen",
-          "Purple": "Paars",
-          "Navy": "Marine",
-          "Blue": "Blauw",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "Geen",
-          "Thin": "Dun",
-          "Normal": "normaal",
-          "Thick": "Dikke"
-        },
-        "subtitle_color": "Kleur ondertiteling",
-        "subtitle_background_color": "Achtergrondkleur",
-        "subtitle_font": "Lettertype ondertitels",
-        "ksplayer_title": "KSPlayer Instellingen",
-        "hardware_decode": "Hardware Acceleratie",
-        "hardware_decode_description": "Gebruik hardware acceleratie voor video-decodering. Uitschakelen als u problemen met afspelen ondervindt.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +276,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC ondertitel instellingen",
-        "hint": "Aanpassen van ondertiteling voor VLC-speler. Wijzigingen worden toegepast bij het afspelen.",
-        "text_color": "Tekstkleur",
-        "background_color": "Achtergrondkleur",
-        "background_opacity": "Doorzichtigheid achtergrond",
-        "outline_color": "Kleur omlijning",
-        "outline_opacity": "Omtrek opaciteit",
-        "outline_thickness": "Omtrek dikte",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Videospeler",
-        "video_player": "Videospeler",
-        "video_player_description": "Kies welke videospeler gebruikt moet worden op iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Andere",
@@ -351,13 +294,7 @@
           "UNKNOWN": "Onbekend"
         },
         "safe_area_in_controls": "Veilig gebied in bedieningen",
-        "video_player": "Video player",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimentele + PiP)"
-        },
         "show_custom_menu_links": "Aangepaste menulinks tonen",
-        "show_large_home_carousel": "Toon grote carrousel op startpagina (bèta)",
         "hide_libraries": "Verberg Bibliotheken",
         "select_liraries_you_want_to_hide": "Selecteer de bibliotheken die je wil verbergen van de Bibliotheektab en hoofdpagina onderdelen.",
         "disable_haptic_feedback": "Haptische feedback uitschakelen",
@@ -366,9 +303,6 @@
         "auto_play_next_episode": "Volgende aflevering automatisch afspelen",
         "max_auto_play_episode_count": "Max Automatisch Aflevering Aantal",
         "disabled": "Uitgeschakeld"
-      },
-      "downloads": {
-        "downloads_title": "Downloads"
       },
       "music": {
         "title": "Muziek",
@@ -413,23 +347,18 @@
           "read_more_about_marlin": "Lees meer over Marlin.",
           "save_button": "Opslaan",
           "toasts": {
-            "saved": "Opgeslagen",
-            "refreshed": "Instellingen zijn vernieuwd vanaf server"
-          },
-          "refresh_from_server": "Ververs Instellingen van Server"
+            "saved": "Opgeslagen"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Streamystats inschakelen",
           "disable_streamystats": "Streamystats Uitschakelen",
           "enable_search": "Gebruik voor Zoeken",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Vul de URL van de Streamystats server in. De URL moet http of https bevatten en optioneel de poort.",
           "read_more_about_streamystats": "Lees Meer over Streamystats.",
-          "save_button": "Opslaan",
           "save": "Opslaan",
           "features_title": "Functies",
-          "home_sections_title": "Thuis Secties",
           "enable_movie_recommendations": "Film Aanbevelingen",
           "enable_series_recommendations": "Series Aanbevelingen",
           "enable_promoted_watchlists": "Gepromote Kijklijst",
@@ -445,8 +374,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -457,7 +385,6 @@
         "delete_all_downloaded_files": "Verwijder alle gedownloade bestanden",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} gecached",
         "music_cache_cleared": "Muziek cache gewist",
@@ -467,8 +394,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -481,8 +406,7 @@
         "export_logs": "Export logs",
         "click_for_more_info": "Klik voor meer info",
         "level": "Niveau",
-        "no_logs_available": "Geen logs beschikbaar",
-        "delete_all_logs": "Alle logs verwijderen"
+        "no_logs_available": "Geen logs beschikbaar"
       },
       "languages": {
         "title": "Talen",
@@ -490,15 +414,12 @@
         "system": "Systeem"
       },
       "toasts": {
-        "error_deleting_files": "Fout bij het verwijderen van bestanden",
-        "background_downloads_enabled": "Downloads op de achtergrond ingeschakeld",
-        "background_downloads_disabled": "Downloads op de achtergrond uitgeschakeld"
+        "error_deleting_files": "Fout bij het verwijderen van bestanden"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +439,7 @@
       "downloads_title": "Downloads",
       "tvseries": "Series",
       "movies": "Films",
-      "queue": "Wachtrij",
       "other_media": "Andere media",
-      "queue_hint": "Wachtrij en downloads verdwijnen bij een herstart van de app",
-      "no_items_in_queue": "Geen items in wachtrij",
       "no_downloaded_items": "Geen gedownloade items",
       "delete_all_movies_button": "Verwijder alle films",
       "delete_all_tvseries_button": "Verwijder alle Series",
@@ -546,13 +464,8 @@
         "failed_to_delete_all_tvseries": "Alle series zijn niet verwijderd",
         "deleted_media_successfully": "Andere media succesvol verwijderd!",
         "failed_to_delete_media": "Verwijderen van andere media mislukt",
-        "download_deleted": "Download verwijderd",
         "download_cancelled": "Download geannuleerd",
         "could_not_delete_download": "Kon download niet verwijderen",
-        "download_paused": "Download gepauzeerd",
-        "could_not_pause_download": "Kan niet pauzeren download",
-        "download_resumed": "Download hervat",
-        "could_not_resume_download": "Kon de download niet hervatten",
         "download_completed": "Download afgerond",
         "download_failed": "Download Mislukt",
         "download_failed_for_item": "Download gefaald voor {{item}} - {{error}}",
@@ -562,10 +475,7 @@
         "item_already_downloading": "{{item}} wordt al gedownload",
         "all_files_deleted": "Alle Bestanden Succesvol Gedownload",
         "files_deleted_by_type": "{{count}} {{type}} verwijderd",
-        "all_files_folders_and_jobs_deleted_successfully": "Alle bestanden, mappen en taken succesvol verwijderd",
-        "failed_to_clean_cache_directory": "Opschonen cachemap mislukt",
         "could_not_get_download_url_for_item": "Kan download-URL voor {{itemName}} niet ophalen",
-        "go_to_downloads": "Ga naar downloads",
         "file_deleted": "{{item}} verwijderd"
       }
     }
@@ -583,16 +493,13 @@
     "none": "Geen",
     "track": "Spoor",
     "cancel": "Annuleren",
-    "stop": "Stop",
     "delete": "Verwijderen",
     "ok": "Oké",
     "remove": "Verwijderen",
-    "next": "Volgende",
     "back": "Terug",
     "continue": "Doorgaan",
     "verifying": "Verifiëren...",
-    "login": "Login",
-    "refresh": "Refresh"
+    "login": "Login"
   },
   "search": {
     "search": "Zoek...",
@@ -691,10 +598,6 @@
     "could_not_create_stream_for_chromecast": "Kon geen stream maken voor Chromecast",
     "message_from_server": "Bericht van de server",
     "next_episode": "Volgende Aflevering",
-    "refresh_tracks": "Tracks verversen",
-    "audio_tracks": "Audio Tracks:",
-    "playback_state": "Afspeelstatus:",
-    "index": "Index:",
     "continue_watching": "Verder kijken",
     "go_back": "Terug",
     "downloaded_file_title": "Je hebt dit bestand gedownload",
@@ -761,7 +664,6 @@
     "show_more": "Toon meer",
     "show_less": "Toon minder",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -888,13 +790,9 @@
       "playlists": "Afspeellijsten",
       "tracks": "Nummers"
     },
-    "filters": {
-      "all": "Alle"
-    },
     "recently_added": "Recent toegevoegd",
     "recently_played": "Onlangs afgespeeld",
     "frequently_played": "Vaak afgespeeld",
-    "explore": "Ontdek",
     "top_tracks": "Top Tracks",
     "play": "Afspelen",
     "shuffle": "Shuffle",
@@ -1028,7 +926,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

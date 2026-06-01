@@ -100,7 +100,6 @@
     "continue_and_next_up": "Продолжить и Далее",
     "recently_added_in": "Недавно добавлено в {{libraryName}}",
     "suggested_movies": "Предложенные фильмы",
-    "suggested_episodes": "Предложенные серии",
     "intro": {
       "welcome_to_streamyfin": "Добро пожаловать в Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Бесплатный клиент для Jellyfin с открытым кодом.",
@@ -261,43 +260,6 @@
           "None": "Отсутствует",
           "OnlyForced": "Только принудительные"
         },
-        "text_color": "Цвет текста",
-        "background_color": "Цвет фона",
-        "outline_color": "Цвет контура",
-        "outline_thickness": "Толщина контура",
-        "background_opacity": "Прозрачность фона",
-        "outline_opacity": "Прозрачность контура",
-        "bold_text": "Жирный",
-        "colors": {
-          "Black": "Черный",
-          "Gray": "Серый",
-          "Silver": "Серебристый",
-          "White": "Белый",
-          "Maroon": "Бордовый",
-          "Red": "Красный",
-          "Fuchsia": "Пурпурный",
-          "Yellow": "Жёлтый",
-          "Olive": "Оливковый",
-          "Green": "Зелёный",
-          "Teal": "Бирюзовый",
-          "Lime": "Лаймовый",
-          "Purple": "Фиолетовый",
-          "Navy": "Тёмно-синий",
-          "Blue": "Синий",
-          "Aqua": "Голубой"
-        },
-        "thickness": {
-          "None": "Отсутствует",
-          "Thin": "Тонкий",
-          "Normal": "Обычный",
-          "Thick": "Толстый"
-        },
-        "subtitle_color": "Цвет субтитров",
-        "subtitle_background_color": "Цвет фона",
-        "subtitle_font": "Шрифт субтитров",
-        "ksplayer_title": "Настройки KSPlayer",
-        "hardware_decode": "Аппаратное декодирование",
-        "hardware_decode_description": "Использовать аппаратное ускорение для декодирования видео. Выключите, если наблюдаете проблемы с воспроизведением.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +276,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "Настройки субтитров в VLC",
-        "hint": "Настройте внешний вид субтитров в VLC плеере. Изменения применятся при следующем воспроизведении.",
-        "text_color": "Цвет текста",
-        "background_color": "Цвет фона",
-        "background_opacity": "Прозрачность фона",
-        "outline_color": "Цвет контура",
-        "outline_opacity": "Прозрачность контура",
-        "outline_thickness": "Толщина контура",
-        "bold": "Жирный",
-        "margin": "Отступ снизу"
-      },
-      "video_player": {
-        "title": "Видео плеер",
-        "video_player": "Видео плеер",
-        "video_player_description": "Выберите видео плеер в iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Другое",
@@ -351,13 +294,7 @@
           "UNKNOWN": "Неизвестное"
         },
         "safe_area_in_controls": "Безопасная зона в элементах управления",
-        "video_player": "Видео плеер",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Экспериментальный + PiP)"
-        },
         "show_custom_menu_links": "Показать ссылки пользовательского меню",
-        "show_large_home_carousel": "Показывать большую карусель (beta)",
         "hide_libraries": "Скрыть библиотеки",
         "select_liraries_you_want_to_hide": "Выберите Библиотеки, которое хотите спрятать из вкладки Библиотеки и домашней страницы.",
         "disable_haptic_feedback": "Отключить тактильную обратную связь",
@@ -366,9 +303,6 @@
         "auto_play_next_episode": "Автоматически воспроизводить следующий эпизод",
         "max_auto_play_episode_count": "Максимальное количество авто воспроизводимых эпизодов",
         "disabled": "Отключено"
-      },
-      "downloads": {
-        "downloads_title": "Загрузки"
       },
       "music": {
         "title": "Музыка",
@@ -413,23 +347,18 @@
           "read_more_about_marlin": "Узнать больше о Marlin.",
           "save_button": "Сохранить",
           "toasts": {
-            "saved": "Сохранено",
-            "refreshed": "Настройки обновлены с сервера"
-          },
-          "refresh_from_server": "Обновить настройки с сервера"
+            "saved": "Сохранено"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Включить Streamystats",
           "disable_streamystats": "Выключить Streamystats",
           "enable_search": "Использовать в поиске",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Введите URL вашего сервера Streamystats. URL должен включать http/https и порт при необходимости.",
           "read_more_about_streamystats": "Узнать больше про Streamystats.",
-          "save_button": "Сохранить",
           "save": "Сохранить",
           "features_title": "Функции",
-          "home_sections_title": "Показывать на главной",
           "enable_movie_recommendations": "Рекомендации фильмов",
           "enable_series_recommendations": "Рекомендации сериалов",
           "enable_promoted_watchlists": "Продвигаемые списки просмотра",
@@ -445,8 +374,7 @@
           "refresh_from_server": "Обновить настройки с сервера"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Включить интеграцию со списками просмотра",
-          "watchlist_button": "Изменить интеграцию со списками просмотра"
+          "watchlist_enabler": "Включить интеграцию со списками просмотра"
         }
       },
       "storage": {
@@ -457,7 +385,6 @@
         "delete_all_downloaded_files": "Удалить все загруженные файлы",
         "music_cache_title": "Кеш музыки",
         "music_cache_description": "Автоматически кешировать песни по мере прослушивания для плавного воспроизведения и поддержки отсутствия интернета",
-        "enable_music_cache": "Кешировать музыку",
         "clear_music_cache": "Очистить кеш музыки",
         "music_cache_size": "Кешировано: {{size}}",
         "music_cache_cleared": "Кеш музыки очищен",
@@ -467,8 +394,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -481,8 +406,7 @@
         "export_logs": "Сохранить логи",
         "click_for_more_info": "Нажмите для получения дополнительной информации",
         "level": "Уровень",
-        "no_logs_available": "Логи не доступны",
-        "delete_all_logs": "Удалить все логи"
+        "no_logs_available": "Логи не доступны"
       },
       "languages": {
         "title": "Языки",
@@ -490,15 +414,12 @@
         "system": "Системный"
       },
       "toasts": {
-        "error_deleting_files": "Ошибка при удалении файлов",
-        "background_downloads_enabled": "Фоновая загрузка включена",
-        "background_downloads_disabled": "Фоновая загрузка отключена"
+        "error_deleting_files": "Ошибка при удалении файлов"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +439,7 @@
       "downloads_title": "Загрузки",
       "tvseries": "Сериалы",
       "movies": "Фильмы",
-      "queue": "Очередь",
       "other_media": "Прочие файлы",
-      "queue_hint": "Очередь очистится после перезапуска",
-      "no_items_in_queue": "Нет элементов в очереди",
       "no_downloaded_items": "Нет загруженных файлов",
       "delete_all_movies_button": "Удалить все фильмы",
       "delete_all_tvseries_button": "Удалить все сериалы",
@@ -546,13 +464,8 @@
         "failed_to_delete_all_tvseries": "Возникла ошибка при удалении всех сериалов",
         "deleted_media_successfully": "Остальные медиафайлы успешно удалены!",
         "failed_to_delete_media": "Не удалось удалить остальные медиафайлы",
-        "download_deleted": "Загруженный контент удалён",
         "download_cancelled": "Загрузка отменена",
         "could_not_delete_download": "Не удалось удалить загрузку",
-        "download_paused": "На паузе",
-        "could_not_pause_download": "Не удалось приостановить загрузку",
-        "download_resumed": "Продолжено",
-        "could_not_resume_download": "Не удалось возобновить загрузку",
         "download_completed": "Завершено",
         "download_failed": "Не удалось загрузить",
         "download_failed_for_item": "Загрузка {{item}} провалилась с ошибкой: {{error}}",
@@ -562,10 +475,7 @@
         "item_already_downloading": "{{item}} уже загружается",
         "all_files_deleted": "Все загрузки удалены",
         "files_deleted_by_type": "Удалено: {{count}} {{type}}",
-        "all_files_folders_and_jobs_deleted_successfully": "Все файлы, папки, и задачи были успешно удалены",
-        "failed_to_clean_cache_directory": "Не удалось очистить директорию кэша",
         "could_not_get_download_url_for_item": "Не удалось получить URL для загрузки {{itemName}}",
-        "go_to_downloads": "В загрузки",
         "file_deleted": "Удалено: {{item}}"
       }
     }
@@ -583,16 +493,13 @@
     "none": "Отсутствует",
     "track": "Трек",
     "cancel": "Отмена",
-    "stop": "Stop",
     "delete": "Удалить",
     "ok": "ОК",
     "remove": "Удалить",
-    "next": "Вперед",
     "back": "Назад",
     "continue": "Продолжить",
     "verifying": "Проверка...",
-    "login": "Login",
-    "refresh": "Refresh"
+    "login": "Login"
   },
   "search": {
     "search": "Поиск...",
@@ -691,10 +598,6 @@
     "could_not_create_stream_for_chromecast": "Не удалось создать поток для Chromecast",
     "message_from_server": "Сообщение от сервера: {{message}}",
     "next_episode": "Следующая серия",
-    "refresh_tracks": "Обновить дорожки",
-    "audio_tracks": "Аудио дорожки:",
-    "playback_state": "Состояние воспроизведения:",
-    "index": "Индекс:",
     "continue_watching": "Продолжить просмотр",
     "go_back": "Назад",
     "downloaded_file_title": "Этот файл уже скачан",
@@ -761,7 +664,6 @@
     "show_more": "Показать больше",
     "show_less": "Показать меньше",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -888,13 +790,9 @@
       "playlists": "Плейлисты",
       "tracks": "треки"
     },
-    "filters": {
-      "all": "Все"
-    },
     "recently_added": "Недавно добавлено",
     "recently_played": "Недавно воспроизведено",
     "frequently_played": "Часто играет",
-    "explore": "Найти новое",
     "top_tracks": "Топ",
     "play": "Воспроизвести",
     "shuffle": "Перемешать",
@@ -1028,7 +926,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

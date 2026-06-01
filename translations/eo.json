@@ -43,7 +43,6 @@
     "next_up": "Sekva",
     "recently_added_in": "Ĵus Aldonita en {{libraryName}}",
     "suggested_movies": "Sugestitaj Filmoj",
-    "suggested_episodes": "Sugestitaj Epizodoj",
     "intro": {
       "welcome_to_streamyfin": "Bonvenon al Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Senpaga kaj malfermfonta kliento por Jellyfin.",
@@ -128,11 +127,6 @@
           "UNKNOWN": "Nekonata"
         },
         "safe_area_in_controls": "Sekura areo en kontroloj",
-        "video_player": "Video-ludilo",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Eksperimenta + PiP)"
-        },
         "show_custom_menu_links": "Montri Proprajn Menuajn Ligilojn",
         "hide_libraries": "Kaŝi Bibliotekojn",
         "select_liraries_you_want_to_hide": "Elektu la bibliotekojn, kiujn vi volas kaŝi de la Biblioteka langeto kaj hejmpaĝaj sekcioj.",
@@ -140,7 +134,6 @@
         "default_quality": "Defaŭlta kvalito"
       },
       "downloads": {
-        "downloads_title": "Elŝutoj",
         "optimized_versions_server": "Optimumigitaj versioj servilo",
         "save_button": "Konservi",
         "optimized_server": "Optimumigita Servilo",
@@ -205,8 +198,7 @@
         "export_logs": "Eksporti protokolojn",
         "click_for_more_info": "Klaku por pli da informoj",
         "level": "Nivelo",
-        "no_logs_available": "Neniuj protokoloj disponeblaj",
-        "delete_all_logs": "Forigi ĉiujn protokolojn"
+        "no_logs_available": "Neniuj protokoloj disponeblaj"
       },
       "languages": {
         "title": "Lingvoj",
@@ -216,8 +208,6 @@
       },
       "toasts": {
         "error_deleting_files": "Eraro forigante dosierojn",
-        "background_downloads_enabled": "Fonaj elŝutoj ebligitaj",
-        "background_downloads_disabled": "Fonaj elŝutoj malŝaltitaj",
         "connected": "Konektita",
         "could_not_connect": "Ne povis konekti",
         "invalid_url": "Nevalida URL"
@@ -231,9 +221,6 @@
       "downloads_title": "Elŝutoj",
       "tvseries": "Televidaj serioj",
       "movies": "Filmoj",
-      "queue": "Vico",
-      "queue_hint": "Vico kaj elŝutoj perdiĝos ĉe aplikaĵa rekomenco",
-      "no_items_in_queue": "Neniuj eroj en vico",
       "no_downloaded_items": "Neniuj elŝutitaj eroj",
       "delete_all_movies_button": "Forigi ĉiujn Filmojn",
       "delete_all_tvseries_button": "Forigi ĉiujn Televidajn Seriojn",
@@ -269,9 +256,7 @@
         "no_response_received_from_server": "Neniu respondo ricevita de la servilo",
         "error_setting_up_the_request": "Eraro starigante la peton",
         "failed_to_start_download_for_item_unexpected_error": "Malsukcesis komenci elŝutadon por {{item}}: Neatendita eraro",
-        "all_files_folders_and_jobs_deleted_successfully": "Ĉiuj dosieroj, dosierujoj kaj taskoj sukcese forigitaj",
-        "an_error_occured_while_deleting_files_and_jobs": "Eraro okazis dum forigo de dosieroj kaj taskoj",
-        "go_to_downloads": "Iri al elŝutoj"
+        "an_error_occured_while_deleting_files_and_jobs": "Eraro okazis dum forigo de dosieroj kaj taskoj"
       }
     }
   },
@@ -365,12 +350,8 @@
     "video_has_finished_playing": "Video finis ludi!",
     "no_video_source": "Neniu video-fonto...",
     "next_episode": "Sekva Epizodo",
-    "refresh_tracks": "Refreŝigi Trakojn",
     "subtitle_tracks": "Subtekstaj Trakoj:",
-    "audio_tracks": "Aŭdiaj Trakoj:",
-    "playback_state": "Ludada Stato:",
-    "no_data_available": "Neniuj datumoj disponeblaj",
-    "index": "Indekso:"
+    "no_data_available": "Neniuj datumoj disponeblaj"
   },
   "item_card": {
     "next_up": "Sekva",

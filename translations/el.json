@@ -100,7 +100,6 @@
     "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Προστέθηκε πρόσφατα στο {{libraryName}}",
     "suggested_movies": "Προτεινόμενες Ταινίες",
-    "suggested_episodes": "Προτεινόμενα Επεισόδια",
     "intro": {
       "welcome_to_streamyfin": "Καλώς ήρθατε στο Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Ένας ελεύθερος και ανοιχτού κώδικα πελάτης για τη ζελυφίνη.",
@@ -261,43 +260,6 @@
           "None": "Κανένα",
           "OnlyForced": "Μόνο"
         },
-        "text_color": "Χρώμα Κειμένου",
-        "background_color": "Χρώμα Φόντου",
-        "outline_color": "Χρώμα Περιγράμματος",
-        "outline_thickness": "Πάχος Περιγράμματος",
-        "background_opacity": "Αδιαφάνεια Φόντου",
-        "outline_opacity": "Αδιαφάνεια Περιγράμματος",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Μαύρο",
-          "Gray": "Γκρι",
-          "Silver": "Ασημένιο",
-          "White": "Λευκό",
-          "Maroon": "Μαρώ",
-          "Red": "Κόκκινο",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Κίτρινο",
-          "Olive": "Ελιές",
-          "Green": "Πράσινο",
-          "Teal": "Τιρκουάζ",
-          "Lime": "Άσβεστος",
-          "Purple": "Μωβ",
-          "Navy": "Ναυτικό",
-          "Blue": "Μπλε",
-          "Aqua": "Νερό"
-        },
-        "thickness": {
-          "None": "Κανένα",
-          "Thin": "Λεπτό",
-          "Normal": "Κανονικό",
-          "Thick": "Παχύ"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +276,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Άλλο",
@@ -351,13 +294,7 @@
           "UNKNOWN": "Άγνωστο"
         },
         "safe_area_in_controls": "Ασφαλής περιοχή σε χειριστήρια",
-        "video_player": "Αναπαραγωγέας Βίντεο",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Πειραματική + PiP)"
-        },
         "show_custom_menu_links": "Εμφάνιση Προσαρμοσμένων Συνδέσμων Μενού",
-        "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Απόκρυψη Βιβλιοθηκών",
         "select_liraries_you_want_to_hide": "Επιλέξτε τις βιβλιοθήκες που θέλετε να αποκρύψετε από την καρτέλα της Βιβλιοθήκης και τις ενότητες της αρχικής σελίδας.",
         "disable_haptic_feedback": "Απενεργοποίηση Απτικής Ανατροφοδότησης",
@@ -366,9 +303,6 @@
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Μέγιστο Πλήθος Επεισόδιο Αυτόματου Παιχνιδιού",
         "disabled": "Απενεργοποιημένο"
-      },
-      "downloads": {
-        "downloads_title": "Λήψεις"
       },
       "music": {
         "title": "Music",
@@ -413,23 +347,18 @@
           "read_more_about_marlin": "Διαβάστε Περισσότερα Σχετικά Με Marlin.",
           "save_button": "Αποθήκευση",
           "toasts": {
-            "saved": "Αποθηκεύτηκε",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Αποθηκεύτηκε"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +374,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -457,7 +385,6 @@
         "delete_all_downloaded_files": "Διαγραφή Όλων Των Ληφθέντων Αρχείων",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +394,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -481,8 +406,7 @@
         "export_logs": "Εξαγωγή Αρχείων Καταγραφής",
         "click_for_more_info": "Κάντε κλικ για περισσότερες πληροφορίες",
         "level": "Επίπεδο",
-        "no_logs_available": "Δεν Υπάρχουν Διαθέσιμα Αρχεία Καταγραφής",
-        "delete_all_logs": "Διαγραφή Όλων Των Καταγραφών"
+        "no_logs_available": "Δεν Υπάρχουν Διαθέσιμα Αρχεία Καταγραφής"
       },
       "languages": {
         "title": "Γλώσσες",
@@ -490,15 +414,12 @@
         "system": "Σύστημα"
       },
       "toasts": {
-        "error_deleting_files": "Σφάλμα Διαγραφής Αρχείων",
-        "background_downloads_enabled": "Οι λήψεις στο παρασκήνιο ενεργοποιήθηκαν",
-        "background_downloads_disabled": "Οι λήψεις παρασκηνίου απενεργοποιήθηκαν"
+        "error_deleting_files": "Σφάλμα Διαγραφής Αρχείων"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +439,7 @@
       "downloads_title": "Λήψεις",
       "tvseries": "Τηλεόραση-Σειρά",
       "movies": "Ταινίες",
-      "queue": "Ουρά",
       "other_media": "Άλλα μέσα",
-      "queue_hint": "Ουρά και λήψεις θα χαθούν κατά την επανεκκίνηση της εφαρμογής",
-      "no_items_in_queue": "Δεν υπάρχουν αντικείμενα στην ουρά",
       "no_downloaded_items": "Δεν Έχουν Ληφθεί Αντικείμενα",
       "delete_all_movies_button": "Διαγραφή Όλων Των Ταινιών",
       "delete_all_tvseries_button": "Διαγραφή Όλων Των Τηλεοπτικών Σειρών",
@@ -546,13 +464,8 @@
         "failed_to_delete_all_tvseries": "Αποτυχία διαγραφής Όλων των TV-Series",
         "deleted_media_successfully": "Διαγράφηκε άλλο μέσο επιτυχώς!",
         "failed_to_delete_media": "Αποτυχία διαγραφής άλλων πολυμέσων",
-        "download_deleted": "Η Λήψη Διαγράφηκε",
         "download_cancelled": "Download Cancelled",
         "could_not_delete_download": "Αδυναμία Διαγραφής Λήψης",
-        "download_paused": "Λήψη Σε Παύση",
-        "could_not_pause_download": "Αδυναμία Παύσης Λήψης",
-        "download_resumed": "Συνέχιση Λήψης",
-        "could_not_resume_download": "Αδυναμία Συνέχισης Λήψης",
         "download_completed": "Η Λήψη Ολοκληρώθηκε",
         "download_failed": "Download Failed",
         "download_failed_for_item": "Η λήψη απέτυχε για το {{item}} - {{error}}",
@@ -562,10 +475,7 @@
         "item_already_downloading": "{{item}} is already downloading",
         "all_files_deleted": "All Downloads Deleted Successfully",
         "files_deleted_by_type": "{{count}} {{type}} deleted",
-        "all_files_folders_and_jobs_deleted_successfully": "Όλα τα αρχεία, οι φάκελοι και οι εργασίες διαγράφηκαν με επιτυχία",
-        "failed_to_clean_cache_directory": "Αποτυχία καθαρισμού φακέλου προσωρινής μνήμης",
         "could_not_get_download_url_for_item": "Αδυναμία λήψης του URL λήψης για το {{itemName}}",
-        "go_to_downloads": "Μετάβαση στις λήψεις",
         "file_deleted": "{{item}} deleted"
       }
     }
@@ -583,16 +493,13 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
-    "login": "Login",
-    "refresh": "Refresh"
+    "login": "Login"
   },
   "search": {
     "search": "Αναζήτηση...",
@@ -691,10 +598,6 @@
     "could_not_create_stream_for_chromecast": "Αδυναμία δημιουργίας ροής για το Chromecast",
     "message_from_server": "Μήνυμα από το διακομιστή: {{message}}",
     "next_episode": "Επόμενο Επεισόδιο",
-    "refresh_tracks": "Ανανέωση Κομματιών",
-    "audio_tracks": "Κομμάτια Ήχου:",
-    "playback_state": "Κατάσταση Αναπαραγωγής:",
-    "index": "Δείκτης:",
     "continue_watching": "Συνέχεια Παρακολούθησης",
     "go_back": "Μετάβαση Πίσω",
     "downloaded_file_title": "You have this file downloaded",
@@ -761,7 +664,6 @@
     "show_more": "Εμφάνιση Περισσότερων",
     "show_less": "Εμφάνιση Λιγότερων",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -888,13 +790,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +926,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

@@ -43,7 +43,6 @@
     "next_up": "Neste",
     "recently_added_in": "Nylig lagt til i {{libraryName}}",
     "suggested_movies": "Foreslåtte filmer",
-    "suggested_episodes": "Foreslåtte episoder",
     "intro": {
       "welcome_to_streamyfin": "Velkommen til Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "En gratis og åpen kildekode-klient for Jellyfin.",
@@ -128,11 +127,6 @@
           "UNKNOWN": "Ukjent"
         },
         "safe_area_in_controls": "Trygt område i kontrollene",
-        "video_player": "Videospiller",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Eksperimentell + PiP)"
-        },
         "show_custom_menu_links": "Vis Tilpassede Meny Linker",
         "hide_libraries": "Skjul biblioteker",
         "select_liraries_you_want_to_hide": "Velg bibliotekene du vil skjule fra Bibliotek-fanen og hjemmesidedelene.",
@@ -140,7 +134,6 @@
         "default_quality": "Standardkvalitet"
       },
       "downloads": {
-        "downloads_title": "Nedlastinger",
         "optimized_versions_server": "Optimaliserte versjoner server",
         "save_button": "Lagre",
         "optimized_server": "Optimalisert Server",
@@ -205,8 +198,7 @@
         "export_logs": "Eksporter logger",
         "click_for_more_info": "Klikk for mer informasjon",
         "level": "Nivå",
-        "no_logs_available": "Ingen logger tilgjengelig",
-        "delete_all_logs": "Slett alle logger"
+        "no_logs_available": "Ingen logger tilgjengelig"
       },
       "languages": {
         "title": "Språk",
@@ -216,8 +208,6 @@
       },
       "toasts": {
         "error_deleting_files": "Feil ved sletting av filer",
-        "background_downloads_enabled": "Bakgrunnsnedlastinger aktivert",
-        "background_downloads_disabled": "Bakgrunnsnedlastinger deaktivert",
         "connected": "Tilkoblet",
         "could_not_connect": "Kunne ikke koble til",
         "invalid_url": "Ugyldig URL"
@@ -231,9 +221,6 @@
       "downloads_title": "Nedlastinger",
       "tvseries": "TV-serier",
       "movies": "Filmer",
-      "queue": "Kø",
-      "queue_hint": "Kø og nedlastinger vil gå tapt ved omstart av appen",
-      "no_items_in_queue": "Ingen elementer i køen",
       "no_downloaded_items": "Ingen nedlastede elementer",
       "delete_all_movies_button": "Slett alle filmer",
       "delete_all_tvseries_button": "Slett alle TV-serier",
@@ -269,9 +256,7 @@
         "no_response_received_from_server": "Ingen respons mottatt fra serveren",
         "error_setting_up_the_request": "Feil under oppsett av forespørselen",
         "failed_to_start_download_for_item_unexpected_error": "Kunne ikke starte nedlasting for {{item}}: Uventet feil",
-        "all_files_folders_and_jobs_deleted_successfully": "Alle filer, mapper og jobber ble slettet",
-        "an_error_occured_while_deleting_files_and_jobs": "En feil oppstod under sletting av filer og jobber",
-        "go_to_downloads": "Gå til nedlastinger"
+        "an_error_occured_while_deleting_files_and_jobs": "En feil oppstod under sletting av filer og jobber"
       }
     }
   },
@@ -365,12 +350,8 @@
     "video_has_finished_playing": "Videoen har avsluttet avspilling!",
     "no_video_source": "Ingen videosource...",
     "next_episode": "Neste episode",
-    "refresh_tracks": "Oppdater spor",
     "subtitle_tracks": "Undertekstspor:",
-    "audio_tracks": "Lydspor:",
-    "playback_state": "Avspillingsstatus:",
-    "no_data_available": "Ingen data tilgjengelig",
-    "index": "Indeks:"
+    "no_data_available": "Ingen data tilgjengelig"
   },
   "item_card": {
     "next_up": "Neste opp",

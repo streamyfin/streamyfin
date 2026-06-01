@@ -43,7 +43,6 @@
     "next_up": "下一個",
     "recently_added_in": "最近添加於 {{libraryName}}",
     "suggested_movies": "推薦電影",
-    "suggested_episodes": "推薦劇集",
     "intro": {
       "welcome_to_streamyfin": "歡迎來到 Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "一個免費且開源的 Jellyfin 客戶端。",
@@ -128,11 +127,6 @@
           "UNKNOWN": "未知"
         },
         "safe_area_in_controls": "控制中的安全區域",
-        "video_player": "Video player",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
-        },
         "show_custom_menu_links": "顯示自定義菜單鏈接",
         "hide_libraries": "隱藏媒體庫",
         "select_liraries_you_want_to_hide": "選擇您想從媒體庫頁面和主頁隱藏的媒體庫。",
@@ -142,7 +136,6 @@
         "disabled": "已停用"
       },
       "downloads": {
-        "downloads_title": "下載",
         "optimized_versions_server": "Optimized Version 伺服器",
         "save_button": "保存",
         "optimized_server": "Optimized Server",
@@ -207,8 +200,7 @@
         "export_logs": "Export logs",
         "click_for_more_info": "Click for more info",
         "level": "Level",
-        "no_logs_available": "無可用日誌",
-        "delete_all_logs": "刪除所有日誌"
+        "no_logs_available": "無可用日誌"
       },
       "languages": {
         "title": "語言",
@@ -218,8 +210,6 @@
       },
       "toasts": {
         "error_deleting_files": "刪除文件時出錯",
-        "background_downloads_enabled": "背景下載已啟用",
-        "background_downloads_disabled": "背景下載已禁用",
         "connected": "已連接",
         "could_not_connect": "無法連接",
         "invalid_url": "無效的 URL"
@@ -233,9 +223,6 @@
       "downloads_title": "下載",
       "tvseries": "電視劇",
       "movies": "電影",
-      "queue": "隊列",
-      "queue_hint": "應用重啟後隊列和下載將會丟失",
-      "no_items_in_queue": "隊列中無項目",
       "no_downloaded_items": "無已下載項目",
       "delete_all_movies_button": "刪除所有電影",
       "delete_all_tvseries_button": "刪除所有電視劇",
@@ -271,9 +258,7 @@
         "no_response_received_from_server": "未收到伺服器的響應",
         "error_setting_up_the_request": "設置請求時出錯",
         "failed_to_start_download_for_item_unexpected_error": "無法開始下載 {{item}}: 發生意外錯誤",
-        "all_files_folders_and_jobs_deleted_successfully": "所有文件、文件夾和任務成功刪除",
-        "an_error_occured_while_deleting_files_and_jobs": "刪除文件和任務時發生錯誤",
-        "go_to_downloads": "前往下載"
+        "an_error_occured_while_deleting_files_and_jobs": "刪除文件和任務時發生錯誤"
       }
     }
   },
@@ -367,12 +352,8 @@
     "video_has_finished_playing": "影片播放完畢！",
     "no_video_source": "無影片來源...",
     "next_episode": "下一集",
-    "refresh_tracks": "刷新軌道",
     "subtitle_tracks": "字幕軌道：",
-    "audio_tracks": "音頻軌道：",
-    "playback_state": "播放狀態：",
     "no_data_available": "無可用數據",
-    "index": "索引：",
     "continue_watching": "繼續觀看",
     "go_back": "返回"
   },
