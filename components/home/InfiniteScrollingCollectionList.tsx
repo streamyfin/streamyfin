@@ -32,6 +32,7 @@ interface Props extends ViewProps {
   onPressSeeAll?: () => void;
   enabled?: boolean;
   onLoaded?: () => void;
+  onEmpty?: () => void;
 }
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
@@ -45,6 +46,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   onPressSeeAll,
   enabled = true,
   onLoaded,
+  onEmpty,
   ...props
 }) => {
   const effectivePageSize = Math.max(1, pageSize);
@@ -102,6 +104,13 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
     return deduped;
   }, [data]);
+
+  // Notify parent when section is empty (so wrapper can be hidden from layout)
+  useEffect(() => {
+    if (isSuccess && hideIfEmpty && allItems.length === 0) {
+      onEmpty?.();
+    }
+  }, [isSuccess, hideIfEmpty, allItems.length, onEmpty]);
 
   const snapOffsets = useMemo(() => {
     const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)

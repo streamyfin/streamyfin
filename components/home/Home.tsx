@@ -88,6 +88,7 @@ const HomeMobile = () => {
   } = useNetworkStatus();
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
+  const [emptySections, setEmptySections] = useState<Set<string>>(new Set());
   const { showIntro } = useIntroSheet();
 
   // Fallback refresh for newly added content when returning to the home screen
@@ -205,6 +206,7 @@ const HomeMobile = () => {
   const refetch = async () => {
     setLoading(true);
     setLoadedSections(new Set());
+    setEmptySections(new Set());
     await refreshStreamyfinPluginSettings();
     await invalidateCache();
     setLoading(false);
@@ -507,6 +509,14 @@ const HomeMobile = () => {
     [],
   );
 
+  const markSectionEmpty = useCallback(
+    (queryKey: (string | undefined | null)[]) => {
+      const key = queryKey.join("-");
+      setEmptySections((prev) => new Set(prev).add(key));
+    },
+    [],
+  );
+
   if (!isConnected || serverConnected !== true) {
     let title = "";
     let subtitle = "";
@@ -648,6 +658,8 @@ const HomeMobile = () => {
             ) : null;
           if (section.type === "InfiniteScrollingCollectionList") {
             const isHighPriority = section.priority === 1;
+            const sectionKey = section.queryKey.join("-");
+            const isHidden = emptySections.has(sectionKey);
             const handleSeeAll = section.parentId
               ? () => {
                   router.push({
@@ -661,7 +673,11 @@ const HomeMobile = () => {
                 }
               : undefined;
             return (
-              <View key={index} className='flex flex-col space-y-4'>
+              <View
+                key={index}
+                className='flex flex-col space-y-4'
+                style={isHidden ? { display: "none" } : undefined}
+              >
                 <InfiniteScrollingCollectionList
                   title={section.title}
                   queryKey={section.queryKey}
@@ -675,6 +691,7 @@ const HomeMobile = () => {
                       ? () => markSectionLoaded(section.queryKey)
                       : undefined
                   }
+                  onEmpty={() => markSectionEmpty(section.queryKey)}
                   onPressSeeAll={handleSeeAll}
                 />
                 {streamystatsSections}
