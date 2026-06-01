@@ -58,6 +58,9 @@
       "android": {
         "image": "latest",
         "config": "android-production.yml"
+      },
+      "ios": {
+        "config": "ios-production.yml"
       }
     },
     "production-apk": {
@@ -91,7 +94,8 @@
         "EXPO_TV": "1"
       },
       "ios": {
-        "credentialsSource": "local"
+        "credentialsSource": "local",
+        "config": "ios-production.yml"
       }
     }
   },
