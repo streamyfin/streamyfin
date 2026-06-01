@@ -1,0 +1,136 @@
+name: 🚦 PR Validation
+
+# Uses pull_request_target so the jobs get a write token even on fork PRs (to comment
+# and label) — same as seerr. SECURITY: never check out or run the PR head's code here;
+# we only read the title/body from the event payload and run our own scripts from the base.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate_pr_title:
+    name: "📝 Validate PR Title"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        id: lint_pr_title
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        if: always() && (steps.lint_pr_title.outputs.error_message != null)
+        with:
+          header: pr-title-lint-error
+          message: |
+            Hey there and thank you for opening this pull request! 👋🏼
+            We require pull request titles to follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/).
+
+            **Error details:**
+            ```
+            ${{ steps.lint_pr_title.outputs.error_message }}
+            ```
+
+      - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        with:
+          header: pr-title-lint-error
+          delete: true
+
+  validate_pr_template:
+    name: "📋 Validate PR Template"
+    # Skip pushes to an existing PR (the body rarely changes) and bot-authored PRs.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action != 'synchronize' &&
+      github.actor != 'renovate[bot]' &&
+      github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+      issues: write
+      contents: read
+    steps:
+      - name: "📥 Checkout"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "🍞 Setup Bun"
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: "📝 Write PR body to file"
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" > /tmp/pr-body.txt
+
+      - name: "📂 List changed files"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --paginate --jq '.[].filename' > /tmp/pr-files.txt
+
+      - name: "🔎 Validate body against template"
+        id: check
+        env:
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_FILES: /tmp/pr-files.txt
+        run: |
+          set +e
+          bun scripts/check-pr-template.mjs /tmp/pr-body.txt > /tmp/pr-issues.json
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: "💬 Report problems"
+        if: steps.check.outputs.code != '0'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v8.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            let issues;
+            try { issues = JSON.parse(fs.readFileSync('/tmp/pr-issues.json', 'utf8')); }
+            catch { issues = ["The PR template check could not parse the description. Please make sure it follows the template."]; }
+            if (!Array.isArray(issues) || issues.length === 0) issues = ["The PR description does not follow the template."];
+            const body = [
+              "👋 Thanks for the PR! A few things in the description need attention before review:",
+              "",
+              ...issues.map((i) => `- ${i}`),
+              "",
+              "Please update the PR description ([template](https://github.com/${{ github.repository }}/blob/develop/.github/pull_request_template.md)). This check re-runs when you edit it.",
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = "<!-- pr-template-check -->";
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.data.find((c) => c.body?.includes(marker));
+            const payload = `${marker}\n${body}`;
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: payload });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body: payload });
+            const label = "blocked: template";
+            try { await github.rest.issues.getLabel({ owner, repo, name: label }); }
+            catch { await github.rest.issues.createLabel({ owner, repo, name: label, color: "d93f0b", description: "PR description does not follow the template" }); }
+            await github.rest.issues.addLabels({ owner, repo, issue_number, labels: [label] });
+            core.setFailed(`PR template check failed:\n- ${issues.join("\n- ")}`);
+
+      - name: "✅ Clear problems on success"
+        if: steps.check.outputs.code == '0'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v8.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = "<!-- pr-template-check -->";
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.data.find((c) => c.body?.includes(marker));
+            if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
+            try { await github.rest.issues.removeLabel({ owner, repo, issue_number, name: "blocked: template" }); } catch {}
