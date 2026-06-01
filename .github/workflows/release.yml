@@ -168,3 +168,48 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}.apk
           retention-days: 14
+
+  # Draft a GitHub Release with the two APKs attached. The tag comes from the
+  # merged-in app version (app.json → expo.version), NOT the auto-incremented
+  # build number — so cutting a release is a deliberate version bump via PR.
+  github-release:
+    name: 📦 Draft GitHub Release
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: 📦 Download APK artifacts from this run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p apks
+          gh run download ${{ github.run_id }} --name streamyfin-android-phone-apk --dir apks
+          gh run download ${{ github.run_id }} --name streamyfin-android-tv-apk --dir apks
+          ls -la apks
+
+      - name: 📝 Draft release (tag = app.json version, not auto-bumped)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
+          TAG="v$VERSION"
+          echo "Release tag from merged app version: $TAG"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists — updating APK assets"
+            gh release upload "$TAG" apks/*.apk --clobber
+          else
+            echo "Creating draft release $TAG"
+            gh release create "$TAG" \
+              --draft \
+              --generate-notes \
+              --title "$TAG" \
+              apks/*.apk
+          fi
