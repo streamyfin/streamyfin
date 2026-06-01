@@ -235,10 +235,13 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
             module). It renders the native search bar + grid keyboard and
             forwards typed text into the existing query pipeline via setSearch;
             our own results grid renders below. */}
+        {/* No horizontal margin here: the native tvOS search bar centers itself
+            and renders a trailing "Hold to Dictate in <Language>" hint. Extra
+            margins squeeze the bar's width and clip that trailing hint, so let
+            the native view span the full width and own its own insets. */}
         <View
           style={{
             marginBottom: 24,
-            marginHorizontal: HORIZONTAL_PADDING,
             height: SEARCH_AREA_HEIGHT,
           }}
         >
