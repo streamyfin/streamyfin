@@ -280,13 +280,17 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         {/* Library Search Results */}
         {isLibraryMode && !loading && (
           <View style={{ gap: SECTION_GAP }}>
-            {sections.map((section, index) => (
+            {sections.map((section) => (
               <TVSearchSection
                 key={section.key}
                 title={section.title}
                 items={section.items!}
                 orientation={section.orientation || "vertical"}
-                isFirstSection={index === 0}
+                // Never auto-focus a result. The native search field owns focus
+                // while typing; `hasTVPreferredFocus` here would re-grab focus on
+                // every keystroke as results re-render. User navigates down to the
+                // grid manually.
+                isFirstSection={false}
                 onItemPress={onItemPress}
                 onItemLongPress={onItemLongPress}
                 imageUrlGetter={
