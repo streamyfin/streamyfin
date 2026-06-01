@@ -3,13 +3,13 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
@@ -22,6 +22,7 @@ import { downloadTrack, getLocalPath } from "@/providers/AudioStorage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -153,6 +154,7 @@ export default function PlaylistDetailScreen() {
           await downloadTrack(track.Id, result.url, {
             permanent: true,
             container: result.mediaSource?.Container || undefined,
+            headers: getJellyfinCustomHeadersForUrl(result.url, api.basePath),
           });
         }
       }
@@ -210,8 +212,8 @@ export default function PlaylistDetailScreen() {
             }}
           >
             {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
+              <ServerImage
+                uri={imageUrl}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
                 cachePolicy='memory-disk'

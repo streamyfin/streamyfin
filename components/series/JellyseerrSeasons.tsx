@@ -5,13 +5,13 @@ import {
   type RefetchOptions,
   useQuery,
 } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { t } from "i18next";
 import { orderBy } from "lodash";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Tags } from "@/components/GenreTags";
 import { dateOpts } from "@/components/jellyseerr/DetailFacts";
@@ -79,12 +79,9 @@ const RenderItem = ({ item }: any) => {
       <View className='relative aspect-video rounded-lg overflow-hidden border border-neutral-800'>
         {!imageError ? (
           <>
-            <Image
+            <ServerImage
               key={item.id}
-              id={item.id}
-              source={{
-                uri: jellyseerrApi?.imageProxy(item.stillPath),
-              }}
+              uri={jellyseerrApi?.imageProxy(item.stillPath)}
               cachePolicy={"memory-disk"}
               contentFit='cover'
               className='w-full h-full'

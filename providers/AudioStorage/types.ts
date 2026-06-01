@@ -23,6 +23,7 @@ export interface AudioStorageIndex {
 export interface DownloadOptions {
   permanent: boolean;
   container?: string; // File extension/format (e.g., "mp3", "flac", "m4a")
+  headers?: Record<string, string>;
 }
 
 export interface DownloadCompleteEvent {

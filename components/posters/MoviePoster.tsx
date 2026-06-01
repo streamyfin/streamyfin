@@ -1,8 +1,8 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
@@ -37,19 +37,13 @@ const MoviePoster: React.FC<MoviePosterProps> = ({
 
   return (
     <View className='relative rounded-lg overflow-hidden border border-neutral-900 w-28 aspect-[10/15]'>
-      <Image
+      <ServerImage
         placeholder={{
           blurhash,
         }}
         key={item.Id}
         id={item.Id}
-        source={
-          url
-            ? {
-                uri: url,
-              }
-            : null
-        }
+        uri={url}
         cachePolicy={"memory-disk"}
         contentFit='cover'
         style={{

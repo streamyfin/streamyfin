@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { uniqBy } from "lodash";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -89,8 +89,8 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
           }}
         >
           {posterUrl ? (
-            <Image
-              source={{ uri: posterUrl }}
+            <ServerImage
+              uri={posterUrl}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
               cachePolicy='memory-disk'

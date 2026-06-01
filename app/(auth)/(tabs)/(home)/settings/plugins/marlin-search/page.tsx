@@ -14,6 +14,7 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { CustomHeaderSelector } from "@/components/settings/CustomHeaderSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
@@ -136,6 +137,13 @@ export default function MarlinSearchPage() {
             {t("home.settings.plugins.marlin_search.read_more_about_marlin")}
           </Text>
         </Text>
+        <View className='px-4'>
+          <CustomHeaderSelector
+            integrationKey='marlin'
+            title={t("custom_headers.title")}
+            description={t("custom_headers.integration_description")}
+          />
+        </View>
       </DisabledSetting>
     </ScrollView>
   );

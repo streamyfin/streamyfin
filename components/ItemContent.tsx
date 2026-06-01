@@ -2,7 +2,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
@@ -10,6 +9,7 @@ import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
+import { ServerImage } from "@/components/common/ServerImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";
@@ -218,10 +218,8 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
         }
         logo={
           logoUrl ? (
-            <Image
-              source={{
-                uri: logoUrl,
-              }}
+            <ServerImage
+              uri={logoUrl}
               style={{
                 height: 130,
                 width: "100%",

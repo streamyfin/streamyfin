@@ -13,6 +13,7 @@ import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -135,6 +136,7 @@ export function useDownloadOperations({
         const taskId = await BackgroundDownloader.enqueueDownload(
           downloadUrl,
           destinationPath,
+          getJellyfinCustomHeadersForUrl(downloadUrl, api?.basePath),
         );
 
         // Map task ID or URL for later cancellation

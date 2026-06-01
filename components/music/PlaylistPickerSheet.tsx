@@ -8,7 +8,6 @@ import {
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -26,6 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Input } from "@/components/common/Input";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useAddToPlaylist } from "@/hooks/usePlaylistMutations";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -221,10 +221,8 @@ export const PlaylistPickerSheet: React.FC<Props> = ({
                       marginRight: 12,
                     }}
                   >
-                    <Image
-                      source={{
-                        uri: getPlaylistImageUrl(playlist) || undefined,
-                      }}
+                    <ServerImage
+                      uri={getPlaylistImageUrl(playlist)}
                       style={{ width: "100%", height: "100%" }}
                       contentFit='cover'
                       cachePolicy='memory-disk'

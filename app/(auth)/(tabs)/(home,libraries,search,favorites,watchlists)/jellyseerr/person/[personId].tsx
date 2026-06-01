@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { orderBy, uniqBy } from "lodash";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import { OverviewText } from "@/components/OverviewText";
@@ -64,16 +64,14 @@ export default function JellyseerrPersonPage() {
       listHeader={t("jellyseerr.appearances")}
       keyExtractor={(item) => item.id.toString()}
       logo={
-        <Image
+        <ServerImage
           key={data?.details?.id}
           id={data?.details?.id.toString()}
           className='rounded-full bottom-1'
-          source={{
-            uri: jellyseerrApi?.imageProxy(
-              data?.details?.profilePath,
-              "w600_and_h600_bestv2",
-            ),
-          }}
+          uri={jellyseerrApi?.imageProxy(
+            data?.details?.profilePath,
+            "w600_and_h600_bestv2",
+          )}
           cachePolicy={"memory-disk"}
           contentFit='cover'
           style={{

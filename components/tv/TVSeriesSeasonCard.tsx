@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import React, { useRef, useState } from "react";
 import { Animated, Easing, Platform, Pressable, View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -75,8 +75,8 @@ export const TVSeriesSeasonCard: React.FC<TVSeriesSeasonCardProps> = ({
         }}
       >
         {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
+          <ServerImage
+            uri={imageUrl}
             style={{ width: "100%", height: "100%" }}
             contentFit='cover'
           />

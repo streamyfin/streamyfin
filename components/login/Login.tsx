@@ -24,9 +24,16 @@ import { PreviousServersList } from "@/components/PreviousServersList";
 import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+import { HEADER_PRESETS } from "@/utils/customHeaderPresets";
+import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
 import type {
   AccountSecurityType,
+  CustomHeader,
   SavedServer,
+} from "@/utils/secureCredentials";
+import {
+  getServerCustomHeaders,
+  updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
@@ -63,6 +70,10 @@ export const Login: React.FC = () => {
     username: _username || "",
     password: _password || "",
   });
+
+  // Custom headers state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingHeaders, setPendingHeaders] = useState<CustomHeader[]>([]);
 
   // Save account state
   const [saveAccount, setSaveAccount] = useState(false);
@@ -191,31 +202,48 @@ export const Login: React.FC = () => {
     }
   };
 
-  const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
-    const baseUrl = url.replace(/^https?:\/\//i, "");
-    const protocols = ["https", "http"];
-    try {
-      return checkHttp(baseUrl, protocols);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Server too old") {
-        throw e;
+  const checkUrl = useCallback(
+    async (url: string, headers?: CustomHeader[]) => {
+      setLoadingServerCheck(true);
+      const baseUrl = url.replace(/^https?:\/\//i, "");
+      const protocols = ["https", "http"];
+      try {
+        return checkHttp(baseUrl, protocols, headers);
+      } catch (e) {
+        if (e instanceof Error && e.message === "Server too old") {
+          throw e;
+        }
+        return undefined;
+      } finally {
+        setLoadingServerCheck(false);
       }
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  async function checkHttp(baseUrl: string, protocols: string[]) {
+  async function checkHttp(
+    baseUrl: string,
+    protocols: string[],
+    customHeaders?: CustomHeader[],
+  ) {
     for (const protocol of protocols) {
       try {
-        const response = await fetch(
-          `${protocol}://${baseUrl}/System/Info/Public`,
-          {
-            mode: "cors",
-          },
-        );
+        const serverUrl = `${protocol}://${baseUrl}`;
+
+        // Build headers: explicit customHeaders may intentionally be an empty list.
+        const source =
+          customHeaders !== undefined
+            ? customHeaders
+            : getServerCustomHeaders(serverUrl);
+        const headersToInject = normalizeCustomHeaders(source);
+
+        const response = await fetch(`${serverUrl}/System/Info/Public`, {
+          mode: "cors",
+          headers:
+            Object.keys(headersToInject).length > 0
+              ? headersToInject
+              : undefined,
+        });
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
           const serverVersion = data.Version?.split(".");
@@ -228,8 +256,12 @@ export const Login: React.FC = () => {
               throw new Error("Server too old");
             }
           }
+          // Save headers after successful connection
+          if (customHeaders !== undefined) {
+            updateServerCustomHeaders(serverUrl, customHeaders);
+          }
           setServerName(data.ServerName || "");
-          return `${protocol}://${baseUrl}`;
+          return serverUrl;
         }
       } catch (e) {
         if (e instanceof Error && e.message === "Server too old") {
@@ -240,20 +272,23 @@ export const Login: React.FC = () => {
     return undefined;
   }
 
-  const handleConnect = useCallback(async (url: string) => {
-    url = url.trim().replace(/\/$/, "");
-    try {
-      const result = await checkUrl(url);
-      if (result === undefined) {
-        Alert.alert(
-          t("login.connection_failed"),
-          t("login.could_not_connect_to_server"),
-        );
-        return;
-      }
-      await setServer({ address: result });
-    } catch {}
-  }, []);
+  const handleConnect = useCallback(
+    async (url: string, headers?: CustomHeader[]) => {
+      url = url.trim().replace(/\/$/, "");
+      try {
+        const result = await checkUrl(url, headers);
+        if (result === undefined) {
+          Alert.alert(
+            t("login.connection_failed"),
+            t("login.could_not_connect_to_server"),
+          );
+          return;
+        }
+        await setServer({ address: result });
+      } catch {}
+    },
+    [checkUrl, setServer],
+  );
 
   const handleQuickConnect = async () => {
     try {
@@ -416,24 +451,135 @@ export const Login: React.FC = () => {
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
-                  await handleConnect(serverURL);
+                  await handleConnect(serverURL, pendingHeaders);
                 }}
                 className='w-full grow'
               >
                 {t("server.connect_button")}
               </Button>
+
+              {/* Advanced: Custom Headers */}
+              <TouchableOpacity
+                onPress={() => setShowAdvanced(!showAdvanced)}
+                className='flex flex-row items-center py-2'
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={showAdvanced ? "chevron-down" : "chevron-forward"}
+                  size={18}
+                  color={Colors.primary}
+                />
+                <Text className='ml-2 text-purple-600'>
+                  {t("custom_headers.advanced_title")}
+                </Text>
+              </TouchableOpacity>
+
+              {showAdvanced && (
+                <View className='flex flex-col gap-y-2'>
+                  {/* Preset selector */}
+                  <View className='flex flex-row flex-wrap gap-2'>
+                    {HEADER_PRESETS.map((preset) => (
+                      <TouchableOpacity
+                        key={preset.id}
+                        onPress={() => setPendingHeaders(preset.headers)}
+                        className='bg-neutral-800 rounded-lg px-3 py-2'
+                      >
+                        <Text className='text-xs text-neutral-300'>
+                          {preset.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Header inputs */}
+                  {pendingHeaders.map((header, index) => (
+                    <View key={index} className='flex flex-col gap-y-1'>
+                      <View className='flex flex-row items-center gap-x-2'>
+                        <Input
+                          placeholder={t(
+                            "custom_headers.header_name_placeholder",
+                          )}
+                          value={header.key}
+                          onChangeText={(text) => {
+                            const updated = [...pendingHeaders];
+                            updated[index] = { ...header, key: text };
+                            setPendingHeaders(updated);
+                          }}
+                          className='flex-1'
+                          autoCapitalize='none'
+                          autoCorrect={false}
+                        />
+                        <Switch
+                          value={header.enabled}
+                          onValueChange={(val) => {
+                            const updated = [...pendingHeaders];
+                            updated[index] = { ...header, enabled: val };
+                            setPendingHeaders(updated);
+                          }}
+                          trackColor={{
+                            false: "#3f3f46",
+                            true: Colors.primary,
+                          }}
+                          thumbColor='white'
+                        />
+                      </View>
+                      <Input
+                        placeholder={t(
+                          "custom_headers.header_value_placeholder",
+                        )}
+                        value={header.value}
+                        onChangeText={(text) => {
+                          const updated = [...pendingHeaders];
+                          updated[index] = { ...header, value: text };
+                          setPendingHeaders(updated);
+                        }}
+                        autoCapitalize='none'
+                        autoCorrect={false}
+                      />
+                    </View>
+                  ))}
+
+                  {/* Add header button */}
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPendingHeaders([
+                        ...pendingHeaders,
+                        { key: "", value: "", enabled: true },
+                      ])
+                    }
+                    className='bg-neutral-800 rounded-lg p-3 items-center'
+                  >
+                    <Text className='text-purple-600'>
+                      {t("custom_headers.add_header")}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Clear headers */}
+                  {pendingHeaders.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setPendingHeaders([])}
+                      className='bg-neutral-800 rounded-lg p-3 items-center'
+                    >
+                      <Text className='text-red-500'>
+                        {t("custom_headers.clear_headers")}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
               <JellyfinServerDiscovery
                 onServerSelect={async (server) => {
                   setServerURL(server.address);
                   if (server.serverName) {
                     setServerName(server.serverName);
                   }
-                  await handleConnect(server.address);
+                  await handleConnect(server.address, pendingHeaders);
                 }}
               />
               <PreviousServersList
                 onServerSelect={async (s) => {
-                  await handleConnect(s.address);
+                  await handleConnect(s.address, pendingHeaders);
                 }}
                 onQuickLogin={handleQuickLoginWithSavedCredential}
                 onPasswordLogin={handlePasswordLogin}

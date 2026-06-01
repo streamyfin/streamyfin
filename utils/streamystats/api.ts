@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import type {
   AddWatchlistItemResponse,
   CreateWatchlistRequest,
@@ -34,6 +35,7 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
 
   const headers = {
     Authorization: `MediaBrowser Token="${jellyfinToken}"`,
+    ...getIntegrationHeaders("streamystats"),
   };
 
   const search = async (

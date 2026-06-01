@@ -52,6 +52,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -597,6 +598,10 @@ export default function DirectPlayerPage() {
       quality: 90,
       width: 500,
     });
+    const artworkHeaders = getJellyfinCustomHeadersForUrl(
+      artworkUri,
+      api.basePath,
+    );
 
     return {
       title: item.Name || "",
@@ -609,6 +614,7 @@ export default function DirectPlayerPage() {
           ? item.SeasonName
           : undefined,
       artworkUri: artworkUri || undefined,
+      artworkHeaders,
     };
   }, [item, api]);
 
@@ -694,6 +700,15 @@ export default function DirectPlayerPage() {
       // Add any required headers from the media source (e.g., for external/remote streams)
       if (stream?.requiredHttpHeaders) {
         Object.assign(headers, stream.requiredHttpHeaders);
+      }
+
+      // Add custom headers (Cloudflare Zero Trust, Pangolin, etc.)
+      const customHeaders = getJellyfinCustomHeadersForUrl(
+        stream?.url,
+        api?.basePath,
+      );
+      if (customHeaders) {
+        Object.assign(headers, customHeaders);
       }
 
       if (Object.keys(headers).length > 0) {

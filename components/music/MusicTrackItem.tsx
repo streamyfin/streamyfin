@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { AnimatedEqualizer } from "@/components/music/AnimatedEqualizer";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -145,8 +145,8 @@ export const MusicTrackItem: React.FC<Props> = ({
           }}
         >
           {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
+            <ServerImage
+              uri={imageUrl}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
               cachePolicy='memory-disk'

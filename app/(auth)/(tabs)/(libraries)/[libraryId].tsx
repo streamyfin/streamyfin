@@ -11,7 +11,6 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useCallback, useEffect, useMemo } from "react";
@@ -24,6 +23,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
@@ -451,8 +451,8 @@ const Page = () => {
                   backgroundColor: "#1a1a1a",
                 }}
               >
-                <Image
-                  source={playlistImageUrl ? { uri: playlistImageUrl } : null}
+                <ServerImage
+                  uri={playlistImageUrl}
                   style={{ width: "100%", height: "100%" }}
                   contentFit='cover'
                   cachePolicy='memory-disk'

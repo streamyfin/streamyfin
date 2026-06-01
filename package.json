@@ -21,6 +21,7 @@
     "check": "biome check . --max-diagnostics 1000",
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
+    "test:unit": "bun test",
     "doctor": "expo-doctor",
     "i18n:check": "bun scripts/check-i18n-keys.mjs",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.mjs --fix-unused",
