@@ -27,6 +27,7 @@ export function startPairingListener(
   });
 
   socket.on("error", (err) => {
+    if (!active) return;
     if (__DEV__) console.error("[PairingService] Socket error:", err);
     onError?.(err.message);
     cleanup();
