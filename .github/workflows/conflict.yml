@@ -3,6 +3,11 @@ name: 🏷️🔀Merge Conflict Labeler
 on:
   push:
     branches: [develop]
+  # SECURITY: pull_request_target runs with the base repo's write token and secrets.
+  # This job only labels via the API and is safe ONLY because it never checks out or
+  # runs the PR head's code. NEVER add `actions/checkout` of the PR head (or any `run:`
+  # that interpolates PR-controlled data) to this workflow — that would turn it into a
+  # full repo-compromise vector.
   pull_request_target:
     branches: [develop]
     types: [synchronize]
