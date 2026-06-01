@@ -68,57 +68,59 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
         }
       >
         {!isTv && (
-          <React.Fragment>
-            <ListItem title='Vertical Margin'>
-              <Stepper
-                value={settings.mpvSubtitleMarginY ?? 0}
-                step={5}
-                min={0}
-                max={100}
-                onUpdate={(value) =>
-                  updateSettings({ mpvSubtitleMarginY: value })
-                }
-              />
-            </ListItem>
+          <ListItem title='Vertical Margin'>
+            <Stepper
+              value={settings.mpvSubtitleMarginY ?? 0}
+              step={5}
+              min={0}
+              max={100}
+              onUpdate={(value) =>
+                updateSettings({ mpvSubtitleMarginY: value })
+              }
+            />
+          </ListItem>
+        )}
 
-            <ListItem title='Horizontal Alignment'>
-              <PlatformDropdown
-                groups={alignXOptionGroups}
-                trigger={
-                  <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                    <Text className='mr-1 text-[#8E8D91]'>
-                      {alignXLabels[settings?.mpvSubtitleAlignX ?? "center"]}
-                    </Text>
-                    <Ionicons
-                      name='chevron-expand-sharp'
-                      size={18}
-                      color='#5A5960'
-                    />
-                  </View>
-                }
-                title='Horizontal Alignment'
-              />
-            </ListItem>
+        {!isTv && (
+          <ListItem title='Horizontal Alignment'>
+            <PlatformDropdown
+              groups={alignXOptionGroups}
+              trigger={
+                <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                  <Text className='mr-1 text-[#8E8D91]'>
+                    {alignXLabels[settings?.mpvSubtitleAlignX ?? "center"]}
+                  </Text>
+                  <Ionicons
+                    name='chevron-expand-sharp'
+                    size={18}
+                    color='#5A5960'
+                  />
+                </View>
+              }
+              title='Horizontal Alignment'
+            />
+          </ListItem>
+        )}
 
-            <ListItem title='Vertical Alignment'>
-              <PlatformDropdown
-                groups={alignYOptionGroups}
-                trigger={
-                  <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                    <Text className='mr-1 text-[#8E8D91]'>
-                      {alignYLabels[settings?.mpvSubtitleAlignY ?? "bottom"]}
-                    </Text>
-                    <Ionicons
-                      name='chevron-expand-sharp'
-                      size={18}
-                      color='#5A5960'
-                    />
-                  </View>
-                }
-                title='Vertical Alignment'
-              />
-            </ListItem>
-          </React.Fragment>
+        {!isTv && (
+          <ListItem title='Vertical Alignment'>
+            <PlatformDropdown
+              groups={alignYOptionGroups}
+              trigger={
+                <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                  <Text className='mr-1 text-[#8E8D91]'>
+                    {alignYLabels[settings?.mpvSubtitleAlignY ?? "bottom"]}
+                  </Text>
+                  <Ionicons
+                    name='chevron-expand-sharp'
+                    size={18}
+                    color='#5A5960'
+                  />
+                </View>
+              }
+              title='Vertical Alignment'
+            />
+          </ListItem>
         )}
 
         <ListItem title='Opaque Background'>
