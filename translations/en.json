@@ -25,7 +25,8 @@
     "there_is_a_server_error": "There is a server error",
     "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?",
     "too_old_server_text": "Unsupported Jellyfin Server Discovered",
-    "too_old_server_description": "Please update Jellyfin to the latest version"
+    "too_old_server_description": "Please update Jellyfin to the latest version",
+    "login": "Log In"
   },
   "server": {
     "enter_url_to_jellyfin_server": "Enter the URL to your Jellyfin server",
@@ -508,6 +509,10 @@
           "4_hours": "4 hours",
           "24_hours": "24 hours"
         }
+      },
+      "dashboard": {
+        "title": "Dashboard",
+        "sessions_title": "Sessions"
       }
     },
     "sessions": {
@@ -592,7 +597,11 @@
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Search...",
@@ -723,7 +732,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -784,7 +794,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Next",
