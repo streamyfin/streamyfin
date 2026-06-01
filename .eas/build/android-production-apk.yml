@@ -1,0 +1,25 @@
+# Custom EAS Build config for Android phone APK (downloadable artifact).
+# Same bun-forcing flow as android-production.yml, but builds an APK
+# (assembleRelease) instead of an AAB — for sideloading / GitHub artifact.
+# Referenced from eas.json: build.production-apk.android.config
+build:
+  name: Android phone APK (bun)
+  steps:
+    - eas/checkout
+
+    - run:
+        name: Install dependencies (bun, frozen)
+        command: bun install --frozen-lockfile
+
+    - run:
+        name: Prebuild (Android, bun)
+        command: bunx expo prebuild --platform android --no-install
+
+    - eas/configure_android_version
+    - eas/inject_android_credentials
+
+    - eas/run_gradle:
+        inputs:
+          command: :app:assembleRelease
+
+    - eas/find_and_upload_build_artifacts
