@@ -1,0 +1,156 @@
+import type { Api } from "@jellyfin/sdk";
+import type { BaseItemDto, UserDto } from "@jellyfin/sdk/lib/generated-client";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { useCallback, useEffect, useState } from "react";
+import type { Device, RemoteMediaClient } from "react-native-google-cast";
+import type { Settings } from "@/utils/atoms/settings";
+import { loadCastMedia } from "@/utils/casting/castLoad";
+import { fetchSeriesEpisodes, findNextEpisode } from "@/utils/casting/episodes";
+
+interface UseCastEpisodesParams {
+  api: Api | null;
+  user: UserDto | null;
+  currentItem: BaseItemDto | null;
+  remoteMediaClient: RemoteMediaClient | null;
+  castDevice: Device | null;
+  settings: Settings;
+}
+
+interface UseCastEpisodesResult {
+  episodes: BaseItemDto[];
+  nextEpisode: BaseItemDto | null;
+  seasonData: BaseItemDto | null;
+  loadEpisode: (episode: BaseItemDto) => Promise<void>;
+  /**
+   * Id of the episode currently being loaded onto the cast device, or null
+   * when no load is pending. The cast `customData` (and thus `currentItem`)
+   * lags behind the load, so consumers use this to detect the stale window
+   * between a `loadEpisode` call and the cast reporting the new episode.
+   */
+  loadingEpisodeId: string | null;
+}
+
+export function useCastEpisodes({
+  api,
+  user,
+  currentItem,
+  remoteMediaClient,
+  castDevice,
+  settings,
+}: UseCastEpisodesParams): UseCastEpisodesResult {
+  const [episodes, setEpisodes] = useState<BaseItemDto[]>([]);
+  const [nextEpisode, setNextEpisode] = useState<BaseItemDto | null>(null);
+  const [seasonData, setSeasonData] = useState<BaseItemDto | null>(null);
+  // Target episode id while a load is in flight; cleared once it resolves.
+  const [loadingEpisodeId, setLoadingEpisodeId] = useState<string | null>(null);
+
+  // Load a different episode on the Chromecast
+  const loadEpisode = useCallback(
+    async (episode: BaseItemDto) => {
+      if (!api || !user?.Id || !episode.Id || !remoteMediaClient) return;
+
+      setLoadingEpisodeId(episode.Id);
+      try {
+        const startPositionMs =
+          (episode.UserData?.PlaybackPositionTicks ?? 0) / 10000;
+
+        const result = await loadCastMedia({
+          client: remoteMediaClient,
+          device: castDevice,
+          api,
+          item: episode,
+          userId: user.Id,
+          profileMode: settings.chromecastProfile,
+          maxBitrateSetting: settings.chromecastMaxBitrate,
+          options: { startPositionMs },
+        });
+
+        if (!result.ok) {
+          console.error(
+            "[Casting Player] Failed to load episode:",
+            result.error,
+          );
+          return;
+        }
+      } catch (error) {
+        console.error("[Casting Player] Failed to load episode:", error);
+      } finally {
+        // Clear regardless of outcome: on success `currentItem` catches up via
+        // customData; on failure the stale guard must not stay stuck.
+        setLoadingEpisodeId(null);
+      }
+    },
+    [
+      api,
+      user?.Id,
+      remoteMediaClient,
+      castDevice,
+      settings.chromecastProfile,
+      settings.chromecastMaxBitrate,
+    ],
+  );
+
+  // Fetch season data for season poster
+  useEffect(() => {
+    if (
+      currentItem?.Type !== "Episode" ||
+      !currentItem.SeasonId ||
+      !api ||
+      !user?.Id
+    )
+      return;
+
+    const fetchSeasonData = async () => {
+      try {
+        const userLibraryApi = getUserLibraryApi(api);
+        const response = await userLibraryApi.getItem({
+          itemId: currentItem.SeasonId!,
+          userId: user.Id!,
+        });
+        setSeasonData(response.data);
+      } catch (error) {
+        console.error("[Casting Player] Failed to fetch season data:", error);
+        setSeasonData(null);
+      }
+    };
+
+    fetchSeasonData();
+  }, [currentItem?.Type, currentItem?.SeasonId, api, user?.Id]);
+
+  // Fetch episodes for TV shows
+  useEffect(() => {
+    if (
+      currentItem?.Type !== "Episode" ||
+      !currentItem.SeriesId ||
+      !api ||
+      !user
+    )
+      return;
+
+    const fetchEpisodes = async () => {
+      try {
+        // Fetch ALL episodes from ALL seasons (no season filter).
+        const episodeList = await fetchSeriesEpisodes(
+          api,
+          user,
+          currentItem.SeriesId!,
+        );
+        setEpisodes(episodeList);
+        setNextEpisode(findNextEpisode(episodeList, currentItem.Id));
+      } catch (error) {
+        console.error("Failed to fetch episodes:", error);
+      }
+    };
+
+    fetchEpisodes();
+  }, [
+    currentItem?.Type,
+    currentItem?.SeriesId,
+    currentItem?.SeasonId,
+    currentItem?.Id,
+    api,
+    user,
+  ]);
+
+  return { episodes, nextEpisode, seasonData, loadEpisode, loadingEpisodeId };
+}

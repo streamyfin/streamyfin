@@ -63,6 +63,7 @@ interface PlatformDropdownProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onOptionSelect?: (value?: any) => void;
+  disabled?: boolean;
   expoUIConfig?: {
     hostStyle?: any;
   };
@@ -213,6 +214,9 @@ const PlatformDropdownComponent = ({
   onOpenChange: controlledOnOpenChange,
   onOptionSelect,
   expoUIConfig,
+  // Aliased to avoid shadowing the module-level `disabled` SwiftUI modifier
+  // (from @expo/ui/swift-ui/modifiers) used by the iOS <Menu> renderer below.
+  disabled: isDisabled,
   bottomSheetConfig,
 }: PlatformDropdownProps) => {
   const { showModal, hideModal, isVisible } = useGlobalModal();
@@ -265,6 +269,13 @@ const PlatformDropdownComponent = ({
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
   if (Platform.OS === "ios" && !Platform.isTV) {
+    if (isDisabled) {
+      return (
+        <View style={{ opacity: 0.5 }} pointerEvents='none'>
+          {trigger || <Text className='text-white'>Open Menu</Text>}
+        </View>
+      );
+    }
     // Pin the wrapper to the measured trigger size. @expo/ui's <Host> (SDK 55)
     // fills its parent and reports its own size via setStyleSize, so it can't
     // size itself to content. If the wrapper has no size, the Host's `flex: 1`
@@ -417,8 +428,14 @@ const PlatformDropdownComponent = ({
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      {trigger || <Text className='text-white'>Open Menu</Text>}
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.7}
+      disabled={isDisabled}
+    >
+      <View style={isDisabled ? { opacity: 0.5 } : undefined}>
+        {trigger || <Text className='text-white'>Open Menu</Text>}
+      </View>
     </TouchableOpacity>
   );
 };

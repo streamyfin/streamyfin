@@ -32,12 +32,6 @@ export interface MediaTimeSegment {
   text: string;
 }
 
-export interface Segment {
-  startTime: number;
-  endTime: number;
-  text: string;
-}
-
 /** Represents a single downloaded media item with all necessary metadata for offline playback. */
 export interface DownloadedItem {
   /** The Jellyfin item DTO. */
@@ -56,6 +50,12 @@ export interface DownloadedItem {
   introSegments?: MediaTimeSegment[];
   /** The credit segments for the item. */
   creditSegments?: MediaTimeSegment[];
+  /** The recap segments for the item. */
+  recapSegments?: MediaTimeSegment[];
+  /** The commercial segments for the item. */
+  commercialSegments?: MediaTimeSegment[];
+  /** The preview segments for the item. */
+  previewSegments?: MediaTimeSegment[];
   /** The user data for the item. */
   userData: UserData;
 }
@@ -144,6 +144,12 @@ export type JobStatus = {
   introSegments?: MediaTimeSegment[];
   /** Pre-downloaded credit segments (optional) - downloaded before video starts */
   creditSegments?: MediaTimeSegment[];
+  /** Pre-downloaded recap segments (optional) - downloaded before video starts */
+  recapSegments?: MediaTimeSegment[];
+  /** Pre-downloaded commercial segments (optional) - downloaded before video starts */
+  commercialSegments?: MediaTimeSegment[];
+  /** Pre-downloaded preview segments (optional) - downloaded before video starts */
+  previewSegments?: MediaTimeSegment[];
   /** The audio stream index selected for this download */
   audioStreamIndex?: number;
   /** The subtitle stream index selected for this download */

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import type { ChromecastProfileMode } from "@/utils/casting/capabilities";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
 
@@ -175,6 +176,9 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// Segment skip behavior options
+export type SegmentSkipMode = "none" | "ask" | "auto";
+
 // TV Typography scale presets
 export enum TVTypographyScale {
   Small = "small",
@@ -242,10 +246,23 @@ export type Settings = {
   jellyseerrServerUrl?: string;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
-  enableH265ForChromecast: boolean;
+  /** Chromecast profile selection mode. "auto" detects per device. */
+  chromecastProfile: ChromecastProfileMode;
+  /** Optional manual Chromecast video bitrate cap, in bits per second. */
+  chromecastMaxBitrate?: number;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
+  // Media segment skip preferences
+  skipIntro: SegmentSkipMode;
+  skipOutro: SegmentSkipMode;
+  skipRecap: SegmentSkipMode;
+  skipCommercial: SegmentSkipMode;
+  skipPreview: SegmentSkipMode;
+  /** Native player next-episode countdown, in seconds. */
+  autoplayCountdownSeconds: number;
+  /** Chromecast next-episode countdown, in seconds. */
+  castAutoplayCountdownSeconds: number;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -345,10 +362,19 @@ export const defaultValues: Settings = {
   jellyseerrServerUrl: undefined,
   useKefinTweaks: false,
   hiddenLibraries: [],
-  enableH265ForChromecast: false,
+  chromecastProfile: "auto",
+  chromecastMaxBitrate: undefined,
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
+  // Media segment skip defaults
+  skipIntro: "ask",
+  skipOutro: "ask",
+  skipRecap: "ask",
+  skipCommercial: "ask",
+  skipPreview: "ask",
+  autoplayCountdownSeconds: 15,
+  castAutoplayCountdownSeconds: 30,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},

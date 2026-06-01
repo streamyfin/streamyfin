@@ -11,6 +11,8 @@ import type {
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import { CastAutoplayWatcher } from "@/components/casting/CastAutoplayWatcher";
+import { CastingMiniPlayer } from "@/components/casting/CastingMiniPlayer";
 import { Colors } from "@/constants/Colors";
 import { useTVHomeBackHandler } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
@@ -139,6 +141,8 @@ export default function TabLayout() {
           }}
         />
       </NativeTabs>
+      <CastingMiniPlayer />
+      <CastAutoplayWatcher />
       <MiniPlayerBar />
       <MusicPlaybackEngine />
     </View>

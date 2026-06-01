@@ -17,20 +17,24 @@ interface TrickplayUrl {
 }
 
 /** Hook to handle trickplay logic for a given item. */
-export const useTrickplay = (item: BaseItemDto) => {
+export const useTrickplay = (item: BaseItemDto | null) => {
   const { getDownloadedItemById } = useDownload();
   const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const lastCalculationTime = useRef(0);
   const throttleDelay = 200;
   const isOffline = useGlobalSearchParams().offline === "true";
-  const trickplayInfo = useMemo(() => getTrickplayInfo(item), [item]);
+  const trickplayInfo = useMemo(
+    () => (item ? getTrickplayInfo(item) : null),
+    [item],
+  );
 
   /** Generates the trickplay URL for the given item and sheet index.
    * We change between offline and online trickplay URLs depending on the state of the app. */
   const getTrickplayUrl = useCallback(
     (item: BaseItemDto, sheetIndex: number) => {
+      if (!item.Id) return null;
       // If we are offline, we can use the downloaded item's trickplay data path
-      const downloadedItem = getDownloadedItemById(item.Id!);
+      const downloadedItem = getDownloadedItemById(item.Id);
       if (isOffline && downloadedItem?.trickPlayData?.path) {
         return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
       }
@@ -45,7 +49,7 @@ export const useTrickplay = (item: BaseItemDto) => {
       const now = Date.now();
       if (
         !trickplayInfo ||
-        !item.Id ||
+        !item?.Id ||
         now - lastCalculationTime.current < throttleDelay
       )
         return;
@@ -62,7 +66,7 @@ export const useTrickplay = (item: BaseItemDto) => {
 
   /** Prefetches all the trickplay images for the item, limiting concurrency to avoid I/O spikes. */
   const prefetchAllTrickplayImages = useCallback(async () => {
-    if (!trickplayInfo || !item.Id) return;
+    if (!trickplayInfo || !item?.Id) return;
     const maxConcurrent = 4;
     const total = trickplayInfo.totalImageSheets;
     const urls: string[] = [];

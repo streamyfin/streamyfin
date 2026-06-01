@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   ChapterInfo,
 } from "@jellyfin/sdk/lib/generated-client";
-import { type FC, useMemo, useState } from "react";
+import { type FC, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
@@ -12,9 +13,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChapterList } from "@/components/chapters/ChapterList";
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
+import { AutoplayCountdown } from "@/components/player/AutoplayCountdown";
 import { useSettings } from "@/utils/atoms/settings";
 import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
-import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import SkipButton from "./SkipButton";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
@@ -35,11 +37,14 @@ interface BottomControlsProps {
   currentTime: number;
   remainingTime: number;
   showSkipButton: boolean;
+  skipButtonText: string;
   showSkipCreditButton: boolean;
+  skipCreditButtonText: string;
   hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   nextItem?: BaseItemDto | null;
+  api?: Api | null;
   handleNextEpisodeAutoPlay: () => void;
   handleNextEpisodeManual: () => void;
   handleControlsInteraction: () => void;
@@ -90,11 +95,14 @@ export const BottomControls: FC<BottomControlsProps> = ({
   currentTime,
   remainingTime,
   showSkipButton,
+  skipButtonText,
   showSkipCreditButton,
+  skipCreditButtonText,
   hasContentAfterCredits,
   skipIntro,
   skipCredit,
   nextItem,
+  api,
   handleNextEpisodeAutoPlay,
   handleNextEpisodeManual,
   handleControlsInteraction,
@@ -124,6 +132,83 @@ export const BottomControls: FC<BottomControlsProps> = ({
     [chapters, durationMs],
   );
   const hasChapters = chapterMarkerList.length > 1;
+
+  // Autoplay overlay: shown under the same condition the old countdown button used.
+  const autoplayAllowed =
+    settings.autoPlayNextEpisode !== false &&
+    (settings.maxAutoPlayEpisodeCount.value === -1 ||
+      settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+
+  const showNextEpisodeCountdown =
+    autoplayAllowed &&
+    (!nextItem
+      ? false
+      : // Show during credits if no content after, OR near end of video
+        (showSkipCreditButton && !hasContentAfterCredits) ||
+        remainingTime < 10000);
+
+  const [secondsRemaining, setSecondsRemaining] = useState(
+    settings.autoplayCountdownSeconds,
+  );
+  const [autoplayCancelled, setAutoplayCancelled] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Keep a stable ref to the autoplay handler so the timer effect does not
+  // restart when the handler identity changes.
+  const autoPlayHandlerRef = useRef(handleNextEpisodeAutoPlay);
+  autoPlayHandlerRef.current = handleNextEpisodeAutoPlay;
+
+  useEffect(() => {
+    if (!showNextEpisodeCountdown || autoplayCancelled) {
+      // Either the show-condition flipped off OR the user cancelled.
+      // In both cases, stop the running timer immediately so autoplay
+      // can't fire after Cancel was pressed.
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      // Only reset cancellation + seconds when the show-condition itself
+      // flipped off — a fresh credits/end-of-video window then starts a
+      // brand-new countdown. If we got here because autoplayCancelled
+      // just flipped true, keep it true so the countdown stays stopped.
+      if (!showNextEpisodeCountdown) {
+        setAutoplayCancelled(false);
+        setSecondsRemaining(settings.autoplayCountdownSeconds);
+      }
+      return;
+    }
+
+    setSecondsRemaining(settings.autoplayCountdownSeconds);
+    intervalRef.current = setInterval(() => {
+      setSecondsRemaining((prev) => {
+        if (prev <= 1) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          autoPlayHandlerRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [
+    showNextEpisodeCountdown,
+    autoplayCancelled,
+    settings.autoplayCountdownSeconds,
+  ]);
+
+  const nextEpisodePosterUrl = useMemo(
+    () =>
+      nextItem ? getPrimaryImageUrl({ api, item: nextItem, width: 200 }) : null,
+    [api, nextItem],
+  );
 
   // Current chapter name for the always-visible header label (live playback).
   const currentChapterName = useMemo(
@@ -202,7 +287,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
-            buttonText='Skip Intro'
+            buttonText={skipButtonText}
           />
           {/* Smart Skip Credits behavior:
               - Show "Skip Credits" if there's content after credits OR no next episode
@@ -212,24 +297,17 @@ export const BottomControls: FC<BottomControlsProps> = ({
               showSkipCreditButton && (hasContentAfterCredits || !nextItem)
             }
             onPress={skipCredit}
-            buttonText='Skip Credits'
+            buttonText={skipCreditButtonText}
           />
-          {settings.autoPlayNextEpisode !== false &&
-            (settings.maxAutoPlayEpisodeCount.value === -1 ||
-              settings.autoPlayEpisodeCount <
-                settings.maxAutoPlayEpisodeCount.value) && (
-              <NextEpisodeCountDownButton
-                show={
-                  !nextItem
-                    ? false
-                    : // Show during credits if no content after, OR near end of video
-                      (showSkipCreditButton && !hasContentAfterCredits) ||
-                      remainingTime < 10000
-                }
-                onFinish={handleNextEpisodeAutoPlay}
-                onPress={handleNextEpisodeManual}
-              />
-            )}
+          {showNextEpisodeCountdown && !autoplayCancelled && nextItem && (
+            <AutoplayCountdown
+              nextEpisode={nextItem}
+              posterUrl={nextEpisodePosterUrl}
+              secondsRemaining={secondsRemaining}
+              onPlayNow={handleNextEpisodeManual}
+              onCancel={() => setAutoplayCancelled(true)}
+            />
+          )}
         </View>
       </View>
       <View

@@ -13,6 +13,7 @@ import {
 import { AppState, type AppStateStatus } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import { useRemoteControl } from "@/hooks/useRemoteControl";
 import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 
@@ -54,6 +55,8 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  // Route Jellyfin remote-control messages to the active player.
+  useRemoteControl(lastMessage);
   const router = useRouter();
   const queryClient = useNetworkAwareQueryClient();
   const deviceId = useMemo(() => {
@@ -219,7 +222,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             IconUrl:
               "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
             PlayableMediaTypes: ["Audio", "Video"],
-            SupportedCommands: ["Play"],
+            SupportedCommands: [
+              "Play",
+              "DisplayMessage",
+              "SetVolume",
+              "ToggleMute",
+              "Mute",
+              "Unmute",
+            ],
             SupportsMediaControl: true,
             SupportsPersistentIdentifier: true,
           },

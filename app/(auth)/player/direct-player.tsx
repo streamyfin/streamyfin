@@ -49,7 +49,6 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -60,6 +59,10 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
+import {
+  type PlaybackController,
+  useRegisterPlaybackController,
+} from "@/utils/playback/playbackController";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
@@ -403,26 +406,6 @@ export default function DirectPlayerPage() {
     reportPlaybackStart();
   }, [stream, api, offline]);
 
-  const togglePlay = async () => {
-    lightHapticFeedback();
-    setIsPlaying(!isPlaying);
-    if (isPlaying) {
-      await videoRef.current?.pause();
-      const progressInfo = currentPlayStateInfo();
-      if (progressInfo) {
-        playbackManager.reportPlaybackProgress(progressInfo);
-      }
-    } else {
-      videoRef.current?.play();
-      const progressInfo = currentPlayStateInfo();
-      if (!offline && api) {
-        await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
-        });
-      }
-    }
-  };
-
   const reportPlaybackStopped = useCallback(async () => {
     if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
@@ -494,6 +477,35 @@ export default function DirectPlayerPage() {
     progress,
     isPlaying,
     isMuted,
+  ]);
+
+  // Declared after currentPlayStateInfo so the dependency array can reference
+  // it without hitting the temporal dead zone.
+  const togglePlay = useCallback(async () => {
+    lightHapticFeedback();
+    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      await videoRef.current?.pause();
+      const progressInfo = currentPlayStateInfo();
+      if (progressInfo) {
+        playbackManager.reportPlaybackProgress(progressInfo);
+      }
+    } else {
+      videoRef.current?.play();
+      const progressInfo = currentPlayStateInfo();
+      if (!offline && api) {
+        await getPlaystateApi(api).reportPlaybackStart({
+          playbackStartInfo: progressInfo,
+        });
+      }
+    }
+  }, [
+    lightHapticFeedback,
+    isPlaying,
+    currentPlayStateInfo,
+    playbackManager,
+    offline,
+    api,
   ]);
 
   const lastUrlUpdateTime = useSharedValue(0);
@@ -924,6 +936,47 @@ export default function DirectPlayerPage() {
     return (await videoRef.current?.getTechnicalInfo?.()) ?? {};
   }, []);
 
+  // App-wide remote control: wrap the player's existing handlers so remote
+  // commands (e.g. dashboard, WebSocket) route to whatever is playing.
+  const playbackController = useMemo<PlaybackController>(
+    () => ({
+      // togglePlay flips play/pause and reports progress to the server.
+      playPause: () => {
+        void togglePlay();
+      },
+      pause: () => {
+        pause();
+      },
+      unpause: () => {
+        play();
+      },
+      stop: () => {
+        stop();
+      },
+      // PlaybackController seeks in ms; the player's seek already expects ms.
+      seek: (positionMs: number) => {
+        seek(positionMs);
+      },
+      // The player screen has no episode-loading path of its own — episode
+      // navigation is handled inside <Controls> via router replacement — so
+      // next/previous are honest no-ops here.
+      next: () => {},
+      previous: () => {},
+      // Volume is device-level (react-native-volume-manager); the slider sends
+      // 0-1 while setVolumeCb expects 0-100.
+      setVolume: (level: number) => {
+        void setVolumeCb(level * 100);
+      },
+      toggleMute: () => {
+        void toggleMuteCb();
+      },
+    }),
+    [togglePlay, pause, play, stop, seek, setVolumeCb, toggleMuteCb],
+  );
+
+  // Active for the whole lifetime of the player screen; cleared on unmount.
+  useRegisterPlaybackController(playbackController, true);
+
   // Determine play method based on stream URL and media source
   const playMethod = useMemo<
     "DirectPlay" | "DirectStream" | "Transcode" | undefined
@@ -1260,7 +1313,7 @@ export default function DirectPlayerPage() {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
                     t("player.error"),
-                    t("player.an_error_occured_while_playing_the_video"),
+                    t("player.an_error_occurred_while_playing_the_video"),
                   );
                   writeToLog("ERROR", "Video Error", e.nativeEvent);
                 }}

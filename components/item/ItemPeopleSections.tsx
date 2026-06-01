@@ -60,7 +60,7 @@ export const ItemPeopleSections: React.FC<Props> = ({ item, ...props }) => {
 
       return (
         <MoreMoviesWithActor
-          key={person.Id}
+          key={`${person.Id}-${idx}`}
           currentItem={item}
           actorId={person.Id}
           actorName={person.Name}

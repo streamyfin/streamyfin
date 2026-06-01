@@ -3,7 +3,7 @@
 ## Project Overview
 
 Streamyfin is a cross-platform Jellyfin video streaming client built with Expo (React Native).  
-It supports mobile (iOS/Android) and TV platforms, integrates with Jellyfin and Jellyseerr APIs,
+It supports mobile (iOS/Android) and TV platforms, integrates with Jellyfin and Seerr APIs,
 and provides seamless media streaming with offline capabilities and Chromecast support.
 
 ## Main Technologies
@@ -40,9 +40,30 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 - `scripts/` – Automation scripts (Node.js, Bash)
 - `plugins/` – Expo/Metro plugins
 
-## Coding Standards
+## Code Quality Standards
 
+**CRITICAL: Code must be production-ready, reliable, and maintainable**
+
+### Type Safety
 - Use TypeScript for ALL files (no .js files)
+- **NEVER use `any` type** - use proper types, generics, or `unknown` with type guards
+- Use `@ts-expect-error` with detailed comments only when necessary (e.g., library limitations)
+- When facing type issues, create proper type definitions and helper functions instead of using `any`
+- Use type assertions (`as`) only as a last resort with clear documentation explaining why
+- For Expo Router navigation: prefer string URLs with `URLSearchParams` over object syntax to avoid type conflicts
+- Enable and respect strict TypeScript compiler options
+- Define explicit return types for functions
+- Use discriminated unions for complex state
+
+### Code Reliability
+- Implement comprehensive error handling with try-catch blocks
+- Validate all external inputs (API responses, user input, query params)
+- Handle edge cases explicitly (empty arrays, null, undefined)
+- Use optional chaining (`?.`) and nullish coalescing (`??`) appropriately
+- Add runtime checks for critical operations
+- Implement proper loading and error states in components
+
+### Best Practices
 - Use descriptive English names for variables, functions, and components
 - Prefer functional React components with hooks
 - Use Jotai atoms for global state management
@@ -50,8 +71,10 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 - Follow BiomeJS formatting and linting rules
 - Use `const` over `let`, avoid `var` entirely
 - Implement proper error boundaries
-- Use React.memo() for performance optimization
+- Use React.memo() for performance optimization when needed
 - Handle both mobile and TV navigation patterns
+- Write self-documenting code with clear intent
+- Add comments only when code complexity requires explanation
 
 ## API Integration
 
@@ -84,6 +107,18 @@ Exemples:
 - `feat(player): add Chromecast support`
 - `fix(auth): handle expired JWT tokens`
 - `chore(deps): update Jellyfin SDK`
+
+## Internationalization (i18n)
+
+- **Primary workflow**: Always edit `translations/en.json` for new translation keys or updates
+- **Translation files** (ar.json, ca.json, cs.json, de.json, etc.):
+  - **NEVER add or remove keys** - Crowdin manages the key structure
+  - **Editing translation values is safe** - Bidirectional sync handles merges
+  - Prefer letting Crowdin translators update values, but direct edits work if needed
+- **Crowdin workflow**:
+  - New keys added to `en.json` sync to Crowdin automatically
+  - Approved translations sync back to language files via GitHub integration
+  - The source of truth is `en.json` for structure, Crowdin for translations
 
 ## Special Instructions
 

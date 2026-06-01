@@ -74,10 +74,16 @@ export const getSegmentsForItem = (
 ): {
   introSegments: MediaTimeSegment[];
   creditSegments: MediaTimeSegment[];
+  recapSegments: MediaTimeSegment[];
+  commercialSegments: MediaTimeSegment[];
+  previewSegments: MediaTimeSegment[];
 } => {
   return {
     introSegments: item.introSegments || [],
     creditSegments: item.creditSegments || [],
+    recapSegments: item.recapSegments || [],
+    commercialSegments: item.commercialSegments || [],
+    previewSegments: item.previewSegments || [],
   };
 };
 
@@ -95,6 +101,9 @@ const fetchMediaSegments = async (
 ): Promise<{
   introSegments: MediaTimeSegment[];
   creditSegments: MediaTimeSegment[];
+  recapSegments: MediaTimeSegment[];
+  commercialSegments: MediaTimeSegment[];
+  previewSegments: MediaTimeSegment[];
 } | null> => {
   try {
     const response = await api.axiosInstance.get<MediaSegmentsResponse>(
@@ -102,13 +111,22 @@ const fetchMediaSegments = async (
       {
         headers: getAuthHeaders(api),
         params: {
-          includeSegmentTypes: ["Intro", "Outro"],
+          includeSegmentTypes: [
+            "Intro",
+            "Outro",
+            "Recap",
+            "Commercial",
+            "Preview",
+          ],
         },
       },
     );
 
     const introSegments: MediaTimeSegment[] = [];
     const creditSegments: MediaTimeSegment[] = [];
+    const recapSegments: MediaTimeSegment[] = [];
+    const commercialSegments: MediaTimeSegment[] = [];
+    const previewSegments: MediaTimeSegment[] = [];
 
     response.data.Items.forEach((segment) => {
       const timeSegment: MediaTimeSegment = {
@@ -124,13 +142,27 @@ const fetchMediaSegments = async (
         case "Outro":
           creditSegments.push(timeSegment);
           break;
-        // Optionally handle other types like Recap, Commercial, Preview
+        case "Recap":
+          recapSegments.push(timeSegment);
+          break;
+        case "Commercial":
+          commercialSegments.push(timeSegment);
+          break;
+        case "Preview":
+          previewSegments.push(timeSegment);
+          break;
         default:
           break;
       }
     });
 
-    return { introSegments, creditSegments };
+    return {
+      introSegments,
+      creditSegments,
+      recapSegments,
+      commercialSegments,
+      previewSegments,
+    };
   } catch (_error) {
     // Return null to indicate we should try legacy endpoints
     return null;
@@ -146,45 +178,47 @@ const fetchLegacySegments = async (
 ): Promise<{
   introSegments: MediaTimeSegment[];
   creditSegments: MediaTimeSegment[];
+  recapSegments: MediaTimeSegment[];
+  commercialSegments: MediaTimeSegment[];
+  previewSegments: MediaTimeSegment[];
 }> => {
   const introSegments: MediaTimeSegment[] = [];
   const creditSegments: MediaTimeSegment[] = [];
 
-  try {
-    const [introRes, creditRes] = await Promise.allSettled([
-      api.axiosInstance.get<IntroTimestamps>(
-        `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
-        { headers: getAuthHeaders(api) },
-      ),
-      api.axiosInstance.get<CreditTimestamps>(
-        `${api.basePath}/Episode/${itemId}/Timestamps`,
-        { headers: getAuthHeaders(api) },
-      ),
-    ]);
+  const [introRes, creditRes] = await Promise.allSettled([
+    api.axiosInstance.get<IntroTimestamps>(
+      `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
+      { headers: getAuthHeaders(api) },
+    ),
+    api.axiosInstance.get<CreditTimestamps>(
+      `${api.basePath}/Episode/${itemId}/Timestamps`,
+      { headers: getAuthHeaders(api) },
+    ),
+  ]);
 
-    if (introRes.status === "fulfilled" && introRes.value.data.Valid) {
-      introSegments.push({
-        startTime: introRes.value.data.IntroStart,
-        endTime: introRes.value.data.IntroEnd,
-        text: "Intro",
-      });
-    }
-
-    if (
-      creditRes.status === "fulfilled" &&
-      creditRes.value.data.Credits.Valid
-    ) {
-      creditSegments.push({
-        startTime: creditRes.value.data.Credits.Start,
-        endTime: creditRes.value.data.Credits.End,
-        text: "Credits",
-      });
-    }
-  } catch (error) {
-    console.error("Failed to fetch legacy segments", error);
+  if (introRes.status === "fulfilled" && introRes.value.data.Valid) {
+    introSegments.push({
+      startTime: introRes.value.data.IntroStart,
+      endTime: introRes.value.data.IntroEnd,
+      text: "Intro",
+    });
   }
 
-  return { introSegments, creditSegments };
+  if (creditRes.status === "fulfilled" && creditRes.value.data.Credits.Valid) {
+    creditSegments.push({
+      startTime: creditRes.value.data.Credits.Start,
+      endTime: creditRes.value.data.Credits.End,
+      text: "Credits",
+    });
+  }
+
+  return {
+    introSegments,
+    creditSegments,
+    recapSegments: [],
+    commercialSegments: [],
+    previewSegments: [],
+  };
 };
 
 export const fetchAndParseSegments = async (
@@ -193,6 +227,9 @@ export const fetchAndParseSegments = async (
 ): Promise<{
   introSegments: MediaTimeSegment[];
   creditSegments: MediaTimeSegment[];
+  recapSegments: MediaTimeSegment[];
+  commercialSegments: MediaTimeSegment[];
+  previewSegments: MediaTimeSegment[];
 }> => {
   // Try new API first (Jellyfin 10.11+)
   const newSegments = await fetchMediaSegments(itemId, api);
