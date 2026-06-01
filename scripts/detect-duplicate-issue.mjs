@@ -1,0 +1,192 @@
+#!/usr/bin/env bun
+/**
+ * Flags likely-duplicate issues when a new issue is opened, using lexical similarity
+ * (Jaccard over word sets of the title and body) — no API key, no embeddings.
+ *
+ * On a match it posts ONE comment listing the closest open issues and adds the
+ * "possible duplicate" label. If nothing is similar enough, it does nothing.
+ *
+ * Env:
+ *   GITHUB_REPOSITORY   owner/repo
+ *   ISSUE_NUMBER        the new issue number
+ *   ISSUE_TITLE         the new issue title
+ *   ISSUE_BODY          the new issue body
+ *   GH_TOKEN/GITHUB_TOKEN  for gh (provided in CI)
+ *   DUP_THRESHOLD       similarity threshold 0..1 (default 0.3)
+ *   DUP_MAX             max matches to report (default 5)
+ *   DUP_FIXTURE         optional path to a JSON array of {number,title,body} (local testing)
+ *   DRY_RUN             if set, print results instead of commenting/labelling
+ */
+
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+
+const REPO = process.env.GITHUB_REPOSITORY || "streamyfin/streamyfin";
+const NUMBER = Number(process.env.ISSUE_NUMBER);
+const TITLE = process.env.ISSUE_TITLE || "";
+const BODY = process.env.ISSUE_BODY || "";
+const THRESHOLD = Number(process.env.DUP_THRESHOLD) || 0.3;
+const MAX = Number(process.env.DUP_MAX) || 5;
+const DRY = !!process.env.DRY_RUN;
+const LABEL = "possible duplicate";
+
+// Generic stop words only — keep domain/feature/platform words (android, downloads,
+// subtitles…) since those are exactly what makes two reports the same or different.
+const STOP = new Set(
+  (
+    "a an the and or but if then of to in on at by for with from as is are was were be been being do does did " +
+    "it its this that these those i you we they me my your our their he she him her " +
+    "when while where what which who how why so just then than too very can could would should will " +
+    "not no nor only own same s t don dont im ive please thanks hi hello also still get got use used using " +
+    "app application streamyfin issue bug"
+  ).split(/\s+/),
+);
+
+const stem = (w) => w.replace(/(ing|ed|es|s)$/, "");
+
+const tokens = (s) =>
+  (s || "")
+    .toLowerCase()
+    .replace(/```[\s\S]*?```/g, " ") // drop code blocks
+    .replace(/<!--[\s\S]*?-->/g, " ") // drop html comments
+    .replace(/https?:\/\/\S+/g, " ") // drop urls
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP.has(w))
+    .map(stem)
+    .filter((w) => w.length > 2);
+
+const jaccard = (a, b) => {
+  const A = new Set(a);
+  const B = new Set(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const x of A) if (B.has(x)) inter++;
+  return inter / (A.size + B.size - inter);
+};
+
+const newTitle = tokens(TITLE);
+const newBody = tokens(BODY);
+const score = (o) =>
+  0.6 * jaccard(newTitle, tokens(o.title)) +
+  0.4 * jaccard(newBody, tokens(o.body));
+
+// fetch open issues (excluding PRs and the new issue itself)
+let issues;
+if (process.env.DUP_FIXTURE) {
+  issues = JSON.parse(readFileSync(process.env.DUP_FIXTURE, "utf8"));
+} else {
+  const raw = execFileSync(
+    "gh",
+    [
+      "api",
+      `repos/${REPO}/issues`,
+      "--paginate",
+      "-X",
+      "GET",
+      "-f",
+      "state=open",
+      "-f",
+      "per_page=100",
+      "--jq",
+      ".[] | select(.pull_request | not) | {number, title, body}",
+    ],
+    { encoding: "utf8", maxBuffer: 1e8 },
+  );
+  issues = raw
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l));
+}
+
+const matches = issues
+  .filter((o) => o.number !== NUMBER)
+  .map((o) => ({ ...o, s: score(o) }))
+  .filter((o) => o.s >= THRESHOLD)
+  .sort((a, b) => b.s - a.s)
+  .slice(0, MAX);
+
+if (!matches.length) {
+  console.log("No likely duplicates found.");
+  process.exit(0);
+}
+
+const list = matches
+  .map(
+    (m) =>
+      `- #${m.number} — ${m.title} _(≈ ${Math.round(m.s * 100)}% similar)_`,
+  )
+  .join("\n");
+const comment = [
+  "<!-- duplicate-detector -->",
+  "🔍 **This looks like it might be a duplicate.** Possibly related open issues:",
+  "",
+  list,
+  "",
+  "If yours is different, ignore this — a maintainer will confirm. Otherwise, please 👍 the existing issue and add any extra details there.",
+].join("\n");
+
+console.log(`Found ${matches.length} possible duplicate(s):\n${list}`);
+
+if (DRY) {
+  console.log("\nDRY_RUN: not commenting/labelling.");
+  process.exit(0);
+}
+
+execFileSync(
+  "gh",
+  [
+    "api",
+    "-X",
+    "POST",
+    `repos/${REPO}/issues/${NUMBER}/comments`,
+    "-f",
+    `body=${comment}`,
+  ],
+  { stdio: "ignore" },
+);
+try {
+  execFileSync(
+    "gh",
+    [
+      "api",
+      "-X",
+      "POST",
+      `repos/${REPO}/issues/${NUMBER}/labels`,
+      "-f",
+      `labels[]=${LABEL}`,
+    ],
+    { stdio: "ignore" },
+  );
+} catch {
+  // label may not exist yet — create then add
+  execFileSync(
+    "gh",
+    [
+      "api",
+      "-X",
+      "POST",
+      `repos/${REPO}/labels`,
+      "-f",
+      `name=${LABEL}`,
+      "-f",
+      "color=fbca04",
+      "-f",
+      "description=Automatically flagged as a possible duplicate",
+    ],
+    { stdio: "ignore" },
+  );
+  execFileSync(
+    "gh",
+    [
+      "api",
+      "-X",
+      "POST",
+      `repos/${REPO}/issues/${NUMBER}/labels`,
+      "-f",
+      `labels[]=${LABEL}`,
+    ],
+    { stdio: "ignore" },
+  );
+}
+console.log("Commented and labelled.");
