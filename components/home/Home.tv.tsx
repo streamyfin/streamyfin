@@ -340,7 +340,7 @@ export const Home = () => {
       const title = t("home.latest", { libraryName: c.Name });
       const queryKey: string[] = [
         "home",
-        `latestIn${c.CollectionType}`,
+        `latest${c.CollectionType}`,
         user.Id!,
         c.Id!,
       ];
