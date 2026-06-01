@@ -23,18 +23,15 @@ const body = readFileSync(bodyFile, "utf8").replace(/\r\n/g, "\n");
 const association = (process.env.AUTHOR_ASSOCIATION || "").toUpperCase();
 const isMaintainer = ["OWNER", "MEMBER", "COLLABORATOR"].includes(association);
 
-// Strip HTML comments robustly: loop until stable so nested/overlapping `<!--`
-// markers can't survive a single pass, then drop any unterminated trailing
-// comment. (Also satisfies CodeQL's "incomplete multi-character sanitization".)
-const stripComments = (s) => {
-  let out = s;
-  let prev;
-  do {
-    prev = out;
-    out = out.replace(/<!--[\s\S]*?-->/g, "");
-  } while (out !== prev);
-  return out.replace(/<!--[\s\S]*$/, "").trim();
-};
+// Strip HTML comments in a single linear pass: remove complete `<!-- … -->`
+// blocks, then drop any leftover unterminated `<!-- …` to end-of-string. This
+// leaves no `<!--` behind (satisfies CodeQL) without the quadratic re-scan loop
+// a malicious deeply-nested body could abuse for CPU-DoS.
+const stripComments = (s) =>
+  s
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<!--[\s\S]*$/, "")
+    .trim();
 
 // Grab the text under a heading whose title contains `keyword`, up to the next heading
 // or the end of the body.

@@ -17,7 +17,7 @@ concurrency:
 jobs:
   validate_pr_title:
     name: "📝 Validate PR Title"
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-24.04
     permissions:
       pull-requests: write
@@ -51,7 +51,7 @@ jobs:
     name: "📋 Validate PR Template"
     # Skip pushes to an existing PR (the body rarely changes) and bot-authored PRs.
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'pull_request_target' &&
       github.event.action != 'synchronize' &&
       github.actor != 'renovate[bot]' &&
       github.actor != 'github-actions[bot]'
