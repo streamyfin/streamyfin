@@ -1,0 +1,62 @@
+name: 🛡️ Trivy Security Scan
+
+# Filesystem scan (Streamyfin ships no container image): finds vulnerable dependencies,
+# leaked secrets and misconfigurations, and reports them to GitHub code scanning.
+# Runs post-merge + weekly (not on PRs — dependency-review already gates PRs, and SARIF
+# upload needs a write token that fork PRs don't get).
+on:
+  push:
+    branches: [develop, master]
+    paths:
+      - "package.json"
+      - "bun.lock"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.js"
+      - "**/*.jsx"
+      - ".github/workflows/trivy-scan.yml"
+  schedule:
+    - cron: "50 7 * * 5" # Weekly, Friday 07:50 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy:
+    name: 🔎 Filesystem scan
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to code scanning
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: 💾 Cache Trivy vulnerability DB
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
+
+      - name: 🔎 Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: 📤 Upload results to code scanning
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
