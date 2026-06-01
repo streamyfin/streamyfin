@@ -29,8 +29,7 @@
       },
       "supportsTablet": true,
       "entitlements": {
-        "com.apple.developer.networking.wifi-info": true,
-        "com.apple.developer.networking.multicast": true
+        "com.apple.developer.networking.wifi-info": true
       },
       "bundleIdentifier": "com.fredrikburmester.streamyfin",
       "icon": "./assets/images/icon-ios-liquid-glass.icon",
