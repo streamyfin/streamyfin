@@ -34,6 +34,7 @@ export type NowPlayingMetadata = {
   artist?: string;
   albumTitle?: string;
   artworkUri?: string;
+  artworkHeaders?: Record<string, string>;
 };
 
 export type MpvPlayerModuleEvents = {

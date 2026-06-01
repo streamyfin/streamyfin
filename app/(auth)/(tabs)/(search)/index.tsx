@@ -6,7 +6,6 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import { orderBy, uniqBy } from "lodash";
@@ -23,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
@@ -46,6 +46,7 @@ import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
 import type {
@@ -53,6 +54,7 @@ import type {
   PersonResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
+import { optionsWithOptionalHeaders } from "@/utils/optionalHeaders";
 import { createStreamystatsApi } from "@/utils/streamystats";
 
 type SearchType = "Library" | "Discover";
@@ -217,7 +219,13 @@ export default function SearchPage() {
           .map((type) => encodeURIComponent(type))
           .join("&includeItemTypes=")}`;
 
-        const response1 = await axios.get(url, { signal });
+        const response1 = await axios.get(
+          url,
+          optionsWithOptionalHeaders(
+            { signal },
+            getIntegrationHeaders("marlin"),
+          ),
+        );
 
         const ids = response1.data.ids;
 
@@ -779,8 +787,8 @@ export default function SearchPage() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />
@@ -818,8 +826,8 @@ export default function SearchPage() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />
@@ -860,8 +868,8 @@ export default function SearchPage() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />
@@ -902,8 +910,8 @@ export default function SearchPage() {
                       }}
                     >
                       {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
+                        <ServerImage
+                          uri={imageUrl}
                           style={{ width: "100%", height: "100%" }}
                           contentFit='cover'
                         />

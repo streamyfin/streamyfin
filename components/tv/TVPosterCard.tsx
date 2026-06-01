@@ -15,12 +15,14 @@ import { Text } from "@/components/common/Text";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useHeadersForUrl } from "@/hooks/useHeadersForUrl";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { sourceWithOptionalHeaders } from "@/utils/optionalHeaders";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -171,6 +173,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       width: width * 2, // 2x for quality on large screens
     });
   }, [api, item, orientation, width, imageUrlGetter]);
+  const imageHeaders = useHeadersForUrl(imageUrl);
 
   // Progress calculation
   const progress = useMemo(() => {
@@ -412,7 +415,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     }
 
     // Glass effect rendering (tvOS 26+)
-    if (useGlass) {
+    if (useGlass && !imageHeaders) {
       return (
         <View style={{ position: "relative" }}>
           <GlassPosterView
@@ -448,7 +451,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <Image
           placeholder={{ blurhash }}
           key={item.Id}
-          source={{ uri: imageUrl }}
+          source={sourceWithOptionalHeaders(imageUrl, imageHeaders)}
           recyclingKey={item.Id}
           cachePolicy='memory-disk'
           contentFit='cover'

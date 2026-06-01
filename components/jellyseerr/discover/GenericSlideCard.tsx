@@ -1,7 +1,8 @@
-import { Image, type ImageContentFit } from "expo-image";
+import type { ImageContentFit } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import type React from "react";
 import { StyleSheet, View, type ViewProps } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 
 export const textShadowStyle = StyleSheet.create({
@@ -42,10 +43,9 @@ const GenericSlideCard: React.FC<
       className='rounded-xl'
     >
       <View className='rounded-xl' {...props}>
-        <Image
+        <ServerImage
           key={id}
-          id={id}
-          source={url ? { uri: url } : null}
+          uri={url}
           cachePolicy={"memory-disk"}
           contentFit={contentFit}
           style={{

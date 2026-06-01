@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,11 +39,21 @@ import {
   TVTypographyScale,
   useSettings,
 } from "@/utils/atoms/settings";
+import { HEADER_PRESETS } from "@/utils/customHeaderPresets";
+import {
+  getIntegrationHeaderConfig,
+  type HeaderConfig,
+  type HeaderSource,
+  updateIntegrationHeaderConfig,
+} from "@/utils/integrationHeaders";
 import { storage } from "@/utils/mmkv";
 import {
+  type CustomHeader,
   getPreviousServers,
+  getServerCustomHeaders,
   type SavedServer,
   type SavedServerAccount,
+  updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
@@ -63,6 +73,14 @@ export default function SettingsTV() {
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
     settings.openSubtitlesApiKey || "",
+  );
+  const [jellyfinHeaders, setJellyfinHeaders] = useState<CustomHeader[]>([]);
+  const [jellyseerrHeaderConfig, setJellyseerrHeaderConfig] =
+    useState<HeaderConfig>(() => getIntegrationHeaderConfig("jellyseerr"));
+  const [streamystatsHeaderConfig, setStreamystatsHeaderConfig] =
+    useState<HeaderConfig>(() => getIntegrationHeaderConfig("streamystats"));
+  const [marlinHeaderConfig, setMarlinHeaderConfig] = useState<HeaderConfig>(
+    () => getIntegrationHeaderConfig("marlin"),
   );
 
   // PIN/Password modal state for user switching
@@ -92,6 +110,28 @@ export default function SettingsTV() {
   }, [currentServer, user?.Id]);
 
   const hasOtherAccounts = otherAccounts.length > 0;
+
+  useEffect(() => {
+    setJellyfinHeaders(
+      api?.basePath ? getServerCustomHeaders(api.basePath) : [],
+    );
+  }, [api?.basePath]);
+
+  const saveJellyfinHeaders = (headers: CustomHeader[]) => {
+    setJellyfinHeaders(headers);
+    if (api?.basePath) {
+      updateServerCustomHeaders(api.basePath, headers);
+    }
+  };
+
+  const saveIntegrationHeaders = (
+    integrationKey: string,
+    config: HeaderConfig,
+    setConfig: (config: HeaderConfig) => void,
+  ) => {
+    setConfig(config);
+    updateIntegrationHeaderConfig(integrationKey, config);
+  };
 
   // Handle account selection from modal
   const handleAccountSelect = async (account: SavedServerAccount) => {
@@ -584,6 +624,54 @@ export default function SettingsTV() {
             }
           />
 
+          {/* Custom Headers Section */}
+          <TVSectionHeader title={t("custom_headers.title")} />
+          <Text
+            style={{
+              color: "#9CA3AF",
+              fontSize: typography.callout - 2,
+              marginBottom: 16,
+              marginLeft: 8,
+            }}
+          >
+            {t("custom_headers.description")}
+          </Text>
+          <TVCustomHeaderEditor
+            serviceLabel='Jellyfin'
+            headers={jellyfinHeaders}
+            onHeadersChange={saveJellyfinHeaders}
+            disabled={!api?.basePath}
+          />
+          <TVIntegrationHeaderEditor
+            serviceLabel='Jellyseerr'
+            config={jellyseerrHeaderConfig}
+            onConfigChange={(config) =>
+              saveIntegrationHeaders(
+                "jellyseerr",
+                config,
+                setJellyseerrHeaderConfig,
+              )
+            }
+          />
+          <TVIntegrationHeaderEditor
+            serviceLabel='Streamystats'
+            config={streamystatsHeaderConfig}
+            onConfigChange={(config) =>
+              saveIntegrationHeaders(
+                "streamystats",
+                config,
+                setStreamystatsHeaderConfig,
+              )
+            }
+          />
+          <TVIntegrationHeaderEditor
+            serviceLabel='Marlin Search'
+            config={marlinHeaderConfig}
+            onConfigChange={(config) =>
+              saveIntegrationHeaders("marlin", config, setMarlinHeaderConfig)
+            }
+          />
+
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
           <TVSettingsOptionButton
@@ -938,6 +1026,210 @@ export default function SettingsTV() {
         onSubmit={handlePasswordSubmit}
         username={selectedAccount?.username || ""}
       />
+    </View>
+  );
+}
+
+interface TVCustomHeaderEditorProps {
+  serviceLabel: string;
+  headers: CustomHeader[];
+  onHeadersChange: (headers: CustomHeader[]) => void;
+  disabled?: boolean;
+}
+
+function TVCustomHeaderEditor({
+  serviceLabel,
+  headers,
+  onHeadersChange,
+  disabled,
+}: TVCustomHeaderEditorProps) {
+  const { t } = useTranslation();
+  const { showOptions } = useTVOptionModal();
+  const typography = useScaledTVTypography();
+
+  const updateHeader = (index: number, updates: Partial<CustomHeader>) => {
+    const next = [...headers];
+    next[index] = { ...next[index], ...updates };
+    onHeadersChange(next);
+  };
+
+  const addHeader = () => {
+    onHeadersChange([...headers, { key: "", value: "", enabled: true }]);
+  };
+
+  const addPreset = () => {
+    showOptions({
+      title: t("custom_headers.presets_title"),
+      options: HEADER_PRESETS.map((preset) => ({
+        label: preset.label,
+        value: preset.id,
+        selected: false,
+      })),
+      onSelect: (presetId) => {
+        const preset = HEADER_PRESETS.find((p) => p.id === presetId);
+        if (preset) {
+          onHeadersChange([...headers, ...preset.headers]);
+        }
+      },
+    });
+  };
+
+  return (
+    <View style={{ marginBottom: 24, opacity: disabled ? 0.4 : 1 }}>
+      <Text
+        style={{
+          color: "#FFFFFF",
+          fontSize: typography.body,
+          fontWeight: "600",
+          marginBottom: 8,
+          marginLeft: 8,
+        }}
+      >
+        {serviceLabel}
+      </Text>
+      {headers.length === 0 ? (
+        <TVSettingsRow
+          label={t("custom_headers.no_headers")}
+          value=''
+          showChevron={false}
+        />
+      ) : (
+        headers.map((header, index) => (
+          <View key={index} style={{ marginBottom: 12 }}>
+            <TVSettingsToggle
+              label={header.key || t("custom_headers.header_key")}
+              value={header.enabled}
+              disabled={disabled}
+              onToggle={(enabled) => updateHeader(index, { enabled })}
+            />
+            <TVSettingsTextInput
+              label={t("custom_headers.header_key")}
+              value={header.key}
+              placeholder={t("custom_headers.header_name_placeholder")}
+              disabled={disabled}
+              onChangeText={(key) => updateHeader(index, { key })}
+            />
+            <TVSettingsTextInput
+              label={t("custom_headers.header_value")}
+              value={header.value}
+              placeholder={t("custom_headers.header_value_placeholder")}
+              disabled={disabled}
+              onChangeText={(value) => updateHeader(index, { value })}
+              secureTextEntry
+            />
+            <TVSettingsOptionButton
+              label={t("common.remove")}
+              value=''
+              disabled={disabled}
+              onPress={() =>
+                onHeadersChange(headers.filter((_, i) => i !== index))
+              }
+            />
+          </View>
+        ))
+      )}
+      <TVSettingsOptionButton
+        label={t("custom_headers.add_preset")}
+        value=''
+        disabled={disabled}
+        onPress={addPreset}
+      />
+      <TVSettingsOptionButton
+        label={t("custom_headers.add_custom")}
+        value=''
+        disabled={disabled}
+        onPress={addHeader}
+      />
+      {headers.length > 0 && (
+        <TVSettingsOptionButton
+          label={t("custom_headers.clear_headers")}
+          value=''
+          disabled={disabled}
+          onPress={() => onHeadersChange([])}
+        />
+      )}
+    </View>
+  );
+}
+
+interface TVIntegrationHeaderEditorProps {
+  serviceLabel: string;
+  config: HeaderConfig;
+  onConfigChange: (config: HeaderConfig) => void;
+}
+
+function TVIntegrationHeaderEditor({
+  serviceLabel,
+  config,
+  onConfigChange,
+}: TVIntegrationHeaderEditorProps) {
+  const { t } = useTranslation();
+  const { showOptions } = useTVOptionModal();
+  const typography = useScaledTVTypography();
+
+  const sourceLabels: Record<HeaderSource, string> = {
+    jellyfin: t("custom_headers.source_jellyfin"),
+    custom: t("custom_headers.source_custom"),
+    none: t("custom_headers.source_none"),
+  };
+
+  const sourceOptions: TVOptionItem<HeaderSource>[] = [
+    "none",
+    "jellyfin",
+    "custom",
+  ].map((source) => ({
+    label: sourceLabels[source as HeaderSource],
+    value: source as HeaderSource,
+    selected: config.source === source,
+  }));
+
+  return (
+    <View style={{ marginBottom: 24 }}>
+      <Text
+        style={{
+          color: "#FFFFFF",
+          fontSize: typography.body,
+          fontWeight: "600",
+          marginBottom: 8,
+          marginLeft: 8,
+        }}
+      >
+        {serviceLabel}
+      </Text>
+      <TVSettingsOptionButton
+        label={t("custom_headers.title")}
+        value={sourceLabels[config.source]}
+        onPress={() =>
+          showOptions({
+            title: serviceLabel,
+            options: sourceOptions,
+            onSelect: (source) => onConfigChange({ ...config, source }),
+          })
+        }
+      />
+      {config.source === "jellyfin" && (
+        <TVSettingsRow
+          label={t("custom_headers.using_jellyfin_headers")}
+          value=''
+          showChevron={false}
+        />
+      )}
+      {config.source === "custom" && (
+        <TVCustomHeaderEditor
+          serviceLabel={`${serviceLabel} ${t("custom_headers.source_custom")}`}
+          headers={config.customHeaders}
+          onHeadersChange={(customHeaders) =>
+            onConfigChange({ ...config, customHeaders })
+          }
+        />
+      )}
+      {config.source === "none" && (
+        <TVSettingsRow
+          label={t("custom_headers.integration_none")}
+          value=''
+          showChevron={false}
+        />
+      )}
     </View>
   );
 }

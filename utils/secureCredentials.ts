@@ -1,9 +1,18 @@
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
+import { atom } from "jotai";
 import { storage } from "./mmkv";
+import { store } from "./store";
 
 const CREDENTIAL_KEY_PREFIX = "credential_";
+const CUSTOM_HEADER_VALUE_KEY_PREFIX = "custom_header_value_";
 const MULTI_ACCOUNT_MIGRATED_KEY = "multiAccountMigrated";
+
+export const customHeadersVersionAtom = atom(0);
+
+export function bumpCustomHeadersVersion(): void {
+  store.set(customHeadersVersionAtom, (version) => version + 1);
+}
 
 /**
  * Security type for saved accounts.
@@ -46,6 +55,16 @@ export interface LocalNetworkConfig {
 }
 
 /**
+ * Custom HTTP header for proxy authentication (e.g., Cloudflare Zero Trust, Pangolin).
+ */
+export interface CustomHeader {
+  key: string; // Header name, e.g. "CF-Access-Client-Id"
+  value: string; // Header value
+  enabled: boolean; // Whether to include this header in requests
+  secureValueKey?: string; // SecureStore key containing the header value
+}
+
+/**
  * Server with multiple saved accounts.
  */
 export interface SavedServer {
@@ -53,6 +72,7 @@ export interface SavedServer {
   name?: string;
   accounts: SavedServerAccount[];
   localNetworkConfig?: LocalNetworkConfig;
+  customHeaders?: CustomHeader[];
 }
 
 /**
@@ -92,6 +112,80 @@ export function credentialKey(serverUrl: string, userId: string): string {
   const combined = `${serverUrl}:${userId}`;
   const encoded = btoa(combined).replace(/[^a-zA-Z0-9]/g, "_");
   return `${CREDENTIAL_KEY_PREFIX}${encoded}`;
+}
+
+function encodeStorageKey(input: string): string {
+  return btoa(input).replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+function customHeaderValueKey(scope: string, index: number): string {
+  return `${CUSTOM_HEADER_VALUE_KEY_PREFIX}${encodeStorageKey(scope)}_${index}`;
+}
+
+function isStoredCustomHeader(header: unknown): header is CustomHeader {
+  return (
+    !!header &&
+    typeof header === "object" &&
+    typeof (header as CustomHeader).key === "string" &&
+    typeof (header as CustomHeader).value === "string" &&
+    typeof (header as CustomHeader).enabled === "boolean" &&
+    (typeof (header as CustomHeader).secureValueKey === "string" ||
+      (header as CustomHeader).secureValueKey === undefined)
+  );
+}
+
+function getSecureHeaderValue(header: CustomHeader): string {
+  if (!header.secureValueKey) return header.value;
+  return SecureStore.getItem(header.secureValueKey) ?? "";
+}
+
+/**
+ * Resolves secure header values for display or request injection.
+ */
+export function resolveCustomHeaderValues(
+  headers: CustomHeader[],
+): CustomHeader[] {
+  return headers.filter(isStoredCustomHeader).map((header) => ({
+    ...header,
+    value: getSecureHeaderValue(header),
+  }));
+}
+
+/**
+ * Stores header values in SecureStore and returns MMKV-safe header metadata.
+ */
+export function secureCustomHeaderMetadata(
+  scope: string,
+  headers: CustomHeader[],
+  previousHeaders: CustomHeader[] = [],
+): CustomHeader[] {
+  for (const header of previousHeaders.filter(isStoredCustomHeader)) {
+    if (header.secureValueKey) {
+      void SecureStore.deleteItemAsync(header.secureValueKey);
+    }
+  }
+
+  return headers.map((header, index) => {
+    const secureValueKey = customHeaderValueKey(scope, index);
+    SecureStore.setItem(secureValueKey, header.value);
+    return {
+      key: header.key,
+      value: "",
+      enabled: header.enabled,
+      secureValueKey,
+    };
+  });
+}
+
+/**
+ * Deletes SecureStore values associated with custom header metadata.
+ */
+export function deleteSecureCustomHeaderValues(headers: CustomHeader[]): void {
+  for (const header of headers.filter(isStoredCustomHeader)) {
+    if (header.secureValueKey) {
+      void SecureStore.deleteItemAsync(header.secureValueKey);
+    }
+  }
 }
 
 /**
@@ -300,6 +394,7 @@ export async function removeServerFromList(serverUrl: string): Promise<void> {
       const key = credentialKey(serverUrl, account.userId);
       await SecureStore.deleteItemAsync(key);
     }
+    deleteSecureCustomHeaderValues(server.customHeaders ?? []);
   }
 
   // Remove server from list
@@ -366,6 +461,60 @@ export function getServerLocalConfig(
   const servers = getPreviousServers();
   const server = servers.find((s) => s.address === serverUrl);
   return server?.localNetworkConfig;
+}
+
+/**
+ * Update custom headers for a server.
+ */
+export function updateServerCustomHeaders(
+  serverUrl: string,
+  headers: CustomHeader[],
+): void {
+  const servers = getPreviousServers();
+  const existingServerIndex = servers.findIndex((s) => s.address === serverUrl);
+  const previousHeaders =
+    existingServerIndex >= 0
+      ? (servers[existingServerIndex].customHeaders ?? [])
+      : [];
+  const secureHeaders = secureCustomHeaderMetadata(
+    `server:${serverUrl}`,
+    resolveCustomHeaderValues(headers),
+    previousHeaders,
+  );
+
+  if (existingServerIndex >= 0) {
+    // Update existing server
+    servers[existingServerIndex] = {
+      ...servers[existingServerIndex],
+      customHeaders: secureHeaders,
+    };
+  } else {
+    // Create new server entry with URL, headers, and empty accounts array
+    servers.push({
+      address: serverUrl,
+      customHeaders: secureHeaders,
+      accounts: [],
+    } as SavedServer);
+  }
+
+  storage.set("previousServers", JSON.stringify(servers));
+  bumpCustomHeadersVersion();
+}
+
+/**
+ * Get custom headers for a server.
+ */
+export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
+  const servers = getPreviousServers();
+  const server = servers.find((s) => s.address === serverUrl);
+  const customHeaders = (server?.customHeaders ?? []).filter(
+    isStoredCustomHeader,
+  );
+  if (customHeaders.some((header) => header.value && !header.secureValueKey)) {
+    updateServerCustomHeaders(serverUrl, customHeaders);
+    return getServerCustomHeaders(serverUrl);
+  }
+  return resolveCustomHeaderValues(customHeaders);
 }
 
 /**

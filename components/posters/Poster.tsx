@@ -1,5 +1,5 @@
-import { Image } from "expo-image";
 import { View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 
 type PosterProps = {
   id?: string | null;
@@ -21,7 +21,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
 
   return (
     <View className='rounded-lg overflow-hidden border border-neutral-900'>
-      <Image
+      <ServerImage
         placeholder={
           blurhash
             ? {
@@ -31,13 +31,7 @@ const Poster: React.FC<PosterProps> = ({ id, url, blurhash }) => {
         }
         key={id}
         id={id!}
-        source={
-          url
-            ? {
-                uri: url,
-              }
-            : null
-        }
+        uri={url}
         cachePolicy={"memory-disk"}
         contentFit='cover'
         style={{

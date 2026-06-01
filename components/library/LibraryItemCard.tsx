@@ -6,11 +6,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { type TouchableOpacityProps, View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -141,8 +141,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
               overflow: "hidden",
             }}
           >
-            <Image
-              source={{ uri: url }}
+            <ServerImage
+              uri={url}
               style={{
                 width: "100%",
                 height: "100%",
@@ -189,8 +189,8 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
           )}
         </View>
         <View className='p-2'>
-          <Image
-            source={{ uri: url }}
+          <ServerImage
+            uri={url}
             className='h-full aspect-[2/1] object-cover rounded-lg overflow-hidden'
           />
         </View>

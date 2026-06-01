@@ -1,6 +1,6 @@
 import { t } from "i18next";
-import React, { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
+import React, { useCallback, useRef, useState } from "react";
+import { ScrollView, TextInput, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -46,6 +46,7 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
   };
 
   const isDisabled = disabled || loading;
+  const passwordInputRef = useRef<TextInput>(null);
 
   const handleBack = useCallback(() => {
     if (isDisabled) return false;
@@ -114,10 +115,16 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
             onChangeText={(text) =>
               setCredentials((prev) => ({ ...prev, username: text }))
             }
+            onSubmitEditing={() => {
+              // Move focus to password field when Next is pressed
+              passwordInputRef.current?.focus();
+            }}
+            blurOnSubmit={false}
             autoCapitalize='none'
             autoCorrect={false}
             textContentType='username'
             returnKeyType='next'
+            returnKeyLabel='Next'
             hasTVPreferredFocus
             disabled={isDisabled}
           />
@@ -126,16 +133,18 @@ export const TVAddUserForm: React.FC<TVAddUserFormProps> = ({
         {/* Password Input */}
         <View
           style={{
-            marginBottom: scaleSize(32),
+            marginBottom: scaleSize(16),
             paddingHorizontal: scaleSize(8),
           }}
         >
           <TVInput
+            ref={passwordInputRef}
             placeholder={t("login.password_placeholder")}
             value={credentials.password}
             onChangeText={(text) =>
               setCredentials((prev) => ({ ...prev, password: text }))
             }
+            onSubmitEditing={handleLogin}
             secureTextEntry
             autoCapitalize='none'
             textContentType='password'

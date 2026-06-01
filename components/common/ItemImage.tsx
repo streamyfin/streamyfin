@@ -6,6 +6,7 @@ import { type FC, useMemo } from "react";
 import { View, type ViewProps } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getItemImage } from "@/utils/getItemImage";
+import { sourceWithOptionalHeaders } from "@/utils/optionalHeaders";
 
 interface Props extends ImageProps {
   item: BaseItemDto;
@@ -75,9 +76,10 @@ export const ItemImage: FC<Props> = ({
         width: "100%",
         height: "100%",
       }}
-      source={{
-        uri: source?.uri,
-      }}
+      source={sourceWithOptionalHeaders(
+        source.uri,
+        source.headers as Record<string, string> | undefined,
+      )}
       {...props}
     />
   );

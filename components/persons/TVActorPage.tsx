@@ -23,6 +23,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { Loader } from "@/components/Loader";
@@ -313,8 +314,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
           }}
         >
           {layer0Url ? (
-            <Image
-              source={{ uri: layer0Url }}
+            <ServerImage
+              uri={layer0Url}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -332,8 +333,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
           }}
         >
           {layer1Url ? (
-            <Image
-              source={{ uri: layer1Url }}
+            <ServerImage
+              uri={layer1Url}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -387,8 +388,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             }}
           >
             {actorImageUrl ? (
-              <Image
-                source={{ uri: actorImageUrl }}
+              <ServerImage
+                uri={actorImageUrl}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
               />

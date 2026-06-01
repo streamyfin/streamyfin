@@ -12,7 +12,8 @@ import expo.modules.kotlin.modules.ModuleDefinition
 
 data class DownloadTaskInfo(
   val url: String,
-  val destinationPath: String?
+  val destinationPath: String?,
+  val headers: Map<String, String>?
 )
 
 class BackgroundDownloaderModule : Module() {
@@ -25,7 +26,7 @@ class BackgroundDownloaderModule : Module() {
 
   private val downloadManager = OkHttpDownloadManager()
   private val downloadTasks = mutableMapOf<Int, DownloadTaskInfo>()
-  private val downloadQueue = mutableListOf<Pair<String, String?>>()
+  private val downloadQueue = mutableListOf<DownloadTaskInfo>()
   private var taskIdCounter = 1
   private var downloadService: DownloadService? = null
   private var serviceBound = false
@@ -72,22 +73,22 @@ class BackgroundDownloaderModule : Module() {
       }
     }
 
-    AsyncFunction("startDownload") { urlString: String, destinationPath: String?, promise: Promise ->
+    AsyncFunction("startDownload") { urlString: String, destinationPath: String?, headers: Map<String, String>?, promise: Promise ->
       try {
-        val taskId = startDownloadInternal(urlString, destinationPath)
+        val taskId = startDownloadInternal(urlString, destinationPath, headers)
         promise.resolve(taskId)
       } catch (e: Exception) {
         promise.reject("DOWNLOAD_ERROR", "Failed to start download: ${e.message}", e)
       }
     }
 
-    AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, promise: Promise ->
+    AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, headers: Map<String, String>?, promise: Promise ->
       try {
         Log.d(TAG, "Enqueuing download: url=$urlString")
         
         // Add to queue
         val wasEmpty = downloadQueue.isEmpty()
-        downloadQueue.add(Pair(urlString, destinationPath))
+        downloadQueue.add(DownloadTaskInfo(urlString, destinationPath, headers))
         Log.d(TAG, "Queue size: ${downloadQueue.size}")
         
         // If queue was empty and no active downloads, start processing immediately
@@ -116,7 +117,7 @@ class BackgroundDownloaderModule : Module() {
     Function("cancelQueuedDownload") { url: String ->
       // Remove from queue by URL
       downloadQueue.removeAll { queuedItem ->
-        queuedItem.first == url
+        queuedItem.url == url
       }
       Log.d(TAG, "Removed queued download: $url, queue size: ${downloadQueue.size}")
     }
@@ -144,7 +145,7 @@ class BackgroundDownloaderModule : Module() {
     }
   }
 
-  private fun startDownloadInternal(urlString: String, destinationPath: String?): Int {
+  private fun startDownloadInternal(urlString: String, destinationPath: String?, headers: Map<String, String>?): Int {
     val taskId = taskIdCounter++
     
     if (destinationPath == null) {
@@ -153,7 +154,8 @@ class BackgroundDownloaderModule : Module() {
     
     downloadTasks[taskId] = DownloadTaskInfo(
       url = urlString,
-      destinationPath = destinationPath
+      destinationPath = destinationPath,
+      headers = headers
     )
     
     // Start foreground service if not running
@@ -173,6 +175,7 @@ class BackgroundDownloaderModule : Module() {
       taskId = taskId,
       url = urlString,
       destinationPath = destinationPath,
+      headers = headers,
       onProgress = { bytesWritten, totalBytes ->
         handleProgress(taskId, bytesWritten, totalBytes)
       },
@@ -201,11 +204,11 @@ class BackgroundDownloaderModule : Module() {
     }
     
     // Get next item from queue
-    val (url, destinationPath) = downloadQueue.removeAt(0)
-    Log.d(TAG, "Processing next in queue: $url")
+    val taskInfo = downloadQueue.removeAt(0)
+    Log.d(TAG, "Processing next in queue: ${taskInfo.url}")
     
     return try {
-      startDownloadInternal(url, destinationPath)
+      startDownloadInternal(taskInfo.url, taskInfo.destinationPath, taskInfo.headers)
     } catch (e: Exception) {
       Log.e(TAG, "Error processing queue item: ${e.message}", e)
       // Try to process next item

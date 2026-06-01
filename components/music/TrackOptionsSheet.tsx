@@ -6,7 +6,6 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -23,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
@@ -37,6 +37,7 @@ import {
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useMusicPlayer } from "@/providers/MusicPlayerProvider";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
 interface Props {
@@ -177,6 +178,7 @@ export const TrackOptionsSheet: React.FC<Props> = ({
         await downloadTrack(track.Id, result.url, {
           permanent: true,
           container: result.mediaSource?.Container || undefined,
+          headers: getJellyfinCustomHeadersForUrl(result.url, api.basePath),
         });
       }
     } catch {
@@ -262,8 +264,8 @@ export const TrackOptionsSheet: React.FC<Props> = ({
             }}
           >
             {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
+              <ServerImage
+                uri={imageUrl}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
                 cachePolicy='memory-disk'

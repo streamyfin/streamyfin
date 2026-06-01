@@ -14,6 +14,7 @@ import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { CustomHeaderSelector } from "@/components/settings/CustomHeaderSelector";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
@@ -164,6 +165,12 @@ export default function StreamystatsPage() {
             )}
           </Text>
         </Text>
+
+        <CustomHeaderSelector
+          integrationKey='streamystats'
+          title={t("custom_headers.title")}
+          description={t("custom_headers.integration_description")}
+        />
 
         <ListGroup
           title={t("home.settings.plugins.streamystats.features_title")}

@@ -10,6 +10,7 @@ enum DownloadError: Error {
 struct DownloadTaskInfo {
   let url: String
   let destinationPath: String?
+  let headers: [String: String]?
 }
 
 // Separate delegate class to handle URLSession callbacks
@@ -73,7 +74,7 @@ public class BackgroundDownloaderModule: Module {
   private var sessionDelegate: DownloadSessionDelegate?
   fileprivate static var backgroundCompletionHandler: (() -> Void)?
   private var downloadTasks: [Int: DownloadTaskInfo] = [:]
-  private var downloadQueue: [(url: String, destinationPath: String?)] = []
+  private var downloadQueue: [DownloadTaskInfo] = []
   private var lastProgressTime: [Int: Date] = [:]
   
   public func definition() -> ModuleDefinition {
@@ -90,7 +91,7 @@ public class BackgroundDownloaderModule: Module {
       self.initializeSession()
     }
     
-    AsyncFunction("startDownload") { (urlString: String, destinationPath: String?) -> Int in
+    AsyncFunction("startDownload") { (urlString: String, destinationPath: String?, headers: [String: String]?) -> Int in
       guard let url = URL(string: urlString) else {
         throw DownloadError.invalidURL
       }
@@ -107,13 +108,17 @@ public class BackgroundDownloaderModule: Module {
       var request = URLRequest(url: url)
       request.httpMethod = "GET"
       request.timeoutInterval = 300
+      headers?.forEach { key, value in
+        request.setValue(value, forHTTPHeaderField: key)
+      }
       
       let task = session.downloadTask(with: request)
       let taskId = task.taskIdentifier
       
       self.downloadTasks[taskId] = DownloadTaskInfo(
         url: urlString,
-        destinationPath: destinationPath
+        destinationPath: destinationPath,
+        headers: headers
       )
       
       task.resume()
@@ -126,10 +131,14 @@ public class BackgroundDownloaderModule: Module {
       return taskId
     }
     
-    AsyncFunction("enqueueDownload") { (urlString: String, destinationPath: String?) -> Int in
+    AsyncFunction("enqueueDownload") { (urlString: String, destinationPath: String?, headers: [String: String]?) -> Int in
       // Add to queue
       let wasEmpty = self.downloadQueue.isEmpty
-      self.downloadQueue.append((url: urlString, destinationPath: destinationPath))
+      self.downloadQueue.append(DownloadTaskInfo(
+        url: urlString,
+        destinationPath: destinationPath,
+        headers: headers
+      ))
       
       // If queue was empty and no active downloads, start processing immediately
       if wasEmpty {
@@ -351,12 +360,12 @@ public class BackgroundDownloaderModule: Module {
     }
     
     // Get next item from queue
-    let (url, destinationPath) = downloadQueue.removeFirst()
+    let taskInfo = downloadQueue.removeFirst()
     print("[BackgroundDownloader] Starting queued download")
     
     // Start the download using existing startDownload logic
-    guard let urlObj = URL(string: url) else {
-      print("[BackgroundDownloader] Invalid URL in queue: \(url)")
+    guard let urlObj = URL(string: taskInfo.url) else {
+      print("[BackgroundDownloader] Invalid URL in queue: \(taskInfo.url)")
       return try await processNextInQueue()
     }
     
@@ -371,20 +380,24 @@ public class BackgroundDownloaderModule: Module {
     var request = URLRequest(url: urlObj)
     request.httpMethod = "GET"
     request.timeoutInterval = 300
+    taskInfo.headers?.forEach { key, value in
+      request.setValue(value, forHTTPHeaderField: key)
+    }
     
     let task = session.downloadTask(with: request)
     let taskId = task.taskIdentifier
     
     downloadTasks[taskId] = DownloadTaskInfo(
-      url: url,
-      destinationPath: destinationPath
+      url: taskInfo.url,
+      destinationPath: taskInfo.destinationPath,
+      headers: taskInfo.headers
     )
     
     task.resume()
     
     sendEvent("onDownloadStarted", [
       "taskId": taskId,
-      "url": url
+      "url": taskInfo.url
     ])
     
     return taskId
@@ -394,4 +407,3 @@ public class BackgroundDownloaderModule: Module {
     BackgroundDownloaderModule.backgroundCompletionHandler = handler
   }
 }
-

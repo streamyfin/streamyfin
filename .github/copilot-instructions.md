@@ -60,6 +60,8 @@ and provides seamless media streaming with offline capabilities and Chromecast s
 - Implement proper loading states and error handling
 - Use React Query for caching and background updates
 - Handle offline scenarios gracefully
+- For protected self-hosted Jellyfin, Jellyseerr, Streamystats, or Marlin URLs, do not add bare image, media, API, or download calls. Use `ServerImage`, `useHeadersForUrl`, `sourceWithOptionalHeaders`, `optionsWithOptionalHeaders`, `getJellyfinCustomHeadersForUrl`, or `getIntegrationHeaders` so custom proxy headers are attached only when present and only for the configured service.
+- For file downloads from Jellyfin URLs, pass headers through the shared helper path instead of calling `File.downloadFileAsync`, `BackgroundDownloader.startDownload`, or `BackgroundDownloader.enqueueDownload` with unwrapped options. Do not attach Jellyfin or integration custom headers to public services such as TMDB, OpenSubtitles, public Streamystats instances, or unrelated remote media hosts.
 
 ## Performance Optimization
 
@@ -88,6 +90,7 @@ Exemples:
 ## Special Instructions
 
 - Prioritize cross-platform compatibility (mobile + TV)
+- Keep mobile and TV auth/login flows in parity. If you add server connection, credential, custom header, account selection, or login behavior in `components/login/Login.tsx`, also check the TV flow (`TVLogin.tsx`, `TVAddServerForm.tsx`, `TVAddUserForm.tsx`, `TVInput.tsx`, and related TV login components) and implement the matching behavior where applicable.
 - Ensure accessibility for TV remote navigation
 - Use existing atoms, hooks, and utilities before creating new ones
 - Maintain compatibility with Expo and EAS workflows

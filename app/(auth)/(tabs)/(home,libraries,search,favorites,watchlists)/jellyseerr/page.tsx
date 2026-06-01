@@ -8,7 +8,6 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +16,7 @@ import { Platform, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import Cast from "@/components/jellyseerr/Cast";
@@ -260,19 +260,17 @@ const MobilePage: React.FC = () => {
         headerImage={
           <View>
             {result.backdropPath ? (
-              <Image
+              <ServerImage
                 cachePolicy={"memory-disk"}
                 transition={300}
                 style={{
                   width: "100%",
                   height: "100%",
                 }}
-                source={{
-                  uri: jellyseerrApi?.imageProxy(
-                    result.backdropPath,
-                    "w1920_and_h800_multi_faces",
-                  ),
-                }}
+                uri={jellyseerrApi?.imageProxy(
+                  result.backdropPath,
+                  "w1920_and_h800_multi_faces",
+                )}
               />
             ) : (
               <View
@@ -312,13 +310,11 @@ const MobilePage: React.FC = () => {
                   </Text>
                   <Text className='opacity-50'>{releaseYear}</Text>
                 </View>
-                <Image
+                <ServerImage
                   className='absolute bottom-1 right-1 rounded-lg w-28 aspect-[10/15] border-2 border-neutral-800/50 drop-shadow-2xl'
                   cachePolicy={"memory-disk"}
                   transition={300}
-                  source={{
-                    uri: posterSrc,
-                  }}
+                  uri={posterSrc}
                 />
               </View>
               <View>

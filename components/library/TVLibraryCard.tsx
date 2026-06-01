@@ -6,11 +6,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -120,8 +120,8 @@ export const TVLibraryCard: React.FC<Props> = ({ library }) => {
       }}
     >
       {url && (
-        <Image
-          source={{ uri: url }}
+        <ServerImage
+          uri={url}
           style={{
             position: "absolute",
             width: "100%",
