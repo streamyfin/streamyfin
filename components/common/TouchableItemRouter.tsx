@@ -2,6 +2,7 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSegments } from "expo-router";
 import { type PropsWithChildren, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Platform,
   TouchableOpacity,
@@ -149,6 +150,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   children,
   ...props
 }) => {
+  const { t } = useTranslation();
   const segments = useSegments();
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
@@ -182,11 +184,13 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
       return;
 
     const options: string[] = [
-      "Mark as Played",
-      "Mark as Not Played",
-      isFavorite ? "Unmark as Favorite" : "Mark as Favorite",
-      ...(isOffline ? ["Delete Download"] : []),
-      "Cancel",
+      t("common.mark_as_played"),
+      t("common.mark_as_not_played"),
+      isFavorite
+        ? t("music.track_options.remove_from_favorites")
+        : t("music.track_options.add_to_favorites"),
+      ...(isOffline ? [t("home.downloads.delete_download")] : []),
+      t("common.cancel"),
     ];
     const cancelButtonIndex = options.length - 1;
     const destructiveButtonIndex = isOffline
@@ -219,6 +223,7 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     isOffline,
     deleteFile,
     item.Id,
+    t,
   ]);
 
   if (
