@@ -4,9 +4,16 @@ const { withEntitlementsPlist } = require("expo/config-plugins");
  * Expo config plugin to add User Management entitlement for tvOS profile linking
  */
 const withTVUserManagement = (config) => {
+  // Only add for tvOS builds. The entitlement is restricted by Apple and must
+  // be present in the provisioning profile, so injecting it into mobile builds
+  // breaks signing ("Entitlement ... not found and could not be included in
+  // profile"). The entitlement is only needed for tvOS
+  // TVUserManager.currentUserIdentifier.
+  if (process.env.EXPO_TV !== "1") {
+    return config;
+  }
+
   return withEntitlementsPlist(config, (config) => {
-    // Only add for tvOS builds (check if building for TV)
-    // The entitlement is needed for TVUserManager.currentUserIdentifier to work
     config.modResults["com.apple.developer.user-management"] = [
       "runs-as-current-user",
     ];
