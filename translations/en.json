@@ -652,7 +652,8 @@
       "poster": "Poster",
       "cover": "Cover",
       "show_titles": "Show Titles",
-      "show_stats": "Show Stats"
+      "show_stats": "Show Stats",
+      "options_title": "Options"
     },
     "filters": {
       "genres": "Genres",
@@ -682,6 +683,7 @@
   },
   "player": {
     "live": "LIVE",
+    "mpv_player_title": "MPV Player",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
