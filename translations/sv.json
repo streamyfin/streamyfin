@@ -108,7 +108,7 @@
       "features_description": "Streamyfin har en massa funktioner och integrerar med ett brett utbud av programvara som du kan hitta i inställningsmenyn, dessa inkluderar:",
       "jellyseerr_feature_description": "Anslut till din Seerr instans och begär filmer direkt i appen.",
       "downloads_feature_title": "Nedladdningar",
-      "downloads_feature_description": "Ladda ner filmer och tv-program för att titta på offline. Använd antingen standardmetoden eller installera optimera servern för att ladda ner filer i bakgrunden.",
+      "downloads_feature_description": "Ladda ner filmer och tv-program för att titta offline, med transkodade nedladdningar för kompatibel uppspelning i valfri kvalitet.",
       "chromecast_feature_description": "Strömma filmer och tv-program till dina Chromecast-enheter.",
       "centralised_settings_plugin_title": "Plugin för centraliserade inställningar",
       "centralised_settings_plugin_description": "Konfigurera inställningar från en centraliserad plats på din Jellyfin-server. Alla klientinställningar för användare kommer att synkroniseras automatiskt.",

@@ -51,7 +51,7 @@
       "features_description": "Streamyfin havas multajn trajtojn kaj integriĝas kun vasta gamo de programaroj, kiujn vi povas trovi en la agorda menuo, tiuj inkluzivas:",
       "jellyseerr_feature_description": "Konekti al via Jellyseerr-instanco kaj peti filmojn rekte en la aplikaĵo.",
       "downloads_feature_title": "Elŝutoj",
-      "downloads_feature_description": "Elŝutu filmojn kaj televidajn seriojn por vidi senkonekte. Uzu aŭ la defaŭltan metodon aŭ instalu la optimumigan servilon por elŝuti dosierojn en la fono.",
+      "downloads_feature_description": "Elŝutu filmojn kaj televidajn seriojn por spekti senkonekte, kun transkoditaj elŝutoj por kongrua reproduktado en ajna kvalito.",
       "chromecast_feature_description": "Ĵetu filmojn kaj televidajn seriojn al viaj Chromecast-aparatoj.",
       "centralised_settings_plugin_title": "Centralizita Agorda Kromprogramo",
       "centralised_settings_plugin_description": "Agordu agordojn de centralizita loko sur via Jellyfin-servilo. Ĉiuj klientaj agordoj por ĉiuj uzantoj estos sinkronigitaj aŭtomate.",
@@ -141,13 +141,8 @@
       },
       "downloads": {
         "downloads_title": "Elŝutoj",
-        "optimized_versions_server": "Optimumigitaj versioj servilo",
         "save_button": "Konservi",
-        "optimized_server": "Optimumigita Servilo",
-        "optimized": "Optimumigita",
         "default": "Defaŭlta",
-        "optimized_version_hint": "Enigu la URL-on por la optimumiga servilo. La URL devus inkluzivi http aŭ https kaj laŭvole la pordon.",
-        "read_more_about_optimized_server": "Legu pli pri la optimumiga servilo.",
         "url": "URL",
         "server_url_placeholder": "http(s)://domajno.org:pordo"
       },
@@ -263,7 +258,6 @@
         "download_stated_for_item": "Elŝuto komenciĝis por {{item}}",
         "download_failed_for_item": "Elŝuto malsukcesis por {{item}} - {{error}}",
         "download_completed_for_item": "Elŝuto finita por {{item}}",
-        "queued_item_for_optimization": "Envicigis {{item}} por optimumigo",
         "failed_to_start_download_for_item": "Malsukcesis komenci elŝutadon por {{item}}: {{message}}",
         "server_responded_with_status_code": "Servilo respondis kun statuskodo {{statusCode}}",
         "no_response_received_from_server": "Neniu respondo ricevita de la servilo",
@@ -401,7 +395,6 @@
       "download_movie": "Elŝuti Filmon",
       "download_x_item": "Elŝuti {{item_count}} erojn",
       "download_button": "Elŝuti",
-      "using_optimized_server": "Uzante optimumigitan servilon",
       "using_default_method": "Uzante defaŭltan metodon"
     }
   },

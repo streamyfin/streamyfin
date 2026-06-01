@@ -51,7 +51,7 @@
       "features_description": "Streamyfin ka shumë funksione dhe integron me shumë software tjera, të cilët mund ti gjeni në menynë e cilësimeve, përfshirë këto:",
       "jellyseerr_feature_description": "Lidhu me instancën tuaj të Jellyseerr dhe kërko filma direkt në aplikacionin.",
       "downloads_feature_title": "Shkarkime",
-      "downloads_feature_description": "Shkarkoni filma dhe seriale për shikim offline. Përdorni ose metodën standarde ose instaloni serverin e optimizuar për të shkarkuar skedarët në sfond.",
+      "downloads_feature_description": "Shkarkoni filma dhe seriale për t'i parë offline, me shkarkime të transkoduara për riprodhim të pajtueshëm në çdo cilësi.",
       "chromecast_feature_description": "Dërgo filma dhe seriale në pajisjet tuaja Chromecast.",
       "centralised_settings_plugin_title": "Plugin i Cilësimeve Qendrore",
       "centralised_settings_plugin_description": "Konfiguroni cilësimet nga një vendndodhje qendrore në Jellyfin serverin tuaj. Të gjitha cilësimet e klientit për të gjithë përdoruesit do të sinkronizohen automatikisht.",
@@ -141,13 +141,8 @@
       },
       "downloads": {
         "downloads_title": "Shkarkime",
-        "optimized_versions_server": "Serveri i versioneve të optimizuara",
         "save_button": "Ruaj",
-        "optimized_server": "Server i optimizuar",
-        "optimized": "I optimizuar",
         "default": "Standard",
-        "optimized_version_hint": "Vendos URL-në për serverin e optimizimit. URL-ja duhet të përfshijë http ose https dhe opsionalisht portën.",
-        "read_more_about_optimized_server": "Lexo më shumë rreth serverit të optimizimit.",
         "url": "URL",
         "server_url_placeholder": "http(s)://domain.org:port"
       },
@@ -263,7 +258,6 @@
         "download_stated_for_item": "Shkarkimi filloi për {{item}}",
         "download_failed_for_item": "Shkarkimi për {{item}} dështoj - {{error}}",
         "download_completed_for_item": "Shkarkimi për {{item}} u përfundua",
-        "queued_item_for_optimization": "{{item}} u shtua në radhë për optimizim",
         "failed_to_start_download_for_item": "Dështoijë fillimi i shkarkimit për {{item}}: {{message}}",
         "server_responded_with_status_code": "Serveri u përgjigj me statusin {{statusCode}}",
         "no_response_received_from_server": "Nuk u mor asnjë përgjigje nga serveri",
@@ -401,7 +395,6 @@
       "download_movie": "Shkarko filmin",
       "download_x_item": "Shkarko {{item_count}} elemente",
       "download_button": "Shkarko",
-      "using_optimized_server": "Duke përdorur serverin e optimizuar",
       "using_default_method": "Duke përdorur metodën standarde"
     }
   },

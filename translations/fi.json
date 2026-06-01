@@ -108,7 +108,7 @@
       "features_description": "Streamyfin sisältää useita ominaisuuksia ja integroituu laajaan valikoimaan ohjelmistoja, jotka löydät asetukset-valikosta. Näitä ovat:",
       "jellyseerr_feature_description": "Yhdistä Jellyseerr-instanssiisi ja pyydä elokuvia suoraan sovelluksessa.",
       "downloads_feature_title": "Lataukset",
-      "downloads_feature_description": "Lataa elokuvia ja TV-sarjoja katsottavaksi offline-tilassa. Käytä joko oletusmenetelmää tai asenna optimoitu palvelin ladataksesi tiedostoja taustalla.",
+      "downloads_feature_description": "Lataa elokuvia ja TV-sarjoja katsottavaksi offline-tilassa, transkoodatuilla latauksilla yhteensopivaa toistoa varten millä tahansa laadulla.",
       "chromecast_feature_description": "Toista elokuvia ja TV-sarjoja Chromecast-laitteillesi.",
       "centralised_settings_plugin_title": "Keskitetty asetusten liitännäinen",
       "centralised_settings_plugin_description": "Määritä asetukset keskitetystä sijainnista Jellyfin-palvelimellasi. Kaikki asiakasasetukset kaikille käyttäjille synkronoidaan automaattisesti.",

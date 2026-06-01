@@ -51,7 +51,7 @@
       "features_description": "Streamyfin 拥有许多功能，并与多种服务整合，您可以在设置菜单中找到这些功能，包括：",
       "jellyseerr_feature_description": "连接到您的 Jellyseerr 实例并直接在应用中请求电影。",
       "downloads_feature_title": "下载",
-      "downloads_feature_description": "下载电影和节目以离线观看。使用默认方法或安装 Optimized Server 以在后台下载文件。",
+      "downloads_feature_description": "下载电影和节目以离线观看，并可使用转码下载，以任意画质实现兼容播放。",
       "chromecast_feature_description": "将电影和节目投屏到您的 Chromecast 设备。",
       "centralised_settings_plugin_title": "统一设置插件",
       "centralised_settings_plugin_description": "从 Jellyfin 服务器上的统一位置改变设置。所有用户的所有客户端设置将会自动同步。",
@@ -140,13 +140,8 @@
       },
       "downloads": {
         "downloads_title": "下载",
-        "optimized_versions_server": "Optimized Version 服务器",
         "save_button": "保存",
-        "optimized_server": "Optimized Server",
-        "optimized": "已优化",
         "default": "默认",
-        "optimized_version_hint": "输入 Optimized Server 的 URL。URL 应包括 http(s) 和端口 (可选)。",
-        "read_more_about_optimized_server": "查看更多关于 Optimized Server 的信息。",
         "url": "URL",
         "server_url_placeholder": "http(s)://domain.org:port"
       },
@@ -258,7 +253,6 @@
         "download_stated_for_item": "开始下载 {{item}}",
         "download_failed_for_item": "下载失败 {{item}} - {{error}}",
         "download_completed_for_item": "下载完成 {{item}}",
-        "queued_item_for_optimization": "已将 {{item}} 队列进行优化",
         "failed_to_start_download_for_item": "无法开始下载 {{item}}: {{message}}",
         "server_responded_with_status_code": "服务器响应状态 {{statusCode}}",
         "no_response_received_from_server": "未收到服务器响应",
@@ -398,7 +392,6 @@
       "download_movie": "下载电影",
       "download_x_item": "下载 {{item_count}} 项目",
       "download_button": "下载",
-      "using_optimized_server": "使用 Optimized Server",
       "using_default_method": "使用默认方法"
     }
   },

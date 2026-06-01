@@ -108,7 +108,7 @@
       "features_description": "Streamyfinには多くの機能があり、設定メニューで見つけることができるさまざまなソフトウェアと統合されています。これには以下が含まれます。",
       "jellyseerr_feature_description": "Jellyseerrインスタンスに接続し、アプリ内で直接映画をリクエストします。",
       "downloads_feature_title": "ダウンロード",
-      "downloads_feature_description": "映画やテレビ番組をダウンロードしてオフラインで視聴します。デフォルトの方法を使用するか、バックグラウンドでファイルをダウンロードするために最適化されたサーバーをインストールしてください。",
+      "downloads_feature_description": "映画やテレビ番組をダウンロードしてオフラインで視聴できます。互換性のある再生のために、任意の品質でトランスコード済みダウンロードを利用できます。",
       "chromecast_feature_description": "映画とテレビ番組をChromecastデバイスにキャストします。",
       "centralised_settings_plugin_title": "集中設定プラグイン",
       "centralised_settings_plugin_description": "Jellyfinサーバーから設定を構成します。すべてのユーザーのすべてのクライアント設定は自動的に同期されます。",

@@ -108,7 +108,7 @@
       "features_description": "Streamyfin posiada wiele funkcji i integruje się z szeroką gamą oprogramowania, które możesz znaleźć w menu ustawień w tym:",
       "jellyseerr_feature_description": "Połącz się ze swoim serwerem Jellyseerr i zamawiaj filmy bezpośrednio w aplikacji.",
       "downloads_feature_title": "Pobieranie",
-      "downloads_feature_description": "Pobieraj filmy oraz seriale do oglądania offline. Użyj domyślnej metody lub zainstaluj serwer do optymalizacji, aby pobierać pliki w tle.",
+      "downloads_feature_description": "Pobieraj filmy i seriale do oglądania offline, z transkodowanymi pobraniami zapewniającymi zgodne odtwarzanie w dowolnej jakości.",
       "chromecast_feature_description": "Przesyłaj filmy i seriale na urządzenia Chromecast.",
       "centralised_settings_plugin_title": "Scentralizowana wtyczka ustawień",
       "centralised_settings_plugin_description": "Konfiguruj ustawienia z jednego miejsca na serwerze Jellyfin. Wszystkie ustawienia klientów dla wszystkich użytkowników będą synchronizowane automatycznie.",

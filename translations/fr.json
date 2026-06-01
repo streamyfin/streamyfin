@@ -108,7 +108,7 @@
       "features_description": "Streamyfin offre de nombreuses fonctionnalités et s'intègre à de nombreux logiciels disponibles dans le menu des paramètres, notamment :",
       "jellyseerr_feature_description": "Connectez-vous à votre instance Seerr et demandez des films directement dans l'application.",
       "downloads_feature_title": "Téléchargements",
-      "downloads_feature_description": "Téléchargez des films et des séries pour les regarder hors ligne. Utilisez la méthode par défaut ou installez le serveur d'optimisation pour télécharger les fichiers en arrière-plan.",
+      "downloads_feature_description": "Téléchargez des films et des séries pour les regarder hors ligne, avec des téléchargements transcodés pour une lecture compatible dans la qualité de votre choix.",
       "chromecast_feature_description": "Diffusez des films et des séries sur vos appareils Chromecast.",
       "centralised_settings_plugin_title": "Plugin de paramètres centralisés",
       "centralised_settings_plugin_description": "Configuration des paramètres d'un emplacement centralisé sur votre serveur Jellyfin. Tous les paramètres clients pour tous les utilisateurs seront synchronisés automatiquement.",

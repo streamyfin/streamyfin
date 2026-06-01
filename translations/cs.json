@@ -108,7 +108,7 @@
       "features_description": "Streamyfin má spoustu funkcí a integruje širokou škálu softwarů, které můžete najít v nabídce nastavení, mezi něž patří:",
       "jellyseerr_feature_description": "Připojte se k instanci Seerr a požádejte filmy přímo v aplikaci.",
       "downloads_feature_title": "Stahování",
-      "downloads_feature_description": "Stáhněte si filmy a tv-show pro zobrazení v režimu offline. Použijte buď výchozí metodu nebo nainstalujte optimalizovaný server ke stažení souborů na pozadí.",
+      "downloads_feature_description": "Stahujte filmy a TV pořady ke sledování offline, s překódovanými soubory ke stažení pro kompatibilní přehrávání v libovolné kvalitě.",
       "chromecast_feature_description": "Přenášejte filmy a tv-show do vašich zařízení Chromecast.",
       "centralised_settings_plugin_title": "Centralizovaný plugin nastavení",
       "centralised_settings_plugin_description": "Konfigurace nastavení z centralizovaného umístění na serveru Jellyfin. Všechna klientská nastavení pro všechny uživatele budou automaticky synchronizována.",

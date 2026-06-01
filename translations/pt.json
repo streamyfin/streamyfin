@@ -108,7 +108,7 @@
       "features_description": "O Streamyfin tem vários recursos e integra-se com uma grande variedade de softwares que você pode encontrar no menu de configurações, incluindo:",
       "jellyseerr_feature_description": "Conecte-se à sua instância do Seerr e solicite filmes diretamente no aplicativo.",
       "downloads_feature_title": "Downloads",
-      "downloads_feature_description": "Baixe filmes e séries para ver offline. Use o método padrão ou instale o servidor otimizado para baixar arquivos em segundo plano.",
+      "downloads_feature_description": "Descarregue filmes e séries para ver offline, com transferências transcodificadas para reprodução compatível em qualquer qualidade.",
       "chromecast_feature_description": "Transmita filmes e séries para seus dispositivos Chromecast.",
       "centralised_settings_plugin_title": "Plugin de Configurações Centralizadas",
       "centralised_settings_plugin_description": "Configure as configurações de um local centralizado no seu servidor Jellyfin. Todas as configurações do cliente para todos os usuários serão sincronizadas automaticamente.",

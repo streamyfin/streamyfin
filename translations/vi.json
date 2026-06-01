@@ -108,7 +108,7 @@
       "features_description": "Streamyfin có nhiều tính năng và tích hợp với nhiều phần mềm, xem trong mục cài đặt, bao gồm:",
       "jellyseerr_feature_description": "Kết nối với Jellyseerr và yêu cầu phim ngay trong ứng dụng.",
       "downloads_feature_title": "Tải xuống",
-      "downloads_feature_description": "Tải phim và chương trình để xem ngoại tuyến. Có thể dùng phương pháp mặc định hoặc cài đặt máy chủ tối ưu để hỗ trợ tải trong nền.",
+      "downloads_feature_description": "Tải phim và chương trình để xem ngoại tuyến, với bản tải xuống được chuyển mã để phát tương thích ở mọi chất lượng.",
       "chromecast_feature_description": "Phát phim lên Chromecast.",
       "centralised_settings_plugin_title": "Plugin cấu hình tập trung",
       "centralised_settings_plugin_description": "Cài đặt đồng bộ hóa từ máy chủ Jellyfin. Tất cả cài đặt người dùng sẽ được đồng bộ.",

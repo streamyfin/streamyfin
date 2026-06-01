@@ -51,7 +51,7 @@
       "features_description": "Streamyfin har ei rekkje funksjonar og blir integrerte med eit breitt utval av programvare som du finn i innstillingsmenyen, desse inkluderer:",
       "jellyseerr_feature_description": "Kopl til Jellyseerr-instansen din og be om filmar direkte i appen.",
       "downloads_feature_title": "Nedlastingar",
-      "downloads_feature_description": "Last ned filmar og TV-seriar for å sjå dei offline. Bruk anten standardmetoden eller installer optimize-serveren for å lasta ned filer i bakgrunnen.",
+      "downloads_feature_description": "Last ned filmar og TV-seriar for å sjå dei offline, med transkoda nedlastingar for kompatibel avspeling i valfri kvalitet.",
       "chromecast_feature_description": "Cast filmar og TV-seriar til Chromecast-einingane dine.",
       "centralised_settings_plugin_title": "Sentraliserte innstillingar-plugin",
       "centralised_settings_plugin_description": "Konfigurer innstillingar frå ei sentralisert plassering på Jellyfin-serveren din. Alle klientinnstillingar for alle brukarar blir automatisk synkroniserte.",
@@ -141,13 +141,8 @@
       },
       "downloads": {
         "downloads_title": "Nedlastingar",
-        "optimized_versions_server": "Optimaliserte versjonar servar",
         "save_button": "Lagre",
-        "optimized_server": "Optimalisert Servar",
-        "optimized": "Optimalisert",
         "default": "Standard",
-        "optimized_version_hint": "Skriv inn URL-en for optimeringsserveren. URL-en skal innehalda http eller https og eventuelt porten.",
-        "read_more_about_optimized_server": "Les meir om optimeringsserveren.",
         "url": "URL",
         "server_url_placeholder": "http(s)://domene.org:port"
       },
@@ -263,7 +258,6 @@
         "download_stated_for_item": "Nedlasting starta for {{item}}",
         "download_failed_for_item": "Nedlasting mislukkast for {{item}} – {{error}}",
         "download_completed_for_item": "Nedlasting fullført for {{item}}",
-        "queued_item_for_optimization": "La {{item}} i kø for optimalisering",
         "failed_to_start_download_for_item": "Kunne ikkje starta nedlasting for {{item}}: {{message}}",
         "server_responded_with_status_code": "Serveren svara med statuskode {{statusCode}}",
         "no_response_received_from_server": "Ingen respons motteken frå serveren",
@@ -401,7 +395,6 @@
       "download_movie": "Last ned film",
       "download_x_item": "Last ned {{item_count}} element",
       "download_button": "Last ned",
-      "using_optimized_server": "Brukar optimalisert tenar",
       "using_default_method": "Brukar standard metode"
     }
   },

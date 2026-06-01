@@ -108,7 +108,7 @@
       "features_description": "Streamyfin are o mulțime de funcții și se integrează cu o gamă largă de software pe care le puteți găsi în meniul de setări, printre care:",
       "jellyseerr_feature_description": "Conectează-te la Jellyseerr și solicită filme direct în aplicație.",
       "downloads_feature_title": "Descărcări",
-      "downloads_feature_description": "Descarcă filme și seriale pentru a le viziona offline. Folosește fie metoda implicită, fie instalează serverul de optimizare pentru a descărca fișiere în fundal.",
+      "downloads_feature_description": "Descarcă filme și seriale pentru vizionare offline, cu descărcări transcodate pentru redare compatibilă la orice calitate.",
       "chromecast_feature_description": "Transmiteți filme și seriale pe dispozitivele dvs. Chromecast.",
       "centralised_settings_plugin_title": "Plugin de setări centralizate",
       "centralised_settings_plugin_description": "Configurați setările dintr-o locație centralizată pe serverul Jellyfin. Toate setările clientului pentru toți utilizatorii vor fi sincronizate automat.",

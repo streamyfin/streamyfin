@@ -108,7 +108,7 @@
       "features_description": "A Streamyfin számos funkcióval rendelkezik és sokféle szoftverrel integrálható, melyeket a beállítások menüben találhatsz:",
       "jellyseerr_feature_description": "Csatlakozz a Jellyseerrhez és kérj filmeket közvetlenül az alkalmazásból.",
       "downloads_feature_title": "Letöltések",
-      "downloads_feature_description": "Töltsd le a filmeket és sorozatokat az offline megtekintéshez. Használhatod az alapértelmezett módszert, vagy telepítheted az 'optimise server'-t a háttérben történő letöltéshez.",
+      "downloads_feature_description": "Tölts le filmeket és sorozatokat offline megtekintéshez, transzkódolt letöltésekkel a kompatibilis lejátszáshoz bármilyen minőségben.",
       "chromecast_feature_description": "Játszd le a filmeket és sorozatokat a  Chromecast eszközeiden.",
       "centralised_settings_plugin_title": "Központosított Beállítások Bővítmény",
       "centralised_settings_plugin_description": "Konfiguráld a beállításaidat központilag a Jellyfin szerveren. Minden felhasználói kliensbeállítás automatikusan szinkronizálódik.",

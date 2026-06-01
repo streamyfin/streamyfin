@@ -51,7 +51,7 @@
       "features_description": "Streamyfin possui vários recursos e integra com uma variadade de programas que você pode encontrar no menu de configurações, entre eles:",
       "jellyseerr_feature_description": "Conecte sua instância de Jellyfin e solicite filmes diretamente pelo app.",
       "downloads_feature_title": "Downloads",
-      "downloads_feature_description": "Baixe filmes e séries para assistir sem internet. Use o método padrão ou instale o servidor de otimização para fazer o download de arquivos em segundo plano.",
+      "downloads_feature_description": "Baixe filmes e séries para assistir offline, com downloads transcodificados para reprodução compatível em qualquer qualidade.",
       "chromecast_feature_description": "Transmita filmes e séries para seu dispositivo Chromecast.",
       "centralised_settings_plugin_title": "Plugin de configurações centralizado",
       "centralised_settings_plugin_description": "Configure configurações através de um local centralizado no seu servidor Jellyfin. Todos as configurações de cliente serão sincronizadas para todos os usuários.",
@@ -142,13 +142,8 @@
       },
       "downloads": {
         "downloads_title": "Downloads",
-        "optimized_versions_server": "Servidor do optimized versions",
         "save_button": "Salvar",
-        "optimized_server": "Optimized Server",
-        "optimized": "Otimizado",
         "default": "Padrão",
-        "optimized_version_hint": "Digite a URL do optimized server. A URL deve incluir http ou https e opcionalmente a porta.",
-        "read_more_about_optimized_server": "Leia mais sobre o optimize server.",
         "url": "URL",
         "server_url_placeholder": "http(s)://dominio.org:porta"
       },
@@ -261,7 +256,6 @@
         "download_stated_for_item": "Download iniciado para {{item}}",
         "download_failed_for_item": "Download falhou para {{item}} - {{error}}",
         "download_completed_for_item": "Download completo para {{item}}",
-        "queued_item_for_optimization": "{{item}} foi adicionado na fila para otimização",
         "failed_to_start_download_for_item": "Falha ao iniciar o download de {{item}}: {{message}}",
         "server_responded_with_status_code": "Servidor respondeu com status {{statusCode}}",
         "no_response_received_from_server": "Sem resposta recebida do servidor",
@@ -401,7 +395,6 @@
       "download_movie": "Baixar filme",
       "download_x_item": "Baixar {{item_count}} itens",
       "download_button": "Baixar",
-      "using_optimized_server": "Utilizando optimized server",
       "using_default_method": "Utilizando método padrão"
     }
   },

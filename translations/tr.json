@@ -108,7 +108,7 @@
       "features_description": "Streamyfin birçok özelliğe sahip ve ayarlar menüsünde bulabileceğiniz çeşitli yazılımlarla entegre olabiliyor. Bunlar arasında şunlar bulunuyor:",
       "jellyseerr_feature_description": "Jellyseerr örneğinizle bağlantı kurun ve uygulama içinde doğrudan film talep edin.",
       "downloads_feature_title": "İndirmeler",
-      "downloads_feature_description": "Filmleri ve TV dizilerini çevrimdışı izlemek için indirin. Varsayılan yöntemi veya dosyaları arka planda indirmek için optimize sunucuyu kurabilirsiniz.",
+      "downloads_feature_description": "Filmleri ve TV dizilerini çevrimdışı izlemek için indirin; uyumlu oynatma için her kalitede dönüştürülmüş indirmeler kullanılabilir.",
       "chromecast_feature_description": "Filmleri ve TV dizilerini Chromecast cihazlarınıza aktarın.",
       "centralised_settings_plugin_title": "Merkezi Ayarlar Eklentisi",
       "centralised_settings_plugin_description": "Jellyfin sunucunuzda merkezi bir yerden ayarları yapılandırın. Tüm istemci ayarları tüm kullanıcılar için otomatik olarak senkronize edilecektir.",
