@@ -18,7 +18,10 @@ let indexCacheVersion = -1;
 
 /**
  * Get the downloads database from storage
- * PERFORMANCE: Caches the parsed database to avoid repeated JSON.parse calls
+ * PERFORMANCE: Caches the parsed database to avoid repeated JSON.parse calls.
+ * NOTE: Returns the shared cached instance — do NOT mutate it directly. Go
+ * through addDownloadedItem/updateDownloadedItem/removeDownloadedItem so
+ * saveDownloadsDatabase() runs and the derived caches stay consistent.
  */
 export function getDownloadsDatabase(): DownloadsDatabase {
   // Return cached database if available
