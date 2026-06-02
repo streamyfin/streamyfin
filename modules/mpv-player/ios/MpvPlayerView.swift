@@ -140,6 +140,8 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
+	// MARK: - Audio Session & Notifications
+
 	private func configureAudioSession() {
 		let session = AVAudioSession.sharedInstance()
 		do {
@@ -158,7 +160,6 @@ class MpvPlayerView: ExpoView {
 		try? session.setActive(false, options: .notifyOthersOnDeactivation)
 		try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
 	}
-	// MARK: - Audio Session & Notifications
 
 	private func setupNotifications() {
 		// Handle audio session interruptions (e.g., incoming calls, other apps playing audio)
