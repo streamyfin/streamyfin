@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { FC } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useSettings } from "@/utils/atoms/settings";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
@@ -42,15 +42,15 @@ export const CenterControls: FC<CenterControlsProps> = ({
   goToNextChapter,
 }) => {
   const { settings } = useSettings();
-  const insets = useSafeAreaInsets();
+  const insets = useControlsSafeAreaInsets();
 
   return (
     <View
       style={{
         position: "absolute",
         top: "50%",
-        left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
-        right: (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+        left: insets.left,
+        right: insets.right,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
