@@ -276,6 +276,9 @@ export default function DirectPlayerPage() {
     if (itemId) {
       setItem(null);
       setDownloadedItem(null);
+      // Clear the previous episode's stream so the loader gate stays closed
+      // until the new item's stream resolves (avoids a stale MPV source frame).
+      setStream(null);
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
