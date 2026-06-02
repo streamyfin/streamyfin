@@ -219,7 +219,6 @@ export const Controls: FC<Props> = ({
     hasNextChapter,
     goToPreviousChapter,
     goToNextChapter,
-    chapterPositions,
   } = useChapterNavigation({
     chapters: item.Chapters,
     progress,
@@ -593,7 +592,6 @@ export const Controls: FC<Props> = ({
               trickPlayUrl={trickPlayUrl}
               trickplayInfo={trickplayInfo}
               time={isSliding || showRemoteBubble ? time : remoteTime}
-              chapterPositions={chapterPositions}
             />
           </Animated.View>
         </>
