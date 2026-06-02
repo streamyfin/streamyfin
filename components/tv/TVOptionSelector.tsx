@@ -1,0 +1,205 @@
+import { BlurView } from "expo-blur";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  ScrollView,
+  StyleSheet,
+  TVFocusGuideView,
+  View,
+} from "react-native";
+import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
+import { scaleSize } from "@/utils/scaleSize";
+import { TVCancelButton } from "./TVCancelButton";
+import { TVOptionCard } from "./TVOptionCard";
+
+export type TVOptionItem<T> = {
+  label: string;
+  sublabel?: string;
+  value: T;
+  selected: boolean;
+};
+
+export interface TVOptionSelectorProps<T> {
+  visible: boolean;
+  title: string;
+  options: TVOptionItem<T>[];
+  onSelect: (value: T) => void;
+  onClose: () => void;
+  cancelLabel?: string;
+  cardWidth?: number;
+  cardHeight?: number;
+}
+
+export const TVOptionSelector = <T,>({
+  visible,
+  title,
+  options,
+  onSelect,
+  onClose,
+  cancelLabel = "Cancel",
+  cardWidth = 160,
+  cardHeight = 75,
+}: TVOptionSelectorProps<T>) => {
+  const typography = useScaledTVTypography();
+  const [isReady, setIsReady] = useState(false);
+  const firstCardRef = useRef<View>(null);
+
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(200)).current;
+
+  const initialSelectedIndex = useMemo(() => {
+    const idx = options.findIndex((o) => o.selected);
+    return idx >= 0 ? idx : 0;
+  }, [options]);
+
+  useEffect(() => {
+    if (visible) {
+      overlayOpacity.setValue(0);
+      sheetTranslateY.setValue(200);
+
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 250,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, overlayOpacity, sheetTranslateY]);
+
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => setIsReady(true), 100);
+      return () => clearTimeout(timer);
+    }
+    setIsReady(false);
+  }, [visible]);
+
+  useEffect(() => {
+    if (isReady && firstCardRef.current) {
+      const timer = setTimeout(() => {
+        (firstCardRef.current as any)?.requestTVFocus?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isReady]);
+
+  const styles = useMemo(() => createStyles(typography), [typography]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+      <Animated.View
+        style={[
+          styles.sheetContainer,
+          { transform: [{ translateY: sheetTranslateY }] },
+        ]}
+      >
+        <BlurView intensity={80} tint='dark' style={styles.blurContainer}>
+          <TVFocusGuideView
+            autoFocus
+            trapFocusUp
+            trapFocusDown
+            trapFocusLeft
+            trapFocusRight
+            style={styles.content}
+          >
+            <Text style={styles.title}>{title}</Text>
+            {isReady && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+              >
+                {options.map((option, index) => (
+                  <TVOptionCard
+                    key={index}
+                    ref={
+                      index === initialSelectedIndex ? firstCardRef : undefined
+                    }
+                    label={option.label}
+                    sublabel={option.sublabel}
+                    selected={option.selected}
+                    hasTVPreferredFocus={index === initialSelectedIndex}
+                    onPress={() => {
+                      onSelect(option.value);
+                      onClose();
+                    }}
+                    width={cardWidth}
+                    height={cardHeight}
+                  />
+                ))}
+              </ScrollView>
+            )}
+
+            {isReady && (
+              <View style={styles.cancelButtonContainer}>
+                <TVCancelButton onPress={onClose} label={cancelLabel} />
+              </View>
+            )}
+          </TVFocusGuideView>
+        </BlurView>
+      </Animated.View>
+    </Animated.View>
+  );
+};
+
+const createStyles = (typography: ReturnType<typeof useScaledTVTypography>) =>
+  StyleSheet.create({
+    overlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "flex-end",
+      zIndex: 1000,
+    },
+    sheetContainer: {
+      width: "100%",
+    },
+    blurContainer: {
+      borderTopLeftRadius: scaleSize(24),
+      borderTopRightRadius: scaleSize(24),
+      overflow: "hidden",
+    },
+    content: {
+      paddingTop: scaleSize(24),
+      paddingBottom: scaleSize(50),
+      overflow: "visible",
+    },
+    title: {
+      fontSize: typography.callout,
+      fontWeight: "500",
+      color: "rgba(255,255,255,0.6)",
+      marginBottom: scaleSize(16),
+      paddingHorizontal: scaleSize(48),
+      textTransform: "uppercase",
+      letterSpacing: 1,
+    },
+    scrollView: {
+      overflow: "visible",
+    },
+    scrollContent: {
+      paddingHorizontal: scaleSize(48),
+      paddingVertical: scaleSize(20),
+      gap: scaleSize(12),
+    },
+    cancelButtonContainer: {
+      marginTop: scaleSize(16),
+      paddingHorizontal: scaleSize(48),
+      alignItems: "flex-start",
+    },
+  });

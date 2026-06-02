@@ -128,7 +128,7 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
           {/* Password Input */}
           <View className='p-4 border border-neutral-800 rounded-xl bg-neutral-900 mb-4'>
             <Text className='text-neutral-400 text-sm mb-2'>
-              {t("login.password")}
+              {t("login.password_placeholder")}
             </Text>
             <BottomSheetTextInput
               value={password}
@@ -136,7 +136,7 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
                 setPassword(text);
                 setError(null);
               }}
-              placeholder={t("login.password")}
+              placeholder={t("login.password_placeholder")}
               placeholderTextColor='#6B7280'
               secureTextEntry
               autoFocus
@@ -174,7 +174,7 @@ export const PasswordEntryModal: React.FC<PasswordEntryModalProps> = ({
               {isLoading ? (
                 <ActivityIndicator size='small' color='white' />
               ) : (
-                t("login.login")
+                t("common.login")
               )}
             </Button>
           </View>

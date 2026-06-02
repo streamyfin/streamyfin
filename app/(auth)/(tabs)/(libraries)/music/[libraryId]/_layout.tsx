@@ -1,13 +1,13 @@
+import { Stack, useLocalSearchParams, withLayoutContext } from "expo-router";
 import {
   createMaterialTopTabNavigator,
   MaterialTopTabNavigationEventMap,
   MaterialTopTabNavigationOptions,
-} from "@react-navigation/material-top-tabs";
+} from "expo-router/js-top-tabs";
 import type {
   ParamListBase,
   TabNavigationState,
-} from "@react-navigation/native";
-import { Stack, useLocalSearchParams, withLayoutContext } from "expo-router";
+} from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
 
 const { Navigator } = createMaterialTopTabNavigator();

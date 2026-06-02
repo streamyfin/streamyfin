@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import React, { useMemo } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 
 interface ProgressBarProps {
   item: BaseItemDto;
@@ -37,10 +37,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ item }) => {
         }
       />
       <View
-        style={{
-          width: `${progress}%`,
-        }}
-        className={"absolute bottom-0 left-0 h-1 bg-purple-600 w-full"}
+        style={
+          Platform.isTV
+            ? { width: `${progress}%`, backgroundColor: "#ffffff" }
+            : { width: `${progress}%` }
+        }
+        className={`absolute bottom-0 left-0 h-1 ${Platform.isTV ? "" : "bg-purple-600"}`}
       />
     </>
   );

@@ -18,6 +18,12 @@ interface CenterControlsProps {
   togglePlay: () => void;
   handleSkipBackward: () => void;
   handleSkipForward: () => void;
+  // Chapter navigation props
+  hasChapters?: boolean;
+  hasPreviousChapter?: boolean;
+  hasNextChapter?: boolean;
+  goToPreviousChapter?: () => void;
+  goToNextChapter?: () => void;
 }
 
 export const CenterControls: FC<CenterControlsProps> = ({
@@ -29,6 +35,11 @@ export const CenterControls: FC<CenterControlsProps> = ({
   togglePlay,
   handleSkipBackward,
   handleSkipForward,
+  hasChapters = false,
+  hasPreviousChapter = false,
+  hasNextChapter = false,
+  goToPreviousChapter,
+  goToNextChapter,
 }) => {
   const { settings } = useSettings();
   const insets = useSafeAreaInsets();
@@ -44,7 +55,7 @@ export const CenterControls: FC<CenterControlsProps> = ({
         justifyContent: "space-between",
         alignItems: "center",
         transform: [{ translateY: -22.5 }],
-        paddingHorizontal: "28%",
+        paddingHorizontal: hasChapters ? "18%" : "28%",
       }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
@@ -94,6 +105,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
         </TouchableOpacity>
       )}
 
+      {!Platform.isTV && hasChapters && (
+        <TouchableOpacity
+          onPress={goToPreviousChapter}
+          disabled={!hasPreviousChapter}
+          style={{ opacity: hasPreviousChapter ? 1 : 0.3 }}
+        >
+          <Ionicons
+            name='play-back'
+            size={ICON_SIZES.CENTER - 10}
+            color='white'
+          />
+        </TouchableOpacity>
+      )}
+
       <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
         <TouchableOpacity onPress={togglePlay}>
           {!isBuffering ? (
@@ -107,6 +132,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      {!Platform.isTV && hasChapters && (
+        <TouchableOpacity
+          onPress={goToNextChapter}
+          disabled={!hasNextChapter}
+          style={{ opacity: hasNextChapter ? 1 : 0.3 }}
+        >
+          <Ionicons
+            name='play-forward'
+            size={ICON_SIZES.CENTER - 10}
+            color='white'
+          />
+        </TouchableOpacity>
+      )}
 
       {!Platform.isTV && (
         <TouchableOpacity onPress={handleSkipForward}>
