@@ -16,8 +16,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import type { TechnicalInfo } from "@/modules/mpv-player";
-import { useSettings } from "@/utils/atoms/settings";
 import { HEADER_LAYOUT } from "./constants";
 
 type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
@@ -184,8 +184,8 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
     currentAudioIndex,
   }) => {
     const typography = useScaledTVTypography();
-    const { settings } = useSettings();
     const insets = useSafeAreaInsets();
+    const safeInsets = useControlsSafeAreaInsets();
     const [info, setInfo] = useState<TechnicalInfo | null>(null);
 
     const opacity = useSharedValue(0);
@@ -268,14 +268,8 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           left: Math.max(insets.left, 48) + 20,
         }
       : {
-          top:
-            (settings?.safeAreaInControlsEnabled ?? true)
-              ? insets.top + HEADER_LAYOUT.CONTAINER_PADDING + 4
-              : HEADER_LAYOUT.CONTAINER_PADDING + 4,
-          left:
-            (settings?.safeAreaInControlsEnabled ?? true)
-              ? insets.left + HEADER_LAYOUT.CONTAINER_PADDING + 20
-              : HEADER_LAYOUT.CONTAINER_PADDING + 20,
+          top: safeInsets.top + HEADER_LAYOUT.CONTAINER_PADDING + 4,
+          left: safeInsets.left + HEADER_LAYOUT.CONTAINER_PADDING + 20,
         };
 
     const textStyle = Platform.isTV
