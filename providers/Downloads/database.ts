@@ -17,16 +17,6 @@ let itemIndex: Map<string, DownloadedItem> | null = null;
 let indexCacheVersion = -1;
 
 /**
- * Invalidate all caches when database is modified
- */
-function _invalidateCaches(): void {
-  cachedDb = null;
-  cachedItems = null;
-  itemIndex = null;
-  cacheVersion++;
-}
-
-/**
  * Get the downloads database from storage
  * PERFORMANCE: Caches the parsed database to avoid repeated JSON.parse calls
  */
