@@ -321,7 +321,7 @@ export default function DirectPlayerPage() {
         // Ensure item matches the current itemId to avoid race conditions
         if (item.Id !== itemId) {
           setStreamStatus({ isLoading: false, isError: false });
-          return;
+          return null;
         }
 
         let result: Stream | null = null;
