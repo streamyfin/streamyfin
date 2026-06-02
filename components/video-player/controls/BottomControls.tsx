@@ -75,9 +75,6 @@ interface BottomControlsProps {
     minutes: number;
     seconds: number;
   };
-
-  // Chapter props
-  chapterPositions?: number[];
 }
 
 export const BottomControls: FC<BottomControlsProps> = ({
@@ -111,7 +108,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
-  chapterPositions = [],
 }) => {
   const { settings } = useSettings();
   const { t } = useTranslation();
@@ -188,17 +184,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           ) : null}
         </View>
         <View className='flex flex-row items-center space-x-2 shrink-0'>
-          {hasChapters && (
-            <Pressable
-              onPress={() => setChapterListVisible(true)}
-              hitSlop={10}
-              className='justify-center mr-4'
-              accessibilityRole='button'
-              accessibilityLabel={t("chapters.open")}
-            >
-              <Ionicons name='bookmarks' size={24} color='white' />
-            </Pressable>
-          )}
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
@@ -230,6 +215,17 @@ export const BottomControls: FC<BottomControlsProps> = ({
                 onPress={handleNextEpisodeManual}
               />
             )}
+          {hasChapters && (
+            <Pressable
+              onPress={() => setChapterListVisible(true)}
+              hitSlop={10}
+              className='justify-center ml-4'
+              accessibilityRole='button'
+              accessibilityLabel={t("chapters.open")}
+            >
+              <Ionicons name='bookmarks' size={24} color='white' />
+            </Pressable>
+          )}
         </View>
       </View>
       <View

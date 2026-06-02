@@ -9,8 +9,10 @@ import type { ChapterInfo } from "@jellyfin/sdk/lib/generated-client/models";
 import { memo, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Modal, Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   type ChapterEntry,
   chapterStartsMs,
@@ -29,6 +31,7 @@ interface ChapterListProps {
 }
 
 const ROW_HEIGHT = 48;
+const ZERO_INSETS = { top: 0, right: 0, bottom: 0, left: 0 };
 
 function ChapterListComponent({
   visible,
@@ -38,6 +41,10 @@ function ChapterListComponent({
   onClose,
 }: ChapterListProps) {
   const { t } = useTranslation();
+  const { settings } = useSettings();
+  const insets = useSafeAreaInsets();
+  const safeArea =
+    (settings?.safeAreaInControlsEnabled ?? true) ? insets : ZERO_INSETS;
   const listRef = useRef<FlatList<ChapterEntry>>(null);
 
   const entries = useMemo(() => sortedChapters(chapters), [chapters]);
@@ -79,7 +86,17 @@ function ChapterListComponent({
       supportedOrientations={["portrait", "landscape"]}
     >
       <Pressable onPress={onClose} style={styles.backdrop}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.sheet}>
+        <Pressable
+          onPress={(e) => e.stopPropagation()}
+          style={[
+            styles.sheet,
+            {
+              marginLeft: safeArea.left,
+              marginRight: safeArea.right,
+              paddingBottom: safeArea.bottom,
+            },
+          ]}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>{t("chapters.title")}</Text>
             <Pressable
@@ -160,14 +177,12 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.6)",
   },
   sheet: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: "70%",
-    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",
