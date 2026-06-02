@@ -33,11 +33,7 @@ const useImageStorage = () => {
       console.warn("Error fetching image:", error);
       return null;
     } finally {
-      try {
-        if (tmpFile.exists) tmpFile.delete();
-      } catch {
-        // best-effort cleanup
-      }
+      if (tmpFile.exists) tmpFile.delete();
     }
   }, []);
 
