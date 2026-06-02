@@ -1,6 +1,6 @@
 import { t } from "i18next";
 import React, { useCallback, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -107,7 +107,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
         </View>
 
         {/* Pair with Phone */}
-        {onStartPairing && (
+        {Platform.OS !== "ios" && onStartPairing && (
           <View>
             <Button
               onPress={onStartPairing}

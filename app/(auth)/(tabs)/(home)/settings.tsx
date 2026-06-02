@@ -59,17 +59,19 @@ function SettingsMobile() {
 
         <QuickConnect className='mb-4' />
 
-        <View className='mb-4'>
-          <ListGroup title={t("pairing.pair_with_phone_title")}>
-            <ListItem
-              onPress={() =>
-                router.push("/(auth)/(tabs)/(home)/companion-login")
-              }
-              title={t("pairing.pair_with_phone")}
-              textColor='blue'
-            />
-          </ListGroup>
-        </View>
+        {Platform.OS !== "ios" && (
+          <View className='mb-4'>
+            <ListGroup title={t("pairing.pair_with_phone_title")}>
+              <ListItem
+                onPress={() =>
+                  router.push("/(auth)/(tabs)/(home)/companion-login")
+                }
+                title={t("pairing.pair_with_phone")}
+                textColor='blue'
+              />
+            </ListGroup>
+          </View>
+        )}
 
         <View className='mb-4'>
           <AppLanguageSelector />

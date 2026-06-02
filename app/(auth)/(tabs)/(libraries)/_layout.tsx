@@ -166,7 +166,7 @@ export default function IndexLayout() {
                 open={dropdownOpen}
                 onOpenChange={setDropdownOpen}
                 trigger={
-                  <View className='pl-1.5'>
+                  <View>
                     <Ionicons
                       name='ellipsis-horizontal-outline'
                       size={24}

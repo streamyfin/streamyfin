@@ -114,7 +114,7 @@ export default function StreamystatsPage() {
   };
 
   const handleRefreshFromServer = useCallback(async () => {
-    const newPluginSettings = await refreshStreamyfinPluginSettings(true);
+    const newPluginSettings = await refreshStreamyfinPluginSettings();
     // Update local state with new values
     const newUrl = newPluginSettings?.streamyStatsServerUrl?.value || "";
     setUrl(newUrl);

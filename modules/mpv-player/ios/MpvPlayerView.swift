@@ -81,7 +81,6 @@ class MpvPlayerView: ExpoView {
 	private func setupView() {
 		clipsToBounds = true
 		backgroundColor = .black
-		configureAudioSession()
 
 		videoContainer = UIView()
 		videoContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -141,21 +140,26 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
+	// MARK: - Audio Session & Notifications
+
 	private func configureAudioSession() {
-		let audioSession = AVAudioSession.sharedInstance()
+		let session = AVAudioSession.sharedInstance()
 		do {
-			try audioSession.setCategory(
-				.playback,
-				mode: .moviePlayback,
-				policy: .longFormAudio,
-				options: []
-			)
-			try audioSession.setActive(true)
+			try session.setCategory(.playback, mode: .moviePlayback, policy: .longFormAudio, options: [])
+			try session.setActive(true)
 		} catch {
 			print("Failed to configure audio session: \(error)")
 		}
 	}
-	// MARK: - Audio Session & Notifications
+
+	/// Deactivate the session AND reset the category — `setActive(false)` alone
+	/// leaves `.playback`/`.longFormAudio` on the shared singleton, so any later
+	/// reactivation (foreground, route change, other modules) re-steals audio.
+	private func tearDownAudioSession() {
+		let session = AVAudioSession.sharedInstance()
+		try? session.setActive(false, options: .notifyOthersOnDeactivation)
+		try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+	}
 
 	private func setupNotifications() {
 		// Handle audio session interruptions (e.g., incoming calls, other apps playing audio)
@@ -270,6 +274,7 @@ class MpvPlayerView: ExpoView {
 
 	func play() {
 		intendedPlayState = true
+		configureAudioSession()
 		setupRemoteCommands()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
@@ -440,6 +445,7 @@ class MpvPlayerView: ExpoView {
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
 		clearNowPlayingInfo()
+		tearDownAudioSession()
 		NotificationCenter.default.removeObserver(self)
 	}
 }
@@ -519,9 +525,7 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 	}
 
 	func renderer(_: MPVLayerRenderer, didSelectAudioOutput audioOutput: String) {
-		// Audio output is now active - this is the right time to activate audio session and set Now Playing
-		print("[MPV] Audio output ready (\(audioOutput)), activating audio session and syncing Now Playing")
-		nowPlayingManager.activateAudioSession()
+		print("[MPV] Audio output ready (\(audioOutput)), syncing Now Playing")
 		syncNowPlaying(isPlaying: !isPaused())
 	}
 }

@@ -1254,7 +1254,7 @@ export const Controls: FC<Props> = ({
                 <Text
                   style={[styles.endsAtText, { fontSize: typography.callout }]}
                 >
-                  {t("player.ends_at")} {getFinishTime()}
+                  {t("player.ends_at", { time: getFinishTime() })}
                 </Text>
               </View>
             )}
@@ -1448,7 +1448,7 @@ export const Controls: FC<Props> = ({
                 <Text
                   style={[styles.endsAtText, { fontSize: typography.callout }]}
                 >
-                  {t("player.ends_at")} {getFinishTime()}
+                  {t("player.ends_at", { time: getFinishTime() })}
                 </Text>
               </View>
             )}
