@@ -33,9 +33,11 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
   const [user] = useAtom(userAtom);
   const router = useRouter();
   const isOffline = useOfflineMode();
-  // PERFORMANCE FIX: Use cached downloadedItems from provider instead of calling getDownloadedItems()
-  // This avoids expensive database parsing and unnecessary re-renders
-  const { downloadedItems: downloadedFiles } = useDownload();
+  // Read the live (cached) downloads DB inside the query rather than the
+  // provider's downloadedItems snapshot, so refetches after
+  // updateDownloadedItem() reflect the latest state instead of a stale
+  // refreshKey-gated snapshot. getAllDownloadedItems() is cached, so this stays cheap.
+  const { getDownloadedItems } = useDownload();
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
@@ -51,7 +53,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     queryKey: ["episodes", seasonId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        return getDownloadedEpisodesBySeasonId(downloadedFiles, seasonId!);
+        return getDownloadedEpisodesBySeasonId(getDownloadedItems(), seasonId!);
       }
       if (!api || !user?.Id || !item?.SeriesId) return [];
       const response = await getTvShowsApi(api).getEpisodes({
