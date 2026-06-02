@@ -274,6 +274,11 @@ export default function DirectPlayerPage() {
     };
 
     if (itemId) {
+      setItem(null);
+      setDownloadedItem(null);
+      // Clear the previous episode's stream so the loader gate stays closed
+      // until the new item's stream resolves (avoids a stale MPV source frame).
+      setStream(null);
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
@@ -312,6 +317,12 @@ export default function DirectPlayerPage() {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
+          setStreamStatus({ isLoading: false, isError: false });
+          return null;
+        }
+
+        // Ensure item matches the current itemId to avoid race conditions
+        if (item.Id !== itemId) {
           setStreamStatus({ isLoading: false, isError: false });
           return null;
         }
@@ -388,6 +399,7 @@ export default function DirectPlayerPage() {
     item,
     user?.Id,
     downloadedItem,
+    offline,
   ]);
 
   useEffect(() => {
