@@ -365,7 +365,9 @@ export const Controls: FC<Props> = ({
         { applyLanguagePreferences: true },
       );
 
-      const queryParams = new URLSearchParams({
+      // Use setParams instead of replace to avoid unmounting/remounting the player,
+      // which would create a new MPV native view and crash with "mp_initialize already initialized".
+      router.setParams({
         ...(offline && { offline: "true" }),
         itemId: item.Id ?? "",
         audioIndex: defaultAudioIndex?.toString() ?? "",
@@ -374,11 +376,17 @@ export const Controls: FC<Props> = ({
         bitrateValue: bitrateValue?.toString(),
         playbackPosition:
           item.UserData?.PlaybackPositionTicks?.toString() ?? "",
-      }).toString();
-
-      router.replace(`player/direct-player?${queryParams}` as any);
+      });
     },
-    [settings, subtitleIndex, audioIndex, mediaSource, bitrateValue, router],
+    [
+      settings,
+      subtitleIndex,
+      audioIndex,
+      mediaSource,
+      bitrateValue,
+      router,
+      offline,
+    ],
   );
 
   const goToPreviousItem = useCallback(() => {

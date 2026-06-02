@@ -57,6 +57,11 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
+  // Read the live (cached) downloads DB inside the query rather than the
+  // provider's downloadedItems snapshot. The snapshot only refreshes on the
+  // provider refreshKey, so after updateDownloadedItem() invalidates
+  // ["episodes"]/["seasons"] (e.g. progress/played writes) the refetch would
+  // return stale data. getAllDownloadedItems() is cached, so this stays cheap.
   const { getDownloadedItems } = useDownload();
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
