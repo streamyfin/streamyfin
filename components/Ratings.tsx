@@ -40,8 +40,8 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
             <Image
               source={
                 item.CriticRating < 60
-                  ? require("@/assets/images/rotten-tomatoes.png")
-                  : require("@/assets/images/not-rotten-tomatoes.svg")
+                  ? require("@/utils/jellyseerr/src/assets/rt_rotten.svg")
+                  : require("@/utils/jellyseerr/src/assets/rt_fresh.svg")
               }
               style={{
                 width: 14,
