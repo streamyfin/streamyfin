@@ -1,3 +1,9 @@
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import {
@@ -12,11 +18,6 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, View } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import {
-  type BottomSheetMethods,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@/utils/expoUiBottomSheet";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { PinInput } from "../inputs/PinInput";
@@ -29,7 +30,7 @@ export const QuickConnectSheet = forwardRef<QuickConnectSheetRef>(
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const [quickConnectCode, setQuickConnectCode] = useState<string>();
-    const modalRef = useRef<BottomSheetMethods>(null);
+    const modalRef = useRef<BottomSheetModal>(null);
     const successHapticFeedback = useHaptic("success");
     const errorHapticFeedback = useHaptic("error");
     const snapPoints = useMemo(
@@ -50,6 +51,17 @@ export const QuickConnectSheet = forwardRef<QuickConnectSheetRef>(
       [],
     );
 
+    const renderBackdrop = useCallback(
+      (props: BottomSheetBackdropProps) => (
+        <BottomSheetBackdrop
+          {...props}
+          disappearsOnIndex={-1}
+          appearsOnIndex={0}
+        />
+      ),
+      [],
+    );
+
     const authorizeQuickConnect = useCallback(async () => {
       if (!quickConnectCode) return;
       try {
@@ -64,7 +76,7 @@ export const QuickConnectSheet = forwardRef<QuickConnectSheetRef>(
             t("home.settings.quick_connect.quick_connect_autorized"),
           );
           setQuickConnectCode(undefined);
-          modalRef.current?.close();
+          modalRef.current?.dismiss();
         } else {
           errorHapticFeedback();
           Alert.alert(
@@ -93,12 +105,14 @@ export const QuickConnectSheet = forwardRef<QuickConnectSheetRef>(
     return (
       <BottomSheetModal
         ref={modalRef}
-        enablePanDownToClose
         snapPoints={snapPoints}
         handleIndicatorStyle={{ backgroundColor: "white" }}
         backgroundStyle={{ backgroundColor: "#171717" }}
+        backdropComponent={renderBackdrop}
         keyboardBehavior={isAndroid ? "fillParent" : "interactive"}
         keyboardBlurBehavior='restore'
+        android_keyboardInputMode='adjustResize'
+        topInset={isAndroid ? 0 : undefined}
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
