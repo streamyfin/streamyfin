@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { t } from "i18next";
 import type React from "react";
-import { TextInput, View } from "react-native";
+import { TextInput, TouchableOpacity, View } from "react-native";
 
 export const SettingsSearchBar: React.FC<{
   value: string;
@@ -17,7 +17,12 @@ export const SettingsSearchBar: React.FC<{
       className='flex-1 ml-2 text-white text-[15px]'
       autoCapitalize='none'
       autoCorrect={false}
-      clearButtonMode='while-editing'
+      returnKeyType='search'
     />
+    {value.length > 0 ? (
+      <TouchableOpacity onPress={() => onChange("")} hitSlop={8}>
+        <Ionicons name='close-circle' size={18} color='#76767c' />
+      </TouchableOpacity>
+    ) : null}
   </View>
 );

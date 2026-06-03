@@ -35,6 +35,7 @@ export const useSettingsSearch = (query: string): SearchResult[] => {
       }
     }
     for (const o of SETTINGS_SEARCH_INDEX) {
+      if (o.platforms && !o.platforms.includes(os)) continue;
       if (matchesQuery({ title: t(o.titleKey), keywords: o.keywords }, query)) {
         results.push({
           id: `${o.parentRoute}#${o.titleKey}`,

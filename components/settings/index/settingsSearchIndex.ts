@@ -3,6 +3,7 @@ export interface SearchableOption {
   parentRoute: string;
   parentTitleKey: string;
   keywords?: string[];
+  platforms?: ("ios" | "android")[];
 }
 
 /**

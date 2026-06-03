@@ -38,6 +38,7 @@ export default function AccountPage() {
           title={t("home.settings.account.copy_token")}
           textColor='blue'
           onPress={async () => {
+            if (!token) return;
             await setStringAsync(token);
             success();
             Alert.alert(t("home.settings.account.copied"));
