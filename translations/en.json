@@ -129,7 +129,25 @@
         "current": "current"
       },
       "categories": {
-        "title": "Categories"
+        "title": "Categories",
+        "playback": "Playback",
+        "personalization": "Personalization",
+        "advanced": "Advanced"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "permission_title": "Permission",
+        "system_permission": "System permission",
+        "granted": "Granted",
+        "denied": "Denied",
+        "events_title": "Notify me about",
+        "master": "Enable notifications",
+        "downloads": "Download completed / failed"
+      },
+      "account": {
+        "title": "Account",
+        "copy_token": "Copy token",
+        "copied": "Copied to clipboard"
       },
       "playback_controls": {
         "title": "Playback & Controls"
