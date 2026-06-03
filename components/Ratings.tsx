@@ -109,8 +109,8 @@ export const JellyserrRatings: React.FC<{
                 className='mr-1'
                 source={
                   data?.audienceRating === "Spilled"
-                    ? require("@/utils/jellyseerr/src/assets/rt_aud_rotten.svg")
-                    : require("@/utils/jellyseerr/src/assets/rt_aud_fresh.svg")
+                    ? require("@/assets/images/rt_aud_rotten.svg")
+                    : require("@/assets/images/rt_aud_fresh.svg")
                 }
                 style={{
                   width: 14,
@@ -127,7 +127,7 @@ export const JellyserrRatings: React.FC<{
             iconLeft={
               <Image
                 className='mr-1'
-                source={require("@/utils/jellyseerr/src/assets/tmdb_logo.svg")}
+                source={require("@/assets/images/tmdb_logo.svg")}
                 style={{
                   width: 14,
                   height: 14,
