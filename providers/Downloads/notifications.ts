@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type * as NotificationsType from "expo-notifications";
 import type { TFunction } from "i18next";
 import { Platform } from "react-native";
+import { storage } from "@/utils/mmkv";
 
 // Conditionally import expo-notifications only on non-TV platforms
 const Notifications = Platform.isTV
@@ -66,6 +67,14 @@ export async function sendDownloadNotification(
   data?: Record<string, any>,
 ): Promise<void> {
   if (Platform.isTV || !Notifications) return;
+
+  try {
+    const raw = storage.getString("settings");
+    const s = raw ? JSON.parse(raw) : {};
+    if (s.notificationsEnabled === false || s.notifyDownloads === false) return;
+  } catch {
+    // ignore parse errors; fall through to sending (defaults are enabled)
+  }
 
   try {
     await Notifications.scheduleNotificationAsync({
