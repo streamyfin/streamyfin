@@ -40,8 +40,8 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
             <Image
               source={
                 item.CriticRating < 60
-                  ? require("@/utils/jellyseerr/src/assets/rt_rotten.svg")
-                  : require("@/utils/jellyseerr/src/assets/rt_fresh.svg")
+                  ? require("@/assets/images/rt_rotten.svg")
+                  : require("@/assets/images/rt_fresh.svg")
               }
               style={{
                 width: 14,
@@ -89,8 +89,8 @@ export const JellyserrRatings: React.FC<{
                 className='mr-1'
                 source={
                   data?.criticsRating === "Rotten"
-                    ? require("@/utils/jellyseerr/src/assets/rt_rotten.svg")
-                    : require("@/utils/jellyseerr/src/assets/rt_fresh.svg")
+                    ? require("@/assets/images/rt_rotten.svg")
+                    : require("@/assets/images/rt_fresh.svg")
                 }
                 style={{
                   width: 14,
