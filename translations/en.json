@@ -146,7 +146,8 @@
       "account": {
         "title": "Account",
         "copy_token": "Copy token",
-        "copied": "Copied to clipboard"
+        "copied": "Copied to clipboard",
+        "copy_unavailable": "Clipboard unavailable — rebuild the app to enable copy"
       },
       "playback_controls": {
         "title": "Playback & Controls"
