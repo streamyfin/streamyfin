@@ -136,10 +136,9 @@
       },
       "notifications": {
         "title": "Notifications",
-        "permission_title": "Permission",
-        "system_permission": "System permission",
-        "granted": "Granted",
-        "denied": "Denied",
+        "disabled_title": "Notifications are off",
+        "disabled_description": "Allow notifications to get alerts about your downloads and more.",
+        "enable_button": "Enable notifications",
         "events_title": "Notify me about",
         "master": "Enable notifications",
         "downloads": "Download completed / failed"
