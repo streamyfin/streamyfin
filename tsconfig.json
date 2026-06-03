@@ -39,6 +39,8 @@
     "node_modules",
     "babel.config.js",
     "metro.config.js",
-    "utils/jellyseerr/**/*"
+    "utils/jellyseerr/**/*",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }
