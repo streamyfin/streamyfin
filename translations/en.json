@@ -376,7 +376,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer downloaded songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "Automatically cache upcoming songs for smoother playback.",
         "lookahead_enabled": "Enable look-ahead caching",
         "lookahead_count": "Songs to pre-cache",
         "max_cache_size": "Max cache size"
@@ -886,7 +886,7 @@
       "albums": "Albums",
       "artists": "Artists",
       "playlists": "Playlists",
-      "tracks": "tracks"
+      "tracks": "songs"
     },
     "filters": {
       "all": "All"
@@ -895,10 +895,10 @@
     "recently_played": "Recently played",
     "frequently_played": "Frequently played",
     "explore": "Explore",
-    "top_tracks": "Top tracks",
+    "top_tracks": "Top songs",
     "play": "Play",
     "shuffle": "Shuffle",
-    "play_top_tracks": "Play top tracks",
+    "play_top_tracks": "Play top songs",
     "no_suggestions": "No suggestions available",
     "no_albums": "No albums found",
     "no_artists": "No artists found",
