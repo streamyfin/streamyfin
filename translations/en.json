@@ -378,7 +378,7 @@
         "caching_title": "Caching",
         "caching_description": "Automatically cache upcoming tracks for smoother playback.",
         "lookahead_enabled": "Enable look-ahead caching",
-        "lookahead_count": "Tracks to pre-cache",
+        "lookahead_count": "Songs to pre-cache",
         "max_cache_size": "Max cache size"
       },
       "plugins": {
