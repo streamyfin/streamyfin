@@ -21,15 +21,15 @@ import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { PinInput } from "../inputs/PinInput";
 
-export type QuickConnectSheetRef = BottomSheetMethods;
+export type QuickConnectSheetRef = { present: () => void };
 
-export const QuickConnectSheet = forwardRef<BottomSheetMethods>(
+export const QuickConnectSheet = forwardRef<QuickConnectSheetRef>(
   (_props, ref) => {
     const isTv = Platform.isTV;
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const [quickConnectCode, setQuickConnectCode] = useState<string>();
-    const sheetRef = useRef<BottomSheetMethods>(null);
+    const modalRef = useRef<BottomSheetMethods>(null);
     const successHapticFeedback = useHaptic("success");
     const errorHapticFeedback = useHaptic("error");
     const snapPoints = useMemo(
@@ -39,7 +39,16 @@ export const QuickConnectSheet = forwardRef<BottomSheetMethods>(
     const isAndroid = Platform.OS === "android";
     const { t } = useTranslation();
 
-    useImperativeHandle(ref, () => sheetRef.current as BottomSheetMethods, []);
+    useImperativeHandle(
+      ref,
+      () => ({
+        present: () => {
+          setQuickConnectCode("");
+          modalRef.current?.present();
+        },
+      }),
+      [],
+    );
 
     const authorizeQuickConnect = useCallback(async () => {
       if (!quickConnectCode) return;
@@ -55,7 +64,7 @@ export const QuickConnectSheet = forwardRef<BottomSheetMethods>(
             t("home.settings.quick_connect.quick_connect_autorized"),
           );
           setQuickConnectCode(undefined);
-          sheetRef.current?.close();
+          modalRef.current?.close();
         } else {
           errorHapticFeedback();
           Alert.alert(
@@ -83,7 +92,7 @@ export const QuickConnectSheet = forwardRef<BottomSheetMethods>(
 
     return (
       <BottomSheetModal
-        ref={sheetRef}
+        ref={modalRef}
         enablePanDownToClose
         snapPoints={snapPoints}
         handleIndicatorStyle={{ backgroundColor: "white" }}

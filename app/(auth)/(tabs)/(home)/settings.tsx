@@ -11,11 +11,13 @@ import {
   SETTINGS_CATALOG,
   type SettingsEntry,
 } from "@/components/settings/index/settingsCatalog";
-import { QuickConnectSheet } from "@/components/settings/QuickConnect";
+import {
+  QuickConnectSheet,
+  type QuickConnectSheetRef,
+} from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyfin } from "@/providers/JellyfinProvider";
-import type { BottomSheetMethods } from "@/utils/expoUiBottomSheet";
 
 // TV-specific settings component
 const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
@@ -25,7 +27,7 @@ function SettingsMobile() {
   const insets = useSafeAreaInsets();
   const { logout } = useJellyfin();
   const navigation = useNavigation();
-  const quickConnectRef = useRef<BottomSheetMethods>(null);
+  const quickConnectRef = useRef<QuickConnectSheetRef>(null);
   const os: "ios" | "android" = Platform.OS === "ios" ? "ios" : "android";
 
   useEffect(() => {
