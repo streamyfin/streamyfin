@@ -144,9 +144,6 @@ export const JellyseerrSettings = () => {
         ) : (
           <View className='flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900'>
             <View style={{ opacity: urlLocked ? 0.5 : 1 }}>
-              <Text className='text-xs text-red-600 mb-2'>
-                {t("home.settings.plugins.jellyseerr.jellyseerr_warning")}
-              </Text>
               <View className='mb-2'>
                 <ServerUrlField
                   value={
@@ -157,7 +154,6 @@ export const JellyseerrSettings = () => {
                   onChangeText={setjellyseerrServerUrl}
                   onResolved={(url) => setResolvedUrl(url)}
                   probe={jellyseerrProbe}
-                  minVersion='2.0.0'
                   label={t("home.settings.plugins.jellyseerr.server_url")}
                   hint={t("home.settings.plugins.jellyseerr.server_url_hint")}
                   placeholder={t(

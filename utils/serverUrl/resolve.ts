@@ -4,13 +4,12 @@ import type { ServerProbe, ServerProbeOutcome } from "./types";
 export type ResolveFailureReason =
   | "empty"
   | "invalid"
-  | "version-too-low"
   | "wrong-service"
   | "unreachable";
 
 export type ResolveResult =
   | { ok: true; url: string; meta?: Record<string, unknown> }
-  | { ok: false; reason: ResolveFailureReason; version?: string };
+  | { ok: false; reason: ResolveFailureReason };
 
 export interface ResolveOptions {
   /** Per-candidate probe timeout in ms. Default 5000. */
@@ -22,7 +21,6 @@ export interface ResolveOptions {
 // Order in which to surface a failure when no candidate validated:
 // the more specific/actionable the reason, the earlier it is reported.
 const FAILURE_PRIORITY = [
-  "version-too-low",
   "wrong-service",
   "unreachable",
 ] as const satisfies ReadonlyArray<ResolveFailureReason>;
@@ -62,11 +60,7 @@ export async function resolveServerUrl(
   for (const reason of FAILURE_PRIORITY) {
     const hit = outcomes.find((outcome) => outcome.status === reason);
     if (hit) {
-      return {
-        ok: false,
-        reason,
-        version: hit.status === "version-too-low" ? hit.version : undefined,
-      };
+      return { ok: false, reason };
     }
   }
   return { ok: false, reason: "unreachable" };

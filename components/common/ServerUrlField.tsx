@@ -18,8 +18,6 @@ interface ServerUrlFieldProps {
   label?: string;
   hint?: string;
   placeholder?: string;
-  /** Shown in the "version too low" message. */
-  minVersion?: string;
   editable?: boolean;
   resolveOptions?: ResolveOptions;
 }
@@ -38,7 +36,6 @@ export function ServerUrlField({
   label,
   hint,
   placeholder,
-  minVersion,
   editable = true,
   resolveOptions,
 }: ServerUrlFieldProps) {
@@ -96,11 +93,7 @@ export function ServerUrlField({
         clearButtonMode='never'
       />
 
-      <ServerUrlStatusText
-        state={resolver}
-        minVersion={minVersion}
-        className='mt-2'
-      />
+      <ServerUrlStatusText state={resolver} className='mt-2' />
     </View>
   );
 }

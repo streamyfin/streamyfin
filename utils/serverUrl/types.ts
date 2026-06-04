@@ -1,7 +1,6 @@
 /** Result of probing a single candidate URL for a specific service. */
 export type ServerProbeOutcome =
   | { status: "ok"; meta?: Record<string, unknown> }
-  | { status: "version-too-low"; version?: string }
   | { status: "wrong-service" }
   | { status: "unreachable" };
 

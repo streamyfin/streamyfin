@@ -2,10 +2,8 @@
   "server_url": {
     "resolving": "Checking…",
     "resolved": "→ {{url}}",
-    "connected": "Connected to {{url}}",
     "unreachable": "Server unreachable",
     "wrong_service": "Reachable, but not the expected server",
-    "version_too_low": "Version {{version}} is too old (minimum {{min}})",
     "invalid_url": "Enter a valid address"
   },
   "login": {

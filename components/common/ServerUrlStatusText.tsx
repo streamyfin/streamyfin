@@ -10,11 +10,9 @@ import { Text } from "./Text";
  */
 export function ServerUrlStatusText({
   state,
-  minVersion,
   className = "",
 }: {
   state: ServerUrlResolverState;
-  minVersion?: string;
   className?: string;
 }) {
   const { t } = useTranslation();
@@ -41,16 +39,11 @@ export function ServerUrlStatusText({
   }
 
   const message =
-    state.reason === "version-too-low"
-      ? t("server_url.version_too_low", {
-          version: state.version ?? "?",
-          min: minVersion ?? "",
-        })
-      : state.reason === "wrong-service"
-        ? t("server_url.wrong_service")
-        : state.reason === "invalid"
-          ? t("server_url.invalid_url")
-          : t("server_url.unreachable");
+    state.reason === "wrong-service"
+      ? t("server_url.wrong_service")
+      : state.reason === "invalid"
+        ? t("server_url.invalid_url")
+        : t("server_url.unreachable");
 
   return <Text className={`text-xs text-red-500 ${className}`}>{message}</Text>;
 }

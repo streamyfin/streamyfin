@@ -11,7 +11,7 @@ export type ServerUrlResolverState =
   | { status: "idle" }
   | { status: "resolving" }
   | { status: "ok"; resolvedUrl: string; meta?: Record<string, unknown> }
-  | { status: "error"; reason: ResolveFailureReason; version?: string };
+  | { status: "error"; reason: ResolveFailureReason };
 
 /**
  * Stateful wrapper around `resolveServerUrl` for screens.
@@ -46,11 +46,7 @@ export function useServerUrlResolver(
         setState(
           result.ok
             ? { status: "ok", resolvedUrl: result.url, meta: result.meta }
-            : {
-                status: "error",
-                reason: result.reason,
-                version: result.version,
-              },
+            : { status: "error", reason: result.reason },
         );
       }
       return result;
