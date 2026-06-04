@@ -20,9 +20,13 @@ export default function AccountPage() {
 
   const copyToken = async () => {
     if (!token) return;
-    await setStringAsync(token);
-    success();
-    Alert.alert(t("home.settings.account.copied"));
+    try {
+      await setStringAsync(token);
+      success();
+      Alert.alert(t("home.settings.account.copied"));
+    } catch {
+      Alert.alert(t("home.settings.account.copy_failed"));
+    }
   };
 
   return (

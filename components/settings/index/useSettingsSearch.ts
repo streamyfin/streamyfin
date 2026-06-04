@@ -22,24 +22,19 @@ export const useSettingsSearch = (query: string): SearchResult[] => {
     for (const section of SETTINGS_CATALOG) {
       for (const e of section.entries) {
         if (e.platforms && !e.platforms.includes(os)) continue;
-        if (
-          matchesQuery({ title: t(e.titleKey), keywords: e.keywords }, query)
-        ) {
-          results.push({
-            id: e.id,
-            title: t(e.titleKey),
-            icon: e.icon,
-            target: e.target,
-          });
+        const title = t(e.titleKey);
+        if (matchesQuery({ title, keywords: e.keywords }, query)) {
+          results.push({ id: e.id, title, icon: e.icon, target: e.target });
         }
       }
     }
     for (const o of SETTINGS_SEARCH_INDEX) {
       if (o.platforms && !o.platforms.includes(os)) continue;
-      if (matchesQuery({ title: t(o.titleKey), keywords: o.keywords }, query)) {
+      const title = t(o.titleKey);
+      if (matchesQuery({ title, keywords: o.keywords }, query)) {
         results.push({
           id: `${o.parentRoute}#${o.titleKey}`,
-          title: t(o.titleKey),
+          title,
           icon: "search",
           subtitle: t(o.parentTitleKey),
           target: { type: "route", route: o.parentRoute },

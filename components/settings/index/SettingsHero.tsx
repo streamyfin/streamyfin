@@ -1,21 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import type React from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getUserImageUrl } from "@/utils/jellyfin/image/getUserImageUrl";
 
 export const SettingsHero: React.FC<{ onPress: () => void }> = ({
   onPress,
 }) => {
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
+  const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const connected = Boolean(api && user);
   const imageUrl =
-    api && user?.Id && user.PrimaryImageTag
-      ? `${api.basePath}/Users/${user.Id}/Images/Primary?tag=${user.PrimaryImageTag}&quality=90`
+    api && user?.Id
+      ? (getUserImageUrl({
+          serverAddress: api.basePath,
+          userId: user.Id,
+          primaryImageTag: user.PrimaryImageTag,
+        }) ?? undefined)
       : undefined;
   const host = api?.basePath?.replace(/^https?:\/\//, "");
 
