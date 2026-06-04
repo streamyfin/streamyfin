@@ -41,7 +41,7 @@ export const MpvBufferSettings: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <ListGroup title={t("home.settings.buffer.title")} className='mb-4'>
+    <ListGroup title={t("home.settings.buffer.title")}>
       <SettingsSelectRow
         title={t("home.settings.buffer.cache_mode")}
         valueLabel={currentCacheModeLabel}

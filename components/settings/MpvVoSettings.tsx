@@ -43,7 +43,7 @@ export const MpvVoSettings: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <ListGroup title={t("home.settings.vo_driver.title")} className='mb-4'>
+    <ListGroup title={t("home.settings.vo_driver.title")}>
       <SettingsSelectRow
         title={t("home.settings.vo_driver.vo_mode")}
         valueLabel={currentVoDriverLabel}
