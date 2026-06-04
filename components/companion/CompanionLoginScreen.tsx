@@ -11,10 +11,13 @@ import {
   View,
 } from "react-native";
 import { Button } from "@/components/Button";
+import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { sendCredentialsToTV } from "@/utils/pairingService";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 
 type ScreenState =
   | "scanning"
@@ -49,6 +52,7 @@ export const CompanionLoginScreen: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const serverResolver = useServerUrlResolver(jellyfinProbe);
 
   // Pre-fill server URL and username from current session
   useEffect(() => {
@@ -405,7 +409,16 @@ export const CompanionLoginScreen: React.FC = () => {
               autoCorrect={false}
               keyboardType='url'
               returnKeyType='next'
+              onBlur={() => {
+                const candidate = serverUrl.trim();
+                if (candidate) {
+                  serverResolver.resolve(candidate).then((r) => {
+                    if (r.ok) setServerUrl(r.url);
+                  });
+                }
+              }}
             />
+            <ServerUrlStatusText state={serverResolver} className='mt-2' />
           </View>
 
           <View className='mb-5'>

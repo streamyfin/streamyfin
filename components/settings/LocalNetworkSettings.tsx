@@ -14,8 +14,9 @@ import {
   type LocalNetworkConfig,
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { Button } from "../Button";
-import { Input } from "../common/Input";
+import { ServerUrlField } from "../common/ServerUrlField";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -204,13 +205,12 @@ export function LocalNetworkSettings(): React.ReactElement | null {
             }
           >
             <View className=''>
-              <Input
-                placeholder={t("home.settings.network.local_url_placeholder")}
+              <ServerUrlField
                 value={config.localUrl}
                 onChangeText={handleLocalUrlChange}
-                keyboardType='url'
-                autoCapitalize='none'
-                autoCorrect={false}
+                onResolved={(url) => saveConfig({ ...config, localUrl: url })}
+                probe={jellyfinProbe}
+                placeholder={t("home.settings.network.local_url_placeholder")}
               />
             </View>
           </ListGroup>
