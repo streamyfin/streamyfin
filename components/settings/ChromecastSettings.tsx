@@ -1,21 +1,22 @@
-import { Switch, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { View } from "react-native";
+import { SettingsSwitchRow } from "@/components/settings/index/SettingsSwitchRow";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
 
 export const ChromecastSettings: React.FC = ({ ...props }) => {
   const { settings, updateSettings } = useSettings();
+  const { t } = useTranslation();
   return (
     <View {...props}>
-      <ListGroup title={"Chromecast"}>
-        <ListItem title={"Enable H265 for Chromecast"}>
-          <Switch
-            value={settings.enableH265ForChromecast}
-            onValueChange={(enableH265ForChromecast) =>
-              updateSettings({ enableH265ForChromecast })
-            }
-          />
-        </ListItem>
+      <ListGroup title={t("home.settings.chromecast.title")}>
+        <SettingsSwitchRow
+          title={t("home.settings.chromecast.enable_h265")}
+          value={settings.enableH265ForChromecast}
+          onValueChange={(enableH265ForChromecast) =>
+            updateSettings({ enableH265ForChromecast })
+          }
+        />
       </ListGroup>
     </View>
   );

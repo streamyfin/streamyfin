@@ -220,6 +220,10 @@
         "rewind_length": "Rewind Length",
         "seconds_unit": "s"
       },
+      "chromecast": {
+        "title": "Chromecast",
+        "enable_h265": "Enable H265 for Chromecast"
+      },
       "buffer": {
         "title": "Buffer Settings",
         "cache_mode": "Cache Mode",

@@ -1,18 +1,15 @@
-import { Ionicons } from "@expo/vector-icons";
 import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Switch, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
-import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import { SettingsSelectRow } from "@/components/settings/index/SettingsSelectRow";
+import { SettingsSwitchRow } from "@/components/settings/index/SettingsSwitchRow";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
-import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
 
 export const PlaybackControlsSettings: React.FC = () => {
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -116,141 +113,77 @@ export const PlaybackControlsSettings: React.FC = () => {
   return (
     <DisabledSetting disabled={disabled}>
       <ListGroup title={t("home.settings.other.other_title")} className=''>
-        <ListItem
+        <SettingsSelectRow
           title={t("home.settings.other.video_orientation")}
           disabled={pluginSettings?.defaultVideoOrientation?.locked}
-        >
-          <PlatformDropdown
-            groups={orientationOptions}
-            trigger={
-              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {t(
-                    orientationTranslations[
-                      settings.defaultVideoOrientation as keyof typeof orientationTranslations
-                    ],
-                  ) || "Unknown Orientation"}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title={t("home.settings.other.orientation")}
-          />
-        </ListItem>
+          valueLabel={
+            t(
+              orientationTranslations[
+                settings.defaultVideoOrientation as keyof typeof orientationTranslations
+              ],
+            ) || "Unknown Orientation"
+          }
+          groups={orientationOptions}
+          dropdownTitle={t("home.settings.other.orientation")}
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.other.safe_area_in_controls")}
           disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
-        >
-          <Switch
-            value={settings.safeAreaInControlsEnabled}
-            disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
-            onValueChange={(value) =>
-              updateSettings({ safeAreaInControlsEnabled: value })
-            }
-          />
-        </ListItem>
+          value={settings.safeAreaInControlsEnabled}
+          onValueChange={(value) =>
+            updateSettings({ safeAreaInControlsEnabled: value })
+          }
+        />
 
-        <ListItem
+        <SettingsSelectRow
           title={t("home.settings.other.default_quality")}
           disabled={pluginSettings?.defaultBitrate?.locked}
-        >
-          <PlatformDropdown
-            groups={bitrateOptions}
-            trigger={
-              <View className='flex flex-row items-center justify-between pl-3 py-1.5 '>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {settings.defaultBitrate?.key}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title={t("home.settings.other.default_quality")}
-          />
-        </ListItem>
+          valueLabel={settings.defaultBitrate?.key}
+          groups={bitrateOptions}
+          dropdownTitle={t("home.settings.other.default_quality")}
+        />
 
-        <ListItem
+        <SettingsSelectRow
           title={t("home.settings.other.default_playback_speed")}
           disabled={pluginSettings?.defaultPlaybackSpeed?.locked}
-        >
-          <PlatformDropdown
-            groups={playbackSpeedOptions}
-            trigger={
-              <View className='flex flex-row items-center justify-between pl-3 py-1.5'>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {PLAYBACK_SPEEDS.find(
-                    (s) => s.value === settings.defaultPlaybackSpeed,
-                  )?.label ?? "1x"}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title={t("home.settings.other.default_playback_speed")}
-          />
-        </ListItem>
+          valueLabel={
+            PLAYBACK_SPEEDS.find(
+              (s) => s.value === settings.defaultPlaybackSpeed,
+            )?.label ?? "1x"
+          }
+          groups={playbackSpeedOptions}
+          dropdownTitle={t("home.settings.other.default_playback_speed")}
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
-        >
-          <Switch
-            value={settings.disableHapticFeedback}
-            disabled={pluginSettings?.disableHapticFeedback?.locked}
-            onValueChange={(disableHapticFeedback) =>
-              updateSettings({ disableHapticFeedback })
-            }
-          />
-        </ListItem>
+          value={settings.disableHapticFeedback}
+          onValueChange={(disableHapticFeedback) =>
+            updateSettings({ disableHapticFeedback })
+          }
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.other.auto_play_next_episode")}
           disabled={pluginSettings?.autoPlayNextEpisode?.locked}
-        >
-          <Switch
-            value={settings.autoPlayNextEpisode}
-            disabled={pluginSettings?.autoPlayNextEpisode?.locked}
-            onValueChange={(autoPlayNextEpisode) =>
-              updateSettings({ autoPlayNextEpisode })
-            }
-          />
-        </ListItem>
+          value={settings.autoPlayNextEpisode}
+          onValueChange={(autoPlayNextEpisode) =>
+            updateSettings({ autoPlayNextEpisode })
+          }
+        />
 
-        <ListItem
+        <SettingsSelectRow
           title={t("home.settings.other.max_auto_play_episode_count")}
           disabled={
             !settings.autoPlayNextEpisode ||
             pluginSettings?.maxAutoPlayEpisodeCount?.locked
           }
-        >
-          <PlatformDropdown
-            groups={autoPlayEpisodeOptions}
-            trigger={
-              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {t(settings?.maxAutoPlayEpisodeCount.key)}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title={t("home.settings.other.max_auto_play_episode_count")}
-          />
-        </ListItem>
+          valueLabel={t(settings?.maxAutoPlayEpisodeCount.key)}
+          groups={autoPlayEpisodeOptions}
+          dropdownTitle={t("home.settings.other.max_auto_play_episode_count")}
+        />
       </ListGroup>
     </DisabledSetting>
   );
