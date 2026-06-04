@@ -1,17 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Pressable, View } from "react-native";
-import {
-  type ServerUrlResolverState,
-  useServerUrlResolver,
-} from "@/hooks/useServerUrlResolver";
-import type {
-  ResolveFailureReason,
-  ResolveOptions,
-} from "@/utils/serverUrl/resolve";
+import { View } from "react-native";
+import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
+import type { ResolveOptions } from "@/utils/serverUrl/resolve";
 import type { ServerProbe } from "@/utils/serverUrl/types";
 import { Input } from "./Input";
+import { ServerUrlStatusText } from "./ServerUrlStatusText";
 import { Text } from "./Text";
 
 interface ServerUrlFieldProps {
@@ -31,31 +24,11 @@ interface ServerUrlFieldProps {
   resolveOptions?: ResolveOptions;
 }
 
-function errorMessage(
-  t: (key: string, opts?: Record<string, unknown>) => string,
-  reason: ResolveFailureReason,
-  version?: string,
-  minVersion?: string,
-): string {
-  switch (reason) {
-    case "version-too-low":
-      return t("server_url.version_too_low", {
-        version: version ?? "?",
-        min: minVersion ?? "",
-      });
-    case "wrong-service":
-      return t("server_url.wrong_service");
-    case "invalid":
-      return t("server_url.invalid_url");
-    default:
-      return t("server_url.unreachable");
-  }
-}
-
 /**
  * Unified server-URL input: the user types a loose address (`media.example.com`,
- * `https://…`, `host:port`), it auto-resolves on blur via the given probe and
- * persists the canonical URL. Inline status chip (tap to re-test) + resolved URL.
+ * `https://…`, `host:port`); on blur it auto-resolves via the given probe,
+ * adopts the canonical URL into the field, and persists it. A small status line
+ * (checking / resolved / error) shows underneath.
  */
 export function ServerUrlField({
   value,
@@ -69,7 +42,6 @@ export function ServerUrlField({
   editable = true,
   resolveOptions,
 }: ServerUrlFieldProps) {
-  const { t } = useTranslation();
   const resolver = useServerUrlResolver(probe, resolveOptions);
   const lastResolvedInput = useRef<string | null>(null);
 
@@ -82,8 +54,11 @@ export function ServerUrlField({
     }
     lastResolvedInput.current = input;
     const result = await resolver.resolve(input);
-    if (result.ok) onResolved?.(result.url, result.meta);
-  }, [value, resolver, onResolved]);
+    if (result.ok) {
+      onChangeText(result.url); // adopt the canonical URL into the field
+      onResolved?.(result.url, result.meta);
+    }
+  }, [value, resolver, onChangeText, onResolved]);
 
   const handleBlur = useCallback(() => {
     const input = value.trim();
@@ -93,7 +68,7 @@ export function ServerUrlField({
   const handleChange = useCallback(
     (text: string) => {
       onChangeText(text);
-      // Editing invalidates a previous result; drop the stale chip.
+      // Editing invalidates a previous result; drop the stale status.
       if (resolver.status !== "idle") resolver.reset();
       lastResolvedInput.current = null;
     },
@@ -105,73 +80,27 @@ export function ServerUrlField({
       {label ? <Text className='font-bold mb-1'>{label}</Text> : null}
       {hint ? <Text className='text-xs text-gray-500 mb-2'>{hint}</Text> : null}
 
-      <View className='relative justify-center'>
-        <Input
-          value={value}
-          onChangeText={handleChange}
-          onBlur={handleBlur}
-          onSubmitEditing={runResolve}
-          placeholder={placeholder}
-          editable={editable}
-          extraClassName='pr-12 border border-neutral-800'
-          keyboardType='url'
-          autoCapitalize='none'
-          autoCorrect={false}
-          returnKeyType='done'
-          textContentType='URL'
-          clearButtonMode='never'
-        />
-        <View className='absolute right-3 top-0 bottom-0 justify-center'>
-          <StatusChip state={resolver} onRetry={runResolve} />
-        </View>
-      </View>
+      <Input
+        value={value}
+        onChangeText={handleChange}
+        onBlur={handleBlur}
+        onSubmitEditing={runResolve}
+        placeholder={placeholder}
+        editable={editable}
+        extraClassName='border border-neutral-800'
+        keyboardType='url'
+        autoCapitalize='none'
+        autoCorrect={false}
+        returnKeyType='go'
+        textContentType='URL'
+        clearButtonMode='never'
+      />
 
-      {resolver.status === "ok" ? (
-        <Text className='text-xs text-green-500 mt-2'>
-          {t("server_url.resolved", { url: resolver.resolvedUrl })}
-        </Text>
-      ) : null}
-      {resolver.status === "error" ? (
-        <Text className='text-xs text-red-500 mt-2'>
-          {errorMessage(t, resolver.reason, resolver.version, minVersion)}
-        </Text>
-      ) : null}
+      <ServerUrlStatusText
+        state={resolver}
+        minVersion={minVersion}
+        className='mt-2'
+      />
     </View>
   );
-}
-
-function StatusChip({
-  state,
-  onRetry,
-}: {
-  state: ServerUrlResolverState;
-  onRetry: () => void;
-}) {
-  if (state.status === "resolving") {
-    return <ActivityIndicator size='small' color='#9ca3af' />;
-  }
-
-  if (state.status === "ok") {
-    const scheme = state.resolvedUrl.startsWith("https") ? "https" : "http";
-    return (
-      <Pressable
-        onPress={onRetry}
-        hitSlop={8}
-        className='flex-row items-center'
-      >
-        <Ionicons name='checkmark-circle' size={18} color='#22c55e' />
-        <Text className='text-xs text-green-500 ml-1'>{scheme}</Text>
-      </Pressable>
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <Pressable onPress={onRetry} hitSlop={8}>
-        <Ionicons name='refresh' size={18} color='#f59e0b' />
-      </Pressable>
-    );
-  }
-
-  return null;
 }
