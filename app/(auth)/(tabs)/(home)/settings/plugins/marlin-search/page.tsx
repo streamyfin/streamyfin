@@ -10,12 +10,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
+import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function MarlinSearchPage() {
   const navigation = useNavigation();
@@ -25,6 +28,7 @@ export default function MarlinSearchPage() {
   const queryClient = useNetworkAwareQueryClient();
 
   const [value, setValue] = useState<string>(settings?.marlinServerUrl || "");
+  const urlResolver = useServerUrlResolver(reachabilityProbe);
 
   const searchEngineLocked = pluginSettings?.searchEngine?.locked === true;
   const marlinUrlLocked = pluginSettings?.marlinServerUrl?.locked === true;
@@ -112,9 +116,18 @@ export default function MarlinSearchPage() {
               autoCapitalize='none'
               textContentType='URL'
               onChangeText={(text) => setValue(text)}
+              onBlur={() => {
+                const candidate = value.trim();
+                if (candidate) {
+                  urlResolver.resolve(candidate).then((r) => {
+                    if (r.ok) setValue(r.url);
+                  });
+                }
+              }}
             />
           </ListItem>
         </ListGroup>
+        <ServerUrlStatusText state={urlResolver} className='mt-1 px-4' />
 
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
           {t("home.settings.plugins.marlin_search.marlin_search_hint")}{" "}
