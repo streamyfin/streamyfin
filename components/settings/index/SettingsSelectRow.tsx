@@ -28,7 +28,7 @@ export const SettingsSelectRow: React.FC<Props> = ({
       groups={groups}
       title={dropdownTitle}
       trigger={
-        <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+        <View className='flex flex-row items-center justify-between pl-3'>
           <Text className='mr-1 text-[#8E8D91]'>{valueLabel}</Text>
           <Ionicons name='chevron-expand-sharp' size={18} color='#5A5960' />
         </View>

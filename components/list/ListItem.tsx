@@ -34,12 +34,13 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
 }) => {
   const effectiveSubtitle = disabledByAdmin ? "Disabled by admin" : subtitle;
   const isDisabled = disabled || disabledByAdmin;
+  const hasSubtitle = Boolean(effectiveSubtitle);
   if (onPress)
     return (
       <TouchableOpacity
         disabled={isDisabled}
         onPress={onPress}
-        className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[48px] py-2.5 px-4 ${isDisabled ? "opacity-50" : ""}`}
+        className={`flex flex-row items-center justify-between bg-neutral-900 ${hasSubtitle ? "min-h-[56px] py-2.5" : "h-[56px]"} px-4 ${isDisabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         <ListItemContent
@@ -58,7 +59,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
     );
   return (
     <View
-      className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[48px] py-2.5 px-4 ${isDisabled ? "opacity-50" : ""}`}
+      className={`flex flex-row items-center justify-between bg-neutral-900 ${hasSubtitle ? "min-h-[56px] py-2.5" : "h-[56px]"} px-4 ${isDisabled ? "opacity-50" : ""}`}
       {...viewProps}
     >
       <ListItemContent
