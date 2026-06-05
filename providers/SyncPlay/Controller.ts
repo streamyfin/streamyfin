@@ -160,6 +160,32 @@ export class Controller {
       console.error("SyncPlay Controller.setCurrentPlaylistItem failed", error);
     }
   }
+
+  /**
+   * Jump the group to `item`. If the item is already in the current queue
+   * (by `Id`), dispatches a cheap `SetPlaylistItem` so the queue stays
+   * intact. Otherwise starts a new playback request, which replaces the
+   * group's queue (matches jellyfin-web's playbackManager.play behavior
+   * when picking an episode from a different series/season).
+   */
+  goToItem(item: BaseItemDto): void {
+    if (!item.Id) {
+      console.warn("SyncPlay Controller.goToItem called without item.Id");
+      return;
+    }
+    const queueEntry = this.manager
+      .getQueueCore()
+      .getPlaylist()
+      .find((q) => q.Id === item.Id);
+    if (queueEntry?.PlaylistItemId) {
+      this.setCurrentPlaylistItem(queueEntry.PlaylistItemId);
+      return;
+    }
+    void this.play({
+      ids: [item.Id],
+      startPositionTicks: item.UserData?.PlaybackPositionTicks ?? 0,
+    });
+  }
 }
 
 export default Controller;

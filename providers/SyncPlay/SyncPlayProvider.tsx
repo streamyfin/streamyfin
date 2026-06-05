@@ -17,6 +17,7 @@
  */
 
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
+import { usePathname } from "expo-router";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -33,6 +34,7 @@ import { toast } from "sonner-native";
 import { useAppRouter } from "@/hooks/useAppRouter";
 import { useKeepWebSocketAlive } from "@/hooks/useKeepWebSocketAlive";
 import i18n from "@/i18n";
+import { getDownloadedItemById } from "@/providers/Downloads";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import type { Controller as SyncPlayController } from "./Controller";
@@ -80,6 +82,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
   const [manager, setManager] = useState<SyncPlayManager | null>(null);
   const isNavigatingToPlayerRef = useRef(false);
+
+  // Keep a live ref of the current route pathname so the
+  // navigateToPlayer helper (wired up once inside the manager-lifecycle
+  // effect) can read the *current* page without stale-closure issues.
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   const [isEnabled, setIsEnabled] = useState(false);
   const [groupInfo, setGroupInfo] = useState<GroupInfoDto | null>(null);
@@ -171,6 +182,58 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
     const playerWrapper = mgr.getPlayerWrapper();
 
+    /*
+     * Both localPlay (new queue / joining a group) and
+     * localSetCurrentPlaylistItem (queue advance to next episode)
+     * end up navigating to the same screen with the same params;
+     * jellyfin-web treats them as distinct because one calls full
+     * playbackManager.play() and the other does a cheap item swap,
+     * but on RN both have to re-mount direct-player either way.
+     */
+    const navigateToPlayer = (
+      itemId: string,
+      startPositionTicks: number,
+      withJoinToast: boolean,
+    ) => {
+      if (isNavigatingToPlayerRef.current) {
+        console.debug("SyncPlay: already navigating to player");
+        return;
+      }
+      isNavigatingToPlayerRef.current = true;
+
+      if (withJoinToast) {
+        toast(i18n.t("syncplay.joining_playback"));
+      }
+
+      // Opportunistic local playback: if we have a downloaded copy of
+      // the target item, use it instead of streaming. Matters most when
+      // the group advances to an episode you've downloaded — the local
+      // file starts instantly and survives spotty wifi. SyncPlay's
+      // position/pause/seek commands keep flowing normally; only the
+      // source changes.
+      const isDownloaded = !!getDownloadedItemById(itemId);
+      const queryParams = new URLSearchParams({
+        itemId,
+        playbackPosition: String(startPositionTicks),
+        syncPlay: "true",
+        ...(isDownloaded && { offline: "true" }),
+      }).toString();
+      // Use `replace` when we're already on the player screen so queue
+      // advances don't stack a second player on the nav stack; `push`
+      // otherwise so the user can back out to where they came from.
+      const onPlayerScreen =
+        pathnameRef.current?.startsWith("/player/direct-player") ?? false;
+      if (onPlayerScreen) {
+        router.replace(`/player/direct-player?${queryParams}`);
+      } else {
+        router.push(`/player/direct-player?${queryParams}`);
+      }
+
+      setTimeout(() => {
+        isNavigatingToPlayerRef.current = false;
+      }, 2000);
+    };
+
     // localPlay → navigate to direct-player with syncPlay=true
     playerWrapper.setLocalPlayHandler((options) => {
       const itemId = options.ids[0];
@@ -178,24 +241,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         console.warn("SyncPlay: localPlay called with no ids");
         return;
       }
-      if (isNavigatingToPlayerRef.current) {
-        console.debug("SyncPlay: already navigating to player");
-        return;
-      }
-      isNavigatingToPlayerRef.current = true;
-
-      toast(i18n.t("syncplay.joining_playback"));
-
-      const queryParams = new URLSearchParams({
-        itemId,
-        playbackPosition: String(options.startPositionTicks ?? 0),
-        syncPlay: "true",
-      }).toString();
-      router.push(`/player/direct-player?${queryParams}`);
-
-      setTimeout(() => {
-        isNavigatingToPlayerRef.current = false;
-      }, 2000);
+      navigateToPlayer(itemId, options.startPositionTicks ?? 0, true);
     });
 
     // localSetCurrentPlaylistItem → navigate to the new playlist item
@@ -213,19 +259,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         );
         return;
       }
-      if (isNavigatingToPlayerRef.current) return;
-      isNavigatingToPlayerRef.current = true;
-
-      const queryParams = new URLSearchParams({
-        itemId,
-        playbackPosition: String(queueCore.getStartPositionTicks()),
-        syncPlay: "true",
-      }).toString();
-      router.push(`/player/direct-player?${queryParams}`);
-
-      setTimeout(() => {
-        isNavigatingToPlayerRef.current = false;
-      }, 2000);
+      navigateToPlayer(itemId, queueCore.getStartPositionTicks(), false);
     });
 
     mgr.on("enabled", (...args: unknown[]) => {

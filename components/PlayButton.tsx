@@ -23,14 +23,12 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import useRouter from "@/hooks/useAppRouter";
-import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { usePlayerItemNavigation } from "@/hooks/usePlayerItemNavigation";
 import { getDownloadedItemById } from "@/providers/Downloads/database";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
-import { useSyncPlay } from "@/providers/SyncPlay/SyncPlayProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
@@ -68,18 +66,13 @@ export const PlayButton: React.FC<Props> = ({
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
 
-  // SyncPlay: when enabled, we DO NOT navigate locally on play — we tell the
-  // server, which broadcasts a PlayQueue: NewPlaylist update to every group
-  // member (including us). Our `setStartPlaybackHandler` in SyncPlayProvider
-  // then performs the navigation uniformly for everyone, matching
-  // jellyfin-web's playbackManager intercept (Controller.play).
-  const { isEnabled: isSyncPlayEnabled, controller: syncPlayController } =
-    useSyncPlay();
+  // Single source of truth for all player navigation — SyncPlay,
+  // offline-vs-stream resolution, and the autoplay counter reset all
+  // live inside `playItem`.
+  const { playItem } = usePlayerItemNavigation();
 
   // Use colors prop if provided, otherwise fallback to global atom
   const effectiveColors = colors || globalColorAtom;
-
-  const router = useRouter();
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
@@ -87,67 +80,30 @@ export const PlayButton: React.FC<Props> = ({
   const startColor = useSharedValue(effectiveColors);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const { settings, updateSettings } = useSettings();
-  const lightHapticFeedback = useHaptic("light");
+  const { settings } = useSettings();
 
   const goToPlayer = useCallback(
-    (q: string) => {
-      if (settings.maxAutoPlayEpisodeCount.value !== -1) {
-        updateSettings({ autoPlayEpisodeCount: 0 });
-      }
-      router.push(`/player/direct-player?${q}`);
+    (opts: Parameters<typeof playItem>[1]) => {
+      void playItem(item, opts);
     },
-    [router, isOffline],
+    [item, playItem],
   );
 
   const handleNormalPlayFlow = useCallback(async () => {
     if (!item) return;
 
-    // SyncPlay intercept: in a group, route playback through sthe server so
-    // every member gets the same PlayQueue: NewPlaylist update and navigates
-    // together. Skips local navigation and the Chromecast prompt entirely —
-    // SyncPlay + Chromecast isn't a supported combination yet, same as
-    // jellyfin-web.
-    if (isSyncPlayEnabled && syncPlayController && item.Id) {
-      try {
-        // Pass the full `item` (not just the ID) so the SyncPlay controller
-        // can run `translateItemsForPlayback` with full context — this is
-        // what jellyfin-web does, and it lets us expand Series / Season /
-        // BoxSet into real episode/track IDs before broadcasting the queue.
-        // Without expansion, receivers (jellyfin-web in particular) get
-        // container IDs they can't play and silently fail to open the
-        // player.
-        await syncPlayController.play({
-          items: [item],
-          ids: [item.Id],
-          startPositionTicks: item.UserData?.PlaybackPositionTicks ?? 0,
-        });
-      } catch (error) {
-        console.error("SyncPlay: failed to start group playback", error);
-        Alert.alert(
-          t("player.client_error"),
-          t("syncplay.failed_to_start", {
-            defaultValue: "Failed to start SyncPlay group playback",
-          }),
-        );
-      }
-      return;
-    }
-
-    const queryParams = new URLSearchParams({
-      itemId: item.Id!,
-      audioIndex: selectedOptions.audioIndex?.toString() ?? "",
-      subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
-      mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
-      bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
-      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-      offline: isOffline ? "true" : "false",
-    });
-
-    const queryString = queryParams.toString();
+    // Default play options derived from the page's track / source / bitrate
+    // pickers. `playItem` handles SyncPlay broadcasting and offline-vs-online
+    // routing; we just need to pick a destination (device vs Chromecast).
+    const defaultOpts = {
+      audioIndex: selectedOptions.audioIndex,
+      subtitleIndex: selectedOptions.subtitleIndex,
+      mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+      bitrateValue: selectedOptions.bitrate?.value,
+    };
 
     if (!client) {
-      goToPlayer(queryString);
+      goToPlayer(defaultOpts);
       return;
     }
 
@@ -310,7 +266,7 @@ export const PlayButton: React.FC<Props> = ({
             });
             break;
           case 1:
-            goToPlayer(queryString);
+            goToPlayer(defaultOpts);
             break;
           case cancelButtonIndex:
             break;
@@ -320,37 +276,24 @@ export const PlayButton: React.FC<Props> = ({
   }, [
     item,
     client,
-    settings,
     api,
     user,
-    router,
     showActionSheetWithOptions,
     mediaStatus,
     selectedOptions,
     goToPlayer,
-    isOffline,
     t,
-    isSyncPlayEnabled,
-    syncPlayController,
   ]);
 
   const onPress = useCallback(async () => {
     if (!item) return;
-
-    lightHapticFeedback();
 
     // Check if item is downloaded
     const downloadedItem = item.Id ? getDownloadedItemById(item.Id) : undefined;
 
     // If already in offline mode, play downloaded file directly
     if (isOffline && downloadedItem) {
-      const queryParams = new URLSearchParams({
-        itemId: item.Id!,
-        offline: "true",
-        playbackPosition:
-          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-      });
-      goToPlayer(queryParams.toString());
+      goToPlayer({ forceOffline: true });
       return;
     }
 
@@ -373,13 +316,7 @@ export const PlayButton: React.FC<Props> = ({
                 <Button
                   onPress={() => {
                     hideModal();
-                    const queryParams = new URLSearchParams({
-                      itemId: item.Id!,
-                      offline: "true",
-                      playbackPosition:
-                        item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-                    });
-                    goToPlayer(queryParams.toString());
+                    goToPlayer({ forceOffline: true });
                   }}
                   color='purple'
                 >
@@ -416,13 +353,7 @@ export const PlayButton: React.FC<Props> = ({
             {
               text: t("player.downloaded_file_yes"),
               onPress: () => {
-                const queryParams = new URLSearchParams({
-                  itemId: item.Id!,
-                  offline: "true",
-                  playbackPosition:
-                    item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-                });
-                goToPlayer(queryParams.toString());
+                goToPlayer({ forceOffline: true });
               },
               isPreferred: true,
             },
@@ -446,13 +377,12 @@ export const PlayButton: React.FC<Props> = ({
     handleNormalPlayFlow();
   }, [
     item,
-    lightHapticFeedback,
+    isOffline,
     handleNormalPlayFlow,
     goToPlayer,
     t,
     showModal,
     hideModal,
-    effectiveColors,
   ]);
 
   const derivedTargetWidth = useDerivedValue(() => {

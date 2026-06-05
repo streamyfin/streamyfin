@@ -35,6 +35,7 @@ import { useKeepWebSocketAlive } from "@/hooks/useKeepWebSocketAlive";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
+import { usePlayerItemNavigation } from "@/hooks/usePlayerItemNavigation";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useWebSocket } from "@/hooks/useWebsockets";
 import {
@@ -54,7 +55,6 @@ import { useSyncPlay } from "@/providers/SyncPlay";
 import type { PlayerControls } from "@/providers/SyncPlay/types";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
-import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
@@ -1144,44 +1144,6 @@ export default function DirectPlayerPage() {
     }
   }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
 
-  // TV: Navigate to previous item
-  const goToPreviousItem = useCallback(() => {
-    if (!previousItem || !settings) return;
-
-    const {
-      mediaSource: newMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex,
-    } = getDefaultPlaySettings(previousItem, settings, {
-      indexes: {
-        // Use the live selection, not the stale URL params (see goToNextItem).
-        subtitleIndex: currentSubtitleIndex,
-        audioIndex: currentAudioIndex,
-      },
-      source: stream?.mediaSource ?? undefined,
-    });
-
-    const queryParams = new URLSearchParams({
-      itemId: previousItem.Id ?? "",
-      audioIndex: defaultAudioIndex?.toString() ?? "",
-      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-      mediaSourceId: newMediaSource?.Id ?? "",
-      bitrateValue: bitrateValue?.toString() ?? "",
-      playbackPosition:
-        previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
-    }).toString();
-
-    router.replace(`player/direct-player?${queryParams}` as any);
-  }, [
-    previousItem,
-    settings,
-    currentSubtitleIndex,
-    currentAudioIndex,
-    stream?.mediaSource,
-    bitrateValue,
-    router,
-  ]);
-
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
   const addSubtitleFile = useCallback(async (path: string) => {
     await videoRef.current?.addSubtitleFile?.(path, true);
@@ -1211,45 +1173,25 @@ export default function DirectPlayerPage() {
     return [];
   }, [isMounted]);
 
-  // TV: Navigate to next item
-  const goToNextItem = useCallback(() => {
-    if (!nextItem || !settings || isPlaybackStopped) return;
-
-    const {
-      mediaSource: newMediaSource,
-      audioIndex: defaultAudioIndex,
-      subtitleIndex: defaultSubtitleIndex,
-    } = getDefaultPlaySettings(nextItem, settings, {
-      indexes: {
-        // Use the live selection (updated when the user changes tracks
-        // mid-playback), not the stale URL params the episode started with.
-        subtitleIndex: currentSubtitleIndex,
-        audioIndex: currentAudioIndex,
-      },
-      source: stream?.mediaSource ?? undefined,
-    });
-
-    const queryParams = new URLSearchParams({
-      itemId: nextItem.Id ?? "",
-      audioIndex: defaultAudioIndex?.toString() ?? "",
-      subtitleIndex: defaultSubtitleIndex?.toString() ?? "",
-      mediaSourceId: newMediaSource?.Id ?? "",
-      bitrateValue: bitrateValue?.toString() ?? "",
-      playbackPosition:
-        nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
-    }).toString();
-
-    router.replace(`player/direct-player?${queryParams}` as any);
-  }, [
+  /*
+   * Item-level navigation (next / previous). Wraps SyncPlay dispatch,
+   * platform-appropriate local navigation (replace on TV), and offline
+   * param injection in a single hook so the in-player buttons and any
+   * future entry points (autoplay overlay, episode picker, etc.) share
+   * one implementation.
+   */
+  const {
+    goToNextItem: dispatchNextItem,
+    goToPreviousItem: dispatchPreviousItem,
+  } = usePlayerItemNavigation({
     nextItem,
-    settings,
-    currentSubtitleIndex,
+    previousItem,
+    mediaSource: stream?.mediaSource,
     currentAudioIndex,
-    stream?.mediaSource,
+    currentSubtitleIndex,
     bitrateValue,
-    router,
-    isPlaybackStopped,
-  ]);
+    isDisabled: isPlaybackStopped,
+  });
 
   // Apply subtitle settings when video loads
   useEffect(() => {
@@ -1454,8 +1396,8 @@ export default function DirectPlayerPage() {
                   onSubtitleIndexChange={handleSubtitleIndexChange}
                   previousItem={previousItem}
                   nextItem={nextItem}
-                  goToPreviousItem={goToPreviousItem}
-                  goToNextItem={goToNextItem}
+                  goToPreviousItem={dispatchPreviousItem}
+                  goToNextItem={dispatchNextItem}
                   onRefreshSubtitleTracks={handleRefreshSubtitleTracks}
                   addSubtitleFile={addSubtitleFile}
                   showTechnicalInfo={showTechnicalInfo}
