@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
@@ -13,8 +14,6 @@ import type {
   PersonResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
-
-const SCALE_PADDING = 20;
 
 interface TVJellyseerrPosterProps {
   item: MovieResult | TvResult;
@@ -28,6 +27,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
   isFirstItem = false,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const { jellyseerrApi, getTitle, getYear } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.05 });
@@ -43,6 +43,8 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
     item.mediaInfo?.status === MediaStatus.AVAILABLE ||
     item.mediaInfo?.status === MediaStatus.PARTIALLY_AVAILABLE;
 
+  const posterWidth = sizes.posters.poster;
+
   return (
     <Pressable
       onPress={onPress}
@@ -54,7 +56,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
         style={[
           animatedStyle,
           {
-            width: 210,
+            width: posterWidth,
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,
@@ -64,9 +66,9 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
       >
         <View
           style={{
-            width: 210,
+            width: posterWidth,
             aspectRatio: 10 / 15,
-            borderRadius: 24,
+            borderRadius: sizes.gaps.small,
             overflow: "hidden",
             backgroundColor: "rgba(255,255,255,0.1)",
           }}
@@ -117,13 +119,13 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
             fontSize: typography.callout,
             color: "#fff",
             fontWeight: "600",
-            marginTop: 12,
+            marginTop: sizes.gaps.small,
           }}
           numberOfLines={2}
         >
           {title}
         </Text>
-        {year && (
+        {year != null && (
           <Text
             style={{
               fontSize: typography.callout,
@@ -149,6 +151,7 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
   onPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const { jellyseerrApi } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation();
@@ -157,13 +160,15 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
     ? jellyseerrApi?.imageProxy(item.profilePath, "w185")
     : null;
 
+  const avatarSize = Math.round(sizes.posters.poster * 0.67);
+
   return (
     <Pressable onPress={onPress} onFocus={handleFocus} onBlur={handleBlur}>
       <Animated.View
         style={[
           animatedStyle,
           {
-            width: 160,
+            width: avatarSize,
             alignItems: "center",
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
@@ -174,9 +179,9 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
       >
         <View
           style={{
-            width: 140,
-            height: 140,
-            borderRadius: 70,
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: avatarSize / 2,
             overflow: "hidden",
             backgroundColor: "rgba(255,255,255,0.1)",
             borderWidth: focused ? 3 : 0,
@@ -198,7 +203,11 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
                 alignItems: "center",
               }}
             >
-              <Ionicons name='person' size={56} color='rgba(255,255,255,0.4)' />
+              <Ionicons
+                name='person'
+                size={Math.round(avatarSize * 0.35)}
+                color='rgba(255,255,255,0.4)'
+              />
             </View>
           )}
         </View>
@@ -207,7 +216,7 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
             fontSize: typography.callout,
             color: focused ? "#fff" : "rgba(255,255,255,0.9)",
             fontWeight: "600",
-            marginTop: 12,
+            marginTop: sizes.gaps.small,
             textAlign: "center",
           }}
           numberOfLines={2}
@@ -233,17 +242,18 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   if (!items || items.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ marginBottom: sizes.gaps.section }}>
       <Text
         style={{
           fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: sizes.gaps.small,
+          marginLeft: sizes.padding.scale,
         }}
       >
         {title}
@@ -254,9 +264,9 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
-          paddingVertical: SCALE_PADDING,
-          gap: 20,
+          paddingHorizontal: sizes.padding.scale,
+          paddingVertical: sizes.padding.scale,
+          gap: sizes.gaps.item,
         }}
         style={{ overflow: "visible" }}
         renderItem={({ item, index }) => (
@@ -285,17 +295,18 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   if (!items || items.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ marginBottom: sizes.gaps.section }}>
       <Text
         style={{
           fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: sizes.gaps.small,
+          marginLeft: sizes.padding.scale,
         }}
       >
         {title}
@@ -306,9 +317,9 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
-          paddingVertical: SCALE_PADDING,
-          gap: 20,
+          paddingHorizontal: sizes.padding.scale,
+          paddingVertical: sizes.padding.scale,
+          gap: sizes.gaps.item,
         }}
         style={{ overflow: "visible" }}
         renderItem={({ item, index }) => (
@@ -337,17 +348,18 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   if (!items || items.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ marginBottom: sizes.gaps.section }}>
       <Text
         style={{
           fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: sizes.gaps.small,
+          marginLeft: sizes.padding.scale,
         }}
       >
         {title}
@@ -358,9 +370,9 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
-          paddingVertical: SCALE_PADDING,
-          gap: 20,
+          paddingHorizontal: sizes.padding.scale,
+          paddingVertical: sizes.padding.scale,
+          gap: sizes.gaps.item,
         }}
         style={{ overflow: "visible" }}
         renderItem={({ item }) => (
@@ -400,6 +412,7 @@ export const TVJellyseerrSearchResults: React.FC<
   onPersonPress,
 }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
 
   if (loading) {
     return null;
@@ -410,7 +423,7 @@ export const TVJellyseerrSearchResults: React.FC<
       <View style={{ alignItems: "center", paddingTop: 40 }}>
         <Text
           style={{
-            fontSize: 24,
+            fontSize: typography.heading,
             fontWeight: "bold",
             color: "#FFFFFF",
             marginBottom: 8,
@@ -418,7 +431,9 @@ export const TVJellyseerrSearchResults: React.FC<
         >
           {t("search.no_results_found_for")}
         </Text>
-        <Text style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>
+        <Text
+          style={{ fontSize: typography.body, color: "rgba(255,255,255,0.6)" }}
+        >
           "{searchQuery}"
         </Text>
       </View>

@@ -592,7 +592,8 @@
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "loading": "Loading..."
   },
   "search": {
     "search": "Search...",

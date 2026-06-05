@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -22,8 +23,6 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 
-const SCALE_PADDING = 20;
-
 interface TVDiscoverPosterProps {
   item: MovieResult | TvResult;
   isFirstItem?: boolean;
@@ -34,6 +33,7 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
   isFirstItem = false,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const router = useRouter();
   const { jellyseerrApi, getTitle, getYear } = useJellyseerr();
   const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -49,6 +49,8 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
   const isInLibrary =
     item.mediaInfo?.status === MediaStatus.AVAILABLE ||
     item.mediaInfo?.status === MediaStatus.PARTIALLY_AVAILABLE;
+
+  const posterWidth = sizes.posters.poster;
 
   const handlePress = () => {
     router.push({
@@ -71,7 +73,7 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
         style={[
           animatedStyle,
           {
-            width: 210,
+            width: posterWidth,
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,
@@ -81,9 +83,9 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
       >
         <View
           style={{
-            width: 210,
+            width: posterWidth,
             aspectRatio: 10 / 15,
-            borderRadius: 24,
+            borderRadius: sizes.gaps.small,
             overflow: "hidden",
             backgroundColor: "rgba(255,255,255,0.1)",
           }}
@@ -140,12 +142,12 @@ const TVDiscoverPoster: React.FC<TVDiscoverPosterProps> = ({
         >
           {title}
         </Text>
-        {year && (
+        {year != null && (
           <Text
             style={{
               fontSize: typography.callout,
               color: "#9CA3AF",
-              marginTop: 2,
+              marginTop: sizes.gaps.small,
             }}
           >
             {year}
@@ -166,6 +168,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   isFirstSlide = false,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const { t } = useTranslation();
   const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
@@ -231,14 +234,14 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   if (!flatData || flatData.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ marginBottom: sizes.gaps.section }}>
       <Text
         style={{
           fontSize: typography.heading,
           fontWeight: "bold",
           color: "#FFFFFF",
-          marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginBottom: sizes.gaps.small,
+          marginLeft: sizes.padding.scale,
         }}
       >
         {slideTitle}
@@ -249,9 +252,9 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
-          paddingVertical: SCALE_PADDING,
-          gap: 20,
+          paddingHorizontal: sizes.padding.scale,
+          paddingVertical: sizes.padding.scale,
+          gap: sizes.gaps.item,
         }}
         style={{ overflow: "visible" }}
         onEndReached={() => {

@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -166,6 +166,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Image URL getter for music items
   const getImageUrl = useMemo(() => {
@@ -270,6 +271,9 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
               onChangeText={setSearch}
               defaultValue=''
               autoFocus={false}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              hasTVPreferredFocus
             />
           </View>
         )}
@@ -290,6 +294,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
               searchType={searchType}
               setSearchType={setSearchType}
               showDiscover={showDiscover}
+              disabled={isSearchFocused}
             />
           </View>
         )}
@@ -316,6 +321,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
                 // every keystroke as results re-render. User navigates down to the
                 // grid manually.
                 isFirstSection={false}
+                disabled={isSearchFocused}
                 onItemPress={onItemPress}
                 onItemLongPress={onItemLongPress}
                 imageUrlGetter={
