@@ -1,13 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import React, { useEffect, useState } from "react";
-import {
-  type LayoutChangeEvent,
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React, { useEffect } from "react";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
@@ -217,24 +211,6 @@ const PlatformDropdownComponent = ({
 }: PlatformDropdownProps) => {
   const { showModal, hideModal, isVisible } = useGlobalModal();
 
-  // @expo/ui's <Host> (SDK 55) fills its available space by default, and
-  // `matchContents` doesn't help here: it reports the native Menu's size via
-  // setStyleSize and overrides any explicit size. Instead we measure the
-  // trigger's intrinsic size in plain RN (off-layout) and pin it on the Host.
-  const [triggerSize, setTriggerSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-
-  const handleMeasureTrigger = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    setTriggerSize((prev) =>
-      prev && prev.width === width && prev.height === height
-        ? prev
-        : { width, height },
-    );
-  };
-
   // Handle controlled open state for Android
   useEffect(() => {
     if (Platform.OS === "android" && controlledOpen === true) {
@@ -265,25 +241,11 @@ const PlatformDropdownComponent = ({
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
   if (Platform.OS === "ios" && !Platform.isTV) {
-    // Pin the wrapper to the measured trigger size. @expo/ui's <Host> (SDK 55)
-    // fills its parent and reports its own size via setStyleSize, so it can't
-    // size itself to content. If the wrapper has no size, the Host's `flex: 1`
-    // height depends on the parent while the parent depends on the Host — a
-    // circular dependency that collapses to 0 for any selector nested more than
-    // one level deep (so only the first, shallowest dropdown stays visible).
-    // Giving the wrapper the measured size breaks the cycle; the Host then
-    // fills a concrete box.
+    // @expo/ui's <Host> can't size to content, so an in-flow invisible copy of
+    // the trigger sizes the wrapper while the Host overlays the real Menu.
     return (
-      <View style={triggerSize ?? { opacity: 0 }}>
-        {/* Hidden measurer: lays the trigger out off-flow to capture its
-            intrinsic size. Absolutely positioned WITHOUT right/bottom so it
-            sizes to the trigger's content rather than to its parent. */}
-        <View
-          style={{ position: "absolute", top: 0, left: 0, opacity: 0 }}
-          pointerEvents='none'
-          aria-hidden
-          onLayout={handleMeasureTrigger}
-        >
+      <View>
+        <View pointerEvents='none' aria-hidden style={{ opacity: 0 }}>
           {trigger}
         </View>
         <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>

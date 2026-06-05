@@ -40,6 +40,8 @@ const Layout = () => {
         keyboardDismissMode='none'
         screenOptions={{
           tabBarBounces: true,
+          tabBarActiveTintColor: "#FFFFFF",
+          tabBarInactiveTintColor: "#9CA3AF",
           tabBarLabelStyle: {
             fontSize: TAB_LABEL_FONT_SIZE,
             fontWeight: "600",
