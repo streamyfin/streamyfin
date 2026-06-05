@@ -2,11 +2,10 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
-import { Switch } from "react-native";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import { SettingsSwitchRow } from "@/components/settings/index/SettingsSwitchRow";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
 
 interface Props extends ViewProps {}
 
@@ -32,85 +31,65 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
       <ListGroup
         title={t("home.settings.gesture_controls.gesture_controls_title")}
       >
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.gesture_controls.horizontal_swipe_skip")}
           subtitle={t(
             "home.settings.gesture_controls.horizontal_swipe_skip_description",
           )}
           disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
-        >
-          <Switch
-            value={settings.enableHorizontalSwipeSkip}
-            disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
-            onValueChange={(enableHorizontalSwipeSkip) =>
-              updateSettings({ enableHorizontalSwipeSkip })
-            }
-          />
-        </ListItem>
+          value={settings.enableHorizontalSwipeSkip}
+          onValueChange={(enableHorizontalSwipeSkip) =>
+            updateSettings({ enableHorizontalSwipeSkip })
+          }
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.gesture_controls.left_side_brightness")}
           subtitle={t(
             "home.settings.gesture_controls.left_side_brightness_description",
           )}
           disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
-        >
-          <Switch
-            value={settings.enableLeftSideBrightnessSwipe}
-            disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
-            onValueChange={(enableLeftSideBrightnessSwipe) =>
-              updateSettings({ enableLeftSideBrightnessSwipe })
-            }
-          />
-        </ListItem>
+          value={settings.enableLeftSideBrightnessSwipe}
+          onValueChange={(enableLeftSideBrightnessSwipe) =>
+            updateSettings({ enableLeftSideBrightnessSwipe })
+          }
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.gesture_controls.right_side_volume")}
           subtitle={t(
             "home.settings.gesture_controls.right_side_volume_description",
           )}
           disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
-        >
-          <Switch
-            value={settings.enableRightSideVolumeSwipe}
-            disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
-            onValueChange={(enableRightSideVolumeSwipe) =>
-              updateSettings({ enableRightSideVolumeSwipe })
-            }
-          />
-        </ListItem>
+          value={settings.enableRightSideVolumeSwipe}
+          onValueChange={(enableRightSideVolumeSwipe) =>
+            updateSettings({ enableRightSideVolumeSwipe })
+          }
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.gesture_controls.hide_volume_slider")}
           subtitle={t(
             "home.settings.gesture_controls.hide_volume_slider_description",
           )}
           disabled={pluginSettings?.hideVolumeSlider?.locked}
-        >
-          <Switch
-            value={settings.hideVolumeSlider}
-            disabled={pluginSettings?.hideVolumeSlider?.locked}
-            onValueChange={(hideVolumeSlider) =>
-              updateSettings({ hideVolumeSlider })
-            }
-          />
-        </ListItem>
+          value={settings.hideVolumeSlider}
+          onValueChange={(hideVolumeSlider) =>
+            updateSettings({ hideVolumeSlider })
+          }
+        />
 
-        <ListItem
+        <SettingsSwitchRow
           title={t("home.settings.gesture_controls.hide_brightness_slider")}
           subtitle={t(
             "home.settings.gesture_controls.hide_brightness_slider_description",
           )}
           disabled={pluginSettings?.hideBrightnessSlider?.locked}
-        >
-          <Switch
-            value={settings.hideBrightnessSlider}
-            disabled={pluginSettings?.hideBrightnessSlider?.locked}
-            onValueChange={(hideBrightnessSlider) =>
-              updateSettings({ hideBrightnessSlider })
-            }
-          />
-        </ListItem>
+          value={settings.hideBrightnessSlider}
+          onValueChange={(hideBrightnessSlider) =>
+            updateSettings({ hideBrightnessSlider })
+          }
+        />
       </ListGroup>
     </DisabledSetting>
   );

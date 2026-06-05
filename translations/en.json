@@ -119,6 +119,9 @@
     "settings": {
       "settings_title": "Settings",
       "log_out_button": "Log Out",
+      "search_placeholder": "Search settings",
+      "search_results": "Results",
+      "search_no_results": "No matching settings",
       "switch_user": {
         "title": "Switch User",
         "account": "Account",
@@ -126,7 +129,25 @@
         "current": "current"
       },
       "categories": {
-        "title": "Categories"
+        "title": "Categories",
+        "playback": "Playback",
+        "personalization": "Personalization",
+        "advanced": "Advanced"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "disabled_title": "Notifications are off",
+        "disabled_description": "Allow notifications to get alerts about your downloads and more.",
+        "enable_button": "Enable notifications",
+        "events_title": "Notify me about",
+        "master": "Enable notifications",
+        "downloads": "Download completed / failed"
+      },
+      "account": {
+        "title": "Account",
+        "copy_token": "Copy token",
+        "copied": "Copied to clipboard",
+        "copy_failed": "Couldn't copy to clipboard"
       },
       "playback_controls": {
         "title": "Playback & Controls"
@@ -198,6 +219,10 @@
         "forward_skip_length": "Forward Skip Length",
         "rewind_length": "Rewind Length",
         "seconds_unit": "s"
+      },
+      "chromecast": {
+        "title": "Chromecast",
+        "enable_h265": "Enable H265 for Chromecast"
       },
       "buffer": {
         "title": "Buffer Settings",

@@ -294,6 +294,12 @@ export type Settings = {
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
   inactivityTimeout: InactivityTimeout;
+  // Settings-redo additions (SP1)
+  notificationsEnabled: boolean;
+  notifyDownloads: boolean;
+  defaultLandingTab: "(home)" | "(search)" | "(favorites)" | "(libraries)";
+  downloadOnWifiOnly: boolean;
+  cellularBitrate?: Bitrate;
 };
 
 export interface Lockable<T> {
@@ -395,6 +401,11 @@ export const defaultValues: Settings = {
   audioTranscodeMode: AudioTranscodeMode.Auto,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
+  notificationsEnabled: true,
+  notifyDownloads: true,
+  defaultLandingTab: "(home)",
+  downloadOnWifiOnly: false,
+  cellularBitrate: undefined,
 };
 
 const loadSettings = (): Partial<Settings> => {

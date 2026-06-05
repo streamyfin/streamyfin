@@ -1,13 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
-import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { Platform } from "react-native";
+import { SettingsSelectRow } from "@/components/settings/index/SettingsSelectRow";
 import { type MpvVoDriver, useSettings } from "@/utils/atoms/settings";
-import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
 
 const VO_DRIVER_OPTIONS: { key: string; value: MpvVoDriver }[] = [
   { key: "home.settings.vo_driver.gpu_next", value: "gpu-next" },
@@ -46,21 +43,13 @@ export const MpvVoSettings: React.FC = () => {
   if (!settings) return null;
 
   return (
-    <ListGroup title={t("home.settings.vo_driver.title")} className='mb-4'>
-      <ListItem title={t("home.settings.vo_driver.vo_mode")}>
-        <PlatformDropdown
-          groups={voDriverOptions}
-          trigger={
-            <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-              <Text className='mr-1 text-[#8E8D91]'>
-                {currentVoDriverLabel}
-              </Text>
-              <Ionicons name='chevron-expand-sharp' size={18} color='#5A5960' />
-            </View>
-          }
-          title={t("home.settings.vo_driver.vo_mode")}
-        />
-      </ListItem>
+    <ListGroup title={t("home.settings.vo_driver.title")}>
+      <SettingsSelectRow
+        title={t("home.settings.vo_driver.vo_mode")}
+        valueLabel={currentVoDriverLabel}
+        groups={voDriverOptions}
+        dropdownTitle={t("home.settings.vo_driver.vo_mode")}
+      />
     </ListGroup>
   );
 };

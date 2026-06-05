@@ -1,54 +1,57 @@
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
-import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, View, type ViewProps } from "react-native";
+import { Alert, Platform, View } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  type BottomSheetMethods,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/utils/expoUiBottomSheet";
 import { Button } from "../Button";
 import { Text } from "../common/Text";
 import { PinInput } from "../inputs/PinInput";
-import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
 
-interface Props extends ViewProps {}
+export type QuickConnectSheetRef = { present: () => void };
 
-export const QuickConnect: React.FC<Props> = ({ ...props }) => {
-  const isTv = Platform.isTV;
-  const [api] = useAtom(apiAtom);
-  const [user] = useAtom(userAtom);
-  const [quickConnectCode, setQuickConnectCode] = useState<string>();
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const successHapticFeedback = useHaptic("success");
-  const errorHapticFeedback = useHaptic("error");
-  const snapPoints = useMemo(
-    () => (Platform.OS === "android" ? ["100%"] : ["40%"]),
-    [],
-  );
-  const isAndroid = Platform.OS === "android";
+export const QuickConnectSheet = forwardRef<QuickConnectSheetRef>(
+  (_props, ref) => {
+    const isTv = Platform.isTV;
+    const [api] = useAtom(apiAtom);
+    const [user] = useAtom(userAtom);
+    const [quickConnectCode, setQuickConnectCode] = useState<string>();
+    const modalRef = useRef<BottomSheetMethods>(null);
+    const successHapticFeedback = useHaptic("success");
+    const errorHapticFeedback = useHaptic("error");
+    const snapPoints = useMemo(
+      () => (Platform.OS === "android" ? ["100%"] : ["40%"]),
+      [],
+    );
+    const isAndroid = Platform.OS === "android";
+    const { t } = useTranslation();
 
-  const { t } = useTranslation();
+    useImperativeHandle(
+      ref,
+      () => ({
+        present: () => {
+          setQuickConnectCode("");
+          modalRef.current?.present();
+        },
+      }),
+      [],
+    );
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    [],
-  );
-
-  const authorizeQuickConnect = useCallback(async () => {
-    if (quickConnectCode) {
+    const authorizeQuickConnect = useCallback(async () => {
+      if (!quickConnectCode) return;
       try {
         const res = await getQuickConnectApi(api!).authorizeQuickConnect({
           code: quickConnectCode,
@@ -61,7 +64,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
             t("home.settings.quick_connect.quick_connect_autorized"),
           );
           setQuickConnectCode(undefined);
-          bottomSheetModalRef?.current?.close();
+          modalRef.current?.close();
         } else {
           errorHapticFeedback();
           Alert.alert(
@@ -76,39 +79,26 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           t("home.settings.quick_connect.invalid_code"),
         );
       }
-    }
-  }, [api, user, quickConnectCode]);
+    }, [
+      api,
+      user,
+      quickConnectCode,
+      t,
+      successHapticFeedback,
+      errorHapticFeedback,
+    ]);
 
-  if (isTv) return null;
+    if (isTv) return null;
 
-  return (
-    <View {...props}>
-      <ListGroup title={t("home.settings.quick_connect.quick_connect_title")}>
-        <ListItem
-          onPress={() => {
-            // Reset the code when opening the sheet
-            setQuickConnectCode("");
-            bottomSheetModalRef?.current?.present();
-          }}
-          title={t("home.settings.quick_connect.authorize_button")}
-          textColor='blue'
-        />
-      </ListGroup>
-
+    return (
       <BottomSheetModal
-        ref={bottomSheetModalRef}
+        ref={modalRef}
+        enablePanDownToClose
         snapPoints={snapPoints}
-        handleIndicatorStyle={{
-          backgroundColor: "white",
-        }}
-        backgroundStyle={{
-          backgroundColor: "#171717",
-        }}
-        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={{ backgroundColor: "white" }}
+        backgroundStyle={{ backgroundColor: "#171717" }}
         keyboardBehavior={isAndroid ? "fillParent" : "interactive"}
         keyboardBlurBehavior='restore'
-        android_keyboardInputMode='adjustResize'
-        topInset={isAndroid ? 0 : undefined}
       >
         <BottomSheetView>
           <View className='flex flex-col space-y-4 px-4 pb-8 pt-2'>
@@ -142,6 +132,8 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           </View>
         </BottomSheetView>
       </BottomSheetModal>
-    </View>
-  );
-};
+    );
+  },
+);
+
+QuickConnectSheet.displayName = "QuickConnectSheet";

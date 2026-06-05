@@ -20,18 +20,16 @@ export default function PlaybackControlsPage() {
       }}
     >
       <View
-        className='p-4 flex flex-col'
-        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
+        className='p-4'
+        style={{ gap: 16, paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        <View className='mb-4'>
-          <MediaProvider>
-            <MediaToggles className='mb-4' />
-            <GestureControls className='mb-4' />
-            <PlaybackControlsSettings />
-            <MpvBufferSettings />
-            <MpvVoSettings />
-          </MediaProvider>
-        </View>
+        <MediaProvider>
+          <MediaToggles />
+          <GestureControls />
+          <PlaybackControlsSettings />
+          <MpvBufferSettings />
+          <MpvVoSettings />
+        </MediaProvider>
         {!Platform.isTV && <ChromecastSettings />}
       </View>
     </ScrollView>

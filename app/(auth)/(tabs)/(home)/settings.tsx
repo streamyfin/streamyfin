@@ -1,38 +1,44 @@
 import { useNavigation } from "expo-router";
 import { t } from "i18next";
-import { useAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
-import { ListGroup } from "@/components/list/ListGroup";
-import { ListItem } from "@/components/list/ListItem";
 import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
-import { QuickConnect } from "@/components/settings/QuickConnect";
+import { SettingsHero } from "@/components/settings/index/SettingsHero";
+import { SettingsRow } from "@/components/settings/index/SettingsRow";
+import { SettingsSearchBar } from "@/components/settings/index/SettingsSearchBar";
+import { SettingsSection } from "@/components/settings/index/SettingsSection";
+import {
+  SETTINGS_CATALOG,
+  type SettingsTarget,
+} from "@/components/settings/index/settingsCatalog";
+import { useSettingsSearch } from "@/components/settings/index/useSettingsSearch";
+import {
+  QuickConnectSheet,
+  type QuickConnectSheetRef,
+} from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
-import { UserInfo } from "@/components/settings/UserInfo";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
+import { useJellyfin } from "@/providers/JellyfinProvider";
 
-// TV-specific settings component
 const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
 
-// Mobile settings component
 function SettingsMobile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [_user] = useAtom(userAtom);
   const { logout } = useJellyfin();
-
   const navigation = useNavigation();
+  const quickConnectRef = useRef<QuickConnectSheetRef>(null);
+  const [query, setQuery] = useState("");
+  const os: "ios" | "android" = Platform.OS === "ios" ? "ios" : "android";
+  const results = useSettingsSearch(query);
+  const searching = query.trim().length > 0;
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => {
-            logout();
-          }}
-        >
+        <TouchableOpacity onPress={() => logout()}>
           <Text className='text-red-600 px-2'>
             {t("home.settings.log_out_button")}
           </Text>
@@ -41,98 +47,95 @@ function SettingsMobile() {
     });
   }, []);
 
+  const handleTarget = (target: SettingsTarget) => {
+    if (target.type === "action") {
+      if (target.action === "quickConnect") {
+        quickConnectRef.current?.present();
+      }
+      return;
+    }
+    router.push(target.route as any);
+  };
+
   return (
     <ScrollView
       contentInsetAdjustmentBehavior='automatic'
+      keyboardShouldPersistTaps='handled'
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
+        paddingTop: 8,
+        paddingBottom: 32,
       }}
     >
-      <View
-        className='p-4 flex flex-col'
-        style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
-      >
-        <View className='mb-4'>
-          <UserInfo />
-        </View>
+      {!searching && (
+        <SettingsHero
+          onPress={() => router.push("/settings/account/page" as any)}
+        />
+      )}
+      <SettingsSearchBar value={query} onChange={setQuery} />
 
-        <QuickConnect className='mb-4' />
-
-        {Platform.OS !== "ios" && (
-          <View className='mb-4'>
-            <ListGroup title={t("pairing.pair_with_phone_title")}>
-              <ListItem
-                onPress={() =>
-                  router.push("/(auth)/(tabs)/(home)/companion-login")
-                }
-                title={t("pairing.pair_with_phone")}
-                textColor='blue'
+      {searching ? (
+        <SettingsSection title={t("home.settings.search_results")}>
+          {results.length === 0 ? (
+            <View className='px-4 py-3'>
+              <Text className='text-[#9899A1]'>
+                {t("home.settings.search_no_results")}
+              </Text>
+            </View>
+          ) : (
+            results.map((r, i) => (
+              <SettingsRow
+                key={r.id}
+                title={r.title}
+                icon={r.icon}
+                value={r.subtitle}
+                onPress={() => handleTarget(r.target)}
+                isLast={i === results.length - 1}
               />
-            </ListGroup>
+            ))
+          )}
+        </SettingsSection>
+      ) : (
+        <>
+          <View className='mx-3 mb-5'>
+            <AppLanguageSelector />
           </View>
-        )}
+          {SETTINGS_CATALOG.map((section) => {
+            const entries = section.entries.filter(
+              (e) => !e.platforms || e.platforms.includes(os),
+            );
+            if (entries.length === 0) return null;
+            return (
+              <SettingsSection key={section.id} title={t(section.titleKey)}>
+                {entries.map((e, i) => (
+                  <SettingsRow
+                    key={e.id}
+                    title={t(e.titleKey)}
+                    icon={e.icon}
+                    onPress={() => handleTarget(e.target)}
+                    isLast={i === entries.length - 1}
+                  />
+                ))}
+              </SettingsSection>
+            );
+          })}
+          <SettingsSection>
+            <View className='p-3'>
+              <StorageSettings />
+            </View>
+          </SettingsSection>
+        </>
+      )}
 
-        <View className='mb-4'>
-          <AppLanguageSelector />
-        </View>
-
-        <View className='mb-4'>
-          <ListGroup title={t("home.settings.categories.title")}>
-            <ListItem
-              onPress={() => router.push("/settings/playback-controls/page")}
-              showArrow
-              title={t("home.settings.playback_controls.title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/audio-subtitles/page")}
-              showArrow
-              title={t("home.settings.audio_subtitles.title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/music/page")}
-              showArrow
-              title={t("home.settings.music.title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/appearance/page")}
-              showArrow
-              title={t("home.settings.appearance.title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/plugins/page")}
-              showArrow
-              title={t("home.settings.plugins.plugins_title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/intro/page")}
-              showArrow
-              title={t("home.settings.intro.title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/network/page")}
-              showArrow
-              title={t("home.settings.network.title")}
-            />
-            <ListItem
-              onPress={() => router.push("/settings/logs/page")}
-              showArrow
-              title={t("home.settings.logs.logs_title")}
-            />
-          </ListGroup>
-        </View>
-
-        <StorageSettings />
-      </View>
+      <QuickConnectSheet ref={quickConnectRef} />
     </ScrollView>
   );
 }
 
 export default function settings() {
-  // Use TV settings component on TV platforms
   if (Platform.isTV && SettingsTV) {
     return <SettingsTV />;
   }
-
   return <SettingsMobile />;
 }
