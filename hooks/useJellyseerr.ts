@@ -353,12 +353,20 @@ export class JellyseerrApi {
       : `${this.axios?.defaults.baseURL}/images/overseerr_poster_not_found_logo_top.png`;
   }
 
-  async submitIssue(mediaId: number, issueType: IssueType, message: string) {
+  async submitIssue(
+    mediaId: number,
+    issueType: IssueType,
+    message: string,
+    problemSeason?: number,
+    problemEpisode?: number,
+  ) {
     return this.axios
       ?.post<Issue>(Endpoints.API_V1 + Endpoints.ISSUE, {
         mediaId,
         issueType,
         message,
+        ...(problemSeason !== undefined && { problemSeason }),
+        ...(problemEpisode !== undefined && { problemEpisode }),
       })
       .then((response) => {
         const issue = response.data;
