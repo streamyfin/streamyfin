@@ -89,14 +89,14 @@ export const IntroSheet = forwardRef<IntroSheetRef>((_, ref) => {
             </Text>
             <View className='flex flex-row items-center mt-4'>
               <Image
-                source={require("@/assets/icons/jellyseerr-logo.svg")}
+                source={require("@/assets/icons/seerr-logo.svg")}
                 style={{
                   width: 50,
                   height: 50,
                 }}
               />
               <View className='shrink ml-2'>
-                <Text className='font-bold mb-1'>Jellyseerr</Text>
+                <Text className='font-bold mb-1'>Seerr</Text>
                 <Text className='shrink text-xs'>
                   {t("home.intro.jellyseerr_feature_description")}
                 </Text>
