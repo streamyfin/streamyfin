@@ -21,14 +21,23 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+// Parse a numeric env var, falling back to `def` only when unset/empty/NaN so an explicit 0 is honoured.
+const numEnv = (name, def) => {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return def;
+  const n = Number(raw);
+  return Number.isNaN(n) ? def : n;
+};
+
 const REPO = process.env.GITHUB_REPOSITORY || "streamyfin/streamyfin";
-const NUMBER = Number(process.env.ISSUE_NUMBER);
+const NUMBER = numEnv("ISSUE_NUMBER", Number.NaN);
 const TITLE = process.env.ISSUE_TITLE || "";
 const BODY = process.env.ISSUE_BODY || "";
-const THRESHOLD = Number(process.env.DUP_THRESHOLD) || 0.3;
-const MAX = Number(process.env.DUP_MAX) || 5;
+const THRESHOLD = numEnv("DUP_THRESHOLD", 0.3);
+const MAX = numEnv("DUP_MAX", 5);
 const DRY = !!process.env.DRY_RUN;
 const LABEL = "possible duplicate";
+const MARKER = "<!-- duplicate-detector -->";
 
 // Generic stop words only — keep domain/feature/platform words (android, downloads,
 // subtitles…) since those are exactly what makes two reports the same or different.
@@ -128,7 +137,7 @@ const list = matches
   )
   .join("\n");
 const comment = [
-  "<!-- duplicate-detector -->",
+  MARKER,
   "🔍 **This looks like it might be a duplicate.** Possibly related open issues:",
   "",
   list,
@@ -140,6 +149,31 @@ console.log(`Found ${matches.length} possible duplicate(s):\n${list}`);
 
 if (DRY) {
   console.log("\nDRY_RUN: not commenting/labelling.");
+  process.exit(0);
+}
+
+// Live mode needs a real issue number; refuse rather than POST to /issues/NaN/...
+if (!Number.isInteger(NUMBER) || NUMBER <= 0) {
+  console.error(
+    `Invalid ISSUE_NUMBER ${JSON.stringify(process.env.ISSUE_NUMBER)} — refusing to comment.`,
+  );
+  process.exit(1);
+}
+
+// Idempotency: skip if we've already flagged this issue (guards re-runs / future triggers).
+const priorComments = execFileSync(
+  "gh",
+  [
+    "api",
+    `repos/${REPO}/issues/${NUMBER}/comments`,
+    "--paginate",
+    "--jq",
+    ".[].body",
+  ],
+  { encoding: "utf8", maxBuffer: 1e8 },
+);
+if (priorComments.includes(MARKER)) {
+  console.log("Already flagged (marker present); skipping.");
   process.exit(0);
 }
 
