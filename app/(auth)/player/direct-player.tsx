@@ -439,21 +439,15 @@ export default function DirectPlayerPage() {
     if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
     const currentTimeInTicks = msToTicks(progress.get());
-    await getPlaystateApi(api).onPlaybackStopped({
-      itemId: item.Id,
-      mediaSourceId: mediaSourceId,
-      positionTicks: currentTimeInTicks,
-      playSessionId: stream.sessionId,
+    await getPlaystateApi(api).reportPlaybackStopped({
+      playbackStopInfo: {
+        ItemId: item.Id,
+        MediaSourceId: mediaSourceId,
+        PositionTicks: currentTimeInTicks,
+        PlaySessionId: stream.sessionId,
+      },
     });
-  }, [
-    api,
-    item,
-    mediaSourceId,
-    stream,
-    progress,
-    offline,
-    revalidateProgressCache,
-  ]);
+  }, [api, item, mediaSourceId, stream, progress, offline]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -471,9 +465,10 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
     return () => {
+      reportPlaybackStopped();
       beforeRemoveListener();
     };
-  }, [navigation, stop]);
+  }, [navigation, stop, reportPlaybackStopped]);
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
