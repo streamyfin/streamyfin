@@ -13,10 +13,13 @@ export const UserInfo: React.FC<Props> = ({ ...props }) => {
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
 
-  const version =
-    Application?.nativeApplicationVersion ||
-    Application?.nativeBuildVersion ||
-    "N/A";
+  // Show "0.54.1 (42)": the build number (CFBundleVersion / versionCode, auto-incremented
+  // by EAS) uniquely identifies a build, so TestFlight/dev reports still pin the exact build.
+  const appVersion = Application?.nativeApplicationVersion;
+  const buildVersion = Application?.nativeBuildVersion;
+  const version = appVersion
+    ? `${appVersion}${buildVersion ? ` (${buildVersion})` : ""}`
+    : buildVersion || "N/A";
 
   return (
     <View {...props}>
