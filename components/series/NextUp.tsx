@@ -3,6 +3,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import type React from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -33,13 +34,16 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
     staleTime: 0,
   });
 
-  if (!items?.length)
-    return (
-      <View className='px-4'>
-        <Text className='text-lg font-bold mb-2'>{t("item_card.next_up")}</Text>
-        <Text className='opacity-50'>{t("item_card.no_items_to_display")}</Text>
-      </View>
-    );
+  // Defensive client-side filter: some Jellyfin server versions ignore the
+  // `seriesId` query param on /Shows/NextUp and return next-up items across all
+  // series (the same content as the home tab's Next Up row). Filter to ensure
+  // we only ever show episodes belonging to this series.
+  const filteredItems = useMemo(
+    () => items?.filter((item) => item.SeriesId === seriesId) ?? [],
+    [items, seriesId],
+  );
+
+  if (!filteredItems.length) return null;
 
   return (
     <View>
@@ -50,7 +54,7 @@ export const NextUp: React.FC<{ seriesId: string }> = ({ seriesId }) => {
         contentContainerStyle={{ paddingLeft: 16 }}
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={items}
+        data={filteredItems}
         renderItem={({ item, index }) => (
           <TouchableItemRouter
             item={item}
