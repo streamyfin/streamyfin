@@ -1,10 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
   <application>
-    <receiver
-      android:name=".TvRecommendationsReceiver"
-      android:exported="true">
+    <receiver android:name=".TvRecommendationsReceiver" android:exported="true">
       <intent-filter>
         <action android:name="android.media.tv.action.INITIALIZE_PROGRAMS" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.media.tv.action.PREVIEW_PROGRAM_BROWSABLE_DISABLED" />
       </intent-filter>
     </receiver>
   </application>
