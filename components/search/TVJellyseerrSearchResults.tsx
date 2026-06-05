@@ -401,10 +401,6 @@ export const TVJellyseerrSearchResults: React.FC<
 }) => {
   const { t } = useTranslation();
 
-  const hasMovies = movieResults && movieResults.length > 0;
-  const hasTv = tvResults && tvResults.length > 0;
-  const hasPersons = personResults && personResults.length > 0;
-
   if (loading) {
     return null;
   }
@@ -431,22 +427,26 @@ export const TVJellyseerrSearchResults: React.FC<
 
   return (
     <View>
+      {/* No section requests `hasTVPreferredFocus`: the native search field
+          keeps focus while typing, otherwise the first result would re-grab
+          focus on every keystroke as results re-render. The user navigates
+          down to the grid manually. */}
       <TVJellyseerrMovieSection
         title={t("search.request_movies")}
         items={movieResults}
-        isFirstSection={hasMovies}
+        isFirstSection={false}
         onItemPress={onMoviePress}
       />
       <TVJellyseerrTvSection
         title={t("search.request_series")}
         items={tvResults}
-        isFirstSection={!hasMovies && hasTv}
+        isFirstSection={false}
         onItemPress={onTvPress}
       />
       <TVJellyseerrPersonSection
         title={t("search.actors")}
         items={personResults}
-        isFirstSection={!hasMovies && !hasTv && hasPersons}
+        isFirstSection={false}
         onItemPress={onPersonPress}
       />
     </View>
