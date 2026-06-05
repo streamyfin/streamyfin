@@ -32,6 +32,7 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
     createGroup,
     leaveGroup,
     getGroups,
+    resumeGroupPlayback,
   } = useSyncPlay();
 
   const [groups, setGroups] = useState<GroupInfoDto[]>([]);
@@ -93,6 +94,18 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
     }
   }, [leaveGroup, onClose]);
 
+  // Jump (back) into the group's current item. Mirrors jellyfin-web's
+  // "Resume playback" menu entry — close the sheet and navigate to
+  // the player; SyncPlayProvider handles the re-follow + URL build.
+  const handleResumePlayback = useCallback(async () => {
+    try {
+      await resumeGroupPlayback();
+      onClose();
+    } catch (error) {
+      console.error("Failed to resume group playback", error);
+    }
+  }, [resumeGroupPlayback, onClose]);
+
   const containerStyle = {
     paddingLeft: Math.max(16, insets.left),
     paddingRight: Math.max(16, insets.right),
@@ -133,6 +146,17 @@ export function GroupSelectionMenu({ onClose }: GroupSelectionMenuProps) {
               </Text>
             </View>
           )}
+        </View>
+
+        <View className='mb-3'>
+          <Button onPress={handleResumePlayback} color='black'>
+            <View className='flex-row items-center justify-center'>
+              <Ionicons name='play-circle-outline' size={20} color='white' />
+              <Text className='text-white font-semibold ml-2'>
+                {t("syncplay.resume_playback")}
+              </Text>
+            </View>
+          </Button>
         </View>
 
         <Button onPress={handleLeaveGroup} color='red'>

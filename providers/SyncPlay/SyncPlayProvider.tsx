@@ -53,6 +53,17 @@ interface SyncPlayContextValue {
   leaveGroup: () => Promise<void>;
   getGroups: () => Promise<GroupInfoDto[]>;
 
+  /**
+   * Re-attach to the group's command stream and jump back to the
+   * group's currently-playing item. Mirrors jellyfin-web's "Resume
+   * playback" menu entry: in jellyfin-web it just calls
+   * `playbackManager.play` on the group's current queue position.
+   * Here we navigate to direct-player with the same params our
+   * `localSetCurrentItem` bridge would use, so the player picks up
+   * mid-group with `syncPlay=true` and the right offset.
+   */
+  resumeGroupPlayback: () => Promise<void>;
+
   controller: SyncPlayController | null;
 
   setPlayerControls: (controls: PlayerControls | null) => void;
@@ -170,40 +181,31 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const playbackStartFiredRef = useRef(false);
 
   // ---------------------------------------------------------------------------
-  // Manager lifecycle
+  // Navigation to the player screen
   // ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (!api) return;
-
-    const mgr = new SyncPlayManager(api);
-    mgr.init();
-    setManager(mgr);
-
-    const playerWrapper = mgr.getPlayerWrapper();
-
-    /*
-     * Both localPlay (new queue / joining a group) and
-     * localSetCurrentPlaylistItem (queue advance to next episode)
-     * end up navigating to the same screen with the same params;
-     * jellyfin-web treats them as distinct because one calls full
-     * playbackManager.play() and the other does a cheap item swap,
-     * but on RN both have to re-mount direct-player either way.
-     */
-    const navigateToPlayer = (
-      itemId: string,
-      startPositionTicks: number,
-      withJoinToast: boolean,
-    ) => {
+  /*
+   * Single navigate-to-direct-player helper, used by every code path
+   * that needs to (re-)open the player while in a SyncPlay group:
+   *  - localPlay (group's leader started a new queue / we just joined)
+   *  - localSetCurrentPlaylistItem (group advanced to next episode)
+   *  - resumeGroupPlayback (user tapped "Resume playback" in the menu)
+   *
+   * Both jellyfin-web's playbackManager.play and its setCurrentPlaylistItem
+   * collapse to "point the player at this item / position" — RN is the
+   * same shape, just a router navigation instead of an in-page DOM swap.
+   *
+   * Note: no "joining playback" toast here — the `GroupJoined`
+   * WebSocket event already triggers a "Joined group" toast via
+   * `Manager.ts`, and showing both on a fresh join was redundant.
+   */
+  const navigateToPlayer = useCallback(
+    (itemId: string, startPositionTicks: number) => {
       if (isNavigatingToPlayerRef.current) {
         console.debug("SyncPlay: already navigating to player");
         return;
       }
       isNavigatingToPlayerRef.current = true;
-
-      if (withJoinToast) {
-        toast(i18n.t("syncplay.joining_playback"));
-      }
 
       // Opportunistic local playback: if we have a downloaded copy of
       // the target item, use it instead of streaming. Matters most when
@@ -232,7 +234,22 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       setTimeout(() => {
         isNavigatingToPlayerRef.current = false;
       }, 2000);
-    };
+    },
+    [router],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Manager lifecycle
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!api) return;
+
+    const mgr = new SyncPlayManager(api);
+    mgr.init();
+    setManager(mgr);
+
+    const playerWrapper = mgr.getPlayerWrapper();
 
     // localPlay → navigate to direct-player with syncPlay=true
     playerWrapper.setLocalPlayHandler((options) => {
@@ -241,7 +258,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         console.warn("SyncPlay: localPlay called with no ids");
         return;
       }
-      navigateToPlayer(itemId, options.startPositionTicks ?? 0, true);
+      navigateToPlayer(itemId, options.startPositionTicks ?? 0);
     });
 
     // localSetCurrentPlaylistItem → navigate to the new playlist item
@@ -259,7 +276,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         );
         return;
       }
-      navigateToPlayer(itemId, queueCore.getStartPositionTicks(), false);
+      navigateToPlayer(itemId, queueCore.getStartPositionTicks());
     });
 
     mgr.on("enabled", (...args: unknown[]) => {
@@ -340,7 +357,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       mgr.destroy();
       setManager(null);
     };
-  }, [api, router]);
+  }, [api, navigateToPlayer]);
 
   // Initial join race: once `enabled` flips true, snapshot the current group.
   useEffect(() => {
@@ -407,6 +424,26 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       throw error;
     }
   }, [api]);
+
+  /*
+   * Resume playback: re-follow the group's command stream and jump
+   * the local player to the group's current item + position. This is
+   * the only entry point a user needs from the menu — there is no
+   * separate "halt" UI; the player exit/back already detaches us.
+   */
+  const resumeGroupPlayback = useCallback(async (): Promise<void> => {
+    if (!api || !manager) return;
+    await manager.followGroupPlayback(api);
+    const queueCore = manager.getQueueCore();
+    const index = queueCore.getCurrentPlaylistIndex();
+    const itemId =
+      index >= 0 ? (queueCore.getPlaylist()[index]?.Id ?? null) : null;
+    if (!itemId) {
+      console.warn("SyncPlay: resumeGroupPlayback — no current group item");
+      return;
+    }
+    navigateToPlayer(itemId, queueCore.getStartPositionTicks());
+  }, [api, manager, navigateToPlayer]);
 
   // ---------------------------------------------------------------------------
   // App foreground re-join (idempotent; gets us a fresh GroupJoined snapshot)
@@ -518,6 +555,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       createGroup,
       leaveGroup,
       getGroups,
+      resumeGroupPlayback,
       controller: manager?.getController() ?? null,
       setPlayerControls,
       notifyReady,
@@ -535,6 +573,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       createGroup,
       leaveGroup,
       getGroups,
+      resumeGroupPlayback,
       manager,
       setPlayerControls,
       notifyReady,

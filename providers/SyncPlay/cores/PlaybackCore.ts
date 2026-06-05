@@ -132,26 +132,29 @@ export class PlaybackCore extends EventEmitter {
       command.When as unknown as string,
     );
 
+    // Duplicate-detection — mirrors jellyfin-web's PlaybackCore.applyCommand.
+    // The server can redeliver the same command (WebSocket reconnect, multiple
+    // group-state transitions referencing the same instant, etc). If every
+    // identifying field matches the previously applied command, we don't
+    // re-schedule — we just verify player state still matches and bail.
+    //
+    // IMPORTANT: this is NOT a monotonic-clock check. `When` is the scheduled
+    // execution time and can legitimately move backward between commands
+    // (e.g. a Pause emitted now with `When = now` arriving after an earlier
+    // Unpause whose `When` was scheduled 10s in the future). An earlier
+    // version of this code rejected anything whose `When` or `EmittedAt`
+    // wasn't strictly greater than `lastCommand`'s — that silently locked
+    // out every subsequent pause/unpause whenever group playback first
+    // started with a future-scheduled Unpause.
     if (
       this.lastCommand &&
-      ((
-        this.lastCommand as unknown as { EmittedAt: Date }
-      ).EmittedAt.getTime() >
-        (command as unknown as { EmittedAt: Date }).EmittedAt.getTime() ||
-        (this.lastCommand as unknown as { When: Date }).When.getTime() >
-          (command as unknown as { When: Date }).When.getTime())
+      (this.lastCommand as unknown as { When: Date }).When.getTime() ===
+        (command as unknown as { When: Date }).When.getTime() &&
+      this.lastCommand.PositionTicks === command.PositionTicks &&
+      this.lastCommand.Command === command.Command &&
+      this.lastCommand.PlaylistItemId === command.PlaylistItemId
     ) {
-      // NOTE: strict `>` (not `>=`) on EmittedAt — Jellyfin's server timestamps
-      // commands at sub-ms precision but JS `Date` truncates to ms, so two
-      // commands emitted within the same millisecond would otherwise be
-      // rejected as "outdated" and silently dropped. This produced an
-      // unbreakable pause/unpause loop where every fresh command was
-      // discarded. Matches jellyfin-web's check in
-      // `web/src/plugins/syncPlay/core/Manager.js`.
-      console.debug(
-        "SyncPlay applyCommand: dropping outdated command",
-        command,
-      );
+      console.debug("SyncPlay applyCommand: duplicate command", command);
       return;
     }
 
