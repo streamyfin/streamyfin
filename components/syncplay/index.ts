@@ -4,7 +4,4 @@
 
 export { GroupSelectionMenu } from "./GroupSelectionMenu";
 export { SyncPlayButton } from "./SyncPlayButton";
-export {
-  SyncPlayIndicator,
-  useSyncPlayIndicatorState,
-} from "./SyncPlayIndicator";
+export { SyncPlaySpinner } from "./SyncPlaySpinner";

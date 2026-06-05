@@ -1,797 +1,381 @@
 /**
- * SyncPlay Manager
+ * SyncPlayManager — central orchestrator for a SyncPlay session.
  *
- * Main orchestrator for SyncPlay functionality.
- * Manages group state, coordinates time sync, playback, and queue.
+ * Owns the three "cores" (TimeSync, PlaybackCore, QueueCore) and the
+ * PlayerWrapper, and routes WebSocket events between them.
  *
- * Based on jellyfin-web's Manager.js
+ * Lifecycle:
+ *   constructor → init() → (joinGroup → group-state-change "Idle"+) →
+ *   group-state-change "Playing" → group-state-change "Paused" → ...
+ *   → (leaveGroup) → destroy()
+ *
+ * Events emitted (provider listens):
+ *   - `group-info-update`     `(GroupInfoDto | null)`
+ *   - `group-state-change`    `(state: string, oldState: string)`
+ *   - `enabled`               `(isEnabled: boolean)`
+ *   - `play-state-change`     `(isFollowing: boolean)`
+ *   - `playbackstart` / `playbackerror` — from PlayerWrapper hooks
+ *   - `osd`                   `(action: SyncPlayOsdAction)`
+ *   - `toast`                 `(messageKey: string)`
+ *
+ * The manager exposes a per-instance `EventEmitter` rather than upstream
+ * `Events.on(manager, ...)` — replaces the global Events bus pattern.
  */
 
 import type { Api } from "@jellyfin/sdk";
-import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
-import { toast } from "sonner-native";
-import i18n from "@/i18n";
-import { EventEmitter, msToTicks } from "./Helper";
-import { TimeSyncCore } from "./TimeSyncCore";
+import { Controller } from "./Controller";
+import { PlaybackCore } from "./cores/PlaybackCore";
+import { QueueCore } from "./cores/QueueCore";
+import { TimeSync } from "./cores/TimeSync";
+import { EventEmitter } from "./EventEmitter";
+import { PendingPlaybackTracker } from "./player/PendingPlaybackTracker";
+import { PlayerWrapper } from "./player/PlayerWrapper";
+import { reconcileToGroupOnAttach } from "./player/reconcileToGroupOnAttach";
 import type {
   GroupInfoDto,
+  GroupUpdate,
   PlayerControls,
   PlayQueueUpdate,
   SendCommand,
-  SyncPlayStats,
 } from "./types";
 
-/**
- * SyncPlay Manager - Main orchestrator
- */
+/** Raw WebSocket message data shapes (already unwrapped by the hook). */
+
 export class SyncPlayManager extends EventEmitter {
-  private api: Api;
-  private timeSyncCore: TimeSyncCore;
+  private apiClient: Api;
+  private playerWrapper: PlayerWrapper;
+  private timeSync: TimeSync;
+  private playbackCore: PlaybackCore;
+  private queueCore: QueueCore;
+  private pendingPlaybackTracker: PendingPlaybackTracker;
+  private controller: Controller;
 
-  // Group state
+  /** Current group info. `null` when not in a group. */
   private groupInfo: GroupInfoDto | null = null;
-  private syncPlayEnabledAt: Date | null = null;
-  private syncPlayReady = false;
-  private queuedCommand: SendCommand | null = null;
+  /** Is SyncPlay actively enabled (i.e., we're in a group)? */
+  private syncPlayEnabledAtPlayer = false;
+  /** Are we mirroring the group's commands locally? */
   private followingGroupPlayback = true;
-  private lastPlaybackCommand: SendCommand | null = null;
-
-  // Pending play/pause request awaiting server broadcast.
-  // Used to (1) ignore duplicate rapid taps and (2) treat the server's
-  // upcoming state as the source of truth while a request is in flight.
-  private pendingPlaybackCommand: "Unpause" | "Pause" | null = null;
-  private pendingPlaybackTimeout: ReturnType<typeof setTimeout> | null = null;
-  // Safety: drop the pending guard after this long if no broadcast arrives.
-  private static readonly PENDING_PLAYBACK_TIMEOUT_MS = 1500;
-
-  // Player state
-  private playerControls: PlayerControls | null = null;
-  private syncMethod = "None";
-
-  // Callbacks
-  private onPlaybackCoreCommand: ((command: SendCommand) => void) | null = null;
-  private onQueueUpdate: ((update: PlayQueueUpdate) => void) | null = null;
-  private onGetPlaylistItemId: (() => string | null) | null = null;
-  // Fired when SyncPlay is disabled — PlaybackCore wires up here to reset its
-  // own scheduled timers / cached command so we don't carry stale state into
-  // the next group.
-  private onDisable: (() => void) | null = null;
-  // Fired when SyncPlay is disabled — QueueCore wires up here to clear its
-  // last PlayQueue snapshot. Without this, re-joining the same group later
-  // causes the first PlayQueue echo (which can have a `LastUpdate` equal to
-  // or older than the snapshot we cached before the disable) to be dropped
-  // by the stale-update guard in `QueueCore.updatePlayQueue`.
-  private onQueueClear: (() => void) | null = null;
 
   constructor(api: Api) {
     super();
-    this.api = api;
-    this.timeSyncCore = new TimeSyncCore(api);
-
-    // Listen for time sync updates
-    this.timeSyncCore.onUpdate((error, timeOffset, ping) => {
-      if (error) {
-        console.debug("SyncPlay Manager: time sync error", error);
-        return;
-      }
-
-      this.emit("time-sync-update", timeOffset, ping);
-
-      // Report ping to server when enabled
-      if (this.isSyncPlayEnabled() && ping !== null) {
-        this.sendPing(ping);
-      }
-    });
+    this.apiClient = api;
+    this.playerWrapper = new PlayerWrapper();
+    this.timeSync = new TimeSync(api);
+    this.playbackCore = new PlaybackCore();
+    this.queueCore = new QueueCore();
+    this.pendingPlaybackTracker = new PendingPlaybackTracker();
+    this.controller = new Controller();
   }
 
-  /**
-   * Initialize the manager
-   */
+  /** Wire up cores. Called once after construction. */
   init(): void {
-    this.timeSyncCore.startPing();
+    this.playbackCore.init(this);
+    this.queueCore.init(this);
+    this.controller.init(this);
+
+    // Forward PlaybackCore OSD events to provider listeners.
+    this.playbackCore.on("osd", (...args) => {
+      this.emit("osd", ...args);
+    });
+
+    // Bridge optimistic pending Pause/Unpause → React state.
+    this.pendingPlaybackTracker.setChangeHandler((cmd) => {
+      this.emit("pending-playback-change", cmd);
+    });
+
+    this.timeSync.startPing();
   }
 
-  /**
-   * Update the API client
-   */
+  /** Public controller for callers. */
+  getController(): Controller {
+    return this.controller;
+  }
+
+  /** Called by SyncPlayProvider when the user switches Jellyfin servers. */
   updateApiClient(api: Api): void {
-    this.api = api;
+    this.apiClient = api;
+    this.timeSync.updateApiClient(api);
   }
 
-  /**
-   * Get the API client
-   */
   getApiClient(): Api {
-    return this.api;
+    return this.apiClient;
   }
 
-  /**
-   * Get the time sync core
-   */
-  getTimeSyncCore(): TimeSyncCore {
-    return this.timeSyncCore;
+  getPlayerWrapper(): PlayerWrapper {
+    return this.playerWrapper;
   }
 
-  /**
-   * Set player controls for playback management
-   */
-  setPlayerControls(controls: PlayerControls | null): void {
-    this.playerControls = controls;
-
-    // When player controls are connected and SyncPlay is active, sync to group state
-    if (controls && this.isSyncPlayEnabled() && this.syncPlayReady) {
-      const state = this.groupInfo?.State;
-      console.log(
-        `SyncPlay: player controls connected, group state is ${state}`,
-      );
-
-      // CRITICAL: Tell server we're following group playback
-      // This ensures the server sends us SyncPlayCommand messages
-      this.followGroupPlayback();
-
-      // Reconcile position: if we know the last command and group is playing,
-      // estimate where the group is *now* and seek there before resuming. This
-      // fixes the case where the player attaches mid-stream and would
-      // otherwise resume from 0 or the last-known local position.
-      const last = this.lastPlaybackCommand;
-      if (
-        last &&
-        (last.Command === "Unpause" || last.Command === "Pause") &&
-        last.When &&
-        last.PositionTicks != null
-      ) {
-        try {
-          const commandWhen = new Date(last.When);
-          let targetTicks = last.PositionTicks;
-          if (last.Command === "Unpause") {
-            const remoteNow = this.timeSyncCore.localDateToRemote(new Date());
-            targetTicks +=
-              (remoteNow.getTime() - commandWhen.getTime()) * 10000;
-          }
-          const targetMs = Math.max(0, targetTicks / 10000);
-          const currentMs = controls.getCurrentPosition();
-          if (Math.abs(currentMs - targetMs) > 500) {
-            console.log(
-              `SyncPlay: player attached — seeking to estimated group position ${targetMs}ms (was ${currentMs}ms)`,
-            );
-            controls.seekTo(targetMs);
-          }
-        } catch (error) {
-          console.warn(
-            "SyncPlay: failed to estimate group position on attach",
-            error,
-          );
-        }
-      }
-
-      if (state === "Playing" && !controls.isPlaying()) {
-        console.log("SyncPlay: starting playback to match group");
-        controls.play();
-      } else if (state === "Paused" && controls.isPlaying()) {
-        console.log("SyncPlay: pausing to match group");
-        controls.pause();
-      }
-    }
+  getTimeSync(): TimeSync {
+    return this.timeSync;
   }
 
-  /**
-   * Get current player controls
-   */
-  getPlayerControls(): PlayerControls | null {
-    return this.playerControls;
+  getPlaybackCore(): PlaybackCore {
+    return this.playbackCore;
   }
 
-  /**
-   * Set callback for playback commands
-   */
-  setPlaybackCommandHandler(
-    handler: ((command: SendCommand) => void) | null,
-  ): void {
-    this.onPlaybackCoreCommand = handler;
+  getQueueCore(): QueueCore {
+    return this.queueCore;
   }
 
-  /**
-   * Set callback for queue updates
-   */
-  setQueueUpdateHandler(
-    handler: ((update: PlayQueueUpdate) => void) | null,
-  ): void {
-    this.onQueueUpdate = handler;
+  getPendingPlaybackTracker(): PendingPlaybackTracker {
+    return this.pendingPlaybackTracker;
   }
 
-  /**
-   * Set callback for getting current playlist item ID
-   */
-  setPlaylistItemIdGetter(getter: (() => string | null) | null): void {
-    this.onGetPlaylistItemId = getter;
-  }
+  // ===========================================================================
+  // WebSocket message handlers (called by useSyncPlayWebSocket)
+  // ===========================================================================
 
   /**
-   * Set a callback invoked when SyncPlay is disabled. PlaybackCore registers
-   * here so it can flush scheduled commands and stale state.
-   */
-  setDisableHandler(handler: (() => void) | null): void {
-    this.onDisable = handler;
-  }
-
-  /**
-   * Set a callback invoked when SyncPlay is disabled. QueueCore registers
-   * here so it can drop the cached PlayQueue snapshot and treat the next
-   * server update as fresh.
-   */
-  setQueueClearHandler(handler: (() => void) | null): void {
-    this.onQueueClear = handler;
-  }
-
-  // ============================================================================
-  // Group Management
-  // ============================================================================
-
-  /**
-   * Check if SyncPlay is enabled (user is in a group)
-   */
-  isSyncPlayEnabled(): boolean {
-    return this.syncPlayEnabledAt !== null;
-  }
-
-  /**
-   * Check if SyncPlay is ready (time sync complete)
-   */
-  isSyncPlayReady(): boolean {
-    return this.syncPlayReady;
-  }
-
-  /**
-   * Get current group info
-   */
-  getGroupInfo(): GroupInfoDto | null {
-    return this.groupInfo;
-  }
-
-  /**
-   * Get the last playback command
-   */
-  getLastPlaybackCommand(): SendCommand | null {
-    return this.lastPlaybackCommand;
-  }
-
-  /**
-   * Check if currently playing
-   */
-  isPlaying(): boolean {
-    // First check actual player state
-    if (this.playerControls) {
-      return this.playerControls.isPlaying();
-    }
-    // Fall back to group state
-    if (this.groupInfo?.State) {
-      return this.groupInfo.State === "Playing";
-    }
-    // Last resort: check last command
-    return this.lastPlaybackCommand?.Command === "Unpause";
-  }
-
-  /**
-   * Effective play state for SyncPlay routing decisions.
+   * Handle a `SyncPlayGroupUpdate` WebSocket message.
    *
-   * Prefers (1) a pending in-flight command we just sent, (2) the server's
-   * group state, and only falls back to the local player. This avoids the
-   * race where a rapid second tap reads the local player (which hasn't
-   * applied the scheduled command yet) and sends a duplicate request that
-   * either re-broadcasts with a new `When` or flips the group the wrong way.
+   * Cast: the SDK's `GroupUpdate.Type` union is narrower than what the
+   * server actually emits (it omits `SyncPlayIsDisabled`, `GroupUpdate`,
+   * `CreateGroupDenied`, `JoinGroupDenied`). Wire format is the source
+   * of truth here.
    */
-  getEffectivePlayState(): "Playing" | "Paused" {
-    if (this.pendingPlaybackCommand === "Unpause") return "Playing";
-    if (this.pendingPlaybackCommand === "Pause") return "Paused";
-    if (this.groupInfo?.State === "Playing") return "Playing";
-    if (this.groupInfo?.State === "Paused") return "Paused";
-    return this.playerControls?.isPlaying() ? "Playing" : "Paused";
-  }
-
-  /**
-   * Returns the in-flight play/pause request, if any.
-   */
-  getPendingPlaybackCommand(): "Unpause" | "Pause" | null {
-    return this.pendingPlaybackCommand;
-  }
-
-  /**
-   * Mark a play/pause request as in flight. Auto-clears on a safety timeout
-   * in case the server broadcast is missed.
-   */
-  markPendingPlaybackCommand(command: "Unpause" | "Pause"): void {
-    this.pendingPlaybackCommand = command;
-    if (this.pendingPlaybackTimeout) {
-      clearTimeout(this.pendingPlaybackTimeout);
+  processGroupUpdate(rawUpdate: GroupUpdate): void {
+    if (!rawUpdate) {
+      console.warn("SyncPlay processGroupUpdate: empty update");
+      return;
     }
-    this.pendingPlaybackTimeout = setTimeout(() => {
-      console.debug(
-        "SyncPlay Manager: pending playback command timed out",
-        command,
-      );
-      this.pendingPlaybackCommand = null;
-      this.pendingPlaybackTimeout = null;
-      this.emit("pending-playback-change", null);
-    }, SyncPlayManager.PENDING_PLAYBACK_TIMEOUT_MS);
-    this.emit("pending-playback-change", command);
-  }
-
-  private clearPendingPlaybackCommand(): void {
-    if (this.pendingPlaybackTimeout) {
-      clearTimeout(this.pendingPlaybackTimeout);
-      this.pendingPlaybackTimeout = null;
-    }
-    if (this.pendingPlaybackCommand !== null) {
-      this.pendingPlaybackCommand = null;
-      this.emit("pending-playback-change", null);
-    }
-  }
-
-  /**
-   * Check if following group playback
-   */
-  isFollowingGroupPlayback(): boolean {
-    return this.followingGroupPlayback;
-  }
-
-  /**
-   * Enable SyncPlay (join a group)
-   */
-  enableSyncPlay(groupInfo: GroupInfoDto, showMessage = false): void {
-    if (this.isSyncPlayEnabled()) {
-      if (groupInfo.GroupId === this.groupInfo?.GroupId) {
-        console.debug(
-          `SyncPlay: group ${this.groupInfo?.GroupId} already joined.`,
-        );
-        return;
-      }
-      console.warn(
-        `SyncPlay: switching from group ${this.groupInfo?.GroupId} to ${groupInfo.GroupId}`,
-      );
-      this.disableSyncPlay(false);
-    }
-
-    this.groupInfo = groupInfo;
-    this.syncPlayEnabledAt = groupInfo.LastUpdatedAt
-      ? new Date(groupInfo.LastUpdatedAt)
-      : new Date();
-    this.followingGroupPlayback = true;
-    this.syncPlayReady = false;
-
-    console.log(`SyncPlay: enableSyncPlay - group state is ${groupInfo.State}`);
-
-    this.emit("enabled", true);
-
-    // Wait for time sync to be ready
-    const checkReady = () => {
-      if (this.timeSyncCore.isReady()) {
-        this.syncPlayReady = true;
-
-        // CRITICAL: Tell server we're following group playback
-        // This ensures the server sends us SyncPlayCommand messages
-        this.followGroupPlayback();
-
-        if (this.queuedCommand) {
-          this.processCommand(this.queuedCommand);
-          this.queuedCommand = null;
-        }
-
-        // Act on initial group state if player is connected
-        if (this.playerControls && groupInfo.State) {
-          console.log(`SyncPlay: applying initial state ${groupInfo.State}`);
-          if (groupInfo.State === "Playing") {
-            this.playerControls.play();
-          } else if (groupInfo.State === "Paused") {
-            this.playerControls.pause();
-          }
-        }
-      } else {
-        setTimeout(checkReady, 100);
-      }
+    const update = rawUpdate as unknown as {
+      Type: string;
+      Data: unknown;
     };
 
-    this.timeSyncCore.forceUpdate();
-    checkReady();
-
-    if (showMessage) {
-      toast(i18n.t("syncplay.enabled"));
-    }
-  }
-
-  /**
-   * Disable SyncPlay (leave group)
-   */
-  disableSyncPlay(showMessage = false): void {
-    this.syncPlayEnabledAt = null;
-    this.syncPlayReady = false;
-    this.followingGroupPlayback = true;
-    this.lastPlaybackCommand = null;
-    this.queuedCommand = null;
-    this.groupInfo = null;
-    this.clearPendingPlaybackCommand();
-
-    // Tell PlaybackCore (or whoever subscribed) to flush any scheduled
-    // commands / cached state so a future re-enable starts clean.
-    try {
-      this.onDisable?.();
-    } catch (error) {
-      console.warn("SyncPlay: onDisable handler threw", error);
-    }
-
-    // Drop the cached PlayQueue snapshot so a future re-join doesn't get
-    // its first PlayQueue update silently dropped as "older than what we
-    // already have".
-    try {
-      this.onQueueClear?.();
-    } catch (error) {
-      console.warn("SyncPlay: onQueueClear handler threw", error);
-    }
-
-    this.emit("enabled", false);
-
-    if (showMessage) {
-      toast(i18n.t("syncplay.disabled"));
-    }
-  }
-
-  // ============================================================================
-  // Server Communication
-  // ============================================================================
-
-  /**
-   * Send ping to server
-   */
-  private async sendPing(ping: number): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayPing({
-        pingRequestDto: { Ping: Math.round(ping) },
-      });
-    } catch (error) {
-      console.debug("SyncPlay: failed to send ping", error);
-    }
-  }
-
-  /**
-   * Report that we're ready (not buffering)
-   */
-  async reportReady(): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      const now = new Date();
-      const currentPosition = this.playerControls?.getCurrentPosition() ?? 0;
-      const currentPositionTicks = msToTicks(currentPosition);
-
-      console.log(
-        "SyncPlay Manager: reporting READY at position",
-        currentPositionTicks,
-      );
-
-      await syncPlayApi.syncPlayReady({
-        readyRequestDto: {
-          When: now.toISOString(),
-          PositionTicks: currentPositionTicks,
-          IsPlaying: this.playerControls?.isPlaying() ?? false,
-          PlaylistItemId:
-            this.onGetPlaylistItemId?.() ??
-            "00000000-0000-0000-0000-000000000000",
-        },
-      });
-      console.log("SyncPlay Manager: READY sent successfully");
-    } catch (error) {
-      console.error("SyncPlay Manager: failed to report ready", error);
-    }
-  }
-
-  /**
-   * Follow group playback
-   */
-  async followGroupPlayback(): Promise<void> {
-    this.followingGroupPlayback = true;
-
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySetIgnoreWait({
-        ignoreWaitRequestDto: { IgnoreWait: false },
-      });
-    } catch (error) {
-      console.error("SyncPlay: failed to follow group playback", error);
-    }
-  }
-
-  /**
-   * Halt group playback (stop following)
-   */
-  async haltGroupPlayback(): Promise<void> {
-    this.followingGroupPlayback = false;
-
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySetIgnoreWait({
-        ignoreWaitRequestDto: { IgnoreWait: true },
-      });
-
-      // Stop local playback
-      this.playerControls?.pause();
-    } catch (error) {
-      console.error("SyncPlay: failed to halt group playback", error);
-    }
-  }
-
-  // ============================================================================
-  // Message Processing
-  // ============================================================================
-
-  /**
-   * Process a group update from the server
-   * Uses generic type to handle all possible update types from server
-   */
-  processGroupUpdate(update: { Type?: string; Data?: unknown }): void {
-    const { Type, Data } = update;
-
-    switch (Type) {
-      case "PlayQueue": {
-        const playQueueData = Data as PlayQueueUpdate;
-        console.log(
-          "SyncPlay: received PlayQueue update - position:",
-          playQueueData.StartPositionTicks,
-          "reason:",
-          playQueueData.Reason,
+    switch (update.Type) {
+      case "PlayQueue":
+        this.queueCore.updatePlayQueue(
+          this.apiClient,
+          update.Data as unknown as PlayQueueUpdate,
         );
-        this.onQueueUpdate?.(playQueueData);
         break;
-      }
 
       case "UserJoined":
-        toast(i18n.t("syncplay.user_joined", { username: Data }));
-        if (this.groupInfo) {
-          if (!this.groupInfo.Participants) {
-            this.groupInfo.Participants = [Data as string];
-          } else {
-            this.groupInfo.Participants.push(Data as string);
-          }
-        }
-        break;
-
       case "UserLeft":
-        toast(i18n.t("syncplay.user_left", { username: Data }));
-        if (this.groupInfo?.Participants) {
-          this.groupInfo.Participants = this.groupInfo.Participants.filter(
-            (user: string) => user !== Data,
-          );
-        }
+        // Group membership notifications — current group will follow
+        // via GroupUpdate, but emit a toast for friendliness.
+        this.emit("toast", `MessageSyncPlay${update.Type}`, update.Data);
         break;
 
       case "GroupJoined": {
-        const groupData = Data as GroupInfoDto;
-        this.enableSyncPlay(groupData, true);
+        this.groupInfo = update.Data as GroupInfoDto;
+        this.enableSyncPlay(this.groupInfo);
+        this.emit("group-update", this.groupInfo);
+        this.emit("toast", "MessageSyncPlayGroupJoined");
         break;
       }
 
-      case "SyncPlayIsDisabled":
-        toast(i18n.t("syncplay.permission_required"));
-        break;
-
-      case "NotInGroup":
       case "GroupLeft":
-        this.disableSyncPlay(true);
+      case "NotInGroup":
+      case "SyncPlayIsDisabled": {
+        const previousState = this.groupInfo?.State;
+        this.groupInfo = null;
+        this.disableSyncPlay();
+        this.emit("group-update", null);
+        if (update.Type === "GroupLeft") {
+          this.emit("toast", "MessageSyncPlayGroupLeft");
+        }
+        if (previousState) {
+          this.emit("group-state-change", "Idle", previousState);
+        }
         break;
+      }
 
       case "GroupUpdate": {
-        const updatedData = Data as GroupInfoDto;
-        this.groupInfo = updatedData;
-        this.emit("group-info-change", updatedData);
+        const previousState = this.groupInfo?.State;
+        this.groupInfo = update.Data as GroupInfoDto;
+        this.emit("group-update", this.groupInfo);
+        const newState = this.groupInfo.State;
+        if (newState && newState !== previousState) {
+          this.emit("group-state-change", newState, previousState ?? "Idle");
+        }
         break;
       }
 
       case "StateUpdate": {
-        // Log full state data to see if position is included
-        console.log("SyncPlay: StateUpdate full data:", JSON.stringify(Data));
-        const stateData = Data as {
-          State: string;
-          Reason: string;
-          PositionTicks?: number;
+        const stateData = update.Data as {
+          State?: string;
+          PreviousState?: string;
         };
-
-        // CRITICAL: Update the stored group state so subsequent checks use the correct value
+        const newState = stateData.State ?? "Idle";
+        const previousState = stateData.PreviousState ?? "Idle";
         if (this.groupInfo) {
-          this.groupInfo.State = stateData.State as any;
-          // Emit a fresh object so React state subscribers re-render —
-          // mutating in place would not trigger re-renders.
-          this.emit("group-info-change", { ...this.groupInfo });
+          this.groupInfo.State = newState as GroupInfoDto["State"];
+          this.emit("group-update", this.groupInfo);
         }
-
-        this.emit("group-state-update", stateData.State, stateData.Reason);
-        console.log(
-          `SyncPlay: state changed to ${stateData.State} because ${stateData.Reason}`,
-        );
-
-        // Handle seek from StateUpdate if position is included
-        if (stateData.Reason === "Seek" && stateData.PositionTicks != null) {
-          console.log(
-            "SyncPlay: StateUpdate contains seek position:",
-            stateData.PositionTicks,
-          );
-          this.emit("seek-from-state-update", stateData.PositionTicks);
-        }
-
-        // Use StateUpdate as a fallback to control playback when SyncPlayCommand isn't received
-        // This ensures we stay in sync even if the server doesn't send commands
-        if (this.playerControls) {
-          const currentlyPlaying = this.playerControls.isPlaying();
-          console.log(
-            `SyncPlay: StateUpdate handler - state=${stateData.State}, currentlyPlaying=${currentlyPlaying}`,
-          );
-
-          if (stateData.State === "Paused" && currentlyPlaying) {
-            console.log("SyncPlay: StateUpdate -> PAUSING player");
-            this.playerControls.pause();
-          } else if (stateData.State === "Playing" && !currentlyPlaying) {
-            console.log("SyncPlay: StateUpdate -> PLAYING");
-            this.playerControls.play();
-          } else if (stateData.State === "Waiting") {
-            console.log("SyncPlay: StateUpdate -> Waiting for other members");
-            // Pause player when waiting
-            if (currentlyPlaying) {
-              this.playerControls.pause();
-            }
-            // Emit event so PlaybackCore can report ready
-            this.emit("waiting-for-ready");
-          }
-        } else {
-          console.warn("SyncPlay: StateUpdate but no playerControls!");
+        this.emit("group-state-change", newState, previousState);
+        // Server signals "Playing" or "Paused" → clear any in-flight
+        // optimistic tap state.
+        if (newState === "Playing" || newState === "Paused") {
+          this.pendingPlaybackTracker.clear();
         }
         break;
       }
 
-      case "GroupDoesNotExist":
-        toast(i18n.t("syncplay.group_does_not_exist"));
-        break;
-
       case "CreateGroupDenied":
-        toast(i18n.t("syncplay.create_denied"));
+        this.emit("toast", "MessageSyncPlayCreateGroupDenied");
         break;
-
       case "JoinGroupDenied":
-        toast(i18n.t("syncplay.join_denied"));
+        this.emit("toast", "MessageSyncPlayJoinGroupDenied");
         break;
-
       case "LibraryAccessDenied":
-        toast(i18n.t("syncplay.library_access_denied"));
+        this.emit("toast", "MessageSyncPlayLibraryAccessDenied");
+        break;
+      case "GroupDoesNotExist":
+        this.emit("toast", "MessageSyncPlayGroupDoesNotExist");
         break;
 
       default:
-        console.warn(`SyncPlay: unrecognized group update type: ${Type}`);
+        console.warn("SyncPlay processGroupUpdate: unknown type", update.Type);
+        break;
     }
   }
 
-  /**
-   * Process a playback command from the server
-   */
+  /** Handle a `SyncPlayCommand` WebSocket message. */
   processCommand(command: SendCommand): void {
-    console.log(`SyncPlay Manager: processCommand called - ${command.Command}`);
-
-    if (!this.isSyncPlayEnabled()) {
-      console.warn(
-        "SyncPlay Manager: not enabled, ignoring command",
-        command.Command,
-      );
+    if (!command) {
+      console.warn("SyncPlay processCommand: empty command");
       return;
     }
-
-    const emittedAt = command.EmittedAt ? new Date(command.EmittedAt) : null;
-    if (this.syncPlayEnabledAt && emittedAt) {
-      if (emittedAt.getTime() < this.syncPlayEnabledAt.getTime()) {
-        console.debug("SyncPlay Manager: ignoring old command", command);
-        return;
-      }
-    }
-
-    // Reject commands targeted at a different playlist item than the one we
-    // currently have loaded. Stop is always honored (it may be a teardown
-    // before a queue swap). This prevents (e.g.) seeking the wrong episode
-    // when a queue change is racing a command.
-    if (command.Command !== "Stop" && command.PlaylistItemId) {
-      const currentItemId = this.onGetPlaylistItemId?.();
-      if (currentItemId && currentItemId !== command.PlaylistItemId) {
-        console.debug(
-          `SyncPlay Manager: ignoring command for playlist item ${command.PlaylistItemId} (current is ${currentItemId})`,
-        );
-        return;
-      }
-    }
-
-    if (!this.syncPlayReady) {
-      console.log(
-        "SyncPlay Manager: not ready, queuing command",
-        command.Command,
-      );
-      this.queuedCommand = command;
-      return;
-    }
-
-    // Remember the command even if we can't act on it yet. When the player
-    // attaches (setPlayerControls), the reconcile-on-attach path uses
-    // `lastPlaybackCommand` to seek to the estimated group position and
-    // resume/pause to match the group. Without this assignment, a command
-    // that arrives during the join→navigate→load window is lost.
-    this.lastPlaybackCommand = command;
-
-    // Clear pending guard once the matching broadcast arrives. We treat any
-    // Unpause/Pause arrival as satisfying the pending request (the server
-    // may coalesce or override our intent — either way we trust its decision).
+    this.playbackCore.applyCommand(command);
+    // Server told us the new playing state — clear optimistic UI.
     if (command.Command === "Unpause" || command.Command === "Pause") {
-      this.clearPendingPlaybackCommand();
+      this.pendingPlaybackTracker.clear();
     }
+  }
 
-    if (!this.playerControls) {
-      // Expected when a command arrives between joining the group and the
-      // player finishing its initial load. The reconciliation in
-      // setPlayerControls will replay this command from `lastPlaybackCommand`
-      // once controls attach.
-      console.debug(
-        `SyncPlay Manager: ${command.Command} stored for replay (player not attached yet)`,
+  // ===========================================================================
+  // Enable / disable SyncPlay
+  // ===========================================================================
+
+  private enableSyncPlay(_group: GroupInfoDto): void {
+    if (this.syncPlayEnabledAtPlayer) return;
+    this.syncPlayEnabledAtPlayer = true;
+    this.followingGroupPlayback = true;
+    this.timeSync.forceUpdate();
+    this.emit("enabled", true);
+    this.emit("play-state-change", true);
+  }
+
+  private disableSyncPlay(): void {
+    if (!this.syncPlayEnabledAtPlayer) return;
+    this.syncPlayEnabledAtPlayer = false;
+    this.followingGroupPlayback = false;
+    this.playbackCore.clearScheduledCommand();
+    this.queueCore.clear();
+    this.pendingPlaybackTracker.clear();
+    this.emit("enabled", false);
+    this.emit("play-state-change", false);
+  }
+
+  /**
+   * Resume following group playback after the user temporarily took
+   * local control (e.g. scrubbed the seek bar).
+   */
+  async followGroupPlayback(_api: Api): Promise<void> {
+    this.followingGroupPlayback = true;
+    this.emit("play-state-change", true);
+  }
+
+  /** Stop following group playback (e.g., user takes local control). */
+  haltGroupPlayback(_api: Api): void {
+    this.followingGroupPlayback = false;
+    this.emit("play-state-change", false);
+  }
+
+  isFollowingGroupPlayback(): boolean {
+    return this.followingGroupPlayback;
+  }
+
+  isSyncPlayEnabled(): boolean {
+    return this.syncPlayEnabledAtPlayer;
+  }
+
+  // ===========================================================================
+  // Player attach + provider bridges
+  // ===========================================================================
+
+  /**
+   * Bind the RN player controls.
+   * Called from the player screen's `useEffect`. Triggers a reconcile
+   * if a group is active and the player is late-arriving.
+   */
+  setPlayerControls(controls: PlayerControls | null): void {
+    this.playerWrapper.bindToControls(controls);
+    if (controls && this.syncPlayEnabledAtPlayer) {
+      const lastCommand = this.playbackCore.getLastCommand();
+      reconcileToGroupOnAttach(controls, lastCommand, (local) =>
+        this.timeSync.localDateToRemote(local),
       );
-      return;
     }
+  }
 
-    console.log(
-      `SyncPlay Manager: delegating ${command.Command} to playback core`,
-    );
+  /** Player-side notify hook: media is ready to play. */
+  notifyReady(): void {
+    this.emit("playbackstart");
+    if (this.syncPlayEnabledAtPlayer) {
+      this.playbackCore.onReady(this.apiClient);
+    }
+  }
 
-    // Delegate to playback handler
-    if (this.onPlaybackCoreCommand) {
-      this.onPlaybackCoreCommand(command);
+  /** Player-side notify hook: buffering state changed. */
+  notifyBuffering(isBuffering: boolean): void {
+    if (!this.syncPlayEnabledAtPlayer) return;
+    if (isBuffering) {
+      this.playbackCore.onBuffering(this.apiClient);
     } else {
-      console.error("SyncPlay Manager: no playback command handler set!");
+      this.playbackCore.onReady(this.apiClient);
     }
   }
 
-  // ============================================================================
-  // Stats
-  // ============================================================================
-
-  /**
-   * Get SyncPlay stats for display
-   */
-  getStats(): SyncPlayStats {
-    return {
-      timeSyncDevice: this.timeSyncCore.getActiveDeviceName(),
-      timeSyncOffset: this.timeSyncCore.getTimeOffset().toFixed(2),
-      playbackDiff: "0.00",
-      syncMethod: this.syncMethod,
-    };
+  /** Player-side notify hook: local playback started. */
+  notifyPlaybackStart(): void {
+    this.emit("playbackstart");
+    if (this.syncPlayEnabledAtPlayer) {
+      this.playbackCore.onPlaybackStart(this.apiClient);
+    }
   }
 
-  /**
-   * Show sync icon
-   */
-  showSyncIcon(method: string): void {
-    this.syncMethod = method;
-    this.emit("syncing", true, method);
+  // ===========================================================================
+  // Pending playback (optimistic UI for play/pause taps)
+  // ===========================================================================
+
+  /** Called by Controller before sending an Unpause/Pause request. */
+  markPendingPlaybackCommand(command: "Unpause" | "Pause"): void {
+    this.pendingPlaybackTracker.mark(command);
   }
 
-  /**
-   * Clear sync icon
-   */
-  clearSyncIcon(): void {
-    this.syncMethod = "None";
-    this.emit("syncing", false, "None");
+  /** Is the group currently playing? Used by Controller.playPause. */
+  isPlaying(): boolean {
+    const pending = this.pendingPlaybackTracker.get();
+    if (pending === "Unpause") return true;
+    if (pending === "Pause") return false;
+    return this.groupInfo?.State === "Playing";
   }
 
-  // ============================================================================
-  // Cleanup
-  // ============================================================================
+  /** Group info for consumers. */
+  getGroupInfo(): GroupInfoDto | null {
+    return this.groupInfo;
+  }
 
-  /**
-   * Destroy the manager
-   */
+  /** Last playback command (for QueueCore.startPlayback resumption). */
+  getLastPlaybackCommand(): SendCommand | null {
+    return this.playbackCore.getLastCommand();
+  }
+
+  // ===========================================================================
+  // Teardown
+  // ===========================================================================
+
   destroy(): void {
-    this.timeSyncCore.destroy();
-    this.disableSyncPlay(false);
+    this.timeSync.destroy();
+    this.playbackCore.destroy();
+    this.queueCore.destroy();
+    this.playerWrapper.bindToControls(null);
     this.removeAllListeners();
-    this.playerControls = null;
-    this.onPlaybackCoreCommand = null;
-    this.onQueueUpdate = null;
   }
 }
+
+export default SyncPlayManager;

@@ -1,402 +1,165 @@
 /**
- * SyncPlay Controller
+ * SyncPlay Controller — public playback API exposed to consumers.
  *
- * Exposes SyncPlay API calls to external modules.
- * Provides methods for controlling synchronized playback.
- *
- * Based on jellyfin-web's Controller.js
+ * Methods are fire-and-forget by design: SyncPlay HTTP responses don't
+ * carry useful info (the real state arrives via WebSocket broadcast).
+ * Wrap calls in try/catch so transient network errors don't reach the UI.
  */
 
-import type { Api } from "@jellyfin/sdk";
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
+import type { SyncPlayManager } from "./Manager";
 import {
   getItemsForPlayback,
-  msToTicks,
+  type TranslateOptions,
   translateItemsForPlayback,
-} from "./Helper";
-import type { SyncPlayManager } from "./Manager";
-import type { QueueCore } from "./QueueCore";
-import type { GroupRepeatMode, GroupShuffleMode, PlayOptions } from "./types";
+} from "./transport/queueTranslation";
 
-/**
- * SyncPlay Controller - External API for controlling SyncPlay
- */
-export class SyncPlayController {
-  private api: Api;
-  private manager: SyncPlayManager;
-  private queueCore: QueueCore;
+export interface PlayOptions extends TranslateOptions {
+  items?: BaseItemDto[];
+  ids?: string[];
+  startIndex?: number;
+  startPositionTicks?: number;
+}
 
-  constructor(api: Api, manager: SyncPlayManager, queueCore: QueueCore) {
-    this.api = api;
+export class Controller {
+  private manager!: SyncPlayManager;
+
+  init(manager: SyncPlayManager): void {
     this.manager = manager;
-    this.queueCore = queueCore;
   }
 
-  // ============================================================================
-  // Playback Control
-  // ============================================================================
-
-  /**
-   * Toggle play/pause
-   */
+  /** Toggle play/pause for the whole group. */
   playPause(): void {
-    // Use server group state (with pending in-flight command preferred) as
-    // the source of truth. The local player can lag the group by hundreds of
-    // ms while a scheduled command is pending, so reading `playerControls`
-    // here would cause rapid taps to send duplicate / wrong commands and
-    // desync other clients.
-    const state = this.manager.getEffectivePlayState();
-    console.log(`SyncPlay Controller: playPause - effectiveState=${state}`);
-    if (state === "Playing") {
-      console.log("SyncPlay Controller: requesting PAUSE");
+    if (this.manager.isPlaying()) {
       this.pause();
     } else {
-      console.log("SyncPlay Controller: requesting UNPAUSE");
       this.unpause();
     }
   }
 
-  /**
-   * Request unpause (play)
-   */
-  async unpause(): Promise<void> {
-    // Drop duplicate rapid taps while a previous request is still in flight
-    // (cleared when the server broadcasts back via SyncPlayCommand, or after
-    // a safety timeout).
-    if (this.manager.getPendingPlaybackCommand() === "Unpause") {
-      console.debug("SyncPlay Controller: unpause ignored — already pending");
-      return;
-    }
+  /** Resume the group's playback. */
+  unpause(): void {
     this.manager.markPendingPlaybackCommand("Unpause");
     try {
-      console.log("SyncPlay Controller: sending syncPlayUnpause to server");
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayUnpause();
-      console.log("SyncPlay Controller: syncPlayUnpause sent successfully");
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayUnpause();
     } catch (error) {
-      console.error("SyncPlay Controller: failed to unpause", error);
+      console.error("SyncPlay Controller.unpause failed", error);
     }
   }
 
-  /**
-   * Request pause
-   */
-  async pause(): Promise<void> {
-    if (this.manager.getPendingPlaybackCommand() === "Pause") {
-      console.debug("SyncPlay Controller: pause ignored — already pending");
-      return;
-    }
+  /** Pause the group's playback. */
+  pause(): void {
     this.manager.markPendingPlaybackCommand("Pause");
     try {
-      console.log("SyncPlay Controller: sending syncPlayPause to server");
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayPause();
-      console.log("SyncPlay Controller: syncPlayPause sent successfully");
-
-      // Also pause locally for immediate feedback
-      this.manager.getPlayerControls()?.pause();
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayPause();
     } catch (error) {
-      console.error("SyncPlay Controller: failed to pause", error);
+      console.error("SyncPlay Controller.pause failed", error);
     }
+    // Pause locally too so the user sees instant feedback.
+    this.manager.getPlayerWrapper().localPause();
   }
 
-  /**
-   * Request seek to position
-   */
-  async seek(positionTicks: number): Promise<void> {
+  /** Seek the group's playback. `positionTicks` is in ticks (1ms = 10000 ticks). */
+  seek(positionTicks: number): void {
     try {
-      console.log(
-        `SyncPlay Controller: sending syncPlaySeek to ${positionTicks} ticks`,
-      );
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySeek({
-        seekRequestDto: {
-          PositionTicks: positionTicks,
-        },
+      getSyncPlayApi(this.manager.getApiClient()).syncPlaySeek({
+        seekRequestDto: { PositionTicks: positionTicks },
       });
-      console.log("SyncPlay Controller: syncPlaySeek sent successfully");
-
-      // Also seek locally for immediate feedback
-      const positionMs = positionTicks / 10000;
-      this.manager.getPlayerControls()?.seekTo(positionMs);
     } catch (error) {
-      console.error("SyncPlay Controller: failed to seek", error);
+      console.error("SyncPlay Controller.seek failed", error);
     }
   }
 
   /**
-   * Request seek to position in milliseconds
-   */
-  async seekMs(positionMs: number): Promise<void> {
-    console.log(`SyncPlay Controller: seekMs to ${positionMs}ms`);
-    await this.seek(msToTicks(positionMs));
-  }
-
-  /**
-   * Request stop
-   */
-  async stop(): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayStop();
-    } catch (error) {
-      console.error("SyncPlay Controller: failed to stop", error);
-    }
-  }
-
-  // ============================================================================
-  // Queue Control
-  // ============================================================================
-
-  /**
-   * Start playback with a new SyncPlay group queue.
+   * Start playback in the group. Expands containers (Series, Season,
+   * BoxSet, Playlist, single Episode w/ autoplay) into the real
+   * playable queue before broadcasting.
    *
-   * Mirrors jellyfin-web's `Controller.play`:
-   *
-   *   - If the caller passed full `items` objects, translate them directly
-   *     (Series → episodes, BoxSet → children, etc.).
-   *   - Otherwise fetch the items by ID first (`getItemsForPlayback`), then
-   *     translate.
-   *   - Send the translated, real playable IDs to
-   *     `syncPlaySetNewQueue` so every group member receives a queue of
-   *     playable items — not container IDs (Series / Season / BoxSet) that
-   *     receivers like jellyfin-web silently drop.
-   *
-   * `startIndex` / `startPositionTicks` default to 0, same as jellyfin-web.
+   * Resolves once the SetNewQueue request completes; the server then
+   * broadcasts a PlayQueue update and Play command to every member.
    */
   async play(options: PlayOptions): Promise<void> {
-    const { items, ids, startIndex = 0, startPositionTicks = 0 } = options;
+    const api = this.manager.getApiClient();
 
-    if ((!ids || ids.length === 0) && (!items || items.length === 0)) {
-      console.error("SyncPlay Controller: no items or ids to play");
-      return;
-    }
-
-    try {
-      // Step 1 — resolve to a list of BaseItemDto. Prefer the caller-supplied
-      // items (no extra round trip), fall back to a fetch by IDs.
-      const sourceItems: BaseItemDto[] =
-        items && items.length > 0
-          ? items
-          : await getItemsForPlayback(this.api, ids ?? []);
-
-      if (!sourceItems.length) {
-        console.error(
-          "SyncPlay Controller: getItemsForPlayback returned no items",
-        );
-        return;
-      }
-
-      // Step 2 — expand Series / Season / BoxSet / Playlist / single-Episode
-      // into the real playable queue.
-      const translated = await translateItemsForPlayback(
-        this.api,
-        sourceItems,
-        { ids, queryOptions: {} },
-      );
-
-      const queueIds = translated
+    const sendPlayRequest = async (items: BaseItemDto[]) => {
+      const queue = items
         .map((item) => item.Id)
-        .filter((id): id is string => !!id);
-
-      if (!queueIds.length) {
-        console.error(
-          "SyncPlay Controller: translateItemsForPlayback produced empty queue",
-        );
-        return;
-      }
-
-      console.log(
-        `SyncPlay Controller: sending syncPlaySetNewQueue (${queueIds.length} item${queueIds.length === 1 ? "" : "s"}, startIndex=${startIndex})`,
-      );
-
-      // Step 3 — broadcast the resolved queue to the group.
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySetNewQueue({
+        .filter((id): id is string => typeof id === "string");
+      await getSyncPlayApi(api).syncPlaySetNewQueue({
         playRequestDto: {
-          PlayingQueue: queueIds,
-          PlayingItemPosition: startIndex,
-          StartPositionTicks: startPositionTicks,
+          PlayingQueue: queue,
+          PlayingItemPosition: options.startIndex ?? 0,
+          StartPositionTicks: options.startPositionTicks ?? 0,
         },
       });
+    };
+
+    try {
+      const sourceItems = options.items
+        ? options.items
+        : await getItemsForPlayback(api, options.ids ?? []);
+      const items = await translateItemsForPlayback(api, sourceItems, options);
+      await sendPlayRequest(items);
     } catch (error) {
-      // Surface the server response body when available — a SetNewQueue
-      // that 4xx's silently is the most common "why didn't the other
-      // client start?" cause. Without the body we'd just see a generic
-      // axios error and have no way to tell whether it was a permission
-      // problem, an unknown item ID, or the server rejecting the queue.
-      const err = error as {
-        response?: { status?: number; data?: unknown };
-        message?: string;
-      };
-      console.error("SyncPlay Controller: failed to set new queue", {
-        status: err?.response?.status,
-        data: err?.response?.data,
-        message: err?.message,
-      });
+      console.error("SyncPlay Controller.play failed", error);
+      throw error;
     }
   }
 
-  /**
-   * Set current item in playlist
-   */
-  async setCurrentPlaylistItem(playlistItemId: string): Promise<void> {
+  /** Stop the group's playback. */
+  stop(): void {
     try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySetPlaylistItem({
-        setPlaylistItemRequestDto: {
-          PlaylistItemId: playlistItemId,
-        },
-      });
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayStop();
     } catch (error) {
-      console.error("SyncPlay Controller: failed to set playlist item", error);
+      console.error("SyncPlay Controller.stop failed", error);
     }
   }
 
-  /**
-   * Play next item
-   */
-  async nextItem(): Promise<void> {
+  /** Jump to the next item in the group's queue. */
+  nextItem(): void {
     try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayNextItem({
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayNextItem({
         nextItemRequestDto: {
-          PlaylistItemId:
-            this.queueCore.getCurrentPlaylistItemId() ?? undefined,
-        },
+          PlaylistItemId: this.manager
+            .getQueueCore()
+            .getCurrentPlaylistItemId(),
+        } as unknown as Parameters<
+          ReturnType<typeof getSyncPlayApi>["syncPlayNextItem"]
+        >[0]["nextItemRequestDto"],
       });
     } catch (error) {
-      console.error("SyncPlay Controller: failed to play next", error);
+      console.error("SyncPlay Controller.nextItem failed", error);
     }
   }
 
-  /**
-   * Play previous item
-   */
-  async previousItem(): Promise<void> {
+  /** Jump to the previous item in the group's queue. */
+  previousItem(): void {
     try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayPreviousItem({
+      getSyncPlayApi(this.manager.getApiClient()).syncPlayPreviousItem({
         previousItemRequestDto: {
-          PlaylistItemId:
-            this.queueCore.getCurrentPlaylistItemId() ?? undefined,
-        },
+          PlaylistItemId: this.manager
+            .getQueueCore()
+            .getCurrentPlaylistItemId(),
+        } as unknown as Parameters<
+          ReturnType<typeof getSyncPlayApi>["syncPlayPreviousItem"]
+        >[0]["previousItemRequestDto"],
       });
     } catch (error) {
-      console.error("SyncPlay Controller: failed to play previous", error);
+      console.error("SyncPlay Controller.previousItem failed", error);
     }
   }
 
-  /**
-   * Add items to queue
-   */
-  async queue(
-    itemIds: string[],
-    mode: "Queue" | "QueueNext" = "Queue",
-  ): Promise<void> {
+  /** Jump to a specific item in the queue by playlist item id. */
+  setCurrentPlaylistItem(playlistItemId: string): void {
     try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayQueue({
-        queueRequestDto: {
-          ItemIds: itemIds,
-          Mode: mode,
-        },
+      getSyncPlayApi(this.manager.getApiClient()).syncPlaySetPlaylistItem({
+        setPlaylistItemRequestDto: { PlaylistItemId: playlistItemId },
       });
     } catch (error) {
-      console.error("SyncPlay Controller: failed to queue items", error);
+      console.error("SyncPlay Controller.setCurrentPlaylistItem failed", error);
     }
-  }
-
-  /**
-   * Add items to play next
-   */
-  async queueNext(itemIds: string[]): Promise<void> {
-    await this.queue(itemIds, "QueueNext");
-  }
-
-  /**
-   * Remove items from playlist
-   */
-  async removeFromPlaylist(playlistItemIds: string[]): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayRemoveFromPlaylist({
-        removeFromPlaylistRequestDto: {
-          PlaylistItemIds: playlistItemIds,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "SyncPlay Controller: failed to remove from playlist",
-        error,
-      );
-    }
-  }
-
-  /**
-   * Move item in playlist
-   */
-  async movePlaylistItem(
-    playlistItemId: string,
-    newIndex: number,
-  ): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlayMovePlaylistItem({
-        movePlaylistItemRequestDto: {
-          PlaylistItemId: playlistItemId,
-          NewIndex: newIndex,
-        },
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller: failed to move playlist item", error);
-    }
-  }
-
-  // ============================================================================
-  // Playback Settings
-  // ============================================================================
-
-  /**
-   * Set repeat mode
-   */
-  async setRepeatMode(mode: GroupRepeatMode): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySetRepeatMode({
-        setRepeatModeRequestDto: {
-          Mode: mode,
-        },
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller: failed to set repeat mode", error);
-    }
-  }
-
-  /**
-   * Set shuffle mode
-   */
-  async setShuffleMode(mode: GroupShuffleMode): Promise<void> {
-    try {
-      const syncPlayApi = getSyncPlayApi(this.api);
-      await syncPlayApi.syncPlaySetShuffleMode({
-        setShuffleModeRequestDto: {
-          Mode: mode,
-        },
-      });
-    } catch (error) {
-      console.error("SyncPlay Controller: failed to set shuffle mode", error);
-    }
-  }
-
-  /**
-   * Toggle shuffle mode
-   */
-  async toggleShuffleMode(): Promise<void> {
-    const currentMode = this.queueCore.getShuffleMode();
-    const newMode: GroupShuffleMode =
-      currentMode === "Sorted" ? "Shuffle" : "Sorted";
-    await this.setShuffleMode(newMode);
   }
 }
+
+export default Controller;

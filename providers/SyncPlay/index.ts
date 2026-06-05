@@ -1,25 +1,13 @@
 /**
- * SyncPlay Module
+ * SyncPlay — public exports.
  *
- * Synchronized playback for Jellyfin.
- * Allows multiple users to watch content together in sync.
+ * Only what external consumers (components, hooks, screens) need.
+ * Internal modules (PlaybackCore, QueueCore, TimeSync, PlayerWrapper,
+ * queueTranslation, EventEmitter, etc.) stay package-private.
  */
 
-export { SyncPlayController } from "./Controller";
-// Helpers
-export * from "./Helper";
-// Core modules
+export { Controller as SyncPlayController } from "./Controller";
+export { msToTicks, ticksToMs } from "./constants";
 export { SyncPlayManager } from "./Manager";
-export { PlaybackCore } from "./PlaybackCore";
-export { QueueCore } from "./QueueCore";
-
-// Provider and hooks
-export {
-  SyncPlayProvider,
-  useSyncPlay,
-  useSyncPlayController,
-} from "./SyncPlayProvider";
-export { TimeSyncCore } from "./TimeSyncCore";
-
-// Types
+export { SyncPlayProvider, useSyncPlay } from "./SyncPlayProvider";
 export * from "./types";

@@ -153,7 +153,6 @@ export default function DirectPlayerPage() {
     isEnabled: isSyncPlayEnabled,
     controller: syncPlayController,
     setPlayerControls,
-    notifyReady,
     notifyBuffering,
   } = syncPlay;
 
@@ -484,18 +483,10 @@ export default function DirectPlayerPage() {
     }
 
     const isLocallyReady = isVideoLoaded && !isBuffering;
-    if (isLocallyReady) {
-      notifyReady();
-    } else {
-      notifyBuffering();
-    }
-  }, [
-    isSyncPlayEnabled,
-    isVideoLoaded,
-    isBuffering,
-    notifyReady,
-    notifyBuffering,
-  ]);
+    // notifyBuffering routes through the debouncer in PlaybackCore so
+    // re-renders during a stall don't spam the server.
+    notifyBuffering(!isLocallyReady);
+  }, [isSyncPlayEnabled, isVideoLoaded, isBuffering, notifyBuffering]);
 
   // SyncPlay: Pause playback when group is waiting
   useEffect(() => {
@@ -982,10 +973,11 @@ export default function DirectPlayerPage() {
 
   const seek = useCallback(
     (position: number) => {
-      // Route through SyncPlay when active
+      // Route through SyncPlay when active. `position` is in ms; the
+      // controller takes ticks (1 ms = 10000 ticks).
       if (isSyncPlayEnabled && syncPlayController) {
         console.log("SyncPlay: seek requested via SyncPlay", position);
-        syncPlayController.seekMs(position);
+        syncPlayController.seek(Math.round(position * 10000));
         return;
       }
 

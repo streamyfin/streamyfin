@@ -18,8 +18,8 @@
 
 import { useEffect } from "react";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
-import type { SyncPlayManager } from "./Manager";
-import type { SendCommand } from "./types";
+import type { SyncPlayManager } from "../Manager";
+import type { GroupUpdate, SendCommand } from "../types";
 
 /**
  * Hook to connect SyncPlay manager to WebSocket
@@ -68,8 +68,15 @@ export function useSyncPlayWebSocket(manager: SyncPlayManager | null): void {
         }
 
         case "SyncPlayGroupUpdate": {
-          const update = Data as { Type?: string; Data?: unknown };
-          console.debug("SyncPlay: group update -", update.Type);
+          // SDK's `GroupUpdate` type is a discriminated union with a
+          // narrower `Type` enum than the wire format. Cast through
+          // unknown so upstream `Manager.processGroupUpdate` can switch
+          // on the real string.
+          const update = Data as unknown as GroupUpdate;
+          console.debug(
+            "SyncPlay: group update -",
+            (update as { Type?: string }).Type,
+          );
           manager.processGroupUpdate(update);
           break;
         }

@@ -1,8 +1,19 @@
 /**
- * SyncPlayProvider
+ * SyncPlayProvider — React glue around `SyncPlayManager`.
  *
- * React context provider for SyncPlay functionality.
- * Manages the SyncPlay manager and exposes hooks for components.
+ * Responsibilities:
+ *  - Manager lifecycle (construct on api change, destroy on unmount)
+ *  - React mirrors of manager state (`isEnabled`, `groupInfo`,
+ *    `pendingPlaybackCommand`) so components re-render
+ *  - Navigation handlers wired into `PlayerWrapper.localPlay` /
+ *    `localSetCurrentPlaylistItem` — these are what jellyfin-web does
+ *    synchronously via `playbackManager.play`; on RN they navigate
+ *    to the player screen instead
+ *  - AppState foreground re-join (we may miss broadcasts while
+ *    suspended)
+ *
+ * External API surface (`useSyncPlay`) is stable; components don't
+ * change when the internals do.
  */
 
 import { getSyncPlayApi } from "@jellyfin/sdk/lib/utils/api";
@@ -22,63 +33,34 @@ import { toast } from "sonner-native";
 import { useAppRouter } from "@/hooks/useAppRouter";
 import i18n from "@/i18n";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { SyncPlayController } from "./Controller";
-import { ticksToMs } from "./Helper";
+import type { Controller as SyncPlayController } from "./Controller";
+import { ticksToMs } from "./constants";
 import { SyncPlayManager } from "./Manager";
-import { PlaybackCore } from "./PlaybackCore";
-import { QueueCore } from "./QueueCore";
-import type {
-  GroupInfoDto,
-  PlayerControls,
-  PlayQueueUpdate,
-  SendCommand,
-  SyncPlayOsdAction,
-  SyncPlayStats,
-} from "./types";
-import { useSyncPlayWebSocket } from "./useSyncPlayWebSocket";
-
-// ============================================================================
-// Context Types
-// ============================================================================
+import { useSyncPlayWebSocket } from "./transport/useSyncPlayWebSocket";
+import type { GroupInfoDto, PlayerControls } from "./types";
 
 interface SyncPlayContextValue {
-  // State
   isEnabled: boolean;
-  isReady: boolean;
   groupInfo: GroupInfoDto | null;
   canJoinGroups: boolean;
   canCreateGroups: boolean;
 
-  // Group management
   joinGroup: (groupId: string) => Promise<void>;
   createGroup: (groupName?: string) => Promise<void>;
   leaveGroup: () => Promise<void>;
   getGroups: () => Promise<GroupInfoDto[]>;
 
-  // Playback control delegation
   controller: SyncPlayController | null;
 
-  // Player integration
   setPlayerControls: (controls: PlayerControls | null) => void;
   notifyReady: () => void;
-  notifyBuffering: () => void;
+  notifyBuffering: (isBuffering: boolean) => void;
+  notifyPlaybackStart: () => void;
 
-  // Stats
-  getStats: () => SyncPlayStats;
-
-  // OSD state
-  osdAction: SyncPlayOsdAction | null;
-  isSyncing: boolean;
-  syncMethod: string;
-  /** In-flight Unpause/Pause request, before the server has echoed back. */
   pendingPlaybackCommand: "Unpause" | "Pause" | null;
 }
 
 const SyncPlayContext = createContext<SyncPlayContextValue | null>(null);
-
-// ============================================================================
-// Provider Component
-// ============================================================================
 
 interface SyncPlayProviderProps {
   children: ReactNode;
@@ -89,176 +71,61 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const user = useAtomValue(userAtom);
   const router = useAppRouter();
 
-  // Core modules - use state for manager so WebSocket hook re-runs when ready
   const [manager, setManager] = useState<SyncPlayManager | null>(null);
-  const playbackCoreRef = useRef<PlaybackCore | null>(null);
-  const queueCoreRef = useRef<QueueCore | null>(null);
-  const controllerRef = useRef<SyncPlayController | null>(null);
-
-  // Track if we're already on the player page to avoid duplicate navigations
   const isNavigatingToPlayerRef = useRef(false);
 
-  // State
   const [isEnabled, setIsEnabled] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [groupInfo, setGroupInfoDto] = useState<GroupInfoDto | null>(null);
-  const [osdAction, setOsdAction] = useState<SyncPlayOsdAction | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMethod, setSyncMethod] = useState("None");
+  const [groupInfo, setGroupInfo] = useState<GroupInfoDto | null>(null);
   const [pendingPlaybackCommand, setPendingPlaybackCommand] = useState<
     "Unpause" | "Pause" | null
   >(null);
 
-  // Permission checks
   const canJoinGroups = useMemo(() => {
     const access = user?.Policy?.SyncPlayAccess;
     return access !== "None" && access !== undefined;
   }, [user?.Policy?.SyncPlayAccess]);
 
-  const canCreateGroups = useMemo(() => {
-    return user?.Policy?.SyncPlayAccess === "CreateAndJoinGroups";
-  }, [user?.Policy?.SyncPlayAccess]);
+  const canCreateGroups = useMemo(
+    () => user?.Policy?.SyncPlayAccess === "CreateAndJoinGroups",
+    [user?.Policy?.SyncPlayAccess],
+  );
 
-  // Initialize manager
+  // Latch: `true` once we've fired the per-attach `playbackstart` event.
+  const playbackStartFiredRef = useRef(false);
+
+  // ---------------------------------------------------------------------------
+  // Manager lifecycle
+  // ---------------------------------------------------------------------------
+
   useEffect(() => {
     if (!api) return;
 
-    // Create manager and cores
-    const manager = new SyncPlayManager(api);
-    const playbackCore = new PlaybackCore(api, manager.getTimeSyncCore());
-    const queueCore = new QueueCore();
-    const controller = new SyncPlayController(api, manager, queueCore);
+    const mgr = new SyncPlayManager(api);
+    mgr.init();
+    setManager(mgr);
 
-    setManager(manager);
-    playbackCoreRef.current = playbackCore;
-    queueCoreRef.current = queueCore;
-    controllerRef.current = controller;
+    const playerWrapper = mgr.getPlayerWrapper();
 
-    // Wire up manager callbacks
-    manager.setPlaybackCommandHandler((command: SendCommand) => {
-      playbackCore.applyCommand(command);
-    });
-
-    manager.setQueueUpdateHandler((update: PlayQueueUpdate) => {
-      queueCore.updatePlayQueue(update);
-    });
-
-    manager.setPlaylistItemIdGetter(() => {
-      return queueCore.getCurrentPlaylistItemId();
-    });
-
-    // When SyncPlay is disabled, flush PlaybackCore's scheduled commands and
-    // cached state so we don't carry ghost commands into the next group.
-    manager.setDisableHandler(() => {
-      playbackCore.reset();
-    });
-
-    // Also clear the cached PlayQueue snapshot on disable. If we don't, then
-    // when the user later re-joins the same group, the server's first
-    // PlayQueue echo (which can carry the same LastUpdate as the snapshot we
-    // saw last session) gets dropped by QueueCore's stale-update guard, and
-    // the receiver never auto-navigates to the group's content.
-    manager.setQueueClearHandler(() => {
-      queueCore.clear();
-    });
-
-    // Wire up playback core callbacks
-    playbackCore.setPlaylistItemIdGetter(() => {
-      return queueCore.getCurrentPlaylistItemId();
-    });
-
-    playbackCore.setOsdHandler((action) => {
-      setOsdAction(action);
-      // Clear after display
-      setTimeout(() => setOsdAction(null), 1500);
-    });
-
-    // Wire up queue core
-    queueCore.setTicksEstimator((ticks, when) => {
-      return playbackCore.estimateCurrentTicks(ticks, when);
-    });
-
-    // Navigate to player when group starts playing new content
-    queueCore.setStartPlaybackHandler(async () => {
-      const itemId = queueCore.getCurrentItemId();
-      const startPositionTicks = queueCore.getStartPositionTicks();
-
+    // localPlay → navigate to direct-player with syncPlay=true
+    playerWrapper.setLocalPlayHandler((options) => {
+      const itemId = options.ids[0];
       if (!itemId) {
-        console.warn("SyncPlay: new playlist but no current item ID");
+        console.warn("SyncPlay: localPlay called with no ids");
         return;
       }
-
-      // Avoid duplicate navigations
       if (isNavigatingToPlayerRef.current) {
         console.debug("SyncPlay: already navigating to player");
         return;
       }
-
-      console.log("SyncPlay: navigating to player for item", itemId);
       isNavigatingToPlayerRef.current = true;
 
-      // Mirror jellyfin-web's `QueueCore.startPlayback` ordering:
-      //   1. followGroupPlayback (IgnoreWait:false)            — tell server we follow
-      //   2. scheduleReadyRequestOnPlaybackStart                — arm initial pause
-      //   3. playerWrapper.localPlay (== our router navigation) — start loading
-      // The arm-then-navigate order matters: scheduling must happen BEFORE
-      // navigation so the flag is set when the player attaches and fires
-      // its first `notifyReady`. Otherwise we race the player and the
-      // initial SyncPlayReady reports `IsPlaying:true`, defeating the
-      // server's "hold the group until everyone is parked" semantics.
-      await manager.followGroupPlayback();
-      playbackCore.scheduleReadyRequestOnPlaybackStart();
-
-      // Show toast notification
       toast(i18n.t("syncplay.joining_playback"));
 
-      // Navigate to the player with the item. Use `replace` so repeated
-      // queue updates don't stack player screens on the history.
       const queryParams = new URLSearchParams({
-        itemId: itemId,
-        playbackPosition: startPositionTicks.toString(),
-        syncPlay: "true", // Mark this as a SyncPlay-initiated playback
-      }).toString();
-
-      router.push(`/player/direct-player?${queryParams}` as any);
-
-      // Reset navigation flag after a short delay
-      setTimeout(() => {
-        isNavigatingToPlayerRef.current = false;
-      }, 2000);
-    });
-
-    // Also handle item changes (next/previous in playlist)
-    queueCore.on("item-change", () => {
-      const newItemId = queueCore.getCurrentItemId();
-      const startPositionTicks = queueCore.getStartPositionTicks();
-
-      if (!newItemId) {
-        console.warn("SyncPlay: item change but no current item ID");
-        return;
-      }
-
-      // Avoid duplicate navigations
-      if (isNavigatingToPlayerRef.current) {
-        return;
-      }
-
-      console.log("SyncPlay: item changed, navigating to", newItemId);
-      isNavigatingToPlayerRef.current = true;
-
-      // Same pause-before-ready dance as NewPlaylist — the new item's
-      // player needs to park at the start position and report
-      // IsPlaying:false so the server holds the group until everyone is
-      // ready for the next Unpause. Mirrors jellyfin-web's
-      // `QueueCore.setCurrentPlaylistItem`.
-      playbackCore.scheduleReadyRequestOnPlaybackStart();
-
-      const queryParams = new URLSearchParams({
-        itemId: newItemId,
-        playbackPosition: startPositionTicks.toString(),
+        itemId,
+        playbackPosition: String(options.startPositionTicks ?? 0),
         syncPlay: "true",
       }).toString();
-
       router.push(`/player/direct-player?${queryParams}`);
 
       setTimeout(() => {
@@ -266,113 +133,103 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       }, 2000);
     });
 
-    // Handle seek events from other devices - pause first, then seek (like Jellyfin-web)
-    queueCore.on("seek", (...args: unknown[]) => {
-      const positionTicks = args[0] as number;
-      const positionMs = ticksToMs(positionTicks);
-      console.log(
-        "SyncPlay: seek event received, pausing then seeking to",
-        positionMs,
-        "ms",
-      );
-      const playerControls = manager.getPlayerControls();
-      if (playerControls) {
-        playerControls.pause();
-        playerControls.seekTo(positionMs);
+    // localSetCurrentPlaylistItem → navigate to the new playlist item
+    playerWrapper.setLocalSetCurrentItemHandler((playlistItemId) => {
+      if (!playlistItemId) return;
+      const queueCore = mgr.getQueueCore();
+      const target = queueCore
+        .getPlaylist()
+        .find((i) => i.PlaylistItemId === playlistItemId);
+      const itemId = target?.Id;
+      if (!itemId) {
+        console.warn(
+          "SyncPlay: localSetCurrentPlaylistItem — item not in playlist",
+          playlistItemId,
+        );
+        return;
       }
+      if (isNavigatingToPlayerRef.current) return;
+      isNavigatingToPlayerRef.current = true;
+
+      const queryParams = new URLSearchParams({
+        itemId,
+        playbackPosition: String(queueCore.getStartPositionTicks()),
+        syncPlay: "true",
+      }).toString();
+      router.push(`/player/direct-player?${queryParams}`);
+
+      setTimeout(() => {
+        isNavigatingToPlayerRef.current = false;
+      }, 2000);
     });
 
-    // Subscribe to manager events
-    manager.on("enabled", (...args: unknown[]) => {
+    mgr.on("enabled", (...args: unknown[]) => {
       const enabled = args[0] as boolean;
       setIsEnabled(enabled);
-      if (!enabled) {
-        setIsReady(false);
-        setGroupInfoDto(null);
-      }
+      if (!enabled) setGroupInfo(null);
     });
 
-    manager.on("syncing", (...args: unknown[]) => {
-      const syncing = args[0] as boolean;
-      const method = args[1] as string;
-      setIsSyncing(syncing);
-      setSyncMethod(method);
+    mgr.on("group-update", (...args: unknown[]) => {
+      setGroupInfo((args[0] as GroupInfoDto | null | undefined) ?? null);
     });
 
-    // Keep React-side groupInfo in sync with Manager mutations. Without this,
-    // CenterControls' `groupInfo.State === 'Waiting'` check is stale because
-    // Manager mutates the existing object reference rather than emitting a
-    // fresh one.
-    manager.on("group-info-change", (...args: unknown[]) => {
-      setGroupInfoDto(args[0] as GroupInfoDto);
-    });
-
-    // Expose pending Unpause/Pause to consumers (e.g. CenterControls renders
-    // a spinner instead of the play/pause button while a request is in
-    // flight — mirrors jellyfin-web's "schedule-play" indicator).
-    manager.on("pending-playback-change", (...args: unknown[]) => {
+    mgr.on("pending-playback-change", (...args: unknown[]) => {
       setPendingPlaybackCommand(args[0] as "Unpause" | "Pause" | null);
     });
 
-    // When entering Waiting state, report ready through PlaybackCore
-    manager.on("waiting-for-ready", () => {
-      console.log(
-        "SyncPlay: waiting-for-ready event, calling PlaybackCore.onReady()",
-      );
-      playbackCore.onReady();
-    });
-
-    // Handle seek from StateUpdate (when SyncPlayCommand doesn't include seek)
-    manager.on("seek-from-state-update", (...args: unknown[]) => {
-      const positionTicks = args[0] as number;
-      const positionMs = ticksToMs(positionTicks);
-      console.log(
-        "SyncPlay: seek from StateUpdate, seeking to",
-        positionMs,
-        "ms",
-      );
-      const playerControls = manager.getPlayerControls();
-      if (playerControls) {
-        playerControls.pause();
-        playerControls.seekTo(positionMs);
+    // group-state-change → on "Waiting", park the player at the last
+    // broadcast position so it's ready to resume cleanly.
+    mgr.on("group-state-change", (...args: unknown[]) => {
+      const state = args[0] as string | undefined;
+      const wrapper = mgr.getPlayerWrapper();
+      if (!wrapper.isPlaybackActive()) return;
+      if (state === "Waiting") {
+        const lastCommand = mgr.getLastPlaybackCommand();
+        wrapper.localPause();
+        if (lastCommand?.PositionTicks != null) {
+          wrapper.localSeek(lastCommand.PositionTicks);
+          console.debug(
+            `SyncPlay: paused + seeked to ${ticksToMs(
+              lastCommand.PositionTicks,
+            )}ms on group-state-change=Waiting`,
+          );
+        }
       }
     });
 
-    // Initialize
-    manager.init();
+    mgr.on("toast", (...args: unknown[]) => {
+      const key = args[0] as string;
+      const arg = args[1] as string | undefined;
+      const message = arg
+        ? i18n.t(`syncplay.toasts.${key}`, { user: arg })
+        : i18n.t(`syncplay.toasts.${key}`);
+      toast(message);
+    });
 
     return () => {
-      manager.destroy();
-      playbackCore.destroy();
-      queueCore.destroy();
+      mgr.destroy();
       setManager(null);
-      playbackCoreRef.current = null;
-      queueCoreRef.current = null;
-      controllerRef.current = null;
     };
-  }, [api]);
+  }, [api, router]);
 
-  // Update group info when enabled
+  // Initial join race: once `enabled` flips true, snapshot the current group.
   useEffect(() => {
     if (isEnabled && manager) {
-      setGroupInfoDto(manager.getGroupInfo());
-      setIsReady(manager.isSyncPlayReady());
+      setGroupInfo(manager.getGroupInfo());
     }
   }, [isEnabled, manager]);
 
-  // Connect to WebSocket messages - manager is now state so hook re-runs when ready
+  // Wire WebSocket messages → manager
   useSyncPlayWebSocket(manager);
 
-  // ============================================================================
-  // Group Management
-  // ============================================================================
+  // ---------------------------------------------------------------------------
+  // Group management
+  // ---------------------------------------------------------------------------
 
   const getGroups = useCallback(async (): Promise<GroupInfoDto[]> => {
     if (!api) return [];
-
     try {
-      const syncPlayApi = getSyncPlayApi(api);
-      const response = await syncPlayApi.syncPlayGetGroups();
+      const response = await getSyncPlayApi(api).syncPlayGetGroups();
       return (response.data as unknown as GroupInfoDto[]) ?? [];
     } catch (error) {
       console.error("SyncPlay: failed to get groups", error);
@@ -383,13 +240,9 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const joinGroup = useCallback(
     async (groupId: string): Promise<void> => {
       if (!api) return;
-
       try {
-        const syncPlayApi = getSyncPlayApi(api);
-        await syncPlayApi.syncPlayJoinGroup({
-          joinGroupRequestDto: {
-            GroupId: groupId,
-          },
+        await getSyncPlayApi(api).syncPlayJoinGroup({
+          joinGroupRequestDto: { GroupId: groupId },
         });
       } catch (error) {
         console.error("SyncPlay: failed to join group", error);
@@ -402,15 +255,10 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const createGroup = useCallback(
     async (groupName?: string): Promise<void> => {
       if (!api || !user) return;
-
       const name = groupName || `${user.Name}'s Group`;
-
       try {
-        const syncPlayApi = getSyncPlayApi(api);
-        await syncPlayApi.syncPlayCreateGroup({
-          newGroupRequestDto: {
-            GroupName: name,
-          },
+        await getSyncPlayApi(api).syncPlayCreateGroup({
+          newGroupRequestDto: { GroupName: name },
         });
       } catch (error) {
         console.error("SyncPlay: failed to create group", error);
@@ -422,23 +270,18 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
 
   const leaveGroup = useCallback(async (): Promise<void> => {
     if (!api) return;
-
     try {
-      const syncPlayApi = getSyncPlayApi(api);
-      await syncPlayApi.syncPlayLeaveGroup();
+      await getSyncPlayApi(api).syncPlayLeaveGroup();
     } catch (error) {
       console.error("SyncPlay: failed to leave group", error);
       throw error;
     }
   }, [api]);
 
-  // Re-join the SyncPlay group when the app returns from background.
-  //
-  // Backgrounding tears down our WebSocket (see WebSocketProvider) and the
-  // server may drop us from the group after its inactivity timeout. Even
-  // when it doesn't, we likely missed any commands/state-updates broadcast
-  // while we were suspended. Re-issuing the join is idempotent on the
-  // server and gets us a fresh GroupJoined snapshot.
+  // ---------------------------------------------------------------------------
+  // App foreground re-join (idempotent; gets us a fresh GroupJoined snapshot)
+  // ---------------------------------------------------------------------------
+
   const lastGroupIdRef = useRef<string | null>(null);
   useEffect(() => {
     lastGroupIdRef.current = groupInfo?.GroupId ?? null;
@@ -456,15 +299,12 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
         (previousAppState === "background" ||
           previousAppState === "inactive") &&
         nextAppState === "active";
-
       if (!becameActive) return;
 
       const groupId = lastGroupIdRef.current;
       if (!groupId) return;
 
-      // Give the WebSocket a moment to reconnect (handled by
-      // WebSocketProvider on the same 'active' transition) so the
-      // server's GroupJoined broadcast actually reaches us.
+      // Small delay so the WebSocket has a moment to reconnect.
       setTimeout(() => {
         console.log(`SyncPlay: app foregrounded, rejoining group ${groupId}`);
         getSyncPlayApi(api)
@@ -475,56 +315,48 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       }, 1000);
     });
 
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, [api]);
 
-  // ============================================================================
-  // Player Integration
-  // ============================================================================
+  // ---------------------------------------------------------------------------
+  // Player attach bridges
+  // ---------------------------------------------------------------------------
 
   const setPlayerControls = useCallback(
     (controls: PlayerControls | null) => {
+      // Reset the playbackstart latch on each new attach.
+      playbackStartFiredRef.current = false;
       manager?.setPlayerControls(controls);
-      playbackCoreRef.current?.setPlayerControls(controls);
     },
     [manager],
   );
 
   const notifyReady = useCallback(() => {
-    console.log("SyncPlay: notifyReady called");
-    playbackCoreRef.current?.onReady();
-  }, []);
-
-  const notifyBuffering = useCallback(() => {
-    console.log("SyncPlay: notifyBuffering called");
-    playbackCoreRef.current?.onBuffering();
-  }, []);
-
-  // ============================================================================
-  // Stats
-  // ============================================================================
-
-  const getStats = useCallback((): SyncPlayStats => {
-    return (
-      manager?.getStats() ?? {
-        timeSyncDevice: "None",
-        timeSyncOffset: "0.00",
-        playbackDiff: "0.00",
-        syncMethod: "None",
-      }
-    );
+    manager?.notifyReady();
   }, [manager]);
 
-  // ============================================================================
-  // Context Value
-  // ============================================================================
+  const notifyBuffering = useCallback(
+    (isBuffering: boolean) => {
+      manager?.notifyBuffering(isBuffering);
+      if (!isBuffering && !playbackStartFiredRef.current) {
+        playbackStartFiredRef.current = true;
+        manager?.notifyPlaybackStart();
+      }
+    },
+    [manager],
+  );
+
+  const notifyPlaybackStart = useCallback(() => {
+    manager?.notifyPlaybackStart();
+  }, [manager]);
+
+  // ---------------------------------------------------------------------------
+  // Context value
+  // ---------------------------------------------------------------------------
 
   const contextValue: SyncPlayContextValue = useMemo(
     () => ({
       isEnabled,
-      isReady,
       groupInfo,
       canJoinGroups,
       canCreateGroups,
@@ -532,19 +364,15 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       createGroup,
       leaveGroup,
       getGroups,
-      controller: controllerRef.current,
+      controller: manager?.getController() ?? null,
       setPlayerControls,
       notifyReady,
       notifyBuffering,
-      getStats,
-      osdAction,
-      isSyncing,
-      syncMethod,
+      notifyPlaybackStart,
       pendingPlaybackCommand,
     }),
     [
       isEnabled,
-      isReady,
       groupInfo,
       canJoinGroups,
       canCreateGroups,
@@ -552,13 +380,11 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       createGroup,
       leaveGroup,
       getGroups,
+      manager,
       setPlayerControls,
       notifyReady,
       notifyBuffering,
-      getStats,
-      osdAction,
-      isSyncing,
-      syncMethod,
+      notifyPlaybackStart,
       pendingPlaybackCommand,
     ],
   );
@@ -570,25 +396,10 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   );
 }
 
-// ============================================================================
-// Hooks
-// ============================================================================
-
-/**
- * Hook to access SyncPlay state and actions
- */
 export function useSyncPlay(): SyncPlayContextValue {
   const context = useContext(SyncPlayContext);
   if (!context) {
     throw new Error("useSyncPlay must be used within a SyncPlayProvider");
   }
   return context;
-}
-
-/**
- * Hook to access the SyncPlay controller
- */
-export function useSyncPlayController(): SyncPlayController | null {
-  const { controller } = useSyncPlay();
-  return controller;
 }
