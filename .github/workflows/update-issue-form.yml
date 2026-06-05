@@ -2,9 +2,8 @@ name: 🐛 Update Issue Form Versions
 
 on:
   release:
-    # Also fire on drafts/prereleases so versions that aren't a full release yet
-    # (TestFlight / dev builds) still land in the dropdown.
-    types: [published, released, prereleased, created, deleted]
+    # Only full releases populate the dropdown (no drafts/prereleases).
+    types: [released]
   schedule:
     - cron: "0 3 * * 1" # Weekly safety net (Mondays 03:00 UTC) in case a release event was missed
   workflow_dispatch:
@@ -56,7 +55,7 @@ jobs:
 
             ## 📝 Description
 
-            Automated update of the **Streamyfin Version** dropdown in `.github/ISSUE_TEMPLATE/issue_report.yml`, populated from the latest GitHub releases by `scripts/update-issue-form.mjs` (draft releases shown as `X (TestFlight)`).
+            Automated update of the **Streamyfin Version** dropdown in `.github/ISSUE_TEMPLATE/issue_report.yml`, populated from the latest published GitHub releases by `scripts/update-issue-form.mjs`.
 
             **Version dropdown now lists:** ${{ steps.populate.outputs.versions }}
 

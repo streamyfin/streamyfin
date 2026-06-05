@@ -4,10 +4,9 @@
  * latest GitHub releases. Run by the "Update Issue Form Versions" workflow on
  * release events + a weekly cron (and manually via workflow_dispatch).
  *
- * Source: GitHub releases, newest first, INCLUDING drafts and prereleases — those
- * are the builds release.yml pushes to TestFlight (iOS) / beta (Android), and the
- * app shows that same version to users. Draft releases are labelled "X (TestFlight)".
- * Non-version sentinels (e.g. "older") are preserved at the end of the list.
+ * Source: published, non-draft, non-prerelease GitHub releases, newest first.
+ * Non-version sentinels (e.g. "older", "TestFlight/Development build") are
+ * preserved at the end of the list.
  *
  * Usage:
  *   bun scripts/update-issue-form.mjs            # rewrite the form in place
@@ -35,10 +34,8 @@ const DRY = process.argv.includes("--dry-run");
 // Matches "0.54.1" and prerelease/beta tags like "0.54.0-beta.1".
 const isVersion = (s) => /^\d+\.\d+/.test(s.trim());
 
-// 1. Fetch releases (newest first) with their draft flag. Drafts are the builds pushed
-//    to TestFlight (iOS) / beta (Android) by release.yml, so they aren't a full release
-//    yet — we label those "X (TestFlight)". (Listing drafts needs the token to have repo
-//    write access, which the workflow grants.)
+// 1. Fetch published releases (newest first), excluding drafts and prereleases —
+//    those aren't a full release users run, so they don't belong in the dropdown.
 const raw = execFileSync(
   "gh",
   [
@@ -46,19 +43,18 @@ const raw = execFileSync(
     `repos/${REPO}/releases`,
     "--paginate",
     "--jq",
-    ".[] | [.tag_name, .draft] | @tsv",
+    ".[] | select(.draft == false and .prerelease == false) | .tag_name",
   ],
   { encoding: "utf8" },
 );
 const seen = new Set();
 const versions = [];
-for (const line of raw.split("\n")) {
-  const [tag, draft] = line.split("\t");
+for (const tag of raw.split("\n")) {
   if (!tag) continue;
   const ver = tag.trim().replace(/^v/, "");
   if (!isVersion(ver) || seen.has(ver)) continue;
   seen.add(ver);
-  versions.push(draft === "true" ? `${ver} (TestFlight)` : ver);
+  versions.push(ver);
   if (versions.length >= LIMIT) break;
 }
 
@@ -67,9 +63,8 @@ if (!versions.length) {
   process.exit(1);
 }
 
-// 2. rewrite the dropdown options, preserving non-version sentinels (e.g. "older").
-//    The old generic "TestFlight/Development build" entry is dropped — TestFlight
-//    versions are now shown individually as "X (TestFlight)".
+// 2. rewrite the dropdown options, preserving non-version sentinels
+//    (e.g. "older", "TestFlight/Development build") at the end of the list.
 const lines = read(FORM, "utf8").split("\n");
 const idIdx = lines.findIndex((l) =>
   l.match(new RegExp(`^\\s*id:\\s*${DROPDOWN_ID}\\s*$`)),
@@ -87,7 +82,7 @@ let end = optIdx + 1;
 const sentinels = [];
 while (end < lines.length && /^\s*-\s+/.test(lines[end])) {
   const val = lines[end].replace(/^\s*-\s+/, "");
-  if (!isVersion(val) && !/testflight/i.test(val)) sentinels.push(val);
+  if (!isVersion(val)) sentinels.push(val);
   end++;
 }
 
