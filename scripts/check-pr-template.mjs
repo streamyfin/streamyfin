@@ -29,15 +29,25 @@ try {
 const association = (process.env.AUTHOR_ASSOCIATION || "").toUpperCase();
 const isMaintainer = ["OWNER", "MEMBER", "COLLABORATOR"].includes(association);
 
-// Strip HTML comments in a single linear pass: remove complete `<!-- … -->`
-// blocks, then drop any leftover unterminated `<!-- …` to end-of-string. This
-// leaves no `<!--` behind (satisfies CodeQL) without the quadratic re-scan loop
-// a malicious deeply-nested body could abuse for CPU-DoS.
-const stripComments = (s) =>
-  s
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<!--[\s\S]*$/, "")
-    .trim();
+// Strip HTML comments in a single linear pass (indexOf scan): no regex backtracking
+// and no loop-until-stable, so a crafted body can't drive it into super-linear time,
+// and it leaves no `<!--` behind. An unterminated `<!-- …` drops to end-of-string.
+const stripComments = (s) => {
+  let out = "";
+  let i = 0;
+  for (;;) {
+    const start = s.indexOf("<!--", i);
+    if (start === -1) {
+      out += s.slice(i);
+      break;
+    }
+    out += s.slice(i, start);
+    const end = s.indexOf("-->", start + 4);
+    if (end === -1) break; // unterminated comment: drop the rest
+    i = end + 3;
+  }
+  return out.trim();
+};
 
 // Grab the text under a heading whose title contains `keyword`, up to the next heading
 // or the end of the body.
