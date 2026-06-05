@@ -155,6 +155,25 @@ const MobilePage: React.FC = () => {
     [],
   );
 
+  const handleDeleteRequest = useCallback(async () => {
+    const requestId =
+      pendingRequest?.id ?? details?.mediaInfo?.requests?.[0]?.id;
+    const mediaId = details?.mediaInfo?.id;
+
+    if (!jellyseerrApi || (!requestId && !mediaId)) {
+      toast.error(t("jellyseerr.toasts.failed_to_delete_request"));
+      return;
+    }
+
+    try {
+      await jellyseerrApi.deleteItem(requestId, mediaId);
+      toast.success(t("jellyseerr.toasts.request_deleted"));
+      refetch();
+    } catch {
+      toast.error(t("jellyseerr.toasts.failed_to_delete_request"));
+    }
+  }, [jellyseerrApi, pendingRequest?.id, details?.mediaInfo, refetch, t]);
+
   const submitIssue = useCallback(() => {
     if (result.id && issueType && issueMessage && details) {
       jellyseerrApi
@@ -387,6 +406,29 @@ const MobilePage: React.FC = () => {
                   </View>
                 )
               )}
+              {!(isLoading || isFetching) &&
+                canManageRequests &&
+                !details?.mediaInfo?.jellyfinMediaId &&
+                !canRequest && (
+                  <View className='flex flex-row space-x-2 mt-4'>
+                    <Button
+                      className='flex-1 bg-red-600/50 border-red-400 ring-red-400 text-red-100'
+                      color='transparent'
+                      onPress={handleDeleteRequest}
+                      iconLeft={
+                        <Ionicons
+                          name='trash-outline'
+                          size={20}
+                          color='white'
+                        />
+                      }
+                      style={{ borderWidth: 1, borderStyle: "solid" }}
+                    >
+                      <Text className='text-sm'>{t("jellyseerr.delete")}</Text>
+                    </Button>
+                  </View>
+                )}
+
               {canManageRequests && pendingRequest && (
                 <View className='flex flex-col space-y-2 mt-4'>
                   <View className='flex flex-row items-center space-x-2'>
