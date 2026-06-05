@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "다음 시청",
     "continue_and_next_up": "이어서 보기 & 다음 시청",
-    "recently_added_in": "최근에 추가된 {{libraryName}}",
     "suggested_movies": "추천 영화",
     "suggested_episodes": "추천 에피소드",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Go to Downloads",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "최신 {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

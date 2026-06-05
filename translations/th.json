@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Next Up",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Recently Added in {{libraryName}}",
     "suggested_movies": "Suggested Movies",
     "suggested_episodes": "Suggested Episodes",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Go to Downloads",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "ล่าสุดใน {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

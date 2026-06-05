@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Seuraavaksi",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Äskettäin lisätty {{libraryName}}-kirjastoon",
     "suggested_movies": "Ehdotetut elokuvat",
     "suggested_episodes": "Ehdotetut jaksot",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Siirry latauksiin",
         "file_deleted": "{{item}} poistettu"
       }
-    }
+    },
+    "latest": "Viimeisimmät {{libraryName}}-kirjastossa"
   },
   "common": {
     "no_results": "No Results",

@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Neste opp",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Nylig lagt til i {{libraryName}}",
     "suggested_movies": "Foreslåtte filmer",
     "suggested_episodes": "Foreslåtte episoder",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Gå til nedlastinger",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Siste i {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

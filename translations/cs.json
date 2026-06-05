@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Další nahoru",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Nedávno přidané v {{libraryName}}",
     "suggested_movies": "Navrhované filmy",
     "suggested_episodes": "Navrhované epizody",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Přejít na stahování",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Nejnovější v {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

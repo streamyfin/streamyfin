@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Következő",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Új a(z) {{libraryName}} könyvtárban",
     "suggested_movies": "Javasolt Filmek",
     "suggested_episodes": "Javasolt Epizódok",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Ugrás a Letöltésekhez",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Legújabb a(z) {{libraryName}} könyvtárban"
   },
   "common": {
     "no_results": "No Results",

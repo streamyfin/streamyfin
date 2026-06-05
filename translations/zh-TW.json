@@ -41,7 +41,6 @@
     "error_message": "出錯了。\n請重新登出並登入。",
     "continue_watching": "繼續觀看",
     "next_up": "下一個",
-    "recently_added_in": "最近添加於 {{libraryName}}",
     "suggested_movies": "推薦電影",
     "suggested_episodes": "推薦劇集",
     "intro": {
@@ -275,7 +274,8 @@
         "an_error_occured_while_deleting_files_and_jobs": "刪除文件和任務時發生錯誤",
         "go_to_downloads": "前往下載"
       }
-    }
+    },
+    "latest": "最新 {{libraryName}}"
   },
   "search": {
     "search_here": "在這裡搜索...",

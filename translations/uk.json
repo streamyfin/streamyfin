@@ -98,7 +98,6 @@
     "continue": "Continue",
     "next_up": "Далі",
     "continue_and_next_up": "Continue & Next Up",
-    "recently_added_in": "Нещодавно додане до \"{{libraryName}}\"",
     "suggested_movies": "Рекомендовані Фільми",
     "suggested_episodes": "Рекомендовані Епізоди",
     "intro": {
@@ -568,7 +567,8 @@
         "go_to_downloads": "Перейти до завантаження",
         "file_deleted": "{{item}} deleted"
       }
-    }
+    },
+    "latest": "Останнє в {{libraryName}}"
   },
   "common": {
     "no_results": "No Results",

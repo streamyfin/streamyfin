@@ -41,7 +41,6 @@
     "error_message": "Noe gjekk gale.\nVer vennleg og logg ut og inn igjen.",
     "continue_watching": "Hald fram med å sjå",
     "next_up": "Neste",
-    "recently_added_in": "Nyleg lagt til i {{libraryName}}",
     "suggested_movies": "Foreslåtte filmar",
     "suggested_episodes": "Foreslåtte episodar",
     "intro": {
@@ -273,7 +272,8 @@
         "an_error_occured_while_deleting_files_and_jobs": "Ein feil oppstod under sletting av filer og jobbar",
         "go_to_downloads": "Gå til nedlastingar"
       }
-    }
+    },
+    "latest": "Siste i {{libraryName}}"
   },
   "search": {
     "search_here": "Søk her...",
