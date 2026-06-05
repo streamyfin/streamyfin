@@ -7,14 +7,6 @@ name: 🛡️ Trivy Security Scan
 on:
   push:
     branches: [develop, master]
-    paths:
-      - "package.json"
-      - "bun.lock"
-      - "**/*.ts"
-      - "**/*.tsx"
-      - "**/*.js"
-      - "**/*.jsx"
-      - ".github/workflows/trivy-scan.yml"
   schedule:
     - cron: "50 7 * * 5" # Weekly, Friday 07:50 UTC
   workflow_dispatch:
@@ -37,12 +29,18 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # Rotate the DB cache weekly (matches the scheduled scan): cache hits within the week
+      # instead of a fresh immutable entry per run, still refreshing the DB every week.
+      - name: 🗓️ Compute weekly Trivy cache key
+        id: trivy-cache-key
+        run: echo "value=trivy-db-${{ runner.os }}-$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
       - name: 💾 Cache Trivy vulnerability DB
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/trivy
-          key: trivy-db-${{ github.run_id }}
-          restore-keys: trivy-db-
+          key: ${{ steps.trivy-cache-key.outputs.value }}
+          restore-keys: trivy-db-${{ runner.os }}-
 
       - name: 🔎 Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
