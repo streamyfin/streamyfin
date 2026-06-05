@@ -217,8 +217,8 @@
       },
       "gesture_controls": {
         "gesture_controls_title": "Gesztusvezérlés",
-        "horizontal_swipe_skip": "Vízszintes Húzás Ugráshoz",
-        "horizontal_swipe_skip_description": "Ha a vezérlők el vannak rejtve, húzd balra vagy jobbra az ugráshoz.",
+        "horizontal_swipe_skip": "Dupla Érintés Ugráshoz",
+        "horizontal_swipe_skip_description": "Dupla érintés bal/jobb oldalon ha a vezérlők el vannak rejtve az ugráshoz.",
         "left_side_brightness": "Fényerő a Bal Oldalon",
         "left_side_brightness_description": "Húzd felfelé vagy lefelé a bal oldalon a fényerő állításához",
         "right_side_volume": "Fényerő a Jobb Oldalon",

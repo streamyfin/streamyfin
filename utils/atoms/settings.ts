@@ -266,7 +266,7 @@ export type Settings = {
   // MPV video output driver (Android only)
   mpvVoDriver?: MpvVoDriver;
   // Gesture controls
-  enableHorizontalSwipeSkip: boolean;
+  enableDoubleTapSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   hideVolumeSlider: boolean;
@@ -369,7 +369,7 @@ export const defaultValues: Settings = {
   // MPV video output driver defaults (Android only)
   mpvVoDriver: "gpu-next",
   // Gesture controls
-  enableHorizontalSwipeSkip: true,
+  enableDoubleTapSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   hideVolumeSlider: false,

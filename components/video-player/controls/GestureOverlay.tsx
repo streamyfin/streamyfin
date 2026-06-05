@@ -141,7 +141,7 @@ export const GestureOverlay = ({
   });
 
   const handleSkipForward = useCallback(() => {
-    if (!settings.enableHorizontalSwipeSkip) return;
+    if (!settings.enableDoubleTapSkip) return;
     lightHaptic();
     // Defer all actions to avoid useInsertionEffect warning
     requestAnimationFrame(() => {
@@ -149,7 +149,7 @@ export const GestureOverlay = ({
       showFeedback("play-forward", `+${settings.forwardSkipTime}s`);
     });
   }, [
-    settings.enableHorizontalSwipeSkip,
+    settings.enableDoubleTapSkip,
     settings.forwardSkipTime,
     lightHaptic,
     onSkipForward,
@@ -157,7 +157,7 @@ export const GestureOverlay = ({
   ]);
 
   const handleSkipBackward = useCallback(() => {
-    if (!settings.enableHorizontalSwipeSkip) return;
+    if (!settings.enableDoubleTapSkip) return;
     lightHaptic();
     // Defer all actions to avoid useInsertionEffect warning
     requestAnimationFrame(() => {
@@ -165,7 +165,7 @@ export const GestureOverlay = ({
       showFeedback("play-back", `-${settings.rewindSkipTime}s`);
     });
   }, [
-    settings.enableHorizontalSwipeSkip,
+    settings.enableDoubleTapSkip,
     settings.rewindSkipTime,
     lightHaptic,
     onSkipBackward,
@@ -233,8 +233,8 @@ export const GestureOverlay = ({
 
   const { handleTouchStart, handleTouchMove, handleTouchEnd } =
     useGestureDetection({
-      onSwipeLeft: handleSkipBackward,
-      onSwipeRight: handleSkipForward,
+      onDoubleTapLeft: handleSkipBackward,
+      onDoubleTapRight: handleSkipForward,
       onVerticalDragStart: handleVerticalDragStart,
       onVerticalDragMove: handleVerticalDragMove,
       onVerticalDragEnd: handleVerticalDragEnd,
@@ -243,29 +243,30 @@ export const GestureOverlay = ({
       screenHeight,
     });
 
-  // If controls are visible, act like the old tap overlay
-  if (showControls) {
-    return (
-      <Pressable
-        onPress={onToggleControls}
-        style={{
-          position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
-          backgroundColor: "black",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          opacity: 0.75,
-        }}
-      />
-    );
-  }
+  // Background overlay when controls are visible
+  const controlsOverlay = showControls && (
+    <Pressable
+      onPress={onToggleControls}
+      style={{
+        position: "absolute",
+        width: screenWidth,
+        height: screenHeight,
+        backgroundColor: "black",
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        opacity: 0.75,
+      }}
+    />
+  );
 
   return (
     <>
-      {/* Gesture detection area */}
+      {/* Controls overlay when visible */}
+      {controlsOverlay}
+
+      {/* Gesture detection area - always present */}
       <Pressable
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
