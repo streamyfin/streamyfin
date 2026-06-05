@@ -534,6 +534,7 @@
       "new_app_version_requires_re_download_description": "The new update requires content to be downloaded again. Please remove all downloaded content and try again.",
       "back": "Back",
       "delete": "Delete",
+      "delete_download": "Delete Download",
       "something_went_wrong": "Something Went Wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
@@ -577,6 +578,8 @@
     "audio": "Audio",
     "subtitle": "Subtitle",
     "play": "Play",
+    "mark_as_played": "Mark as Played",
+    "mark_as_not_played": "Mark as not Played",
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
@@ -649,7 +652,8 @@
       "poster": "Poster",
       "cover": "Cover",
       "show_titles": "Show Titles",
-      "show_stats": "Show Stats"
+      "show_stats": "Show Stats",
+      "options_title": "Options"
     },
     "filters": {
       "genres": "Genres",
@@ -679,6 +683,7 @@
   },
   "player": {
     "live": "LIVE",
+    "mpv_player_title": "MPV Player",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",

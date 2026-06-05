@@ -37,11 +37,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ item }) => {
         }
       />
       <View
-        style={{
-          width: `${progress}%`,
-          backgroundColor: Platform.isTV ? "#ffffff" : undefined,
-        }}
-        className={`absolute bottom-0 left-0 h-1 w-full ${Platform.isTV ? "" : "bg-purple-600"}`}
+        style={
+          Platform.isTV
+            ? { width: `${progress}%`, backgroundColor: "#ffffff" }
+            : { width: `${progress}%` }
+        }
+        className={`absolute bottom-0 left-0 h-1 ${Platform.isTV ? "" : "bg-purple-600"}`}
       />
     </>
   );
