@@ -136,11 +136,18 @@ export class PlaybackCore extends EventEmitter {
       this.lastCommand &&
       ((
         this.lastCommand as unknown as { EmittedAt: Date }
-      ).EmittedAt.getTime() >=
+      ).EmittedAt.getTime() >
         (command as unknown as { EmittedAt: Date }).EmittedAt.getTime() ||
         (this.lastCommand as unknown as { When: Date }).When.getTime() >
           (command as unknown as { When: Date }).When.getTime())
     ) {
+      // NOTE: strict `>` (not `>=`) on EmittedAt — Jellyfin's server timestamps
+      // commands at sub-ms precision but JS `Date` truncates to ms, so two
+      // commands emitted within the same millisecond would otherwise be
+      // rejected as "outdated" and silently dropped. This produced an
+      // unbreakable pause/unpause loop where every fresh command was
+      // discarded. Matches jellyfin-web's check in
+      // `web/src/plugins/syncPlay/core/Manager.js`.
       console.debug(
         "SyncPlay applyCommand: dropping outdated command",
         command,

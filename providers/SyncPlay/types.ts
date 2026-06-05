@@ -47,11 +47,19 @@ export interface PlayerControls {
 
 /** OSD action types — drive optional player-overlay feedback. */
 export type SyncPlayOsdAction =
+  /** transient — 1.5s pulse, the unpause command fired locally */
   | "unpause"
+  /** transient — 1.5s pulse, the pause command fired locally */
   | "pause"
+  /** transient — 1.5s pulse, a seek command applied locally */
   | "seek"
+  /** persistent — group is about to play (Waiting+Unpause / pending Unpause) */
+  | "schedule-play"
+  /** persistent — another client is buffering (Waiting+Buffer) */
   | "buffering"
+  /** persistent — group transitioning to pause (Waiting+Pause) */
   | "wait-pause"
+  /** persistent — group transitioning to unpause; sibling of schedule-play */
   | "wait-unpause";
 
 /**

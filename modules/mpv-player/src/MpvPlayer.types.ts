@@ -29,6 +29,21 @@ export type OnPictureInPictureChangePayload = {
   isActive: boolean;
 };
 
+/**
+ * Emitted when the user taps a PiP playback control while the view
+ * was rendered with `syncPlayDelegated`. The host app should route
+ * the action through the SyncPlay controller instead of acting
+ * locally.
+ */
+export type OnPipPlayRequestPayload = Record<string, never>;
+export type OnPipPauseRequestPayload = Record<string, never>;
+export type OnPipSkipRequestPayload = {
+  /** Absolute target position the user wants to seek to, in seconds. */
+  targetSeconds: number;
+  /** Skip interval requested by the OS (signed seconds). Debug only. */
+  intervalSeconds: number;
+};
+
 export type NowPlayingMetadata = {
   title?: string;
   artist?: string;
@@ -84,6 +99,18 @@ export type MpvPlayerViewProps = {
   onPictureInPictureChange?: (event: {
     nativeEvent: OnPictureInPictureChangePayload;
   }) => void;
+  /**
+   * When true, PiP play/pause/skip controls emit the corresponding
+   * `onPipPlayRequest` / `onPipPauseRequest` / `onPipSkipRequest`
+   * events instead of driving MPV directly. Used to route PiP control
+   * actions through SyncPlay.
+   */
+  syncPlayDelegated?: boolean;
+  onPipPlayRequest?: (event: { nativeEvent: OnPipPlayRequestPayload }) => void;
+  onPipPauseRequest?: (event: {
+    nativeEvent: OnPipPauseRequestPayload;
+  }) => void;
+  onPipSkipRequest?: (event: { nativeEvent: OnPipSkipRequestPayload }) => void;
 };
 
 export interface MpvPlayerViewRef {

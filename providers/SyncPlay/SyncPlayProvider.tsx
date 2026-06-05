@@ -31,13 +31,14 @@ import {
 import { AppState, type AppStateStatus } from "react-native";
 import { toast } from "sonner-native";
 import { useAppRouter } from "@/hooks/useAppRouter";
+import { useKeepWebSocketAlive } from "@/hooks/useKeepWebSocketAlive";
 import i18n from "@/i18n";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import type { Controller as SyncPlayController } from "./Controller";
-import { ticksToMs } from "./constants";
 import { SyncPlayManager } from "./Manager";
 import { useSyncPlayWebSocket } from "./transport/useSyncPlayWebSocket";
-import type { GroupInfoDto, PlayerControls } from "./types";
+import type { GroupInfoDto, PlayerControls, SyncPlayOsdAction } from "./types";
 
 interface SyncPlayContextValue {
   isEnabled: boolean;
@@ -58,6 +59,11 @@ interface SyncPlayContextValue {
   notifyPlaybackStart: () => void;
 
   pendingPlaybackCommand: "Unpause" | "Pause" | null;
+  /**
+   * Current SyncPlay OSD overlay state. Drives the animated icon over the
+   * video that mirrors jellyfin-web's `#syncPlayIcon`. `null` means hidden.
+   */
+  osdAction: SyncPlayOsdAction | null;
 }
 
 const SyncPlayContext = createContext<SyncPlayContextValue | null>(null);
@@ -70,6 +76,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const router = useAppRouter();
+  const { isConnected: isWsConnected } = useWebSocketContext();
 
   const [manager, setManager] = useState<SyncPlayManager | null>(null);
   const isNavigatingToPlayerRef = useRef(false);
@@ -79,6 +86,64 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
   const [pendingPlaybackCommand, setPendingPlaybackCommand] = useState<
     "Unpause" | "Pause" | null
   >(null);
+
+  // While in a SyncPlay group, hold a keep-alive token on the global
+  // WebSocket so backgrounding the app does NOT cleanly close the
+  // socket. A clean close is interpreted by the Jellyfin server as
+  // leaving the group and is broadcast to every other member as
+  // "<user> has left the group". Keeping the socket open across a
+  // short suspend lets us stay in the group while quickly switching
+  // apps; if the OS eventually tears the TCP connection down anyway,
+  // the app-foreground rejoin effect below will pull us back in.
+  useKeepWebSocketAlive(isEnabled);
+
+  const [osdAction, setOsdAction] = useState<SyncPlayOsdAction | null>(null);
+  const osdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Set the OSD overlay action.
+   *
+   * `transient` mirrors jellyfin-web's `iconVisibilityTime = 1500` for the
+   * Unpause / Pause / Seek command-confirmation flashes. Persistent actions
+   * (schedule-play, buffering, wait-*) stay until cleared by a state
+   * transition or a subsequent call with `null`.
+   */
+  const showOsd = useCallback(
+    (action: SyncPlayOsdAction | null, transient = false) => {
+      if (osdTimeoutRef.current) {
+        clearTimeout(osdTimeoutRef.current);
+        osdTimeoutRef.current = null;
+      }
+      setOsdAction(action);
+      if (transient && action !== null) {
+        osdTimeoutRef.current = setTimeout(() => {
+          osdTimeoutRef.current = null;
+          setOsdAction((cur) => (cur === action ? null : cur));
+        }, 1500);
+      }
+    },
+    [],
+  );
+
+  // Pending play/pause tap → optimistic schedule-play overlay (unless another
+  // overlay reason has already taken precedence).
+  useEffect(() => {
+    if (pendingPlaybackCommand) {
+      setOsdAction((cur) => cur ?? "schedule-play");
+    } else {
+      setOsdAction((cur) => (cur === "schedule-play" ? null : cur));
+    }
+  }, [pendingPlaybackCommand]);
+
+  // Clear the OSD auto-expire timeout on unmount.
+  useEffect(() => {
+    return () => {
+      if (osdTimeoutRef.current) {
+        clearTimeout(osdTimeoutRef.current);
+        osdTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const canJoinGroups = useMemo(() => {
     const access = user?.Policy?.SyncPlayAccess;
@@ -177,24 +242,55 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       setPendingPlaybackCommand(args[0] as "Unpause" | "Pause" | null);
     });
 
-    // group-state-change → on "Waiting", park the player at the last
-    // broadcast position so it's ready to resume cleanly.
+    // group-state-change → on "Waiting", pause locally so we don't drift
+    // ahead of the group while the server is reconciling buffering/seek
+    // state. Position resync is *only* done from the explicit Pause /
+    // Unpause / Seek SendCommands that follow (`PlaybackCore.applyCommand`
+    // → `scheduleUnpause` etc.) — those commands carry the canonical
+    // `PositionTicks` for the action's `When`. The old code here also
+    // called `wrapper.localSeek(lastCommand.PositionTicks)`, but
+    // `lastCommand` is the *previous* Pause/Unpause and can be many
+    // seconds stale, so it rewound the user every time someone else
+    // buffered. Don't put a seek back here.
     mgr.on("group-state-change", (...args: unknown[]) => {
       const state = args[0] as string | undefined;
+      const reason = args[2] as string | undefined;
       const wrapper = mgr.getPlayerWrapper();
       if (!wrapper.isPlaybackActive()) return;
       if (state === "Waiting") {
-        const lastCommand = mgr.getLastPlaybackCommand();
         wrapper.localPause();
-        if (lastCommand?.PositionTicks != null) {
-          wrapper.localSeek(lastCommand.PositionTicks);
-          console.debug(
-            `SyncPlay: paused + seeked to ${ticksToMs(
-              lastCommand.PositionTicks,
-            )}ms on group-state-change=Waiting`,
-          );
-        }
       }
+
+      // Drive the persistent OSD overlay from (state, reason).
+      // Mirrors jellyfin-web's `group-state-update` → `showIcon` mapping.
+      if (state === "Waiting") {
+        if (reason === "Buffer") showOsd("buffering");
+        else if (reason === "Unpause") showOsd("wait-unpause");
+        else if (reason === "Pause") showOsd("wait-pause");
+        else if (reason === "Seek") showOsd("seek");
+      } else if (state === "Playing" || state === "Paused") {
+        // Stable state — clear any persistent overlay; transient flashes
+        // come from the `osd` event below and self-expire.
+        setOsdAction((cur) => {
+          if (
+            cur === "schedule-play" ||
+            cur === "buffering" ||
+            cur === "wait-pause" ||
+            cur === "wait-unpause"
+          ) {
+            return null;
+          }
+          return cur;
+        });
+      }
+    });
+
+    // PlaybackCore-emitted OSD events. Transient ones auto-expire in 1.5s.
+    mgr.on("osd", (...args: unknown[]) => {
+      const action = args[0] as SyncPlayOsdAction;
+      const transient =
+        action === "unpause" || action === "pause" || action === "seek";
+      showOsd(action, transient);
     });
 
     mgr.on("toast", (...args: unknown[]) => {
@@ -287,7 +383,19 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
     lastGroupIdRef.current = groupInfo?.GroupId ?? null;
   }, [groupInfo?.GroupId]);
 
+  // Track whether the WebSocket got torn down while the app was
+  // backgrounded. If it survived (keep-alive worked), the server
+  // still has us in the group and we must NOT call JoinGroup again —
+  // doing so would trigger a redundant "X joined the group" broadcast
+  // to every other member every time we briefly leave the app.
+  const wsClosedWhileBackgroundedRef = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  useEffect(() => {
+    if (!isWsConnected && appStateRef.current !== "active") {
+      wsClosedWhileBackgroundedRef.current = true;
+    }
+  }, [isWsConnected]);
+
   useEffect(() => {
     if (!api) return;
 
@@ -304,9 +412,21 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       const groupId = lastGroupIdRef.current;
       if (!groupId) return;
 
+      // Happy path: keep-alive held the socket open across the
+      // suspend. Server still considers us a member — nothing to do.
+      if (!wsClosedWhileBackgroundedRef.current) {
+        console.log(
+          "SyncPlay: app foregrounded with WS still alive, skipping rejoin",
+        );
+        return;
+      }
+      wsClosedWhileBackgroundedRef.current = false;
+
       // Small delay so the WebSocket has a moment to reconnect.
       setTimeout(() => {
-        console.log(`SyncPlay: app foregrounded, rejoining group ${groupId}`);
+        console.log(
+          `SyncPlay: app foregrounded after WS drop, rejoining group ${groupId}`,
+        );
         getSyncPlayApi(api)
           .syncPlayJoinGroup({ joinGroupRequestDto: { GroupId: groupId } })
           .catch((error) => {
@@ -370,6 +490,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       notifyBuffering,
       notifyPlaybackStart,
       pendingPlaybackCommand,
+      osdAction,
     }),
     [
       isEnabled,
@@ -386,6 +507,7 @@ export function SyncPlayProvider({ children }: SyncPlayProviderProps) {
       notifyBuffering,
       notifyPlaybackStart,
       pendingPlaybackCommand,
+      osdAction,
     ],
   );
 

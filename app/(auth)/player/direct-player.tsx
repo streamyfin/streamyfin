@@ -31,6 +31,7 @@ import {
 } from "@/components/video-player/controls/utils/playback-speed-settings";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useKeepWebSocketAlive } from "@/hooks/useKeepWebSocketAlive";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
@@ -78,6 +79,11 @@ export default function DirectPlayerPage() {
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
+
+  // Keep the global WebSocket open while in PiP so SyncPlay commands
+  // (and any other server pushes) keep flowing while iOS treats the
+  // app as backgrounded. See `WebSocketProvider.acquireKeepAlive`.
+  useKeepWebSocketAlive(isPipMode);
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
     "default",
   );
@@ -487,28 +493,6 @@ export default function DirectPlayerPage() {
     // re-renders during a stall don't spam the server.
     notifyBuffering(!isLocallyReady);
   }, [isSyncPlayEnabled, isVideoLoaded, isBuffering, notifyBuffering]);
-
-  // SyncPlay: Pause playback when group is waiting
-  useEffect(() => {
-    if (!isSyncPlayEnabled) {
-      return;
-    }
-
-    const groupState = syncPlay.groupInfo?.State;
-    const isLocalReady = isVideoLoaded && !isBuffering;
-    const isWaitingForGroup = groupState === "Waiting";
-
-    // Pause playback when waiting for group
-    if (isLocalReady && isWaitingForGroup && isPlaying) {
-      videoRef.current?.pause();
-    }
-  }, [
-    isSyncPlayEnabled,
-    syncPlay.groupInfo?.State,
-    isVideoLoaded,
-    isBuffering,
-    isPlaying,
-  ]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
@@ -947,6 +931,41 @@ export default function DirectPlayerPage() {
     [],
   );
 
+  // PiP playback controls. When SyncPlay is active, the native side
+  // is told to *delegate* these via `syncPlayDelegated`, so the OS
+  // play/pause/skip buttons emit these events instead of poking MPV
+  // directly. We route them through the SyncPlay controller so the
+  // server broadcasts a command to every group member (including us).
+  const _onPipPlayRequest = useCallback(() => {
+    if (isSyncPlayEnabled && syncPlayController) {
+      console.log("SyncPlay: PiP play → controller.playPause()");
+      syncPlayController.playPause();
+    }
+  }, [isSyncPlayEnabled, syncPlayController]);
+
+  const _onPipPauseRequest = useCallback(() => {
+    if (isSyncPlayEnabled && syncPlayController) {
+      console.log("SyncPlay: PiP pause → controller.playPause()");
+      syncPlayController.playPause();
+    }
+  }, [isSyncPlayEnabled, syncPlayController]);
+
+  const _onPipSkipRequest = useCallback(
+    (e: {
+      nativeEvent: { targetSeconds: number; intervalSeconds: number };
+    }) => {
+      if (!isSyncPlayEnabled || !syncPlayController) return;
+      const { targetSeconds } = e.nativeEvent;
+      // SyncPlay seek takes ticks (1 s = 10_000_000 ticks).
+      const ticks = Math.max(0, Math.round(targetSeconds * 10_000_000));
+      console.log(
+        `SyncPlay: PiP skip → controller.seek(${targetSeconds}s = ${ticks} ticks)`,
+      );
+      syncPlayController.seek(ticks);
+    },
+    [isSyncPlayEnabled, syncPlayController],
+  );
+
   const [isMounted, setIsMounted] = useState(false);
 
   // Add useEffect to handle mounting
@@ -1377,6 +1396,10 @@ export default function DirectPlayerPage() {
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}
+                syncPlayDelegated={isSyncPlayEnabled}
+                onPipPlayRequest={_onPipPlayRequest}
+                onPipPauseRequest={_onPipPauseRequest}
+                onPipSkipRequest={_onPipSkipRequest}
                 onLoad={() => setIsVideoLoaded(true)}
                 onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                   console.error("Video Error:", e.nativeEvent);

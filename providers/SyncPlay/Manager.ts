@@ -198,14 +198,16 @@ export class SyncPlayManager extends EventEmitter {
         const stateData = update.Data as {
           State?: string;
           PreviousState?: string;
+          Reason?: string;
         };
         const newState = stateData.State ?? "Idle";
         const previousState = stateData.PreviousState ?? "Idle";
+        const reason = stateData.Reason;
         if (this.groupInfo) {
           this.groupInfo.State = newState as GroupInfoDto["State"];
           this.emit("group-update", this.groupInfo);
         }
-        this.emit("group-state-change", newState, previousState);
+        this.emit("group-state-change", newState, previousState, reason);
         // Server signals "Playing" or "Paused" → clear any in-flight
         // optimistic tap state.
         if (newState === "Playing" || newState === "Paused") {

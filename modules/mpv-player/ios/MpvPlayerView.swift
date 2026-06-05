@@ -62,6 +62,16 @@ class MpvPlayerView: ExpoView {
 	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
 	let onPictureInPictureChange = EventDispatcher()
+	// SyncPlay: when `syncPlayDelegated == true`, PiP playback controls
+	// (play / pause / skip) emit these events instead of driving MPV
+	// directly, so JS can route the action through the SyncPlay
+	// controller (server → group broadcast → all clients). Default
+	// behavior (non-SyncPlay) is unchanged.
+	let onPipPlayRequest = EventDispatcher()
+	let onPipPauseRequest = EventDispatcher()
+	let onPipSkipRequest = EventDispatcher()
+
+	var syncPlayDelegated: Bool = false
 
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
@@ -77,7 +87,6 @@ class MpvPlayerView: ExpoView {
 		super.init(appContext: appContext)
 		setupNotifications()
 		setupView()
-		// Note: Decoder reset is handled automatically via KVO in MPVLayerRenderer
 	}
 
 	private func setupView() {
@@ -672,6 +681,12 @@ extension MpvPlayerView: PiPControllerDelegate {
 	
 	func pipControllerPlay(_ controller: PiPController) {
 		print("PiP play requested")
+		if syncPlayDelegated {
+			// Let JS route through SyncPlay. We deliberately do NOT touch
+			// MPV here; the WS command coming back will drive playback.
+			onPipPlayRequest([:])
+			return
+		}
 		intendedPlayState = true
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
@@ -679,6 +694,10 @@ extension MpvPlayerView: PiPControllerDelegate {
 	
 	func pipControllerPause(_ controller: PiPController) {
 		print("PiP pause requested")
+		if syncPlayDelegated {
+			onPipPauseRequest([:])
+			return
+		}
 		intendedPlayState = false
 		renderer?.pausePlayback()
 		pipController?.setPlaybackRate(0.0)
@@ -688,6 +707,16 @@ extension MpvPlayerView: PiPControllerDelegate {
 		let seconds = CMTimeGetSeconds(interval)
 		print("PiP skip by interval: \(seconds)")
 		let target = max(0, cachedPosition + seconds)
+		if syncPlayDelegated {
+			// `targetSeconds` lets JS convert to ticks and call
+			// syncPlayController.seek(). `intervalSeconds` is also sent
+			// for telemetry / debug.
+			onPipSkipRequest([
+				"targetSeconds": target,
+				"intervalSeconds": seconds
+			])
+			return
+		}
 		seekTo(position: target)
 	}
 	

@@ -47,6 +47,16 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     val onError by EventDispatcher()
     val onTracksReady by EventDispatcher()
     val onPictureInPictureChange by EventDispatcher()
+    // SyncPlay: when `syncPlayDelegated == true`, PiP playback controls
+    // (play / pause / skip) emit these events instead of driving MPV
+    // directly, so JS can route the action through the SyncPlay
+    // controller (server -> group broadcast -> all clients). Default
+    // behavior (non-SyncPlay) is unchanged.
+    val onPipPlayRequest by EventDispatcher()
+    val onPipPauseRequest by EventDispatcher()
+    val onPipSkipRequest by EventDispatcher()
+
+    var syncPlayDelegated: Boolean = false
 
     private var textureView: TextureView
     private var renderer: MPVLayerRenderer? = null
@@ -85,14 +95,32 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         pipController?.setPlayerView(textureView)
         pipController?.delegate = object : PiPController.Delegate {
             override fun onPlay() {
+                if (syncPlayDelegated) {
+                    onPipPlayRequest(mapOf<String, Any>())
+                    return
+                }
                 play()
             }
 
             override fun onPause() {
+                if (syncPlayDelegated) {
+                    onPipPauseRequest(mapOf<String, Any>())
+                    return
+                }
                 pause()
             }
 
             override fun onSeekBy(seconds: Double) {
+                if (syncPlayDelegated) {
+                    val target = (cachedPosition + seconds).coerceAtLeast(0.0)
+                    onPipSkipRequest(
+                        mapOf(
+                            "targetSeconds" to target,
+                            "intervalSeconds" to seconds
+                        )
+                    )
+                    return
+                }
                 seekBy(seconds)
             }
 

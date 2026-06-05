@@ -3,16 +3,12 @@ import type { FC } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
-import { SyncPlaySpinner } from "@/components/syncplay/SyncPlaySpinner";
+import { SyncPlayActionIcon } from "@/components/syncplay/SyncPlayActionIcon";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
-import { useSyncPlay } from "@/providers/SyncPlay/SyncPlayProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
 import { ICON_SIZES } from "./constants";
-
-// SyncPlay cyan color (matches Jellyfin-web)
-const SYNC_PLAY_COLOR = "#00a4dc";
 
 interface CenterControlsProps {
   showControls: boolean;
@@ -48,18 +44,6 @@ export const CenterControls: FC<CenterControlsProps> = ({
 }) => {
   const { settings } = useSettings();
   const insets = useControlsSafeAreaInsets();
-
-  // SyncPlay state from global provider
-  const {
-    isEnabled: isSyncPlayEnabled,
-    groupInfo,
-    pendingPlaybackCommand,
-  } = useSyncPlay();
-  const isSyncPlayWaiting = isSyncPlayEnabled && groupInfo?.State === "Waiting";
-  // Show the rotating SyncPlay icon ("schedule-play" in jellyfin-web) while a
-  // play/pause request is in flight to the server.
-  const isSyncPlayScheduling =
-    isSyncPlayEnabled && pendingPlaybackCommand !== null;
 
   return (
     <View
@@ -138,25 +122,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
 
       <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
         <TouchableOpacity onPress={togglePlay}>
-          {isSyncPlayScheduling ? (
-            // SyncPlay command in flight - rotating spinner ("schedule-play")
-            <SyncPlaySpinner size={ICON_SIZES.CENTER} />
-          ) : isSyncPlayWaiting ? (
-            // SyncPlay waiting indicator - clock icon, still pressable to toggle
-            <Ionicons
-              name='time'
-              size={ICON_SIZES.CENTER}
-              color={SYNC_PLAY_COLOR}
-            />
-          ) : !isBuffering ? (
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={ICON_SIZES.CENTER}
-              color='white'
-            />
-          ) : (
-            <Loader size={"large"} />
-          )}
+          <SyncPlayActionIcon
+            size={ICON_SIZES.CENTER}
+            fallback={
+              !isBuffering ? (
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={ICON_SIZES.CENTER}
+                  color='white'
+                />
+              ) : (
+                <Loader size={"large"} />
+              )
+            }
+          />
         </TouchableOpacity>
       </View>
 
