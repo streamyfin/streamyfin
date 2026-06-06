@@ -77,7 +77,7 @@ export const ItemTechnicalDetails: React.FC<Props> = ({ source }) => {
 
             <View>
               <Text className='text-lg font-bold mb-2'>
-                {t("item_card.subtitles")}
+                {t("item_card.subtitles.label")}
               </Text>
               <SubtitleStreamInfo
                 subtitleStreams={

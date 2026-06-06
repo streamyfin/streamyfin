@@ -61,7 +61,10 @@ export default function Page() {
     setLoading(true);
     try {
       logsFile.write(JSON.stringify(filteredLogs));
-      await Sharing.shareAsync(logsFile.uri, { mimeType: "txt", UTI: "txt" });
+      await Sharing.shareAsync(logsFile.uri, {
+        mimeType: "text/plain",
+        UTI: "public.plain-text",
+      });
     } catch (e: any) {
       writeErrorLog("Something went wrong attempting to export", e);
     } finally {
@@ -85,12 +88,7 @@ export default function Page() {
   }, [share, loading]);
 
   return (
-    <View
-      className='flex-1'
-      style={{
-        paddingTop: insets.top + 48,
-      }}
-    >
+    <View className='flex-1'>
       <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
         <FilterButton
           id={orderFilterId}
@@ -114,7 +112,10 @@ export default function Page() {
           multiple={true}
         />
       </View>
-      <ScrollView className='pb-4 px-4'>
+      <ScrollView
+        className='pb-4 px-4'
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
+      >
         <View className='flex flex-col space-y-2'>
           {filteredLogs?.map((log, index) => (
             <View className='bg-neutral-900 rounded-xl p-3' key={index}>

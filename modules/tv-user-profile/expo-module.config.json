@@ -1,0 +1,8 @@
+{
+  "name": "tv-user-profile",
+  "version": "1.0.0",
+  "platforms": ["apple"],
+  "apple": {
+    "modules": ["TvUserProfileModule"]
+  }
+}

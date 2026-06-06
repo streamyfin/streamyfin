@@ -1,0 +1,10 @@
+{
+  "name": "tv-search",
+  "version": "0.1.0",
+  "description": "Native tvOS search field (SwiftUI .searchable) emitting typed text to React Native",
+  "main": "index.ts",
+  "platforms": [
+    "apple"
+  ],
+  "devDependencies": {}
+}

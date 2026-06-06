@@ -1,4 +1,3 @@
-import { Button, ContextMenu, Host, Picker } from "@expo/ui/swift-ui";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect } from "react";
@@ -6,6 +5,17 @@ import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
+
+// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
+// A static top-level import evaluates requireNativeModule('ExpoUI') at module
+// load and crashes the entire route tree on tvOS (expo-router requires every
+// route file). Load it lazily and only off-TV; TV never renders these.
+const { Button, Host, Menu } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui"))
+  : require("@expo/ui/swift-ui");
+const { disabled } = Platform.isTV
+  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
+  : require("@expo/ui/swift-ui/modifiers");
 
 // Option types
 export type RadioOption<T = any> = {
@@ -245,12 +255,16 @@ const PlatformDropdownComponent = ({
     }
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
 
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && !Platform.isTV) {
+    // @expo/ui's <Host> can't size to content, so an in-flow invisible copy of
+    // the trigger sizes the wrapper while the Host overlays the real Menu.
     return (
-      <Host style={expoUIConfig?.hostStyle}>
-        <ContextMenu>
-          <ContextMenu.Trigger>{trigger}</ContextMenu.Trigger>
-          <ContextMenu.Items>
+      <View>
+        <View pointerEvents='none' aria-hidden style={{ opacity: 0 }}>
+          {trigger}
+        </View>
+        <Host style={[StyleSheet.absoluteFill, expoUIConfig?.hostStyle as any]}>
+          <Menu label={trigger}>
             {groups.flatMap((group, groupIndex) => {
               // Check if this group has radio options
               const radioOptions = group.options.filter(
@@ -265,27 +279,40 @@ const PlatformDropdownComponent = ({
 
               const items = [];
 
-              // Add Picker for radio options ONLY if there's a group title
+              // Group radio options under a submenu ONLY if there's a title
               // Otherwise render as individual buttons
               if (radioOptions.length > 0) {
                 if (group.title) {
-                  // Use Picker for grouped options
+                  // Use a nested Menu as a submenu for grouped options. This
+                  // reads as "Title: Selected" and expands to the choices on
+                  // tap, keeping the nested look while staying a dropdown.
+                  // (Menu opens on a single tap and nests cleanly; ContextMenu
+                  // would require a long-press and read as a context menu.)
+                  const selectedOption = radioOptions.find(
+                    (opt) => opt.selected,
+                  );
+                  const displayTitle = selectedOption
+                    ? `${group.title}: ${selectedOption.label}`
+                    : group.title;
                   items.push(
-                    <Picker
-                      key={`picker-${groupIndex}`}
-                      label={group.title}
-                      options={radioOptions.map((opt) => opt.label)}
-                      variant='menu'
-                      selectedIndex={radioOptions.findIndex(
-                        (opt) => opt.selected,
-                      )}
-                      onOptionSelected={(event: any) => {
-                        const index = event.nativeEvent.index;
-                        const selectedOption = radioOptions[index];
-                        selectedOption?.onPress();
-                        onOptionSelect?.(selectedOption?.value);
-                      }}
-                    />,
+                    <Menu key={`submenu-${groupIndex}`} label={displayTitle}>
+                      {radioOptions.map((option, optionIndex) => (
+                        <Button
+                          key={`radio-${groupIndex}-${optionIndex}`}
+                          label={option.label}
+                          systemImage={
+                            option.selected ? "checkmark.circle.fill" : "circle"
+                          }
+                          modifiers={
+                            option.disabled ? [disabled(true)] : undefined
+                          }
+                          onPress={() => {
+                            option.onPress();
+                            onOptionSelect?.(option.value);
+                          }}
+                        />
+                      ))}
+                    </Menu>,
                   );
                 } else {
                   // Render radio options as direct buttons
@@ -293,17 +320,18 @@ const PlatformDropdownComponent = ({
                     items.push(
                       <Button
                         key={`radio-${groupIndex}-${optionIndex}`}
+                        label={option.label}
                         systemImage={
                           option.selected ? "checkmark.circle.fill" : "circle"
+                        }
+                        modifiers={
+                          option.disabled ? [disabled(true)] : undefined
                         }
                         onPress={() => {
                           option.onPress();
                           onOptionSelect?.(option.value);
                         }}
-                        disabled={option.disabled}
-                      >
-                        {option.label}
-                      </Button>,
+                      />,
                     );
                   });
                 }
@@ -314,17 +342,16 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`toggle-${groupIndex}-${optionIndex}`}
+                    label={option.label}
                     systemImage={
                       option.value ? "checkmark.circle.fill" : "circle"
                     }
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onToggle();
                       onOptionSelect?.(option.value);
                     }}
-                    disabled={option.disabled}
-                  >
-                    {option.label}
-                  </Button>,
+                  />,
                 );
               });
 
@@ -333,21 +360,20 @@ const PlatformDropdownComponent = ({
                 items.push(
                   <Button
                     key={`action-${groupIndex}-${optionIndex}`}
+                    label={option.label}
+                    modifiers={option.disabled ? [disabled(true)] : undefined}
                     onPress={() => {
                       option.onPress();
                     }}
-                    disabled={option.disabled}
-                  >
-                    {option.label}
-                  </Button>,
+                  />,
                 );
               });
 
               return items;
             })}
-          </ContextMenu.Items>
-        </ContextMenu>
-      </Host>
+          </Menu>
+        </Host>
+      </View>
     );
   }
 

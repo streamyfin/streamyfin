@@ -1,4 +1,9 @@
-import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -7,6 +12,7 @@ import { Alert, Platform, ScrollView, View } from "react-native";
 import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
 import ActiveDownloads from "@/components/downloads/ActiveDownloads";
@@ -20,7 +26,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { queueAtom } from "@/utils/atoms/queue";
 import { writeToLog } from "@/utils/log";
 
-export default function page() {
+export default function DownloadsPage() {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const [_queue, _setQueue] = useAtom(queueAtom);
@@ -101,7 +107,7 @@ export default function page() {
     navigation.setOptions({
       headerRight: () => (
         <Pressable
-          onPress={bottomSheetModalRef.current?.present}
+          onPress={() => bottomSheetModalRef.current?.present()}
           className='px-2'
         >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
@@ -116,7 +122,7 @@ export default function page() {
     }
   }, [showMigration]);
 
-  const _deleteMovies = () =>
+  const deleteMovies = () =>
     deleteFileByType("Movie")
       .then(() =>
         toast.success(
@@ -127,7 +133,7 @@ export default function page() {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_movies"));
       });
-  const _deleteShows = () =>
+  const deleteShows = () =>
     deleteFileByType("Episode")
       .then(() =>
         toast.success(
@@ -138,7 +144,7 @@ export default function page() {
         writeToLog("ERROR", reason);
         toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
       });
-  const _deleteOtherMedia = () =>
+  const deleteOtherMedia = () =>
     Promise.all(
       otherMedia
         .filter((item) => item.item.Type)
@@ -161,6 +167,9 @@ export default function page() {
             }),
         ),
     );
+
+  const deleteAllMedia = async () =>
+    await Promise.all([deleteMovies(), deleteShows(), deleteOtherMedia()]);
 
   return (
     <OfflineModeProvider isOffline={true}>
@@ -256,6 +265,42 @@ export default function page() {
           )}
         </View>
       </ScrollView>
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        enableDynamicSizing
+        handleIndicatorStyle={{
+          backgroundColor: "white",
+        }}
+        backgroundStyle={{
+          backgroundColor: "#171717",
+        }}
+        backdropComponent={(props: BottomSheetBackdropProps) => (
+          <BottomSheetBackdrop
+            {...props}
+            disappearsOnIndex={-1}
+            appearsOnIndex={0}
+          />
+        )}
+      >
+        <BottomSheetView>
+          <View className='p-4 space-y-4 mb-4'>
+            <Button color='purple' onPress={deleteMovies}>
+              {t("home.downloads.delete_all_movies_button")}
+            </Button>
+            <Button color='purple' onPress={deleteShows}>
+              {t("home.downloads.delete_all_tvseries_button")}
+            </Button>
+            {otherMedia.length > 0 && (
+              <Button color='purple' onPress={deleteOtherMedia}>
+                {t("home.downloads.delete_all_other_media_button")}
+              </Button>
+            )}
+            <Button color='red' onPress={deleteAllMedia}>
+              {t("home.downloads.delete_all_button")}
+            </Button>
+          </View>
+        </BottomSheetView>
+      </BottomSheetModal>
     </OfflineModeProvider>
   );
 }

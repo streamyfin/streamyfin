@@ -1,6 +1,10 @@
 import "react-native-url-polyfill/auto";
-import TrackPlayer from "react-native-track-player";
-import { PlaybackService } from "./services/PlaybackService";
+import { Platform } from "react-native";
 import "expo-router/entry";
 
-TrackPlayer.registerPlaybackService(() => PlaybackService);
+// TrackPlayer is not supported on tvOS
+if (!Platform.isTV) {
+  const TrackPlayer = require("react-native-track-player").default;
+  const { PlaybackService } = require("./services/PlaybackService");
+  TrackPlayer.registerPlaybackService(() => PlaybackService);
+}

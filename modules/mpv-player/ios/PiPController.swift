@@ -150,6 +150,16 @@ final class PiPController: NSObject {
             CMTimebaseSetRate(tb, rate: Float64(rate))
         }
     }
+    
+    deinit {
+        if let tb = timebase {
+            CMTimebaseSetRate(tb, rate: 0)
+        }
+        sampleBufferDisplayLayer?.controlTimebase = nil
+        timebase = nil
+        pipController?.delegate = nil
+        pipController = nil
+    }
 }
 
 // MARK: - AVPictureInPictureControllerDelegate
