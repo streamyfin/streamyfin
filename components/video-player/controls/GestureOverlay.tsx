@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -23,6 +23,8 @@ interface FeedbackState {
   side?: "left" | "right";
 }
 
+const FEEDBACK_DISPLAY_DURATION_MS = 1000;
+
 export const GestureOverlay = ({
   screenWidth,
   screenHeight,
@@ -44,6 +46,8 @@ export const GestureOverlay = ({
   const hideScheduledRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
   const lastUpdateTime = useRef(0);
+  const accumulatedSeekTime = useRef(0);
+  const lastDoubleTapSide = useRef<"left" | "right" | null>(null);
 
   const showFeedback = useCallback(
     (
@@ -56,14 +60,16 @@ export const GestureOverlay = ({
         setFeedback({ visible: true, icon, text, side });
 
         if (!isDuringDrag) {
+          // Ensure scheduled hide is cleared
           hideScheduledRef.current = false;
+
           Animated.sequence([
             Animated.timing(fadeAnim, {
               toValue: 1,
-              duration: 200,
+              duration: 100,
               useNativeDriver: true,
             }),
-            Animated.delay(1000),
+            Animated.delay(FEEDBACK_DISPLAY_DURATION_MS),
             Animated.timing(fadeAnim, {
               toValue: 0,
               duration: 300,
@@ -72,6 +78,9 @@ export const GestureOverlay = ({
           ]).start(() => {
             requestAnimationFrame(() => {
               setFeedback((prev) => ({ ...prev, visible: false }));
+              // Reset accumulator when feedback hides
+              accumulatedSeekTime.current = 0;
+              lastDoubleTapSide.current = null;
             });
           });
         } else if (!isDraggingRef.current && !hideScheduledRef.current) {
@@ -107,6 +116,15 @@ export const GestureOverlay = ({
       });
     }, 100) as unknown as number;
   }, [fadeAnim]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const {
     startVolumeDrag,
@@ -231,6 +249,56 @@ export const GestureOverlay = ({
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
 
+  // Keep track of feedback visibility in a ref to avoid dependency cycles
+  const isFeedbackVisible = useRef(false);
+  useEffect(() => {
+    isFeedbackVisible.current = feedback.visible;
+  }, [feedback.visible]);
+
+  const handleDoubleTap = useCallback(
+    (x: number) => {
+      if (!settings.enableDoubleTapToSeek) return;
+      lightHaptic();
+
+      const side = x < screenWidth / 2 ? "left" : "right";
+      const baseTime =
+        side === "left" ? settings.rewindSkipTime : settings.forwardSkipTime;
+
+      // Check if we should stack (same side and feedback is currently visible)
+      if (lastDoubleTapSide.current === side && isFeedbackVisible.current) {
+        accumulatedSeekTime.current += baseTime;
+      } else {
+        accumulatedSeekTime.current = baseTime;
+        lastDoubleTapSide.current = side;
+      }
+
+      const text =
+        side === "left"
+          ? `-${accumulatedSeekTime.current}s`
+          : `+${accumulatedSeekTime.current}s`;
+      const icon = side === "left" ? "play-back" : "play-forward";
+
+      requestAnimationFrame(() => {
+        if (side === "left") {
+          onSkipBackward();
+        } else {
+          onSkipForward();
+        }
+        showFeedback(icon, text, side);
+      });
+    },
+    [
+      settings.enableDoubleTapToSeek,
+      settings.rewindSkipTime,
+      settings.forwardSkipTime,
+      screenWidth,
+      onSkipBackward,
+      onSkipForward,
+      showFeedback,
+      lightHaptic,
+    ],
+  );
+
   const { handleTouchStart, handleTouchMove, handleTouchEnd } =
     useGestureDetection({
       onSwipeLeft: handleSkipBackward,
@@ -239,29 +307,20 @@ export const GestureOverlay = ({
       onVerticalDragMove: handleVerticalDragMove,
       onVerticalDragEnd: handleVerticalDragEnd,
       onTap: onToggleControls,
+      onDoubleTap: settings.enableDoubleTapToSeek ? handleDoubleTap : undefined,
       screenWidth,
       screenHeight,
     });
 
-  // If controls are visible, act like the old tap overlay
-  if (showControls) {
-    return (
-      <Pressable
-        onPress={onToggleControls}
-        style={{
-          position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
-          backgroundColor: "black",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          opacity: 0.75,
-        }}
-      />
-    );
-  }
+  // Determine styles based on controls visibility
+  const overlayStyle = showControls
+    ? {
+        backgroundColor: "black",
+        opacity: 0.75,
+      }
+    : {
+        backgroundColor: "transparent",
+      };
 
   return (
     <>
@@ -274,11 +333,11 @@ export const GestureOverlay = ({
           position: "absolute",
           width: screenWidth,
           height: screenHeight,
-          backgroundColor: "transparent",
           left: 0,
           right: 0,
           top: 0,
           bottom: 0,
+          ...overlayStyle,
         }}
       />
 

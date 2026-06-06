@@ -267,6 +267,7 @@ export type Settings = {
   mpvVoDriver?: MpvVoDriver;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
+  enableDoubleTapToSeek: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   hideVolumeSlider: boolean;
@@ -370,6 +371,7 @@ export const defaultValues: Settings = {
   mpvVoDriver: "gpu-next",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
+  enableDoubleTapToSeek: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   hideVolumeSlider: false,
