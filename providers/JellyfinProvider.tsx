@@ -248,12 +248,6 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   }, [api, secret, headers, jellyfin]);
 
   useEffect(() => {
-    (async () => {
-      await refreshStreamyfinPluginSettings();
-    })();
-  }, []);
-
-  useEffect(() => {
     store.set(apiAtom, api);
   }, [api]);
 
@@ -553,7 +547,20 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         );
 
         // Refresh plugin settings
-        await refreshStreamyfinPluginSettings();
+        const recentPluginSettings = await refreshStreamyfinPluginSettings();
+        if (recentPluginSettings?.jellyseerrServerUrl?.value) {
+          const jellyseerrApi = new JellyseerrApi(
+            recentPluginSettings.jellyseerrServerUrl.value,
+          );
+          await jellyseerrApi.test().then((result) => {
+            if (result.isValid && result.requiresPass) {
+              jellyseerrApi
+                .login(username, password)
+                .then(setJellyseerrUser)
+                .catch(console.error);
+            }
+          });
+        }
       }
     },
     onError: (error) => {

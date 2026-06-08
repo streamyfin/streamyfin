@@ -7,7 +7,12 @@ import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
+import {
+  useIsFocused,
+  useLocalSearchParams,
+  useNavigation,
+  useSegments,
+} from "expo-router";
 import { useAtom } from "jotai";
 import { orderBy, uniqBy } from "lodash";
 import {
@@ -20,7 +25,13 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Text } from "@/components/common/Text";
@@ -41,7 +52,10 @@ import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  useJellyseerr,
+  validateJellyseerrSession,
+} from "@/hooks/useJellyseerr";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -106,8 +120,40 @@ export default function SearchPage() {
 
   const [api] = useAtom(apiAtom);
 
+  const isFocused = useIsFocused();
   const { settings } = useSettings();
   const { jellyseerrApi } = useJellyseerr();
+
+  // Alert when seerr server is configured but user hasn't connected (only when focused)
+  useEffect(() => {
+    if (!isFocused || !settings?.jellyseerrServerUrl || jellyseerrApi) return;
+    Alert.alert(
+      t("jellyseerr.connect_to_jellyseerr", "Connect to Jellyseerr"),
+      t(
+        "jellyseerr.connect_in_settings",
+        "Jellyseerr is available. Connect in Settings to enable request features.",
+      ),
+    );
+  }, []);
+
+  // Validate jellyseerr session when switching to Discover
+  useEffect(() => {
+    if (
+      searchType !== "Discover" ||
+      !jellyseerrApi ||
+      !settings?.jellyseerrServerUrl
+    )
+      return;
+    validateJellyseerrSession(settings.jellyseerrServerUrl).then((status) => {
+      if (status.valid) return;
+      Alert.alert(
+        t(
+          "jellyseerr.session_expired_connect_again",
+          "Your Jellyseerr session has expired. Please reconnect in Settings.",
+        ),
+      );
+    });
+  }, [searchType, jellyseerrApi, settings?.jellyseerrServerUrl, t]);
   const [jellyseerrOrderBy, setJellyseerrOrderBy] =
     useState<JellyseerrSearchSort>(
       JellyseerrSearchSort[

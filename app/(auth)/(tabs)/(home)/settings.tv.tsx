@@ -1,5 +1,5 @@
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
@@ -21,8 +22,7 @@ import {
   TVSettingsToggle,
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
-import { useJellyseerrConnect } from "@/hooks/useJellyseerrConnect";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
 import { APP_LANGUAGES } from "@/i18n";
@@ -61,9 +61,8 @@ export default function SettingsTV() {
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
   const queryClient = useQueryClient();
-  const { jellyseerrApi, clearAllJellyseerData } = useJellyseerr();
-  const { connecting: jellyseerrConnecting, connect: jellyseerrConnect } =
-    useJellyseerrConnect();
+  const { jellyseerrApi, setJellyseerrUser, clearAllJellyseerData } =
+    useJellyseerr();
 
   // Jellyseerr state
   const [jellyseerrServerUrl, setJellyseerrServerUrl] = useState(
@@ -81,11 +80,27 @@ export default function SettingsTV() {
     updateSettings({ jellyseerrServerUrl: url || undefined });
   }, [jellyseerrServerUrl, updateSettings]);
 
-  const handleJellyseerrConnect = useCallback(async () => {
-    const url = jellyseerrServerUrl.trim();
-    if (!url) return;
-    await jellyseerrConnect(url, jellyseerrPassword);
-  }, [jellyseerrServerUrl, jellyseerrPassword, jellyseerrConnect]);
+  const jellyseerrLoginMutation = useMutation({
+    mutationFn: async () => {
+      const url = jellyseerrServerUrl.trim();
+      if (!url) throw new Error("Missing server url");
+      if (!user?.Name) throw new Error("Missing user info");
+      const tempApi = new JellyseerrApi(url);
+      const testResult = await tempApi.test();
+      if (!testResult.isValid) throw new Error("Invalid server url");
+      return tempApi.login(user.Name, jellyseerrPassword);
+    },
+    onSuccess: (loggedInUser) => {
+      setJellyseerrUser(loggedInUser);
+      updateSettings({ jellyseerrServerUrl: jellyseerrServerUrl.trim() });
+    },
+    onError: () => {
+      toast.error(t("jellyseerr.failed_to_login"));
+    },
+    onSettled: () => {
+      setJellyseerrPassword("");
+    },
+  });
 
   const handleDisconnectJellyseerr = useCallback(() => {
     clearAllJellyseerData();
@@ -940,7 +955,7 @@ export default function SettingsTV() {
             }
             onChangeText={setJellyseerrServerUrl}
             onBlur={handleJellyseerrUrlBlur}
-            disabled={isJellyseerrLocked || jellyseerrConnecting}
+            disabled={isJellyseerrLocked || jellyseerrLoginMutation.isPending}
           />
           {!isJellyseerrConnected && !isJellyseerrLocked && (
             <>
@@ -956,17 +971,17 @@ export default function SettingsTV() {
                 }
                 onChangeText={setJellyseerrPassword}
                 secureTextEntry
-                disabled={jellyseerrConnecting}
+                disabled={jellyseerrLoginMutation.isPending}
               />
               <TVSettingsOptionButton
                 label={
-                  jellyseerrConnecting
+                  jellyseerrLoginMutation.isPending
                     ? t("common.connecting", "Connecting...") || "Connecting..."
                     : t("common.connect", "Connect") || "Connect"
                 }
                 value=''
-                onPress={handleJellyseerrConnect}
-                disabled={jellyseerrConnecting}
+                onPress={() => jellyseerrLoginMutation.mutate()}
+                disabled={jellyseerrLoginMutation.isPending}
               />
             </>
           )}
