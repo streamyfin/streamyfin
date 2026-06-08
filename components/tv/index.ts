@@ -68,3 +68,5 @@ export { TVTrackCard } from "./TVTrackCard";
 // User switching
 export type { TVUserCardProps } from "./TVUserCard";
 export { TVUserCard } from "./TVUserCard";
+export type { TVWatchlistButtonProps } from "./TVWatchlistButton";
+export { TVWatchlistButton } from "./TVWatchlistButton";

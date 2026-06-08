@@ -2,6 +2,7 @@ import type { Api } from "@jellyfin/sdk";
 import type {
   BaseItemDto,
   BaseItemKind,
+  ItemFilter,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
@@ -52,9 +53,13 @@ export default function FavoritesSeeAllScreen() {
   const searchParams = useLocalSearchParams<{
     type?: string;
     title?: string;
+    filter?: string;
   }>();
   const typeParam = searchParams.type;
   const titleParam = searchParams.title;
+  // Watchlist (KefinTweaks) reuses this screen with the "Likes" filter.
+  const filter: ItemFilter =
+    searchParams.filter === "Likes" ? "Likes" : "IsFavorite";
 
   const itemType = useMemo(() => {
     if (!isFavoriteType(typeParam)) return null;
@@ -77,7 +82,7 @@ export default function FavoritesSeeAllScreen() {
         userId: user.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],
-        filters: ["IsFavorite"],
+        filters: [filter],
         recursive: true,
         fields: ["PrimaryImageAspectRatio"],
         collapseBoxSetItems: false,
@@ -90,12 +95,12 @@ export default function FavoritesSeeAllScreen() {
 
       return response.data.Items || [];
     },
-    [api, itemType, user?.Id],
+    [api, itemType, user?.Id, filter],
   );
 
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
     useInfiniteQuery({
-      queryKey: ["favorites", "see-all", itemType],
+      queryKey: ["favorites", "see-all", itemType, filter],
       queryFn: ({ pageParam = 0 }) => fetchItems({ pageParam }),
       getNextPageParam: (lastPage, pages) => {
         if (!lastPage || lastPage.length < pageSize) return undefined;

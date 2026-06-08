@@ -676,7 +676,10 @@
     "boxsets": "Box sets",
     "playlists": "Playlists",
     "noDataTitle": "No favorites yet",
-    "noData": "Mark items as favorites to see them appear here for quick access."
+    "noData": "Mark items as favorites to see them appear here for quick access.",
+    "watchlist": "Watchlist",
+    "noWatchlistTitle": "No watchlisted items yet",
+    "noWatchlistData": "Add items to your watchlist to see them appear here."
   },
   "custom_links": {
     "no_links": "No links"

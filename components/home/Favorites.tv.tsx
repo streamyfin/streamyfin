@@ -1,18 +1,23 @@
 import type { Api } from "@jellyfin/sdk";
-import type { BaseItemKind } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemKind,
+  ItemFilter,
+} from "@jellyfin/sdk/lib/generated-client";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import heart from "@/assets/icons/heart.fill.png";
 import { Text } from "@/components/common/Text";
+import { TVFavoritesTabBadges } from "@/components/favorites/TVFavoritesTabBadges";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
@@ -33,7 +38,33 @@ export const Favorites = () => {
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const { settings } = useSettings();
   const pageSize = 20;
+
+  // KefinTweaks watchlist (Likes-backed) view, toggled in-place like Discover.
+  const watchlistEnabled = settings?.useKefinTweaks ?? false;
+  const [viewType, setViewType] = useState<"Favorites" | "Watchlist">(
+    "Favorites",
+  );
+  const filter: ItemFilter =
+    watchlistEnabled && viewType === "Watchlist" ? "Likes" : "IsFavorite";
+  const queryKeyBase =
+    watchlistEnabled && viewType === "Watchlist" ? "watchlist" : "favorites";
+  const emptyTitleKey = useMemo(
+    () =>
+      watchlistEnabled && viewType === "Watchlist"
+        ? "favorites.noWatchlistTitle"
+        : "favorites.noDataTitle",
+    [watchlistEnabled, viewType],
+  );
+  const emptyTextKey = useMemo(
+    () =>
+      watchlistEnabled && viewType === "Watchlist"
+        ? "favorites.noWatchlistData"
+        : "favorites.noData",
+    [watchlistEnabled, viewType],
+  );
+
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: false,
     Movie: false,
@@ -53,7 +84,7 @@ export const Favorites = () => {
         userId: user?.Id,
         sortBy: ["SeriesSortName", "SortName"],
         sortOrder: ["Ascending"],
-        filters: ["IsFavorite"],
+        filters: [filter],
         recursive: true,
         fields: ["PrimaryImageAspectRatio"],
         collapseBoxSetItems: false,
@@ -74,7 +105,7 @@ export const Favorites = () => {
 
       return items;
     },
-    [api, user],
+    [api, user, filter],
   );
 
   useEffect(() => {
@@ -86,7 +117,7 @@ export const Favorites = () => {
       BoxSet: false,
       Playlist: false,
     });
-  }, [api, user]);
+  }, [api, user, viewType]);
 
   const areAllEmpty = () => {
     const loadedCategories = Object.values(emptyState);
@@ -127,46 +158,63 @@ export const Favorites = () => {
     [fetchFavoritesByType, pageSize],
   );
 
+  const tabBadges = (
+    <TVFavoritesTabBadges
+      viewType={viewType}
+      setViewType={setViewType}
+      enabled={watchlistEnabled}
+      hasTVPreferredFocus={watchlistEnabled}
+    />
+  );
+
   if (areAllEmpty()) {
     return (
       <View
         style={{
           flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
+          paddingTop: insets.top + TOP_PADDING,
           paddingHorizontal: HORIZONTAL_PADDING,
         }}
       >
-        <Image
+        {tabBadges}
+        <View
           style={{
-            width: 64,
-            height: 64,
-            marginBottom: 16,
-            tintColor: Colors.primary,
-          }}
-          contentFit='contain'
-          source={heart}
-        />
-        <Text
-          style={{
-            fontSize: typography.heading,
-            fontWeight: "bold",
-            marginBottom: 8,
-            color: "#FFFFFF",
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          {t("favorites.noDataTitle")}
-        </Text>
-        <Text
-          style={{
-            textAlign: "center",
-            opacity: 0.7,
-            fontSize: typography.body,
-            color: "#FFFFFF",
-          }}
-        >
-          {t("favorites.noData")}
-        </Text>
+          <Image
+            style={{
+              width: 64,
+              height: 64,
+              marginBottom: 16,
+              tintColor: Colors.primary,
+            }}
+            contentFit='contain'
+            source={heart}
+          />
+          <Text
+            style={{
+              fontSize: typography.heading,
+              fontWeight: "bold",
+              marginBottom: 8,
+              color: "#FFFFFF",
+            }}
+          >
+            {t(emptyTitleKey)}
+          </Text>
+          <Text
+            style={{
+              textAlign: "center",
+              opacity: 0.7,
+              fontSize: typography.body,
+              color: "#FFFFFF",
+            }}
+          >
+            {t(emptyTextKey)}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -181,17 +229,22 @@ export const Favorites = () => {
       }}
     >
       <View style={{ gap: SECTION_GAP }}>
+        {watchlistEnabled && (
+          <View style={{ paddingHorizontal: HORIZONTAL_PADDING }}>
+            {tabBadges}
+          </View>
+        )}
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteSeries}
-          queryKey={["home", "favorites", "series"]}
+          queryKey={["home", queryKeyBase, "series"]}
           title={t("favorites.series")}
           hideIfEmpty
           pageSize={pageSize}
-          isFirstSection
+          isFirstSection={!watchlistEnabled}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteMovies}
-          queryKey={["home", "favorites", "movies"]}
+          queryKey={["home", queryKeyBase, "movies"]}
           title={t("favorites.movies")}
           hideIfEmpty
           orientation='vertical'
@@ -199,28 +252,28 @@ export const Favorites = () => {
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteEpisodes}
-          queryKey={["home", "favorites", "episodes"]}
+          queryKey={["home", queryKeyBase, "episodes"]}
           title={t("favorites.episodes")}
           hideIfEmpty
           pageSize={pageSize}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteVideos}
-          queryKey={["home", "favorites", "videos"]}
+          queryKey={["home", queryKeyBase, "videos"]}
           title={t("favorites.videos")}
           hideIfEmpty
           pageSize={pageSize}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoriteBoxsets}
-          queryKey={["home", "favorites", "boxsets"]}
+          queryKey={["home", queryKeyBase, "boxsets"]}
           title={t("favorites.boxsets")}
           hideIfEmpty
           pageSize={pageSize}
         />
         <InfiniteScrollingCollectionList
           queryFn={fetchFavoritePlaylists}
-          queryKey={["home", "favorites", "playlists"]}
+          queryKey={["home", queryKeyBase, "playlists"]}
           title={t("favorites.playlists")}
           hideIfEmpty
           pageSize={pageSize}

@@ -9,6 +9,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { AddToKefinWatchlist } from "@/components/AddToKefinWatchlist";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
@@ -18,6 +19,7 @@ import { TVSeriesPage } from "@/components/series/TVSeriesPage";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   buildOfflineSeriesFromEpisodes,
   getDownloadedEpisodesForSeries,
@@ -30,6 +32,7 @@ import { storage } from "@/utils/mmkv";
 const page: React.FC = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
+  const { settings } = useSettings();
   const params = useLocalSearchParams();
   const {
     id: seriesId,
@@ -137,6 +140,7 @@ const page: React.FC = () => {
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
           <View className='flex flex-row items-center space-x-2'>
             <AddToFavorites item={item} />
+            {settings?.useKefinTweaks && <AddToKefinWatchlist item={item} />}
             {!Platform.isTV && (
               <DownloadItems
                 size='large'
@@ -157,7 +161,7 @@ const page: React.FC = () => {
           </View>
         ) : null,
     });
-  }, [allEpisodes, isLoading, item, isOffline]);
+  }, [allEpisodes, isLoading, item, isOffline, settings?.useKefinTweaks]);
 
   // For offline mode, we can show the page even without backdropUrl
   if (!item || (!isOffline && !backdropUrl)) return null;

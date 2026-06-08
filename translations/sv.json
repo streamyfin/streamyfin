@@ -676,7 +676,10 @@
     "boxsets": "Box Set",
     "playlists": "Spellistor",
     "noDataTitle": "Inga favoriter än",
-    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst."
+    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst.",
+    "watchlist": "Bevakningslista",
+    "noWatchlistTitle": "Inga bevakade objekt än",
+    "noWatchlistData": "Lägg till objekt i din bevakningslista för att se dem visas här."
   },
   "custom_links": {
     "no_links": "Inga Länkar"

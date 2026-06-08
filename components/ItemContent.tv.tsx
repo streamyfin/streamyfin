@@ -39,6 +39,7 @@ import {
   TVRefreshButton,
   TVSeriesNavigation,
   TVTechnicalDetails,
+  TVWatchlistButton,
 } from "@/components/tv";
 import type { Track } from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -752,6 +753,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   </Text>
                 </TVButton>
                 <TVFavoriteButton item={item} />
+                {settings.useKefinTweaks && <TVWatchlistButton item={item} />}
                 <TVPlayedButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
               </View>
