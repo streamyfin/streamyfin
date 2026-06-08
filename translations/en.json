@@ -433,7 +433,7 @@
           "enable_movie_recommendations": "Movie recommendations",
           "enable_series_recommendations": "Series recommendations",
           "enable_promoted_watchlists": "Promoted watchlists",
-          "hide_watchlists_tab": "Hide Watchlists tab",
+          "hide_watchlists_tab": "Hide watchlists tab",
           "home_sections_hint": "Show personalized recommendations and promoted watchlists from Streamystats on the home page.",
           "recommended_movies": "Recommended movies",
           "recommended_series": "Recommended series",
@@ -445,8 +445,8 @@
           "refresh_from_server": "Refresh settings from server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable watchlist integration",
+          "watchlist_button": "Toggle watchlist integration"
         }
       },
       "storage": {
@@ -821,7 +821,7 @@
     "report_issue_button": "Report issue",
     "request_button": "Request",
     "are_you_sure_you_want_to_request_all_seasons": "Are you sure you want to request all seasons?",
-    "failed_to_login": "Failed to login",
+    "failed_to_login": "Failed to log in",
     "cast": "Cast",
     "details": "Details",
     "status": "Status",
@@ -886,7 +886,7 @@
       "albums": "Albums",
       "artists": "Artists",
       "playlists": "Playlists",
-      "tracks": "songs"
+      "tracks": "Songs"
     },
     "filters": {
       "all": "All"
