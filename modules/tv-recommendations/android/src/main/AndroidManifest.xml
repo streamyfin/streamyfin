@@ -1,5 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
   <application>
     <receiver android:name=".TvRecommendationsReceiver" android:exported="true">
       <intent-filter>
