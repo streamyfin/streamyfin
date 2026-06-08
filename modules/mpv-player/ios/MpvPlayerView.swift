@@ -61,6 +61,7 @@ class MpvPlayerView: ExpoView {
 	let onProgress = EventDispatcher()
 	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
+	let onPictureInPictureChange = EventDispatcher()
 
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
@@ -637,6 +638,9 @@ extension MpvPlayerView: PiPControllerDelegate {
 		print("PiP did start: \(didStartPictureInPicture)")
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		// Notify JS of the actual PiP active state. `didStartPictureInPicture`
+		// is `false` when AVKit reports a failure to start, so reflect that.
+		onPictureInPictureChange(["isActive": didStartPictureInPicture])
 	}
 	
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
@@ -655,6 +659,9 @@ extension MpvPlayerView: PiPControllerDelegate {
 		if _isZoomedToFill {
 			displayLayer.videoGravity = .resizeAspectFill
 		}
+		// Notify JS that PiP has fully stopped so the controls overlay can
+		// be re-mounted when the user returns to full screen.
+		onPictureInPictureChange(["isActive": false])
 	}
 	
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
