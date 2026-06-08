@@ -179,18 +179,15 @@ export default function SettingsTV() {
   // Handle clearing all cache in the entire app
   const handleClearCache = async () => {
     Alert.alert(
-      t("home.settings.storage.clear_all_cache_confirm", "Clear All Cache?"),
-      t(
-        "home.settings.storage.clear_all_cache_confirm_desc",
-        "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-      ),
+      t("home.settings.storage.clear_all_cache_confirm"),
+      t("home.settings.storage.clear_all_cache_confirm_desc"),
       [
         {
-          text: t("common.cancel", "Cancel"),
+          text: t("common.cancel"),
           style: "cancel",
         },
         {
-          text: t("common.ok", "OK"),
+          text: t("common.ok"),
           onPress: async () => {
             try {
               // 1. Clear React Query Cache (memory & MMKV)
@@ -243,11 +240,8 @@ export default function SettingsTV() {
             } catch (error) {
               console.error("Failed to clear cache:", error);
               Alert.alert(
-                t("home.settings.toasts.error_deleting_files", "Error"),
-                t(
-                  "home.settings.storage.clear_all_cache_error_desc",
-                  "An error occurred while clearing the cache.",
-                ),
+                t("home.settings.toasts.error_deleting_files"),
+                t("home.settings.storage.clear_all_cache_error_desc"),
               );
             }
           },
