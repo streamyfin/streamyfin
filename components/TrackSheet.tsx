@@ -63,7 +63,7 @@ export const TrackSheet: React.FC<Props> = ({
           <Text numberOfLines={1}>
             {selected === -1 && streamType === "Subtitle"
               ? t("common.none")
-              : selectedSteam?.DisplayTitle || t("common.select", "Select")}
+              : selectedSteam?.DisplayTitle || t("common.select")}
           </Text>
         </TouchableOpacity>
       </View>
