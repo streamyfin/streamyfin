@@ -1,0 +1,46 @@
+{
+  "localesDir": "translations",
+  "sourceLocale": "en",
+  "srcDirs": [
+    "app",
+    "components",
+    "hooks",
+    "providers",
+    "utils",
+    "modules",
+    "packages",
+    "constants"
+  ],
+  "srcExtensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
+  "excludeDirs": [
+    "node_modules",
+    "ios",
+    "android",
+    ".expo",
+    ".git",
+    "dist",
+    "build",
+    "translations"
+  ],
+  "_ignoreUnusedNote": "Keys for planned features that are intentionally kept in en.json but not yet wired in code. They are exempt from the unused-key check until implemented. Remove an entry once its feature ships and uses the key. Pending implementation: home.settings.other.show_large_home_carousel (#1702 media-bar), home.settings.logs.delete_all_logs (#1703 iOS logs fix), home.suggested_episodes (#1704).",
+  "ignoreUnused": [
+    "watchlists.add_to_watchlist",
+    "watchlists.remove_from_watchlist",
+    "watchlists.create_one_first",
+    "watchlists.no_compatible_watchlists",
+    "pin.confirm_pin",
+    "pin.pins_dont_match",
+    "player.search_subtitles",
+    "player.subtitle_search",
+    "player.subtitle_download_hint",
+    "player.subtitle_tracks",
+    "player.using_jellyfin_server",
+    "player.swipe_down_settings",
+    "player.stopPlayback",
+    "player.stopPlayingTitle",
+    "player.stopPlayingConfirm",
+    "home.settings.other.show_large_home_carousel",
+    "home.settings.logs.delete_all_logs",
+    "home.suggested_episodes"
+  ]
+}
