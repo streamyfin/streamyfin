@@ -184,6 +184,11 @@ const unused = sourceKeys.filter((k) => !isUsed(k)).sort();
 const missing = [...usedStatic]
   .filter((k) => KEY_SHAPE.test(k) && !sourceKeySet.has(k))
   .sort();
+// Known limitation: only keys seen in a static t("…") / i18nKey="…" / t(`…`) call are
+// validated for MISSING. A key stored as a bare string constant and resolved via t(variable)
+// counts as USED (via literalUsed → not flagged unused) but its existence in en.json is not
+// checked here — static analysis can't resolve which key a runtime variable holds. Streamyfin
+// keys are static literals in practice; revisit if dynamic key constants become common.
 
 // ---- optional fix: strip dead keys from the source locale (en.json) ----
 const removeKey = (obj, parts) => {

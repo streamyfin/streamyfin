@@ -22,7 +22,7 @@
     "build",
     "translations"
   ],
-  "_ignoreUnusedNote": "Keys for planned features that are intentionally kept in en.json but not yet wired in code. They are exempt from the unused-key check until implemented. Remove an entry once its feature ships and uses the key. Pending implementation: home.settings.other.show_large_home_carousel (#1702 media-bar), home.settings.logs.delete_all_logs (#1703 iOS logs fix), home.suggested_episodes (#1704).",
+  "_ignoreUnusedNote": "Keys for planned features intentionally kept in en.json but not yet wired in code — exempt from the unused-key check until implemented. Remove an entry once its feature ships and uses the key. Groups below: watchlists.* = watchlist actions not yet wired; pin.* = PIN confirm flow not yet wired; player.* = in-player subtitle search + swipe-down settings + stop-playback confirm, not yet wired; the last three are tracked by issues: home.settings.other.show_large_home_carousel (#1702 media-bar), home.settings.logs.delete_all_logs (#1703 iOS logs fix), home.suggested_episodes (#1704).",
   "ignoreUnused": [
     "watchlists.add_to_watchlist",
     "watchlists.remove_from_watchlist",
