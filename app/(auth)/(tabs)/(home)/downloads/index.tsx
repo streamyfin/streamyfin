@@ -137,12 +137,12 @@ export default function DownloadsPage() {
     deleteFileByType("Episode")
       .then(() =>
         toast.success(
-          t("home.downloads.toasts.deleted_all_tvseries_successfully"),
+          t("home.downloads.toasts.deleted_all_series_successfully"),
         ),
       )
       .catch((reason) => {
         writeToLog("ERROR", reason);
-        toast.error(t("home.downloads.toasts.failed_to_delete_all_tvseries"));
+        toast.error(t("home.downloads.toasts.failed_to_delete_all_series"));
       });
   const deleteOtherMedia = () =>
     Promise.all(
@@ -207,7 +207,7 @@ export default function DownloadsPage() {
             <View className='mb-4'>
               <View className='flex flex-row items-center justify-between mb-2 px-4'>
                 <Text className='text-lg font-bold'>
-                  {t("home.downloads.tvseries")}
+                  {t("home.downloads.series")}
                 </Text>
                 <View className='bg-purple-600 rounded-full h-6 w-6 flex items-center justify-center'>
                   <Text className='text-xs font-bold'>
@@ -288,7 +288,7 @@ export default function DownloadsPage() {
               {t("home.downloads.delete_all_movies_button")}
             </Button>
             <Button color='purple' onPress={deleteShows}>
-              {t("home.downloads.delete_all_tvseries_button")}
+              {t("home.downloads.delete_all_series_button")}
             </Button>
             {otherMedia.length > 0 && (
               <Button color='purple' onPress={deleteOtherMedia}>

@@ -626,44 +626,54 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             setUser(storedUser);
           }
 
-          const response = await getUserApi(apiInstance).getCurrentUser();
-          setUser(response.data);
+          // Dismiss splash screen with cached data immediately,
+          // fetch fresh user data in the background
+          setInitialLoaded(true);
 
-          // Migrate current session to secure storage if not already saved
-          if (storedUser?.Id && storedUser?.Name) {
-            const existingCredential = await getAccountCredential(
-              serverUrl,
-              storedUser.Id,
-            );
-            if (!existingCredential) {
-              await saveAccountCredential({
+          try {
+            const response = await getUserApi(apiInstance).getCurrentUser();
+            setUser(response.data);
+
+            // Migrate current session to secure storage if not already saved
+            if (storedUser?.Id && storedUser?.Name) {
+              const existingCredential = await getAccountCredential(
                 serverUrl,
-                serverName: "",
-                token,
-                userId: storedUser.Id,
-                username: storedUser.Name,
-                savedAt: Date.now(),
-                securityType: "none",
-                primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-              });
-            } else if (
-              response.data.PrimaryImageTag !==
-              existingCredential.primaryImageTag
-            ) {
-              // Update image tag if it has changed
-              addAccountToServer(serverUrl, existingCredential.serverName, {
-                userId: existingCredential.userId,
-                username: existingCredential.username,
-                securityType: existingCredential.securityType,
-                savedAt: existingCredential.savedAt,
-                primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-              });
+                storedUser.Id,
+              );
+              if (!existingCredential) {
+                await saveAccountCredential({
+                  serverUrl,
+                  serverName: "",
+                  token,
+                  userId: storedUser.Id,
+                  username: storedUser.Name,
+                  savedAt: Date.now(),
+                  securityType: "none",
+                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                });
+              } else if (
+                response.data.PrimaryImageTag !==
+                existingCredential.primaryImageTag
+              ) {
+                // Update image tag if it has changed
+                addAccountToServer(serverUrl, existingCredential.serverName, {
+                  userId: existingCredential.userId,
+                  username: existingCredential.username,
+                  securityType: existingCredential.securityType,
+                  savedAt: existingCredential.savedAt,
+                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                });
+              }
             }
+          } catch (e) {
+            // Background fetch failed — app already rendered with cached data
+            console.warn("Background user fetch failed, using cached data:", e);
           }
+        } else {
+          setInitialLoaded(true);
         }
       } catch (e) {
         console.error(e);
-      } finally {
         setInitialLoaded(true);
       }
     };

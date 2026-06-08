@@ -102,8 +102,8 @@ export default function TabLayout() {
               !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
-                : (_e) => ({ sfSymbol: "list.bullet.rectangle" }),
+                ? (_e) => require("@/assets/icons/list.star.png")
+                : (_e) => ({ sfSymbol: "list.star" }),
           }}
         />
         <NativeTabs.Screen
@@ -112,7 +112,7 @@ export default function TabLayout() {
             title: t("tabs.library"),
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/server.rack.png")
+                ? (_e) => require("@/assets/icons/rectangle.stack.fill.png")
                 : (_e) => ({ sfSymbol: "rectangle.stack.fill" }),
           }}
         />
@@ -123,8 +123,8 @@ export default function TabLayout() {
             tabBarItemHidden: !settings?.showCustomMenuLinks,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
-                : (_e) => ({ sfSymbol: "list.dash.fill" }),
+                ? (_e) => require("@/assets/icons/link.png")
+                : (_e) => ({ sfSymbol: "link" }),
           }}
         />
         <NativeTabs.Screen
@@ -134,7 +134,7 @@ export default function TabLayout() {
             tabBarItemHidden: !Platform.isTV,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/gear.png") //Should maybe use other libraries to have it uniform
+                ? (_e) => require("@/assets/icons/gearshape.fill.png")
                 : (_e) => ({ sfSymbol: "gearshape.fill" }),
           }}
         />
