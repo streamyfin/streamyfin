@@ -19,12 +19,14 @@ interface TVJellyseerrPosterProps {
   item: MovieResult | TvResult;
   onPress: () => void;
   isFirstItem?: boolean;
+  disabled?: boolean;
 }
 
 const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
   item,
   onPress,
   isFirstItem = false,
+  disabled = false,
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
@@ -50,7 +52,9 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
       onPress={onPress}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={isFirstItem}
+      hasTVPreferredFocus={isFirstItem && !disabled}
+      disabled={disabled}
+      focusable={!disabled}
     >
       <Animated.View
         style={[
@@ -144,11 +148,13 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
 interface TVJellyseerrPersonPosterProps {
   item: PersonResult;
   onPress: () => void;
+  disabled?: boolean;
 }
 
 const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
   item,
   onPress,
+  disabled = false,
 }) => {
   const typography = useScaledTVTypography();
   const sizes = useScaledTVSizes();
@@ -163,7 +169,13 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
   const avatarSize = Math.round(sizes.posters.poster * 0.67);
 
   return (
-    <Pressable onPress={onPress} onFocus={handleFocus} onBlur={handleBlur}>
+    <Pressable
+      onPress={onPress}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      disabled={disabled}
+      focusable={!disabled}
+    >
       <Animated.View
         style={[
           animatedStyle,
@@ -232,6 +244,7 @@ interface TVJellyseerrMovieSectionProps {
   title: string;
   items: MovieResult[];
   isFirstSection?: boolean;
+  disabled?: boolean;
   onItemPress: (item: MovieResult) => void;
 }
 
@@ -239,6 +252,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
   title,
   items,
   isFirstSection = false,
+  disabled = false,
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
@@ -274,6 +288,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
             item={item}
             onPress={() => onItemPress(item)}
             isFirstItem={isFirstSection && index === 0}
+            disabled={disabled}
           />
         )}
       />
@@ -285,6 +300,7 @@ interface TVJellyseerrTvSectionProps {
   title: string;
   items: TvResult[];
   isFirstSection?: boolean;
+  disabled?: boolean;
   onItemPress: (item: TvResult) => void;
 }
 
@@ -292,6 +308,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
   title,
   items,
   isFirstSection = false,
+  disabled = false,
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
@@ -327,6 +344,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
             item={item}
             onPress={() => onItemPress(item)}
             isFirstItem={isFirstSection && index === 0}
+            disabled={disabled}
           />
         )}
       />
@@ -338,6 +356,7 @@ interface TVJellyseerrPersonSectionProps {
   title: string;
   items: PersonResult[];
   isFirstSection?: boolean;
+  disabled?: boolean;
   onItemPress: (item: PersonResult) => void;
 }
 
@@ -345,6 +364,7 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
   title,
   items,
   isFirstSection: _isFirstSection = false,
+  disabled = false,
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
@@ -379,6 +399,7 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
           <TVJellyseerrPersonPoster
             item={item}
             onPress={() => onItemPress(item)}
+            disabled={disabled}
           />
         )}
       />
@@ -396,6 +417,7 @@ export interface TVJellyseerrSearchResultsProps {
   onMoviePress: (item: MovieResult) => void;
   onTvPress: (item: TvResult) => void;
   onPersonPress: (item: PersonResult) => void;
+  disabled?: boolean;
 }
 
 export const TVJellyseerrSearchResults: React.FC<
@@ -410,6 +432,7 @@ export const TVJellyseerrSearchResults: React.FC<
   onMoviePress,
   onTvPress,
   onPersonPress,
+  disabled = false,
 }) => {
   const { t } = useTranslation();
   const typography = useScaledTVTypography();
@@ -450,18 +473,21 @@ export const TVJellyseerrSearchResults: React.FC<
         title={t("search.request_movies")}
         items={movieResults}
         isFirstSection={false}
+        disabled={disabled}
         onItemPress={onMoviePress}
       />
       <TVJellyseerrTvSection
         title={t("search.request_series")}
         items={tvResults}
         isFirstSection={false}
+        disabled={disabled}
         onItemPress={onTvPress}
       />
       <TVJellyseerrPersonSection
         title={t("search.actors")}
         items={personResults}
         isFirstSection={false}
+        disabled={disabled}
         onItemPress={onPersonPress}
       />
     </View>

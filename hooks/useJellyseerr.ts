@@ -80,12 +80,6 @@ export async function validateJellyseerrSession(
   const user = storage.get<JellyseerrUser>(JELLYSEERR_USER);
   const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
 
-  console.log(
-    "Validating Jellyseerr session with server URL:",
-    serverUrl,
-    !user,
-    !cookies,
-  );
   if (!user || !cookies) {
     return { valid: false, reason: "no_session" };
   }

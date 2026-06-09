@@ -345,6 +345,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
             loading={jellyseerrLoading}
             noResults={jellyseerrNoResults}
             searchQuery={debouncedSearch}
+            disabled={isSearchFocused}
             onMoviePress={onJellyseerrMoviePress || (() => {})}
             onTvPress={onJellyseerrTvPress || (() => {})}
             onPersonPress={onJellyseerrPersonPress || (() => {})}

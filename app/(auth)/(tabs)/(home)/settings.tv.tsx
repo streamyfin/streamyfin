@@ -52,7 +52,7 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
@@ -69,7 +69,6 @@ export default function SettingsTV() {
     settings.jellyseerrServerUrl || "",
   );
   const [jellyseerrPassword, setJellyseerrPassword] = useState("");
-  const { pluginSettings } = useSettings();
 
   const isJellyseerrLocked =
     pluginSettings?.jellyseerrServerUrl?.locked === true;

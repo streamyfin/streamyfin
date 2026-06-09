@@ -125,8 +125,11 @@ export default function SearchPage() {
   const { jellyseerrApi } = useJellyseerr();
 
   // Alert when seerr server is configured but user hasn't connected (only when focused)
+  const jellyseerrAlertedRef = useRef(false);
   useEffect(() => {
     if (!isFocused || !settings?.jellyseerrServerUrl || jellyseerrApi) return;
+    if (jellyseerrAlertedRef.current) return;
+    jellyseerrAlertedRef.current = true;
     Alert.alert(
       t("jellyseerr.connect_to_jellyseerr", "Connect to Jellyseerr"),
       t(
@@ -134,7 +137,7 @@ export default function SearchPage() {
         "Jellyseerr is available. Connect in Settings to enable request features.",
       ),
     );
-  }, []);
+  }, [isFocused, settings?.jellyseerrServerUrl, jellyseerrApi, t]);
 
   // Validate jellyseerr session when switching to Discover
   useEffect(() => {
@@ -147,6 +150,7 @@ export default function SearchPage() {
     validateJellyseerrSession(settings.jellyseerrServerUrl).then((status) => {
       if (status.valid) return;
       Alert.alert(
+        t("jellyseerr.session_expired", "Session expired"),
         t(
           "jellyseerr.session_expired_connect_again",
           "Your Jellyseerr session has expired. Please reconnect in Settings.",
