@@ -587,8 +587,10 @@ internal object TvRecommendationsPublisher {
           Log.w(TAG, "logProviderState(): channelId=$channelId exists=false")
         }
       } ?: Log.w(TAG, "logProviderState(): channel query returned null for channelId=$channelId")
-    } catch (error: SecurityException) {
-      Log.w(TAG, "logProviderState(): lost provider permission for channelId=$channelId", error)
-    }
+} catch (error: SecurityException) {
+  Log.w(TAG, "logProviderState(): lost provider permission for channelId=$channelId", error)
+} catch (error: Exception) {
+  Log.w(TAG, "logProviderState(): failed to query channelId=$channelId", error)
+}
   }
 }
