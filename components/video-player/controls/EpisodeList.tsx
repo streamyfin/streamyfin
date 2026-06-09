@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -17,10 +16,10 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import {
   getDownloadedEpisodesForSeason,
   getDownloadedSeasonNumbers,
@@ -46,8 +45,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     scrollViewRef.current?.scrollToIndex(index, 100);
   };
   const isOffline = useOfflineMode();
-  const { settings } = useSettings();
-  const insets = useSafeAreaInsets();
+  const insets = useControlsSafeAreaInsets();
 
   // Set the initial season index
   useEffect(() => {
@@ -59,6 +57,11 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
+  // Read the live (cached) downloads DB inside the query rather than the
+  // provider's downloadedItems snapshot. The snapshot only refreshes on the
+  // provider refreshKey, so after updateDownloadedItem() invalidates
+  // ["episodes"]/["seasons"] (e.g. progress/played writes) the refetch would
+  // return stale data. getAllDownloadedItems() is cached, so this stays cheap.
   const { getDownloadedItems } = useDownload();
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
@@ -182,12 +185,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         backgroundColor: "black",
         height: "100%",
         width: "100%",
-        paddingTop:
-          (settings?.safeAreaInControlsEnabled ?? true) ? insets.top : 0,
-        paddingLeft:
-          (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
-        paddingRight:
-          (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
       }}
     >
       <View

@@ -8,10 +8,10 @@ import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { type SharedValue } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChapterList } from "@/components/chapters/ChapterList";
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useSettings } from "@/utils/atoms/settings";
 import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
@@ -75,9 +75,6 @@ interface BottomControlsProps {
     minutes: number;
     seconds: number;
   };
-
-  // Chapter props
-  chapterPositions?: number[];
 }
 
 export const BottomControls: FC<BottomControlsProps> = ({
@@ -111,11 +108,10 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
-  chapterPositions = [],
 }) => {
   const { settings } = useSettings();
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
+  const insets = useControlsSafeAreaInsets();
   const [chapterListVisible, setChapterListVisible] = useState(false);
 
   // Only expose chapter UI when there are at least two real markers.
@@ -146,13 +142,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
       style={[
         {
           position: "absolute",
-          right:
-            (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
-          left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
-          bottom:
-            (settings?.safeAreaInControlsEnabled ?? true)
-              ? Math.max(insets.bottom - 17, 0)
-              : 0,
+          right: insets.right,
+          left: insets.left,
+          bottom: Math.max(insets.bottom - 17, 0),
         },
       ]}
       className={"flex flex-col px-2"}
@@ -188,17 +180,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           ) : null}
         </View>
         <View className='flex flex-row items-center space-x-2 shrink-0'>
-          {hasChapters && (
-            <Pressable
-              onPress={() => setChapterListVisible(true)}
-              hitSlop={10}
-              className='justify-center mr-4'
-              accessibilityRole='button'
-              accessibilityLabel={t("chapters.open")}
-            >
-              <Ionicons name='bookmarks' size={24} color='white' />
-            </Pressable>
-          )}
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
@@ -230,6 +211,17 @@ export const BottomControls: FC<BottomControlsProps> = ({
                 onPress={handleNextEpisodeManual}
               />
             )}
+          {hasChapters && (
+            <Pressable
+              onPress={() => setChapterListVisible(true)}
+              hitSlop={10}
+              className='justify-center ml-4'
+              accessibilityRole='button'
+              accessibilityLabel={t("chapters.open")}
+            >
+              <Ionicons name='bookmarks' size={24} color='white' />
+            </Pressable>
+          )}
         </View>
       </View>
       <View

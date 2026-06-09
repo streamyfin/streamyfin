@@ -223,7 +223,7 @@ public class MpvPlayerModule: Module {
       }
 
       // Defines events that the view can send to JavaScript
-      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
     }
   }
 }

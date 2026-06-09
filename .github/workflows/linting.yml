@@ -97,6 +97,7 @@ jobs:
           - "check"
           - "format"
           - "typecheck"
+          - "i18n:check"
 
     steps:
       - name: "📥 Checkout PR code"
