@@ -44,22 +44,28 @@
       ]
     }
   },
-  "lockFileMaintenance": {
-    "vulnerabilityAlerts": {
-      "enabled": true,
-      "addLabels": ["security", "vulnerability"],
-      "assigneesFromCodeOwners": true,
-      "commitMessageSuffix": " [SECURITY]"
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security", "vulnerability"],
+    "assigneesFromCodeOwners": true,
+    "commitMessageSuffix": " [SECURITY]"
+  },
+  "packageRules": [
+    {
+      "description": "Group minor and patch GitHub Action updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "CI dependencies",
+      "groupSlug": "ci-deps",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "automerge": true
     },
-    "packageRules": [
-      {
-        "description": "Group minor and patch GitHub Action updates into a single PR",
-        "matchManagers": ["github-actions"],
-        "groupName": "CI dependencies",
-        "groupSlug": "ci-deps",
-        "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
-        "automerge": true
-      }
-    ]
-  }
+    {
+      "description": "androidx and other Google-hosted Maven packages resolve from Google's Maven repository (not Maven Central)",
+      "matchDatasources": ["maven"],
+      "registryUrls": [
+        "https://dl.google.com/dl/android/maven2/",
+        "https://repo.maven.apache.org/maven2/"
+      ]
+    }
+  ]
 }
