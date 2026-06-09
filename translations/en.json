@@ -259,7 +259,6 @@
         "subtitle_color": "Subtitle color",
         "none": "None",
         "language": "Language",
-        "loading": "Loading",
         "modes": {
           "Default": "Default",
           "Smart": "Smart",
