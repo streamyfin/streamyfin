@@ -68,7 +68,8 @@ export function getVersionInfo(): VersionInfo {
   if (isDev) {
     display = [version ?? "dev", branch, commit].filter(Boolean).join(" · ");
   } else if (isProduction) {
-    display = build ? `${version} (${build})` : (version ?? "N/A");
+    display =
+      version && build ? `${version} (${build})` : (version ?? build ?? "N/A");
   } else {
     display = [version, commit].filter(Boolean).join(" · ") || version || "N/A";
   }
