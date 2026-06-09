@@ -11,6 +11,12 @@ on:
   push:
     branches: [develop, master]
 
+# Exposed to `expo prebuild` (app.config.js → extra.build) so Settings can show the
+# branch + commit a CI build was made from. EAS cloud builds use EAS_BUILD_* instead.
+env:
+  EXPO_PUBLIC_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
+  EXPO_PUBLIC_GIT_COMMIT: ${{ github.sha }}
+
 jobs:
   build-android-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
