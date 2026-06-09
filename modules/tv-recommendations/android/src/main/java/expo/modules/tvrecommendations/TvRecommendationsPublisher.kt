@@ -16,12 +16,13 @@ import androidx.tvprovider.media.tv.PreviewProgram
 import androidx.tvprovider.media.tv.TvContractCompat
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.MessageDigest
 
 internal object TvRecommendationsPublisher {
   private const val TAG = "TvRecommendations"
   private const val PREFS_NAME = "StreamyfinTvRecommendations"
   private const val KEY_PAYLOAD = "payload"
-  private const val KEY_CHANNEL_ID = "channelId"
+  private const val KEY_CHANNEL_ID_PREFIX = "channelId_"
   private const val KEY_PROGRAM_IDS = "programIds"
   private const val DEFAULT_CHANNEL_NAME = "Continue and Next Up"
 
@@ -162,16 +163,24 @@ internal object TvRecommendationsPublisher {
     val prefs = preferences(context)
     val programIdsJson = prefs.getString(KEY_PROGRAM_IDS, null) ?: return
     try {
-      val programIds = JSONObject(programIdsJson)
-      val keys = programIds.keys()
-      while (keys.hasNext()) {
-        val key = keys.next()
-        if (programIds.optLong(key, -1L) == programId) {
-          programIds.remove(key)
-          break
+      val channelMap = JSONObject(programIdsJson)
+      val channelKeys = channelMap.keys()
+      while (channelKeys.hasNext()) {
+        val channelId = channelKeys.next()
+        val inner = channelMap.optJSONObject(channelId) ?: continue
+        val providerKeys = inner.keys()
+        while (providerKeys.hasNext()) {
+          val providerId = providerKeys.next()
+          if (inner.optLong(providerId, -1L) == programId) {
+            inner.remove(providerId)
+            if (inner.length() == 0) {
+              channelMap.remove(channelId)
+            }
+            break
+          }
         }
       }
-      prefs.edit().putString(KEY_PROGRAM_IDS, programIds.toString()).apply()
+      prefs.edit().putString(KEY_PROGRAM_IDS, channelMap.toString()).apply()
     } catch (e: Exception) {
       Log.w(TAG, "removeProgramFromPrefs(): failed to update prefs for programId=$programId", e)
     }
@@ -322,7 +331,8 @@ internal object TvRecommendationsPublisher {
 
   private fun getOrCreateChannel(context: Context, displayName: String): Long {
     val prefs = preferences(context)
-    val existingChannelId = prefs.getLong(KEY_CHANNEL_ID, -1L)
+    val channelKey = getChannelKey(displayName)
+    val existingChannelId = prefs.getLong(channelKey, -1L)
     val contentResolver = context.contentResolver
 
     if (existingChannelId > 0L) {
@@ -363,7 +373,7 @@ internal object TvRecommendationsPublisher {
 
       // Channel truly doesn't exist in provider — recreate
       Log.w(TAG, "getOrCreateChannel(): channelId=$existingChannelId not in provider, recreating")
-      prefs.edit().remove(KEY_CHANNEL_ID).apply()
+      prefs.edit().remove(channelKey).apply()
     }
 
     // Create a new channel
@@ -384,11 +394,16 @@ internal object TvRecommendationsPublisher {
     } ?: return -1L
 
     val channelId = ContentUris.parseId(channelUri)
+    prefs.edit().putLong(channelKey, channelId).apply()
     TvContractCompat.requestChannelBrowsable(context, channelId)
     storeChannelLogo(context, channelId)
     Log.d(TAG, "getOrCreateChannel(): created new channelId=$channelId displayName=\"$displayName\"")
 
     return channelId
+  }
+
+  private fun getChannelKey(displayName: String): String {
+    return KEY_CHANNEL_ID_PREFIX + displayName.hashCode()
   }
 
   private fun upsertPreviewProgram(
@@ -462,13 +477,18 @@ internal object TvRecommendationsPublisher {
   }
 
   /**
-   * Append a cache-busting parameter to ensure unique URIs when images change.
-   * Per Android docs: "Use unique Uris for all images... the old image will
-   * continue to appear if you don't change the Uri."
+   * Append a stable cache key derived from the image URL.
+   * The Jellyfin image URLs already include a `tag=` query param (etag)
+   * that changes whenever the image content changes, so a deterministic
+   * hash of the URL is sufficient — the param only changes when the URL
+   * (and therefore the image) actually changes, avoiding unnecessary
+   * re-downloads on every sync.
    */
   private fun appendCacheBuster(imageUrl: String): String {
+    val digest = MessageDigest.getInstance("MD5").digest(imageUrl.toByteArray())
+    val hash = digest.joinToString("") { "%02x".format(it) }.substring(0, 16)
     val separator = if (imageUrl.contains("?")) "&" else "?"
-    return "$imageUrl${separator}_t=${System.currentTimeMillis()}"
+    return "$imageUrl${separator}_v=$hash"
   }
 
   private fun buildIntentUri(context: Context, deepLink: String): Uri {
@@ -531,8 +551,8 @@ internal object TvRecommendationsPublisher {
     return bitmap
   }
 
-  fun getChannelId(context: Context): Long {
-    return preferences(context).getLong(KEY_CHANNEL_ID, -1L)
+  fun getChannelId(context: Context, displayName: String = DEFAULT_CHANNEL_NAME): Long {
+    return preferences(context).getLong(getChannelKey(displayName), -1L)
   }
 
   private fun preferences(context: Context): SharedPreferences {
