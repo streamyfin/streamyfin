@@ -431,10 +431,6 @@
           "4_hours": "4 hours",
           "24_hours": "24 hours"
         }
-      },
-      "dashboard": {
-        "title": "Dashboard",
-        "sessions_title": "Sessions"
       }
     },
     "sessions": {
