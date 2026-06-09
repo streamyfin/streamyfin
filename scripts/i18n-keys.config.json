@@ -1,0 +1,46 @@
+{
+  "localesDir": "translations",
+  "sourceLocale": "en",
+  "srcDirs": [
+    "app",
+    "components",
+    "hooks",
+    "providers",
+    "utils",
+    "modules",
+    "packages",
+    "constants"
+  ],
+  "srcExtensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
+  "excludeDirs": [
+    "node_modules",
+    "ios",
+    "android",
+    ".expo",
+    ".git",
+    "dist",
+    "build",
+    "translations"
+  ],
+  "_ignoreUnusedNote": "Keys present in en.json but referenced by no t() call — allow-listed so the unused-key cleanup keeps them. Two kinds: (1) ORPHANS of features that already exist but render hardcoded strings or use other keys — watchlists.* (add/remove, handled by WatchlistSheet via hooks), pin.* (confirm step of the existing PIN setup flow), player.* (in-player subtitle search, swipe-down hint, stop-playback confirm); these should be wired to the live UI or removed in a follow-up i18n pass, not assumed to be future work. (2) GENUINELY PLANNED, tracked by issues: home.settings.other.show_large_home_carousel (#1702 media-bar), home.settings.logs.delete_all_logs (#1703 iOS logs fix), home.suggested_episodes (#1704).",
+  "ignoreUnused": [
+    "watchlists.add_to_watchlist",
+    "watchlists.remove_from_watchlist",
+    "watchlists.create_one_first",
+    "watchlists.no_compatible_watchlists",
+    "pin.confirm_pin",
+    "pin.pins_dont_match",
+    "player.search_subtitles",
+    "player.subtitle_search",
+    "player.subtitle_download_hint",
+    "player.subtitle_tracks",
+    "player.using_jellyfin_server",
+    "player.swipe_down_settings",
+    "player.stopPlayback",
+    "player.stopPlayingTitle",
+    "player.stopPlayingConfirm",
+    "home.settings.other.show_large_home_carousel",
+    "home.settings.logs.delete_all_logs",
+    "home.suggested_episodes"
+  ]
+}
