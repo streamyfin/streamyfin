@@ -22,7 +22,9 @@
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
     "doctor": "expo-doctor",
-    "test": "bun run typecheck && bun run lint && bun run format && bun run doctor",
+    "i18n:check": "bun scripts/check-i18n-keys.mjs",
+    "i18n:fix-unused": "bun scripts/check-i18n-keys.mjs --fix-unused",
+    "test": "bun run typecheck && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "postinstall": "patch-package"
   },
   "dependencies": {
