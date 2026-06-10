@@ -20,10 +20,11 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
+import { QuickConnectCodeModal } from "@/components/login/QuickConnectCodeModal";
 import { PreviousServersList } from "@/components/PreviousServersList";
 import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
-import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 import type {
   AccountSecurityType,
   SavedServer,
@@ -37,11 +38,13 @@ export const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
+  const user = useAtomValue(userAtom);
   const {
     setServer,
     login,
     removeServer,
     initiateQuickConnect,
+    stopQuickConnectPolling,
     loginWithSavedCredential,
     loginWithPassword,
   } = useJellyfin();
@@ -63,6 +66,32 @@ export const Login: React.FC = () => {
     username: _username || "",
     password: _password || "",
   });
+
+  // Quick Connect code shown in the in-app sheet while polling for authorization
+  const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+
+  // Close the code sheet as soon as the session is authorized — the native
+  // Alert used before had no programmatic dismiss and stayed open after login.
+  useEffect(() => {
+    if (user) setQuickConnectCode(null);
+  }, [user]);
+
+  // Stop Quick Connect polling when leaving the login page (parity with TVLogin)
+  useEffect(() => {
+    return () => {
+      stopQuickConnectPolling();
+    };
+  }, [stopQuickConnectPolling]);
+
+  // Going back to server selection keeps this component mounted (same screen,
+  // different state), so the unmount cleanup above doesn't run. Without this a
+  // code authorized after leaving would silently log the user in later.
+  useEffect(() => {
+    if (!api?.basePath) {
+      stopQuickConnectPolling();
+      setQuickConnectCode(null);
+    }
+  }, [api?.basePath, stopQuickConnectPolling]);
 
   // Save account state
   const [saveAccount, setSaveAccount] = useState(false);
@@ -146,7 +175,7 @@ export const Login: React.FC = () => {
       } else {
         Alert.alert(
           t("login.connection_failed"),
-          t("login.an_unexpected_error_occured"),
+          t("login.an_unexpected_error_occurred"),
         );
       }
     } finally {
@@ -259,15 +288,7 @@ export const Login: React.FC = () => {
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert(
-          t("login.quick_connect"),
-          t("login.enter_code_to_login", { code: code }),
-          [
-            {
-              text: t("login.got_it"),
-            },
-          ],
-        );
+        setQuickConnectCode(code);
       }
     } catch (_error) {
       Alert.alert(
@@ -402,7 +423,7 @@ export const Login: React.FC = () => {
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>
               <Input
-                aria-label='Server URL'
+                aria-label={t("server.server_url")}
                 placeholder={t("server.server_url_placeholder")}
                 onChangeText={setServerURL}
                 value={serverURL}
@@ -452,6 +473,13 @@ export const Login: React.FC = () => {
         }}
         onSave={handleSaveAccountConfirm}
         username={pendingLogin?.username || credentials.username}
+      />
+
+      {/* Dismissing only hides the code — polling continues so the login still
+          completes if the code is authorized from another device afterwards. */}
+      <QuickConnectCodeModal
+        code={quickConnectCode}
+        onClose={() => setQuickConnectCode(null)}
       />
     </SafeAreaView>
   );
