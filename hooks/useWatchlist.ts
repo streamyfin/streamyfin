@@ -96,13 +96,15 @@ export const useWatchlist = (item: BaseItemDto) => {
       }
 
       // Watchlist == Jellyfin "Likes" rating:
-      // POST   /Users/{userId}/Items/{itemId}/Rating?likes=true  - add to watchlist
-      // DELETE /Users/{userId}/Items/{itemId}/Rating             - remove from watchlist
-      const path = `/Users/${currentUser.Id}/Items/${currentItem.Id}/Rating`;
+      // POST /UserItems/{itemId}/Rating?userId={userId}&likes=true   - add to watchlist
+      // POST /UserItems/{itemId}/Rating?userId={userId}&likes=false  - remove from watchlist
+      const path = `/UserItems/${currentItem.Id}/Rating`;
 
-      const response = nextIsWatchlisted
-        ? await currentApi.post(path, {}, { params: { likes: true } })
-        : await currentApi.delete(path, {});
+      const response = await currentApi.post(
+        path,
+        {},
+        { params: { userId: currentUser.Id, likes: nextIsWatchlisted } },
+      );
       return response.data;
     },
     onMutate: async (nextIsWatchlisted: boolean) => {
