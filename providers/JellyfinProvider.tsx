@@ -386,7 +386,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             default:
               throw new Error(
                 t(
-                  "login.an_unexpected_error_occured_did_you_enter_the_correct_url",
+                  "login.an_unexpected_error_occurred_did_you_enter_the_correct_url",
                 ),
               );
           }
@@ -509,7 +509,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
     },
     onError: (error) => {
-      console.error("Quick login failed:", error);
+      // Expected, handled case (e.g. revoked token → "Session Expired", or
+      // server unreachable): the UI surfaces the message, so warn, don't error.
+      console.warn("Quick login failed:", error);
     },
   });
 
@@ -620,54 +622,62 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             setUser(storedUser);
           }
 
-          // Dismiss splash screen with cached data immediately,
-          // fetch fresh user data in the background
-          setInitialLoaded(true);
+          // Validate the token and refresh user data in the background. Do NOT
+          // await this: the Jellyfin SDK axios instance has no timeout, so when
+          // offline this call hangs for the full OS TCP timeout (75-120s) and
+          // blocks splash dismissal. The cached storedUser (set above) is enough
+          // to render; on success we just refresh it.
+          getUserApi(apiInstance)
+            .getCurrentUser()
+            .then(async (response) => {
+              setUser(response.data);
 
-          try {
-            const response = await getUserApi(apiInstance).getCurrentUser();
-            setUser(response.data);
-
-            // Migrate current session to secure storage if not already saved
-            if (storedUser?.Id && storedUser?.Name) {
-              const existingCredential = await getAccountCredential(
-                serverUrl,
-                storedUser.Id,
-              );
-              if (!existingCredential) {
-                await saveAccountCredential({
+              // Migrate current session to secure storage if not already saved
+              if (storedUser?.Id && storedUser?.Name) {
+                const existingCredential = await getAccountCredential(
                   serverUrl,
-                  serverName: "",
-                  token,
-                  userId: storedUser.Id,
-                  username: storedUser.Name,
-                  savedAt: Date.now(),
-                  securityType: "none",
-                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                });
-              } else if (
-                response.data.PrimaryImageTag !==
-                existingCredential.primaryImageTag
-              ) {
-                // Update image tag if it has changed
-                addAccountToServer(serverUrl, existingCredential.serverName, {
-                  userId: existingCredential.userId,
-                  username: existingCredential.username,
-                  securityType: existingCredential.securityType,
-                  savedAt: existingCredential.savedAt,
-                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                });
+                  storedUser.Id,
+                );
+                if (!existingCredential) {
+                  await saveAccountCredential({
+                    serverUrl,
+                    serverName: "",
+                    token,
+                    userId: storedUser.Id,
+                    username: storedUser.Name,
+                    savedAt: Date.now(),
+                    securityType: "none",
+                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                  });
+                } else if (
+                  response.data.PrimaryImageTag !==
+                  existingCredential.primaryImageTag
+                ) {
+                  // Update image tag if it has changed
+                  addAccountToServer(serverUrl, existingCredential.serverName, {
+                    userId: existingCredential.userId,
+                    username: existingCredential.username,
+                    securityType: existingCredential.securityType,
+                    savedAt: existingCredential.savedAt,
+                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                  });
+                }
               }
-            }
-          } catch (e) {
-            // Background fetch failed — app already rendered with cached data
-            console.warn("Background user fetch failed, using cached data:", e);
-          }
-        } else {
-          setInitialLoaded(true);
+            })
+            .catch((e) => {
+              // Expected, handled case (offline, or a token the server rejects —
+              // the UI prompts re-login): warn, don't error. Log only
+              // status/message — never the raw error (axios errors carry the
+              // request config incl. the Authorization header / token).
+              console.warn(
+                "Background user validation failed:",
+                e?.response?.status ?? e?.message ?? "unknown error",
+              );
+            });
         }
       } catch (e) {
         console.error(e);
+      } finally {
         setInitialLoaded(true);
       }
     };
