@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -164,6 +165,46 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
   const queryClient = useQueryClient();
+
+  // --- Session-expiry handling ----------------------------------------------
+  // When the server revokes the token (e.g. the device/session is deleted), a
+  // 401 can surface from any authenticated request. Without central handling
+  // the dead token stays in storage, so every reload re-fires authed calls →
+  // 401 spam + uncaught rejections, and the app lingers in a half-authenticated
+  // state. A single response interceptor on the authenticated api clears the
+  // session on the first 401 so the app drops cleanly to the login screen.
+  const sessionExpiredRef = useRef(false);
+
+  const handleSessionExpired = useCallback(() => {
+    if (sessionExpiredRef.current) return; // run once per session
+    sessionExpiredRef.current = true;
+    storage.remove("token");
+    storage.remove("user");
+    setUser(null);
+    setApi(null);
+    queryClient.clear();
+    storage.remove("REACT_QUERY_OFFLINE_CACHE");
+    // Saved credentials are kept so the user can quick-login again.
+  }, [setUser, setApi, queryClient]);
+
+  useEffect(() => {
+    // Only guard an authenticated session. A pre-auth api (login screen) keeps
+    // its own handling — a wrong-password 401 is not a session expiry.
+    if (!api?.accessToken) return;
+    sessionExpiredRef.current = false; // re-arm for this fresh session
+    const interceptorId = api.axiosInstance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error?.response?.status === 401) {
+          handleSessionExpired();
+        }
+        return Promise.reject(error);
+      },
+    );
+    return () => {
+      api.axiosInstance.interceptors.response.eject(interceptorId);
+    };
+  }, [api, handleSessionExpired]);
 
   const headers = useMemo(() => {
     if (!deviceId) return {};
