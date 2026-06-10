@@ -502,8 +502,8 @@ export const PlayButton: React.FC<Props> = ({
   return (
     <TouchableOpacity
       disabled={!item}
-      accessibilityLabel='Play button'
-      accessibilityHint='Tap to play the media'
+      accessibilityLabel={t("accessibility.play_button")}
+      accessibilityHint={t("accessibility.play_hint")}
       onPress={onPress}
       className={"relative flex-1"}
     >

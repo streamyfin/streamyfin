@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { useTVEventHandler } from "@/hooks/useTVEventHandler";
+import i18n from "@/i18n";
 
 interface UseRemoteControlProps {
   showControls: boolean;
@@ -124,17 +125,23 @@ export function useRemoteControl({
 
       // Controls are hidden, so confirm before leaving playback.
       Alert.alert(
-        "Stop Playback",
+        i18n.t("player.stopPlayback"),
         videoTitleRef.current
-          ? `Stop playing "${videoTitleRef.current}"?`
-          : "Are you sure you want to stop playback?",
+          ? i18n.t("player.stopPlayingTitle", {
+              title: videoTitleRef.current,
+            })
+          : i18n.t("player.stopPlayingConfirm"),
         [
           {
-            text: "Cancel",
+            text: i18n.t("common.cancel"),
             style: "cancel",
             onPress: () => onCancelExitRef.current?.(),
           },
-          { text: "Stop", style: "destructive", onPress: onBackRef.current },
+          {
+            text: i18n.t("common.stop"),
+            style: "destructive",
+            onPress: onBackRef.current,
+          },
         ],
       );
       return true;

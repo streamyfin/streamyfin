@@ -6,6 +6,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
+import { t } from "i18next";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -230,7 +231,9 @@ export default function NowPlayingScreen() {
             paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
           }}
         >
-          <Text className='text-neutral-500'>No track playing</Text>
+          <Text className='text-neutral-500'>
+            {t("music.no_track_playing")}
+          </Text>
         </View>
       </BottomSheetModalProvider>
     );
@@ -267,7 +270,7 @@ export default function NowPlayingScreen() {
                     : "text-neutral-500"
                 }
               >
-                Now Playing
+                {t("music.now_playing")}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -831,13 +834,15 @@ const QueueView: React.FC<QueueViewProps> = ({
       ListHeaderComponent={
         <View className='px-4 py-2'>
           <Text className='text-neutral-400 text-xs uppercase tracking-wider'>
-            {history.length > 0 ? "Playing from queue" : "Up next"}
+            {history.length > 0
+              ? t("music.playing_from_queue")
+              : t("music.up_next")}
           </Text>
         </View>
       }
       ListEmptyComponent={
         <View className='flex-1 items-center justify-center py-20'>
-          <Text className='text-neutral-500'>Queue is empty</Text>
+          <Text className='text-neutral-500'>{t("music.queue_empty")}</Text>
         </View>
       }
     />

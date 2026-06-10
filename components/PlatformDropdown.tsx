@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { t } from "i18next";
 import React, { useEffect } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -380,7 +381,7 @@ const PlatformDropdownComponent = ({
 
   return (
     <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
-      {trigger || <Text className='text-white'>Open Menu</Text>}
+      {trigger || <Text className='text-white'>{t("common.open_menu")}</Text>}
     </TouchableOpacity>
   );
 };

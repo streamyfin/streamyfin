@@ -1,4 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
+import { t } from "i18next";
 import React from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
@@ -68,7 +69,7 @@ export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
             <Text
               style={[styles.liveBadgeText, { fontSize: typography.callout }]}
             >
-              LIVE
+              {t("player.live")}
             </Text>
           </View>
         )}

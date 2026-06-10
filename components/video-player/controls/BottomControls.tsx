@@ -183,7 +183,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
-            buttonText='Skip Intro'
+            buttonText={t("player.skip_intro")}
           />
           {/* Smart Skip Credits behavior:
               - Show "Skip Credits" if there's content after credits OR no next episode
@@ -193,7 +193,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               showSkipCreditButton && (hasContentAfterCredits || !nextItem)
             }
             onPress={skipCredit}
-            buttonText='Skip Credits'
+            buttonText={t("player.skip_credits")}
           />
           {settings.autoPlayNextEpisode !== false &&
             (settings.maxAutoPlayEpisodeCount.value === -1 ||

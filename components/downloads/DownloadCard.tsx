@@ -173,7 +173,9 @@ export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
 
             {isTranscoding && (
               <View className='bg-purple-600/20 px-2 py-0.5 rounded-md mt-1 self-start'>
-                <Text className='text-xs text-purple-400'>Transcoding</Text>
+                <Text className='text-xs text-purple-400'>
+                  {t("home.downloads.transcoding")}
+                </Text>
               </View>
             )}
 

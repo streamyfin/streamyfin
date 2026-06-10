@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
+import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import React, { useMemo, useRef, useState } from "react";
 import {
@@ -371,7 +372,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           fontWeight: "700",
         }}
       >
-        Now Playing
+        {t("music.now_playing")}
       </Text>
     </View>
   ) : null;

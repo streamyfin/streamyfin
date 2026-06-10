@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import {
   type OptionGroup,
@@ -54,6 +55,7 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
   onRatioChange,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const lightHapticFeedback = useHaptic("light");
 
   const handleRatioSelect = (ratio: AspectRatio) => {
@@ -66,7 +68,10 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
       {
         options: ASPECT_RATIO_OPTIONS.map((option) => ({
           type: "radio" as const,
-          label: option.label,
+          label:
+            option.id === "default"
+              ? t("player.aspect_ratio_original")
+              : option.label,
           value: option.id,
           selected: option.id === currentRatio,
           onPress: () => handleRatioSelect(option.id),
@@ -94,7 +99,7 @@ export const AspectRatioSelector: React.FC<AspectRatioSelectorProps> = ({
 
   return (
     <PlatformDropdown
-      title='Aspect Ratio'
+      title={t("player.aspect_ratio")}
       groups={optionGroups}
       trigger={trigger}
       bottomSheetConfig={{
