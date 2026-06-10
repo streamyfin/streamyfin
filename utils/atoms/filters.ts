@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { useMemo } from "react";
 import { storage } from "../mmkv";
 import { useSettings } from "./settings";
 
@@ -59,32 +60,36 @@ export const sortOptions: {
 
 export const useFilterOptions = () => {
   const { settings } = useSettings();
-  // We want to only show the watchlist option if someone has ticked that setting.
-  const filterOptions = settings?.useKefinTweaks
-    ? [
-        {
-          key: FilterByOption.IsFavoriteOrLiked,
-          value: "Is Favorite Or Liked",
-        },
-        { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
-        { key: FilterByOption.IsPlayed, value: "Is Played" },
-        { key: FilterByOption.IsFavorite, value: "Is Favorite" },
-        { key: FilterByOption.IsResumable, value: "Is Resumable" },
-        { key: FilterByOption.Likes, value: "Watchlist" },
-      ]
-    : [
-        {
-          key: FilterByOption.IsFavoriteOrLiked,
-          value: "Is Favorite Or Liked",
-        },
-        { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
-        { key: FilterByOption.IsPlayed, value: "Is Played" },
-        { key: FilterByOption.IsFavorite, value: "Is Favorite" },
-        { key: FilterByOption.IsResumable, value: "Is Resumable" },
-      ];
-  console.log("filterOptions");
-  console.log(filterOptions);
-  return filterOptions;
+  // Memoized so the array identity stays stable across renders. A fresh array
+  // each render cascades into ListHeaderComponent re-creation and, under heavy
+  // re-rendering (active downloads), trips React's max-update-depth guard.
+  // We only show the watchlist option if someone has ticked that setting.
+  return useMemo(
+    () =>
+      settings?.useKefinTweaks
+        ? [
+            {
+              key: FilterByOption.IsFavoriteOrLiked,
+              value: "Is Favorite Or Liked",
+            },
+            { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
+            { key: FilterByOption.IsPlayed, value: "Is Played" },
+            { key: FilterByOption.IsFavorite, value: "Is Favorite" },
+            { key: FilterByOption.IsResumable, value: "Is Resumable" },
+            { key: FilterByOption.Likes, value: "Watchlist" },
+          ]
+        : [
+            {
+              key: FilterByOption.IsFavoriteOrLiked,
+              value: "Is Favorite Or Liked",
+            },
+            { key: FilterByOption.IsUnplayed, value: "Is Unplayed" },
+            { key: FilterByOption.IsPlayed, value: "Is Played" },
+            { key: FilterByOption.IsFavorite, value: "Is Favorite" },
+            { key: FilterByOption.IsResumable, value: "Is Resumable" },
+          ],
+    [settings?.useKefinTweaks],
+  );
 };
 
 export const sortOrderOptions: {
