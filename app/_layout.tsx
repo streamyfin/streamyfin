@@ -11,6 +11,7 @@ import { Image } from "expo-image";
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
@@ -547,6 +548,7 @@ function Layout() {
                                   closeButton
                                 />
                                 {!Platform.isTV && <GlobalModal />}
+                                {!Platform.isTV && <PendingAccountSaveModal />}
                               </ThemeProvider>
                             </IntroSheetProvider>
                           </BottomSheetModalProvider>
