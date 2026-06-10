@@ -1,6 +1,7 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import { FilterSheet } from "./FilterSheet";
@@ -34,8 +35,9 @@ export const FilterButton = <T,>({
   ...props
 }: FilterButtonProps<T>) => {
   const [open, setOpen] = useState(false);
+  const sheetModalRef = useRef<BottomSheetModal | null>(null);
 
-  const { data: filters } = useQuery<T[]>({
+  const { data: filters, isLoading } = useQuery<T[]>({
     queryKey: ["filters", title, queryKey, id],
     queryFn,
     staleTime: 0,
@@ -44,9 +46,15 @@ export const FilterButton = <T,>({
 
   return (
     <>
+      {/* present() must be called here, inside the press handler: calling it
+          from an effect after a state update silently no-ops on the new
+          architecture and the sheet never appears. Opening immediately also
+          replaces the old data-loaded gate that left the button silently
+          dead while options were still loading (the sheet shows a loader). */}
       <TouchableOpacity
         onPress={() => {
-          filters?.length && setOpen(true);
+          setOpen(true);
+          sheetModalRef.current?.present();
         }}
       >
         <View
@@ -89,6 +97,8 @@ export const FilterButton = <T,>({
         title={title}
         open={open}
         setOpen={setOpen}
+        modalRef={sheetModalRef}
+        loading={isLoading}
         data={filters}
         values={values}
         set={set}

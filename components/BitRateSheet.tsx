@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
@@ -61,6 +62,7 @@ export const BitrateSheet: React.FC<Props> = ({
   const isTv = Platform.isTV;
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const sheetModalRef = useRef<BottomSheetModal | null>(null);
 
   const sorted = useMemo(() => {
     if (inverted)
@@ -92,7 +94,10 @@ export const BitrateSheet: React.FC<Props> = ({
         </Text>
         <TouchableOpacity
           className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
-          onPress={() => setOpen(true)}
+          onPress={() => {
+            setOpen(true);
+            sheetModalRef.current?.present();
+          }}
         >
           <Text numberOfLines={1}>
             {BITRATES.find((b) => b.value === selected?.value)?.key}
@@ -103,6 +108,7 @@ export const BitrateSheet: React.FC<Props> = ({
       <FilterSheet
         open={open}
         setOpen={setOpen}
+        modalRef={sheetModalRef}
         title={t("item_card.quality")}
         data={sorted}
         values={selected ? [selected] : []}

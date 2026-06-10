@@ -19,11 +19,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
+import { Loader } from "../Loader";
 
 interface Props<T> extends ViewProps {
   open: boolean;
   setOpen: (open: boolean) => void;
+  /**
+   * Modal ref the opener must use to present() the sheet from inside its
+   * press handler. On the new architecture with Reanimated 4, present()
+   * called from an effect after a state update silently no-ops — the sheet
+   * mounts nothing. Presenting straight from the gesture handler works.
+   */
+  modalRef: React.RefObject<BottomSheetModal | null>;
   data?: T[] | null;
+  /** True while the options are loading — shows a loader inside the sheet. */
+  loading?: boolean;
   values: T[];
   set: (value: T[]) => void;
   title: string;
@@ -66,16 +76,18 @@ const LIMIT = 100;
 export const FilterSheet = <T,>({
   values,
   data: _data,
+  loading = false,
   open,
   set,
   setOpen,
+  modalRef,
   title,
   searchFilter,
   renderItemLabel,
   disableSearch = false,
   multiple = false,
 }: Props<T>) => {
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const bottomSheetModalRef = modalRef;
   const snapPoints = useMemo(() => ["85%"], []);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -127,13 +139,20 @@ export const FilterSheet = <T,>({
     setData(newData);
   }, [offset, _data]);
 
+  // Opening is imperative (see the modalRef prop); this effect only closes.
+  // It also never calls dismiss() on a modal that was never presented.
+  const wasPresentedRef = useRef(false);
   useEffect(() => {
-    if (open) bottomSheetModalRef.current?.present();
-    else bottomSheetModalRef.current?.dismiss();
+    if (!open && wasPresentedRef.current) {
+      bottomSheetModalRef.current?.dismiss();
+    }
   }, [open]);
 
   const handleSheetChanges = useCallback((index: number) => {
-    if (index === -1) {
+    if (index >= 0) {
+      wasPresentedRef.current = true;
+    } else if (index === -1) {
+      wasPresentedRef.current = false;
       setOpen(false);
     }
   }, []);
@@ -182,9 +201,15 @@ export const FilterSheet = <T,>({
           }}
         >
           <Text className='font-bold text-2xl'>{title}</Text>
-          <Text className='mb-2 text-neutral-500'>
-            {t("search.x_items", { count: _data?.length })}
-          </Text>
+          {loading ? (
+            <View className='my-8 flex items-center justify-center'>
+              <Loader />
+            </View>
+          ) : (
+            <Text className='mb-2 text-neutral-500'>
+              {t("search.x_items", { count: _data?.length })}
+            </Text>
+          )}
           {showSearch && (
             <Input
               placeholder={t("search.search")}

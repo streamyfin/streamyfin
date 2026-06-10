@@ -1,5 +1,6 @@
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "./common/Text";
@@ -49,6 +50,7 @@ export const TrackSheet: React.FC<Props> = ({
     return streams;
   }, [streams, streamType, noneOption]);
   const [open, setOpen] = useState(false);
+  const sheetModalRef = useRef<BottomSheetModal | null>(null);
 
   if (isTv || (streams && streams.length === 0)) return null;
 
@@ -58,7 +60,10 @@ export const TrackSheet: React.FC<Props> = ({
         <Text className='opacity-50 mb-1 text-xs'>{title}</Text>
         <TouchableOpacity
           className='bg-neutral-900 h-10 rounded-xl border-neutral-800 border px-3 py-2 flex flex-row items-center justify-between'
-          onPress={() => setOpen(true)}
+          onPress={() => {
+            setOpen(true);
+            sheetModalRef.current?.present();
+          }}
         >
           <Text numberOfLines={1}>
             {selected === -1 && streamType === "Subtitle"
@@ -70,6 +75,7 @@ export const TrackSheet: React.FC<Props> = ({
       <FilterSheet
         open={open}
         setOpen={setOpen}
+        modalRef={sheetModalRef}
         title={title}
         data={addNoneToSubtitles || []}
         values={
