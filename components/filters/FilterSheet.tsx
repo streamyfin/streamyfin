@@ -7,7 +7,14 @@ import {
 } from "@gorhom/bottom-sheet";
 import { isEqual } from "lodash";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   StyleSheet,
@@ -96,19 +103,24 @@ export const FilterSheet = <T,>({
   const [offset, setOffset] = useState<number>(0);
 
   const [search, setSearch] = useState<string>("");
+  // Filtering and re-rendering the option list on every keystroke blocks the
+  // JS thread on large lists (2000+ tags); the controlled input then snaps the
+  // native text back to a stale value (lost/reappearing letters). Deferring the
+  // value keeps the keystroke render cheap and runs the list update after.
+  const deferredSearch = useDeferredValue(search);
 
   const [showSearch, setShowSearch] = useState<boolean>(false);
 
   const filteredData = useMemo(() => {
-    if (!search) return _data;
+    if (!deferredSearch) return _data;
     const results = [];
     for (let i = 0; i < (_data?.length || 0); i++) {
-      if (_data && searchFilter?.(_data[i], search)) {
+      if (_data && searchFilter?.(_data[i], deferredSearch)) {
         results.push(_data[i]);
       }
     }
     return results.slice(0, 100);
-  }, [search, _data, searchFilter]);
+  }, [deferredSearch, _data, searchFilter]);
 
   useEffect(() => {
     if (!data || data.length === 0 || disableSearch) return;
@@ -158,9 +170,9 @@ export const FilterSheet = <T,>({
   }, []);
 
   const renderData = useMemo(() => {
-    if (search.length > 0 && showSearch) return filteredData;
+    if (deferredSearch.length > 0 && showSearch) return filteredData;
     return data;
-  }, [search, filteredData, data]);
+  }, [deferredSearch, showSearch, filteredData, data]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -171,6 +183,50 @@ export const FilterSheet = <T,>({
       />
     ),
     [],
+  );
+
+  // Memoized so typing in the search input (urgent render with an unchanged
+  // deferred value) doesn't rebuild up to 100 row elements per keystroke.
+  const renderedRows = useMemo(
+    () =>
+      renderData?.map((item, index) => (
+        <View key={index}>
+          <TouchableOpacity
+            onPress={() => {
+              if (multiple) {
+                if (!values.includes(item)) set(values.concat(item));
+                else set(values.filter((v) => v !== item));
+
+                setTimeout(() => {
+                  setOpen(false);
+                }, 250);
+              } else {
+                if (!values.includes(item)) {
+                  set([item]);
+                  setTimeout(() => {
+                    setOpen(false);
+                  }, 250);
+                }
+              }
+            }}
+            className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
+          >
+            <Text className='flex shrink'>{renderItemLabel(item)}</Text>
+            {values.some((i) => isEqual(i, item)) ? (
+              <Ionicons name='radio-button-on' size={24} color='white' />
+            ) : (
+              <Ionicons name='radio-button-off' size={24} color='white' />
+            )}
+          </TouchableOpacity>
+          <View
+            style={{
+              height: StyleSheet.hairlineWidth,
+            }}
+            className='h-1 divide-neutral-700 '
+          />
+        </View>
+      )),
+    [renderData, values, multiple, set, setOpen, renderItemLabel],
   );
 
   return (
@@ -228,43 +284,7 @@ export const FilterSheet = <T,>({
             }}
             className='mb-4 flex flex-col rounded-xl overflow-hidden'
           >
-            {renderData?.map((item, index) => (
-              <View key={index}>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (multiple) {
-                      if (!values.includes(item)) set(values.concat(item));
-                      else set(values.filter((v) => v !== item));
-
-                      setTimeout(() => {
-                        setOpen(false);
-                      }, 250);
-                    } else {
-                      if (!values.includes(item)) {
-                        set([item]);
-                        setTimeout(() => {
-                          setOpen(false);
-                        }, 250);
-                      }
-                    }
-                  }}
-                  className=' bg-neutral-800 px-4 py-3 flex flex-row items-center justify-between'
-                >
-                  <Text className='flex shrink'>{renderItemLabel(item)}</Text>
-                  {values.some((i) => isEqual(i, item)) ? (
-                    <Ionicons name='radio-button-on' size={24} color='white' />
-                  ) : (
-                    <Ionicons name='radio-button-off' size={24} color='white' />
-                  )}
-                </TouchableOpacity>
-                <View
-                  style={{
-                    height: StyleSheet.hairlineWidth,
-                  }}
-                  className='h-1 divide-neutral-700 '
-                />
-              </View>
-            ))}
+            {renderedRows}
           </View>
           {data.length < (_data?.length || 0) && (
             <Button
