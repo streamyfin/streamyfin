@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Alert, Platform, View } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
@@ -29,14 +29,30 @@ export const StorageSettings = () => {
     },
   });
 
-  const onDeleteClicked = async () => {
-    try {
-      await deleteAllFiles();
-      successHapticFeedback();
-    } catch (_e) {
-      errorHapticFeedback();
-      toast.error(t("home.settings.toasts.error_deleting_files"));
-    }
+  const onDeleteClicked = () => {
+    Alert.alert(
+      t("home.settings.storage.delete_all_downloaded_files_confirm"),
+      t("home.settings.storage.delete_all_downloaded_files_confirm_desc"),
+      [
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+        },
+        {
+          text: t("common.ok"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAllFiles();
+              successHapticFeedback();
+            } catch (_e) {
+              errorHapticFeedback();
+              toast.error(t("home.settings.toasts.error_deleting_files"));
+            }
+          },
+        },
+      ],
+    );
   };
 
   const calculatePercentage = (value: number, total: number) => {
