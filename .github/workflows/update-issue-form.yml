@@ -8,9 +8,11 @@ on:
     - cron: "0 3 * * 1" # Weekly safety net (Mondays 03:00 UTC) in case a release event was missed
   workflow_dispatch:
 
+# Fixed group so a release event and the weekly cron can't race on the same
+# ci/update-issue-form branch — runs queue instead of force-pushing over each other.
 concurrency:
-  group: update-issue-form-${{ github.event.release.tag_name || github.run_id }}
-  cancel-in-progress: true
+  group: update-issue-form
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -25,6 +27,11 @@ jobs:
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # On `release` events GITHUB_SHA is the tagged commit — without this the
+          # script would regenerate the form from the tag's (stale) copy and the bot
+          # PR would revert any form edits made on develop since that release.
+          ref: develop
 
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -85,6 +92,11 @@ jobs:
         if: steps.cpr.outputs.pull-request-operation == 'created'
         env:
           GH_TOKEN: ${{ github.token }}
+        # Known limitation: PRs created with GITHUB_TOKEN don't trigger CI workflows
+        # (GitHub anti-recursion), so the required checks stay "Expected" until a
+        # maintainer kicks them (close/reopen the PR, or push an empty commit).
+        # Auto-merge is still worth enabling: once checks run and reviews land,
+        # the PR merges itself.
         run: |
           gh pr merge --squash --auto "${{ steps.cpr.outputs.pull-request-number }}" \
             || echo "::warning::Could not enable auto-merge — enable 'Allow auto-merge' in repo settings (and branch protection); merge the PR manually for now."

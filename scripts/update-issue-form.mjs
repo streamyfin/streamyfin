@@ -34,16 +34,23 @@ const DRY = process.argv.includes("--dry-run");
 // Matches "0.54.1" and prerelease/beta tags like "0.54.0-beta.1".
 const isVersion = (s) => /^\d+\.\d+/.test(s.trim());
 
-// 1. Fetch published releases (newest first), excluding drafts and prereleases —
-//    those aren't a full release users run, so they don't belong in the dropdown.
+// 1. Fetch the latest published releases (newest first) — drafts and prereleases
+//    aren't a full release users run, so they don't belong in the dropdown.
 const raw = execFileSync(
   "gh",
   [
-    "api",
-    `repos/${REPO}/releases`,
-    "--paginate",
+    "release",
+    "list",
+    "--repo",
+    REPO,
+    "--exclude-drafts",
+    "--exclude-pre-releases",
+    "--limit",
+    String(LIMIT),
+    "--json",
+    "tagName",
     "--jq",
-    ".[] | select(.draft == false and .prerelease == false) | .tag_name",
+    ".[].tagName",
   ],
   { encoding: "utf8" },
 );
@@ -55,7 +62,6 @@ for (const tag of raw.split("\n")) {
   if (!isVersion(ver) || seen.has(ver)) continue;
   seen.add(ver);
   versions.push(ver);
-  if (versions.length >= LIMIT) break;
 }
 
 if (!versions.length) {
