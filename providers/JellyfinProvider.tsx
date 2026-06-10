@@ -40,6 +40,7 @@ import {
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
+import { APP_VERSION } from "@/utils/version";
 
 interface Server {
   address: string;
@@ -53,7 +54,7 @@ const initialApi = (() => {
       const id = getOrSetDeviceId();
       const deviceName = getDeviceNameSync();
       const jellyfinInstance = new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: "0.54.1" },
+        clientInfo: { name: "Streamyfin", version: APP_VERSION },
         deviceInfo: {
           name: deviceName,
           id,
@@ -135,7 +136,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const id = getOrSetDeviceId();
       const deviceName = getDeviceNameSync();
       return new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: "0.54.1" },
+        clientInfo: { name: "Streamyfin", version: APP_VERSION },
         deviceInfo: {
           name: deviceName,
           id,
@@ -169,7 +170,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.54.1"`,
+      }, DeviceId="${deviceId}", Version="${APP_VERSION}"`,
     };
   }, [deviceId]);
 
