@@ -134,7 +134,7 @@
     "expo-doctor": "1.19.9",
     "husky": "9.1.7",
     "lint-staged": "17.0.5",
-    "react-test-renderer": "19.2.3",
+    "react-test-renderer": "19.2.7",
     "typescript": "5.9.3"
   },
   "expo": {
