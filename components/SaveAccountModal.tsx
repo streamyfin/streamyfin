@@ -69,17 +69,23 @@ export const SaveAccountModal: React.FC<SaveAccountModalProps> = ({
     [isAndroid],
   );
 
+  const isPresentedRef = useRef(false);
+
   useEffect(() => {
     if (visible) {
       bottomSheetModalRef.current?.present();
-    } else {
+    } else if (isPresentedRef.current) {
       bottomSheetModalRef.current?.dismiss();
+      isPresentedRef.current = false;
     }
   }, [visible]);
 
   const handleSheetChanges = useCallback(
     (index: number) => {
-      if (index === -1) {
+      if (index >= 0) {
+        isPresentedRef.current = true;
+      } else if (index === -1 && isPresentedRef.current) {
+        isPresentedRef.current = false;
         resetState();
         onClose();
       }
