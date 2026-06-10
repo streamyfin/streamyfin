@@ -593,11 +593,25 @@
     "videos": "Videos",
     "boxsets": "Box sets",
     "playlists": "Playlists",
+    "seeAllSeries": "Favorited Series",
+    "seeAllMovies": "Favorited Movies",
+    "seeAllEpisodes": "Favorited Episodes",
+    "seeAllVideos": "Favorited Videos",
+    "seeAllBoxsets": "Favorited Box sets",
+    "seeAllPlaylists": "Favorited Playlists",
     "noDataTitle": "No favorites yet",
     "noData": "Mark items as favorites to see them appear here for quick access.",
-    "watchlist": "Watchlist",
-    "noWatchlistTitle": "No watchlisted items yet",
-    "noWatchlistData": "Add items to your watchlist to see them appear here."
+    "watchlist": "Watchlist"
+  },
+  "kefintweaksWatchlist": {
+    "seeAllSeries": "Watchlisted Series",
+    "seeAllMovies": "Watchlisted Movies",
+    "seeAllEpisodes": "Watchlisted Episodes",
+    "seeAllVideos": "Watchlisted Videos",
+    "seeAllBoxsets": "Watchlisted Box sets",
+    "seeAllPlaylists": "Watchlisted Playlists",
+    "noDataTitle": "No watchlisted items yet",
+    "noData": "Add items to your watchlist to see them appear here."
   },
   "custom_links": {
     "no_links": "No links"

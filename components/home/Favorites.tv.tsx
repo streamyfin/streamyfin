@@ -6,7 +6,7 @@ import type {
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -50,20 +50,14 @@ export const Favorites = () => {
     watchlistEnabled && viewType === "Watchlist" ? "Likes" : "IsFavorite";
   const queryKeyBase =
     watchlistEnabled && viewType === "Watchlist" ? "watchlist" : "favorites";
-  const emptyTitleKey = useMemo(
-    () =>
-      watchlistEnabled && viewType === "Watchlist"
-        ? "favorites.noWatchlistTitle"
-        : "favorites.noDataTitle",
-    [watchlistEnabled, viewType],
-  );
-  const emptyTextKey = useMemo(
-    () =>
-      watchlistEnabled && viewType === "Watchlist"
-        ? "favorites.noWatchlistData"
-        : "favorites.noData",
-    [watchlistEnabled, viewType],
-  );
+  // Translation namespace for the empty state, swapped for the KefinTweaks
+  // watchlist (Likes-backed) view. Section titles stay generic ("Series").
+  const emptyNamespace =
+    watchlistEnabled && viewType === "Watchlist"
+      ? "kefintweaksWatchlist"
+      : "favorites";
+  const emptyTitleKey = `${emptyNamespace}.noDataTitle`;
+  const emptyTextKey = `${emptyNamespace}.noData`;
 
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: false,

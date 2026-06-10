@@ -11,7 +11,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useCallback, useMemo } from "react";
-import { useWindowDimensions, View } from "react-native";
+import { Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TouchableItemRouter } from "@/components/common/TouchableItemRouter";
@@ -160,7 +160,7 @@ export default function FavoritesSeeAllScreen() {
         options={{
           headerTitle: headerTitle,
           headerBlurEffect: "none",
-          headerTransparent: true,
+          headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
         }}
       />

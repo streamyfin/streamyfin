@@ -59,8 +59,9 @@ export default function FavoritesPage() {
           <Favorites
             filter='Likes'
             queryKeyBase='watchlist'
-            emptyTitleKey='favorites.noWatchlistTitle'
-            emptyTextKey='favorites.noWatchlistData'
+            seeAllNamespace='kefintweaksWatchlist'
+            emptyTitleKey='kefintweaksWatchlist.noDataTitle'
+            emptyTextKey='kefintweaksWatchlist.noData'
           />
         ) : (
           <Favorites />

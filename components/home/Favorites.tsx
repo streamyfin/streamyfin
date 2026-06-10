@@ -32,6 +32,8 @@ interface FavoritesProps {
   queryKeyBase?: string;
   emptyTitleKey?: string;
   emptyTextKey?: string;
+  /** Namespace for the see-all page headers ("favorites" or "kefintweaksWatchlist"). */
+  seeAllNamespace?: string;
 }
 
 export const Favorites = ({
@@ -39,6 +41,7 @@ export const Favorites = ({
   queryKeyBase = "favorites",
   emptyTitleKey = "favorites.noDataTitle",
   emptyTextKey = "favorites.noData",
+  seeAllNamespace = "favorites",
 }: FavoritesProps = {}) => {
   const router = useRouter();
   const [api] = useAtom(apiAtom);
@@ -143,44 +146,68 @@ export const Favorites = ({
   const handleSeeAllSeries = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Series", title: t("favorites.series"), filter },
+      params: {
+        type: "Series",
+        title: t(`${seeAllNamespace}.seeAllSeries`),
+        filter,
+      },
     } as any);
-  }, [router, filter]);
+  }, [router, filter, seeAllNamespace]);
 
   const handleSeeAllMovies = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Movie", title: t("favorites.movies"), filter },
+      params: {
+        type: "Movie",
+        title: t(`${seeAllNamespace}.seeAllMovies`),
+        filter,
+      },
     } as any);
-  }, [router, filter]);
+  }, [router, filter, seeAllNamespace]);
 
   const handleSeeAllEpisodes = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Episode", title: t("favorites.episodes"), filter },
+      params: {
+        type: "Episode",
+        title: t(`${seeAllNamespace}.seeAllEpisodes`),
+        filter,
+      },
     } as any);
-  }, [router, filter]);
+  }, [router, filter, seeAllNamespace]);
 
   const handleSeeAllVideos = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Video", title: t("favorites.videos"), filter },
+      params: {
+        type: "Video",
+        title: t(`${seeAllNamespace}.seeAllVideos`),
+        filter,
+      },
     } as any);
-  }, [router, filter]);
+  }, [router, filter, seeAllNamespace]);
 
   const handleSeeAllBoxsets = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "BoxSet", title: t("favorites.boxsets"), filter },
+      params: {
+        type: "BoxSet",
+        title: t(`${seeAllNamespace}.seeAllBoxsets`),
+        filter,
+      },
     } as any);
-  }, [router, filter]);
+  }, [router, filter, seeAllNamespace]);
 
   const handleSeeAllPlaylists = useCallback(() => {
     router.push({
       pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: { type: "Playlist", title: t("favorites.playlists"), filter },
+      params: {
+        type: "Playlist",
+        title: t(`${seeAllNamespace}.seeAllPlaylists`),
+        filter,
+      },
     } as any);
-  }, [router, filter]);
+  }, [router, filter, seeAllNamespace]);
 
   return (
     <View className='flex flex-co gap-y-4'>
