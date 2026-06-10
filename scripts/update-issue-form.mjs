@@ -52,7 +52,9 @@ const raw = execFileSync(
     "--jq",
     ".[].tagName",
   ],
-  { encoding: "utf8" },
+  // Bounded timeout so a stuck gh process fails the job fast instead of
+  // holding the workflow open until the job-level timeout.
+  { encoding: "utf8", timeout: 30_000 },
 );
 const seen = new Set();
 const versions = [];
