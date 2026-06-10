@@ -280,7 +280,7 @@ export const TVPasswordEntryModal: React.FC<TVPasswordEntryModalProps> = ({
               <View style={styles.buttonContainer}>
                 <TVSubmitButton
                   onPress={handleSubmit}
-                  label={t("login.login")}
+                  label={t("login.login_button")}
                   loading={isLoading}
                   disabled={!password}
                 />

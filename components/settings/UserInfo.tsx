@@ -1,8 +1,8 @@
-import * as Application from "expo-application";
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
 import { View, type ViewProps } from "react-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getVersionInfo } from "@/utils/version";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -13,10 +13,9 @@ export const UserInfo: React.FC<Props> = ({ ...props }) => {
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
 
-  const version =
-    Application?.nativeApplicationVersion ||
-    Application?.nativeBuildVersion ||
-    "N/A";
+  // Graduated build identifier — see utils/version.ts:
+  // dev → "0.54.1 · branch · commit", develop/CI → "0.54.1 · commit", production → "0.54.1 (42)".
+  const { display: version } = getVersionInfo();
 
   return (
     <View {...props}>
