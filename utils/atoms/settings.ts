@@ -510,7 +510,17 @@ export const useSettings = () => {
     if (!_settings) {
       return;
     }
-    const hasChanges = Object.entries(update).some(
+    // Admin-locked settings are enforced at write time too: a control that
+    // isn't disabled in the UI must not persist a value the admin pinned.
+    // The read memo already overrides locked keys, but without this guard the
+    // write would silently land in user storage and resurface once unlocked.
+    const sanitizedUpdate = Object.fromEntries(
+      Object.entries(update).filter(
+        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
+      ),
+    ) as Partial<Settings>;
+
+    const hasChanges = Object.entries(sanitizedUpdate).some(
       ([key, value]) => _settings[key as keyof Settings] !== value,
     );
 
@@ -519,7 +529,7 @@ export const useSettings = () => {
       const newSettings = {
         ...defaultValues,
         ..._settings,
-        ...update,
+        ...sanitizedUpdate,
       } as Settings;
       setSettings(newSettings);
       saveSettings(newSettings);
