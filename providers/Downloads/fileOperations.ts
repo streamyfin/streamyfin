@@ -96,5 +96,21 @@ export function getDownloadedItemSize(id: string): number {
  */
 export function calculateTotalDownloadedSize(): number {
   const items = getAllDownloadedItems();
-  return items.reduce((sum, item) => sum + (item.videoFileSize || 0), 0);
+  return items.reduce((sum, item) => {
+    // Read the live file size on disk so the total reflects actual usage and
+    // self-heals items whose stored videoFileSize is 0 (old schema, or
+    // `fileInfo.size` was undefined at download time). Fall back to the stored
+    // value if the file can't be stat'd.
+    if (item.videoFilePath) {
+      try {
+        const file = new File(filePathToUri(item.videoFilePath));
+        if (file.exists) {
+          return sum + (file.size ?? item.videoFileSize ?? 0);
+        }
+      } catch (error) {
+        console.warn("Failed to stat downloaded file for size:", error);
+      }
+    }
+    return sum + (item.videoFileSize ?? 0);
+  }, 0);
 }
