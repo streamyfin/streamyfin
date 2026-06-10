@@ -1145,10 +1145,30 @@ export default function DirectPlayerPage() {
         .padStart(2, "0")
         .toUpperCase();
 
+      let font = settings.subtitleFont;
+      if (
+        Platform.OS === "ios" &&
+        (font === "System" || font === "sans-serif")
+      ) {
+        const mediaSource = stream?.mediaSource;
+        const allSubs =
+          mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
+        const targetSub = allSubs.find((s) => s.Index === currentSubtitleIndex);
+        const lang = targetSub?.Language?.toLowerCase();
+
+        if (lang === "chi" || lang === "zho" || lang?.startsWith("zh")) {
+          font = "PingFang SC";
+        } else if (lang === "jpn" || lang?.startsWith("ja")) {
+          font = "Hiragino Sans";
+        } else if (lang === "kor" || lang?.startsWith("ko")) {
+          font = "Apple SD Gothic Neo";
+        }
+      }
+
       await videoRef.current?.setSubtitleStyle?.({
         fontSize: settings.subtitleSize ?? settings.mpvSubtitleFontSize,
         color: settings.subtitleColor,
-        font: settings.subtitleFont,
+        font,
         background: settings.subtitleBackground ? `#${alpha}000000` : "",
         backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
       });
@@ -1161,7 +1181,7 @@ export default function DirectPlayerPage() {
     };
 
     applySubtitleSettings();
-  }, [isVideoLoaded, settings]);
+  }, [isVideoLoaded, settings, currentSubtitleIndex, stream]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
