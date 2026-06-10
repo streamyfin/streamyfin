@@ -92,6 +92,12 @@ export const apiAtom = atom<Api | null>(initialApi);
 export const userAtom = atom<UserDto | null>(initialUser);
 export const wsAtom = atom<WebSocket | null>(null);
 export const cacheVersionAtom = atom<number>(0);
+// Set by a login flow that wants the account saved: the protection picker
+// shows AFTER the session is authorized (the login screen unmounts on
+// success, so the modal lives at the root — see PendingAccountSaveModal).
+export const pendingAccountSaveAtom = atom<{ serverName?: string } | null>(
+  null,
+);
 
 interface LoginOptions {
   saveAccount?: boolean;
@@ -109,6 +115,11 @@ interface JellyfinContextValue {
     serverName?: string,
     options?: LoginOptions,
   ) => Promise<void>;
+  saveCurrentAccount: (options?: {
+    securityType?: AccountSecurityType;
+    pinCode?: string;
+    serverName?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
   stopQuickConnectPolling: () => void;
@@ -347,6 +358,37 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Failed to remove server:", error);
     },
   });
+
+  // Persist the CURRENT session to secure storage — used by the post-login
+  // save-account modal (the protection picker shows AFTER a successful
+  // login, for both the password and Quick Connect flows).
+  const saveCurrentAccount = useCallback(
+    async (options?: {
+      securityType?: AccountSecurityType;
+      pinCode?: string;
+      serverName?: string;
+    }) => {
+      const token = storage.getString("token");
+      if (!api?.basePath || !user?.Id || !user.Name || !token) return;
+      const securityType = options?.securityType || "none";
+      let pinHash: string | undefined;
+      if (securityType === "pin" && options?.pinCode) {
+        pinHash = await hashPIN(options.pinCode);
+      }
+      await saveAccountCredential({
+        serverUrl: api.basePath,
+        serverName: options?.serverName || "",
+        token,
+        userId: user.Id,
+        username: user.Name,
+        savedAt: Date.now(),
+        securityType,
+        pinHash,
+        primaryImageTag: user.PrimaryImageTag ?? undefined,
+      });
+    },
+    [api?.basePath, user],
+  );
 
   const loginMutation = useMutation({
     mutationFn: async ({
@@ -732,6 +774,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     removeServer: () => removeServerMutation.mutateAsync(),
     login: (username, password, serverName, options) =>
       loginMutation.mutateAsync({ username, password, serverName, options }),
+    saveCurrentAccount,
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
     stopQuickConnectPolling,
