@@ -84,7 +84,8 @@ configureReanimatedLogger({
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
     }),
@@ -333,9 +334,12 @@ function Layout() {
       notificationListener.current =
         Notifications?.addNotificationReceivedListener(
           (notification: Notification) => {
+            // Log only the title — serializing the whole notification touches
+            // the deprecated dataString getter (deprecation warning) and dumps
+            // noisy payloads into the console.
             console.log(
-              "Notification received while app running",
-              notification,
+              "Notification received while app running:",
+              notification.request.content.title,
             );
           },
         );
