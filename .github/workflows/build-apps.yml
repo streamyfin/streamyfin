@@ -33,7 +33,7 @@ jobs:
           swap-storage: false
 
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -116,7 +116,7 @@ jobs:
           swap-storage: false
 
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -187,7 +187,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -219,10 +219,10 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.4"
+          xcode-version: "26.5"
 
       - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@b184ff86a3c926240f1b6db41764c83a01c02eef # main
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -252,7 +252,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -284,7 +284,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.4"
+          xcode-version: "26.5"
 
       - name: 🚀 Build iOS app
         env:
@@ -312,7 +312,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -344,10 +344,10 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.4"
+          xcode-version: "26.5"
 
       - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@b184ff86a3c926240f1b6db41764c83a01c02eef # main
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -380,7 +380,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -412,7 +412,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.4"
+          xcode-version: "26.5"
 
       - name: 🚀 Build iOS app
         env:
