@@ -1,13 +1,19 @@
+// Imported from expo-router's bundled copy, NOT "@react-navigation/*": as of
+// SDK 56 expo-router's Metro check rejects direct @react-navigation imports.
 import { useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { NavigationContext } from "expo-router/react-navigation";
+import { useCallback, useContext, useMemo } from "react";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 /**
  * Drop-in replacement for expo-router's useRouter that automatically
- * preserves offline state across navigation.
+ * preserves offline state across navigation and guards against duplicate
+ * screens from rapid taps.
  *
  * - For object-form navigation, automatically adds offline=true when in offline context
  * - For string URLs, passes through unchanged (caller handles offline param)
+ * - push() is a no-op while the source screen is not focused, so taps fired
+ *   before the pushed screen has rendered (slow devices) can't stack duplicates
  *
  * @example
  * import useRouter from "@/hooks/useAppRouter";
@@ -19,8 +25,17 @@ export function useAppRouter() {
   const router = useRouter();
   const isOffline = useOfflineMode();
 
+  // Optional: undefined when used outside a navigator (root layout, providers).
+  // When present it reflects the focus state of the screen this hook lives in.
+  const navigation = useContext(NavigationContext);
+
   const push = useCallback(
     (href: Parameters<typeof router.push>[0]) => {
+      // Duplicate-screen guard: a push blurs the source screen synchronously in
+      // the navigation state (only the native render is slow). A second tap then
+      // sees an unfocused screen and is dropped. Resets automatically on return.
+      // No navigation context => nothing to guard (deep-link pushes from root).
+      if (navigation?.isFocused?.() === false) return;
       if (typeof href === "string") {
         router.push(href as any);
       } else {
@@ -36,7 +51,7 @@ export function useAppRouter() {
         } as any);
       }
     },
-    [router, isOffline],
+    [router, isOffline, navigation],
   );
 
   const replace = useCallback(
