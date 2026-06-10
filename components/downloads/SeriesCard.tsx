@@ -16,9 +16,12 @@ export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
   const { showActionSheetWithOptions } = useActionSheet();
   const router = useRouter();
 
+  // Keyed on SeriesId so recycled FlashList cells re-read the correct poster
+  // instead of freezing the first-rendered series' image (empty deps bug).
   const base64Image = useMemo(() => {
-    return storage.getString(items[0].SeriesId!);
-  }, []);
+    const seriesId = items[0]?.SeriesId;
+    return seriesId ? storage.getString(seriesId) : undefined;
+  }, [items[0]?.SeriesId]);
 
   const deleteSeries = useCallback(
     async () =>
