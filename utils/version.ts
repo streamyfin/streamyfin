@@ -10,6 +10,7 @@ export interface BuildMeta {
   commit?: string | null;
   branch?: string | null;
   profile?: string | null;
+  runNumber?: string | null;
   builtAt?: string | null;
 }
 
@@ -22,8 +23,10 @@ export interface VersionInfo {
   commit: string | null;
   /** Git branch the build was made from, e.g. "develop". */
   branch: string | null;
-  /** EAS build profile, e.g. "production", "preview", or null for local. */
+  /** EAS build profile, e.g. "production", "ci", "preview", or null for local. */
   profile: string | null;
+  /** GitHub Actions run number the build came from, e.g. "2098". Null outside CI. */
+  runNumber: string | null;
   isDev: boolean;
   isProduction: boolean;
   /** Graduated label for the Settings "App version" row (see tiering below). */
@@ -34,13 +37,13 @@ export interface VersionInfo {
  * Resolve a graduated version string for Settings.
  *
  * Tiering (most → least detailed):
- *  - dev / local build   → `version · branch · commit`   (full context for debugging)
- *  - develop / CI / preview → `version · commit`          (pin the exact source)
- *  - production (store / TestFlight) → `version (build)`   (store-correlatable; the
- *      build number lets TestFlight reports pin a build whose version isn't a
- *      published release. Note: TestFlight and the public App Store ship the same
- *      binary — telling them apart needs a runtime iOS receipt check, intentionally
- *      not done here.)
+ *  - dev / local build   → `version · branch · commit`     (full context for debugging)
+ *  - develop / CI / preview → `version · commit · #run`     (pin the exact source; the
+ *      Actions run number maps the build to its run — artifacts + logs — without
+ *      Expo access)
+ *  - production (store / TestFlight) → `version`             (build number intentionally
+ *      not shown: TestFlight already displays it to testers, and the commit pins the
+ *      binary better)
  */
 export function getVersionInfo(): VersionInfo {
   // Read native/config values defensively — a version string must never crash Settings
@@ -60,6 +63,7 @@ export function getVersionInfo(): VersionInfo {
   const commit = meta.commit ?? null;
   const branch = meta.branch ?? null;
   const profile = meta.profile ?? null;
+  const runNumber = meta.runNumber ?? null;
   const isDev = __DEV__ === true;
   const isProduction =
     typeof profile === "string" && profile.startsWith("production");
@@ -68,10 +72,12 @@ export function getVersionInfo(): VersionInfo {
   if (isDev) {
     display = [version ?? "dev", branch, commit].filter(Boolean).join(" · ");
   } else if (isProduction) {
-    display =
-      version && build ? `${version} (${build})` : (version ?? build ?? "N/A");
+    display = version ?? build ?? "N/A";
   } else {
-    display = [version, commit].filter(Boolean).join(" · ") || version || "N/A";
+    display =
+      [version, commit, runNumber && `#${runNumber}`]
+        .filter(Boolean)
+        .join(" · ") || "N/A";
   }
 
   return {
@@ -80,6 +86,7 @@ export function getVersionInfo(): VersionInfo {
     commit,
     branch,
     profile,
+    runNumber,
     isDev,
     isProduction,
     display,
