@@ -97,6 +97,14 @@
         "credentialsSource": "local",
         "config": "ios-production.yml"
       }
+    },
+    "ci": {
+      "extends": "production",
+      "autoIncrement": false
+    },
+    "ci_tv": {
+      "extends": "production_tv",
+      "autoIncrement": false
     }
   },
   "submit": {
