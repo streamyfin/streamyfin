@@ -128,6 +128,7 @@
     "@react-native-tvos/config-tv": "0.1.6",
     "@types/jest": "29.5.14",
     "@types/lodash": "4.17.24",
+    "@types/node": "^18.19.130",
     "@types/react": "~19.2.10",
     "@types/react-test-renderer": "19.1.0",
     "cross-env": "10.1.0",
@@ -135,7 +136,7 @@
     "husky": "9.1.7",
     "lint-staged": "17.0.5",
     "react-test-renderer": "19.2.3",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   },
   "expo": {
     "doctor": {
