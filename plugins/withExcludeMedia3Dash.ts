@@ -1,6 +1,6 @@
-const { withAppBuildGradle } = require("expo/config-plugins");
+import { type ConfigPlugin, withAppBuildGradle } from "expo/config-plugins";
 
-module.exports = function withExcludeMedia3Dash(config) {
+const withExcludeMedia3Dash: ConfigPlugin = (config) => {
   return withAppBuildGradle(config, (config) => {
     const contents = config.modResults.contents;
 
@@ -32,3 +32,5 @@ configurations.all {
     return config;
   });
 };
+
+export default withExcludeMedia3Dash;

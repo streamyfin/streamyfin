@@ -1,12 +1,21 @@
-const { withGradleProperties } = require("expo/config-plugins");
+import type { ExpoConfig } from "expo/config";
+import {
+  AndroidConfig,
+  type ConfigPlugin,
+  withGradleProperties,
+} from "expo/config-plugins";
 
-function setGradlePropertiesValue(config, key, value) {
+function setGradlePropertiesValue(
+  config: ExpoConfig,
+  key: string,
+  value: string,
+): ExpoConfig {
   return withGradleProperties(config, (exportedConfig) => {
     const props = exportedConfig.modResults;
     const keyIdx = props.findIndex(
       (item) => item.type === "property" && item.key === key,
     );
-    const property = {
+    const property: AndroidConfig.Properties.PropertiesItem = {
       type: "property",
       key,
       value,
@@ -22,7 +31,7 @@ function setGradlePropertiesValue(config, key, value) {
   });
 }
 
-module.exports = function withCustomPlugin(config) {
+const withCustomGradleProperties: ConfigPlugin = (config) => {
   // Expo 52 is not setting this
   // https://github.com/expo/expo/issues/32558
   config = setGradlePropertiesValue(config, "android.enableJetifier", "true");
@@ -35,3 +44,5 @@ module.exports = function withCustomPlugin(config) {
   );
   return config;
 };
+
+export default withCustomGradleProperties;

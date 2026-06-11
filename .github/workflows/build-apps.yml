@@ -11,7 +11,7 @@ on:
   push:
     branches: [develop, master]
 
-# Exposed to `expo prebuild` (app.config.js → extra.build) so Settings can show the
+# Exposed to `expo prebuild` (app.config.ts → extra.build) so Settings can show the
 # branch + commit + Actions run a CI build was made from. EAS cloud builds use
 # EAS_BUILD_* instead. The run number maps a sideloaded build back to its Actions
 # run (artifacts + logs) without needing Expo access.
