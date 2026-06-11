@@ -1,5 +1,8 @@
-const { execFileSync } = require("node:child_process");
-const process = require("node:process");
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import process from "node:process";
+
+const require = createRequire(import.meta.url);
 
 // Enhanced ANSI color codes and styles
 const colors = {
@@ -32,7 +35,7 @@ const centeredTitle = " ".repeat(titlePadding) + title;
 
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 
-function log(message, color = "") {
+function log(message: string, color = "") {
   if (useColor && color) {
     console.log(`${color}${message}${colors.reset}`);
   } else {
@@ -40,7 +43,7 @@ function log(message, color = "") {
   }
 }
 
-function formatError(errorLine) {
+function formatError(errorLine: string): string {
   if (!useColor) return errorLine;
 
   // Color file paths in cyan
@@ -70,12 +73,15 @@ function formatError(errorLine) {
   return formatted;
 }
 
-function parseErrorsAndCreateSummary(errorOutput) {
+function parseErrorsAndCreateSummary(errorOutput: string): {
+  formattedErrors: string[];
+  errorsByFile: Map<string, number>;
+} {
   const lines = errorOutput.split("\n").filter((line) => line.trim());
-  const errorsByFile = new Map();
-  const formattedErrors = [];
+  const errorsByFile = new Map<string, number>();
+  const formattedErrors: string[] = [];
 
-  let currentError = [];
+  let currentError: string[] = [];
 
   for (const line of lines) {
     const trimmedLine = line.trim();
@@ -96,7 +102,7 @@ function parseErrorsAndCreateSummary(errorOutput) {
       if (!errorsByFile.has(filePath)) {
         errorsByFile.set(filePath, 0);
       }
-      errorsByFile.set(filePath, errorsByFile.get(filePath) + 1);
+      errorsByFile.set(filePath, (errorsByFile.get(filePath) ?? 0) + 1);
 
       // Start new error
       currentError.push(formatError(line));
@@ -119,7 +125,7 @@ function parseErrorsAndCreateSummary(errorOutput) {
   return { formattedErrors, errorsByFile };
 }
 
-function createErrorSummaryTable(errorsByFile) {
+function createErrorSummaryTable(errorsByFile: Map<string, number>): string {
   if (errorsByFile.size === 0) return "";
 
   const sortedFiles = Array.from(errorsByFile.entries()).sort(
@@ -136,12 +142,12 @@ function createErrorSummaryTable(errorsByFile) {
   return table;
 }
 
-function runTypeCheck() {
+function runTypeCheck(): { ok: boolean } {
   const extraArgs = process.argv.slice(2);
 
   // Prefer local TypeScript binary when available
   const runnerArgs = ["-p", "tsconfig.json", "--noEmit", ...extraArgs];
-  let execArgs = null;
+  let execArgs: { cmd: string; args: string[] };
   try {
     const tscBin = require.resolve("typescript/bin/tsc");
     execArgs = { cmd: process.execPath, args: [tscBin, ...runnerArgs] };
@@ -174,7 +180,8 @@ function runTypeCheck() {
     );
     return { ok: true };
   } catch (error) {
-    const errorOutput = (error && (error.stderr || error.stdout)) || "";
+    const execError = error as { stderr?: string; stdout?: string };
+    const errorOutput = execError.stderr || execError.stdout || "";
 
     // Filter out jellyseerr utils errors - this is a third-party git submodule
     // that generates a large volume of known type errors
