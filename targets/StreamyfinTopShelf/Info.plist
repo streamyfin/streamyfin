@@ -29,6 +29,10 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+      <string>arm64</string>
+    </array>
     <key>NSExtension</key>
     <dict>
       <key>NSExtensionPointIdentifier</key>

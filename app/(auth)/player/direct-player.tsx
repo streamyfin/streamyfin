@@ -291,6 +291,11 @@ export default function DirectPlayerPage() {
     };
 
     if (itemId) {
+      setItem(null);
+      setDownloadedItem(null);
+      // Clear the previous episode's stream so the loader gate stays closed
+      // until the new item's stream resolves (avoids a stale MPV source frame).
+      setStream(null);
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
@@ -329,6 +334,12 @@ export default function DirectPlayerPage() {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
+          setStreamStatus({ isLoading: false, isError: false });
+          return null;
+        }
+
+        // Ensure item matches the current itemId to avoid race conditions
+        if (item.Id !== itemId) {
           setStreamStatus({ isLoading: false, isError: false });
           return null;
         }
@@ -405,6 +416,7 @@ export default function DirectPlayerPage() {
     item,
     user?.Id,
     downloadedItem,
+    offline,
   ]);
 
   useEffect(() => {
@@ -444,21 +456,15 @@ export default function DirectPlayerPage() {
     if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
     const currentTimeInTicks = msToTicks(progress.get());
-    await getPlaystateApi(api).onPlaybackStopped({
-      itemId: item.Id,
-      mediaSourceId: mediaSourceId,
-      positionTicks: currentTimeInTicks,
-      playSessionId: stream.sessionId,
+    await getPlaystateApi(api).reportPlaybackStopped({
+      playbackStopInfo: {
+        ItemId: item.Id,
+        MediaSourceId: mediaSourceId,
+        PositionTicks: currentTimeInTicks,
+        PlaySessionId: stream.sessionId,
+      },
     });
-  }, [
-    api,
-    item,
-    mediaSourceId,
-    stream,
-    progress,
-    offline,
-    revalidateProgressCache,
-  ]);
+  }, [api, item, mediaSourceId, stream, progress, offline]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -476,9 +482,10 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
     return () => {
+      reportPlaybackStopped();
       beforeRemoveListener();
     };
-  }, [navigation, stop]);
+  }, [navigation, stop, reportPlaybackStopped]);
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo

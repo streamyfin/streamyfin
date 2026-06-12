@@ -109,30 +109,35 @@ export const usePlaybackManager = ({
     staleTime: 0,
   });
 
+  /**
+   * Derive prev/next from the current item's real position in the adjacent
+   * list rather than from the array length. `getEpisodes({ adjacentTo })` does
+   * not guarantee a fixed [prev, current, next] shape — at the first/last
+   * episode it can still return the current item as the first/last entry — so
+   * length-based indexing wrongly surfaces the current episode as "previous".
+   */
+  const currentIndex = useMemo(
+    () => adjacentItems?.findIndex((e) => e.Id === item?.Id) ?? -1,
+    [adjacentItems, item],
+  );
+
+  /** A neighbour is only navigable if it has an actual media file (not a
+   * "Virtual"/missing episode placeholder, e.g. an absent Special). */
+  const isNavigable = (episode?: BaseItemDto | null): episode is BaseItemDto =>
+    !!episode && episode.Id !== item?.Id && episode.LocationType !== "Virtual";
+
   const previousItem = useMemo(() => {
-    if (!adjacentItems || adjacentItems.length <= 1) {
-      return null;
-    }
-
-    if (adjacentItems.length === 2) {
-      return adjacentItems[0].Id === item?.Id ? null : adjacentItems[0];
-    }
-
-    return adjacentItems[0];
-  }, [adjacentItems, item]);
+    if (!adjacentItems || currentIndex <= 0) return null;
+    const candidate = adjacentItems[currentIndex - 1];
+    return isNavigable(candidate) ? candidate : null;
+  }, [adjacentItems, currentIndex, item]);
 
   /** The next item in the series */
   const nextItem = useMemo(() => {
-    if (!adjacentItems || adjacentItems.length <= 1) {
-      return null;
-    }
-
-    if (adjacentItems.length === 2) {
-      return adjacentItems[1].Id === item?.Id ? null : adjacentItems[1];
-    }
-
-    return adjacentItems[2];
-  }, [adjacentItems, item]);
+    if (!adjacentItems || currentIndex < 0) return null;
+    const candidate = adjacentItems[currentIndex + 1];
+    return isNavigable(candidate) ? candidate : null;
+  }, [adjacentItems, currentIndex, item]);
 
   /**
    * Reports playback progress.

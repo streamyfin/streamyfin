@@ -16,12 +16,13 @@ import androidx.tvprovider.media.tv.PreviewProgram
 import androidx.tvprovider.media.tv.TvContractCompat
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.MessageDigest
 
 internal object TvRecommendationsPublisher {
   private const val TAG = "TvRecommendations"
   private const val PREFS_NAME = "StreamyfinTvRecommendations"
   private const val KEY_PAYLOAD = "payload"
-  private const val KEY_CHANNEL_ID = "channelId"
+  private const val KEY_CHANNEL_ID_PREFIX = "channelId_"
   private const val KEY_PROGRAM_IDS = "programIds"
   private const val DEFAULT_CHANNEL_NAME = "Continue and Next Up"
 
@@ -61,31 +62,61 @@ internal object TvRecommendationsPublisher {
 
   fun clear(context: Context): Boolean {
     val prefs = preferences(context)
-    val channelId = prefs.getLong(KEY_CHANNEL_ID, -1L)
-    val programIds = prefs.getString(KEY_PROGRAM_IDS, null)?.let(::JSONObject)
     val contentResolver = context.contentResolver
 
-    if (programIds != null) {
+    // KEY_PROGRAM_IDS is now { channelId: "{ providerId: programId }" }
+    val allProgramIds = prefs.getString(KEY_PROGRAM_IDS, null)?.let(::JSONObject)
+    if (allProgramIds != null) {
       var deletedPrograms = 0
-      val keys = programIds.keys()
-      while (keys.hasNext()) {
-        val key = keys.next()
-        val programId = programIds.optLong(key, -1L)
-        if (programId > 0L) {
-          contentResolver.delete(
-            TvContractCompat.buildPreviewProgramUri(programId),
-            null,
-            null
-          )
-          deletedPrograms += 1
+      val channelKeys = allProgramIds.keys()
+      while (channelKeys.hasNext()) {
+        val channelIdStr = channelKeys.next()
+        val programIdsJson = allProgramIds.optString(channelIdStr)
+        if (programIdsJson.isBlank()) continue
+
+        try {
+          val programIds = JSONObject(programIdsJson)
+          val keys = programIds.keys()
+          while (keys.hasNext()) {
+            val providerId = keys.next()
+            val programId = programIds.optLong(providerId, -1L)
+            if (programId > 0L) {
+              deletePreviewProgram(contentResolver, programId)
+              deletedPrograms += 1
+            }
+          }
+        } catch (e: Exception) {
+          Log.w(TAG, "clear(): failed to parse programIds for channel $channelIdStr", e)
         }
+
+        // Notify the channel
+        val channelId = channelIdStr.toLongOrNull() ?: -1L
+        if (channelId > 0L) {
+          try {
+            contentResolver.notifyChange(TvContractCompat.buildChannelUri(channelId), null)
+          } catch (e: SecurityException) {
+            Log.w(TAG, "clear(): lost provider permission, cannot notify channel $channelId", e)
+          }
+        }
+
+        // Remove per-channel pref
+        prefs.edit().remove("programIds_$channelIdStr").apply()
       }
       Log.d(TAG, "clear(): deleted $deletedPrograms preview program(s)")
     }
 
-    if (channelId > 0L) {
-      contentResolver.notifyChange(TvContractCompat.buildChannelUri(channelId), null)
-      Log.d(TAG, "clear(): notified channel $channelId")
+    // Also handle legacy format (flat { providerId: programId }) for migration
+    val legacyProgramIds = prefs.getString("legacy_" + KEY_PROGRAM_IDS, null)?.let(::JSONObject)
+    if (legacyProgramIds != null) {
+      val keys = legacyProgramIds.keys()
+      while (keys.hasNext()) {
+        val key = keys.next()
+        val programId = legacyProgramIds.optLong(key, -1L)
+        if (programId > 0L) {
+          deletePreviewProgram(contentResolver, programId)
+        }
+      }
+      prefs.edit().remove("legacy_" + KEY_PROGRAM_IDS).apply()
     }
 
     prefs.edit()
@@ -96,133 +127,283 @@ internal object TvRecommendationsPublisher {
     return true
   }
 
+  /**
+   * Delete a single preview program from the TvProvider.
+   * Called by clear(), synchronize() (stale programs), and TvRecommendationsReceiver (user removed).
+   */
+  fun deletePreviewProgram(context: Context, programId: Long) {
+    try {
+      context.contentResolver.delete(
+        TvContractCompat.buildPreviewProgramUri(programId),
+        null,
+        null
+      )
+      Log.d(TAG, "deletePreviewProgram(): deleted programId=$programId")
+
+      // Also remove from stored programIds prefs
+      removeProgramFromPrefs(context, programId)
+    } catch (e: SecurityException) {
+      Log.w(TAG, "deletePreviewProgram(): lost provider permission for programId=$programId", e)
+    }
+  }
+
+  private fun deletePreviewProgram(contentResolver: android.content.ContentResolver, programId: Long) {
+    try {
+      contentResolver.delete(
+        TvContractCompat.buildPreviewProgramUri(programId),
+        null,
+        null
+      )
+    } catch (e: SecurityException) {
+      Log.w(TAG, "deletePreviewProgram(): lost provider permission for programId=$programId", e)
+    }
+  }
+
+  private fun removeProgramFromPrefs(context: Context, programId: Long) {
+    val prefs = preferences(context)
+    val programIdsJson = prefs.getString(KEY_PROGRAM_IDS, null) ?: return
+    try {
+      val channelMap = JSONObject(programIdsJson)
+      val channelKeys = channelMap.keys()
+      while (channelKeys.hasNext()) {
+        val channelId = channelKeys.next()
+        val inner = channelMap.optJSONObject(channelId) ?: continue
+        val providerKeys = inner.keys()
+        while (providerKeys.hasNext()) {
+          val providerId = providerKeys.next()
+          if (inner.optLong(providerId, -1L) == programId) {
+            inner.remove(providerId)
+            if (inner.length() == 0) {
+              channelMap.remove(channelId)
+            }
+            break
+          }
+        }
+      }
+      prefs.edit().putString(KEY_PROGRAM_IDS, channelMap.toString()).apply()
+    } catch (e: Exception) {
+      Log.w(TAG, "removeProgramFromPrefs(): failed to update prefs for programId=$programId", e)
+    }
+  }
+
   private fun synchronize(context: Context, payload: JSONObject): Boolean {
     val sections = payload.optJSONArray("sections") ?: JSONArray()
-    val firstSection = if (sections.length() > 0) sections.optJSONObject(0) else null
-    val sectionTitle = firstSection?.optString("title")?.takeIf { it.isNotBlank() } ?: DEFAULT_CHANNEL_NAME
-    val items = firstSection?.optJSONArray("items") ?: JSONArray()
-
-    Log.d(
-      TAG,
-      "synchronize(): using section \"$sectionTitle\" with ${items.length()} item(s)"
-    )
-
-    val channelId = getOrCreateChannel(context, sectionTitle)
-    if (channelId <= 0L) {
-      Log.w(TAG, "synchronize(): failed to get or create preview channel")
+    if (sections.length() == 0) {
+      Log.w(TAG, "synchronize(): no sections in payload")
       return false
     }
 
-    Log.d(TAG, "synchronize(): publishing into channelId=$channelId")
+    val prefs = preferences(context)
+    val allNextProgramIds = JSONObject()
+    var totalActive = 0
+    var totalDeleted = 0
 
-    val previousProgramIds = preferences(context)
-      .getString(KEY_PROGRAM_IDS, null)
-      ?.let(::JSONObject)
-      ?: JSONObject()
-    val nextProgramIds = JSONObject()
-    val activeProviderIds = mutableSetOf<String>()
+    for (sectionIndex in 0 until sections.length()) {
+      val section = sections.optJSONObject(sectionIndex) ?: continue
+      val sectionTitle = section.optString("title")?.takeIf { it.isNotBlank() } ?: DEFAULT_CHANNEL_NAME
+      val items = section.optJSONArray("items") ?: JSONArray()
 
-    for (index in 0 until items.length()) {
-      val item = items.optJSONObject(index) ?: continue
-      val providerId = item.optString("id")
-      if (providerId.isBlank()) continue
-
-      val programId = upsertPreviewProgram(
-        context = context,
-        channelId = channelId,
-        item = item,
-        previousProgramId = previousProgramIds.optLong(providerId, -1L),
-        weight = index
+      Log.d(
+        TAG,
+        "synchronize(): section \"$sectionTitle\" ($sectionIndex/${sections.length()}) with ${items.length()} item(s)"
       )
 
-      if (programId > 0L) {
-        activeProviderIds += providerId
-        nextProgramIds.put(providerId, programId)
-        Log.d(TAG, "synchronize(): upserted program for item=$providerId programId=$programId")
+      val channelId = getOrCreateChannel(context, sectionTitle)
+      if (channelId <= 0L) {
+        Log.w(TAG, "synchronize(): failed to get or create channel for \"$sectionTitle\"")
+        continue
       }
-    }
 
-    var deletedPrograms = 0
-    val previousKeys = previousProgramIds.keys()
-    while (previousKeys.hasNext()) {
-      val providerId = previousKeys.next()
-      if (activeProviderIds.contains(providerId)) continue
+      // Per Android docs: check channel.isBrowsable() and request if needed.
+      if (!isChannelBrowsable(context, channelId)) {
+        Log.d(TAG, "synchronize(): channel $channelId not browsable, requesting browsable")
+        TvContractCompat.requestChannelBrowsable(context, channelId)
+      }
 
-      val programId = previousProgramIds.optLong(providerId, -1L)
-      if (programId > 0L) {
-        context.contentResolver.delete(
-          TvContractCompat.buildPreviewProgramUri(programId),
-          null,
-          null
+      val prefKey = "programIds_$channelId"
+      val previousProgramIds = prefs.getString(prefKey, null)
+        ?.let(::JSONObject)
+        ?: JSONObject()
+      val nextProgramIds = JSONObject()
+      val activeProviderIds = mutableSetOf<String>()
+
+      for (index in 0 until items.length()) {
+        val item = items.optJSONObject(index) ?: continue
+        val providerId = item.optString("id")
+        if (providerId.isBlank()) continue
+
+        val programId = upsertPreviewProgram(
+          context = context,
+          channelId = channelId,
+          item = item,
+          previousProgramId = previousProgramIds.optLong(providerId, -1L),
+          weight = index
         )
-        deletedPrograms += 1
-        Log.d(TAG, "synchronize(): deleted stale programId=$programId for item=$providerId")
+
+        if (programId > 0L) {
+          activeProviderIds += providerId
+          nextProgramIds.put(providerId, programId)
+          Log.d(TAG, "synchronize(): upserted program for item=$providerId programId=$programId")
+        }
       }
+
+      var deletedPrograms = 0
+      val previousKeys = previousProgramIds.keys()
+      while (previousKeys.hasNext()) {
+        val providerId = previousKeys.next()
+        if (activeProviderIds.contains(providerId)) continue
+
+        val programId = previousProgramIds.optLong(providerId, -1L)
+        if (programId > 0L) {
+          deletePreviewProgram(context, programId)
+          deletedPrograms += 1
+          Log.d(TAG, "synchronize(): deleted stale programId=$programId for item=$providerId")
+        }
+      }
+
+      allNextProgramIds.put(channelId.toString(), nextProgramIds.toString())
+      prefs.edit().putString(prefKey, nextProgramIds.toString()).apply()
+      totalActive += activeProviderIds.size
+      totalDeleted += deletedPrograms
+
+      logProviderState(context, channelId)
     }
 
-    preferences(context)
-      .edit()
-      .putLong(KEY_CHANNEL_ID, channelId)
-      .putString(KEY_PROGRAM_IDS, nextProgramIds.toString())
-      .apply()
-
-    logProviderState(context, channelId)
+    // Store all channel program IDs for clear() to use
+    prefs.edit().putString(KEY_PROGRAM_IDS, allNextProgramIds.toString()).apply()
 
     Log.d(
       TAG,
-      "synchronize(): completed with ${activeProviderIds.size} active program(s), deleted $deletedPrograms stale program(s)"
+      "synchronize(): completed across ${sections.length()} section(s), $totalActive active program(s), deleted $totalDeleted stale program(s)"
     )
 
     return true
   }
 
+  /**
+   * Query provider to check if a channel is browsable.
+   * Per Android docs: "check channel.isBrowsable() before updating programs."
+   */
+  private fun isChannelBrowsable(context: Context, channelId: Long): Boolean {
+    return try {
+      context.contentResolver.query(
+        TvContractCompat.buildChannelUri(channelId),
+        null,
+        null,
+        null,
+        null
+      )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+          val browsableIndex = cursor.getColumnIndex(TvContractCompat.Channels.COLUMN_BROWSABLE)
+          if (browsableIndex >= 0) cursor.getInt(browsableIndex) == 1 else true
+        } else {
+          false
+        }
+      } ?: false
+    } catch (e: SecurityException) {
+      Log.w(TAG, "isChannelBrowsable(): lost provider permission for channelId=$channelId", e)
+      true // Assume browsable if we can't check, to avoid blocking updates
+    }
+  }
+
+  /**
+   * Query provider to verify a channel actually exists.
+   * Prevents the channel-delete-recreate bug: if update() returns 0 rows
+   * we must first check whether the channel was deleted by the system
+   * or if the update simply failed for another reason.
+   */
+  private fun channelExistsInProvider(context: Context, channelId: Long): Boolean {
+    return try {
+      context.contentResolver.query(
+        TvContractCompat.buildChannelUri(channelId),
+        null,
+        null,
+        null,
+        null
+      )?.use { cursor ->
+        cursor.moveToFirst()
+      } ?: false
+    } catch (e: SecurityException) {
+      Log.w(TAG, "channelExistsInProvider(): lost provider permission for channelId=$channelId", e)
+      false
+    }
+  }
+
   private fun getOrCreateChannel(context: Context, displayName: String): Long {
     val prefs = preferences(context)
-    val existingChannelId = prefs.getLong(KEY_CHANNEL_ID, -1L)
+    val channelKey = getChannelKey(displayName)
+    val existingChannelId = prefs.getLong(channelKey, -1L)
     val contentResolver = context.contentResolver
 
     if (existingChannelId > 0L) {
-      val updated = Channel.Builder()
-        .setType(TvContractCompat.Channels.TYPE_PREVIEW)
-        .setDisplayName(displayName)
-        .setAppLinkIntentUri(buildIntentUri(context, "streamyfin://"))
-        .build()
+      // Query provider first to verify channel actually exists (prevents recreate bug)
+      val exists = channelExistsInProvider(context, existingChannelId)
 
-      val updatedRows = contentResolver.update(
-        TvContractCompat.buildChannelUri(existingChannelId),
-        updated.toContentValues(),
-        null,
-        null
-      )
+      if (exists) {
+        // Channel exists — update it in place, never recreate
+        val updated = Channel.Builder()
+          .setType(TvContractCompat.Channels.TYPE_PREVIEW)
+          .setDisplayName(displayName)
+          .setAppLinkIntentUri(buildIntentUri(context, "streamyfin://"))
+          .build()
 
-      if (updatedRows > 0) {
-        TvContractCompat.requestChannelBrowsable(context, existingChannelId)
-        storeChannelLogo(context, existingChannelId)
-        Log.d(TAG, "getOrCreateChannel(): updated existing channelId=$existingChannelId and requested browsable")
-        return existingChannelId
+        try {
+          val updatedRows = contentResolver.update(
+            TvContractCompat.buildChannelUri(existingChannelId),
+            updated.toContentValues(),
+            null,
+            null
+          )
+
+          if (updatedRows > 0) {
+            TvContractCompat.requestChannelBrowsable(context, existingChannelId)
+            storeChannelLogo(context, existingChannelId)
+            Log.d(TAG, "getOrCreateChannel(): updated existing channelId=$existingChannelId and requested browsable")
+            return existingChannelId
+          }
+
+          // Update returned 0 rows but channel exists — log and return existing ID, don't recreate
+          Log.e(TAG, "getOrCreateChannel(): update returned 0 for existing channelId=$existingChannelId but channel exists — not recreating")
+          return existingChannelId
+        } catch (e: SecurityException) {
+          Log.w(TAG, "getOrCreateChannel(): lost provider permission updating channelId=$existingChannelId", e)
+          return existingChannelId
+        }
       }
 
-      Log.w(TAG, "getOrCreateChannel(): stored channelId=$existingChannelId was stale, recreating")
-      prefs.edit().remove(KEY_CHANNEL_ID).apply()
+      // Channel truly doesn't exist in provider — recreate
+      Log.w(TAG, "getOrCreateChannel(): channelId=$existingChannelId not in provider, recreating")
+      prefs.edit().remove(channelKey).apply()
     }
 
+    // Create a new channel
     val channel = Channel.Builder()
       .setType(TvContractCompat.Channels.TYPE_PREVIEW)
       .setDisplayName(displayName)
       .setAppLinkIntentUri(buildIntentUri(context, "streamyfin://"))
       .build()
 
-    val channelUri = contentResolver.insert(
-      TvContractCompat.Channels.CONTENT_URI,
-      channel.toContentValues()
-    ) ?: return -1L
+    val channelUri = try {
+      contentResolver.insert(
+        TvContractCompat.Channels.CONTENT_URI,
+        channel.toContentValues()
+      )
+    } catch (e: SecurityException) {
+      Log.e(TAG, "getOrCreateChannel(): lost provider permission, cannot create channel", e)
+      null
+    } ?: return -1L
 
     val channelId = ContentUris.parseId(channelUri)
+    prefs.edit().putLong(channelKey, channelId).apply()
     TvContractCompat.requestChannelBrowsable(context, channelId)
     storeChannelLogo(context, channelId)
     Log.d(TAG, "getOrCreateChannel(): created new channelId=$channelId displayName=\"$displayName\"")
 
     return channelId
+  }
+
+  private fun getChannelKey(displayName: String): String {
+    return KEY_CHANNEL_ID_PREFIX + displayName.hashCode()
   }
 
   private fun upsertPreviewProgram(
@@ -249,40 +430,65 @@ internal object TvRecommendationsPublisher {
       builder.setDescription(it)
     }
 
+    // Per Android docs: use unique URIs for all images to avoid stale cache
     imageUrl.takeIf { it.isNotBlank() }?.let {
-      val imageUri = Uri.parse(it)
+      val uniqueImageUrl = appendCacheBuster(it)
+      val imageUri = Uri.parse(uniqueImageUrl)
       builder.setPosterArtUri(imageUri)
       builder.setThumbnailUri(imageUri)
     }
-
 
     val contentValues = builder.build().toContentValues()
     val contentResolver = context.contentResolver
 
     if (previousProgramId > 0L) {
-      val updatedRows = contentResolver.update(
-        TvContractCompat.buildPreviewProgramUri(previousProgramId),
-        contentValues,
-        null,
-        null
-      )
+      try {
+        val updatedRows = contentResolver.update(
+          TvContractCompat.buildPreviewProgramUri(previousProgramId),
+          contentValues,
+          null,
+          null
+        )
 
-      if (updatedRows > 0) {
-        Log.d(TAG, "upsertPreviewProgram(): updated existing programId=$previousProgramId")
-        return previousProgramId
+        if (updatedRows > 0) {
+          Log.d(TAG, "upsertPreviewProgram(): updated existing programId=$previousProgramId")
+          return previousProgramId
+        }
+
+        Log.w(TAG, "upsertPreviewProgram(): existing programId=$previousProgramId was stale, inserting new row")
+      } catch (e: SecurityException) {
+        Log.w(TAG, "upsertPreviewProgram(): lost provider permission for programId=$previousProgramId", e)
       }
-
-      Log.w(TAG, "upsertPreviewProgram(): existing programId=$previousProgramId was stale, inserting new row")
     }
 
-    val insertedUri = contentResolver.insert(
-      TvContractCompat.PreviewPrograms.CONTENT_URI,
-      contentValues
-    ) ?: return -1L
+    val insertedUri = try {
+      contentResolver.insert(
+        TvContractCompat.PreviewPrograms.CONTENT_URI,
+        contentValues
+      )
+    } catch (e: SecurityException) {
+      Log.w(TAG, "upsertPreviewProgram(): lost provider permission, cannot insert program", e)
+      null
+    } ?: return -1L
 
     val programId = ContentUris.parseId(insertedUri)
     Log.d(TAG, "upsertPreviewProgram(): inserted new programId=$programId")
     return programId
+  }
+
+  /**
+   * Append a stable cache key derived from the image URL.
+   * The Jellyfin image URLs already include a `tag=` query param (etag)
+   * that changes whenever the image content changes, so a deterministic
+   * hash of the URL is sufficient — the param only changes when the URL
+   * (and therefore the image) actually changes, avoiding unnecessary
+   * re-downloads on every sync.
+   */
+  private fun appendCacheBuster(imageUrl: String): String {
+    val digest = MessageDigest.getInstance("MD5").digest(imageUrl.toByteArray())
+    val hash = digest.joinToString("") { "%02x".format(it) }.substring(0, 16)
+    val separator = if (imageUrl.contains("?")) "&" else "?"
+    return "$imageUrl${separator}_v=$hash"
   }
 
   private fun buildIntentUri(context: Context, deepLink: String): Uri {
@@ -306,13 +512,17 @@ internal object TvRecommendationsPublisher {
 
   private fun storeChannelLogo(context: Context, channelId: Long) {
     val bitmap = applicationIconBitmap(context) ?: return
-    val outputStream = context.contentResolver.openOutputStream(
-      TvContractCompat.buildChannelLogoUri(channelId)
-    ) ?: return
+    try {
+      val outputStream = context.contentResolver.openOutputStream(
+        TvContractCompat.buildChannelLogoUri(channelId)
+      ) ?: return
 
-    outputStream.use { stream ->
-      bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-      stream.flush()
+      outputStream.use { stream ->
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        stream.flush()
+      }
+    } catch (e: SecurityException) {
+      Log.w(TAG, "storeChannelLogo(): lost provider permission for channelId=$channelId", e)
     }
   }
 
@@ -341,9 +551,14 @@ internal object TvRecommendationsPublisher {
     return bitmap
   }
 
+  fun getChannelId(context: Context, displayName: String = DEFAULT_CHANNEL_NAME): Long {
+    return preferences(context).getLong(getChannelKey(displayName), -1L)
+  }
+
   private fun preferences(context: Context): SharedPreferences {
     return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
   }
+
   private fun logProviderState(context: Context, channelId: Long) {
     val contentResolver = context.contentResolver
 
@@ -372,8 +587,10 @@ internal object TvRecommendationsPublisher {
           Log.w(TAG, "logProviderState(): channelId=$channelId exists=false")
         }
       } ?: Log.w(TAG, "logProviderState(): channel query returned null for channelId=$channelId")
-    } catch (error: Exception) {
-      Log.w(TAG, "logProviderState(): failed to query channelId=$channelId", error)
-    }
+} catch (error: SecurityException) {
+  Log.w(TAG, "logProviderState(): lost provider permission for channelId=$channelId", error)
+} catch (error: Exception) {
+  Log.w(TAG, "logProviderState(): failed to query channelId=$channelId", error)
+}
   }
 }

@@ -22,7 +22,9 @@
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
     "doctor": "expo-doctor",
-    "test": "bun run typecheck && bun run lint && bun run format && bun run doctor",
+    "i18n:check": "bun scripts/check-i18n-keys.mjs",
+    "i18n:fix-unused": "bun scripts/check-i18n-keys.mjs --fix-unused",
+    "test": "bun run typecheck && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -32,9 +34,10 @@
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "~56.0.14",
     "@expo/vector-icons": "^15.0.3",
-    "@gorhom/bottom-sheet": "5.2.8",
+    "@gorhom/bottom-sheet": "5.2.14",
     "@jellyfin/sdk": "^0.13.0",
     "@react-native-community/netinfo": "^12.0.0",
+    "@react-navigation/material-top-tabs": "7.4.28",
     "@react-navigation/native": "^7.2.5",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/query-sync-storage-persister": "^5.100.14",
@@ -104,6 +107,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
     "react-native-svg": "15.15.4",
+    "react-native-tab-view": "4.3.0",
     "react-native-text-ticker": "^1.15.0",
     "react-native-track-player": "github:lovegaoshi/react-native-track-player#APM",
     "react-native-udp": "^4.1.7",
@@ -127,7 +131,7 @@
     "@types/react": "~19.2.10",
     "@types/react-test-renderer": "19.1.0",
     "cross-env": "10.1.0",
-    "expo-doctor": "1.19.7",
+    "expo-doctor": "1.19.9",
     "husky": "9.1.7",
     "lint-staged": "17.0.5",
     "react-test-renderer": "19.2.3",
@@ -162,10 +166,5 @@
   },
   "trustedDependencies": [
     "unrs-resolver"
-  ],
-  "patchedDependencies": {
-    "react-native-udp@4.1.7": "bun-patches/react-native-udp@4.1.7.patch",
-    "react-native-bottom-tabs@1.2.0": "bun-patches/react-native-bottom-tabs@1.2.0.patch",
-    "react-native-ios-utilities@5.2.0": "bun-patches/react-native-ios-utilities@5.2.0.patch"
-  }
+  ]
 }

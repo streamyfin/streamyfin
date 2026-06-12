@@ -40,6 +40,7 @@ import {
 } from "@/utils/secureCredentials";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
+import { APP_VERSION } from "@/utils/version";
 
 interface Server {
   address: string;
@@ -53,7 +54,7 @@ const initialApi = (() => {
       const id = getOrSetDeviceId();
       const deviceName = getDeviceNameSync();
       const jellyfinInstance = new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: "0.54.0" },
+        clientInfo: { name: "Streamyfin", version: APP_VERSION },
         deviceInfo: {
           name: deviceName,
           id,
@@ -69,6 +70,13 @@ const initialApi = (() => {
 
 const initialUser = (() => {
   try {
+    // Only return a stored user if we also have a token. Otherwise the
+    // user atom would be populated while the api atom is null (e.g. after
+    // a logout that left stale user JSON in storage), which causes
+    // useProtectedRoute to keep us inside the (auth) group instead of
+    // redirecting to /login.
+    const token = storage.getString("token");
+    if (!token) return null;
     const userStr = storage.getString("user");
     if (userStr) {
       return JSON.parse(userStr) as UserDto;
@@ -128,7 +136,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const id = getOrSetDeviceId();
       const deviceName = getDeviceNameSync();
       return new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: "0.54.0" },
+        clientInfo: { name: "Streamyfin", version: APP_VERSION },
         deviceInfo: {
           name: deviceName,
           id,
@@ -162,7 +170,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     return {
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="0.54.0"`,
+      }, DeviceId="${deviceId}", Version="${APP_VERSION}"`,
     };
   }, [deviceId]);
 
@@ -402,6 +410,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         );
 
       storage.remove("token");
+      storage.remove("user");
       clearTVDiscoverySafely();
       setUser(null);
       setApi(null);
@@ -611,44 +620,54 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             setUser(storedUser);
           }
 
-          const response = await getUserApi(apiInstance).getCurrentUser();
-          setUser(response.data);
+          // Dismiss splash screen with cached data immediately,
+          // fetch fresh user data in the background
+          setInitialLoaded(true);
 
-          // Migrate current session to secure storage if not already saved
-          if (storedUser?.Id && storedUser?.Name) {
-            const existingCredential = await getAccountCredential(
-              serverUrl,
-              storedUser.Id,
-            );
-            if (!existingCredential) {
-              await saveAccountCredential({
+          try {
+            const response = await getUserApi(apiInstance).getCurrentUser();
+            setUser(response.data);
+
+            // Migrate current session to secure storage if not already saved
+            if (storedUser?.Id && storedUser?.Name) {
+              const existingCredential = await getAccountCredential(
                 serverUrl,
-                serverName: "",
-                token,
-                userId: storedUser.Id,
-                username: storedUser.Name,
-                savedAt: Date.now(),
-                securityType: "none",
-                primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-              });
-            } else if (
-              response.data.PrimaryImageTag !==
-              existingCredential.primaryImageTag
-            ) {
-              // Update image tag if it has changed
-              addAccountToServer(serverUrl, existingCredential.serverName, {
-                userId: existingCredential.userId,
-                username: existingCredential.username,
-                securityType: existingCredential.securityType,
-                savedAt: existingCredential.savedAt,
-                primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-              });
+                storedUser.Id,
+              );
+              if (!existingCredential) {
+                await saveAccountCredential({
+                  serverUrl,
+                  serverName: "",
+                  token,
+                  userId: storedUser.Id,
+                  username: storedUser.Name,
+                  savedAt: Date.now(),
+                  securityType: "none",
+                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                });
+              } else if (
+                response.data.PrimaryImageTag !==
+                existingCredential.primaryImageTag
+              ) {
+                // Update image tag if it has changed
+                addAccountToServer(serverUrl, existingCredential.serverName, {
+                  userId: existingCredential.userId,
+                  username: existingCredential.username,
+                  securityType: existingCredential.securityType,
+                  savedAt: existingCredential.savedAt,
+                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                });
+              }
             }
+          } catch (e) {
+            // Background fetch failed — app already rendered with cached data
+            console.warn("Background user fetch failed, using cached data:", e);
           }
+        } else {
+          setInitialLoaded(true);
         }
       } catch (e) {
         console.error(e);
-      } finally {
         setInitialLoaded(true);
       }
     };

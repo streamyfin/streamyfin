@@ -31,8 +31,12 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const isOffline = useOfflineMode();
   const router = useRouter();
+  const isOffline = useOfflineMode();
+  // Read the live (cached) downloads DB inside the query rather than the
+  // provider's downloadedItems snapshot, so refetches after
+  // updateDownloadedItem() reflect the latest state instead of a stale
+  // refreshKey-gated snapshot. getAllDownloadedItems() is cached, so this stays cheap.
   const { getDownloadedItems } = useDownload();
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
@@ -100,7 +104,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           onPress={() => {
             router.setParams({ id: _item.Id });
           }}
-          className={`flex flex-col w-44 
+          className={`flex flex-col w-44
                   ${item?.Id === _item.Id ? "" : "opacity-50"}
                 `}
         >
