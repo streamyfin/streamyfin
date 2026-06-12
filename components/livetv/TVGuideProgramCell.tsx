@@ -1,6 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { t } from "i18next";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
@@ -23,6 +23,7 @@ export const TVGuideProgramCell: React.FC<TVGuideProgramCellProps> = ({
   disabled = false,
   refSetter,
 }) => {
+  const { t } = useTranslation();
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur } = useTVFocusAnimation({
     scaleAmount: 1,

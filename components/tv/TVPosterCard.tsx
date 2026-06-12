@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { t } from "i18next";
 import { useAtomValue } from "jotai";
 import React, { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Animated,
   Easing,
@@ -107,6 +107,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   scaleAmount = 1.05,
   imageUrlGetter,
 }) => {
+  const { t } = useTranslation();
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
   const typography = useScaledTVTypography();

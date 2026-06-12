@@ -344,8 +344,9 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {info?.cacheSeconds !== undefined && (
             <Text style={textStyle}>
-              {t("player.technical_info.buffer")} {info.cacheSeconds.toFixed(1)}
-              s
+              {t("player.technical_info.buffer_seconds", {
+                seconds: info.cacheSeconds.toFixed(1),
+              })}
             </Text>
           )}
           {info?.voDriver && (

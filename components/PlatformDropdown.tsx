@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { t } from "i18next";
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
@@ -210,6 +210,7 @@ const PlatformDropdownComponent = ({
   expoUIConfig,
   bottomSheetConfig,
 }: PlatformDropdownProps) => {
+  const { t } = useTranslation();
   const { showModal, hideModal, isVisible } = useGlobalModal();
 
   // Handle controlled open state for Android

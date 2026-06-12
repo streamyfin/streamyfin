@@ -6,7 +6,6 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
-import { t } from "i18next";
 import { useAtom } from "jotai";
 import React, {
   useCallback,
@@ -15,6 +14,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Dimensions,
@@ -73,6 +73,7 @@ const ARTWORK_SIZE = SCREEN_WIDTH - 80;
 type ViewMode = "player" | "queue";
 
 export default function NowPlayingScreen() {
+  const { t } = useTranslation();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const router = useRouter();
@@ -721,6 +722,7 @@ const QueueView: React.FC<QueueViewProps> = ({
   onRemoveFromQueue,
   onReorderQueue,
 }) => {
+  const { t } = useTranslation();
   const renderQueueItem = useCallback(
     ({ item, drag, isActive, getIndex }: RenderItemParams<BaseItemDto>) => {
       const index = getIndex() ?? 0;
