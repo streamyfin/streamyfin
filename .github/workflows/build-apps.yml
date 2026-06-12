@@ -12,10 +12,13 @@ on:
     branches: [develop, master]
 
 # Exposed to `expo prebuild` (app.config.js → extra.build) so Settings can show the
-# branch + commit a CI build was made from. EAS cloud builds use EAS_BUILD_* instead.
+# branch + commit + Actions run a CI build was made from. EAS cloud builds use
+# EAS_BUILD_* instead. The run number maps a sideloaded build back to its Actions
+# run (artifacts + logs) without needing Expo access.
 env:
   EXPO_PUBLIC_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
   EXPO_PUBLIC_GIT_COMMIT: ${{ github.sha }}
+  EXPO_PUBLIC_GIT_RUN_NUMBER: ${{ github.run_number }}
 
 jobs:
   build-android-phone:
@@ -237,7 +240,9 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
-        run: eas build -p ios --local --non-interactive
+        # `ci` profile (extends production, autoIncrement off): keeps CI builds out of
+        # the production version tier and stops them inflating the store build counter.
+        run: eas build -p ios --local --non-interactive --profile ci
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -362,7 +367,7 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 1
-        run: eas build -p ios --local --non-interactive
+        run: eas build -p ios --local --non-interactive --profile ci_tv
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV

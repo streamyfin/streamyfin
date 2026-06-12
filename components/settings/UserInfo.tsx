@@ -14,7 +14,7 @@ export const UserInfo: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
   // Graduated build identifier — see utils/version.ts:
-  // dev → "0.54.1 · branch · commit", develop/CI → "0.54.1 · commit", production → "0.54.1 (42)".
+  // dev → "0.54.1 · branch · commit", develop/CI → "0.54.1 · commit · #run", production → "0.54.1".
   const { display: version } = getVersionInfo();
 
   return (
