@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { t } from "i18next";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   TouchableOpacity,
@@ -35,6 +35,7 @@ interface DownloadCardProps extends TouchableOpacityProps {
 }
 
 export const DownloadCard = ({ process, ...props }: DownloadCardProps) => {
+  const { t } = useTranslation();
   const { cancelDownload } = useDownload();
   const router = useRouter();
   const queryClient = useNetworkAwareQueryClient();

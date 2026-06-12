@@ -58,7 +58,12 @@ export default function StreamystatsPage() {
     pluginSettings?.streamyStatsPromotedWatchlists?.locked === true;
   const hideWatchlistsTabLocked =
     pluginSettings?.hideWatchlistsTab?.locked === true;
-  const isStreamystatsEnabled = !!url;
+  // The input renders the locked admin URL; enablement must follow the same
+  // effective value or every toggle stays disabled until local state syncs.
+  const effectiveUrl = isUrlLocked
+    ? (settings?.streamyStatsServerUrl ?? "")
+    : url;
+  const isStreamystatsEnabled = !!effectiveUrl;
 
   const onSave = useCallback(() => {
     const cleanUrl = url.endsWith("/") ? url.slice(0, -1) : url;
@@ -155,9 +160,7 @@ export default function StreamystatsPage() {
               placeholder={t(
                 "home.settings.plugins.streamystats.server_url_placeholder",
               )}
-              value={
-                isUrlLocked ? (settings?.streamyStatsServerUrl ?? "") : url
-              }
+              value={effectiveUrl}
               keyboardType='url'
               returnKeyType='done'
               autoCapitalize='none'

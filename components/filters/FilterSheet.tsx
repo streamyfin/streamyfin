@@ -193,15 +193,19 @@ export const FilterSheet = <T,>({
         <View key={index}>
           <TouchableOpacity
             onPress={() => {
+              // Match the deep-equality rule used to render the selected
+              // state below — option objects are recreated across renders,
+              // so reference checks would re-add an already selected item.
+              const isSelected = values.some((value) => isEqual(value, item));
               if (multiple) {
-                if (!values.includes(item)) set(values.concat(item));
-                else set(values.filter((v) => v !== item));
+                if (!isSelected) set(values.concat(item));
+                else set(values.filter((value) => !isEqual(value, item)));
 
                 setTimeout(() => {
                   setOpen(false);
                 }, 250);
               } else {
-                if (!values.includes(item)) {
+                if (!isSelected) {
                   set([item]);
                   setTimeout(() => {
                     setOpen(false);
