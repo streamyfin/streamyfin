@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <receiver android:name=".TvRecommendationsReceiver" android:exported="true">
+      <intent-filter>
+        <action android:name="android.media.tv.action.INITIALIZE_PROGRAMS" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.media.tv.action.PREVIEW_PROGRAM_BROWSABLE_DISABLED" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

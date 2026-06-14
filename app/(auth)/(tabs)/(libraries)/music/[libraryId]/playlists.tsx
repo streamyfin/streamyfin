@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useNavigation, useRoute } from "@react-navigation/native";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
+import { useNavigation, useRoute } from "expo-router/react-navigation";
 import { useAtom } from "jotai";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

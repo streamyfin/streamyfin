@@ -13,7 +13,7 @@ import {
 } from "@/utils/jellyseerr/server/models/Search";
 import { COMPANY_LOGO_IMAGE_FILTER } from "@/utils/jellyseerr/src/components/Discover/NetworkSlider";
 
-export default function page() {
+export default function JellyseerrCompanyPage() {
   const local = useLocalSearchParams();
   const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 

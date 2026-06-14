@@ -1,13 +1,13 @@
+import { Stack, useLocalSearchParams, withLayoutContext } from "expo-router";
 import {
   createMaterialTopTabNavigator,
   MaterialTopTabNavigationEventMap,
   MaterialTopTabNavigationOptions,
-} from "@react-navigation/material-top-tabs";
+} from "expo-router/js-top-tabs";
 import type {
   ParamListBase,
   TabNavigationState,
-} from "@react-navigation/native";
-import { Stack, useLocalSearchParams, withLayoutContext } from "expo-router";
+} from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
 
 const { Navigator } = createMaterialTopTabNavigator();
@@ -40,6 +40,8 @@ const Layout = () => {
         keyboardDismissMode='none'
         screenOptions={{
           tabBarBounces: true,
+          tabBarActiveTintColor: "#FFFFFF",
+          tabBarInactiveTintColor: "#9CA3AF",
           tabBarLabelStyle: {
             fontSize: TAB_LABEL_FONT_SIZE,
             fontWeight: "600",

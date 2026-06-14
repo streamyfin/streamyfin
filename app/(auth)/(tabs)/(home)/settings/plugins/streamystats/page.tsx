@@ -17,7 +17,7 @@ import { ListItem } from "@/components/list/ListItem";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function StreamystatsPage() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -114,7 +114,7 @@ export default function page() {
   };
 
   const handleRefreshFromServer = useCallback(async () => {
-    const newPluginSettings = await refreshStreamyfinPluginSettings(true);
+    const newPluginSettings = await refreshStreamyfinPluginSettings();
     // Update local state with new values
     const newUrl = newPluginSettings?.streamyStatsServerUrl?.value || "";
     setUrl(newUrl);

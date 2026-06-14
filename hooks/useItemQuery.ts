@@ -2,6 +2,7 @@ import { ItemFields } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
+import { Platform } from "react-native";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
@@ -12,11 +13,17 @@ export const excludeFields = (fieldsToExclude: ItemFields[]) => {
   );
 };
 
+type ExtraQueryOptions = {
+  gcTime?: number;
+  staleTime?: number;
+};
+
 export const useItemQuery = (
   itemId: string | undefined,
   isOffline?: boolean,
   fields?: ItemFields[],
   excludeFields?: ItemFields[],
+  queryOptions?: ExtraQueryOptions,
 ) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
@@ -49,9 +56,12 @@ export const useItemQuery = (
       return response.data.Items?.[0];
     },
     enabled: !!itemId,
+    staleTime: isOffline ? Infinity : 60 * 1000,
+    refetchInterval: !isOffline && Platform.isTV ? 60 * 1000 : undefined,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     networkMode: "always",
+    ...queryOptions,
   });
 };

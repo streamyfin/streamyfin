@@ -23,7 +23,7 @@ import { formatBitrate } from "@/utils/bitrate";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { formatTimeString } from "@/utils/time";
 
-export default function page() {
+export default function SessionsPage() {
   const { sessions, isLoading } = useSessions({} as useSessionsProps);
   const { t } = useTranslation();
 
@@ -72,7 +72,7 @@ const SessionCard = ({ session }: SessionCardProps) => {
   };
 
   const getProgressPercentage = () => {
-    if (!session.NowPlayingItem || !session.NowPlayingItem.RunTimeTicks) {
+    if (!session.NowPlayingItem?.RunTimeTicks) {
       return 0;
     }
 
