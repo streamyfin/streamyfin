@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { FlatList, Modal, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import {
   type ChapterEntry,
   chapterStartsMs,
@@ -38,6 +39,7 @@ function ChapterListComponent({
   onClose,
 }: ChapterListProps) {
   const { t } = useTranslation();
+  const safeArea = useControlsSafeAreaInsets();
   const listRef = useRef<FlatList<ChapterEntry>>(null);
 
   const entries = useMemo(() => sortedChapters(chapters), [chapters]);
@@ -74,9 +76,22 @@ function ChapterListComponent({
       transparent
       animationType='slide'
       onRequestClose={onClose}
+      // iOS defaults <Modal> to portrait-only; without this it rotates the app
+      // back to portrait when opened from the landscape player. Android ignores it.
+      supportedOrientations={["portrait", "landscape"]}
     >
       <Pressable onPress={onClose} style={styles.backdrop}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={styles.sheet}>
+        <Pressable
+          onPress={(e) => e.stopPropagation()}
+          style={[
+            styles.sheet,
+            {
+              marginLeft: safeArea.left,
+              marginRight: safeArea.right,
+              paddingBottom: safeArea.bottom,
+            },
+          ]}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>{t("chapters.title")}</Text>
             <Pressable
@@ -157,14 +172,12 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.6)",
   },
   sheet: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: "70%",
-    paddingBottom: 24,
   },
   header: {
     flexDirection: "row",

@@ -229,7 +229,7 @@ export const LibraryOptionsSheet: React.FC<Props> = ({
             />
           </OptionGroup>
 
-          <OptionGroup title='Options'>
+          <OptionGroup title={t("library.options.options_title")}>
             <ToggleItem
               label={t("library.options.show_titles")}
               value={settings.showTitles}

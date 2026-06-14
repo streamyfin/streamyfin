@@ -56,7 +56,11 @@
       "environment": "production",
       "autoIncrement": true,
       "android": {
-        "image": "latest"
+        "image": "latest",
+        "config": "android-production.yml"
+      },
+      "ios": {
+        "config": "ios-production.yml"
       }
     },
     "production-apk": {
@@ -65,7 +69,8 @@
       "autoIncrement": true,
       "android": {
         "buildType": "apk",
-        "image": "latest"
+        "image": "latest",
+        "config": "android-production-apk.yml"
       }
     },
     "production-apk-tv": {
@@ -74,7 +79,8 @@
       "autoIncrement": true,
       "android": {
         "buildType": "apk",
-        "image": "latest"
+        "image": "latest",
+        "config": "android-production-tv.yml"
       },
       "env": {
         "EXPO_TV": "1"
@@ -88,8 +94,17 @@
         "EXPO_TV": "1"
       },
       "ios": {
-        "credentialsSource": "local"
+        "credentialsSource": "local",
+        "config": "ios-production.yml"
       }
+    },
+    "ci": {
+      "extends": "production",
+      "autoIncrement": false
+    },
+    "ci_tv": {
+      "extends": "production_tv",
+      "autoIncrement": false
     }
   },
   "submit": {

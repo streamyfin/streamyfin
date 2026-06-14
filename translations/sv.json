@@ -4,6 +4,9 @@
     "error_title": "Fel",
     "login_title": "Logga in",
     "login_to_title": "Logga in till",
+    "select_user": "Select a user to log in",
+    "add_user_to_login": "Add a user to log in",
+    "add_user": "Add User",
     "username_placeholder": "Användarnamn",
     "password_placeholder": "Lösenord",
     "login_button": "Logga in",
@@ -44,7 +47,11 @@
     "add_account": "Lägg till konto",
     "remove_account_description": "Detta kommer att ta bort de sparade uppgifterna för {{username}}.",
     "remove_server": "Ta bort server",
-    "remove_server_description": "Detta kommer att ta bort {{server}} och alla sparade konton från din lista."
+    "remove_server_description": "Detta kommer att ta bort {{server}} och alla sparade konton från din lista.",
+    "select_your_server": "Select Your Server",
+    "add_server_to_get_started": "Add a server to get started",
+    "add_server": "Add Server",
+    "change_server": "Change Server"
   },
   "save_account": {
     "title": "Spara konto",
@@ -112,6 +119,12 @@
     "settings": {
       "settings_title": "Inställningar",
       "log_out_button": "Logga ut",
+      "switch_user": {
+        "title": "Switch User",
+        "account": "Account",
+        "switch_user": "Switch User on This Server",
+        "current": "current"
+      },
       "categories": {
         "title": "Kategorier"
       },
@@ -128,12 +141,12 @@
         "show_home_backdrop": "Dynamisk hembakgrund",
         "show_hero_carousel": "Hjältekarusell",
         "show_series_poster_on_episode": "Visa serieaffisch på avsnitt",
+        "theme_music": "Temamusik",
         "display_size": "Visningsstorlek",
         "display_size_small": "Liten",
         "display_size_default": "Standard",
         "display_size_large": "Stor",
-        "display_size_extra_large": "Extra stor",
-        "theme_music": "Temamusik"
+        "display_size_extra_large": "Extra stor"
       },
       "network": {
         "title": "Nätverk",
@@ -195,6 +208,12 @@
         "buffer_duration": "Buffertlängd",
         "max_cache_size": "Max cachestorlek",
         "max_backward_cache": "Max bakåtcache"
+      },
+      "vo_driver": {
+        "title": "Video Output",
+        "vo_mode": "VO Driver",
+        "gpu_next": "gpu-next (Recommended)",
+        "gpu": "gpu"
       },
       "gesture_controls": {
         "gesture_controls_title": "Gestkontroller",
@@ -371,7 +390,7 @@
           "server_url_placeholder": "Seerr URL",
           "password": "Lösenord",
           "password_placeholder": "Ange lösenord för Jellyfin användare {{username}}",
-          "login_button": "Logga in",
+          "login_button": "Login",
           "total_media_requests": "Totalt antal mediaförfrågningar",
           "movie_quota_limit": "Gräns för filmkvot",
           "movie_quota_days": "Filmkvot Dagar",
@@ -444,7 +463,13 @@
         "music_cache_cleared": "Musikcache rensad",
         "delete_all_downloaded_songs": "Ta bort alla nerladdade filer",
         "downloaded_songs_size": "{{size}} nedladdad",
-        "downloaded_songs_deleted": "Nedladdade låtar raderade"
+        "downloaded_songs_deleted": "Nedladdade låtar raderade",
+        "clear_all_cache": "Clear All Cache",
+        "clear_all_cache_confirm": "Clear All Cache?",
+        "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
+        "clear_all_cache_success": "Cache Cleared",
+        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
+        "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
         "title": "Introduktion",
@@ -468,6 +493,21 @@
         "error_deleting_files": "Fel Vid Borttagning Av Filer",
         "background_downloads_enabled": "Bakgrundsnedladdningar aktiverade",
         "background_downloads_disabled": "Bakgrundsnedladdningar inaktiverade"
+      },
+      "security": {
+        "title": "Security",
+        "inactivity_timeout": {
+          "title": "Inactivity Timeout",
+          "description": "Auto logout after inactivity",
+          "disabled": "Disabled",
+          "1_minute": "1 minute",
+          "5_minutes": "5 minutes",
+          "15_minutes": "15 minutes",
+          "30_minutes": "30 minutes",
+          "1_hour": "1 hour",
+          "4_hours": "4 hours",
+          "24_hours": "24 hours"
+        }
       }
     },
     "sessions": {
@@ -476,7 +516,7 @@
     },
     "downloads": {
       "downloads_title": "Nedladdningar",
-      "tvseries": "TV-Serier",
+      "series": "TV-Serier",
       "movies": "Filmer",
       "queue": "Kö",
       "other_media": "Annan media",
@@ -484,7 +524,7 @@
       "no_items_in_queue": "Inga objekt i Kön",
       "no_downloaded_items": "Inga Nedladdade Objekt",
       "delete_all_movies_button": "Ta Bort Alla Filmer",
-      "delete_all_tvseries_button": "Ta Bort Alla TV-Serier",
+      "delete_all_series_button": "Ta Bort Alla TV-Serier",
       "delete_all_button": "Radera Allt",
       "delete_all_other_media_button": "Ta Bort Andra Videor",
       "active_download": "Aktiv Nedladdning",
@@ -494,6 +534,7 @@
       "new_app_version_requires_re_download_description": "Den nya uppdateringen kräver att innehållet laddas ner igen. Ta bort allt nedladdat innehåll och försök igen.",
       "back": "Tillbaka",
       "delete": "Radera",
+      "delete_download": "Delete Download",
       "something_went_wrong": "Något Gick Fel",
       "could_not_get_stream_url_from_jellyfin": "Det gick inte att hämta strömadressen från Jellyfin",
       "eta": "ETA {{eta}}",
@@ -501,8 +542,8 @@
         "you_are_not_allowed_to_download_files": "Du har inte behörighet att ladda ner filer.",
         "deleted_all_movies_successfully": "Alla Filmer Har Tagits Bort!",
         "failed_to_delete_all_movies": "Det Gick Inte Att Ta Bort Alla Filmer",
-        "deleted_all_tvseries_successfully": "Alla TV-Serier Har Tagits Bort!",
-        "failed_to_delete_all_tvseries": "Det Gick Inte Att Ta Bort Alla TV-Serier",
+        "deleted_all_series_successfully": "Alla TV-Serier Har Tagits Bort!",
+        "failed_to_delete_all_series": "Det Gick Inte Att Ta Bort Alla TV-Serier",
         "deleted_media_successfully": "Andra Medier Har Tagits Bort!",
         "failed_to_delete_media": "Kunde Inte Ta Bort Andra Medier",
         "download_deleted": "Nedladdning Borttagen",
@@ -537,6 +578,8 @@
     "audio": "Ljud",
     "subtitle": "Undertext",
     "play": "Spela",
+    "mark_as_played": "Mark as Played",
+    "mark_as_not_played": "Mark as not Played",
     "none": "Ingen",
     "track": "Spår",
     "cancel": "Avbryt",
@@ -549,8 +592,7 @@
     "continue": "Fortsätt",
     "verifying": "Verifierar...",
     "login": "Logga in",
-    "refresh": "Uppdatera",
-    "seeAll": "Visa alla"
+    "refresh": "Uppdatera"
   },
   "search": {
     "search": "Sök...",
@@ -610,7 +652,8 @@
       "poster": "Affisch",
       "cover": "Omslag",
       "show_titles": "Visa Titlar",
-      "show_stats": "Visa Statistik"
+      "show_stats": "Visa Statistik",
+      "options_title": "Options"
     },
     "filters": {
       "genres": "Genrer",
@@ -640,6 +683,7 @@
   },
   "player": {
     "live": "LIVE",
+    "mpv_player_title": "MPV Player",
     "error": "Fel",
     "failed_to_get_stream_url": "Kunde inte hämta stream-URL",
     "an_error_occured_while_playing_the_video": "Ett fel uppstod vid uppspelning av videon. Kontrollera loggarna i inställningarna.",
@@ -680,6 +724,12 @@
     "stopPlayingTitle": "Sluta spela \"{{title}}\"?",
     "stopPlayingConfirm": "Är du säker på att du vill stoppa uppspelningen?",
     "downloaded": "Nedladdad"
+  },
+  "chapters": {
+    "title": "Chapters",
+    "chapter_number": "Chapter {{number}}",
+    "open": "Open chapters",
+    "close": "Close chapters"
   },
   "item_card": {
     "next_up": "Näst på tur",
@@ -793,7 +843,7 @@
     "quality_profile": "Kvalitetsprofil",
     "root_folder": "Rotkatalog",
     "season_all": "Säsong (alla)",
-    "season_number": "Säsong {{season_number}}",
+    "season_number": "Säsong {{seasonNumber}}",
     "number_episodes": "{{episode_number}} Avsnitt",
     "born": "Född",
     "appearances": "Framträdanden",
@@ -952,5 +1002,36 @@
       "show": "Denna serie",
       "all": "Alla media (standard)"
     }
+  },
+  "companion_login": {
+    "title": "Pair with TV",
+    "align_qr": "Align the QR code within the frame",
+    "enter_code_manually": "Enter code manually",
+    "pairing_enter_credentials": "Enter credentials for TV",
+    "pairing_code_label": "Pairing code",
+    "server": "Server",
+    "authorize_button": "Authorize",
+    "authorizing": "Authorizing...",
+    "scan_again": "Scan Again",
+    "done": "Done",
+    "success_title": "Authorization Sent",
+    "pairing_tv_connecting": "The TV is connecting to your account",
+    "error_title": "Authorization Failed",
+    "error_invalid_qr": "Invalid QR code. Please scan the TV pairing code.",
+    "error_generic": "Something went wrong. Please try again.",
+    "error_permission_denied": "Camera permission is required to scan QR codes.",
+    "login_as": "Log in as {{username}}?",
+    "on_server": "on {{server}}",
+    "use_different_user": "Use a different user",
+    "open_settings": "Open Settings"
+  },
+  "pairing": {
+    "pair_with_phone": "Pair with Phone",
+    "pair_with_phone_title": "Login TV",
+    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
+    "waiting_for_phone": "Waiting for phone...",
+    "scan_with_phone": "Scan with the Streamyfin app on your phone",
+    "logging_in": "Logging in...",
+    "logging_in_description": "Connecting to your server"
   }
 }

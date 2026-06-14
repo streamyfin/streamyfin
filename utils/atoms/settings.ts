@@ -6,6 +6,7 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
@@ -120,6 +121,46 @@ export interface MaxAutoPlayEpisodeCount {
   key: string;
   value: number;
 }
+
+/**
+ * The plugin may send object-typed settings as plain primitives.
+ * Resolve to the proper option object from the available choices.
+ */
+const normalizePluginValue = (
+  settingsKey: keyof Settings,
+  value: unknown,
+): unknown => {
+  if (typeof value !== "object" || value === null) {
+    const defaultVal = defaultValues[settingsKey];
+    if (
+      typeof defaultVal === "object" &&
+      defaultVal !== null &&
+      "key" in defaultVal &&
+      "value" in defaultVal
+    ) {
+      // defaultBitrate needs a lookup because its keys are human-readable
+      // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
+      // Other { key, value } settings like maxAutoPlayEpisodeCount work with
+      // the fallback because their keys are just String(value) (e.g. "5").
+      if (settingsKey === "defaultBitrate") {
+        const match = BITRATES.find(
+          (b) => b.key === value || b.value === value,
+        );
+        if (match) return match;
+      }
+      // maxAutoPlayEpisodeCount: 0 is invalid (breaks autoplay), clamp to -1
+      // -1 key must match the translated dropdown label so the UI shows "Disabled"
+      if (
+        settingsKey === "maxAutoPlayEpisodeCount" &&
+        (value === 0 || value === -1)
+      ) {
+        return { key: t("home.settings.other.disabled"), value: -1 };
+      }
+      return { key: String(value), value };
+    }
+  }
+  return value;
+};
 
 export type HomeSectionLatestResolver = {
   parentId?: string;
@@ -427,61 +468,37 @@ export const useSettings = () => {
     [_setPluginSettings],
   );
 
-  const refreshStreamyfinPluginSettings = useCallback(
-    async (forceOverride = false) => {
-      if (!api) {
-        return;
+  const refreshStreamyfinPluginSettings = useCallback(async () => {
+    if (!api) {
+      return;
+    }
+    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
+      ({ data }) => {
+        writeInfoLog("Got plugin settings", data?.settings);
+        return data?.settings;
+      },
+      (_err) => undefined,
+    );
+    setPluginSettings(newPluginSettings);
+
+    // Locked/unlocked values are handled by the settings memo, which
+    // applies locked values at runtime without overwriting user storage.
+    // We only handle auto-enabling Streamystats here.
+    if (newPluginSettings && _settings) {
+      const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
+      if (streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats") {
+        const newSettings = {
+          ...defaultValues,
+          ..._settings,
+          searchEngine: "Streamystats",
+        } as Settings;
+        setSettings(newSettings);
+        saveSettings(newSettings);
       }
-      const newPluginSettings = await api.getStreamyfinPluginConfig().then(
-        ({ data }) => {
-          writeInfoLog("Got plugin settings", data?.settings);
-          return data?.settings;
-        },
-        (_err) => undefined,
-      );
-      setPluginSettings(newPluginSettings);
+    }
 
-      // Apply plugin values to settings
-      if (newPluginSettings && _settings) {
-        const updates: Partial<Settings> = {};
-        for (const [key, setting] of Object.entries(newPluginSettings)) {
-          if (setting && !setting.locked && setting.value !== undefined) {
-            const settingsKey = key as keyof Settings;
-            const effectiveValue = getEffectiveSettingValue(
-              _settings,
-              settingsKey,
-            );
-            // Apply if forceOverride is true, or if neither persisted settings
-            // nor app defaults provide a meaningful value.
-            if (forceOverride || !hasMeaningfulSettingValue(effectiveValue)) {
-              (updates as any)[settingsKey] = setting.value;
-            }
-          }
-        }
-
-        // Auto-enable Streamystats if server URL is provided
-        const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
-        if (
-          streamyStatsUrl?.value &&
-          _settings.searchEngine !== "Streamystats"
-        ) {
-          updates.searchEngine = "Streamystats";
-        }
-        if (Object.keys(updates).length > 0) {
-          const newSettings = {
-            ...defaultValues,
-            ..._settings,
-            ...updates,
-          } as Settings;
-          setSettings(newSettings);
-          saveSettings(newSettings);
-        }
-      }
-
-      return newPluginSettings;
-    },
-    [api, _settings],
-  );
+    return newPluginSettings;
+  }, [api, _settings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     if (!_settings) {
@@ -512,8 +529,13 @@ export const useSettings = () => {
       Partial<Settings>
     >((acc, [key, setting]) => {
       if (setting) {
-        const { value, locked } = setting;
+        let { value } = setting;
+        const { locked } = setting;
         const settingsKey = key as keyof Settings;
+
+        // Normalize object-typed settings from plugin (plain primitive → { key, value })
+        value = normalizePluginValue(settingsKey, value);
+
         const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
 
         (acc as any)[settingsKey] = locked
