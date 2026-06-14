@@ -15,7 +15,6 @@ const WifiSsidModule =
  */
 export async function getSSID(): Promise<string | null> {
   if (!WifiSsidModule) {
-    console.log("[WifiSsid] Module not available on this platform");
     return null;
   }
 

@@ -3,7 +3,6 @@ declare global {
     bytesToReadable(decimals?: number): string;
     secondsToMilliseconds(): number;
     minutesToMilliseconds(): number;
-    hoursToMilliseconds(): number;
   }
 }
 
@@ -26,10 +25,6 @@ Number.prototype.secondsToMilliseconds = function () {
 
 Number.prototype.minutesToMilliseconds = function () {
   return this.valueOf() * (60).secondsToMilliseconds();
-};
-
-Number.prototype.hoursToMilliseconds = function () {
-  return this.valueOf() * (60).minutesToMilliseconds();
 };
 
 export {};
