@@ -2,7 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { Platform, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVDiscover } from "@/components/jellyseerr/discover/TVDiscover";
@@ -231,26 +231,48 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
           paddingTop: insets.top + TOP_PADDING,
         }}
       >
-        {/* Native tvOS search field (SwiftUI `.searchable`, our `tv-search`
-            module). It renders the native search bar + grid keyboard and
-            forwards typed text into the existing query pipeline via setSearch;
-            our own results grid renders below. */}
-        {/* No horizontal margin here: the native tvOS search bar centers itself
-            and renders a trailing "Hold to Dictate in <Language>" hint. Extra
-            margins squeeze the bar's width and clip that trailing hint, so let
-            the native view span the full width and own its own insets. */}
-        <View
-          style={{
-            marginBottom: 24,
-            height: SEARCH_AREA_HEIGHT,
-          }}
-        >
-          <TvSearchView
-            style={{ width: "100%", height: "100%" }}
-            placeholder={t("search.search")}
-            onChangeText={(e) => setSearch(e.nativeEvent.text)}
-          />
-        </View>
+        {/* Search bar: native tvOS SwiftUI `.searchable` on Apple TV, standard
+            TextInput fallback on Android TV (the native module is Apple-only). */}
+        {Platform.OS === "ios" ? (
+          <View
+            style={{
+              marginBottom: 24,
+              height: SEARCH_AREA_HEIGHT,
+            }}
+          >
+            {/* No horizontal margin here: the native tvOS search bar centers
+                itself and renders a trailing "Hold to Dictate" hint. */}
+            <TvSearchView
+              style={{ width: "100%", height: "100%" }}
+              placeholder={t("search.search")}
+              onChangeText={(e) => setSearch(e.nativeEvent.text)}
+            />
+          </View>
+        ) : (
+          <View
+            style={{
+              marginHorizontal: HORIZONTAL_PADDING,
+              marginBottom: 24,
+            }}
+          >
+            <TextInput
+              style={{
+                height: 56,
+                width: "100%",
+                backgroundColor: "#262626",
+                borderRadius: 12,
+                paddingHorizontal: 20,
+                fontSize: 28,
+                color: "#fff",
+              }}
+              placeholder={t("search.search")}
+              placeholderTextColor='rgba(255,255,255,0.4)'
+              onChangeText={setSearch}
+              defaultValue=''
+              autoFocus={false}
+            />
+          </View>
+        )}
       </View>
 
       <ScrollView

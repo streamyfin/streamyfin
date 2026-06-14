@@ -44,22 +44,42 @@
       ]
     }
   },
-  "lockFileMaintenance": {
-    "vulnerabilityAlerts": {
-      "enabled": true,
-      "addLabels": ["security", "vulnerability"],
-      "assigneesFromCodeOwners": true,
-      "commitMessageSuffix": " [SECURITY]"
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security", "vulnerability"],
+    "assigneesFromCodeOwners": true,
+    "commitMessageSuffix": " [SECURITY]"
+  },
+  "packageRules": [
+    {
+      "description": "Expo SDK coherence: expo, react, react-native and Expo-managed modules are pinned by the Expo SDK and must move together (via `expo install --fix`), so do not raise individual update PRs — group them and require manual approval from the Dependency Dashboard",
+      "matchPackageNames": [
+        "expo",
+        "react",
+        "react-dom",
+        "react-native",
+        "react-native-web",
+        "expo-*",
+        "@expo/*"
+      ],
+      "groupName": "Expo SDK",
+      "dependencyDashboardApproval": true
     },
-    "packageRules": [
-      {
-        "description": "Group minor and patch GitHub Action updates into a single PR",
-        "matchManagers": ["github-actions"],
-        "groupName": "CI dependencies",
-        "groupSlug": "ci-deps",
-        "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
-        "automerge": true
-      }
-    ]
-  }
+    {
+      "description": "Group minor and patch GitHub Action updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "CI dependencies",
+      "groupSlug": "ci-deps",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "automerge": true
+    },
+    {
+      "description": "androidx and other Google-hosted Maven packages resolve from Google's Maven repository (not Maven Central)",
+      "matchDatasources": ["maven"],
+      "registryUrls": [
+        "https://dl.google.com/dl/android/maven2/",
+        "https://repo.maven.apache.org/maven2/"
+      ]
+    }
+  ]
 }
