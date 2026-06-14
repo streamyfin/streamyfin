@@ -53,7 +53,6 @@ export function useWifiSSID(): UseWifiSSIDReturn {
   const fetchSSID = useCallback(async () => {
     if (Platform.isTV) return;
     const result = await getSSID();
-    console.log("[WiFi Debug] Native module SSID:", result);
     setSSID(result);
   }, []);
 
