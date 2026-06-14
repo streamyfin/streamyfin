@@ -99,6 +99,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const userDataChangeDebounceRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
+  // Handle for the onerror backoff timer. Tracked so a reconnect triggered by
+  // another path (foreground, network reconnect, effect re-run) can cancel a
+  // pending one — an untracked timer would later open a second socket.
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
   // subscribing/dispatching never triggers a re-render.
@@ -144,6 +150,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   }, []);
 
   const connectWebSocket = useCallback(() => {
+    // Cancel any reconnect queued by a previous onerror before opening a new
+    // socket, so we never end up with two live sockets — each would double the
+    // message fan-out and double-invalidate queries.
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     if (!deviceId || !api?.accessToken || !isNetworkConnected) {
       return;
     }
@@ -164,6 +178,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     newWebSocket.onopen = () => {
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
       keepAliveInterval = setInterval(() => {
         if (newWebSocket.readyState === WebSocket.OPEN) {
           newWebSocket.send(JSON.stringify({ MessageType: "KeepAlive" }));
@@ -175,9 +193,15 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       // Don't log errors - this is expected when offline or server unreachable
       setIsConnected(false);
 
+      // Replace any still-pending reconnect so only one is ever queued; the
+      // previously untracked handle could leak and open a second socket.
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
       if (reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current++;
-        setTimeout(() => {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = null;
           connectWebSocket();
         }, reconnectDelay);
       }
@@ -205,6 +229,10 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     return () => {
       if (keepAliveInterval) {
         clearInterval(keepAliveInterval);
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       newWebSocket.close();
     };
@@ -281,6 +309,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       }
       if (userDataChangeDebounceRef.current) {
         clearTimeout(userDataChangeDebounceRef.current);
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
   }, []);
