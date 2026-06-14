@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift b/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
+index 09be306d5aa39337c5114c2ad6ba7513218e0751..24ff8ee2c36fef8632a7e012514fd04db9bf89fd 100644
+--- a/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
++++ b/node_modules/react-native-ios-utilities/ios/Sources/Extensions+Helpers/RCTView+Helpers.swift
+@@ -25,15 +25,14 @@ public extension RCTView {
+     return rootView.recursivelyFindSubview(whereType: targetType);
+   };
+   
+-  var closestParentReactContentView: RCTRootContentView? {
+-    let targetType = RCTRootContentView.self;
+-  
+-    if let match = self.recursivelyFindParentView(whereType: targetType) {
+-      return match;
+-    };
+-    
+-    guard let rootView = self.rootViewForCurrentWindow else { return nil };
+-    return rootView.recursivelyFindSubview(whereType: targetType);
++  // PATCH (streamyfin): RCTRootContentView is a legacy paper class that the prebuilt
++  // new-architecture React (RN 0.85) does not export, so any reference to it fails to
++  // link (Undefined symbols: _OBJC_CLASS_$_RCTRootContentView). The app runs the new
++  // architecture, where this content-view lookup is unused; short-circuit to nil.
++  // Return type widened to RCTView? so the caller's `.reactTouchHandlers` (an RCTView
++  // extension) still resolves.
++  var closestParentReactContentView: RCTView? {
++    return nil;
+   };
+   
+   var reactTouchHandlers: [RCTTouchHandler]? {

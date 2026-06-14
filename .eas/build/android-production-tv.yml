@@ -1,0 +1,27 @@
+# Custom EAS Build config for Android TV APK (downloadable artifact).
+# Same bun-forcing flow, with EXPO_TV=1 (set via the profile env in
+# eas.json) so prebuild generates the TV variant. Builds an APK for
+# sideloading onto Android TV devices.
+# Referenced from eas.json: build.production-apk-tv.android.config
+build:
+  name: Android TV APK (bun)
+  steps:
+    - eas/checkout
+
+    - run:
+        name: Install dependencies (bun, frozen)
+        command: bun install --frozen-lockfile
+
+    # EXPO_TV=1 comes from the profile env, so prebuild targets Android TV.
+    - run:
+        name: Prebuild (Android TV, bun)
+        command: bunx expo prebuild --platform android --no-install
+
+    - eas/configure_android_version
+    - eas/inject_android_credentials
+
+    - eas/run_gradle:
+        inputs:
+          command: :app:assembleRelease
+
+    - eas/find_and_upload_build_artifacts

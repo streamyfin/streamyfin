@@ -3,19 +3,26 @@ import {
   type NativeBottomTabNavigationEventMap,
   type NativeBottomTabNavigationOptions,
 } from "@bottom-tabs/react-navigation";
+import { withLayoutContext } from "expo-router";
 import type {
   ParamListBase,
   TabNavigationState,
-} from "@react-navigation/native";
-import { withLayoutContext } from "expo-router";
+} from "expo-router/react-navigation";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
-import { MiniPlayerBar } from "@/components/music/MiniPlayerBar";
-import { MusicPlaybackEngine } from "@/components/music/MusicPlaybackEngine";
 import { Colors } from "@/constants/Colors";
+import { useTVHomeBackHandler } from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+
+// Music components are not available on tvOS (TrackPlayer not supported)
+const MiniPlayerBar = Platform.isTV
+  ? () => null
+  : require("@/components/music/MiniPlayerBar").MiniPlayerBar;
+const MusicPlaybackEngine = Platform.isTV
+  ? () => null
+  : require("@/components/music/MusicPlaybackEngine").MusicPlaybackEngine;
 
 const { Navigator } = createNativeBottomTabNavigator();
 
@@ -29,6 +36,9 @@ export const NativeTabs = withLayoutContext<
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
+
+  // Handle TV back button - prevent app exit when at root
+  useTVHomeBackHandler();
 
   return (
     <View style={{ flex: 1 }}>
@@ -92,8 +102,8 @@ export default function TabLayout() {
               !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
-                : (_e) => ({ sfSymbol: "list.bullet.rectangle" }),
+                ? (_e) => require("@/assets/icons/list.star.png")
+                : (_e) => ({ sfSymbol: "list.star" }),
           }}
         />
         <NativeTabs.Screen
@@ -102,7 +112,7 @@ export default function TabLayout() {
             title: t("tabs.library"),
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/server.rack.png")
+                ? (_e) => require("@/assets/icons/rectangle.stack.fill.png")
                 : (_e) => ({ sfSymbol: "rectangle.stack.fill" }),
           }}
         />
@@ -113,8 +123,19 @@ export default function TabLayout() {
             tabBarItemHidden: !settings?.showCustomMenuLinks,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
-                : (_e) => ({ sfSymbol: "list.dash.fill" }),
+                ? (_e) => require("@/assets/icons/link.png")
+                : (_e) => ({ sfSymbol: "link" }),
+          }}
+        />
+        <NativeTabs.Screen
+          name='(settings)'
+          options={{
+            title: t("tabs.settings"),
+            tabBarItemHidden: !Platform.isTV,
+            tabBarIcon:
+              Platform.OS === "android"
+                ? (_e) => require("@/assets/icons/gearshape.fill.png")
+                : (_e) => ({ sfSymbol: "gearshape.fill" }),
           }}
         />
       </NativeTabs>

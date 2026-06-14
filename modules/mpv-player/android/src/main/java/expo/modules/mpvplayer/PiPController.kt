@@ -1,51 +1,62 @@
 package expo.modules.mpvplayer
 
 import android.app.Activity
+import android.app.Application
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.graphics.Rect
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.Rational
 import android.view.View
 import androidx.annotation.RequiresApi
 import expo.modules.kotlin.AppContext
 
-/**
- * Picture-in-Picture controller for Android.
- * This mirrors the iOS PiPController implementation.
- */
 class PiPController(private val context: Context, private val appContext: AppContext? = null) {
-    
+
     companion object {
         private const val TAG = "PiPController"
         private const val DEFAULT_ASPECT_WIDTH = 16
         private const val DEFAULT_ASPECT_HEIGHT = 9
+        private const val ACTION_PIP_PLAY_PAUSE = "expo.modules.mpvplayer.PIP_PLAY_PAUSE"
+        private const val ACTION_PIP_SKIP_FORWARD = "expo.modules.mpvplayer.PIP_SKIP_FORWARD"
+        private const val ACTION_PIP_SKIP_BACKWARD = "expo.modules.mpvplayer.PIP_SKIP_BACKWARD"
     }
-    
+
     interface Delegate {
         fun onPlay()
         fun onPause()
         fun onSeekBy(seconds: Double)
+        fun onPictureInPictureModeChanged(isInPiP: Boolean)
     }
-    
+
     var delegate: Delegate? = null
-    
+
     private var currentPosition: Double = 0.0
     private var currentDuration: Double = 0.0
     private var playbackRate: Double = 1.0
-    
-    // Video dimensions for proper aspect ratio
+
     private var videoWidth: Int = 0
     private var videoHeight: Int = 0
-    
-    // Reference to the player view for source rect
     private var playerView: View? = null
-    
-    /**
-     * Check if Picture-in-Picture is supported on this device
-     */
+
+    // PiP state tracking
+    private var isInPiPMode: Boolean = false
+    private var pipEntryNotified: Boolean = false
+    private val pipHandler = Handler(Looper.getMainLooper())
+    private var lifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
+    private var lifecycleRegistered = false
+    private var pipBroadcastReceiver: BroadcastReceiver? = null
+
     fun isPictureInPictureSupported(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
@@ -53,10 +64,7 @@ class PiPController(private val context: Context, private val appContext: AppCon
             false
         }
     }
-    
-    /**
-     * Check if Picture-in-Picture is currently active
-     */
+
     fun isPictureInPictureActive(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val activity = getActivity()
@@ -64,69 +72,69 @@ class PiPController(private val context: Context, private val appContext: AppCon
         }
         return false
     }
-    
-    /**
-     * Start Picture-in-Picture mode
-     */
+
     fun startPictureInPicture() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val activity = getActivity()
-            if (activity == null) {
-                Log.e(TAG, "Cannot start PiP: no activity found")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+        val activity = getActivity() ?: run {
+            Log.e(TAG, "Cannot start PiP: no activity")
+            return
+        }
+
+        if (!isPictureInPictureSupported()) {
+            Log.e(TAG, "PiP not supported on this device")
+            return
+        }
+
+        try {
+            val params = buildPiPParams(forEntering = true)
+            val result = activity.enterPictureInPictureMode(params)
+
+            if (!result) {
+                Log.e(TAG, "enterPictureInPictureMode rejected by system")
+                isInPiPMode = false
                 return
             }
-            
-            if (!isPictureInPictureSupported()) {
-                Log.e(TAG, "PiP not supported on this device")
-                return
-            }
-            
-            try {
-                val params = buildPiPParams(forEntering = true)
-                activity.enterPictureInPictureMode(params)
-                Log.i(TAG, "Entered PiP mode")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to enter PiP: ${e.message}")
-            }
-        } else {
-            Log.w(TAG, "PiP requires Android O or higher")
+
+            isInPiPMode = true
+            pipEntryNotified = true
+            delegate?.onPictureInPictureModeChanged(true)
+            registerLifecycleCallbacks()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to enter PiP: ${e.message}")
         }
     }
-    
-    /**
-     * Stop Picture-in-Picture mode
-     */
+
     fun stopPictureInPicture() {
-        // On Android, exiting PiP is typically done by the user
-        // or by finishing the activity. We can request to move task to back.
+        isInPiPMode = false
+        pipEntryNotified = false
+        unregisterLifecycleCallbacks()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val activity = getActivity()
             if (activity?.isInPictureInPictureMode == true) {
-                // Move task to back which will exit PiP
                 activity.moveTaskToBack(false)
             }
         }
     }
-    
-    /**
-     * Update the current playback position and duration
-     * Note: We don't update PiP params here as we're not using progress in PiP controls
-     */
+
+    fun isCurrentlyInPiP(): Boolean = isInPiPMode
+
     fun setCurrentTime(position: Double, duration: Double) {
         currentPosition = position
         currentDuration = duration
     }
-    
-    /**
-     * Set the playback rate (0.0 for paused, 1.0 for playing)
-     */
+
     fun setPlaybackRate(rate: Double) {
         playbackRate = rate
-        
-        // Update PiP params to reflect play/pause state
+
+        if (rate > 0) {
+            registerLifecycleCallbacks()
+        }
+
+        // Update PiP params so autoEnterEnabled and action icons track play/pause state
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val activity = getActivity()
-            if (activity?.isInPictureInPictureMode == true) {
+            if (activity != null) {
                 try {
                     activity.setPictureInPictureParams(buildPiPParams())
                 } catch (e: Exception) {
@@ -135,28 +143,19 @@ class PiPController(private val context: Context, private val appContext: AppCon
             }
         }
     }
-    
-    /**
-     * Set the video dimensions for proper aspect ratio calculation
-     */
+
     fun setVideoDimensions(width: Int, height: Int) {
         if (width > 0 && height > 0) {
             videoWidth = width
             videoHeight = height
-            Log.i(TAG, "Video dimensions set: ${width}x${height}")
-            
-            // Update PiP params if active
             updatePiPParamsIfNeeded()
         }
     }
-    
-    /**
-     * Set the player view reference for source rect hint
-     */
+
     fun setPlayerView(view: View?) {
         playerView = view
     }
-    
+
     private fun updatePiPParamsIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val activity = getActivity()
@@ -169,23 +168,16 @@ class PiPController(private val context: Context, private val appContext: AppCon
             }
         }
     }
-    
-    /**
-     * Build Picture-in-Picture params for the current player state.
-     * Calculates proper aspect ratio and source rect based on video and view dimensions.
-     */
+
     @RequiresApi(Build.VERSION_CODES.O)
     private fun buildPiPParams(forEntering: Boolean = false): PictureInPictureParams {
         val view = playerView
         val viewWidth = view?.width ?: 0
         val viewHeight = view?.height ?: 0
-        
-        // Display aspect ratio from view (exactly like Findroid)
+
         val displayAspectRatio = Rational(viewWidth.coerceAtLeast(1), viewHeight.coerceAtLeast(1))
-        
-        // Video aspect ratio with 2.39:1 clamping (exactly like Findroid)
-        // Findroid: Rational(it.width.coerceAtMost((it.height * 2.39f).toInt()), 
-        //                    it.height.coerceAtMost((it.width * 2.39f).toInt()))
+
+        // Video aspect ratio with 2.39:1 clamping
         val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
             Rational(
                 videoWidth.coerceAtMost((videoHeight * 2.39f).toInt()),
@@ -194,70 +186,235 @@ class PiPController(private val context: Context, private val appContext: AppCon
         } else {
             Rational(DEFAULT_ASPECT_WIDTH, DEFAULT_ASPECT_HEIGHT)
         }
-        
-        // Source rect hint calculation (exactly like Findroid)
+
         val sourceRectHint = if (viewWidth > 0 && viewHeight > 0 && videoWidth > 0 && videoHeight > 0) {
             if (displayAspectRatio < aspectRatio) {
-                // Letterboxing - black bars top/bottom
                 val space = ((viewHeight - (viewWidth.toFloat() / aspectRatio.toFloat())) / 2).toInt()
-                Rect(
-                    0,
-                    space,
-                    viewWidth,
-                    (viewWidth.toFloat() / aspectRatio.toFloat()).toInt() + space
-                )
+                Rect(0, space, viewWidth, (viewWidth.toFloat() / aspectRatio.toFloat()).toInt() + space)
             } else {
-                // Pillarboxing - black bars left/right
                 val space = ((viewWidth - (viewHeight.toFloat() * aspectRatio.toFloat())) / 2).toInt()
-                Rect(
-                    space,
-                    0,
-                    (viewHeight.toFloat() * aspectRatio.toFloat()).toInt() + space,
-                    viewHeight
-                )
+                Rect(space, 0, (viewHeight.toFloat() * aspectRatio.toFloat()).toInt() + space, viewHeight)
             }
         } else {
             null
         }
-        
+
         val builder = PictureInPictureParams.Builder()
             .setAspectRatio(aspectRatio)
-        
+
         sourceRectHint?.let { builder.setSourceRectHint(it) }
-        
-        // On Android 12+, enable auto-enter (like Findroid)
+
+        ensurePiPReceiverRegistered()
+        builder.setActions(buildPiPActions())
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(true)
+            builder.setAutoEnterEnabled(forEntering || playbackRate > 0)
         }
-        
+
         return builder.build()
     }
-    
+
     private fun getActivity(): Activity? {
-        // First try Expo's AppContext (preferred in React Native)
         appContext?.currentActivity?.let { return it }
-        
-        // Fallback: Try to get from context wrapper chain
+
         var ctx = context
         while (ctx is android.content.ContextWrapper) {
-            if (ctx is Activity) {
-                return ctx
-            }
+            if (ctx is Activity) return ctx
             ctx = ctx.baseContext
         }
         return null
     }
-    
-    /**
-     * Handle PiP action (called from activity when user taps PiP controls)
-     */
-    fun handlePiPAction(action: String) {
-        when (action) {
-            "play" -> delegate?.onPlay()
-            "pause" -> delegate?.onPause()
-            "skip_forward" -> delegate?.onSeekBy(10.0)
-            "skip_backward" -> delegate?.onSeekBy(-10.0)
+
+    // MARK: - Lifecycle-based PiP Detection
+
+    private fun registerLifecycleCallbacks() {
+        if (lifecycleRegistered) return
+
+        val app = context.applicationContext as? Application ?: run {
+            Log.w(TAG, "Cannot access Application for lifecycle callbacks, falling back to polling")
+            startFallbackPolling()
+            return
         }
+
+        lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {}
+
+            override fun onActivityResumed(activity: Activity) {
+                if (!isInPiPMode) return
+                if (!activity.isInPictureInPictureMode) {
+                    isInPiPMode = false
+                    pipEntryNotified = false
+                    delegate?.onPictureInPictureModeChanged(false)
+                }
+            }
+
+            override fun onActivityPaused(activity: Activity) {
+                // Proactively hide controls when user leaves while playing,
+                // before the PiP window captures the UI. onActivityStopped
+                // will restore if PiP didn't actually enter.
+                if (playbackRate > 0 && !isInPiPMode) {
+                    isInPiPMode = true
+                    pipEntryNotified = true
+                    delegate?.onPictureInPictureModeChanged(true)
+                }
+            }
+
+            override fun onActivityStopped(activity: Activity) {
+                pipHandler.postDelayed({
+                    val inPip = activity.isInPictureInPictureMode
+
+                    if (inPip && !isInPiPMode) {
+                        isInPiPMode = true
+                        pipEntryNotified = true
+                        delegate?.onPictureInPictureModeChanged(true)
+                        return@postDelayed
+                    }
+
+                    if (!isInPiPMode) return@postDelayed
+                    if (inPip) return@postDelayed
+
+                    // Not in PiP after 1s — check again to avoid false positive during transition
+                    pipHandler.postDelayed({
+                        if (!isInPiPMode) return@postDelayed
+                        if (!activity.isInPictureInPictureMode) {
+                            isInPiPMode = false
+                            pipEntryNotified = false
+                            delegate?.onPictureInPictureModeChanged(false)
+                        }
+                    }, 1500)
+                }, 1000)
+            }
+
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+
+            override fun onActivityDestroyed(activity: Activity) {
+                isInPiPMode = false
+            }
+        }
+
+        app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+        lifecycleRegistered = true
+    }
+
+    private fun unregisterLifecycleCallbacks() {
+        if (!lifecycleRegistered) return
+        lifecycleCallbacks?.let {
+            (context.applicationContext as? Application)
+                ?.unregisterActivityLifecycleCallbacks(it)
+        }
+        lifecycleCallbacks = null
+        lifecycleRegistered = false
+        pipHandler.removeCallbacksAndMessages(null)
+        unregisterPiPBroadcastReceiver()
+    }
+
+    private fun startFallbackPolling() {
+        var falseReadCount = 0
+        pipHandler.removeCallbacksAndMessages(null)
+        pipHandler.postDelayed(object : Runnable {
+            override fun run() {
+                if (!isInPiPMode) return
+
+                var ctx = context
+                var activity: Activity? = null
+                while (ctx is android.content.ContextWrapper) {
+                    if (ctx is Activity) { activity = ctx; break }
+                    ctx = ctx.baseContext
+                }
+
+                val stillInPip = activity?.isInPictureInPictureMode == true
+
+                if (!stillInPip) {
+                    falseReadCount++
+                    if (falseReadCount >= 3) {
+                        isInPiPMode = false
+                        delegate?.onPictureInPictureModeChanged(false)
+                        return
+                    }
+                    pipHandler.postDelayed(this, 500)
+                    return
+                }
+
+                falseReadCount = 0
+                pipHandler.postDelayed(this, 1000)
+            }
+        }, 3000)
+    }
+
+    // MARK: - PiP Remote Actions
+
+    private fun ensurePiPReceiverRegistered() {
+        if (pipBroadcastReceiver != null) return
+
+        pipBroadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    ACTION_PIP_PLAY_PAUSE -> {
+                        if (playbackRate > 0) delegate?.onPause() else delegate?.onPlay()
+                    }
+                    ACTION_PIP_SKIP_FORWARD -> delegate?.onSeekBy(10.0)
+                    ACTION_PIP_SKIP_BACKWARD -> delegate?.onSeekBy(-10.0)
+                }
+            }
+        }
+
+        val filter = IntentFilter().apply {
+            addAction(ACTION_PIP_PLAY_PAUSE)
+            addAction(ACTION_PIP_SKIP_FORWARD)
+            addAction(ACTION_PIP_SKIP_BACKWARD)
+        }
+        val registerFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Context.RECEIVER_EXPORTED
+        } else {
+            0
+        }
+        context.applicationContext.registerReceiver(pipBroadcastReceiver, filter, registerFlags)
+    }
+
+    private fun unregisterPiPBroadcastReceiver() {
+        pipBroadcastReceiver?.let {
+            try {
+                context.applicationContext.unregisterReceiver(it)
+            } catch (_: Exception) {}
+        }
+        pipBroadcastReceiver = null
+    }
+
+    private fun buildPiPActions(): List<RemoteAction> {
+        val isPlaying = playbackRate > 0
+
+        return listOf(
+            RemoteAction(
+                Icon.createWithResource(context, android.R.drawable.ic_media_rew),
+                "Rewind", "Skip backward 10 seconds",
+                createPiPPendingIntent(ACTION_PIP_SKIP_BACKWARD)
+            ),
+            RemoteAction(
+                Icon.createWithResource(
+                    context,
+                    if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+                ),
+                if (isPlaying) "Pause" else "Play",
+                if (isPlaying) "Pause playback" else "Resume playback",
+                createPiPPendingIntent(ACTION_PIP_PLAY_PAUSE)
+            ),
+            RemoteAction(
+                Icon.createWithResource(context, android.R.drawable.ic_media_ff),
+                "Fast Forward", "Skip forward 10 seconds",
+                createPiPPendingIntent(ACTION_PIP_SKIP_FORWARD)
+            )
+        )
+    }
+
+    private fun createPiPPendingIntent(action: String): android.app.PendingIntent {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.app.PendingIntent.FLAG_IMMUTABLE
+        } else {
+            0
+        }
+        return android.app.PendingIntent.getBroadcast(
+            context.applicationContext, 0, Intent(action), flags
+        )
     }
 }
-

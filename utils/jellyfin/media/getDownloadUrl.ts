@@ -7,7 +7,7 @@ import { Bitrate } from "@/components/BitrateSelector";
 import {
   type AudioTranscodeModeType,
   generateDeviceProfile,
-} from "@/utils/profiles/native";
+} from "../../profiles/native";
 import { getDownloadStreamUrl, getStreamUrl } from "./getStreamUrl";
 
 export const getDownloadUrl = async ({
@@ -50,7 +50,7 @@ export const getDownloadUrl = async ({
   if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {
     console.log("Downloading item directly");
     return {
-      url: `${api.basePath}/Items/${item.Id}/Download?api_key=${api.accessToken}`,
+      url: `${api.basePath}/Items/${mediaSource.Id}/Download?api_key=${api.accessToken}`,
       mediaSource: streamDetails?.mediaSource ?? null,
     };
   }
