@@ -33,6 +33,12 @@ const buildMeta = {
     process.env.EAS_BUILD_PROFILE ||
     process.env.EXPO_PUBLIC_BUILD_PROFILE ||
     null,
+  // GitHub Actions run number (#2098) — lets anyone map a sideloaded CI build back
+  // to its Actions run (artifacts + logs) without Expo access. Null outside CI.
+  runNumber:
+    process.env.GITHUB_RUN_NUMBER ||
+    process.env.EXPO_PUBLIC_GIT_RUN_NUMBER ||
+    null,
   builtAt: new Date().toISOString(),
 };
 
