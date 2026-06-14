@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { useDownload } from "@/providers/DownloadProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { BITRATES } from "./BitRateSheet";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
@@ -28,6 +30,14 @@ export const MediaSourceButton: React.FC<Props> = ({
 }: Props) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const isOffline = useOfflineMode();
+  const { getDownloadedItemById } = useDownload();
+
+  // For transcoded downloads there's only one burned-in track — nothing to pick
+  const isTranscodedDownload = useMemo(() => {
+    if (!isOffline || !item?.Id) return false;
+    return getDownloadedItemById(item.Id)?.userData?.isTranscoded === true;
+  }, [isOffline, item?.Id, getDownloadedItemById]);
 
   const effectiveColors = colors || {
     primary: "#7c3aed",
@@ -72,34 +82,36 @@ export const MediaSourceButton: React.FC<Props> = ({
   const optionGroups: OptionGroup[] = useMemo(() => {
     const groups: OptionGroup[] = [];
 
-    // Bitrate group
-    groups.push({
-      title: t("item_card.quality"),
-      options: BITRATES.map((bitrate) => ({
-        type: "radio" as const,
-        label: bitrate.key,
-        value: bitrate,
-        selected: bitrate.value === selectedOptions.bitrate?.value,
-        onPress: () =>
-          setSelectedOptions((prev) => prev && { ...prev, bitrate }),
-      })),
-    });
-
-    // Media Source group (only if multiple sources)
-    if (item?.MediaSources && item.MediaSources.length > 1) {
+    if (!isOffline) {
+      // Bitrate group
       groups.push({
-        title: t("item_card.video"),
-        options: item.MediaSources.map((source) => ({
+        title: t("item_card.quality"),
+        options: BITRATES.map((bitrate) => ({
           type: "radio" as const,
-          label: getMediaSourceDisplayName(source),
-          value: source,
-          selected: source.Id === selectedOptions.mediaSource?.Id,
+          label: bitrate.key,
+          value: bitrate,
+          selected: bitrate.value === selectedOptions.bitrate?.value,
           onPress: () =>
-            setSelectedOptions(
-              (prev) => prev && { ...prev, mediaSource: source },
-            ),
+            setSelectedOptions((prev) => prev && { ...prev, bitrate }),
         })),
       });
+
+      // Media Source group (only if multiple sources)
+      if (item?.MediaSources && item.MediaSources.length > 1) {
+        groups.push({
+          title: t("item_card.video"),
+          options: item.MediaSources.map((source) => ({
+            type: "radio" as const,
+            label: getMediaSourceDisplayName(source),
+            value: source,
+            selected: source.Id === selectedOptions.mediaSource?.Id,
+            onPress: () =>
+              setSelectedOptions(
+                (prev) => prev && { ...prev, mediaSource: source },
+              ),
+          })),
+        });
+      }
     }
 
     // Audio track group
@@ -150,6 +162,7 @@ export const MediaSourceButton: React.FC<Props> = ({
     return groups;
   }, [
     item,
+    isOffline,
     selectedOptions,
     audioStreams,
     subtitleStreams,
@@ -177,6 +190,8 @@ export const MediaSourceButton: React.FC<Props> = ({
       </View>
     </TouchableOpacity>
   );
+
+  if (isTranscodedDownload) return null;
 
   return (
     <PlatformDropdown

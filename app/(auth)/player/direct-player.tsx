@@ -147,9 +147,9 @@ export default function DirectPlayerPage() {
   const audioIndexFromUrl = audioIndexStr
     ? Number.parseInt(audioIndexStr, 10)
     : undefined;
-  const subtitleIndex = subtitleIndexStr
+  const subtitleIndexFromUrl = subtitleIndexStr
     ? Number.parseInt(subtitleIndexStr, 10)
-    : -1;
+    : undefined;
   const bitrateValue = bitrateValueStr
     ? Number.parseInt(bitrateValueStr, 10)
     : BITRATES[0].value;
@@ -185,6 +185,23 @@ export default function DirectPlayerPage() {
     return undefined;
   }, [audioIndexFromUrl, offline, downloadedItem?.userData?.audioStreamIndex]);
 
+  // Resolve subtitle index: use URL param if provided, otherwise use stored index for offline playback
+  const subtitleIndex = useMemo(() => {
+    if (subtitleIndexFromUrl !== undefined) {
+      return subtitleIndexFromUrl;
+    }
+    if (
+      offline &&
+      downloadedItem?.userData?.subtitleStreamIndex !== undefined
+    ) {
+      return downloadedItem.userData.subtitleStreamIndex;
+    }
+    return -1;
+  }, [
+    subtitleIndexFromUrl,
+    offline,
+    downloadedItem?.userData?.subtitleStreamIndex,
+  ]);
   // Initialize TV audio/subtitle indices from URL params.
   // No undefined guard: when a new episode's URL omits audioIndex, reset to
   // undefined (media default) rather than leaking the previous episode's track.

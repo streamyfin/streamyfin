@@ -24,6 +24,7 @@ import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -59,6 +60,9 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const isOffline = useOfflineMode();
+  const { getDownloadedItemById } = useDownload();
+  const downloadedItem =
+    isOffline && item?.Id ? getDownloadedItemById(item.Id) : null;
   const { settings } = useSettings();
   const { orientation } = useOrientation();
   const navigation = useNavigation();
@@ -105,17 +109,30 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 
   // Needs to automatically change the selected to the default values for default indexes.
   useEffect(() => {
+    // When offline, use the indices stored in userData (the last-used tracks for this file)
+    // rather than the server's defaults, so MediaSourceButton reflects what will actually play.
+    const offlineUserData = downloadedItem?.userData;
+
     setSelectedOptions(() => ({
       bitrate: defaultBitrate,
       mediaSource: defaultMediaSource ?? undefined,
-      subtitleIndex: defaultSubtitleIndex ?? -1,
-      audioIndex: defaultAudioIndex,
+      subtitleIndex:
+        offlineUserData && !offlineUserData.isTranscoded
+          ? offlineUserData.subtitleStreamIndex
+          : (defaultSubtitleIndex ?? -1),
+      audioIndex:
+        offlineUserData && !offlineUserData.isTranscoded
+          ? offlineUserData.audioStreamIndex
+          : defaultAudioIndex,
     }));
   }, [
     defaultAudioIndex,
     defaultBitrate,
     defaultSubtitleIndex,
     defaultMediaSource,
+    downloadedItem?.userData?.audioStreamIndex,
+    downloadedItem?.userData?.subtitleStreamIndex,
+    downloadedItem?.userData?.isTranscoded,
   ]);
 
   useEffect(() => {
