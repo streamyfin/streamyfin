@@ -37,7 +37,7 @@ jobs:
           android: false
           dotnet: true
           haskell: true
-          large-packages: true
+          large-packages: false
           docker-images: true
           swap-storage: false
 
@@ -120,7 +120,7 @@ jobs:
           android: false
           dotnet: true
           haskell: true
-          large-packages: true
+          large-packages: false
           docker-images: true
           swap-storage: false
 
