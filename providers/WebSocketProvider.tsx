@@ -123,7 +123,15 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       handlers.add(handler);
       return () => {
         handlers?.delete(handler);
-        if (handlers && handlers.size === 0) {
+        // Only drop the map entry if it still points at THIS set. After an
+        // unsubscribe + re-subscribe for the same type, a stale second call to
+        // this cleanup would otherwise delete the new subscribers' set and
+        // silently stop delivering their messages.
+        if (
+          handlers &&
+          handlers.size === 0 &&
+          listeners.get(messageType) === handlers
+        ) {
           listeners.delete(messageType);
         }
       };
