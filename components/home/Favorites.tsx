@@ -143,14 +143,22 @@ export const Favorites = ({
     [fetchFavoritesByType, pageSize],
   );
 
-  // Navigate to the shared see-all screen. `titleKey` is the see-all header
-  // segment in the active namespace (e.g. "seeAllSeries"). The cast is needed
-  // because the route's custom params aren't part of expo-router's typed Href.
+  // Navigate to the shared see-all screen. `name` is the capitalized type
+  // suffix of the see-all header key (e.g. "Series" -> "seeAllSeries").
+  // The namespace is branched explicitly so each t() call has a static prefix
+  // (favorites.seeAll* / kefintweaksWatchlist.seeAll*) that the i18n usage
+  // checker can detect — see scripts/check-i18n-keys.mjs. The `as any` is
+  // needed because the route's custom params aren't part of expo-router's
+  // typed Href.
   const seeAll = useCallback(
-    (type: FavoriteTypes, titleKey: string) => {
+    (type: FavoriteTypes, name: string) => {
+      const title =
+        seeAllNamespace === "kefintweaksWatchlist"
+          ? t(`kefintweaksWatchlist.seeAll${name}`)
+          : t(`favorites.seeAll${name}`);
       router.push({
         pathname: "/(auth)/(tabs)/(favorites)/see-all",
-        params: { type, title: t(`${seeAllNamespace}.${titleKey}`), filter },
+        params: { type, title, filter },
       } as any);
     },
     [router, filter, seeAllNamespace],
@@ -180,7 +188,7 @@ export const Favorites = ({
         title={t("favorites.series")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={() => seeAll("Series", "seeAllSeries")}
+        onPressSeeAll={() => seeAll("Series", "Series")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
@@ -189,7 +197,7 @@ export const Favorites = ({
         hideIfEmpty
         orientation='vertical'
         pageSize={pageSize}
-        onPressSeeAll={() => seeAll("Movie", "seeAllMovies")}
+        onPressSeeAll={() => seeAll("Movie", "Movies")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
@@ -197,7 +205,7 @@ export const Favorites = ({
         title={t("favorites.episodes")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={() => seeAll("Episode", "seeAllEpisodes")}
+        onPressSeeAll={() => seeAll("Episode", "Episodes")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
@@ -205,7 +213,7 @@ export const Favorites = ({
         title={t("favorites.videos")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={() => seeAll("Video", "seeAllVideos")}
+        onPressSeeAll={() => seeAll("Video", "Videos")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
@@ -213,7 +221,7 @@ export const Favorites = ({
         title={t("favorites.boxsets")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={() => seeAll("BoxSet", "seeAllBoxsets")}
+        onPressSeeAll={() => seeAll("BoxSet", "Boxsets")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
@@ -221,7 +229,7 @@ export const Favorites = ({
         title={t("favorites.playlists")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={() => seeAll("Playlist", "seeAllPlaylists")}
+        onPressSeeAll={() => seeAll("Playlist", "Playlists")}
       />
     </View>
   );
