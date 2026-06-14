@@ -33,7 +33,7 @@ interface FavoritesProps {
   emptyTitleKey?: string;
   emptyTextKey?: string;
   /** Namespace for the see-all page headers ("favorites" or "kefintweaksWatchlist"). */
-  seeAllNamespace?: string;
+  seeAllNamespace?: "kefintweaksWatchlist" | "favorites";
 }
 
 export const Favorites = ({
@@ -143,71 +143,18 @@ export const Favorites = ({
     [fetchFavoritesByType, pageSize],
   );
 
-  const handleSeeAllSeries = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: {
-        type: "Series",
-        title: t(`${seeAllNamespace}.seeAllSeries`),
-        filter,
-      },
-    } as any);
-  }, [router, filter, seeAllNamespace]);
-
-  const handleSeeAllMovies = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: {
-        type: "Movie",
-        title: t(`${seeAllNamespace}.seeAllMovies`),
-        filter,
-      },
-    } as any);
-  }, [router, filter, seeAllNamespace]);
-
-  const handleSeeAllEpisodes = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: {
-        type: "Episode",
-        title: t(`${seeAllNamespace}.seeAllEpisodes`),
-        filter,
-      },
-    } as any);
-  }, [router, filter, seeAllNamespace]);
-
-  const handleSeeAllVideos = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: {
-        type: "Video",
-        title: t(`${seeAllNamespace}.seeAllVideos`),
-        filter,
-      },
-    } as any);
-  }, [router, filter, seeAllNamespace]);
-
-  const handleSeeAllBoxsets = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: {
-        type: "BoxSet",
-        title: t(`${seeAllNamespace}.seeAllBoxsets`),
-        filter,
-      },
-    } as any);
-  }, [router, filter, seeAllNamespace]);
-
-  const handleSeeAllPlaylists = useCallback(() => {
-    router.push({
-      pathname: "/(auth)/(tabs)/(favorites)/see-all",
-      params: {
-        type: "Playlist",
-        title: t(`${seeAllNamespace}.seeAllPlaylists`),
-        filter,
-      },
-    } as any);
-  }, [router, filter, seeAllNamespace]);
+  // Navigate to the shared see-all screen. `titleKey` is the see-all header
+  // segment in the active namespace (e.g. "seeAllSeries"). The cast is needed
+  // because the route's custom params aren't part of expo-router's typed Href.
+  const seeAll = useCallback(
+    (type: FavoriteTypes, titleKey: string) => {
+      router.push({
+        pathname: "/(auth)/(tabs)/(favorites)/see-all",
+        params: { type, title: t(`${seeAllNamespace}.${titleKey}`), filter },
+      } as any);
+    },
+    [router, filter, seeAllNamespace],
+  );
 
   return (
     <View className='flex flex-co gap-y-4'>
@@ -233,7 +180,7 @@ export const Favorites = ({
         title={t("favorites.series")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllSeries}
+        onPressSeeAll={() => seeAll("Series", "seeAllSeries")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteMovies}
@@ -242,7 +189,7 @@ export const Favorites = ({
         hideIfEmpty
         orientation='vertical'
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllMovies}
+        onPressSeeAll={() => seeAll("Movie", "seeAllMovies")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteEpisodes}
@@ -250,7 +197,7 @@ export const Favorites = ({
         title={t("favorites.episodes")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllEpisodes}
+        onPressSeeAll={() => seeAll("Episode", "seeAllEpisodes")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteVideos}
@@ -258,7 +205,7 @@ export const Favorites = ({
         title={t("favorites.videos")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllVideos}
+        onPressSeeAll={() => seeAll("Video", "seeAllVideos")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoriteBoxsets}
@@ -266,7 +213,7 @@ export const Favorites = ({
         title={t("favorites.boxsets")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllBoxsets}
+        onPressSeeAll={() => seeAll("BoxSet", "seeAllBoxsets")}
       />
       <InfiniteScrollingCollectionList
         queryFn={fetchFavoritePlaylists}
@@ -274,7 +221,7 @@ export const Favorites = ({
         title={t("favorites.playlists")}
         hideIfEmpty
         pageSize={pageSize}
-        onPressSeeAll={handleSeeAllPlaylists}
+        onPressSeeAll={() => seeAll("Playlist", "seeAllPlaylists")}
       />
     </View>
   );

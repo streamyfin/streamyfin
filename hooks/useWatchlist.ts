@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { atom, useAtom } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { toast } from "sonner-native";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 // Shared atom to store watchlist (Likes) status across all components
@@ -92,7 +93,7 @@ export const useWatchlist = (item: BaseItemDto) => {
       const currentItem = itemRef.current;
 
       if (!currentApi || !currentUser?.Id || !currentItem?.Id) {
-        return;
+        throw new Error("Cannot update watchlist: not signed in");
       }
 
       // Watchlist == Jellyfin "Likes" rating:
@@ -120,13 +121,15 @@ export const useWatchlist = (item: BaseItemDto) => {
 
       return { previousIsWatchlisted, previousQueries };
     },
-    onError: (_err, _nextIsWatchlisted, context) => {
+    onError: (error: Error, _nextIsWatchlisted, context) => {
+      // Roll back the optimistic Likes flip applied in onMutate.
       if (context?.previousQueries) {
         for (const [queryKey, data] of context.previousQueries) {
           queryClient.setQueryData(queryKey, data);
         }
       }
       setIsWatchlisted(context?.previousIsWatchlisted);
+      toast.error(error.message || "Failed to update watchlist");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemQueryKeyPrefix });
