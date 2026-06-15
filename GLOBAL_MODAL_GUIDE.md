@@ -143,14 +143,6 @@ interface ModalOptions {
 }
 ```
 
-## Examples
-
-See `components/ExampleGlobalModalUsage.tsx` for comprehensive examples including:
-- Simple content modal
-- Modal with custom snap points
-- Complex component in modal
-- Success/error modals triggered from functions
-
 ## Default Styling
 
 The modal uses these default styles (can be overridden via options):

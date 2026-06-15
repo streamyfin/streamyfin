@@ -108,7 +108,7 @@
       "features_description": "Streamyfin has a bunch of features and integrates with a wide array of software, which you can find in the settings menu. These include:",
       "jellyseerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
       "downloads_feature_title": "Downloads",
-      "downloads_feature_description": "Download movies and series to watch offline. Use either the default method or install the optimize server to download files in the background.",
+      "downloads_feature_description": "Download movies and series to watch offline.",
       "chromecast_feature_description": "Cast movies and series to your Chromecast devices.",
       "centralised_settings_plugin_title": "Centralised Settings plugin",
       "centralised_settings_plugin_description": "Configure settings from a centralised location on your Jellyfin server. All client settings for all users will be synced automatically.",
@@ -320,7 +320,6 @@
       "plugins": {
         "plugins_title": "Plugins",
         "jellyseerr": {
-          "jellyseerr_warning": "This integration is in its early stages. Expect things to change.",
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
           "server_url_placeholder": "Seerr URL",
@@ -432,10 +431,6 @@
           "4_hours": "4 hours",
           "24_hours": "24 hours"
         }
-      },
-      "dashboard": {
-        "title": "Dashboard",
-        "sessions_title": "Sessions"
       }
     },
     "sessions": {
