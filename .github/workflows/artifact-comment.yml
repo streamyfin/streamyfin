@@ -387,11 +387,12 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              // tvOS builds are temporarily disabled until feat/tv-interface
-              // is merged - show them as disabled instead of stuck pending.
-              if (target.name === 'tvOS' || target.name === 'tvOS Unsigned') {
+              // Signed tvOS stays disabled until EAS has tvOS provisioning
+              // profiles (app + TopShelf targets); non-interactive builds can't
+              // create them. Unsigned tvOS builds, so it flows through normally.
+              if (target.name === 'tvOS') {
                 status = '💤 Disabled';
-                downloadLink = '*Disabled until feat/tv-interface is merged*';
+                downloadLink = '*Disabled — signed tvOS needs EAS provisioning profiles*';
               } else if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
