@@ -313,8 +313,10 @@ jobs:
           retention-days: 7
 
   build-ios-tv:
-    # Temporarily disabled until feat/tv-interface is merged (TV UI not ready).
-    # Re-enable by removing the `false &&` prefix below.
+    # Disabled: EAS has no provisioning profiles / distribution cert for the tvOS
+    # targets (app + StreamyfinTopShelf extension), so non-interactive signed
+    # builds fail. Set up tvOS credentials in EAS (`eas credentials`), then remove
+    # the `false &&` prefix below. Unsigned tvOS builds run (see job below).
     if: false && (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
     runs-on: macos-26
     name: 🍎 Build tvOS IPA
