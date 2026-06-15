@@ -91,7 +91,10 @@ export const Favorites = ({
     [api, user, filter],
   );
 
-  // Reset empty state when component mounts or dependencies change
+  // Reset empty state when the account or active view changes. `filter`
+  // matters because switching the favorites/watchlist toggle swaps this
+  // component's props in place (no remount), so stale per-type emptiness
+  // from the previous view must be cleared until the new queries resolve.
   useEffect(() => {
     setEmptyState({
       Series: false,
@@ -101,7 +104,7 @@ export const Favorites = ({
       BoxSet: false,
       Playlist: false,
     });
-  }, [api, user]);
+  }, [api, user, filter]);
 
   // Check if all categories that have been loaded are empty
   const areAllEmpty = () => {
