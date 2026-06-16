@@ -30,9 +30,17 @@
       "customType": "regex",
       "managerFilePatterns": ["/\\.ya?ml$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+xcode-version:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+[A-Za-z0-9._-]+:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}loose{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the Bun version pinned in eas.json build profiles (strict JSON can't hold inline annotations)",
+      "managerFilePatterns": ["/(^|/)eas\\.json$/"],
+      "matchStrings": ["\"bun\"\\s*:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "bun"
     }
   ],
   "customDatasources": {
