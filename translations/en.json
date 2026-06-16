@@ -195,7 +195,8 @@
         "quick_connect_authorized": "Quick Connect authorized",
         "error": "Error",
         "invalid_code": "Invalid code",
-        "authorize": "Authorize"
+        "authorize": "Authorize",
+        "paste_code": "Paste code"
       },
       "media_controls": {
         "media_controls_title": "Media controls",
