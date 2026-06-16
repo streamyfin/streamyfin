@@ -23,7 +23,7 @@ env:
 jobs:
   build-android-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (Phone)
     permissions:
       contents: read
@@ -62,7 +62,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-develop
-            ${{ runner.os }}-bun-develop
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -78,26 +77,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-gradle-
-
-      - name: 🤖 Set up Android SDK
-        # arm64 runners don't ship the Android SDK (x64 images do), so install it
-        # and accept licences. Gradle then auto-pulls the NDK/build-tools it needs.
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          # Skip the default `tools` package: it's obsolete and on arm64 pulls a
-          # missing `emulator` dependency, failing the step. Gradle auto-installs
-          # the build-tools / platform / NDK it needs from the cmdline-tools.
-          packages: platform-tools
-
-      - name: 💾 Cache Android NDK
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          # Only the NDK is worth caching (big, slow download). build-tools/platforms
-          # are small and refetch fast — keeps us well under the 10 GB cache budget.
-          path: ${{ env.ANDROID_HOME }}/ndk
-          key: ${{ runner.os }}-${{ runner.arch }}-android-ndk-${{ hashFiles('app.json') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-android-ndk-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -131,7 +110,7 @@ jobs:
 
   build-android-tv:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (TV)
     permissions:
       contents: read
@@ -170,7 +149,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-bun-develop
-            ${{ runner.os }}-bun-develop
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -186,26 +164,6 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-gradle-
-
-      - name: 🤖 Set up Android SDK
-        # arm64 runners don't ship the Android SDK (x64 images do), so install it
-        # and accept licences. Gradle then auto-pulls the NDK/build-tools it needs.
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          # Skip the default `tools` package: it's obsolete and on arm64 pulls a
-          # missing `emulator` dependency, failing the step. Gradle auto-installs
-          # the build-tools / platform / NDK it needs from the cmdline-tools.
-          packages: platform-tools
-
-      - name: 💾 Cache Android NDK
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          # Only the NDK is worth caching (big, slow download). build-tools/platforms
-          # are small and refetch fast — keeps us well under the 10 GB cache budget.
-          path: ${{ env.ANDROID_HOME }}/ndk
-          key: ${{ runner.os }}-${{ runner.arch }}-android-ndk-${{ hashFiles('app.json') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-android-ndk-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv

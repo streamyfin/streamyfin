@@ -463,7 +463,7 @@ jobs:
               commentBody += `| 📺 Android TV APK | \`arm64-v8a\` + \`armeabi-v7a\` | Modern boxes **and** older / cheap 32-bit Android TV sticks. No x86_64. |\n`;
               commentBody += `| 🍎 iOS / tvOS IPA | \`arm64\` | iPhone / Apple TV (all current devices). |\n\n`;
               commentBody += `**Why no x86_64?** That slice only runs on Android emulators / Chromebooks, never a real phone or TV box — dropping it shrinks the APK and speeds up the build. Local \`bun run android\` is unaffected (it still builds x86_64 from \`app.json\`).\n\n`;
-              commentBody += `**Runners:** Android builds on free ARM64 GitHub runners (\`ubuntu-26.04-arm\`); iOS / tvOS on Apple Silicon (\`macos-26\`).\n`;
+              commentBody += `**Runners:** Android on \`ubuntu-26.04\`; iOS / tvOS on Apple Silicon (\`macos-26\`). The size/speed win comes from the ABI trim above, not the runner.\n`;
               commentBody += `</details>\n\n`;
             } else {
               commentBody += `⏳ **Builds are starting up...** This comment will update automatically as each build completes.\n\n`;
