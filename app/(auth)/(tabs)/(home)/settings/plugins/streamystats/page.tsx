@@ -22,12 +22,7 @@ export default function StreamystatsPage() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const {
-    settings,
-    updateSettings,
-    pluginSettings,
-    refreshStreamyfinPluginSettings,
-  } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const queryClient = useNetworkAwareQueryClient();
 
   // Local state for all editable fields
@@ -121,17 +116,6 @@ export default function StreamystatsPage() {
   const handleOpenLink = () => {
     Linking.openURL("https://github.com/fredrikburmester/streamystats");
   };
-
-  const handleRefreshFromServer = useCallback(async () => {
-    const newPluginSettings = await refreshStreamyfinPluginSettings();
-    // Update local state with new values
-    const newUrl = newPluginSettings?.streamyStatsServerUrl?.value || "";
-    setUrl(newUrl);
-    if (newUrl) {
-      setUseForSearch(true);
-    }
-    toast.success(t("home.settings.plugins.streamystats.toasts.refreshed"));
-  }, [refreshStreamyfinPluginSettings, t]);
 
   if (!settings) return null;
 
@@ -263,15 +247,6 @@ export default function StreamystatsPage() {
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
           {t("home.settings.plugins.streamystats.home_sections_hint")}
         </Text>
-
-        <TouchableOpacity
-          onPress={handleRefreshFromServer}
-          className='mt-6 py-3 rounded-xl bg-neutral-800'
-        >
-          <Text className='text-center text-blue-500'>
-            {t("home.settings.plugins.streamystats.refresh_from_server")}
-          </Text>
-        </TouchableOpacity>
 
         {/* Disable button - only show if URL is not locked and Streamystats is enabled */}
         {!isUrlLocked && isStreamystatsEnabled && (
