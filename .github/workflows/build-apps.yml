@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
           key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
@@ -83,18 +83,21 @@ jobs:
         # arm64 runners don't ship the Android SDK (x64 images do), so install it
         # and accept licences. Gradle then auto-pulls the NDK/build-tools it needs.
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          # Skip the default `tools` package: it's obsolete and on arm64 pulls a
+          # missing `emulator` dependency, failing the step. Gradle auto-installs
+          # the build-tools / platform / NDK it needs from the cmdline-tools.
+          packages: platform-tools
 
-      - name: 💾 Cache Android SDK (NDK + build-tools)
+      - name: 💾 Cache Android NDK
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: |
-            ${{ env.ANDROID_HOME }}/ndk
-            ${{ env.ANDROID_HOME }}/build-tools
-            ${{ env.ANDROID_HOME }}/platforms
-            ${{ env.ANDROID_HOME }}/cmake
-          key: ${{ runner.os }}-${{ runner.arch }}-android-sdk-${{ hashFiles('app.json') }}
+          # Only the NDK is worth caching (big, slow download). build-tools/platforms
+          # are small and refetch fast — keeps us well under the 10 GB cache budget.
+          path: ${{ env.ANDROID_HOME }}/ndk
+          key: ${{ runner.os }}-${{ runner.arch }}-android-ndk-${{ hashFiles('app.json') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-android-sdk-
+            ${{ runner.os }}-${{ runner.arch }}-android-ndk-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
@@ -178,7 +181,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
           key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
@@ -188,18 +191,21 @@ jobs:
         # arm64 runners don't ship the Android SDK (x64 images do), so install it
         # and accept licences. Gradle then auto-pulls the NDK/build-tools it needs.
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          # Skip the default `tools` package: it's obsolete and on arm64 pulls a
+          # missing `emulator` dependency, failing the step. Gradle auto-installs
+          # the build-tools / platform / NDK it needs from the cmdline-tools.
+          packages: platform-tools
 
-      - name: 💾 Cache Android SDK (NDK + build-tools)
+      - name: 💾 Cache Android NDK
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          path: |
-            ${{ env.ANDROID_HOME }}/ndk
-            ${{ env.ANDROID_HOME }}/build-tools
-            ${{ env.ANDROID_HOME }}/platforms
-            ${{ env.ANDROID_HOME }}/cmake
-          key: ${{ runner.os }}-${{ runner.arch }}-android-sdk-${{ hashFiles('app.json') }}
+          # Only the NDK is worth caching (big, slow download). build-tools/platforms
+          # are small and refetch fast — keeps us well under the 10 GB cache budget.
+          path: ${{ env.ANDROID_HOME }}/ndk
+          key: ${{ runner.os }}-${{ runner.arch }}-android-ndk-${{ hashFiles('app.json') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-android-sdk-
+            ${{ runner.os }}-${{ runner.arch }}-android-ndk-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
