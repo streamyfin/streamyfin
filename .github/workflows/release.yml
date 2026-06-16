@@ -24,6 +24,7 @@ jobs:
     name: 🔐 Approve release
     runs-on: ubuntu-24.04
     environment: production
+    permissions: {}
     steps:
       - name: ✅ Release approved
         run: echo "Release approved for ${{ github.sha }}"
