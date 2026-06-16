@@ -9,12 +9,12 @@ import {
   getItemsApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FlatList,
@@ -375,6 +375,21 @@ const Page = () => {
       []
     );
   }, [data]);
+
+  const flashListRef = useRef<FlashListRef<BaseItemDto>>(null);
+
+  // Reset the grid to the top whenever the active filters/sort change (e.g.
+  // pressing reset) — otherwise the list stays stuck at the previous offset.
+  useEffect(() => {
+    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [
+    selectedGenres,
+    selectedYears,
+    selectedTags,
+    sortBy,
+    sortOrder,
+    filterBy,
+  ]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => (
@@ -868,6 +883,7 @@ const Page = () => {
   if (!Platform.isTV) {
     return (
       <FlashList
+        ref={flashListRef}
         key={orientation}
         ListEmptyComponent={
           <View className='flex flex-col items-center justify-center h-full'>
