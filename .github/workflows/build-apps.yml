@@ -68,6 +68,15 @@ jobs:
           bun install --frozen-lockfile
           bun run submodule-reload
 
+      - name: ☕ Set up JDK 17
+        # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
+        # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
+        # fail). Pin Temurin 17 for a deterministic Android build.
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: 💾 Cache Gradle global
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
@@ -154,6 +163,15 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
+
+      - name: ☕ Set up JDK 17
+        # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
+        # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
+        # fail). Pin Temurin 17 for a deterministic Android build.
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: 💾 Cache Gradle global
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
