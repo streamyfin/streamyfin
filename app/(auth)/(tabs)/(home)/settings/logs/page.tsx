@@ -88,8 +88,15 @@ export default function Page() {
   }, [share, loading]);
 
   return (
-    <View className='flex-1'>
-      <View className='flex flex-row justify-end py-2 px-4 space-x-2'>
+    <ScrollView
+      // Like the sibling settings pages, let iOS auto-inset the content below the
+      // transparent header (no manual header-height math). The filter bar is a
+      // sticky header so it stays pinned just under the header while logs scroll.
+      contentInsetAdjustmentBehavior='automatic'
+      stickyHeaderIndices={[0]}
+      contentContainerStyle={{ paddingBottom: insets.bottom }}
+    >
+      <View className='flex flex-row justify-end py-2 px-4 space-x-2 bg-black'>
         <FilterButton
           id={orderFilterId}
           queryKey='log'
@@ -112,67 +119,62 @@ export default function Page() {
           multiple={true}
         />
       </View>
-      <ScrollView
-        className='pb-4 px-4'
-        contentContainerStyle={{ paddingBottom: insets.bottom }}
-      >
-        <View className='flex flex-col space-y-2'>
-          {filteredLogs?.map((log, index) => (
-            <View className='bg-neutral-900 rounded-xl p-3' key={index}>
-              <TouchableOpacity
-                disabled={!log.data}
-                onPress={() =>
-                  setState((v) => ({
-                    ...v,
-                    [log.timestamp]: !v[log.timestamp],
-                  }))
-                }
-              >
-                <View className='flex flex-row justify-between'>
-                  <Text
-                    className={`mb-1
+      <View className='flex flex-col space-y-2 px-4'>
+        {filteredLogs?.map((log, index) => (
+          <View className='bg-neutral-900 rounded-xl p-3' key={index}>
+            <TouchableOpacity
+              disabled={!log.data}
+              onPress={() =>
+                setState((v) => ({
+                  ...v,
+                  [log.timestamp]: !v[log.timestamp],
+                }))
+              }
+            >
+              <View className='flex flex-row justify-between'>
+                <Text
+                  className={`mb-1
                       ${log.level === "INFO" && "text-blue-500"}
                       ${log.level === "ERROR" && "text-red-500"}
                       ${log.level === "DEBUG" && "text-purple-500"}
                     `}
-                  >
-                    {log.level}
-                  </Text>
-
-                  <Text className='text-xs'>
-                    {new Date(log.timestamp).toLocaleString()}
-                  </Text>
-                </View>
-                <Text selectable className='text-xs'>
-                  {log.message}
+                >
+                  {log.level}
                 </Text>
-              </TouchableOpacity>
 
-              {log.data && (
-                <>
-                  {!state[log.timestamp] && (
-                    <Text className='text-xs mt-0.5'>
-                      {t("home.settings.logs.click_for_more_info")}
-                    </Text>
-                  )}
-                  <Collapsible collapsed={!state[log.timestamp]}>
-                    <View className='mt-2 flex flex-col space-y-2'>
-                      <ScrollView className='rounded-xl' style={codeBlockStyle}>
-                        <Text>{JSON.stringify(log.data, null, 2)}</Text>
-                      </ScrollView>
-                    </View>
-                  </Collapsible>
-                </>
-              )}
-            </View>
-          ))}
-          {filteredLogs?.length === 0 && (
-            <Text className='opacity-50'>
-              {t("home.settings.logs.no_logs_available")}
-            </Text>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+                <Text className='text-xs'>
+                  {new Date(log.timestamp).toLocaleString()}
+                </Text>
+              </View>
+              <Text selectable className='text-xs'>
+                {log.message}
+              </Text>
+            </TouchableOpacity>
+
+            {log.data && (
+              <>
+                {!state[log.timestamp] && (
+                  <Text className='text-xs mt-0.5'>
+                    {t("home.settings.logs.click_for_more_info")}
+                  </Text>
+                )}
+                <Collapsible collapsed={!state[log.timestamp]}>
+                  <View className='mt-2 flex flex-col space-y-2'>
+                    <ScrollView className='rounded-xl' style={codeBlockStyle}>
+                      <Text>{JSON.stringify(log.data, null, 2)}</Text>
+                    </ScrollView>
+                  </View>
+                </Collapsible>
+              </>
+            )}
+          </View>
+        ))}
+        {filteredLogs?.length === 0 && (
+          <Text className='opacity-50'>
+            {t("home.settings.logs.no_logs_available")}
+          </Text>
+        )}
+      </View>
+    </ScrollView>
   );
 }
