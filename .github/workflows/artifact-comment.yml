@@ -451,6 +451,20 @@ jobs:
               commentBody += `- **Android APK**: Download and install directly on your device (enable "Install from unknown sources")\n`;
               commentBody += `- **iOS IPA**: Install using [AltStore](https://altstore.io/), [Sideloadly](https://sideloadly.io/), or Xcode\n\n`;
               commentBody += `> ⚠️ **Note**: Artifacts expire in 7 days from build date\n\n`;
+
+              // Collapsible rundown of the build optimisations + what each
+              // artifact actually installs on, so testers grab the right file.
+              commentBody += `<details>\n`;
+              commentBody += `<summary>📦 Build details &amp; device compatibility</summary>\n\n`;
+              commentBody += `These CI builds are trimmed for size and speed. What that means for installing them:\n\n`;
+              commentBody += `| Artifact | Architectures | Installs on |\n`;
+              commentBody += `|---|---|---|\n`;
+              commentBody += `| 🤖 Android Phone APK | \`arm64-v8a\` | Every 64-bit Android phone (all since ~2017). **Not** an x86_64 emulator or a 32-bit device. |\n`;
+              commentBody += `| 📺 Android TV APK | \`arm64-v8a\` + \`armeabi-v7a\` | Modern boxes **and** older / cheap 32-bit Android TV sticks. No x86_64. |\n`;
+              commentBody += `| 🍎 iOS / tvOS IPA | \`arm64\` | iPhone / Apple TV (all current devices). |\n\n`;
+              commentBody += `**Why no x86_64?** That slice only runs on Android emulators / Chromebooks, never a real phone or TV box — dropping it shrinks the APK and speeds up the build. Local \`bun run android\` is unaffected (it still builds x86_64 from \`app.json\`).\n\n`;
+              commentBody += `**Runners:** Android builds on free ARM64 GitHub runners (\`ubuntu-26.04-arm\`); iOS / tvOS on Apple Silicon (\`macos-26\`).\n`;
+              commentBody += `</details>\n\n`;
             } else {
               commentBody += `⏳ **Builds are starting up...** This comment will update automatically as each build completes.\n\n`;
             }
