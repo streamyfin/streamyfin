@@ -106,7 +106,7 @@
         "@types/jest": "29.5.14",
         "@types/lodash": "4.17.24",
         "@types/node": "^18.19.130",
-        "@types/react": "~19.2.10",
+        "@types/react": "19.2.17",
         "@types/react-test-renderer": "19.1.0",
         "cross-env": "10.1.0",
         "expo-doctor": "1.19.9",
