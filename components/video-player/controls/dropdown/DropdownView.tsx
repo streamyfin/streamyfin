@@ -7,6 +7,7 @@ import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import useRouter from "@/hooks/useAppRouter";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { useControlsContext } from "../contexts/ControlsContext";
 import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
@@ -30,6 +31,8 @@ const DropdownView = ({
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
+  // Report popover open/close so Controls can pause auto-hide while it's open.
+  const { setSettingsMenuOpen } = useControlsContext();
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const isOffline = useOfflineMode();
@@ -223,6 +226,7 @@ const DropdownView = ({
       groups={optionGroups}
       trigger={trigger}
       expoUIConfig={{}}
+      onOpenChange={setSettingsMenuOpen}
       bottomSheetConfig={{
         enablePanDownToClose: true,
       }}
