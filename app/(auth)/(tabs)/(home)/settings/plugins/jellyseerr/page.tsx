@@ -1,11 +1,8 @@
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import DisabledSetting from "@/components/settings/DisabledSetting";
 import { JellyseerrSettings } from "@/components/settings/Jellyseerr";
-import { useSettings } from "@/utils/atoms/settings";
 
 export default function JellyseerrPluginPage() {
-  const { pluginSettings } = useSettings();
   const insets = useSafeAreaInsets();
 
   return (
@@ -16,12 +13,9 @@ export default function JellyseerrPluginPage() {
         paddingRight: insets.right,
       }}
     >
-      <DisabledSetting
-        disabled={pluginSettings?.jellyseerrServerUrl?.locked === true}
-        className='p-4'
-      >
+      <View className='p-4'>
         <JellyseerrSettings />
-      </DisabledSetting>
+      </View>
     </ScrollView>
   );
 }
