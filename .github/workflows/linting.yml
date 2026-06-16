@@ -16,6 +16,7 @@ jobs:
     name: "📝 Validate PR Title"
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       pull-requests: write
       contents: read
@@ -47,6 +48,7 @@ jobs:
   dependency-review:
     name: 🔍 Vulnerable Dependencies
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -65,8 +67,8 @@ jobs:
 
   expo-doctor:
     name: 🚑 Expo Doctor Check
-    if: false
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: 🛒 Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -85,11 +87,15 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: 🚑 Run Expo Doctor
+        # Re-enabled but non-blocking: surfaces doctor warnings in the logs
+        # without failing the gate (some checks are known-noisy for this setup).
+        continue-on-error: true
         run: bun expo-doctor
 
   code_quality:
     name: "🔍 Lint & Test (${{ matrix.command }})"
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

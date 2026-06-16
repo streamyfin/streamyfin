@@ -23,6 +23,7 @@ jobs:
   approve:
     name: 🔐 Approve release
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     environment: production
     permissions: {}
     steps:
@@ -33,6 +34,7 @@ jobs:
     name: 🚀 ${{ matrix.name }}
     needs: approve
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     permissions:
       contents: read
     strategy:
@@ -80,9 +82,9 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -179,6 +181,7 @@ jobs:
     needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
       actions: read # required for `gh run download` to list/fetch this run's artifacts

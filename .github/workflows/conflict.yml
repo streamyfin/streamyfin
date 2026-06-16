@@ -11,6 +11,7 @@ jobs:
   label:
     name: 🏷️ Labeling Merge Conflicts
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     if: ${{ github.repository == 'streamyfin/streamyfin' }}
     permissions:
       contents: read

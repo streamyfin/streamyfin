@@ -16,6 +16,7 @@ jobs:
     name: 🔍 Find similar issues
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       issues: write
       contents: read

@@ -14,6 +14,7 @@ jobs:
   check-lockfile:
     name: 🔍 Check bun.lock and package.json consistency
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
 
@@ -37,7 +38,9 @@ jobs:
         with:
           path: |
             ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 🛡️ Verify lockfile consistency
         run: |

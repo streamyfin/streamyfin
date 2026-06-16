@@ -22,6 +22,7 @@ jobs:
   trivy:
     name: 🔎 Filesystem scan
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write # upload SARIF to code scanning
@@ -29,19 +30,9 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      # Rotate the DB cache weekly (matches the scheduled scan): cache hits within the week
-      # instead of a fresh immutable entry per run, still refreshing the DB every week.
-      - name: 🗓️ Compute weekly Trivy cache key
-        id: trivy-cache-key
-        run: echo "value=trivy-db-${{ runner.os }}-$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-
-      - name: 💾 Cache Trivy vulnerability DB
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/.cache/trivy
-          key: ${{ steps.trivy-cache-key.outputs.value }}
-          restore-keys: trivy-db-${{ runner.os }}-
-
+      # Trivy's own action caches the vulnerability DB + binary internally
+      # (cache-trivy-* / trivy-binary-* entries), so no manual ~/.cache/trivy
+      # step is needed — it only duplicated the cache.
       - name: 🔎 Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
