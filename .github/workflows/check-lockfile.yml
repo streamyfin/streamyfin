@@ -13,8 +13,7 @@ concurrency:
 jobs:
   check-lockfile:
     name: 🔍 Check bun.lock and package.json consistency
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
 

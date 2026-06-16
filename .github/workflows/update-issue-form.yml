@@ -20,8 +20,7 @@ permissions:
 jobs:
   update-issue-form:
     name: 🔢 Populate version dropdown
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write

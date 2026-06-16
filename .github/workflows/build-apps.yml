@@ -25,7 +25,6 @@ jobs:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (Phone)
-    timeout-minutes: 40
     permissions:
       contents: read
 
@@ -122,7 +121,6 @@ jobs:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (TV)
-    timeout-minutes: 40
     permissions:
       contents: read
 
@@ -218,7 +216,6 @@ jobs:
     if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
     runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone)
-    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -287,7 +284,6 @@ jobs:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone - Unsigned)
-    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -351,7 +347,6 @@ jobs:
     if: false && (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
     runs-on: macos-26
     name: 🍎 Build tvOS IPA
-    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -421,7 +416,6 @@ jobs:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: macos-26
     name: 🍎 Build tvOS IPA (Unsigned)
-    timeout-minutes: 60
     permissions:
       contents: read
 

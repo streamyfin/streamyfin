@@ -21,8 +21,7 @@ concurrency:
 jobs:
   trivy:
     name: 🔎 Filesystem scan
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write # upload SARIF to code scanning

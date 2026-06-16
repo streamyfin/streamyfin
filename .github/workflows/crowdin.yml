@@ -19,8 +19,7 @@ permissions:
 
 jobs:
   sync-translations:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    runs-on: ubuntu-26.04
 
     steps:
       - name: 📥 Checkout Repository

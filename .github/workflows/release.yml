@@ -22,8 +22,7 @@ on:
 jobs:
   approve:
     name: 🔐 Approve release
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    runs-on: ubuntu-26.04
     environment: production
     permissions: {}
     steps:
@@ -33,8 +32,7 @@ jobs:
   build:
     name: 🚀 ${{ matrix.name }}
     needs: approve
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     strategy:
@@ -180,8 +178,7 @@ jobs:
     name: 📦 Draft GitHub Release
     needs: build
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       actions: read # required for `gh run download` to list/fetch this run's artifacts
