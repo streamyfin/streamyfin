@@ -20,7 +20,10 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
+  // Only the server URL is admin-lockable — the password stays editable so
+  // the user can still sign in to the admin-pinned Jellyseerr server.
+  const urlLocked = pluginSettings?.jellyseerrServerUrl?.locked === true;
 
   const [jellyseerrPassword, setJellyseerrPassword] = useState<
     string | undefined
@@ -115,30 +118,41 @@ export const JellyseerrSettings = () => {
           </>
         ) : (
           <View className='flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900'>
-            <Text className='font-bold mb-1'>
-              {t("home.settings.plugins.jellyseerr.server_url")}
-            </Text>
-            <View className='flex flex-col shrink mb-2'>
-              <Text className='text-xs text-gray-600'>
-                {t("home.settings.plugins.jellyseerr.server_url_hint")}
+            <View style={{ opacity: urlLocked ? 0.5 : 1 }}>
+              <Text className='font-bold mb-1'>
+                {t("home.settings.plugins.jellyseerr.server_url")}
               </Text>
-            </View>
-            <Input
-              className='border border-neutral-800 mb-2'
-              placeholder={t(
-                "home.settings.plugins.jellyseerr.server_url_placeholder",
+              <View className='flex flex-col shrink mb-2'>
+                <Text className='text-xs text-gray-600'>
+                  {t("home.settings.plugins.jellyseerr.server_url_hint")}
+                </Text>
+              </View>
+              <Input
+                className='border border-neutral-800 mb-2'
+                placeholder={t(
+                  "home.settings.plugins.jellyseerr.server_url_placeholder",
+                )}
+                value={
+                  urlLocked
+                    ? settings?.jellyseerrServerUrl
+                    : (jellyseerrServerUrl ?? settings?.jellyseerrServerUrl)
+                }
+                defaultValue={
+                  settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
+                }
+                keyboardType='url'
+                returnKeyType='done'
+                autoCapitalize='none'
+                textContentType='URL'
+                onChangeText={setjellyseerrServerUrl}
+                editable={!urlLocked && !loginToJellyseerrMutation.isPending}
+              />
+              {urlLocked && (
+                <Text className='text-xs text-red-600 mb-2'>
+                  Disabled by admin
+                </Text>
               )}
-              value={jellyseerrServerUrl ?? settings?.jellyseerrServerUrl}
-              defaultValue={
-                settings?.jellyseerrServerUrl ?? jellyseerrServerUrl
-              }
-              keyboardType='url'
-              returnKeyType='done'
-              autoCapitalize='none'
-              textContentType='URL'
-              onChangeText={setjellyseerrServerUrl}
-              editable={!loginToJellyseerrMutation.isPending}
-            />
+            </View>
             <View>
               <Text className='font-bold mb-2'>
                 {t("home.settings.plugins.jellyseerr.password")}
