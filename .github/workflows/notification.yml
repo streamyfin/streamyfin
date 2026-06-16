@@ -12,7 +12,7 @@ on:
 
 jobs:
   notify:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.event_name == 'pull_request'
     steps:
       - name: 🛎️ Notify Discord
@@ -29,7 +29,7 @@ jobs:
             🔗 ${{ github.event.pull_request.html_url }}
 
   notify-on-failure:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: 🚨 Notify Discord on Failure
