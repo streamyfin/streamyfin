@@ -261,43 +261,6 @@
           "None": "ללא",
           "OnlyForced": "רק כפוי"
         },
-        "text_color": "צבע הטקסט",
-        "background_color": "צבע רקע",
-        "outline_color": "צבע קו מתאר",
-        "outline_thickness": "עובי קו מתאר",
-        "background_opacity": "שקיפות רקע",
-        "outline_opacity": "אטימות קו מתאר",
-        "bold_text": "טקסט בולט",
-        "colors": {
-          "Black": "שחור",
-          "Gray": "אפור",
-          "Silver": "כסף",
-          "White": "לבן",
-          "Maroon": "חום ערמוני",
-          "Red": "אדום",
-          "Fuchsia": "פוקסיה",
-          "Yellow": "צהוב",
-          "Olive": "זית",
-          "Green": "ירוק",
-          "Teal": "תכלת",
-          "Lime": "ירוק ליים",
-          "Purple": "סגול",
-          "Navy": "כחול כהה",
-          "Blue": "כחול",
-          "Aqua": "כחול בהיר"
-        },
-        "thickness": {
-          "None": "ללא",
-          "Thin": "דק",
-          "Normal": "רגיל",
-          "Thick": "עבה"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "נגן וידאו",
-        "video_player": "נגן וידאו",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "אחר",
@@ -351,11 +295,6 @@
           "UNKNOWN": "לא ידוע"
         },
         "safe_area_in_controls": "איזור בטוח בפקדים",
-        "video_player": "נגן וידאו",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (ניסיוני + נגן בתוך נגן)"
-        },
         "show_custom_menu_links": "הצג קישורים לתפריטים מותאמים אישית",
         "show_large_home_carousel": "הצג קרוסלה גדולה במסך הבית (בטא)",
         "hide_libraries": "הסתר ספריות",
@@ -366,9 +305,6 @@
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "כמות פרקים מקסימלית לניגון אוטומטי",
         "disabled": "כבוי"
-      },
-      "downloads": {
-        "downloads_title": "הורדות"
       },
       "music": {
         "title": "מוזיקה",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "תוספים",
         "jellyseerr": {
-          "jellyseerr_warning": "חלק זה נמצא עדיין בשלבים מוקדמים. צפו שדברים ישתנו.",
           "server_url": "כתובת ה-URL של השרת",
           "server_url_hint": "לדוגמא: http(s)://your-host.url\n(הוסף פורט במידת הצורך)",
           "server_url_placeholder": "כתובת ה-URL של Seerr",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "קרא עוד על Marlin.",
           "save_button": "שמור",
           "toasts": {
-            "saved": "נשמר",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "נשמר"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -457,7 +386,6 @@
         "delete_all_downloaded_files": "מחק את כל הקבצים שהורדו",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +395,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +416,12 @@
         "system": "מערכת"
       },
       "toasts": {
-        "error_deleting_files": "שגיאה במחיקת קבצים",
-        "background_downloads_enabled": "הורדה ברקע מופעלת",
-        "background_downloads_disabled": "הורדה ברקע כבויה"
+        "error_deleting_files": "שגיאה במחיקת קבצים"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +441,7 @@
       "downloads_title": "הורדות",
       "series": "סדרות",
       "movies": "סרטים",
-      "queue": "תוֹר",
       "other_media": "תוכן אחר",
-      "queue_hint": "התור וההורדות יאבדו בפתיחה מחדש של האפליקציה",
-      "no_items_in_queue": "אין פרטים בתור",
       "no_downloaded_items": "אין פריטים שהורדו",
       "delete_all_movies_button": "מחק את כל הסרטים",
       "delete_all_series_button": "מחק את כל הסדרות",
@@ -546,13 +466,8 @@
         "failed_to_delete_all_series": "נכשל במחיקת כל הסדרות",
         "deleted_media_successfully": "כל שאר התוכן נמחק בהצלחה!",
         "failed_to_delete_media": "נכשל במחיקת שאר התוכן",
-        "download_deleted": "ההורדה נמחקה",
         "download_cancelled": "ההורדה בוטלה",
         "could_not_delete_download": "לא היה ניתן למחוק את ההורדה",
-        "download_paused": "ההורדה נעצרה",
-        "could_not_pause_download": "לא היה ניתן לעצור את ההורדה",
-        "download_resumed": "ההורדה חודשה",
-        "could_not_resume_download": "לא היה ניתן לחדש את ההורדה",
         "download_completed": "ההורדה הושלמה",
         "download_failed": "ההורדה נכשלה",
         "download_failed_for_item": "ההורדה נכשלה עבור {{item}} - {{error}}",
@@ -562,10 +477,7 @@
         "item_already_downloading": "{{item}} כבר נמצא בהורדה",
         "all_files_deleted": "כל ההורדות נמחקו בהצלחה",
         "files_deleted_by_type": "{{count}} {{type}} נמחקו",
-        "all_files_folders_and_jobs_deleted_successfully": "כל הקבצים, התיקיות והעבודות נמחקו בהצלחה",
-        "failed_to_clean_cache_directory": "נכשל בניסיון למחוק את תיקיית המטמון",
         "could_not_get_download_url_for_item": "לא היה ניתן להשיג את קישור ההורדה של {{itemName}}",
-        "go_to_downloads": "עבור להורדות",
         "file_deleted": "{{item}} נמחק"
       }
     }
@@ -583,16 +495,17 @@
     "none": "ללא",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "חפש...",
@@ -691,10 +604,6 @@
     "could_not_create_stream_for_chromecast": "נכשל ביצירת זרם עבור Chromecast",
     "message_from_server": "הודעה מהשרת: {{message}}",
     "next_episode": "הפרק הבא",
-    "refresh_tracks": "רענן רצועות",
-    "audio_tracks": "רצועות שמע:",
-    "playback_state": "מצב ניגון:",
-    "index": "מיקום:",
     "continue_watching": "המשך לצפות",
     "go_back": "חזור",
     "downloaded_file_title": "You have this file downloaded",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "הצג עוד",
     "show_less": "הצג פחות",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "הבא",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

@@ -4,8 +4,8 @@
     "error_title": "Errore",
     "login_title": "Accesso",
     "login_to_title": "Accedi a",
-    "select_user": "Select a user to log in",
-    "add_user_to_login": "Add a user to log in",
+    "select_user": "Seleziona un utente per accedere",
+    "add_user_to_login": "Aggiungi un utente per accedere",
     "add_user": "Add User",
     "username_placeholder": "Nome utente",
     "password_placeholder": "Password",
@@ -33,7 +33,7 @@
     "connect_button": "Connetti",
     "previous_servers": "server precedente",
     "clear_button": "Cancella",
-    "swipe_to_remove": "Swipe to remove",
+    "swipe_to_remove": "Scorri per rimuovere",
     "search_for_local_servers": "Ricerca dei server locali",
     "searching": "Cercando...",
     "servers": "Server",
@@ -41,46 +41,46 @@
     "session_expired": "Session Expired",
     "please_login_again": "La tua sessione è scaduta. Si prega di eseguire nuovamente l'accesso.",
     "remove_saved_login": "Remove Saved Login",
-    "remove_saved_login_description": "This will remove your saved credentials for this server. You'll need to enter your username and password again next time.",
-    "accounts_count": "{{count}} accounts",
+    "remove_saved_login_description": "Questo rimuoverà le tue credenziali salvate per questo server. Dovrai inserire nuovamente il tuo nome utente e la password la prossima volta.",
+    "accounts_count": "Account {{count}}",
     "select_account": "Select Account",
     "add_account": "Add Account",
-    "remove_account_description": "This will remove the saved credentials for {{username}}.",
+    "remove_account_description": "Questo rimuoverà le credenziali salvate per {{username}}.",
     "remove_server": "Remove Server",
-    "remove_server_description": "This will remove {{server}} and all saved accounts from your list.",
+    "remove_server_description": "Questo rimuoverà {{server}} e tutti gli account salvati dall'elenco.",
     "select_your_server": "Select Your Server",
-    "add_server_to_get_started": "Add a server to get started",
+    "add_server_to_get_started": "Aggiungi un server per iniziare",
     "add_server": "Add Server",
     "change_server": "Change Server"
   },
   "save_account": {
     "title": "Save Account",
-    "save_for_later": "Save this account",
+    "save_for_later": "Salva questo account",
     "security_option": "Security Option",
-    "no_protection": "No protection",
-    "no_protection_desc": "Quick login without authentication",
-    "pin_code": "PIN code",
-    "pin_code_desc": "4-digit PIN required when switching",
-    "password": "Re-enter password",
-    "password_desc": "Password required when switching",
-    "save_button": "Save",
-    "cancel_button": "Cancel"
+    "no_protection": "Nessuna Protezione",
+    "no_protection_desc": "Accesso rapido senza autenticazione",
+    "pin_code": "Codice PIN",
+    "pin_code_desc": "PIN di 4 cifre richiesto quando si cambia utente",
+    "password": "Inserisci nuovamente la password",
+    "password_desc": "Password richiesta quando si cambia",
+    "save_button": "Salva",
+    "cancel_button": "Annulla"
   },
   "pin": {
-    "enter_pin": "Enter PIN",
-    "enter_pin_for": "Enter PIN for {{username}}",
-    "enter_4_digits": "Enter 4 digits",
-    "invalid_pin": "Invalid PIN",
+    "enter_pin": "Inserisci il PIN",
+    "enter_pin_for": "Inserisci PIN per {{username}}",
+    "enter_4_digits": "Inserisci 4 cifre",
+    "invalid_pin": "PIN non valido",
     "setup_pin": "Set Up PIN",
-    "confirm_pin": "Confirm PIN",
-    "pins_dont_match": "PINs don't match",
-    "forgot_pin": "Forgot PIN?",
-    "forgot_pin_desc": "Your saved credentials will be removed"
+    "confirm_pin": "Conferma PIN",
+    "pins_dont_match": "I PIN non corrispondono",
+    "forgot_pin": "Hai dimenticato il PIN?",
+    "forgot_pin_desc": "Le credenziali salvate verranno rimosse"
   },
   "password": {
     "enter_password": "Enter Password",
-    "enter_password_for": "Enter password for {{username}}",
-    "invalid_password": "Invalid password"
+    "enter_password_for": "Inserire la password per {{username}}",
+    "invalid_password": "Password errata"
   },
   "home": {
     "checking_server_connection": "Controllo connessione server...",
@@ -95,7 +95,7 @@
     "oops": "Ops!",
     "error_message": "Qualcosa è andato storto. \nEffetturare il logout e riaccedere.",
     "continue_watching": "Continua a guardare",
-    "continue": "Continue",
+    "continue": "Continua",
     "next_up": "Prossimo",
     "continue_and_next_up": "Continue & Next Up",
     "recently_added_in": "Aggiunti di recente a {{libraryName}}",
@@ -123,7 +123,7 @@
         "title": "Switch User",
         "account": "Account",
         "switch_user": "Switch User on This Server",
-        "current": "current"
+        "current": "attuale"
       },
       "categories": {
         "title": "Categorie"
@@ -143,37 +143,37 @@
         "show_series_poster_on_episode": "Show Series Poster on Episodes",
         "theme_music": "Theme Music",
         "display_size": "Display Size",
-        "display_size_small": "Small",
-        "display_size_default": "Default",
-        "display_size_large": "Large",
+        "display_size_small": "Piccolo",
+        "display_size_default": "Predefinito",
+        "display_size_large": "Grande",
         "display_size_extra_large": "Extra Large"
       },
       "network": {
-        "title": "Network",
-        "local_network": "",
-        "auto_switch_enabled": "Auto-switch when at home",
+        "title": "Rete",
+        "local_network": "Rete locale",
+        "auto_switch_enabled": "Cambia automaticamente quando sei in casa",
         "auto_switch_description": "Automatically switch to local URL when connected to home WiFi",
-        "local_url": "Local URL",
+        "local_url": "URL locale",
         "local_url_hint": "Enter your local server address (e.g., http://10.0.0.100:8096)",
         "local_url_placeholder": "http://10.0.0.100:8096",
         "home_wifi_networks": "Home WiFi Networks",
-        "add_current_network": "Add \"{{ssid}}\"",
+        "add_current_network": "Aggiungi \"{{ssid}}\"",
         "not_connected_to_wifi": "Not connected to WiFi",
-        "no_networks_configured": "No networks configured",
+        "no_networks_configured": "Nessuna rete configurata",
         "add_network_hint": "Add your home WiFi network to enable auto-switching",
         "current_wifi": "WiFi Attuale",
         "using_url": "Sta utilizzando",
-        "local": "Local URL",
-        "remote": "Remote URL",
-        "not_connected": "Not connected",
+        "local": "URL locale",
+        "remote": "URL remoto",
+        "not_connected": "Non connesso",
         "current_server": "Current Server",
-        "remote_url": "Remote URL",
-        "active_url": "Active URL",
-        "not_configured": "Not configured",
-        "network_added": "Network added",
-        "network_already_added": "Network already added",
+        "remote_url": "URL remoto",
+        "active_url": "URL Attivo",
+        "not_configured": "Non configurato",
+        "network_added": "Rete aggiunta",
+        "network_already_added": "Rete già inserita",
         "no_wifi_connected": "Not connected to WiFi",
-        "permission_denied": "Location permission denied",
+        "permission_denied": "Autorizzazione alla posizione negata",
         "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
       },
       "user_info": {
@@ -202,9 +202,9 @@
       "buffer": {
         "title": "Buffer Settings",
         "cache_mode": "Cache Mode",
-        "cache_auto": "Auto",
-        "cache_yes": "Enabled",
-        "cache_no": "Disabled",
+        "cache_auto": "Automatico",
+        "cache_yes": "Abilitato",
+        "cache_no": "Disabilitato",
         "buffer_duration": "Buffer Duration",
         "max_cache_size": "Max Cache Size",
         "max_backward_cache": "Max Backward Cache"
@@ -212,7 +212,7 @@
       "vo_driver": {
         "title": "Video Output",
         "vo_mode": "VO Driver",
-        "gpu_next": "gpu-next (Recommended)",
+        "gpu_next": "gpu-next (Consigliato)",
         "gpu": "gpu"
       },
       "gesture_controls": {
@@ -224,7 +224,7 @@
         "right_side_volume": "Controllo Volume Laterale Destro",
         "right_side_volume_description": "Scorri verso l'alto/verso il basso per regolare il volume",
         "hide_volume_slider": "Hide Volume Slider",
-        "hide_volume_slider_description": "Hide the volume slider in the video player",
+        "hide_volume_slider_description": "Nascondi il cursore del volume nel lettore video",
         "hide_brightness_slider": "Hide Brightness Slider",
         "hide_brightness_slider_description": "Hide the brightness slider in the video player"
       },
@@ -261,43 +261,6 @@
           "None": "Nessuno",
           "OnlyForced": "Solo forzati"
         },
-        "text_color": "Colore Del Testo",
-        "background_color": "Colore Di Sfondo",
-        "outline_color": "Colore Contorno",
-        "outline_thickness": "Spessore Contorno",
-        "background_opacity": "Opacità Dello Sfondo",
-        "outline_opacity": "Opacità Contorno",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Nero",
-          "Gray": "Grigio",
-          "Silver": "Argento",
-          "White": "Bianco",
-          "Maroon": "Maroon",
-          "Red": "Rosso",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Giallo",
-          "Olive": "Olive",
-          "Green": "Verde",
-          "Teal": "Teal",
-          "Lime": "Lime",
-          "Purple": "Viola",
-          "Navy": "Marina",
-          "Blue": "Blu",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "Nessuno",
-          "Thin": "Sottile",
-          "Normal": "Normale",
-          "Thick": "Spessa"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Altro",
@@ -351,11 +295,6 @@
           "UNKNOWN": "Sconosciuto"
         },
         "safe_area_in_controls": "Area sicura per i controlli",
-        "video_player": "Video player",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Sperimentale + PiP)"
-        },
         "show_custom_menu_links": "Mostra i link del menu personalizzato",
         "show_large_home_carousel": "Mostra Carosello Grande nella Home (beta)",
         "hide_libraries": "Nascondi Librerie",
@@ -366,9 +305,6 @@
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Numero Massimo Di Episodi Riproduzione Automatica",
         "disabled": "Disabilitato"
-      },
-      "downloads": {
-        "downloads_title": "Scaricamento"
       },
       "music": {
         "title": "Music",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Plugin",
         "jellyseerr": {
-          "jellyseerr_warning": "Questa integrazione è in fase iniziale. Aspettarsi cambiamenti.",
           "server_url": "URL del Server",
           "server_url_hint": "Esempio: http(s)://tuo-host.url\n(aggiungere la porta se richiesto)",
           "server_url_placeholder": "URL di Jellyseerr...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Leggi di più su Marlin.",
           "save_button": "Salva",
           "toasts": {
-            "saved": "Salvato",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Salvato"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -457,7 +386,6 @@
         "delete_all_downloaded_files": "Cancella Tutti i File Scaricati",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +395,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +416,12 @@
         "system": "Sistema"
       },
       "toasts": {
-        "error_deleting_files": "Errore nella cancellazione dei file",
-        "background_downloads_enabled": "Scaricamento in background abilitato",
-        "background_downloads_disabled": "Scaricamento in background disabilitato"
+        "error_deleting_files": "Errore nella cancellazione dei file"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +441,7 @@
       "downloads_title": "Scaricati",
       "series": "Serie TV",
       "movies": "Film",
-      "queue": "Coda",
       "other_media": "Altri supporti",
-      "queue_hint": "La coda e gli elementi scaricati saranno persi con il riavvio dell'app",
-      "no_items_in_queue": "Nessun elemento in coda",
       "no_downloaded_items": "Nessun elemento scaricato",
       "delete_all_movies_button": "Cancella tutti i film",
       "delete_all_series_button": "Cancella tutte le serie TV",
@@ -546,13 +466,8 @@
         "failed_to_delete_all_series": "Impossibile eliminare tutte le serie TV",
         "deleted_media_successfully": "Eliminato altri supporti con successo!",
         "failed_to_delete_media": "Impossibile eliminare altri media",
-        "download_deleted": "Download Eliminato",
         "download_cancelled": "Scaricamento annullato",
         "could_not_delete_download": "Impossibile Eliminare Il Download",
-        "download_paused": "Download In Pausa",
-        "could_not_pause_download": "Impossibile Sbloccare Il Download",
-        "download_resumed": "Download Ripreso",
-        "could_not_resume_download": "Impossibile Riprendere Il Download",
         "download_completed": "Scaricamento completato",
         "download_failed": "Scaricamento non riuscito",
         "download_failed_for_item": "Scaricamento fallito per {{item}} - {{error}}",
@@ -562,10 +477,7 @@
         "item_already_downloading": "{{item}} è già in download",
         "all_files_deleted": "Tutti i Download Eliminati con Successo",
         "files_deleted_by_type": "{{count}} {{type}} cancellati",
-        "all_files_folders_and_jobs_deleted_successfully": "Tutti i file, le cartelle e i processi sono stati eliminati con successo.",
-        "failed_to_clean_cache_directory": "Pulizia della directory della cache non riuscita",
         "could_not_get_download_url_for_item": "Impossibile ottenere l'URL di download per {{itemName}}",
-        "go_to_downloads": "Vai agli elementi scaricati",
         "file_deleted": "{{item}} cancellato"
       }
     }
@@ -583,16 +495,17 @@
     "none": "Nulla",
     "track": "Traccia",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Cerca...",
@@ -691,10 +604,6 @@
     "could_not_create_stream_for_chromecast": "Impossibile creare uno stream per Chromecast",
     "message_from_server": "Messaggio dal server",
     "next_episode": "Prossimo Episodio",
-    "refresh_tracks": "Aggiorna tracce",
-    "audio_tracks": "Tracce audio:",
-    "playback_state": "Stato della riproduzione:",
-    "index": "Indice:",
     "continue_watching": "Continua a guardare",
     "go_back": "Indietro",
     "downloaded_file_title": "You have this file downloaded",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "Mostra di più",
     "show_less": "Mostra di meno",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Prossimo",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
