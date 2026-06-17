@@ -51,7 +51,7 @@ export const LibraryItemCard: React.FC<Props> = ({ library, ...props }) => {
         api,
         item: library,
       }),
-    [library],
+    [api, library],
   );
 
   const itemType = useMemo(() => {
