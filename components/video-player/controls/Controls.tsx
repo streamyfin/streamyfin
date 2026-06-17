@@ -4,7 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -30,6 +30,7 @@ import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { ControlsProvider } from "./contexts/ControlsContext";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -110,6 +111,12 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+  // Pause the controls auto-hide while the player settings popover is open so
+  // it can't be dismissed out from under the user (notably the iOS popover,
+  // which lives inside the controls and closes when they fade out). The popover
+  // reports its open state through ControlsContext rather than prop drilling.
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const controlsContextValue = useMemo(() => ({ setSettingsMenuOpen }), []);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -467,7 +474,7 @@ export const Controls: FC<Props> = ({
     episodeView,
     onHideControls: hideControls,
     timeout: CONTROLS_CONSTANTS.TIMEOUT,
-    disabled: true,
+    disabled: settingsMenuOpen,
   });
 
   const switchOnEpisodeMode = useCallback(() => {
@@ -478,122 +485,124 @@ export const Controls: FC<Props> = ({
   }, [isPlaying, togglePlay]);
 
   return (
-    <View style={styles.controlsContainer} pointerEvents='box-none'>
-      {episodeView ? (
-        <EpisodeList
-          item={item}
-          close={() => setEpisodeView(false)}
-          goToItem={goToItemCommon}
-        />
-      ) : (
-        <>
-          <GestureOverlay
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
-            showControls={showControls}
-            onToggleControls={toggleControls}
-            onSkipForward={handleSkipForward}
-            onSkipBackward={handleSkipBackward}
+    <ControlsProvider value={controlsContextValue}>
+      <View style={styles.controlsContainer} pointerEvents='box-none'>
+        {episodeView ? (
+          <EpisodeList
+            item={item}
+            close={() => setEpisodeView(false)}
+            goToItem={goToItemCommon}
           />
-          {/* Technical Info Overlay - rendered outside animated views to stay visible */}
-          {getTechnicalInfo && (
-            <TechnicalInfoOverlay
+        ) : (
+          <>
+            <GestureOverlay
+              screenWidth={screenWidth}
+              screenHeight={screenHeight}
               showControls={showControls}
-              visible={showTechnicalInfo}
-              getTechnicalInfo={getTechnicalInfo}
-              playMethod={playMethod}
-              transcodeReasons={transcodeReasons}
-              mediaSource={mediaSource}
+              onToggleControls={toggleControls}
+              onSkipForward={handleSkipForward}
+              onSkipBackward={handleSkipBackward}
             />
-          )}
-          <Animated.View
-            style={headerAnimatedStyle}
-            pointerEvents={showControls ? "auto" : "none"}
-          >
-            <HeaderControls
-              item={item}
-              showControls={showControls}
-              offline={offline}
-              mediaSource={mediaSource}
-              startPictureInPicture={startPictureInPicture}
-              switchOnEpisodeMode={switchOnEpisodeMode}
-              goToPreviousItem={goToPreviousItem}
-              goToNextItem={goToNextItem}
-              previousItem={previousItem}
-              nextItem={nextItem}
-              aspectRatio={aspectRatio}
-              isZoomedToFill={isZoomedToFill}
-              onZoomToggle={onZoomToggle}
-              playbackSpeed={playbackSpeed}
-              setPlaybackSpeed={setPlaybackSpeed}
-              showTechnicalInfo={showTechnicalInfo}
-              onToggleTechnicalInfo={onToggleTechnicalInfo}
-            />
-          </Animated.View>
-          <Animated.View
-            style={centerAnimatedStyle}
-            pointerEvents={showControls ? "box-none" : "none"}
-          >
-            <CenterControls
-              showControls={showControls}
-              isPlaying={isPlaying}
-              isBuffering={isBuffering}
-              showAudioSlider={showAudioSlider}
-              setShowAudioSlider={setShowAudioSlider}
-              togglePlay={togglePlay}
-              handleSkipBackward={handleSkipBackward}
-              handleSkipForward={handleSkipForward}
-              hasChapters={hasChapters}
-              hasPreviousChapter={hasPreviousChapter}
-              hasNextChapter={hasNextChapter}
-              goToPreviousChapter={goToPreviousChapter}
-              goToNextChapter={goToNextChapter}
-            />
-          </Animated.View>
-          <Animated.View
-            style={bottomAnimatedStyle}
-            pointerEvents={showControls ? "auto" : "none"}
-          >
-            <BottomControls
-              item={item}
-              chapters={item.Chapters}
-              durationMs={maxMs}
-              showControls={showControls}
-              isSliding={isSliding}
-              showRemoteBubble={showRemoteBubble}
-              currentTime={currentTime}
-              remainingTime={remainingTime}
-              showSkipButton={showSkipButton}
-              showSkipCreditButton={showSkipCreditButton}
-              hasContentAfterCredits={hasContentAfterCredits}
-              skipIntro={skipIntro}
-              skipCredit={skipCredit}
-              nextItem={nextItem}
-              handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
-              handleNextEpisodeManual={handleNextEpisodeManual}
-              handleControlsInteraction={handleControlsInteraction}
-              min={min}
-              max={max}
-              effectiveProgress={effectiveProgress}
-              cacheProgress={cacheProgress}
-              handleSliderStart={handleSliderStart}
-              handleSliderComplete={handleSliderComplete}
-              handleSliderChange={handleSliderChange}
-              handleTouchStart={handleTouchStart}
-              handleTouchEnd={handleTouchEnd}
-              seekTo={seekTo}
-              trickPlayUrl={trickPlayUrl}
-              trickplayInfo={trickplayInfo}
-              time={isSliding || showRemoteBubble ? time : remoteTime}
-              chapterPositions={chapterPositions}
-            />
-          </Animated.View>
-        </>
-      )}
-      {settings.maxAutoPlayEpisodeCount.value !== -1 && (
-        <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
-      )}
-    </View>
+            {/* Technical Info Overlay - rendered outside animated views to stay visible */}
+            {getTechnicalInfo && (
+              <TechnicalInfoOverlay
+                showControls={showControls}
+                visible={showTechnicalInfo}
+                getTechnicalInfo={getTechnicalInfo}
+                playMethod={playMethod}
+                transcodeReasons={transcodeReasons}
+                mediaSource={mediaSource}
+              />
+            )}
+            <Animated.View
+              style={headerAnimatedStyle}
+              pointerEvents={showControls ? "auto" : "none"}
+            >
+              <HeaderControls
+                item={item}
+                showControls={showControls}
+                offline={offline}
+                mediaSource={mediaSource}
+                startPictureInPicture={startPictureInPicture}
+                switchOnEpisodeMode={switchOnEpisodeMode}
+                goToPreviousItem={goToPreviousItem}
+                goToNextItem={goToNextItem}
+                previousItem={previousItem}
+                nextItem={nextItem}
+                aspectRatio={aspectRatio}
+                isZoomedToFill={isZoomedToFill}
+                onZoomToggle={onZoomToggle}
+                playbackSpeed={playbackSpeed}
+                setPlaybackSpeed={setPlaybackSpeed}
+                showTechnicalInfo={showTechnicalInfo}
+                onToggleTechnicalInfo={onToggleTechnicalInfo}
+              />
+            </Animated.View>
+            <Animated.View
+              style={centerAnimatedStyle}
+              pointerEvents={showControls ? "box-none" : "none"}
+            >
+              <CenterControls
+                showControls={showControls}
+                isPlaying={isPlaying}
+                isBuffering={isBuffering}
+                showAudioSlider={showAudioSlider}
+                setShowAudioSlider={setShowAudioSlider}
+                togglePlay={togglePlay}
+                handleSkipBackward={handleSkipBackward}
+                handleSkipForward={handleSkipForward}
+                hasChapters={hasChapters}
+                hasPreviousChapter={hasPreviousChapter}
+                hasNextChapter={hasNextChapter}
+                goToPreviousChapter={goToPreviousChapter}
+                goToNextChapter={goToNextChapter}
+              />
+            </Animated.View>
+            <Animated.View
+              style={bottomAnimatedStyle}
+              pointerEvents={showControls ? "auto" : "none"}
+            >
+              <BottomControls
+                item={item}
+                chapters={item.Chapters}
+                durationMs={maxMs}
+                showControls={showControls}
+                isSliding={isSliding}
+                showRemoteBubble={showRemoteBubble}
+                currentTime={currentTime}
+                remainingTime={remainingTime}
+                showSkipButton={showSkipButton}
+                showSkipCreditButton={showSkipCreditButton}
+                hasContentAfterCredits={hasContentAfterCredits}
+                skipIntro={skipIntro}
+                skipCredit={skipCredit}
+                nextItem={nextItem}
+                handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
+                handleNextEpisodeManual={handleNextEpisodeManual}
+                handleControlsInteraction={handleControlsInteraction}
+                min={min}
+                max={max}
+                effectiveProgress={effectiveProgress}
+                cacheProgress={cacheProgress}
+                handleSliderStart={handleSliderStart}
+                handleSliderComplete={handleSliderComplete}
+                handleSliderChange={handleSliderChange}
+                handleTouchStart={handleTouchStart}
+                handleTouchEnd={handleTouchEnd}
+                seekTo={seekTo}
+                trickPlayUrl={trickPlayUrl}
+                trickplayInfo={trickplayInfo}
+                time={isSliding || showRemoteBubble ? time : remoteTime}
+                chapterPositions={chapterPositions}
+              />
+            </Animated.View>
+          </>
+        )}
+        {settings.maxAutoPlayEpisodeCount.value !== -1 && (
+          <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
+        )}
+      </View>
+    </ControlsProvider>
   );
 };
 
