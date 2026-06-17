@@ -27,6 +27,7 @@ jobs:
     name: 🤖 Build Android APK (Phone)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 🗑️ Free Disk Space
@@ -117,12 +118,16 @@ jobs:
             android/app/build/outputs/apk/release/*.apk
           retention-days: 7
 
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
   build-android-tv:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (TV)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 🗑️ Free Disk Space
@@ -212,12 +217,16 @@ jobs:
             android/app/build/outputs/apk/release/*.apk
           retention-days: 7
 
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
   build-ios-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
     runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 📥 Checkout code
@@ -280,12 +289,16 @@ jobs:
           path: build-*.ipa
           retention-days: 7
 
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
   build-ios-phone-unsigned:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
     runs-on: macos-26
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 📥 Checkout code
@@ -339,6 +352,9 @@ jobs:
           path: build/*.ipa
           retention-days: 7
 
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
   build-ios-tv:
     # Disabled: EAS has no provisioning profiles / distribution cert for the tvOS
     # targets (app + StreamyfinTopShelf extension), so non-interactive signed
@@ -349,6 +365,7 @@ jobs:
     name: 🍎 Build tvOS IPA
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 📥 Checkout code
@@ -418,6 +435,7 @@ jobs:
     name: 🍎 Build tvOS IPA (Unsigned)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 📥 Checkout code
@@ -470,3 +488,6 @@ jobs:
           name: streamyfin-ios-tv-unsigned-ipa-${{ env.DATE_TAG }}
           path: build/*.ipa
           retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
