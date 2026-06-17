@@ -261,43 +261,6 @@
           "None": "Aucun",
           "OnlyForced": "Forcés seulement"
         },
-        "text_color": "Couleur du texte",
-        "background_color": "Couleur d'arrière-plan",
-        "outline_color": "Couleur du contour",
-        "outline_thickness": "Épaisseur du contour",
-        "background_opacity": "Opacité de l'arrière-plan",
-        "outline_opacity": "Opacité du contour",
-        "bold_text": "Texte en gras",
-        "colors": {
-          "Black": "Noir",
-          "Gray": "Gris",
-          "Silver": "Argent",
-          "White": "Blanc",
-          "Maroon": "Marron",
-          "Red": "Rouge",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Jaune",
-          "Olive": "Olive",
-          "Green": "Vert",
-          "Teal": "Bleu canard",
-          "Lime": "Citron vert",
-          "Purple": "Violet",
-          "Navy": "Bleu marine",
-          "Blue": "Bleu",
-          "Aqua": "Bleu turquoise"
-        },
-        "thickness": {
-          "None": "Aucun",
-          "Thin": "Maigre",
-          "Normal": "Normale",
-          "Thick": "Épais"
-        },
-        "subtitle_color": "Couleur des sous-titres",
-        "subtitle_background_color": "Couleur d'arrière-plan",
-        "subtitle_font": "Police des sous-titres",
-        "ksplayer_title": "Paramètres de KSPlayer",
-        "hardware_decode": "Décodage matériel",
-        "hardware_decode_description": "Utilisez l’accélération matérielle pour le décodage vidéo. Désactivez si vous rencontrez des problèmes de lecture.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "Paramètres des sous-titres VLC",
-        "hint": "Personnaliser l'apparence des sous-titres pour le lecteur VLC. Les changements prennent effet lors de la lecture suivante.",
-        "text_color": "Couleur du texte",
-        "background_color": "Couleur d'arrière-plan",
-        "background_opacity": "Opacité de l'arrière-plan",
-        "outline_color": "Couleur du contour",
-        "outline_opacity": "Opacité du contour",
-        "outline_thickness": "Épaisseur du contour",
-        "bold": "Texte en gras",
-        "margin": "Marge inférieure"
-      },
-      "video_player": {
-        "title": "Lecteur vidéo",
-        "video_player": "Lecteur vidéo",
-        "video_player_description": "Choisissez le lecteur vidéo à utiliser sur iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Autres",
@@ -351,11 +295,6 @@
           "UNKNOWN": "Inconnu"
         },
         "safe_area_in_controls": "Zone de sécurité dans les contrôles",
-        "video_player": "Lecteur vidéo",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Expérimental + PiP)"
-        },
         "show_custom_menu_links": "Afficher les liens personnalisés",
         "show_large_home_carousel": "Afficher le grand carrousel d’accueil (bêta)",
         "hide_libraries": "Cacher des bibliothèques",
@@ -366,9 +305,6 @@
         "auto_play_next_episode": "Lecture automatique de l'épisode suivant",
         "max_auto_play_episode_count": "Nombre d'épisodes en lecture automatique max",
         "disabled": "Désactivé"
-      },
-      "downloads": {
-        "downloads_title": "Téléchargements"
       },
       "music": {
         "title": "Musique",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Plugins",
         "jellyseerr": {
-          "jellyseerr_warning": "Cette intégration est dans ses débuts. Attendez-vous à ce que des choses changent.",
           "server_url": "URL du serveur",
           "server_url_hint": "Exemple : http(s)://votre-domaine.url\n(ajouter le port si nécessaire)",
           "server_url_placeholder": "URL de Seerr...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "En savoir plus sur Marlin.",
           "save_button": "Enregistrer",
           "toasts": {
-            "saved": "Enregistré",
-            "refreshed": "Paramètres actualisés depuis le serveur"
-          },
-          "refresh_from_server": "Rafraîchir les paramètres depuis le serveur"
+            "saved": "Enregistré"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Activer Streamystats",
           "disable_streamystats": "Désactiver Streamystats",
           "enable_search": "Utiliser pour la recherche",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Entrez l'URL de votre serveur Streamystats. L'URL doit inclure http ou https et éventuellement le port.",
           "read_more_about_streamystats": "En savoir plus sur Streamystats.",
-          "save_button": "Enregistrer",
           "save": "Enregistrer",
           "features_title": "Fonctionnalités",
-          "home_sections_title": "Sections de la page d´accueil",
           "enable_movie_recommendations": "Recommandations de films",
           "enable_series_recommendations": "Recommandations de séries",
           "enable_promoted_watchlists": "Listes de lecture promues",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Rafraîchir les paramètres depuis le serveur"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Activer l'intégration de notre liste de lecture",
-          "watchlist_button": "Activer l'intégration de notre liste de lecture"
+          "watchlist_enabler": "Activer l'intégration de notre liste de lecture"
         }
       },
       "storage": {
@@ -457,7 +386,6 @@
         "delete_all_downloaded_files": "Supprimer tous les fichiers téléchargés",
         "music_cache_title": "Mise en cache de la musique",
         "music_cache_description": "Mettez automatiquement en cache les chansons au fur et à mesure que vous écoutez pour une lecture plus fluide et une prise en charge hors ligne",
-        "enable_music_cache": "Activer le cache sur la musique",
         "clear_music_cache": "Vider le cache de la musique",
         "music_cache_size": "{{size}} mis en cache",
         "music_cache_cleared": "Cache de musique effacé",
@@ -467,8 +395,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +416,12 @@
         "system": "Système"
       },
       "toasts": {
-        "error_deleting_files": "Erreur lors de la suppression des fichiers",
-        "background_downloads_enabled": "Téléchargements en arrière-plan activés",
-        "background_downloads_disabled": "Téléchargements en arrière-plan désactivés"
+        "error_deleting_files": "Erreur lors de la suppression des fichiers"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +441,7 @@
       "downloads_title": "Téléchargements",
       "series": "Séries",
       "movies": "Films",
-      "queue": "File d'attente",
       "other_media": "Autres médias",
-      "queue_hint": "La file d'attente et les téléchargements seront perdus au redémarrage de l'application",
-      "no_items_in_queue": "Aucun téléchargement de média dans la file d'attente",
       "no_downloaded_items": "Aucun média téléchargé",
       "delete_all_movies_button": "Supprimer tous les films",
       "delete_all_series_button": "Supprimer toutes les séries",
@@ -546,13 +466,8 @@
         "failed_to_delete_all_series": "Échec de la suppression de toutes les séries",
         "deleted_media_successfully": "Les autres médias ont été supprimés avec succès !",
         "failed_to_delete_media": "Échec de la suppression d'un autre média",
-        "download_deleted": "Téléchargement supprimé",
         "download_cancelled": "Téléchargement annulé",
         "could_not_delete_download": "Impossible de supprimer le téléchargement",
-        "download_paused": "Téléchargement en pause",
-        "could_not_pause_download": "Impossible de mettre en pause le téléchargement",
-        "download_resumed": "Reprise du téléchargement",
-        "could_not_resume_download": "Impossible de reprendre le téléchargement",
         "download_completed": "Téléchargement terminé",
         "download_failed": "Échec du téléchargement",
         "download_failed_for_item": "Échec du téléchargement pour {{item}} - {{error}}",
@@ -562,10 +477,7 @@
         "item_already_downloading": "{{item}} est déjà en cours de téléchargement",
         "all_files_deleted": "Tous les téléchargements supprimés avec succès",
         "files_deleted_by_type": "{{count}} {{type}} supprimé",
-        "all_files_folders_and_jobs_deleted_successfully": "Tous les fichiers, dossiers et tâches ont été supprimés avec succès",
-        "failed_to_clean_cache_directory": "Échec du nettoyage du répertoire de cache",
         "could_not_get_download_url_for_item": "Échec d'obtention de l'URL de téléchargement pour {{itemName}}",
-        "go_to_downloads": "Aller aux téléchargements",
         "file_deleted": "{{item}} supprimé"
       }
     }
@@ -583,16 +495,17 @@
     "none": "Aucun",
     "track": "Suivre",
     "cancel": "Annuler",
-    "stop": "Stop",
     "delete": "Supprimer",
     "ok": "Ok",
     "remove": "Retirer",
-    "next": "Suivant",
     "back": "Précédent",
     "continue": "Continuer",
     "verifying": "Vérification...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Rechercher...",
@@ -691,10 +604,6 @@
     "could_not_create_stream_for_chromecast": "Impossible de créer un flux sur la Chromecast",
     "message_from_server": "Message du serveur : {{message}}",
     "next_episode": "Épisode suivant",
-    "refresh_tracks": "Rafraîchir les pistes",
-    "audio_tracks": "Pistes audio :",
-    "playback_state": "État de lecture :",
-    "index": "Index :",
     "continue_watching": "Continuer à regarder",
     "go_back": "Retour",
     "downloaded_file_title": "Ce fichier est téléchargé",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "Afficher plus",
     "show_less": "Afficher moins",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Suivant",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "morceaux"
     },
-    "filters": {
-      "all": "Toutes"
-    },
     "recently_added": "Ajoutés récemment",
     "recently_played": "Récemment joué",
     "frequently_played": "Fréquemment joué",
-    "explore": "Explorez",
     "top_tracks": "Top chansons",
     "play": "Lecture",
     "shuffle": "Aléatoire",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
