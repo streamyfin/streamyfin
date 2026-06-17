@@ -115,9 +115,6 @@ export const JellyseerrSettings = () => {
           </>
         ) : (
           <View className='flex flex-col rounded-xl overflow-hidden p-4 bg-neutral-900'>
-            <Text className='text-xs text-red-600 mb-2'>
-              {t("home.settings.plugins.jellyseerr.jellyseerr_warning")}
-            </Text>
             <Text className='font-bold mb-1'>
               {t("home.settings.plugins.jellyseerr.server_url")}
             </Text>
