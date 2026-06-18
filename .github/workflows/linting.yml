@@ -15,7 +15,7 @@ jobs:
   validate_pr_title:
     name: "📝 Validate PR Title"
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       pull-requests: write
       contents: read
@@ -25,7 +25,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
+      - uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         if: always() && (steps.lint_pr_title.outputs.error_message != null)
         with:
           header: pr-title-lint-error
@@ -39,25 +39,25 @@ jobs:
             ```
 
       - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
-        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           header: pr-title-lint-error
           delete: true
 
   dependency-review:
     name: 🔍 Vulnerable Dependencies
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
           base-ref: ${{ github.event.pull_request.base.sha || 'develop' }}
@@ -65,30 +65,33 @@ jobs:
 
   expo-doctor:
     name: 🚑 Expo Doctor Check
-    if: false
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: 🛒 Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
       - name: 📦 Install dependencies (bun)
         run: bun install --frozen-lockfile
 
       - name: 🚑 Run Expo Doctor
+        # Re-enabled but non-blocking: surfaces doctor warnings in the logs
+        # without failing the gate (some checks are known-noisy for this setup).
+        continue-on-error: true
         run: bun expo-doctor
 
   code_quality:
     name: "🔍 Lint & Test (${{ matrix.command }})"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -97,24 +100,27 @@ jobs:
           - "check"
           - "format"
           - "typecheck"
+          - "i18n:check"
 
     steps:
       - name: "📥 Checkout PR code"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
       - name: "🟢 Setup Node.js"
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.x'
+          # renovate: datasource=node-version depName=node versioning=node
+          node-version: "24.16.0"
 
       - name: "🍞 Setup Bun"
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
       - name: "📦 Install dependencies"
         run: bun install --frozen-lockfile

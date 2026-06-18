@@ -22,6 +22,7 @@ export interface ServerCredential {
   savedAt: number;
   securityType: AccountSecurityType;
   pinHash?: string;
+  primaryImageTag?: string;
 }
 
 /**
@@ -32,6 +33,7 @@ export interface SavedServerAccount {
   username: string;
   securityType: AccountSecurityType;
   savedAt: number;
+  primaryImageTag?: string;
 }
 
 /**
@@ -131,6 +133,7 @@ export async function saveAccountCredential(
     username: credential.username,
     securityType: credential.securityType,
     savedAt: credential.savedAt,
+    primaryImageTag: credential.primaryImageTag,
   });
 }
 
@@ -201,30 +204,9 @@ export async function hasAccountCredential(
 }
 
 /**
- * Delete all credentials for all accounts on all servers.
- */
-export async function clearAllCredentials(): Promise<void> {
-  const previousServers = getPreviousServers();
-
-  for (const server of previousServers) {
-    for (const account of server.accounts) {
-      const key = credentialKey(server.address, account.userId);
-      await SecureStore.deleteItemAsync(key);
-    }
-  }
-
-  // Clear all accounts from servers
-  const clearedServers = previousServers.map((server) => ({
-    ...server,
-    accounts: [],
-  }));
-  storage.set("previousServers", JSON.stringify(clearedServers));
-}
-
-/**
  * Add or update an account in a server's accounts list.
  */
-function addAccountToServer(
+export function addAccountToServer(
   serverUrl: string,
   serverName: string,
   account: SavedServerAccount,
@@ -475,19 +457,32 @@ export async function migrateToMultiAccount(): Promise<void> {
 }
 
 /**
- * Update account's token after successful login.
+ * Update account's token and optionally other fields after successful login.
  */
 export async function updateAccountToken(
   serverUrl: string,
   userId: string,
   newToken: string,
+  primaryImageTag?: string,
 ): Promise<void> {
   const credential = await getAccountCredential(serverUrl, userId);
   if (credential) {
     credential.token = newToken;
     credential.savedAt = Date.now();
+    if (primaryImageTag !== undefined) {
+      credential.primaryImageTag = primaryImageTag;
+    }
     const key = credentialKey(serverUrl, userId);
     await SecureStore.setItemAsync(key, JSON.stringify(credential));
+
+    // Also update the account info in the server list
+    addAccountToServer(serverUrl, credential.serverName, {
+      userId: credential.userId,
+      username: credential.username,
+      securityType: credential.securityType,
+      savedAt: credential.savedAt,
+      primaryImageTag: credential.primaryImageTag,
+    });
   }
 }
 

@@ -1,0 +1,218 @@
+name: 🚀 Release (EAS build + submit)
+
+# On merge to main (gated by the `production` GitHub Environment approval),
+# build all targets on EAS in parallel via custom bun build configs:
+#   1. iOS phone        → App Store (auto-submit)
+#   2. tvOS             → App Store (auto-submit)
+#   3. Android AAB      → Google Play (auto-submit)
+#   4. Android phone APK→ downloadable artifact
+#   5. Android TV APK   → downloadable artifact
+# Note: EAS queues builds based on your plan's concurrency; parallel jobs
+# here just submit them — EAS may still run them serially.
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  approve:
+    name: 🔐 Approve release
+    runs-on: ubuntu-26.04
+    environment: production
+    permissions: {}
+    steps:
+      - name: ✅ Release approved
+        run: echo "Release approved for ${{ github.sha }}"
+
+  build:
+    name: 🚀 ${{ matrix.name }}
+    needs: approve
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: 🍎 iOS
+            platform: ios
+            profile: production
+            submit: true
+          - name: 📺 tvOS
+            platform: ios
+            profile: production_tv
+            submit: true
+          - name: 🤖 Android AAB
+            platform: android
+            profile: production
+            submit: true
+          - name: 🤖 Android APK
+            platform: android
+            profile: production-apk
+            submit: false
+            artifact_name: streamyfin-android-phone-apk
+          - name: 📺 Android TV APK
+            platform: android
+            profile: production-apk-tv
+            submit: false
+            artifact_name: streamyfin-android-tv-apk
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🏗️ Setup EAS
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          eas-cache: true
+
+      # tvOS uses credentialsSource: local — restore the gitignored
+      # credentials.json + cert + provisioning profiles from secrets.
+      - name: 🔐 Restore tvOS signing credentials
+        if: matrix.profile == 'production_tv'
+        env:
+          EAS_CREDENTIALS_JSON: ${{ secrets.EAS_CREDENTIALS_JSON }}
+          TVOS_DIST_CERT_P12_BASE64: ${{ secrets.TVOS_DIST_CERT_P12_BASE64 }}
+          TVOS_APP_PROFILE_BASE64: ${{ secrets.TVOS_APP_PROFILE_BASE64 }}
+          TVOS_TOPSHELF_PROFILE_BASE64: ${{ secrets.TVOS_TOPSHELF_PROFILE_BASE64 }}
+        run: |
+          mkdir -p certs profiles
+          printf '%s' "$EAS_CREDENTIALS_JSON" > credentials.json
+          echo "$TVOS_DIST_CERT_P12_BASE64" | base64 -d > certs/distribution.p12
+          echo "$TVOS_APP_PROFILE_BASE64" | base64 -d > profiles/Streamyfin_tvOS_App_Store.mobileprovision
+          echo "$TVOS_TOPSHELF_PROFILE_BASE64" | base64 -d > profiles/Streamyfin_TopShelf_tvOS_App_Store.mobileprovision
+
+      # Android Play submit needs the Google Play service account JSON.
+      - name: 🔐 Restore Google Play service account
+        if: matrix.platform == 'android' && matrix.submit
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: printf '%s' "$GOOGLE_SERVICE_ACCOUNT_KEY" > google-service-account.json
+
+      # App Store Connect API key for iOS/tvOS submit (raw-PEM or base64).
+      - name: 🔐 Restore App Store Connect API key
+        if: matrix.platform == 'ios'
+        env:
+          APPLE_KEY_CONTENT: ${{ secrets.APPLE_KEY_CONTENT }}
+        run: |
+          if printf '%s' "$APPLE_KEY_CONTENT" | grep -q "BEGIN PRIVATE KEY"; then
+            printf '%s' "$APPLE_KEY_CONTENT" > "$RUNNER_TEMP/asc_api_key.p8"
+          else
+            printf '%s' "$APPLE_KEY_CONTENT" | base64 -d > "$RUNNER_TEMP/asc_api_key.p8"
+          fi
+
+      # ── Submit builds: cloud build + auto-submit to the store ──
+      - name: 🚀 Build & submit (${{ matrix.name }})
+        if: matrix.submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ASC_API_KEY_PATH: ${{ runner.temp }}/asc_api_key.p8
+          EXPO_ASC_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.APPLE_KEY_ISSUER_ID }}
+        run: |
+          eas build \
+            --platform ${{ matrix.platform }} \
+            --profile ${{ matrix.profile }} \
+            --auto-submit \
+            --non-interactive \
+            --wait
+
+      # ── Artifact builds: cloud build, then download + upload the APK ──
+      - name: 🏗️ Build artifact (${{ matrix.name }})
+        if: ${{ !matrix.submit }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --platform ${{ matrix.platform }} \
+            --profile ${{ matrix.profile }} \
+            --non-interactive \
+            --wait \
+            --json > build-result.json
+          URL=$(node -e "const b=require('./build-result.json'); const x=Array.isArray(b)?b[0]:b; console.log(x.artifacts.applicationArchiveUrl)")
+          echo "Downloading artifact: $URL"
+          curl -fL "$URL" -o "${{ matrix.artifact_name }}.apk"
+
+      - name: 📤 Upload APK artifact (${{ matrix.name }})
+        if: ${{ !matrix.submit }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}.apk
+          retention-days: 14
+
+  # Draft a GitHub Release with the two APKs attached. The tag comes from the
+  # merged-in app version (app.json → expo.version), NOT the auto-incremented
+  # build number — so cutting a release is a deliberate version bump via PR.
+  github-release:
+    name: 📦 Draft GitHub Release
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      actions: read # required for `gh run download` to list/fetch this run's artifacts
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: 📦 Download APK artifacts from this run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p apks
+          gh run download ${{ github.run_id }} --name streamyfin-android-phone-apk --dir apks
+          gh run download ${{ github.run_id }} --name streamyfin-android-tv-apk --dir apks
+          ls -la apks
+
+      - name: 📝 Draft release (tag = app.json version, not auto-bumped)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(node -e "console.log(require('./app.json').expo.version)")
+          TAG="v$VERSION"
+          echo "Release tag from merged app version: $TAG"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists — updating APK assets"
+            gh release upload "$TAG" apks/*.apk --clobber
+          else
+            echo "Creating draft release $TAG"
+            gh release create "$TAG" \
+              --draft \
+              --generate-notes \
+              --title "$TAG" \
+              apks/*.apk
+          fi

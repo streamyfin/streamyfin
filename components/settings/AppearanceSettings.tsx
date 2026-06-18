@@ -42,14 +42,6 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
-        <ListItem title={t("home.settings.other.show_large_home_carousel")}>
-          <Switch
-            value={settings.showLargeHomeCarousel}
-            onValueChange={(value) =>
-              updateSettings({ showLargeHomeCarousel: value })
-            }
-          />
-        </ListItem>
         <ListItem
           title={t("home.settings.appearance.merge_next_up_continue_watching")}
         >

@@ -25,6 +25,10 @@ export type OnErrorEventPayload = {
 
 export type OnTracksReadyEventPayload = Record<string, never>;
 
+export type OnPictureInPictureChangePayload = {
+  isActive: boolean;
+};
+
 export type NowPlayingMetadata = {
   title?: string;
   artist?: string;
@@ -50,6 +54,19 @@ export type VideoSource = {
   initialSubtitleId?: number;
   /** MPV audio track ID to select on start (1-based) */
   initialAudioId?: number;
+  /** MPV cache/buffer configuration */
+  cacheConfig?: {
+    /** Whether caching is enabled: "auto" (default), "yes", or "no" */
+    enabled?: "auto" | "yes" | "no";
+    /** Seconds of video to buffer (default: 10, range: 5-120) */
+    cacheSeconds?: number;
+    /** Maximum cache size in MB (default: 150, range: 50-500) */
+    maxBytes?: number;
+    /** Maximum backward cache size in MB (default: 50, range: 25-200) */
+    maxBackBytes?: number;
+  };
+  /** MPV video output driver (Android only) */
+  voDriver?: "gpu-next" | "gpu";
 };
 
 export type MpvPlayerViewProps = {
@@ -64,6 +81,9 @@ export type MpvPlayerViewProps = {
   onProgress?: (event: { nativeEvent: OnProgressEventPayload }) => void;
   onError?: (event: { nativeEvent: OnErrorEventPayload }) => void;
   onTracksReady?: (event: { nativeEvent: OnTracksReadyEventPayload }) => void;
+  onPictureInPictureChange?: (event: {
+    nativeEvent: OnPictureInPictureChangePayload;
+  }) => void;
 };
 
 export interface MpvPlayerViewRef {
@@ -93,6 +113,11 @@ export interface MpvPlayerViewRef {
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;
   setSubtitleFontSize: (size: number) => Promise<void>;
+  setSubtitleBackgroundColor: (color: string) => Promise<void>;
+  setSubtitleBorderStyle: (
+    style: "outline-and-shadow" | "background-box",
+  ) => Promise<void>;
+  setSubtitleAssOverride: (mode: "no" | "force") => Promise<void>;
   // Audio controls
   getAudioTracks: () => Promise<AudioTrack[]>;
   setAudioTrack: (trackId: number) => Promise<void>;
@@ -130,4 +155,8 @@ export type TechnicalInfo = {
   audioBitrate?: number;
   cacheSeconds?: number;
   droppedFrames?: number;
+  /** Active video output driver (read from MPV at runtime) */
+  voDriver?: string;
+  /** Active hardware decoder (read from MPV at runtime) */
+  hwdec?: string;
 };

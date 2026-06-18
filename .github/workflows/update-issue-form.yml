@@ -1,67 +1,103 @@
-name: 🐛 Update Bug Report Template
+name: 🐛 Update Issue Form Versions
 
 on:
   release:
-    types: [published]  # Run on every published release on any branch
+    # Only full releases populate the dropdown (no drafts/prereleases).
+    types: [released]
+  schedule:
+    - cron: "0 3 * * 1" # Weekly safety net (Mondays 03:00 UTC) in case a release event was missed
+  workflow_dispatch:
 
+# Fixed group so a release event and the weekly cron can't race on the same
+# ci/update-issue-form branch — runs queue instead of force-pushing over each other.
 concurrency:
-   group: update-issue-form-${{ github.event.release.tag_name || github.run_id }}
-   cancel-in-progress: true
+  group: update-issue-form
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  update-bug-report:
+  update-issue-form:
+    name: 🔢 Populate version dropdown
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write
-      issues: write
-    runs-on: ubuntu-24.04
-
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: "🟢 Setup Node.js"
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          node-version: '24.x'
-          cache: 'npm'
+          # On `release` events GITHUB_SHA is the tagged commit — without this the
+          # script would regenerate the form from the tag's (stale) copy and the bot
+          # PR would revert any form edits made on develop since that release.
+          ref: develop
 
-      - name: 🔍 Extract minor version from app.json
-        id: minor
-        uses: actions/github-script@main
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          result-encoding: string
-          script: |
-            const fs = require('fs-extra');
-            const semver = require('semver');
-            const content = fs.readJsonSync('./app.json');
-            const version = content.expo.version;
-            const minorVersion = semver.minor(version);
-            return minorVersion.toString();
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
-      - name: 📝 Update bug report version
-        uses: ShaMan123/gha-populate-form-version@be012141ca560dbb92156e3fe098c46035f6260d #v2.0.5
-        with:
-          semver: '^0.${{ steps.minor.outputs.result }}.0'
-          dry_run: no-push
+      - name: 🔢 Populate version dropdown from GitHub releases
+        id: populate
+        run: bun scripts/update-issue-form.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
-      - name: ⚙️ Update bug report node version dropdown
-        uses: ShaMan123/gha-populate-form-version@be012141ca560dbb92156e3fe098c46035f6260d #v2.0.5
+      - name: 📬 Create pull request
+        id: cpr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          dropdown: _node_version
-          package: node
-          semver: '>=24.0.0'
-          dry_run: no-push
-
-      - name: 📬 Commit and create pull request
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
-        with:
-          add-paths: .github/ISSUE_TEMPLATE/bug_report.yml
-          branch: ci-update-bug-report
+          add-paths: .github/ISSUE_TEMPLATE/issue_report.yml
+          branch: ci/update-issue-form
           base: develop
           delete-branch: true
           labels: ⚙️ ci, 🤖 github-actions
-          title: 'chore(): Update bug report template to match release version'
+          commit-message: "chore: update issue form version dropdown"
+          title: "chore: update issue form version dropdown"
+          # Follows .github/pull_request_template.md so the bot PR isn't flagged by PR validation.
           body: |
-            Automated update to `.github/ISSUE_TEMPLATE/bug_report.yml`
-            Triggered by workflow run [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            # 📦 Pull Request
+
+            ## 📝 Description
+
+            Automated update of the **Streamyfin Version** dropdown in `.github/ISSUE_TEMPLATE/issue_report.yml`, populated from the latest published GitHub releases by `scripts/update-issue-form.mjs`.
+
+            **Version dropdown now lists:** ${{ steps.populate.outputs.versions }}
+
+            Triggered by `${{ github.event_name }}`${{ github.event.release.tag_name && format(' — release {0}', github.event.release.tag_name) || '' }} · [run ${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            ## 🏷️ Ticket / Issue
+
+            N/A — automated maintenance.
+
+            ### 🖼️ Screenshots / GIFs (if UI)
+
+            N/A — issue-template metadata only, no app UI.
+
+            ## ✅ Checklist
+
+            - [x] I’ve read the [contribution guidelines](CONTRIBUTING.md)
+            - [x] Verified that changes behave as expected for all platforms
+            - [x] Code passes lint/formatting and type checks (`tsc`/`biome`)
+            - [x] No secrets, hardcoded credentials, or private config files are included
+            - [x] I've declared if AI was used to assist with this PR (by uncommenting the line at the bottom, or not)
+
+            ## 🔍 Testing Instructions
+
+            N/A — generated by CI from published releases; review the dropdown diff in `issue_report.yml`.
+
+      - name: 🔀 Enable auto-merge
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Known limitation: PRs created with GITHUB_TOKEN don't trigger CI workflows
+        # (GitHub anti-recursion), so the required checks stay "Expected" until a
+        # maintainer kicks them (close/reopen the PR, or push an empty commit).
+        # Auto-merge is still worth enabling: once checks run and reviews land,
+        # the PR merges itself.
+        run: |
+          gh pr merge --squash --auto "${{ steps.cpr.outputs.pull-request-number }}" \
+            || echo "::warning::Could not enable auto-merge — enable 'Allow auto-merge' in repo settings (and branch protection); merge the PR manually for now."

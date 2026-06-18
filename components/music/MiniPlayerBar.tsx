@@ -243,7 +243,7 @@ export const MiniPlayerBar: React.FC = () => {
         ]}
       >
         <Animated.View style={[styles.touchable, animatedBarStyle]}>
-          {Platform.OS === "ios" ? (
+          {Platform.OS === "ios" && !Platform.isTV ? (
             <GlassEffectView style={styles.blurContainer}>
               <View
                 style={{

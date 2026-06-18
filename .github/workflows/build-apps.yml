@@ -11,13 +11,23 @@ on:
   push:
     branches: [develop, master]
 
+# Exposed to `expo prebuild` (app.config.js → extra.build) so Settings can show the
+# branch + commit + Actions run a CI build was made from. EAS cloud builds use
+# EAS_BUILD_* instead. The run number maps a sideloaded build back to its Actions
+# run (artifacts + logs) without needing Expo access.
+env:
+  EXPO_PUBLIC_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
+  EXPO_PUBLIC_GIT_COMMIT: ${{ github.sha }}
+  EXPO_PUBLIC_GIT_RUN_NUMBER: ${{ github.run_number }}
+
 jobs:
   build-android-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (Phone)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 🗑️ Free Disk Space
@@ -28,12 +38,12 @@ jobs:
           android: false
           dotnet: true
           haskell: true
-          large-packages: true
+          large-packages: false
           docker-images: true
           swap-storage: false
 
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -41,66 +51,83 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-develop
-            ${{ runner.os }}-bun-develop
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
+      - name: ☕ Set up JDK 17
+        # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
+        # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
+        # fail). Pin Temurin 17 for a deterministic Android build.
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: 💾 Cache Gradle global
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-${{ runner.arch }}-gradle-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: android/.gradle
-          key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-android-gradle-develop
+          key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop
 
       - name: 🚀 Build APK
         env:
           EXPO_TV: 0
+          # CI artifact ships arm64 only (phones; emulators/Chromebooks not a
+          # sideload target). Overrides app.json buildArchs for this build only,
+          # so local `bun run android` (x86_64 emulator) is unaffected.
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
         run: bun run build:android:local
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-android-phone-apk-${{ env.DATE_TAG }}
           path: |
             android/app/build/outputs/apk/release/*.apk
           retention-days: 7
 
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
   build-android-tv:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: 🤖 Build Android APK (TV)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 🗑️ Free Disk Space
@@ -111,12 +138,12 @@ jobs:
           android: false
           dotnet: true
           haskell: true
-          large-packages: true
+          large-packages: false
           docker-images: true
           swap-storage: false
 
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -124,59 +151,74 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-bun-develop-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-develop
-            ${{ runner.os }}-bun-develop
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
+      - name: ☕ Set up JDK 17
+        # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
+        # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
+        # fail). Pin Temurin 17 for a deterministic Android build.
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: 💾 Cache Gradle global
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-${{ runner.arch }}-gradle-
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: android/.gradle
-          key: ${{ runner.os }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-android-gradle-develop
+          key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop
 
       - name: 🚀 Build APK
         env:
           EXPO_TV: 1
+          # TV artifact keeps armeabi-v7a too: many older/cheap Android TV boxes
+          # and sticks are still 32-bit ARM. Drops only x86_64. CI build only.
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a,armeabi-v7a
         run: bun run build:android:local
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload APK artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-android-tv-apk-${{ env.DATE_TAG }}
           path: |
             android/app/build/outputs/apk/release/*.apk
           retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
 
   build-ios-phone:
     if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
@@ -184,10 +226,11 @@ jobs:
     name: 🍎 Build iOS IPA (Phone)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -195,17 +238,18 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -216,12 +260,13 @@ jobs:
         run: bun run prebuild
 
       - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
-          xcode-version: "26.2"
+          # renovate: datasource=custom.xcode depName=xcode versioning=loose
+          xcode-version: "26.5"
 
       - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@main
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -230,17 +275,22 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
-        run: eas build -p ios --local --non-interactive
+        # `ci` profile (extends production, autoIncrement off): keeps CI builds out of
+        # the production version tier and stops them inflating the store build counter.
+        run: eas build -p ios --local --non-interactive --profile ci
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-ios-phone-ipa-${{ env.DATE_TAG }}
           path: build-*.ipa
           retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
 
   build-ios-phone-unsigned:
     if: (!contains(github.event.head_commit.message, '[skip ci]'))
@@ -248,10 +298,11 @@ jobs:
     name: 🍎 Build iOS IPA (Phone - Unsigned)
     permissions:
       contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -259,17 +310,18 @@ jobs:
           show-progress: false
 
       - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
@@ -280,9 +332,10 @@ jobs:
         run: bun run prebuild
 
       - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
-          xcode-version: "26.2"
+          # renovate: datasource=custom.xcode depName=xcode versioning=loose
+          xcode-version: "26.5"
 
       - name: 🚀 Build iOS app
         env:
@@ -293,73 +346,148 @@ jobs:
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
 
       - name: 📤 Upload IPA artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: streamyfin-ios-phone-unsigned-ipa-${{ env.DATE_TAG }}
           path: build/*.ipa
           retention-days: 7
 
-  # Disabled for now - uncomment when ready to build iOS TV
-  # build-ios-tv:
-  #   if: (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
-  #   runs-on: macos-26
-  #   name: 🍎 Build iOS IPA (TV)
-  #   permissions:
-  #     contents: read
-  #
-  #   steps:
-  #     - name: 📥 Checkout code
-  #       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-  #       with:
-  #         ref: ${{ github.event.pull_request.head.sha || github.sha }}
-  #         fetch-depth: 0
-  #         submodules: recursive
-  #         show-progress: false
-  #
-  #     - name: 🍞 Setup Bun
-  #       uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-  #       with:
-  #         bun-version: latest
-  #
-  #     - name: 💾 Cache Bun dependencies
-  #       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-  #       with:
-  #         path: ~/.bun/install/cache
-  #         key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
-  #         restore-keys: |
-  #           ${{ runner.os }}-bun-cache
-  #
-  #     - name: 📦 Install dependencies and reload submodules
-  #       run: |
-  #         bun install --frozen-lockfile
-  #         bun run submodule-reload
-  #
-  #     - name: 🛠️ Generate project files
-  #       run: bun run prebuild:tv
-  #
-  #     - name: 🔧 Setup Xcode
-  #       uses: maxim-lobanov/setup-xcode@v1
-  #       with:
-  #         xcode-version: '26.0.1'
-  #
-  #     - name: 🏗️ Setup EAS
-  #       uses: expo/expo-github-action@main
-  #       with:
-  #         eas-version: latest
-  #         token: ${{ secrets.EXPO_TOKEN }}
-  #         eas-cache: true
-  #
-  #     - name: 🚀 Build iOS app
-  #       env:
-  #         EXPO_TV: 1
-  #       run: eas build -p ios --local --non-interactive
-  #
-  #     - name: 📅 Set date tag
-  #       run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
-  #
-  #     - name: 📤 Upload IPA artifact
-  #       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-  #       with:
-  #         name: streamyfin-ios-tv-ipa-${{ env.DATE_TAG }}
-  #         path: build-*.ipa
-  #         retention-days: 7
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment
+
+  build-ios-tv:
+    # Disabled: EAS has no provisioning profiles / distribution cert for the tvOS
+    # targets (app + StreamyfinTopShelf extension), so non-interactive signed
+    # builds fail. Set up tvOS credentials in EAS (`eas credentials`), then remove
+    # the `false &&` prefix below. Unsigned tvOS builds run (see job below).
+    if: false && (!contains(github.event.head_commit.message, '[skip ci]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'streamyfin/streamyfin'))
+    runs-on: macos-26
+    name: 🍎 Build tvOS IPA
+    permissions:
+      contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild:tv
+
+      - name: 🔧 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          # renovate: datasource=custom.xcode depName=xcode versioning=loose
+          xcode-version: "26.5"
+
+      - name: 🏗️ Setup EAS
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+          eas-cache: true
+
+      - name: 🚀 Build iOS app
+        env:
+          EXPO_TV: 1
+        run: eas build -p ios --local --non-interactive --profile ci_tv
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: streamyfin-ios-tv-ipa-${{ env.DATE_TAG }}
+          path: build-*.ipa
+          retention-days: 7
+
+  build-ios-tv-unsigned:
+    # Unsigned tvOS build is enabled (compiles without Apple credentials).
+    # The signed tvOS job above stays disabled until tvOS provisioning
+    # profiles are set up in EAS (app + TopShelf targets).
+    if: (!contains(github.event.head_commit.message, '[skip ci]'))
+    runs-on: macos-26
+    name: 🍎 Build tvOS IPA (Unsigned)
+    permissions:
+      contents: read
+      actions: write # dispatch artifact-comment.yml to refresh the PR comment
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies and reload submodules
+        run: |
+          bun install --frozen-lockfile
+          bun run submodule-reload
+
+      - name: 🛠️ Generate project files
+        run: bun run prebuild:tv
+
+      - name: 🔧 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          # renovate: datasource=custom.xcode depName=xcode versioning=loose
+          xcode-version: "26.5"
+
+      - name: 🚀 Build iOS app
+        env:
+          EXPO_TV: 1
+        run: bun run ios:unsigned-build:tv ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+
+      - name: 📅 Set date tag
+        run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
+
+      - name: 📤 Upload IPA artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: streamyfin-ios-tv-unsigned-ipa-${{ env.DATE_TAG }}
+          path: build/*.ipa
+          retention-days: 7
+
+      - name: 🔄 Refresh PR build comment
+        uses: ./.github/actions/refresh-pr-comment

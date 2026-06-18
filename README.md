@@ -126,6 +126,10 @@ For the TV version suffix the npm commands with `:tv`.
 `npm run prebuild:tv`  
 `npm run ios:tv or npm run android:tv`
 
+TV platform integration notes:
+
+- [TV Discovery](./docs/tv-discovery.md)
+
 ## 👋 Get in Touch with Us
 
 Need assistance or have any questions?
