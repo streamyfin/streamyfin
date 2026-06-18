@@ -261,43 +261,6 @@
           "None": "Inga",
           "OnlyForced": "Bara Tvingande"
         },
-        "text_color": "Textfärg",
-        "background_color": "Bakgrundsfärg",
-        "outline_color": "Konturfärg",
-        "outline_thickness": "Konturtjocklek",
-        "background_opacity": "Bakgrundsgenomskinlighet",
-        "outline_opacity": "Kontursgenomskinlighet",
-        "bold_text": "FetStil",
-        "colors": {
-          "Black": "Svart",
-          "Gray": "Grå",
-          "Silver": "Silver",
-          "White": "Vit",
-          "Maroon": "Rödbrun",
-          "Red": "Röd",
-          "Fuchsia": "Purpur",
-          "Yellow": "Gul",
-          "Olive": "Olivgrön",
-          "Green": "Grön",
-          "Teal": "Turkos",
-          "Lime": "Limegrön",
-          "Purple": "Lila",
-          "Navy": "Marinblå",
-          "Blue": "Blå",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "Inget",
-          "Thin": "Tunn",
-          "Normal": "Normal",
-          "Thick": "Tjock"
-        },
-        "subtitle_color": "Undertextfärg",
-        "subtitle_background_color": "Bakgrundsfärg",
-        "subtitle_font": "Typsnitt för undertexter",
-        "ksplayer_title": "KSPlayer-inställningar",
-        "hardware_decode": "Hårdvaruavkodning",
-        "hardware_decode_description": "Använd hårdvaruacceleration för videoavkodning. Inaktivera om du upplever uppspelningsproblem.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Ange din OpenSubtitles API-nyckel för att aktivera klientbaserad undertextsökning som reserv när din Jellyfin-server inte har en undertextleverantör konfigurerad.",
         "opensubtitles_api_key": "API-nyckel",
@@ -314,25 +277,6 @@
           "top": "Toppen",
           "bottom": "Botten"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC undertextsinställningar",
-        "hint": "Anpassa undertextens utseende för VLC-spelare. Förändringar träder i kraft vid nästa uppspelning.",
-        "text_color": "Textfärg",
-        "background_color": "Bakgrundsfärg",
-        "background_opacity": "Bakgrundsgenomskinlighet",
-        "outline_color": "Konturfärg",
-        "outline_opacity": "Kontursgenomskinlighet",
-        "outline_thickness": "Konturtjocklek",
-        "bold": "FetStil",
-        "margin": "Nedre marginal"
-      },
-      "video_player": {
-        "title": "Videospelare",
-        "video_player": "Videospelare",
-        "video_player_description": "Välj vilken videospelare som ska användas på iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Övrigt",
@@ -351,11 +295,6 @@
           "UNKNOWN": "Okänt"
         },
         "safe_area_in_controls": "Säkert område i kontrollerna",
-        "video_player": "Videospelare",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimentell + PiP)"
-        },
         "show_custom_menu_links": "Visa anpassade menylänkar",
         "show_large_home_carousel": "Visa toppbanner (beta)",
         "hide_libraries": "Dölj bibliotek",
@@ -366,9 +305,6 @@
         "auto_play_next_episode": "Spela upp nästa avsnitt automatiskt",
         "max_auto_play_episode_count": "Antal Avsnitt för Automatisk Uppspelning",
         "disabled": "Inaktiverad"
-      },
-      "downloads": {
-        "downloads_title": "Nedladdningar"
       },
       "music": {
         "title": "Musik",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Tillägg",
         "jellyseerr": {
-          "jellyseerr_warning": "Denna integration är i ett tidigt skede. Räkna med att saker och ting förändras.",
           "server_url": "Serveradress",
           "server_url_hint": "Exempel: http(s)://your-host.url\n(lägg till port vid behov)",
           "server_url_placeholder": "Seerr URL",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Läs mer om Marlin.",
           "save_button": "Spara",
           "toasts": {
-            "saved": "Sparade",
-            "refreshed": "Inställningarna uppdateras från servern"
-          },
-          "refresh_from_server": "Uppdatera inställningar från server"
+            "saved": "Sparade"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Aktivera Streamystats",
           "disable_streamystats": "Inaktivera Streamystats",
           "enable_search": "Använd för sökning",
           "url": "Webbadress",
           "server_url_placeholder": "http(s)://streamystats.exempel.se",
           "streamystats_search_hint": "Ange URL för Marlin-servern. URL bör innehålla http eller https och vid behov port.",
           "read_more_about_streamystats": "Läs mer om Streamystats.",
-          "save_button": "Spara",
           "save": "Spara",
           "features_title": "Funktioner",
-          "home_sections_title": "Hemsektioner",
           "enable_movie_recommendations": "Filmrekommendationer",
           "enable_series_recommendations": "serierekommendationer",
           "enable_promoted_watchlists": "rekommenderade listor att titta på",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Uppdatera inställningar från server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Aktivera vår bevakningslista integration",
-          "watchlist_button": "sätt på/av bevakningslisteintegrationen"
+          "watchlist_enabler": "Aktivera vår bevakningslista integration"
         }
       },
       "storage": {
@@ -457,7 +386,6 @@
         "delete_all_downloaded_files": "Ta bort alla nerladdade filer",
         "music_cache_title": "Musikcache",
         "music_cache_description": "Cacha automatiskt låtar när du lyssnar för smidigare uppspelning och offline-stöd",
-        "enable_music_cache": "Aktivera musikcache",
         "clear_music_cache": "Rensa musikcache",
         "music_cache_size": "{{size}} cachad",
         "music_cache_cleared": "Musikcache rensad",
@@ -467,8 +395,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +416,12 @@
         "system": "System"
       },
       "toasts": {
-        "error_deleting_files": "Fel Vid Borttagning Av Filer",
-        "background_downloads_enabled": "Bakgrundsnedladdningar aktiverade",
-        "background_downloads_disabled": "Bakgrundsnedladdningar inaktiverade"
+        "error_deleting_files": "Fel Vid Borttagning Av Filer"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +441,7 @@
       "downloads_title": "Nedladdningar",
       "series": "TV-Serier",
       "movies": "Filmer",
-      "queue": "Kö",
       "other_media": "Annan media",
-      "queue_hint": "Kö och nedladdningar kommer försvinna vid omstart av appen",
-      "no_items_in_queue": "Inga objekt i Kön",
       "no_downloaded_items": "Inga Nedladdade Objekt",
       "delete_all_movies_button": "Ta Bort Alla Filmer",
       "delete_all_series_button": "Ta Bort Alla TV-Serier",
@@ -546,13 +466,8 @@
         "failed_to_delete_all_series": "Det Gick Inte Att Ta Bort Alla TV-Serier",
         "deleted_media_successfully": "Andra Medier Har Tagits Bort!",
         "failed_to_delete_media": "Kunde Inte Ta Bort Andra Medier",
-        "download_deleted": "Nedladdning Borttagen",
         "download_cancelled": "Nerladdningen Avbruten",
         "could_not_delete_download": "Kunde Inte Ta Bort Nedladdning",
-        "download_paused": "Nedladdning Pausad",
-        "could_not_pause_download": "Kunde Inte Pausa Nedladdning",
-        "download_resumed": "Nedladdning Återupptagen",
-        "could_not_resume_download": "Kunde Inte Återuppta Nedladdning",
         "download_completed": "Nedladdning Slutförd",
         "download_failed": "Nerladdningen misslyckades",
         "download_failed_for_item": "Nedladdning misslyckades för {{item}} - {{error}}",
@@ -562,10 +477,7 @@
         "item_already_downloading": "{{item}} Laddas redan ner",
         "all_files_deleted": "Alla nedladdningar raderades",
         "files_deleted_by_type": "{{count}} {{type}} Raderad",
-        "all_files_folders_and_jobs_deleted_successfully": "Alla filer, mappar och jobb har tagits bort",
-        "failed_to_clean_cache_directory": "Det gick inte att rensa cachemappen",
         "could_not_get_download_url_for_item": "Kunde inte hämta nedladdnings-URL för {{itemName}}",
-        "go_to_downloads": "Gå till nedladdningar",
         "file_deleted": "{{item}} Raderad"
       }
     }
@@ -583,16 +495,17 @@
     "none": "Ingen",
     "track": "Spår",
     "cancel": "Avbryt",
-    "stop": "Stoppa",
     "delete": "Ta bort",
     "ok": "OK",
     "remove": "Radera",
-    "next": "Nästa",
     "back": "Tillbaka",
     "continue": "Fortsätt",
     "verifying": "Verifierar...",
     "login": "Logga in",
-    "refresh": "Uppdatera"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Sök...",
@@ -708,10 +621,6 @@
     "could_not_create_stream_for_chromecast": "Kunde inte skapa stream för Chromecast",
     "message_from_server": "Meddelande från servern: {{message}}",
     "next_episode": "Nästa avsnitt",
-    "refresh_tracks": "Uppdatera spår",
-    "audio_tracks": "Ljudspår:",
-    "playback_state": "Uppspelningsstatus:",
-    "index": "Index:",
     "continue_watching": "Fortsätt titta",
     "go_back": "Tillbaka",
     "downloaded_file_title": "Du har denna fil nedladdad",
@@ -740,7 +649,8 @@
     "stopPlayback": "Stoppa uppspelning",
     "stopPlayingTitle": "Sluta spela \"{{title}}\"?",
     "stopPlayingConfirm": "Är du säker på att du vill stoppa uppspelningen?",
-    "downloaded": "Nedladdad"
+    "downloaded": "Nedladdad",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -778,7 +688,6 @@
     "show_more": "Visa Mer",
     "show_less": "Visa Mindre",
     "left": "kvar",
-    "more_info": "Mer info",
     "director": "Regissör",
     "cast": "Skådespelare",
     "technical_details": "Tekniska detaljer",
@@ -801,7 +710,8 @@
     "resume_playback": "Återuppta uppspelning",
     "resume_playback_description": "Vill du fortsätta där du slutade eller börja om från början?",
     "play_from_start": "Spela från början",
-    "continue_from": "Fortsätt från {{time}}"
+    "continue_from": "Fortsätt från {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Nästa",
@@ -905,13 +815,9 @@
       "playlists": "Spellistor",
       "tracks": "spår"
     },
-    "filters": {
-      "all": "Alla"
-    },
     "recently_added": "Nyligen tillagt",
     "recently_played": "Nyligen spelat",
     "frequently_played": "Spelas ofta",
-    "explore": "Utforska",
     "top_tracks": "Toppspår",
     "play": "Spela",
     "shuffle": "Blanda spår",
@@ -1045,7 +951,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
