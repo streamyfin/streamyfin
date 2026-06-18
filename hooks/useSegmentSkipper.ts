@@ -3,7 +3,12 @@ import { MediaTimeSegment } from "@/providers/Downloads/types";
 import { SegmentSkipMode, useSettings } from "@/utils/atoms/settings";
 import { useHaptic } from "./useHaptic";
 
-type SegmentType = "Intro" | "Outro" | "Recap" | "Commercial" | "Preview";
+export type SegmentType =
+  | "Intro"
+  | "Outro"
+  | "Recap"
+  | "Commercial"
+  | "Preview";
 
 const SEGMENT_TO_SETTING: Record<
   SegmentType,
@@ -22,17 +27,19 @@ interface UseSegmentSkipperProps {
   currentTime: number;
   totalDuration?: number;
   seek: (time: number) => void;
-  isPaused: boolean;
 }
 
 interface UseSegmentSkipperReturn {
   currentSegment: MediaTimeSegment | null;
   skipSegment: (useHaptics?: boolean) => void;
+  skipMode: SegmentSkipMode;
 }
 
 /**
- * Generic hook to handle all media segment types (intro, outro, recap, commercial, preview)
- * Supports three modes: 'none' (disabled), 'ask' (show button), 'auto' (auto-skip)
+ * Generic hook for a single media segment type (intro, outro, recap, commercial, preview).
+ * Reports the segment currently under the playhead, its skip mode, and a skip action.
+ * Auto-skip is NOT performed here: the consumer drives it from the priority-resolved
+ * active segment so overlapping segments can't trigger competing seeks.
  */
 export const useSegmentSkipper = ({
   segments,
@@ -40,11 +47,9 @@ export const useSegmentSkipper = ({
   currentTime,
   totalDuration,
   seek,
-  isPaused,
 }: UseSegmentSkipperProps): UseSegmentSkipperReturn => {
   const { settings } = useSettings();
   const haptic = useHaptic();
-  const autoSkipTriggeredRef = useRef<string | null>(null);
 
   const skipMode: SegmentSkipMode =
     settings?.[SEGMENT_TO_SETTING[segmentType]] ?? "none";
@@ -57,8 +62,9 @@ export const useSegmentSkipper = ({
     [segments, currentTime],
   );
 
-  // Refs let the auto-skip effect avoid re-running when skipSegment/haptic
-  // identities change (haptic is unstable when disabled).
+  // Refs keep skipSegment's identity stable across seek/haptic changes
+  // (haptic is unstable when disabled), so the consumer's auto-skip effect
+  // doesn't re-fire spuriously.
   const seekRef = useRef(seek);
   const hapticRef = useRef(haptic);
   useEffect(() => {
@@ -90,20 +96,9 @@ export const useSegmentSkipper = ({
     [currentSegment, segmentType, totalDuration, skipMode],
   );
 
-  useEffect(() => {
-    if (skipMode !== "auto" || isPaused || !currentSegment) {
-      if (!currentSegment) autoSkipTriggeredRef.current = null;
-      return;
-    }
-
-    const segmentId = `${currentSegment.startTime}-${currentSegment.endTime}`;
-    if (autoSkipTriggeredRef.current === segmentId) return;
-    autoSkipTriggeredRef.current = segmentId;
-    skipSegment(false);
-  }, [currentSegment, skipMode, isPaused, skipSegment]);
-
   return {
     currentSegment: skipMode === "none" ? null : currentSegment,
     skipSegment,
+    skipMode,
   };
 };
