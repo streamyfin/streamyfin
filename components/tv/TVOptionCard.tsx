@@ -61,17 +61,39 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
             },
           ]}
         >
-          <Text
+          {/* Selected + unfocused: label and checkmark form a centered group.
+              The left padding offsets the checkmark's width so the label stays
+              optically centered. Without a checkmark, no offset → label centered. */}
+          <View
             style={{
-              fontSize: typography.callout,
-              color: focused ? "#000" : "#fff",
-              fontWeight: focused || selected ? "600" : "400",
-              textAlign: "center",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              // Offset checkmark width only when it's shown, else label sits right.
+              paddingLeft: selected && !focused ? scaleSize(10) : 0,
             }}
-            numberOfLines={4}
           >
-            {label}
-          </Text>
+            <Text
+              style={{
+                fontSize: typography.callout,
+                color: focused ? "#000" : "#fff",
+                fontWeight: focused || selected ? "600" : "400",
+                textAlign: "center",
+                flexShrink: 1,
+              }}
+              numberOfLines={4}
+            >
+              {label}
+            </Text>
+            {selected && !focused && (
+              <Ionicons
+                name='checkmark'
+                size={scaleSize(26)}
+                color='rgba(255,255,255,0.8)'
+                style={{ marginLeft: scaleSize(8), flexShrink: 0 }}
+              />
+            )}
+          </View>
           {sublabel && (
             <Text
               style={{
@@ -84,21 +106,6 @@ export const TVOptionCard = React.forwardRef<View, TVOptionCardProps>(
             >
               {sublabel}
             </Text>
-          )}
-          {selected && !focused && (
-            <View
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-              }}
-            >
-              <Ionicons
-                name='checkmark'
-                size={16}
-                color='rgba(255,255,255,0.8)'
-              />
-            </View>
           )}
         </Animated.View>
       </Pressable>
