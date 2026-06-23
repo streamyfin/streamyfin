@@ -261,43 +261,6 @@
           "None": "pagh",
           "OnlyForced": "Dun je'"
         },
-        "text_color": "GhItlh rIt",
-        "background_color": "Tlhagh rIt",
-        "outline_color": "Outline Color",
-        "outline_thickness": "Outline Thickness",
-        "background_opacity": "Background Opacity",
-        "outline_opacity": "Outline Opacity",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Black",
-          "Gray": "Gray",
-          "Silver": "Silver",
-          "White": "White",
-          "Maroon": "Maroon",
-          "Red": "Red",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Yellow",
-          "Olive": "Olive",
-          "Green": "Green",
-          "Teal": "Teal",
-          "Lime": "Lime",
-          "Purple": "Purple",
-          "Navy": "Navy",
-          "Blue": "Blue",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "pagh",
-          "Thin": "Thin",
-          "Normal": "Normal",
-          "Thick": "Thick"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "patlh",
@@ -351,11 +295,6 @@
           "UNKNOWN": "Sovbe'"
         },
         "safe_area_in_controls": "SeHlawDaq yot QIH",
-        "video_player": "mu'tlhegh tlholwI'",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (PiP mIwHa')"
-        },
         "show_custom_menu_links": "menuDaq ret teqlu' yInej",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "De'wI' bom yIQIj",
@@ -366,9 +305,6 @@
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Max Auto Play Episode Count",
         "disabled": "Disabled"
-      },
-      "downloads": {
-        "downloads_title": "Qaw' Doch"
       },
       "music": {
         "title": "Music",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "mIwHom",
         "jellyseerr": {
-          "jellyseerr_warning": "mIwHomvam chu'. ghoSlaH.",
           "server_url": "Ho'Do' veS URL",
           "server_url_hint": "ghu': http(s)://HoDo-veS.url\n(pord yIbel)",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Marlin latlh yIlaD",
           "save_button": "yIqIp",
           "toasts": {
-            "saved": "qIp",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "qIp"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -457,7 +386,6 @@
         "delete_all_downloaded_files": "Hoch Qaw' Doch yIQaw'",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +395,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +416,12 @@
         "system": "mIw'a'"
       },
       "toasts": {
-        "error_deleting_files": "Qaw' ghIq",
-        "background_downloads_enabled": "tlhegh Qaw' chu'",
-        "background_downloads_disabled": "tlhegh Qaw' QIj"
+        "error_deleting_files": "Qaw' ghIq"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +441,7 @@
       "downloads_title": "Qaw' Doch",
       "series": "TV Hem",
       "movies": "DIS",
-      "queue": "ghom",
       "other_media": "Other media",
-      "queue_hint": "ghun ghImDI' ghom Qaw'laH.",
-      "no_items_in_queue": "ghom Doch pagh",
       "no_downloaded_items": "Qaw' Doch pagh",
       "delete_all_movies_button": "Hoch DIS yIQaw'",
       "delete_all_series_button": "Hoch TV Hem yIQaw'",
@@ -546,13 +466,8 @@
         "failed_to_delete_all_series": "Hoch TV Hem Qaw'laHbe'",
         "deleted_media_successfully": "Deleted other media Successfully!",
         "failed_to_delete_media": "Failed to Delete other media",
-        "download_deleted": "Download Deleted",
         "download_cancelled": "Qaw' ghIm",
         "could_not_delete_download": "Could Not Delete Download",
-        "download_paused": "Download Paused",
-        "could_not_pause_download": "Could Not Pause Download",
-        "download_resumed": "Download Resumed",
-        "could_not_resume_download": "Could Not Resume Download",
         "download_completed": "Qaw' Qapla'",
         "download_failed": "Download Failed",
         "download_failed_for_item": "{{item}} Qaw'laHbe' - {{error}}",
@@ -562,10 +477,7 @@
         "item_already_downloading": "{{item}} is already downloading",
         "all_files_deleted": "All Downloads Deleted Successfully",
         "files_deleted_by_type": "{{count}} {{type}} deleted",
-        "all_files_folders_and_jobs_deleted_successfully": "Hoch De', ram 'ej vum Qaw' Qapla'",
-        "failed_to_clean_cache_directory": "Failed to clean cache directory",
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
-        "go_to_downloads": "Qaw' Doch yIghoS",
         "file_deleted": "{{item}} deleted"
       }
     }
@@ -583,16 +495,17 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "yISam...",
@@ -691,10 +604,6 @@
     "could_not_create_stream_for_chromecast": "Chromecast tlhol ret qonlaHbe'",
     "message_from_server": "Ho'Do' veS jach: {{message}}",
     "next_episode": "wej HemHom",
-    "refresh_tracks": "ret yIchu'qa'",
-    "audio_tracks": "QoQ ret:",
-    "playback_state": "tlhol mIw:",
-    "index": "nem:",
     "continue_watching": "tlhol yIHaDqa'",
     "go_back": "Go Back",
     "downloaded_file_title": "You have this file downloaded",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "latlh yIHoch",
     "show_less": "Hom yIHoch",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "wej",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
