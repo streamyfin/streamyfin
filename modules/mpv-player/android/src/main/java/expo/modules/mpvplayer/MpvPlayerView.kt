@@ -26,7 +26,11 @@ data class VideoLoadConfig(
     val autoplay: Boolean = true,
     val initialSubtitleId: Int? = null,
     val initialAudioId: Int? = null,
-    val voDriver: String? = null
+    val voDriver: String? = null,
+    val cacheEnabled: String? = null,
+    val cacheSeconds: Int? = null,
+    val demuxerMaxBytes: Int? = null,
+    val demuxerMaxBackBytes: Int? = null
 )
 
 /**
@@ -60,6 +64,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var pendingConfig: VideoLoadConfig? = null
     private var rendererStarted: Boolean = false
     private var pendingSurface: Surface? = null
+    private var activeSurface: Surface? = null
     private var surfaceTexture: SurfaceTexture? = null
 
     // PiP state tracking
@@ -131,6 +136,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             rendererStarted = true
 
             pendingSurface?.let { surface ->
+                activeSurface = surface
                 renderer?.attachSurface(surface)
                 pendingSurface = null
             }
@@ -149,6 +155,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         surfaceReady = true
 
         if (rendererStarted) {
+            activeSurface = surface
             renderer?.attachSurface(surface)
         } else {
             pendingSurface = surface
@@ -207,7 +214,11 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             startPosition = config.startPosition,
             externalSubtitles = config.externalSubtitles,
             initialSubtitleId = config.initialSubtitleId,
-            initialAudioId = config.initialAudioId
+            initialAudioId = config.initialAudioId,
+            cacheEnabled = config.cacheEnabled,
+            cacheSeconds = config.cacheSeconds,
+            demuxerMaxBytes = config.demuxerMaxBytes,
+            demuxerMaxBackBytes = config.demuxerMaxBackBytes
         )
 
         if (config.autoplay) {
@@ -234,6 +245,29 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         intendedPlayState = false
         renderer?.pause()
         pipController?.setPlaybackRate(0.0)
+    }
+
+    /**
+     * Stop playback and release decoder resources.
+     *
+     * Delegates to [MPVLayerRenderer.stop], which issues mpv's "stop" command
+     * on a background thread (flushing the demuxer and releasing the
+     * MediaCodec hardware decoder) and drops the per-instance mpv handle.
+     *
+     * NOTE: this does NOT call `LibMPV.destroy()`. libmpv 1.0's
+     * nativeDestroy has an internal use-after-free on the JNI global ref
+     * path, so the native mpv handle is intentionally left for the JVM GC
+     * / native finalizer rather than torn down synchronously. See
+     * [MPVLib] class doc for the full rationale.
+     *
+     * Call this BEFORE navigating away from the player screen so the
+     * decoder is reclaimed before the next screen (or the next episode's
+     * player) mounts. Otherwise Expo Router renders the new screen first
+     * and you briefly have two mpv instances + two 4K decoders alive —
+     * instant OOM on a 2 GB device.
+     */
+    fun destroy() {
+        renderer?.stop()
     }
 
     fun seekTo(position: Double) {
@@ -479,13 +513,32 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // MARK: - Cleanup
 
+    /**
+     * Proactively tear down the player. Called from onDetachedFromWindow so
+     * the app releases mpv + decoder buffers when the View detaches from the
+     * window. The JS-facing destroy() is intentionally thinner (just
+     * renderer.stop()) — see this thread for why the full teardown was kept
+     * off the JS path.
+     */
     fun cleanup() {
         isWaitingForPiPTransition = false
         pipHandler.removeCallbacksAndMessages(null)
         pipController?.stopPictureInPicture()
         renderer?.stop()
-        surfaceTexture = null
+        renderer?.delegate = null
+
+        // Release the Surface that wraps the SurfaceTexture. These Surface
+        // objects are created in onSurfaceTextureAvailable and were never
+        // released; each playback session previously leaked one. The
+        // SurfaceTexture itself is owned by TextureView and released by it
+        // via onSurfaceTextureDestroyed, so we leave it alone.
+        pendingSurface?.release()
+        pendingSurface = null
+        activeSurface?.release()
+        activeSurface = null
         surfaceReady = false
+        currentUrl = null
+        rendererStarted = false
     }
 
     override fun onDetachedFromWindow() {

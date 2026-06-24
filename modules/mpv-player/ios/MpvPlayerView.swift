@@ -289,6 +289,17 @@ class MpvPlayerView: ExpoView {
 		pipController?.updatePlaybackState()
 	}
 
+	/**
+	 * Synchronously stop and destroy the mpv instance + decoder so memory is
+	 * freed before the next screen mounts. Safe to call multiple times — the
+	 * underlying renderer.stop() guards against re-entry.
+	 *
+	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
+	 */
+	func destroy() {
+		renderer?.stop()
+	}
+
 	func seekTo(position: Double) {
 		// Update cached position and Now Playing immediately for smooth Control Center feedback
 		cachedPosition = position
