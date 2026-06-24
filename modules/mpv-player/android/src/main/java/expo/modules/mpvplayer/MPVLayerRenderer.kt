@@ -4,6 +4,7 @@ import android.app.UiModeManager
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.AssetManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -33,6 +34,30 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     private fun isTvDevice(): Boolean {
         val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as UiModeManager
         return uiModeManager.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
+    /**
+     * True only on the Android emulator. Its goldfish/ranchu MediaCodec can't bind a
+     * decode output surface (decode opens with surface 0x0): HEVC then fails cleanly and
+     * mpv auto-falls-back to software, but H.264 "opens" deceptively and wedges the core
+     * (no fallback) — black video, then any command (seek/pause) deadlocks the UI thread
+     * → ANR. We force software decoding here.
+     *
+     * Only QEMU/SDK-exclusive signals are checked so a real device can never match — a
+     * false positive would needlessly drop shipping hardware to software decoding. The
+     * emulator reports ro.hardware=goldfish|ranchu, an sdk_* product, or a generic/
+     * emulator build fingerprint, none of which appear on real devices.
+     */
+    private fun isEmulator(): Boolean {
+        val hardware = Build.HARDWARE.lowercase()
+        if (hardware == "goldfish" || hardware == "ranchu") return true
+
+        val product = Build.PRODUCT
+        if (product == "sdk" || product.startsWith("sdk_")) return true
+
+        val fingerprint = Build.FINGERPRINT
+        return fingerprint.startsWith("generic") ||
+            fingerprint.contains("emulator", ignoreCase = true)
     }
 
     interface Delegate {
@@ -169,15 +194,21 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             MPVLib.setOptionString("gpu-context", "android")
             MPVLib.setOptionString("opengl-es", "yes")
             
-            // Hardware video decoding
-            // TV: zero-copy (mediacodec) for better performance on low-power devices
-            // Mobile: copy mode (mediacodec-copy) for better compatibility
-            val isTV = isTvDevice()
-            if (isTV) {
-                MPVLib.setOptionString("hwdec", "mediacodec")
-                MPVLib.setOptionString("profile", "fast")
-            } else {
-                MPVLib.setOptionString("hwdec", "mediacodec-copy")
+            // Hardware decode path:
+            //  - Real TV hardware: zero-copy `mediacodec` (fastest on low-power devices).
+            //  - Real phone: `mediacodec-copy` (broadest compatibility).
+            //  - Emulator: software decode. Its MediaCodec can't bind an output surface
+            //    (surface 0x0); HEVC then fails cleanly and mpv auto-falls-back to software,
+            //    but H.264 "opens" deceptively and wedges the core with no fallback (black
+            //    video, then any command — seek/pause — deadlocks the UI thread → ANR).
+            //    hwdec=no makes every codec render via the gpu-next VO. Real devices unaffected.
+            when {
+                isEmulator() -> MPVLib.setOptionString("hwdec", "no")
+                isTvDevice() -> {
+                    MPVLib.setOptionString("hwdec", "mediacodec")
+                    MPVLib.setOptionString("profile", "fast")
+                }
+                else -> MPVLib.setOptionString("hwdec", "mediacodec-copy")
             }
             MPVLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
             
