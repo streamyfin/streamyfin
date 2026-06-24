@@ -109,7 +109,7 @@ SplashScreen.setOptions({
 try {
   Image.configureCache({
     maxMemoryCost: Platform.isTV
-      ? 8 * 1024 * 1024 // ~48 MB on TV
+      ? 8 * 1024 * 1024 // ~8 MB on TV
       : 128 * 1024 * 1024, // ~128 MB on mobile
     maxDiskSize: 200 * 1024 * 1024, // 200 MB disk cache on all platforms
   });
