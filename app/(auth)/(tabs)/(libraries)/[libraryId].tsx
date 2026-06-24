@@ -39,6 +39,7 @@ import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useFilterReset } from "@/hooks/useFilterReset";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -521,7 +522,7 @@ const Page = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton />,
+            component: <ResetFiltersButton libraryId={libraryId} />,
           },
           {
             key: "genre",
@@ -688,19 +689,9 @@ const Page = () => {
     ],
   );
 
-  // TV Filter bar header
-  const hasActiveFilters =
-    selectedGenres.length > 0 ||
-    selectedYears.length > 0 ||
-    selectedTags.length > 0 ||
-    filterBy.length > 0;
-
-  const resetAllFilters = useCallback(() => {
-    setSelectedGenres([]);
-    setSelectedYears([]);
-    setSelectedTags([]);
-    _setFilterBy([]);
-  }, [setSelectedGenres, setSelectedYears, setSelectedTags, _setFilterBy]);
+  // Filter bar reset + visibility, shared with the mobile ResetFiltersButton so
+  // sort/order can't be forgotten on one path (it used to be reset on neither).
+  const { hasActiveFilters, resetAllFilters } = useFilterReset(libraryId);
 
   // TV Filter options - with "All" option for clearable filters
   const tvGenreFilterOptions = useMemo(

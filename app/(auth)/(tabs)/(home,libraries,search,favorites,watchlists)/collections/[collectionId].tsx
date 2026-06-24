@@ -326,7 +326,7 @@ const page: React.FC = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton />,
+            component: <ResetFiltersButton libraryId={collectionId} />,
           },
           {
             key: "genre",
