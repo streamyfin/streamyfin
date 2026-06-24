@@ -1,4 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
+import { requireOptionalNativeModule } from "expo-modules-core";
 import { useNavigation } from "expo-router";
 import type * as SharingType from "expo-sharing";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
@@ -6,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
@@ -71,6 +74,25 @@ export default function Page() {
       setLoading(false);
     }
   }, [filteredLogs, Sharing]);
+
+  const copyLog = useCallback(
+    async (log: NonNullable<typeof logs>[number]) => {
+      // Skip on builds that don't ship the expo-clipboard native module
+      // (probe returns null instead of throwing); same guard as Quick Connect.
+      if (!requireOptionalNativeModule("ExpoClipboard")) return;
+      const Clipboard = await import("expo-clipboard");
+      const text = [
+        `[${log.level}] ${new Date(log.timestamp).toLocaleString()}`,
+        log.message,
+        log.data ? JSON.stringify(log.data, null, 2) : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      await Clipboard.setStringAsync(text);
+      toast.success(t("home.settings.logs.copied"));
+    },
+    [logs, t],
+  );
 
   useEffect(() => {
     if (Platform.isTV) return;
@@ -146,26 +168,41 @@ export default function Page() {
                   {new Date(log.timestamp).toLocaleString()}
                 </Text>
               </View>
-              <Text selectable className='text-xs'>
-                {log.message}
-              </Text>
+              <Text className='text-xs'>{log.message}</Text>
+              {/* Keep the whole collapsed row tappable: the hint lives inside
+                  the toggle so tapping it expands too. */}
+              {log.data && !state[log.timestamp] && (
+                <Text className='text-xs mt-0.5'>
+                  {t("home.settings.logs.click_for_more_info")}
+                </Text>
+              )}
             </TouchableOpacity>
 
             {log.data && (
-              <>
-                {!state[log.timestamp] && (
-                  <Text className='text-xs mt-0.5'>
-                    {t("home.settings.logs.click_for_more_info")}
-                  </Text>
-                )}
-                <Collapsible collapsed={!state[log.timestamp]}>
-                  <View className='mt-2 flex flex-col space-y-2'>
-                    <ScrollView className='rounded-xl' style={codeBlockStyle}>
-                      <Text>{JSON.stringify(log.data, null, 2)}</Text>
-                    </ScrollView>
-                  </View>
-                </Collapsible>
-              </>
+              <Collapsible collapsed={!state[log.timestamp]}>
+                <View className='mt-2 flex flex-col space-y-2'>
+                  <ScrollView
+                    className='rounded-xl'
+                    style={codeBlockStyle}
+                    nestedScrollEnabled
+                  >
+                    {/* Only the raw payload is selectable (per request); the
+                        header/message stay tap-to-toggle. */}
+                    <Text selectable>{JSON.stringify(log.data, null, 2)}</Text>
+                  </ScrollView>
+                  {!Platform.isTV && (
+                    <TouchableOpacity
+                      onPress={() => copyLog(log)}
+                      className='flex flex-row items-center self-end px-2 py-1'
+                    >
+                      <Ionicons name='copy-outline' size={16} color='white' />
+                      <Text className='text-xs ml-1'>
+                        {t("home.settings.logs.copy")}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </Collapsible>
             )}
           </View>
         ))}
