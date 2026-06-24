@@ -443,11 +443,6 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
 const hasMeaningfulSettingValue = (value: unknown) =>
   value !== undefined && value !== null && value !== "";
 
-const getEffectiveSettingValue = <K extends keyof Settings>(
-  settings: Partial<Settings> | null | undefined,
-  settingsKey: K,
-) => settings?.[settingsKey] ?? defaultValues[settingsKey];
-
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -546,13 +541,24 @@ export const useSettings = () => {
         // Normalize object-typed settings from plugin (plain primitive → { key, value })
         value = normalizePluginValue(settingsKey, value);
 
-        const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
+        // When unlocked, keep the user's value only if they explicitly diverged
+        // from the app default. Otherwise the plugin value is the admin's
+        // default and must win over the hardcoded app default — e.g. a toggle
+        // that was always locked then unlocked should reflect the plugin
+        // default, not the app's `false`. Object-typed settings compare by
+        // reference, so their behaviour is unchanged.
+        const userValue = _settings?.[settingsKey];
+        const userDiverged =
+          hasMeaningfulSettingValue(userValue) &&
+          userValue !== defaultValues[settingsKey];
 
         (acc as any)[settingsKey] = locked
           ? value
-          : hasMeaningfulSettingValue(effectiveValue)
-            ? effectiveValue
-            : value;
+          : userDiverged
+            ? userValue
+            : hasMeaningfulSettingValue(value)
+              ? value
+              : defaultValues[settingsKey];
       }
       return acc;
     }, {});
