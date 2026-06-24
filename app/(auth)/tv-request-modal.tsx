@@ -27,6 +27,10 @@ import type {
   Tag,
 } from "@/utils/jellyseerr/server/api/servarr/base";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import {
+  hasPermission,
+  Permission,
+} from "@/utils/jellyseerr/server/lib/permissions";
 import { store } from "@/utils/store";
 
 export default function TVRequestModalPage() {
@@ -36,11 +40,17 @@ export default function TVRequestModalPage() {
   const { t } = useTranslation();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
 
+  const canManageUsers = useMemo(
+    () =>
+      !!jellyseerrUser &&
+      hasPermission(Permission.MANAGE_REQUESTS, jellyseerrUser.permissions),
+    [jellyseerrUser],
+  );
+
   const [isReady, setIsReady] = useState(false);
   const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
     mediaId: modalState?.id ? Number(modalState.id) : 0,
     mediaType: modalState?.mediaType,
-    userId: jellyseerrUser?.id,
   });
 
   const [activeSelector, setActiveSelector] = useState<
@@ -90,7 +100,8 @@ export default function TVRequestModalPage() {
     queryKey: ["jellyseerr", "users"],
     queryFn: async () =>
       jellyseerrApi?.user({ take: 1000, sort: "displayname" }),
-    enabled: !!jellyseerrApi && !!jellyseerrUser && !!modalState,
+    enabled:
+      !!jellyseerrApi && !!jellyseerrUser && !!modalState && canManageUsers,
   });
 
   const defaultService = useMemo(
@@ -274,7 +285,7 @@ export default function TVRequestModalPage() {
   const handleRequest = useCallback(() => {
     if (!modalState) return;
 
-    const body = {
+    const body: MediaRequestBody = {
       is4k: defaultService?.is4k || defaultServiceDetails?.server.is4k,
       profileId: defaultProfile?.id,
       rootFolder: defaultFolder?.path,
@@ -282,6 +293,10 @@ export default function TVRequestModalPage() {
       ...modalState.requestBody,
       ...requestOverrides,
     };
+
+    if (!canManageUsers) {
+      delete body.userId;
+    }
 
     const seasonTitle =
       modalState.requestBody?.seasons?.length === 1
@@ -312,13 +327,15 @@ export default function TVRequestModalPage() {
     requestMedia,
     router,
     t,
+    canManageUsers,
   ]);
 
   if (!modalState) {
     return null;
   }
 
-  const isDataLoaded = defaultService && defaultServiceDetails && users;
+  const isDataLoaded =
+    defaultService && defaultServiceDetails && (!canManageUsers || !!users);
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -361,11 +378,13 @@ export default function TVRequestModalPage() {
                     value={selectedFolderName}
                     onPress={() => setActiveSelector("folder")}
                   />
-                  <TVRequestOptionRow
-                    label={t("jellyseerr.request_as")}
-                    value={selectedUserName}
-                    onPress={() => setActiveSelector("user")}
-                  />
+                  {canManageUsers && (
+                    <TVRequestOptionRow
+                      label={t("jellyseerr.request_as")}
+                      value={selectedUserName}
+                      onPress={() => setActiveSelector("user")}
+                    />
+                  )}
 
                   {tagItems.length > 0 && (
                     <TVToggleOptionRow
@@ -428,14 +447,16 @@ export default function TVRequestModalPage() {
         cancelLabel={t("jellyseerr.cancel")}
         cardWidth={280}
       />
-      <TVOptionSelector
-        visible={activeSelector === "user"}
-        title={t("jellyseerr.request_as")}
-        options={userOptions}
-        onSelect={handleUserChange}
-        onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
-      />
+      {canManageUsers && (
+        <TVOptionSelector
+          visible={activeSelector === "user"}
+          title={t("jellyseerr.request_as")}
+          options={userOptions}
+          onSelect={handleUserChange}
+          onClose={() => setActiveSelector(null)}
+          cancelLabel={t("jellyseerr.cancel")}
+        />
+      )}
     </Animated.View>
   );
 }

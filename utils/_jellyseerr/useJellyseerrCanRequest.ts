@@ -63,5 +63,13 @@ export const useJellyseerrCanRequest = (
     );
   }, [jellyseerrUser]);
 
-  return [canRequest, hasAdvancedRequestPermission];
+  const canManageUsers = useMemo(() => {
+    if (!jellyseerrUser) return false;
+    return hasPermission(
+      Permission.MANAGE_REQUESTS,
+      jellyseerrUser.permissions,
+    );
+  }, [jellyseerrUser]);
+
+  return [canRequest, hasAdvancedRequestPermission, canManageUsers];
 };
