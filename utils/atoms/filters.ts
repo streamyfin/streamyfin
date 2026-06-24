@@ -1,7 +1,5 @@
 import { atom } from "jotai";
-import { atomWithStorage } from "jotai/utils";
 import { useMemo } from "react";
-import { storage } from "../mmkv";
 import { useSettings } from "./settings";
 
 export enum SortByOption {
@@ -125,56 +123,27 @@ const defaultSortPreference: SortPreference = {};
 const defaultSortOrderPreference: SortOrderPreference = {};
 const defaultFilterPreference: FilterPreference = {};
 
-export const sortByPreferenceAtom = atomWithStorage<SortPreference>(
-  "sortByPreference",
-  defaultSortPreference,
-  {
-    getItem: (key) => {
-      const value = storage.getString(key);
-      return value ? JSON.parse(value) : null;
-    },
-    setItem: (key, value) => {
-      storage.set(key, JSON.stringify(value));
-    },
-    removeItem: (key) => {
-      storage.remove(key);
-    },
-  },
-);
+// Per-library filter memory is intentionally in-memory (NOT atomWithStorage):
+// each library keeps its own filters for the session, and everything resets
+// when the app is fully closed.
+export const sortByPreferenceAtom = atom<SortPreference>(defaultSortPreference);
 
-export const FilterByPreferenceAtom = atomWithStorage<FilterPreference>(
-  "filterByPreference",
+export const FilterByPreferenceAtom = atom<FilterPreference>(
   defaultFilterPreference,
-  {
-    getItem: (key) => {
-      const value = storage.getString(key);
-      return value ? JSON.parse(value) : null;
-    },
-    setItem: (key, value) => {
-      storage.set(key, JSON.stringify(value));
-    },
-    removeItem: (key) => {
-      storage.remove(key);
-    },
-  },
 );
 
-export const sortOrderPreferenceAtom = atomWithStorage<SortOrderPreference>(
-  "sortOrderPreference",
+export const sortOrderPreferenceAtom = atom<SortOrderPreference>(
   defaultSortOrderPreference,
-  {
-    getItem: (key) => {
-      const value = storage.getString(key);
-      return value ? JSON.parse(value) : null;
-    },
-    setItem: (key, value) => {
-      storage.set(key, JSON.stringify(value));
-    },
-    removeItem: (key) => {
-      storage.remove(key);
-    },
-  },
 );
+
+// Genres / years / tags are multi-select, so each library remembers an array.
+export interface MultiFilterPreference {
+  [libraryId: string]: string[];
+}
+
+export const genrePreferenceAtom = atom<MultiFilterPreference>({});
+export const yearPreferenceAtom = atom<MultiFilterPreference>({});
+export const tagPreferenceAtom = atom<MultiFilterPreference>({});
 
 export const getSortByPreference = (
   libraryId: string,
@@ -196,3 +165,8 @@ export const getFilterByPreference = (
 ) => {
   return preferences?.[libraryId] || null;
 };
+
+export const getMultiFilterPreference = (
+  libraryId: string,
+  preferences: MultiFilterPreference,
+) => preferences?.[libraryId] ?? [];

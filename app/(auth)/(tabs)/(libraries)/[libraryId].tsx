@@ -51,7 +51,9 @@ import {
   FilterByPreferenceAtom,
   filterByAtom,
   genreFilterAtom,
+  genrePreferenceAtom,
   getFilterByPreference,
+  getMultiFilterPreference,
   getSortByPreference,
   getSortOrderPreference,
   SortByOption,
@@ -62,9 +64,11 @@ import {
   sortOrderAtom,
   sortOrderOptions,
   sortOrderPreferenceAtom,
+  tagPreferenceAtom,
   tagsFilterAtom,
   useFilterOptions,
   yearFilterAtom,
+  yearPreferenceAtom,
 } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
@@ -103,6 +107,9 @@ const Page = () => {
   const [sortOrderPreference, setOrderByPreference] = useAtom(
     sortOrderPreferenceAtom,
   );
+  const [genrePreference, setGenrePreference] = useAtom(genrePreferenceAtom);
+  const [yearPreference, setYearPreference] = useAtom(yearPreferenceAtom);
+  const [tagPreference, setTagPreference] = useAtom(tagPreferenceAtom);
 
   const { orientation } = useOrientation();
 
@@ -184,6 +191,13 @@ const Page = () => {
       const fp = getFilterByPreference(libraryId, filterByPreference);
       _setFilterBy(fp ? [fp] : []);
     }
+
+    // Genres / years / tags: per-library saved preference (no URL params), so
+    // switching libraries restores each library's own selection instead of
+    // bleeding the previous one.
+    setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
+    setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
+    setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
   }, [
     libraryId,
     sortOrderPreference,
@@ -192,6 +206,12 @@ const Page = () => {
     _setSortBy,
     filterByPreference,
     _setFilterBy,
+    genrePreference,
+    yearPreference,
+    tagPreference,
+    setSelectedGenres,
+    setSelectedYears,
+    setSelectedTags,
     searchParams.sortBy,
     searchParams.sortOrder,
     searchParams.filterBy,
@@ -234,6 +254,32 @@ const Page = () => {
       _setFilterBy(filterBy);
     },
     [libraryId, filterByPreference, setFilterByPreference, _setFilterBy],
+  );
+
+  // Genres / years / tags: save the per-library memory then update the active
+  // atom (mirrors setSortBy; avoids a save-effect that would corrupt on switch).
+  const setGenres = useCallback(
+    (genres: string[]) => {
+      setGenrePreference({ ...genrePreference, [libraryId]: genres });
+      setSelectedGenres(genres);
+    },
+    [libraryId, genrePreference, setGenrePreference, setSelectedGenres],
+  );
+
+  const setYears = useCallback(
+    (years: string[]) => {
+      setYearPreference({ ...yearPreference, [libraryId]: years });
+      setSelectedYears(years);
+    },
+    [libraryId, yearPreference, setYearPreference, setSelectedYears],
+  );
+
+  const setTags = useCallback(
+    (tags: string[]) => {
+      setTagPreference({ ...tagPreference, [libraryId]: tags });
+      setSelectedTags(tags);
+    },
+    [libraryId, tagPreference, setTagPreference, setSelectedTags],
   );
 
   const nrOfCols = useMemo(() => {
@@ -379,18 +425,26 @@ const Page = () => {
 
   const flashListRef = useRef<FlashListRef<BaseItemDto>>(null);
 
-  // Reset the grid to the top whenever the active filters/sort change (e.g.
-  // pressing reset) — otherwise the list stays stuck at the previous offset.
+  // Jump the grid to the top when the filters/sort change (incl. reset).
+  const filterSignature = `${selectedGenres}|${selectedYears}|${selectedTags}|${sortBy[0]}|${sortOrder[0]}|${filterBy}`;
+  const pendingScrollTopRef = useRef(false);
+
+  // Instant feedback: pin to the top the moment the filters change, without
+  // waiting for the new fetch — and flag a re-pin for once it settles.
   useEffect(() => {
     flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [
-    selectedGenres,
-    selectedYears,
-    selectedTags,
-    sortBy,
-    sortOrder,
-    filterBy,
-  ]);
+    pendingScrollTopRef.current = true;
+  }, [filterSignature]);
+
+  // Safety net: FlashList can restore the previous offset as the filtered list
+  // grows, so re-pin once the fetch settles. Pagination keeps the same
+  // signature, so it never re-pins.
+  useEffect(() => {
+    if (pendingScrollTopRef.current && !isFetching) {
+      pendingScrollTopRef.current = false;
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [isFetching, flatData]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => (
@@ -541,7 +595,7 @@ const Page = () => {
                   });
                   return response.data.Genres || [];
                 }}
-                set={setSelectedGenres}
+                set={setGenres}
                 values={selectedGenres}
                 title={t("library.filters.genres")}
                 renderItemLabel={(item) => item.toString()}
@@ -568,7 +622,7 @@ const Page = () => {
                   });
                   return response.data.Years || [];
                 }}
-                set={setSelectedYears}
+                set={setYears}
                 values={selectedYears}
                 title={t("library.filters.years")}
                 renderItemLabel={(item) => item.toString()}
@@ -593,7 +647,7 @@ const Page = () => {
                   });
                   return response.data.Tags || [];
                 }}
-                set={setSelectedTags}
+                set={setTags}
                 values={selectedTags}
                 title={t("library.filters.tags")}
                 renderItemLabel={(item) => item.toString()}
@@ -673,11 +727,11 @@ const Page = () => {
       api,
       user?.Id,
       selectedGenres,
-      setSelectedGenres,
+      setGenres,
       selectedYears,
-      setSelectedYears,
+      setYears,
       selectedTags,
-      setSelectedTags,
+      setTags,
       sortBy,
       setSortBy,
       sortOrder,
@@ -785,15 +839,15 @@ const Page = () => {
       options: tvGenreFilterOptions,
       onSelect: (value: string) => {
         if (value === "__all__") {
-          setSelectedGenres([]);
+          setGenres([]);
         } else if (selectedGenres.includes(value)) {
-          setSelectedGenres(selectedGenres.filter((g) => g !== value));
+          setGenres(selectedGenres.filter((g) => g !== value));
         } else {
-          setSelectedGenres([...selectedGenres, value]);
+          setGenres([...selectedGenres, value]);
         }
       },
     });
-  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setSelectedGenres]);
+  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setGenres]);
 
   const handleShowYearFilter = useCallback(() => {
     showOptions({
@@ -801,15 +855,15 @@ const Page = () => {
       options: tvYearFilterOptions,
       onSelect: (value: string) => {
         if (value === "__all__") {
-          setSelectedYears([]);
+          setYears([]);
         } else if (selectedYears.includes(value)) {
-          setSelectedYears(selectedYears.filter((y) => y !== value));
+          setYears(selectedYears.filter((y) => y !== value));
         } else {
-          setSelectedYears([...selectedYears, value]);
+          setYears([...selectedYears, value]);
         }
       },
     });
-  }, [showOptions, t, tvYearFilterOptions, selectedYears, setSelectedYears]);
+  }, [showOptions, t, tvYearFilterOptions, selectedYears, setYears]);
 
   const handleShowTagFilter = useCallback(() => {
     showOptions({
@@ -817,15 +871,15 @@ const Page = () => {
       options: tvTagFilterOptions,
       onSelect: (value: string) => {
         if (value === "__all__") {
-          setSelectedTags([]);
+          setTags([]);
         } else if (selectedTags.includes(value)) {
-          setSelectedTags(selectedTags.filter((tag) => tag !== value));
+          setTags(selectedTags.filter((tag) => tag !== value));
         } else {
-          setSelectedTags([...selectedTags, value]);
+          setTags([...selectedTags, value]);
         }
       },
     });
-  }, [showOptions, t, tvTagFilterOptions, selectedTags, setSelectedTags]);
+  }, [showOptions, t, tvTagFilterOptions, selectedTags, setTags]);
 
   const handleShowSortByFilter = useCallback(() => {
     showOptions({

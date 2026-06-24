@@ -134,6 +134,12 @@ const page: React.FC = () => {
   useEffect(() => {
     navigation.setOptions({ title: collection?.Name || "" });
     setSortOrder([SortOrderOption.Ascending]);
+    // Collections open with a clean filter slate: the genre/year/tag atoms are
+    // global, so without this the previously viewed library's selection bleeds
+    // in (libraries now keep their own per-library memory).
+    setSelectedGenres([]);
+    setSelectedYears([]);
+    setSelectedTags([]);
 
     if (!collection) return;
 

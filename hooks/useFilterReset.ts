@@ -4,14 +4,17 @@ import {
   FilterByPreferenceAtom,
   filterByAtom,
   genreFilterAtom,
+  genrePreferenceAtom,
   SortByOption,
   SortOrderOption,
   sortByAtom,
   sortByPreferenceAtom,
   sortOrderAtom,
   sortOrderPreferenceAtom,
+  tagPreferenceAtom,
   tagsFilterAtom,
   yearFilterAtom,
+  yearPreferenceAtom,
 } from "@/utils/atoms/filters";
 
 /**
@@ -20,9 +23,9 @@ import {
  * this so they can't drift — sort/order used to be reset on neither path, so
  * the reset (X) never reflected a changed sort.
  *
- * A reset clears the session filters AND the per-library persisted preferences
- * (sort, order, filterBy); otherwise the saved preference resurfaces when the
- * library's mount effect re-applies it on the next entry.
+ * A reset clears the session filters AND the per-library in-memory preferences
+ * (sort, order, filterBy, genres, years, tags); otherwise the saved preference
+ * resurfaces when the library's mount effect re-applies it on the next entry.
  */
 export const useFilterReset = (libraryId: string) => {
   const [selectedGenres, setSelectedGenres] = useAtom(genreFilterAtom);
@@ -34,6 +37,9 @@ export const useFilterReset = (libraryId: string) => {
   const [, setSortByPreference] = useAtom(sortByPreferenceAtom);
   const [, setSortOrderPreference] = useAtom(sortOrderPreferenceAtom);
   const [, setFilterByPreference] = useAtom(FilterByPreferenceAtom);
+  const [, setGenrePreference] = useAtom(genrePreferenceAtom);
+  const [, setYearPreference] = useAtom(yearPreferenceAtom);
+  const [, setTagPreference] = useAtom(tagPreferenceAtom);
 
   // SortName / Ascending is the baseline a library opens with (mount-effect
   // fallback), so any other value counts as an active, resettable sort.
@@ -67,6 +73,21 @@ export const useFilterReset = (libraryId: string) => {
       delete next[libraryId];
       return next;
     });
+    setGenrePreference((prev) => {
+      const next = { ...prev };
+      delete next[libraryId];
+      return next;
+    });
+    setYearPreference((prev) => {
+      const next = { ...prev };
+      delete next[libraryId];
+      return next;
+    });
+    setTagPreference((prev) => {
+      const next = { ...prev };
+      delete next[libraryId];
+      return next;
+    });
   }, [
     libraryId,
     setSelectedGenres,
@@ -78,6 +99,9 @@ export const useFilterReset = (libraryId: string) => {
     setSortByPreference,
     setSortOrderPreference,
     setFilterByPreference,
+    setGenrePreference,
+    setYearPreference,
+    setTagPreference,
   ]);
 
   return { hasActiveFilters, resetAllFilters };
