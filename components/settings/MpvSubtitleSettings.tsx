@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Switch, View, type ViewProps } from "react-native";
+import { Platform, View, type ViewProps } from "react-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Stepper } from "@/components/inputs/Stepper";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -126,7 +127,7 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
         )}
 
         <ListItem title={t("home.settings.subtitles.opaque_background")}>
-          <Switch
+          <SettingSwitch
             value={settings.mpvSubtitleBackgroundEnabled ?? false}
             onValueChange={(value) =>
               updateSettings({ mpvSubtitleBackgroundEnabled: value })

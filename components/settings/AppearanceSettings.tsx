@@ -1,7 +1,8 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Switch } from "react-native";
+import { Linking } from "react-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
@@ -34,7 +35,7 @@ export const AppearanceSettings: React.FC = () => {
             )
           }
         >
-          <Switch
+          <SettingSwitch
             value={settings.showCustomMenuLinks}
             disabled={pluginSettings?.showCustomMenuLinks?.locked}
             onValueChange={(value) =>
@@ -45,10 +46,20 @@ export const AppearanceSettings: React.FC = () => {
         <ListItem
           title={t("home.settings.appearance.merge_next_up_continue_watching")}
         >
-          <Switch
+          <SettingSwitch
             value={settings.mergeNextUpAndContinueWatching}
             onValueChange={(value) =>
               updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+        </ListItem>
+        <ListItem
+          title={t("home.settings.appearance.hide_remote_session_button")}
+        >
+          <SettingSwitch
+            value={settings.hideRemoteSessionButton}
+            onValueChange={(value) =>
+              updateSettings({ hideRemoteSessionButton: value })
             }
           />
         </ListItem>
@@ -59,16 +70,6 @@ export const AppearanceSettings: React.FC = () => {
           title={t("home.settings.other.hide_libraries")}
           showArrow
         />
-        <ListItem
-          title={t("home.settings.appearance.hide_remote_session_button")}
-        >
-          <Switch
-            value={settings.hideRemoteSessionButton}
-            onValueChange={(value) =>
-              updateSettings({ hideRemoteSessionButton: value })
-            }
-          />
-        </ListItem>
       </ListGroup>
     </DisabledSetting>
   );

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Switch } from "react-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -17,7 +17,7 @@ export const KefinTweaksSettings = () => {
         title={t("home.settings.plugins.kefinTweaks.watchlist_enabler")}
         disabledByAdmin={locked}
       >
-        <Switch
+        <SettingSwitch
           value={isEnabled}
           disabled={locked}
           onValueChange={(value) => updateSettings({ useKefinTweaks: value })}
