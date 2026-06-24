@@ -1,11 +1,18 @@
 import React from "react";
-import { Animated, Pressable, ScrollView, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleProp,
+  View,
+  ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { TVPadding } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { scaleSize } from "@/utils/scaleSize";
-import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export interface TVNavBarTab {
   key: string;
@@ -16,7 +23,7 @@ export interface TVNavBarProps {
   tabs: TVNavBarTab[];
   activeTabKey: string;
   onTabChange: (key: string) => void;
-  style?: ViewStyleProp;
+  style?: StyleProp<ViewStyle>;
 }
 
 const TVNavBarTabItem: React.FC<{
