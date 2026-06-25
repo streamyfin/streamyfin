@@ -155,6 +155,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         surfaceReady = true
 
         if (rendererStarted) {
+            // Release the previous wrapper Surface before losing the only
+            // reference to it. cleanup() only runs on detach, so without this
+            // repeated PiP/background/resize cycles leak native surface objects.
+            activeSurface?.release()
             activeSurface = surface
             renderer?.attachSurface(surface)
         } else {
@@ -268,6 +272,28 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      */
     fun destroy() {
         renderer?.stop()
+
+        // Reset view-level state so a subsequent loadVideo() on the SAME view
+        // instance re-creates the mpv handle and re-attaches the still-live
+        // TextureView surface. Without this, rendererStarted stays true and
+        // ensureRendererStarted() early-returns, so renderer.start() is never
+        // called again — but stop() already nulled the renderer's mpv handle.
+        // The next loadVideo() then runs loadVideoInternal() -> renderer.load()
+        // against mpv == null, where every mpv?.command() (including the
+        // "stop" and load commands) silently no-ops, leaving a black frame.
+        //
+        // This path is hit by direct-player.tsx's goToNextItem()/stop(),
+        // which call destroy() immediately before router.replace() to the
+        // same route — Expo Router reuses the same MpvPlayerView instance,
+        // so the next source load happens on this view without a remount.
+        rendererStarted = false
+        currentUrl = null
+        // Move the active surface back to pending so ensureRendererStarted()
+        // re-attaches it to the freshly created mpv instance on next load.
+        // The Surface itself is still valid — onSurfaceTextureDestroyed has
+        // not fired because the TextureView is not being unmounted.
+        activeSurface?.let { pendingSurface = it }
+        activeSurface = null
     }
 
     fun seekTo(position: Double) {
