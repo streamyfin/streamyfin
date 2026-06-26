@@ -35,6 +35,8 @@ export type { TVLanguageCardProps } from "./TVLanguageCard";
 export { TVLanguageCard } from "./TVLanguageCard";
 export type { TVMetadataBadgesProps } from "./TVMetadataBadges";
 export { TVMetadataBadges } from "./TVMetadataBadges";
+export type { TVNavBarProps, TVNavBarTab } from "./TVNavBar";
+export { TVNavBar } from "./TVNavBar";
 export type { TVNextEpisodeCountdownProps } from "./TVNextEpisodeCountdown";
 export { TVNextEpisodeCountdown } from "./TVNextEpisodeCountdown";
 export type { TVOptionButtonProps } from "./TVOptionButton";

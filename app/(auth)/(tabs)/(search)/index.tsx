@@ -305,6 +305,8 @@ export default function SearchPage() {
         },
         hideWhenScrolling: false,
         autoFocus: false,
+        // Android: color of the user-typed text (was dark and unreadable on the dark header)
+        textColor: "#fff",
         // Android: placeholder and icon color
         hintTextColor: "#fff",
         headerIconColor: "#fff",
