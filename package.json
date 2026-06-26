@@ -61,6 +61,7 @@
     "expo-font": "~56.0.6",
     "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.11",
+    "expo-key-event": "^1.9.0",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.14",
     "expo-localization": "~56.0.6",
