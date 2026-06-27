@@ -23,6 +23,7 @@ import {
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
+import { FilterSheetProvider } from "@/components/filters/FilterSheetProvider";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
@@ -210,40 +211,39 @@ const page: React.FC = () => {
     ],
   );
 
-  const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteQuery({
-      queryKey: [
-        "collection-items",
-        collectionId,
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        sortBy,
-        sortOrder,
-      ],
-      queryFn: fetchItems,
-      getNextPageParam: (lastPage, pages) => {
-        if (
-          !lastPage?.Items ||
-          !lastPage?.TotalRecordCount ||
-          lastPage?.TotalRecordCount === 0
-        )
-          return undefined;
-
-        const totalItems = lastPage.TotalRecordCount;
-        const accumulatedItems = pages.reduce(
-          (acc, curr) => acc + (curr?.Items?.length || 0),
-          0,
-        );
-
-        if (accumulatedItems < totalItems) {
-          return lastPage?.Items?.length * pages.length;
-        }
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
+    queryKey: [
+      "collection-items",
+      collectionId,
+      selectedGenres,
+      selectedYears,
+      selectedTags,
+      sortBy,
+      sortOrder,
+    ],
+    queryFn: fetchItems,
+    getNextPageParam: (lastPage, pages) => {
+      if (
+        !lastPage?.Items ||
+        !lastPage?.TotalRecordCount ||
+        lastPage?.TotalRecordCount === 0
+      )
         return undefined;
-      },
-      initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!collection,
-    });
+
+      const totalItems = lastPage.TotalRecordCount;
+      const accumulatedItems = pages.reduce(
+        (acc, curr) => acc + (curr?.Items?.length || 0),
+        0,
+      );
+
+      if (accumulatedItems < totalItems) {
+        return lastPage?.Items?.length * pages.length;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
+    enabled: !!api && !!user?.Id && !!collection,
+  });
 
   const flatData = useMemo(() => {
     return (
@@ -472,7 +472,6 @@ const page: React.FC = () => {
       setSortBy,
       sortOrder,
       setSortOrder,
-      isFetching,
     ],
   );
 
@@ -639,43 +638,45 @@ const page: React.FC = () => {
   // Mobile return
   if (!Platform.isTV) {
     return (
-      <FlashList
-        ListEmptyComponent={
-          <View className='flex flex-col items-center justify-center h-full'>
-            <Text className='font-bold text-xl text-neutral-500'>
-              {t("search.no_results")}
-            </Text>
-          </View>
-        }
-        extraData={[
-          selectedGenres,
-          selectedYears,
-          selectedTags,
-          sortBy,
-          sortOrder,
-        ]}
-        contentInsetAdjustmentBehavior='automatic'
-        data={flatData}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        numColumns={nrOfCols}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
+      <FilterSheetProvider>
+        <FlashList
+          ListEmptyComponent={
+            <View className='flex flex-col items-center justify-center h-full'>
+              <Text className='font-bold text-xl text-neutral-500'>
+                {t("search.no_results")}
+              </Text>
+            </View>
           }
-        }}
-        onEndReachedThreshold={0.5}
-        ListHeaderComponent={ListHeaderComponent}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              width: 10,
-              height: 10,
-            }}
-          />
-        )}
-      />
+          extraData={[
+            selectedGenres,
+            selectedYears,
+            selectedTags,
+            sortBy,
+            sortOrder,
+          ]}
+          contentInsetAdjustmentBehavior='automatic'
+          data={flatData}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          numColumns={nrOfCols}
+          onEndReached={() => {
+            if (hasNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={0.5}
+          ListHeaderComponent={ListHeaderComponent}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          ItemSeparatorComponent={() => (
+            <View
+              style={{
+                width: 10,
+                height: 10,
+              }}
+            />
+          )}
+        />
+      </FilterSheetProvider>
     );
   }
 

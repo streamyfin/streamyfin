@@ -30,6 +30,7 @@ import {
   TouchableItemRouter,
 } from "@/components/common/TouchableItemRouter";
 import { FilterButton } from "@/components/filters/FilterButton";
+import { FilterSheetProvider } from "@/components/filters/FilterSheetProvider";
 import { ResetFiltersButton } from "@/components/filters/ResetFiltersButton";
 import { ItemCardText } from "@/components/ItemCardText";
 import { Loader } from "@/components/Loader";
@@ -70,7 +71,6 @@ import {
   yearFilterAtom,
   yearPreferenceAtom,
 } from "@/utils/atoms/filters";
-import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -561,7 +561,6 @@ const Page = () => {
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
   const generalFilters = useFilterOptions();
-  const settings = useSettings();
   const ListHeaderComponent = useCallback(
     () => (
       <FlatList
@@ -736,10 +735,8 @@ const Page = () => {
       setSortBy,
       sortOrder,
       setSortOrder,
-      isFetching,
       filterBy,
       setFilter,
-      settings,
     ],
   );
 
@@ -927,43 +924,45 @@ const Page = () => {
   // Mobile return
   if (!Platform.isTV) {
     return (
-      <FlashList
-        ref={flashListRef}
-        key={orientation}
-        ListEmptyComponent={
-          <View className='flex flex-col items-center justify-center h-full'>
-            <Text className='font-bold text-xl text-neutral-500'>
-              {t("library.no_results")}
-            </Text>
-          </View>
-        }
-        contentInsetAdjustmentBehavior='automatic'
-        data={flatData}
-        renderItem={renderItem}
-        extraData={[orientation, nrOfCols]}
-        keyExtractor={keyExtractor}
-        numColumns={nrOfCols}
-        onEndReached={() => {
-          if (hasNextPage) {
-            fetchNextPage();
+      <FilterSheetProvider>
+        <FlashList
+          ref={flashListRef}
+          key={orientation}
+          ListEmptyComponent={
+            <View className='flex flex-col items-center justify-center h-full'>
+              <Text className='font-bold text-xl text-neutral-500'>
+                {t("library.no_results")}
+              </Text>
+            </View>
           }
-        }}
-        onEndReachedThreshold={1}
-        ListHeaderComponent={ListHeaderComponent}
-        contentContainerStyle={{
-          paddingBottom: 24,
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-        }}
-        ItemSeparatorComponent={() => (
-          <View
-            style={{
-              width: 10,
-              height: 10,
-            }}
-          />
-        )}
-      />
+          contentInsetAdjustmentBehavior='automatic'
+          data={flatData}
+          renderItem={renderItem}
+          extraData={[orientation, nrOfCols]}
+          keyExtractor={keyExtractor}
+          numColumns={nrOfCols}
+          onEndReached={() => {
+            if (hasNextPage) {
+              fetchNextPage();
+            }
+          }}
+          onEndReachedThreshold={1}
+          ListHeaderComponent={ListHeaderComponent}
+          contentContainerStyle={{
+            paddingBottom: 24,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          }}
+          ItemSeparatorComponent={() => (
+            <View
+              style={{
+                width: 10,
+                height: 10,
+              }}
+            />
+          )}
+        />
+      </FilterSheetProvider>
     );
   }
 
