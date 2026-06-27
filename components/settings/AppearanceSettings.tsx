@@ -28,6 +28,7 @@ export const AppearanceSettings: React.FC = () => {
       <ListGroup title={t("home.settings.appearance.title")} className=''>
         <ListItem
           title={t("home.settings.other.show_custom_menu_links")}
+          subtitle={t("home.settings.other.show_custom_menu_links_hint")}
           disabled={pluginSettings?.showCustomMenuLinks?.locked}
           onPress={() =>
             Linking.openURL(
@@ -45,6 +46,9 @@ export const AppearanceSettings: React.FC = () => {
         </ListItem>
         <ListItem
           title={t("home.settings.appearance.merge_next_up_continue_watching")}
+          subtitle={t(
+            "home.settings.appearance.merge_next_up_continue_watching_hint",
+          )}
         >
           <SettingSwitch
             value={settings.mergeNextUpAndContinueWatching}
@@ -54,7 +58,23 @@ export const AppearanceSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
+          title={t("home.settings.appearance.use_episode_images_next_up")}
+          subtitle={t(
+            "home.settings.appearance.use_episode_images_next_up_hint",
+          )}
+        >
+          <SettingSwitch
+            value={settings.useEpisodeImagesForNextUp}
+            onValueChange={(value) =>
+              updateSettings({ useEpisodeImagesForNextUp: value })
+            }
+          />
+        </ListItem>
+        <ListItem
           title={t("home.settings.appearance.hide_remote_session_button")}
+          subtitle={t(
+            "home.settings.appearance.hide_remote_session_button_hint",
+          )}
         >
           <SettingSwitch
             value={settings.hideRemoteSessionButton}
@@ -68,6 +88,7 @@ export const AppearanceSettings: React.FC = () => {
             router.push("/settings/appearance/hide-libraries/page")
           }
           title={t("home.settings.other.hide_libraries")}
+          subtitle={t("home.settings.other.select_libraries_you_want_to_hide")}
           showArrow
         />
       </ListGroup>

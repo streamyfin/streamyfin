@@ -855,6 +855,13 @@ export default function SettingsTV() {
             }
           />
           <TVSettingsToggle
+            label={t("home.settings.appearance.use_episode_images_next_up")}
+            value={settings.useEpisodeImagesForNextUp}
+            onToggle={(value) =>
+              updateSettings({ useEpisodeImagesForNextUp: value })
+            }
+          />
+          <TVSettingsToggle
             label={t("home.settings.appearance.show_home_backdrop")}
             value={settings.showHomeBackdrop}
             onToggle={(value) => updateSettings({ showHomeBackdrop: value })}
