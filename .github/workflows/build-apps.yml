@@ -57,7 +57,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -79,7 +79,7 @@ jobs:
           java-version: "17"
 
       - name: 💾 Cache Gradle global
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             ~/.gradle/caches/modules-2
@@ -92,7 +92,7 @@ jobs:
         run: bun run prebuild
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: android/.gradle
           key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -157,7 +157,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -179,7 +179,7 @@ jobs:
           java-version: "17"
 
       - name: 💾 Cache Gradle global
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             ~/.gradle/caches/modules-2
@@ -192,7 +192,7 @@ jobs:
         run: bun run prebuild:tv
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: android/.gradle
           key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -244,7 +244,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -316,7 +316,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -383,7 +383,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -453,7 +453,7 @@ jobs:
           bun-version: "1.3.14"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
