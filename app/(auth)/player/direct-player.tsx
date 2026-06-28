@@ -456,10 +456,23 @@ export default function DirectPlayerPage() {
     });
     reportPlaybackStopped();
     setIsPlaybackStopped(true);
-    videoRef.current?.pause();
+    // Synchronously destroy the mpv instance + decoder + surface buffers
+    // BEFORE the screen unmounts. Otherwise the next screen (or the next
+    // episode's player) mounts while the old 4K decoder is still alive,
+    // causing OOM on low-RAM devices. Native stop() is idempotent so the
+    // later React unmount cleanup is still safe.
+    videoRef.current?.destroy().catch(() => {});
+    // Pre-libmpv-1.0 used `stop()`:
+    // videoRef.current?.stop();
     revalidateProgressCache();
     // Resume inactivity timer when leaving player (TV only)
     resumeInactivityTimer();
+    // Release the keep-awake wakelock acquired during playback so it
+    // doesn't follow us back to the home screen and block the TV
+    // screensaver. activateKeepAwakeAsync() is tag-scoped to this module
+    // and only released on the "paused" event; without this, navigating
+    // away mid-play leaves FLAG_KEEP_SCREEN_ON set on the window.
+    deactivateKeepAwake();
   }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
 
   useEffect(() => {
@@ -1105,6 +1118,15 @@ export default function DirectPlayerPage() {
         nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
     }).toString();
 
+    // Destroy the current mpv instance BEFORE navigating so the old 4K
+    // decoder + surface buffers are freed before the new player screen
+    // mounts. Without this, Expo Router briefly holds two simultaneous
+    // mpv instances during the transition (~768 MB of surface buffers
+    // for two 4K HDR10+ decoders) and OOM-kills the app on low-RAM
+    // devices. Native stop() is idempotent so the subsequent React
+    // unmount cleanup is still safe.
+    videoRef.current?.destroy().catch(() => {});
+
     router.replace(`player/direct-player?${queryParams}` as any);
   }, [
     nextItem,
@@ -1115,6 +1137,7 @@ export default function DirectPlayerPage() {
     bitrateValue,
     router,
     isPlaybackStopped,
+    videoRef,
   ]);
 
   // Apply subtitle settings when video loads

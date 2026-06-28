@@ -7,6 +7,7 @@ import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
+import { Image } from "expo-image";
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
@@ -101,6 +102,22 @@ SplashScreen.setOptions({
   duration: 500,
   fade: true,
 });
+
+// Cap expo-image's in-memory cache. Default is unbounded (maxMemoryCost=0),
+// which on a 2GB Android TV box leads to ~200MB of decoded backdrops/posters
+// pinned in RAM after browsing. Caps are intentionally tighter on TV (which
+// has less RAM and runs alongside libmpv/MediaCodec) than on mobile.
+// Cost is measured in bytes of decoded bitmap (ARGB8888 = 4 bytes/pixel).
+try {
+  Image.configureCache({
+    maxMemoryCost: Platform.isTV
+      ? 8 * 1024 * 1024 // ~8 MB on TV
+      : 128 * 1024 * 1024, // ~128 MB on mobile
+    maxDiskSize: 200 * 1024 * 1024, // 200 MB disk cache on all platforms
+  });
+} catch {
+  // configureCache is a no-op on some platforms/versions; safe to ignore.
+}
 
 function useNotificationObserver() {
   const router = useRouter();

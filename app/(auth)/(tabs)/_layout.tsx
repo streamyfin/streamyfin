@@ -51,7 +51,8 @@ function TVTabLayout() {
 
   const currentTab = segments.find(isTabRoute);
   const lastSegment = segments[segments.length - 1] ?? "";
-  const atTabRoot = isTabRoute(lastSegment) || lastSegment === "index";
+  const atTabRoot =
+    isTabRoute(lastSegment) || (lastSegment as string) === "index";
 
   const tabs: TVNavBarTab[] = useMemo(
     () =>

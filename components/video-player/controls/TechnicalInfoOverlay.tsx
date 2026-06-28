@@ -347,12 +347,24 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
               {t("player.technical_info.buffer_seconds", {
                 seconds: info.cacheSeconds.toFixed(1),
               })}
+              {info?.demuxerMaxBytes !== undefined
+                ? ` (cap ${info.demuxerMaxBytes}MB` +
+                  `${info.demuxerMaxBackBytes !== undefined ? ` / ${info.demuxerMaxBackBytes}MB back` : ""}` +
+                  `${info?.cacheSecsLimit !== undefined && info.cacheSecsLimit < 3600 ? ` · ${info.cacheSecsLimit.toFixed(0)}s` : ""}` +
+                  ")"
+                : ""}
             </Text>
           )}
           {info?.voDriver && (
             <Text style={textStyle}>
               {t("player.technical_info.vo")} {info.voDriver}
               {info.hwdec ? ` / ${info.hwdec}` : ""}
+            </Text>
+          )}
+          {info?.estimatedVfFps !== undefined && (
+            <Text style={textStyle}>
+              Output FPS: {info.estimatedVfFps.toFixed(2)}
+              {info?.fps ? ` (container ${formatFps(info.fps)})` : ""}
             </Text>
           )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (

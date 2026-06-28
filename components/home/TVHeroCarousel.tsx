@@ -257,8 +257,11 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     let isCancelled = false;
 
     const performCrossfade = async () => {
+      // Disk-only prefetch: backdrops are ~8MB decoded ARGB; keeping them
+      // out of the memory cache avoids bloat when the user cycles through
+      // hero items quickly.
       try {
-        await Image.prefetch(backdropUrl);
+        await Image.prefetch(backdropUrl, "disk");
       } catch {
         // Continue even if prefetch fails
       }

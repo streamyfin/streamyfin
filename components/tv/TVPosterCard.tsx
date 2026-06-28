@@ -459,8 +459,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <Image
           placeholder={{ blurhash }}
           key={item.Id}
-          id={item.Id}
           source={{ uri: imageUrl }}
+          recyclingKey={item.Id}
           cachePolicy='memory-disk'
           contentFit='cover'
           style={{
