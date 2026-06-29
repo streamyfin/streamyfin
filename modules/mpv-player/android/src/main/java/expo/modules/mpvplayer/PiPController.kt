@@ -106,11 +106,24 @@ class PiPController(private val context: Context, private val appContext: AppCon
     }
 
     fun stopPictureInPicture() {
+        // Clear playback rate FIRST so the param rebuild below computes
+        // setAutoEnterEnabled=false. Without this, the Activity retains the
+        // last-set auto-enter=true from when playback was active, and any
+        // home-button press from anywhere in the app triggers PiP — even
+        // after the player has unmounted.
+        playbackRate = 0.0
         isInPiPMode = false
         pipEntryNotified = false
         unregisterLifecycleCallbacks()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val activity = getActivity()
+            // Re-push params with auto-enter disabled so the system stops
+            // considering this task eligible for auto-PiP on home press.
+            try {
+                activity?.setPictureInPictureParams(buildPiPParams())
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear PiP auto-enter params: ${e.message}")
+            }
             if (activity?.isInPictureInPictureMode == true) {
                 activity.moveTaskToBack(false)
             }
