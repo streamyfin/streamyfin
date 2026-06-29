@@ -770,12 +770,32 @@ final class MPVLayerRenderer {
             if let lang = getStringProperty(handle: handle, name: "track-list/\(i)/lang") {
                 track["lang"] = lang
             }
-            
+
+            if let codec = getStringProperty(handle: handle, name: "track-list/\(i)/codec") {
+                track["codec"] = codec
+            }
+
+            // Identity fields used to map a Jellyfin subtitle to the real track
+            // (instead of fragile positional counting). `external` + `external-filename`
+            // uniquely identify a sub-added sidecar; `ff-index` aids embedded matching.
+            var external: Int32 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/external", format: MPV_FORMAT_FLAG, value: &external)
+            track["external"] = external != 0
+
+            if let extFilename = getStringProperty(handle: handle, name: "track-list/\(i)/external-filename") {
+                track["externalFilename"] = extFilename
+            }
+
+            var ffIndex: Int64 = 0
+            if getProperty(handle: handle, name: "track-list/\(i)/ff-index", format: MPV_FORMAT_INT64, value: &ffIndex) >= 0 {
+                track["ffIndex"] = Int(ffIndex)
+            }
+
             var selected: Int32 = 0
             getProperty(handle: handle, name: "track-list/\(i)/selected", format: MPV_FORMAT_FLAG, value: &selected)
             track["selected"] = selected != 0
-            
-            Logger.shared.log("getSubtitleTracks: found sub track id=\(trackId), title=\(track["title"] ?? "none"), lang=\(track["lang"] ?? "none")", type: "Info")
+
+            Logger.shared.log("getSubtitleTracks: found sub track id=\(trackId), title=\(track["title"] ?? "none"), lang=\(track["lang"] ?? "none"), external=\(external != 0)", type: "Info")
             tracks.append(track)
         }
         

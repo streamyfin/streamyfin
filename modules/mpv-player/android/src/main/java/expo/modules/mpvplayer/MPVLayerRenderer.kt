@@ -532,16 +532,27 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             
             val trackId = mpv?.getPropertyInt("track-list/$i/id") ?: continue
             val track = mutableMapOf<String, Any>("id" to trackId)
-            
+
             mpv?.getPropertyString("track-list/$i/title")?.let { track["title"] = it }
             mpv?.getPropertyString("track-list/$i/lang")?.let { track["lang"] = it }
-            
+            mpv?.getPropertyString("track-list/$i/codec")?.let { track["codec"] = it }
+
+            // Identity fields used to map a Jellyfin subtitle to the real track
+            // (instead of fragile positional counting). `external` + `external-filename`
+            // uniquely identify a sub-added sidecar; `ff-index` aids embedded matching.
+            val external = mpv?.getPropertyBoolean("track-list/$i/external") ?: false
+            track["external"] = external
+            mpv?.getPropertyString("track-list/$i/external-filename")?.let {
+                track["externalFilename"] = it
+            }
+            mpv?.getPropertyInt("track-list/$i/ff-index")?.let { track["ffIndex"] = it }
+
             val selected = mpv?.getPropertyBoolean("track-list/$i/selected") ?: false
             track["selected"] = selected
-            
+
             tracks.add(track)
         }
-        
+
         return tracks
     }
     
