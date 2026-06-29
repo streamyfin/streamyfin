@@ -27,6 +27,9 @@ module.exports = function withCustomPlugin(config) {
   // https://github.com/expo/expo/issues/32558
   config = setGradlePropertiesValue(config, "android.enableJetifier", "true");
 
+  // NDK version required by libmpv 1.0.0
+  config = setGradlePropertiesValue(config, "ndkVersion", "29.0.14206865");
+
   // Increase memory
   config = setGradlePropertiesValue(
     config,
