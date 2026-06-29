@@ -56,6 +56,20 @@ export type ScaledTVTypography = {
 };
 
 /**
+ * Returns the user's text-scale factor relative to the Default scale (1.0 at
+ * Default, >1 for Large/ExtraLarge, <1 for Small). Use it to scale containers
+ * (e.g. option-card width/height) in step with the scaled font so larger text
+ * settings don't overflow fixed boxes.
+ */
+export const useTVRelativeScale = (): number => {
+  const { settings } = useSettings();
+  const scale =
+    scaleMultipliers[settings.tvTypographyScale] ??
+    scaleMultipliers[TVTypographyScale.Default];
+  return scale / scaleMultipliers[TVTypographyScale.Default];
+};
+
+/**
  * Hook that returns scaled TV typography values based on user settings.
  * Use this instead of the static TVTypography constant for dynamic scaling.
  */

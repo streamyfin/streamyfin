@@ -11,7 +11,10 @@ import {
 } from "react-native";
 import { Text } from "@/components/common/Text";
 import { TVOptionCard } from "@/components/tv";
-import { useScaledTVTypography } from "@/constants/TVTypography";
+import {
+  useScaledTVTypography,
+  useTVRelativeScale,
+} from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
@@ -22,6 +25,7 @@ export default function TVOptionModal() {
   const router = useRouter();
   const modalState = useAtomValue(tvOptionModalAtom);
   const typography = useScaledTVTypography();
+  const relativeScale = useTVRelativeScale();
 
   const [isReady, setIsReady] = useState(false);
   const firstCardRef = useRef<View>(null);
@@ -97,8 +101,15 @@ export default function TVOptionModal() {
   }
 
   const { title, options } = modalState;
-  const scaledCardWidth = scaleSize(160);
-  const scaledCardHeight = scaleSize(75);
+  // Honor the caller-provided card size (e.g. wider cards for long root-folder
+  // paths) and grow it in step with the user's text-scale setting so larger
+  // fonts don't get clipped.
+  const scaledCardWidth = scaleSize(
+    (modalState.cardWidth ?? 160) * relativeScale,
+  );
+  const scaledCardHeight = scaleSize(
+    (modalState.cardHeight ?? 75) * relativeScale,
+  );
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
