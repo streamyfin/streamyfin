@@ -18,11 +18,11 @@
  *   - Edge cases the static scan cannot see can be allow-listed in the config file.
  *
  * Usage:
- *   bun scripts/check-i18n-keys.mjs                # report + exit 1 on missing OR unused
- *   bun scripts/check-i18n-keys.mjs --unused=warn  # exit 1 only on missing; unused = warning
- *   bun scripts/check-i18n-keys.mjs --unused=off   # ignore unused entirely
- *   bun scripts/check-i18n-keys.mjs --json         # machine-readable output
- *   bun scripts/check-i18n-keys.mjs --fix-unused   # remove dead keys from en.json (Crowdin syncs the rest)
+ *   bun scripts/check-i18n-keys.ts                # report + exit 1 on missing OR unused
+ *   bun scripts/check-i18n-keys.ts --unused=warn  # exit 1 only on missing; unused = warning
+ *   bun scripts/check-i18n-keys.ts --unused=off   # ignore unused entirely
+ *   bun scripts/check-i18n-keys.ts --json         # machine-readable output
+ *   bun scripts/check-i18n-keys.ts --fix-unused   # remove dead keys from en.json (Crowdin syncs the rest)
  */
 
 import {
@@ -34,9 +34,20 @@ import {
 } from "node:fs";
 import { extname, join, relative } from "node:path";
 
+type LocaleTree = { [key: string]: LocaleTree | string };
+
+interface I18nConfig {
+  localesDir: string;
+  sourceLocale: string;
+  srcDirs: string[];
+  srcExtensions: string[];
+  excludeDirs: string[];
+  ignoreUnused: string[];
+}
+
 const ROOT = process.cwd();
 const args = process.argv.slice(2);
-const flag = (name, def) => {
+const flag = (name: string, def: string | boolean): string | boolean => {
   const a = args.find((x) => x === `--${name}` || x.startsWith(`--${name}=`));
   if (!a) return def;
   const [, v] = a.split("=");
@@ -48,7 +59,7 @@ const FIX_UNUSED = !!flag("fix-unused", false);
 
 // ---- config ----
 const CONFIG_PATH = join(ROOT, "scripts", "i18n-keys.config.json");
-const DEFAULT_CONFIG = {
+const DEFAULT_CONFIG: I18nConfig = {
   localesDir: "translations",
   sourceLocale: "en",
   // Scan the whole repo by default so keys referenced outside the obvious dirs
@@ -69,29 +80,36 @@ const DEFAULT_CONFIG = {
   // Keys (or glob-ish prefixes ending with .* or *) known to be used dynamically / externally.
   ignoreUnused: [],
 };
-const config = existsSync(CONFIG_PATH)
-  ? { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(CONFIG_PATH, "utf8")) }
+const config: I18nConfig = existsSync(CONFIG_PATH)
+  ? {
+      ...DEFAULT_CONFIG,
+      ...(JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as Partial<I18nConfig>),
+    }
   : DEFAULT_CONFIG;
 
 // ---- helpers ----
-const flatten = (obj, prefix = "", out = {}) => {
+const flatten = (
+  obj: LocaleTree,
+  prefix = "",
+  out: Record<string, string> = {},
+): Record<string, string> => {
   for (const [k, v] of Object.entries(obj)) {
     const key = prefix ? `${prefix}.${k}` : k;
     if (v && typeof v === "object" && !Array.isArray(v)) flatten(v, key, out);
-    else out[key] = v;
+    else out[key] = v as string;
   }
   return out;
 };
 
-const globMatch = (key, pattern) => {
+const globMatch = (key: string, pattern: string): boolean => {
   if (pattern.endsWith(".*"))
     return key === pattern.slice(0, -2) || key.startsWith(pattern.slice(0, -1));
   if (pattern.endsWith("*")) return key.startsWith(pattern.slice(0, -1));
   return key === pattern;
 };
 
-const walk = (dir, files = []) => {
-  let entries;
+const walk = (dir: string, files: string[] = []): string[] => {
+  let entries: string[];
   try {
     entries = readdirSync(dir);
   } catch {
@@ -99,7 +117,7 @@ const walk = (dir, files = []) => {
   }
   for (const name of entries) {
     const full = join(dir, name);
-    let st;
+    let st: ReturnType<typeof statSync>;
     try {
       st = statSync(full);
     } catch {
@@ -118,7 +136,7 @@ const walk = (dir, files = []) => {
 // ---- load source keys ----
 const sourcePath = join(ROOT, config.localesDir, `${config.sourceLocale}.json`);
 const sourceKeys = Object.keys(
-  flatten(JSON.parse(readFileSync(sourcePath, "utf8"))),
+  flatten(JSON.parse(readFileSync(sourcePath, "utf8")) as LocaleTree),
 );
 const sourceKeySet = new Set(sourceKeys);
 
@@ -129,16 +147,16 @@ const TPL_DYN_RE = /\bt\(\s*`([^`$]*)\$\{/g; // t(`a.b.${x}`) -> prefix "a.b."
 const I18NKEY_RE = /\bi18nKey\s*=\s*(?:\{\s*)?(['"])((?:\\.|(?!\1).)+?)\1/g; // <Trans i18nKey="a.b">
 const KEY_SHAPE = /^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$/; // dotted key, e.g. home.x.y
 
-const usedStatic = new Set(); // keys passed to t(...) / i18nKey — used for MISSING detection
-const dynamicPrefixes = new Set();
-const fullyDynamic = []; // { file, line }
+const usedStatic = new Set<string>(); // keys passed to t(...) / i18nKey — used for MISSING detection
+const dynamicPrefixes = new Set<string>();
+const fullyDynamic: Array<{ file: string; line: number }> = [];
 let codeBlob = ""; // all (comment-stripped) source text — searched for delimited key literals
 
 // Strip comments so keys mentioned in comments (e.g. `// t("old.key")`) are not counted as
 // usage. Block comments and JSX {/* */} are blanked (preserving newlines for line numbers);
 // line comments are only stripped when `//` follows start/whitespace/punctuation, which keeps
 // `://` inside string URLs intact.
-const stripComments = (src) =>
+const stripComments = (src: string): string =>
   src
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
     .replace(/(^|[\s;{}()[\],=>])\/\/[^\n]*/g, (_m, p) => p);
@@ -168,11 +186,11 @@ const prefixList = [...dynamicPrefixes];
 // the code (covers t("k"), <Trans i18nKey>, and keys stored as bare string constants in
 // arrays/config then resolved via t(variable)), or it is reached via a dynamic prefix, or
 // explicitly allow-listed. Delimited search avoids substring false-matches (e.g. a.b vs a.b_c).
-const literalUsed = (key) =>
+const literalUsed = (key: string): boolean =>
   codeBlob.includes(`"${key}"`) ||
   codeBlob.includes(`'${key}'`) ||
   codeBlob.includes(`\`${key}\``);
-const isUsed = (key) =>
+const isUsed = (key: string): boolean =>
   literalUsed(key) ||
   prefixList.some((p) => key.startsWith(p)) ||
   config.ignoreUnused.some((g) => globMatch(key, g));
@@ -191,25 +209,22 @@ const missing = [...usedStatic]
 // keys are static literals in practice; revisit if dynamic key constants become common.
 
 // ---- optional fix: strip dead keys from the source locale (en.json) ----
-const removeKey = (obj, parts) => {
+const removeKey = (obj: LocaleTree, parts: string[]): void => {
   const [head, ...rest] = parts;
   if (!(head in obj)) return;
   if (rest.length === 0) {
     delete obj[head];
     return;
   }
-  removeKey(obj[head], rest);
-  if (
-    obj[head] &&
-    typeof obj[head] === "object" &&
-    Object.keys(obj[head]).length === 0
-  )
-    delete obj[head];
+  const child = obj[head];
+  if (!child || typeof child !== "object") return;
+  removeKey(child, rest);
+  if (Object.keys(child).length === 0) delete obj[head];
 };
 if (FIX_UNUSED && unused.length) {
   // Only edit the SOURCE locale (en.json). Crowdin owns the target locales and removes
   // the keys from them automatically on the next sync once they disappear from the source.
-  const data = JSON.parse(readFileSync(sourcePath, "utf8"));
+  const data = JSON.parse(readFileSync(sourcePath, "utf8")) as LocaleTree;
   for (const key of unused) removeKey(data, key.split("."));
   writeFileSync(sourcePath, `${JSON.stringify(data, null, 2)}\n`);
   console.log(
@@ -259,7 +274,7 @@ if (JSON_OUT) {
       );
       for (const k of unused) console.log(`   - ${k}`);
       console.log(
-        `\n   → remove with: bun scripts/check-i18n-keys.mjs --fix-unused`,
+        `\n   → remove with: bun scripts/check-i18n-keys.ts --fix-unused`,
       );
       console.log(
         `   → or allow-list a dynamic key in scripts/i18n-keys.config.json ("ignoreUnused").`,
