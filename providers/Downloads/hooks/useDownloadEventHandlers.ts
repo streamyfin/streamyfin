@@ -142,31 +142,12 @@ export function useDownloadEventHandlers({
         } else {
           // Transcoding - estimate from bitrate
           const process = processes.find((p) => p.id === processId);
-          console.log(
-            `[DPL] Transcoding detected, looking for process ${processId}, found:`,
-            process ? "yes" : "no",
-          );
-          if (process) {
-            console.log(`[DPL] Process bitrate:`, {
-              key: process.maxBitrate.key,
-              value: process.maxBitrate.value,
-              runTimeTicks: process.item.RunTimeTicks,
-            });
-            if (process.maxBitrate.value && process.item.RunTimeTicks) {
-              const { estimateDownloadSize } = require("@/utils/download");
-              estimatedTotalBytes = estimateDownloadSize(
-                process.maxBitrate.value,
-                process.item.RunTimeTicks,
-              );
-              console.log(
-                `[DPL] Calculated estimatedTotalBytes:`,
-                estimatedTotalBytes,
-              );
-            } else {
-              console.log(
-                `[DPL] Cannot estimate size - bitrate.value or RunTimeTicks missing`,
-              );
-            }
+          if (process?.maxBitrate.value && process.item.RunTimeTicks) {
+            const { estimateDownloadSize } = require("@/utils/download");
+            estimatedTotalBytes = estimateDownloadSize(
+              process.maxBitrate.value,
+              process.item.RunTimeTicks,
+            );
           }
         }
 

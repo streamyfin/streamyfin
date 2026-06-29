@@ -146,7 +146,16 @@ function runTypeCheck(): { ok: boolean } {
   const extraArgs = process.argv.slice(2);
 
   // Prefer local TypeScript binary when available
-  const runnerArgs = ["-p", "tsconfig.json", "--noEmit", ...extraArgs];
+  // --pretty false: TS 6 enables pretty output even when piped, which breaks
+  // the line-based error parser below
+  const runnerArgs = [
+    "-p",
+    "tsconfig.json",
+    "--noEmit",
+    "--pretty",
+    "false",
+    ...extraArgs,
+  ];
   let execArgs: { cmd: string; args: string[] };
   try {
     const tscBin = require.resolve("typescript/bin/tsc");
