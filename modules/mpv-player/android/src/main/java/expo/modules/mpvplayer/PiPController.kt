@@ -44,6 +44,11 @@ class PiPController(private val context: Context, private val appContext: AppCon
     private var currentPosition: Double = 0.0
     private var currentDuration: Double = 0.0
     private var playbackRate: Double = 1.0
+    // Independently tracks whether the system should auto-enter PiP on home
+    // press. Decoupled from playbackRate so that disabling auto-enter
+    // (e.g. when the player unmounts) doesn't corrupt the play/pause icon
+    // state that buildPiPActions() derives from playbackRate.
+    private var autoEnterEnabled: Boolean = false
 
     private var videoWidth: Int = 0
     private var videoHeight: Int = 0
@@ -106,27 +111,36 @@ class PiPController(private val context: Context, private val appContext: AppCon
     }
 
     fun stopPictureInPicture() {
-        // Clear playback rate FIRST so the param rebuild below computes
-        // setAutoEnterEnabled=false. Without this, the Activity retains the
-        // last-set auto-enter=true from when playback was active, and any
-        // home-button press from anywhere in the app triggers PiP — even
-        // after the player has unmounted.
-        playbackRate = 0.0
+        // Disable auto-enter eligibility without touching playbackRate.
+        // playbackRate drives the play/pause icon in buildPiPActions();
+        // mutating it here would cause a stale icon if PiP is re-entered
+        // before the next playback state callback corrects it.
+        autoEnterEnabled = false
         isInPiPMode = false
         pipEntryNotified = false
         unregisterLifecycleCallbacks()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val activity = getActivity()
-            // Re-push params with auto-enter disabled so the system stops
-            // considering this task eligible for auto-PiP on home press.
+
+        val activity = getActivity() ?: return
+
+        // Push minimal params with just auto-enter disabled. Do NOT call
+        // buildPiPParams() — it calls ensurePiPReceiverRegistered() and
+        // setActions(), which would re-register the broadcast receiver
+        // (just unregistered above) and attach play/pause/skip actions to
+        // params being torn down. That leaves a live receiver + stale
+        // actions after the player has unmounted.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             try {
-                activity?.setPictureInPictureParams(buildPiPParams())
+                activity.setPictureInPictureParams(
+                    PictureInPictureParams.Builder()
+                        .setAutoEnterEnabled(false)
+                        .build()
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to clear PiP auto-enter params: ${e.message}")
             }
-            if (activity?.isInPictureInPictureMode == true) {
-                activity.moveTaskToBack(false)
-            }
+        }
+        if (activity.isInPictureInPictureMode) {
+            activity.moveTaskToBack(false)
         }
     }
 
@@ -139,6 +153,7 @@ class PiPController(private val context: Context, private val appContext: AppCon
 
     fun setPlaybackRate(rate: Double) {
         playbackRate = rate
+        autoEnterEnabled = rate > 0
 
         if (rate > 0) {
             registerLifecycleCallbacks()
@@ -221,7 +236,7 @@ class PiPController(private val context: Context, private val appContext: AppCon
         builder.setActions(buildPiPActions())
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(forEntering || playbackRate > 0)
+            builder.setAutoEnterEnabled(forEntering || autoEnterEnabled)
         }
 
         return builder.build()
