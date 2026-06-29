@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { MediaStatus } from "@/utils/jellyseerr/server/constants/media";
@@ -233,6 +234,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   if (!items || items.length === 0) return null;
 
   return (
@@ -243,7 +245,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
         }}
       >
         {title}
@@ -254,7 +256,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
+          paddingHorizontal: sizes.padding.horizontal,
           paddingVertical: SCALE_PADDING,
           gap: 20,
         }}
@@ -285,6 +287,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   if (!items || items.length === 0) return null;
 
   return (
@@ -295,7 +298,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
         }}
       >
         {title}
@@ -306,7 +309,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
+          paddingHorizontal: sizes.padding.horizontal,
           paddingVertical: SCALE_PADDING,
           gap: 20,
         }}
@@ -337,6 +340,7 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
   onItemPress,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   if (!items || items.length === 0) return null;
 
   return (
@@ -347,7 +351,7 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
         }}
       >
         {title}
@@ -358,7 +362,7 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
+          paddingHorizontal: sizes.padding.horizontal,
           paddingVertical: SCALE_PADDING,
           gap: 20,
         }}
