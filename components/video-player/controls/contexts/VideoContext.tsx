@@ -360,8 +360,10 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-    // api?.basePath: the setTrack callbacks build external-sub URLs from it; rebuild
-    // them once the API is ready so online externals don't resolve with undefined.
+    // api?.basePath: setTrack builds external-sub URLs from it — rebuild once the
+    // API is ready so online externals don't resolve with undefined.
+    // isCurrentSubImageBased: setTrack closes over it for the transcode replacePlayer
+    // decision — rebuild when it flips so we refresh the stream when we should.
   }, [
     tracksReady,
     mediaSource,
@@ -369,6 +371,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     downloadedItem,
     itemId,
     api?.basePath,
+    isCurrentSubImageBased,
   ]);
 
   return (
