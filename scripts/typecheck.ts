@@ -161,11 +161,8 @@ function runTypeCheck(): { ok: boolean } {
     const tscBin = require.resolve("typescript/bin/tsc");
     execArgs = { cmd: process.execPath, args: [tscBin, ...runnerArgs] };
   } catch {
-    // fallback to PATH tsc
-    execArgs = {
-      cmd: "tsc",
-      args: ["-p", "tsconfig.json", "--noEmit", ...extraArgs],
-    };
+    // fallback to PATH tsc (reuse runnerArgs so --pretty false is preserved)
+    execArgs = { cmd: "tsc", args: runnerArgs };
   }
 
   try {
@@ -190,7 +187,18 @@ function runTypeCheck(): { ok: boolean } {
     return { ok: true };
   } catch (error) {
     const execError = error as { stderr?: string; stdout?: string };
-    const errorOutput = execError.stderr || execError.stdout || "";
+    const errorOutput = execError.stderr || execError.stdout;
+
+    // No compiler output = tsc never ran (e.g. binary missing). Don't let a
+    // launch failure fall through to the "passed" branch and green-light CI.
+    if (!errorOutput) {
+      const message = error instanceof Error ? error.message : String(error);
+      log(
+        `❌ ${colors.bold}TypeScript check failed to start${colors.reset} ${colors.gray}${message}${colors.reset}`,
+        colors.red,
+      );
+      return { ok: false };
+    }
 
     // Filter out jellyseerr utils errors - this is a third-party git submodule
     // that generates a large volume of known type errors
