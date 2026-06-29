@@ -26,6 +26,7 @@ import {
   MediaType,
 } from "@/utils/jellyseerr/server/constants/media";
 import type { MediaRequestBody } from "@/utils/jellyseerr/server/interfaces/api/requestInterfaces";
+import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
 
 interface TVSeasonToggleCardProps {
@@ -49,6 +50,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
   hasTVPreferredFocus,
 }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.08 });
 
@@ -119,7 +121,10 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
           <Text
             style={[
               styles.seasonTitle,
-              { color: focused ? "#000000" : "#FFFFFF" },
+              {
+                fontSize: typography.body,
+                color: focused ? "#000000" : "#FFFFFF",
+              },
             ]}
             numberOfLines={1}
           >
@@ -132,6 +137,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
               style={[
                 styles.episodeCount,
                 {
+                  fontSize: typography.callout,
                   color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)",
                 },
               ]}
@@ -401,7 +407,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   seasonCard: {
-    width: 160,
+    width: scaleSize(220),
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 12,
@@ -426,9 +432,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  episodeCount: {
-    fontSize: 14,
-  },
+  episodeCount: {},
   statusBadge: {
     width: 22,
     height: 22,
