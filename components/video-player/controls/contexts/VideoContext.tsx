@@ -182,6 +182,24 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           downloadedItem.userData.subtitleStreamIndex;
         const subs: Track[] = [];
 
+        // If an IMAGE subtitle was burned into the transcoded download it's in the
+        // video pixels — it can't be turned off or swapped. Show only that entry
+        // instead of advertising "Disable"/text controls that can't affect it.
+        const burnedInSub = allSubs.find(
+          (s) => s.Index === downloadedSubtitleIndex,
+        );
+        if (burnedInSub && isImageBasedSubtitle(burnedInSub)) {
+          setSubtitleTracks([
+            {
+              name: `${burnedInSub.DisplayTitle || "Unknown"} (burned in)`,
+              index: burnedInSub.Index ?? -1,
+              mpvIndex: -1,
+              setTrack: () => {},
+            },
+          ]);
+          return;
+        }
+
         // Add "Disable" option
         subs.push({
           name: "Disable",
@@ -193,13 +211,11 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           },
         });
 
-        // Text subs are muxed into the transcoded file; the burned-in image sub
-        // can't be switched. Selection resolves by identity against MPV's real
-        // track list (same as online) — robust to the transcoded file's track
-        // structure differing from the original MediaStreams. Order matches web.
+        // Text subs are muxed into the transcoded file and switchable; resolve by
+        // identity against MPV's real track list (same as online). Order matches web.
+        // Image subs aren't in the transcoded file (only the burned one was, handled
+        // above), so skip them here.
         for (const sub of [...allSubs].sort(compareTracksForMenu)) {
-          // Treat missing IsTextSubtitleStream as text (image-based only when
-          // explicitly false — matches isImageBasedSubtitle).
           if (!isImageBasedSubtitle(sub)) {
             subs.push({
               name: sub.DisplayTitle || "Unknown",
@@ -218,16 +234,6 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
                       : undefined;
                   },
                 });
-              },
-            });
-          } else if (sub.Index === downloadedSubtitleIndex) {
-            // Image-based sub burned in during transcode — can't switch, show as active.
-            subs.push({
-              name: `${sub.DisplayTitle || "Unknown"} (burned in)`,
-              index: sub.Index ?? -1,
-              mpvIndex: -1,
-              setTrack: () => {
-                router.setParams({ subtitleIndex: String(sub.Index) });
               },
             });
           }
