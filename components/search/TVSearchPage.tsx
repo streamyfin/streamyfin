@@ -280,6 +280,9 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         showsVerticalScrollIndicator={false}
         keyboardDismissMode='on-drag'
         contentContainerStyle={{
+          // Top padding so the focus-scale/shadow on the first row (filter
+          // badges) isn't clipped against the ScrollView's top edge.
+          paddingTop: 16,
           paddingBottom: insets.bottom + 60,
         }}
       >
