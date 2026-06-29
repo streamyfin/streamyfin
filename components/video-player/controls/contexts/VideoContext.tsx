@@ -144,6 +144,19 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     if (!tracksReady) return;
 
+    // Guard every state commit against stale runs: api?.basePath /
+    // isCurrentSubImageBased can flip mid-run and restart this effect, and an
+    // earlier async run (which captured an old `api`) must not finish later and
+    // overwrite the fresh track list with callbacks bound to stale closures.
+    // The cleanup flips `cancelled`, so any late commit from a dead run is dropped.
+    let cancelled = false;
+    const commitSubtitleTracks = (next: Track[]) => {
+      if (!cancelled) setSubtitleTracks(next);
+    };
+    const commitAudioTracks = (next: Track[]) => {
+      if (!cancelled) setAudioTracks(next);
+    };
+
     const fetchTracks = async () => {
       // Check if this is offline transcoded content
       // For transcoded offline content, only ONE audio track exists in the file
@@ -169,10 +182,10 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
               },
             },
           ];
-          setAudioTracks(audio);
+          commitAudioTracks(audio);
         } else {
           // Fallback: show no audio tracks if the stored track wasn't found
-          setAudioTracks([]);
+          commitAudioTracks([]);
         }
 
         // For subtitles in transcoded offline content:
@@ -189,7 +202,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           (s) => s.Index === downloadedSubtitleIndex,
         );
         if (burnedInSub && isImageBasedSubtitle(burnedInSub)) {
-          setSubtitleTracks([
+          commitSubtitleTracks([
             {
               name: `${burnedInSub.DisplayTitle || "Unknown"} (burned in)`,
               index: burnedInSub.Index ?? -1,
@@ -239,12 +252,13 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           }
         }
 
-        setSubtitleTracks(subs);
+        commitSubtitleTracks(subs);
         return;
       }
 
       // MPV track handling
       const audioData = await playerControls.getAudioTracks().catch(() => null);
+      if (cancelled) return;
       const playerAudio = (audioData as MpvAudioTrack[]) ?? [];
 
       const subs: Track[] = [];
@@ -355,11 +369,14 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
 
       // Already in jellyfin-web order (sorted iteration above); "Disable" stays
       // at the front (unshifted), local downloaded subs at the end.
-      setSubtitleTracks(subs);
-      setAudioTracks(audio);
+      commitSubtitleTracks(subs);
+      commitAudioTracks(audio);
     };
 
     fetchTracks();
+    return () => {
+      cancelled = true;
+    };
     // api?.basePath: setTrack builds external-sub URLs from it — rebuild once the
     // API is ready so online externals don't resolve with undefined.
     // isCurrentSubImageBased: setTrack closes over it for the transcode replacePlayer
