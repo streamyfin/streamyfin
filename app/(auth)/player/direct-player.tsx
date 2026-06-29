@@ -56,8 +56,8 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
+  applyMpvSubtitleSelection,
   getMpvAudioId,
-  getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
@@ -639,12 +639,9 @@ export default function DirectPlayerPage() {
       ).map((s) => s.DeliveryUrl!);
     }
 
-    // Calculate track IDs for initial selection
-    const initialSubtitleId = getMpvSubtitleId(
-      mediaSource,
-      subtitleIndex,
-      isTranscoding,
-    );
+    // Audio maps positionally (audio tracks aren't reordered or hidden like
+    // subtitles). The subtitle selection is applied later, once MPV's real track
+    // list is known — see applySubtitleSelection / onTracksReady.
     const initialAudioId = getMpvAudioId(
       mediaSource,
       audioIndex,
@@ -662,7 +659,6 @@ export default function DirectPlayerPage() {
       url: stream.url,
       startPosition: startPos,
       autoplay: true,
-      initialSubtitleId,
       initialAudioId,
       // Pass cache/buffer settings from user preferences
       cacheConfig: {
@@ -710,7 +706,6 @@ export default function DirectPlayerPage() {
     playbackPositionFromUrl,
     api?.basePath,
     api?.accessToken,
-    subtitleIndex,
     audioIndex,
     offline,
     settings.mpvCacheEnabled,
@@ -908,30 +903,41 @@ export default function DirectPlayerPage() {
   );
 
   // TV subtitle track change handler
+  /**
+   * Resolve a Jellyfin subtitle index against MPV's *real* track list and apply
+   * it. Identity-based (external by filename, embedded by language/title) so it
+   * stays correct across external/embedded reordering and server-hidden embedded
+   * subs — unlike positional mapping. Reused for initial selection (onTracksReady,
+   * fired again after each external sub-add) and runtime changes.
+   */
+  const applySubtitleSelection = useCallback(
+    async (jellyfinSubtitleIndex: number) => {
+      const subtitleStreams = stream?.mediaSource?.MediaStreams?.filter(
+        (s) => s.Type === "Subtitle",
+      );
+      await applyMpvSubtitleSelection(videoRef.current, {
+        subtitleStreams,
+        jellyfinSubtitleIndex,
+        // The exact URL each external sub was loaded into MPV with — mirrors the
+        // externalSubtitles array built in videoSource (online: basePath +
+        // DeliveryUrl, offline: local DeliveryUrl).
+        getExpectedExternalUrl: (s) => {
+          if (!s.DeliveryUrl) return undefined;
+          if (offline) return s.DeliveryUrl;
+          return api?.basePath ? `${api.basePath}${s.DeliveryUrl}` : undefined;
+        },
+      });
+    },
+    [stream?.mediaSource, offline, api?.basePath],
+  );
+
+  // TV/mobile subtitle track change handler
   const handleSubtitleIndexChange = useCallback(
     async (index: number) => {
       setCurrentSubtitleIndex(index);
-
-      // Check if we're transcoding
-      const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
-
-      if (index === -1) {
-        // Disable subtitles
-        await videoRef.current?.disableSubtitles?.();
-      } else {
-        // Convert Jellyfin index to MPV track ID
-        const mpvTrackId = getMpvSubtitleId(
-          stream?.mediaSource,
-          index,
-          isTranscoding,
-        );
-
-        if (mpvTrackId !== undefined && mpvTrackId !== -1) {
-          await videoRef.current?.setSubtitleTrack?.(mpvTrackId);
-        }
-      }
+      await applySubtitleSelection(index);
     },
-    [stream?.mediaSource],
+    [applySubtitleSelection],
   );
 
   // Technical info toggle handler
@@ -1296,6 +1302,10 @@ export default function DirectPlayerPage() {
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);
+                  // Fired after embedded tracks enumerate and again after each
+                  // external sub-add; re-resolve so the final fire (full track
+                  // list) selects the right track by identity.
+                  void applySubtitleSelection(currentSubtitleIndex);
                 }}
               />
               {!hasPlaybackStarted && (
