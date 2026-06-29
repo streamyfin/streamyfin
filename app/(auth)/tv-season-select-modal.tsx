@@ -122,7 +122,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
             style={[
               styles.seasonTitle,
               {
-                fontSize: typography.body,
+                fontSize: typography.callout,
                 color: focused ? "#000000" : "#FFFFFF",
               },
             ]}
@@ -137,7 +137,7 @@ const TVSeasonToggleCard: React.FC<TVSeasonToggleCardProps> = ({
               style={[
                 styles.episodeCount,
                 {
-                  fontSize: typography.callout,
+                  fontSize: typography.callout - 4,
                   color: focused ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)",
                 },
               ]}
