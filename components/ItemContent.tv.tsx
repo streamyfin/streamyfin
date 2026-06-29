@@ -56,6 +56,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -232,12 +233,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return streams ?? [];
     }, [selectedOptions?.mediaSource]);
 
-    // Get available subtitle tracks (raw MediaStream[] for label lookup)
+    // Get available subtitle tracks (raw MediaStream[] for label lookup),
+    // ordered like jellyfin-web (embedded first, externals last, forced/default up).
     const subtitleStreams = useMemo(() => {
       const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
         (s) => s.Type === "Subtitle",
       );
-      return streams ?? [];
+      return streams ? [...streams].sort(compareTracksForMenu) : [];
     }, [selectedOptions?.mediaSource]);
 
     // Store handleSubtitleChange in a ref for stable callback reference

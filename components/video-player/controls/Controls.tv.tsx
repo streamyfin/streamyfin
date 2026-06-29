@@ -51,6 +51,7 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
@@ -317,8 +318,10 @@ export const Controls: FC<Props> = ({
     try {
       const streams = (await onRefreshSubtitleTracks?.()) ?? [];
       // Skip streams without a real index: `?? -1` would alias them to the
-      // "disable subtitles" sentinel and mis-route selection.
-      return streams
+      // "disable subtitles" sentinel and mis-route selection. Order like
+      // jellyfin-web (embedded first, externals last, forced/default up).
+      return [...streams]
+        .sort(compareTracksForMenu)
         .filter((stream) => typeof stream.Index === "number")
         .map((stream) => {
           const index = stream.Index as number;

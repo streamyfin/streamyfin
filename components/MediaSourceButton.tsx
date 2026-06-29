@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
+import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { BITRATES } from "./BitRateSheet";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
@@ -63,9 +64,12 @@ export const MediaSourceButton: React.FC<Props> = ({
 
   const subtitleStreams = useMemo(
     () =>
-      selectedOptions.mediaSource?.MediaStreams?.filter(
-        (x) => x.Type === "Subtitle",
-      ) || [],
+      // Order like jellyfin-web (embedded first, externals last, forced/default up).
+      [
+        ...(selectedOptions.mediaSource?.MediaStreams?.filter(
+          (x) => x.Type === "Subtitle",
+        ) || []),
+      ].sort(compareTracksForMenu),
     [selectedOptions.mediaSource],
   );
 
