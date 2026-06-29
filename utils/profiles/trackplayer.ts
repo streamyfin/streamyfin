@@ -10,8 +10,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
-
-export type PlatformType = "ios" | "android";
+import type { PlatformType } from "./native";
 
 export interface TrackPlayerProfileOptions {
   /** Target platform */
