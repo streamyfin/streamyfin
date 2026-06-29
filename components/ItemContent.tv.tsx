@@ -413,11 +413,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             )
           : freshItem.MediaSources?.[0];
 
-        // Get subtitle streams from the fresh data
-        const streams =
-          mediaSource?.MediaStreams?.filter(
+        // Get subtitle streams from the fresh data, ordered like jellyfin-web
+        // (embedded first, externals last) — same as the initial list.
+        const streams = [
+          ...(mediaSource?.MediaStreams?.filter(
             (s: MediaStream) => s.Type === "Subtitle",
-          ) ?? [];
+          ) ?? []),
+        ].sort(compareTracksForMenu);
 
         // Convert to Track[] with setTrack callbacks
         const tracks: Track[] = streams.map((stream) => ({

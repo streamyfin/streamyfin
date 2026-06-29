@@ -198,7 +198,9 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         // track list (same as online) — robust to the transcoded file's track
         // structure differing from the original MediaStreams. Order matches web.
         for (const sub of [...allSubs].sort(compareTracksForMenu)) {
-          if (sub.IsTextSubtitleStream) {
+          // Treat missing IsTextSubtitleStream as text (image-based only when
+          // explicitly false — matches isImageBasedSubtitle).
+          if (!isImageBasedSubtitle(sub)) {
             subs.push({
               name: sub.DisplayTitle || "Unknown",
               index: sub.Index ?? -1,

@@ -27,24 +27,34 @@ const EXTERNAL_DELIVERY = "External" as SubtitleDeliveryMethod;
 export const isImageBasedSubtitle = (sub: MediaStream): boolean =>
   sub.IsTextSubtitleStream === false;
 
-/** A Jellyfin subtitle stream is "external" when the server delivers it as a sidecar file. */
+/**
+ * A Jellyfin subtitle stream is "external" when the server delivers it as a
+ * sub-added sidecar — i.e. `DeliveryMethod === External` (or the `IsExternal`
+ * flag before a device-specific delivery method is assigned).
+ *
+ * Deliberately NOT keyed on `DeliveryUrl`: an Hls-delivered sub also carries a
+ * `DeliveryUrl` but lives inside the player's track list (not `sub-add`-ed), so
+ * it must resolve through the embedded path. Keeping this in lockstep with the
+ * load sites (which only `sub-add` `DeliveryMethod === External`) and with the
+ * menu comparator below avoids a sub being sorted as embedded yet resolved as
+ * external (→ `notFound`).
+ */
 export const isExternalSubtitle = (sub: MediaStream): boolean =>
-  sub.DeliveryMethod === EXTERNAL_DELIVERY ||
-  sub.IsExternal === true ||
-  Boolean(sub.DeliveryUrl);
+  sub.DeliveryMethod === EXTERNAL_DELIVERY || sub.IsExternal === true;
 
 /**
- * Order subtitle/audio MediaStreams for the selection menu exactly like
- * jellyfin-web's `itemHelper.sortTracks`: in-container tracks first then
- * external, and within each group forced first, then default, then `Index`
- * ascending. Callers prepend their own "None/Off" entry separately.
+ * Order subtitle MediaStreams for the selection menu exactly like jellyfin-web's
+ * `itemHelper.sortTracks`: in-container tracks first then external, and within
+ * each group forced first, then default, then `Index` ascending. Callers prepend
+ * their own "None/Off" entry separately.
  *
  * The Jellyfin server inserts external (sidecar) streams at the FRONT of
  * `MediaStreams` (low indices), so raw Index order shows externals first — this
- * comparator flips that to match web (externals last).
+ * comparator flips that to match web (externals last). Uses {@link isExternalSubtitle}
+ * (not the raw `IsExternal` flag) so ordering and resolution agree.
  */
 export const compareTracksForMenu = (a: MediaStream, b: MediaStream): number =>
-  Number(a.IsExternal ?? false) - Number(b.IsExternal ?? false) ||
+  Number(isExternalSubtitle(a)) - Number(isExternalSubtitle(b)) ||
   Number(b.IsForced ?? false) - Number(a.IsForced ?? false) ||
   Number(b.IsDefault ?? false) - Number(a.IsDefault ?? false) ||
   (a.Index ?? 0) - (b.Index ?? 0);
@@ -243,28 +253,35 @@ export const applyMpvSubtitleSelection = async (
 ): Promise<SubtitleSelection> => {
   if (!player) return { kind: "notFound" };
 
-  const tracks = (await player.getSubtitleTracks()) ?? [];
-  const selection = resolveSubtitleTrack({
-    subtitleStreams: params.subtitleStreams,
-    jellyfinSubtitleIndex: params.jellyfinSubtitleIndex,
-    playerTracks: tracks.map((t) => ({
-      id: t.id,
-      external: t.external,
-      externalFilename: t.externalFilename,
-      language: t.lang,
-      title: t.title,
-      codec: t.codec,
-    })),
-    getExpectedExternalUrl: params.getExpectedExternalUrl,
-  });
+  // Called fire-and-forget (`void applyMpvSubtitleSelection(...)`), so any native
+  // rejection from getSubtitleTracks/setSubtitleTrack/disableSubtitles must be
+  // swallowed here instead of escaping as an unhandled promise rejection.
+  try {
+    const tracks = (await player.getSubtitleTracks()) ?? [];
+    const selection = resolveSubtitleTrack({
+      subtitleStreams: params.subtitleStreams,
+      jellyfinSubtitleIndex: params.jellyfinSubtitleIndex,
+      playerTracks: tracks.map((t) => ({
+        id: t.id,
+        external: t.external,
+        externalFilename: t.externalFilename,
+        language: t.lang,
+        title: t.title,
+        codec: t.codec,
+      })),
+      getExpectedExternalUrl: params.getExpectedExternalUrl,
+    });
 
-  if (selection.kind === "select") {
-    await player.setSubtitleTrack(selection.trackId);
-  } else if (selection.kind === "disable") {
-    await player.disableSubtitles();
+    if (selection.kind === "select") {
+      await player.setSubtitleTrack(selection.trackId);
+    } else if (selection.kind === "disable") {
+      await player.disableSubtitles();
+    }
+    // notFound → leave current selection (e.g. image subs burned in while transcoding)
+    return selection;
+  } catch {
+    return { kind: "notFound" };
   }
-  // notFound → leave current selection (e.g. image subs burned in while transcoding)
-  return selection;
 };
 
 /**

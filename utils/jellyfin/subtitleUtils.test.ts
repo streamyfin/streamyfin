@@ -8,7 +8,7 @@ import {
   isExternalSubtitle,
   type PlayerSubtitleTrack,
   resolveSubtitleTrack,
-} from "./subtitleUtils";
+} from "@/utils/jellyfin/subtitleUtils";
 
 // String-enum values as typed literals — avoids a runtime SDK import (see subtitleUtils.ts).
 const External = "External" as SubtitleDeliveryMethod;
@@ -55,12 +55,14 @@ const resolve = (
 // --- tests -----------------------------------------------------------------
 
 describe("isExternalSubtitle", () => {
-  test("true for External delivery, IsExternal flag, or a DeliveryUrl", () => {
+  test("true for External delivery or the IsExternal flag, not a bare DeliveryUrl", () => {
     expect(isExternalSubtitle(ext(0))).toBe(true);
-    expect(isExternalSubtitle(sub({ Index: 1, DeliveryUrl: "/x.srt" }))).toBe(
-      true,
-    );
+    expect(isExternalSubtitle(sub({ Index: 1, IsExternal: true }))).toBe(true);
     expect(isExternalSubtitle(emb(2))).toBe(false);
+    // A DeliveryUrl alone (e.g. an Hls-delivered sub) is NOT a sub-added sidecar.
+    expect(isExternalSubtitle(sub({ Index: 3, DeliveryUrl: "/x.srt" }))).toBe(
+      false,
+    );
   });
 });
 
@@ -154,25 +156,26 @@ describe("resolveSubtitleTrack — external without DeliveryUrl (#1763 CodeRabbi
 });
 
 describe("resolveSubtitleTrack — embedded matching", () => {
-  test("unique language match wins regardless of order", () => {
+  test("unique language match wins even when player order differs (not positional)", () => {
     const streams = [emb(0, { Language: "eng" }), emb(1, { Language: "jpn" })];
+    // Player lists them in the OPPOSITE order — a positional map would mis-pick.
     const player = [
-      track({ id: 1, external: false, language: "eng" }),
-      track({ id: 2, external: false, language: "jpn" }),
+      track({ id: 1, external: false, language: "jpn" }),
+      track({ id: 2, external: false, language: "eng" }),
     ];
-    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 2 });
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 }); // eng
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 1 }); // jpn
   });
 
-  test("same-language tracks disambiguate by ordinal among matches", () => {
-    const streams = [
-      emb(0, { Language: "eng", Title: "Full" }),
-      emb(1, { Language: "eng", Title: "SDH" }),
-    ];
+  test("same-language tracks with no distinguishing title fall back to ordinal among matches", () => {
+    const streams = [emb(0, { Language: "eng" }), emb(1, { Language: "eng" })];
+    // Both eng, no title → identity can't disambiguate → ordinal among matches.
     const player = [
-      track({ id: 1, external: false, language: "eng", title: "Full" }),
-      track({ id: 2, external: false, language: "eng", title: "SDH" }),
+      track({ id: 5, external: false, language: "eng" }),
+      track({ id: 6, external: false, language: "eng" }),
     ];
-    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 2 });
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 5 });
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 6 });
   });
 
   test("falls back to embedded ordinal when no language/title info", () => {
