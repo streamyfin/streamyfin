@@ -257,14 +257,15 @@ export default function TVSeasonSelectModalPage() {
     };
 
     if (modalState.hasAdvancedRequestPermission) {
-      // Close this modal and open the advanced request modal
-      router.back();
+      // Replace this sheet with the advanced request modal so it takes our
+      // place in the stack instead of stacking on top (which breaks focus).
       showRequestModal({
         requestBody: body,
         title: modalState.title,
         id: modalState.mediaId,
         mediaType: MediaType.TV,
         onRequested: modalState.onRequested,
+        replace: true,
       });
       return;
     }

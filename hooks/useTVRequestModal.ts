@@ -11,6 +11,12 @@ interface ShowRequestModalParams {
   id: number;
   mediaType: MediaType;
   onRequested: () => void;
+  /**
+   * Replace the current route instead of pushing. Use when opening the request
+   * modal from another modal (e.g. the season selector) so the new sheet takes
+   * its place rather than stacking on top of it (which breaks TV focus).
+   */
+  replace?: boolean;
 }
 
 export const useTVRequestModal = () => {
@@ -25,7 +31,11 @@ export const useTVRequestModal = () => {
         mediaType: params.mediaType,
         onRequested: params.onRequested,
       });
-      router.push("/(auth)/tv-request-modal");
+      if (params.replace) {
+        router.replace("/(auth)/tv-request-modal");
+      } else {
+        router.push("/(auth)/tv-request-modal");
+      }
     },
     [router],
   );
