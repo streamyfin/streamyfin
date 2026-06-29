@@ -354,7 +354,16 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     };
 
     fetchTracks();
-  }, [tracksReady, mediaSource, offline, downloadedItem, itemId]);
+    // api?.basePath: the setTrack callbacks build external-sub URLs from it; rebuild
+    // them once the API is ready so online externals don't resolve with undefined.
+  }, [
+    tracksReady,
+    mediaSource,
+    offline,
+    downloadedItem,
+    itemId,
+    api?.basePath,
+  ]);
 
   return (
     <VideoContext.Provider value={{ subtitleTracks, audioTracks }}>
