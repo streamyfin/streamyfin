@@ -21,8 +21,14 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+interface Issue {
+  number: number;
+  title: string;
+  body: string | null;
+}
+
 // Parse a numeric env var, falling back to `def` only when unset/empty/NaN so an explicit 0 is honoured.
-const numEnv = (name, def) => {
+const numEnv = (name: string, def: number): number => {
   const raw = process.env[name];
   if (raw === undefined || raw === "") return def;
   const n = Number(raw);
@@ -51,9 +57,9 @@ const STOP = new Set(
   ).split(/\s+/),
 );
 
-const stem = (w) => w.replace(/(ing|ed|es|s)$/, "");
+const stem = (w: string): string => w.replace(/(ing|ed|es|s)$/, "");
 
-const tokens = (s) =>
+const tokens = (s: string | null): string[] =>
   (s || "")
     .toLowerCase()
     .replace(/```[\s\S]*?```/g, " ") // drop code blocks
@@ -65,7 +71,7 @@ const tokens = (s) =>
     .map(stem)
     .filter((w) => w.length > 2);
 
-const jaccard = (a, b) => {
+const jaccard = (a: string[], b: string[]): number => {
   const A = new Set(a);
   const B = new Set(b);
   if (!A.size || !B.size) return 0;
@@ -76,14 +82,14 @@ const jaccard = (a, b) => {
 
 const newTitle = tokens(TITLE);
 const newBody = tokens(BODY);
-const score = (o) =>
+const score = (o: Issue): number =>
   0.6 * jaccard(newTitle, tokens(o.title)) +
   0.4 * jaccard(newBody, tokens(o.body));
 
 // fetch open issues (excluding PRs and the new issue itself)
-let issues;
+let issues: Issue[];
 if (process.env.DUP_FIXTURE) {
-  issues = JSON.parse(readFileSync(process.env.DUP_FIXTURE, "utf8"));
+  issues = JSON.parse(readFileSync(process.env.DUP_FIXTURE, "utf8")) as Issue[];
 } else {
   const raw = execFileSync(
     "gh",
@@ -105,7 +111,7 @@ if (process.env.DUP_FIXTURE) {
   issues = raw
     .split("\n")
     .filter(Boolean)
-    .map((l) => JSON.parse(l));
+    .map((l) => JSON.parse(l) as Issue);
 }
 
 const matches = issues
@@ -123,7 +129,7 @@ if (!matches.length) {
 // Neutralise other issues' titles before echoing them back: break @mentions and
 // strip markdown/HTML control chars so a maliciously-named issue can't ping people
 // or inject formatting into our comment. GitHub linkifies "#123" on its own.
-const safeTitle = (t) =>
+const safeTitle = (t: string): string =>
   (t || "")
     .replace(/@/g, "@​")
     .replace(/[`<>|*_~[\]]/g, " ")
