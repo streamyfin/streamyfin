@@ -421,7 +421,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   seasonInfo: {
-    flex: 1,
+    // Note: no `flex: 1` here — the card is an auto-height column, so flex:1
+    // (flexBasis: 0) would collapse this box and hide the text. Let it size to
+    // its content instead.
+    alignSelf: "stretch",
   },
   seasonTitle: {
     fontWeight: "600",
