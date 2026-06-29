@@ -187,7 +187,9 @@ function runTypeCheck(): { ok: boolean } {
     return { ok: true };
   } catch (error) {
     const execError = error as { stderr?: string; stdout?: string };
-    const errorOutput = execError.stderr || execError.stdout;
+    const errorOutput = [execError.stdout, execError.stderr]
+      .filter((chunk): chunk is string => Boolean(chunk))
+      .join("\n");
 
     // No compiler output = tsc never ran (e.g. binary missing). Don't let a
     // launch failure fall through to the "passed" branch and green-light CI.
