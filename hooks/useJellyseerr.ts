@@ -70,6 +70,35 @@ export const clearJellyseerrStorageData = () => {
   storage.remove(JELLYSEERR_COOKIES);
 };
 
+export type JellyseerrSessionStatus =
+  | { valid: true }
+  | { valid: false; reason: "no_session" | "expired" };
+
+/**
+ * Checks whether the persisted Jellyseerr session (user + cookies) is still
+ * valid by hitting the server status endpoint. Clears local session data if the
+ * request fails (expired/revoked cookie).
+ */
+export async function validateJellyseerrSession(
+  serverUrl: string,
+): Promise<JellyseerrSessionStatus> {
+  const user = storage.get<JellyseerrUser>(JELLYSEERR_USER);
+  const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
+
+  if (!user || !cookies) {
+    return { valid: false, reason: "no_session" };
+  }
+
+  try {
+    const api = new JellyseerrApi(serverUrl);
+    await api.axios.get(Endpoints.API_V1 + Endpoints.STATUS);
+    return { valid: true };
+  } catch {
+    clearJellyseerrStorageData();
+    return { valid: false, reason: "expired" };
+  }
+}
+
 export enum Endpoints {
   STATUS = "/status",
   API_V1 = "/api/v1",
@@ -450,7 +479,8 @@ export const useJellyseerr = () => {
     clearJellyseerrStorageData();
     setJellyseerrUser(undefined);
     updateSettings({ jellyseerrServerUrl: undefined });
-  }, []);
+    queryClient.removeQueries({ queryKey: ["search", "jellyseerr"] });
+  }, [queryClient]);
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {

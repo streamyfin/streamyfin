@@ -505,7 +505,11 @@
     "episodes": "Episodes",
     "movies": "Movies",
     "loading": "Loading…",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "connect": "Anslut",
+    "connecting": "Ansluter…",
+    "connected": "Ansluten",
+    "not_connected": "Inte ansluten"
   },
   "search": {
     "search": "Sök...",
@@ -732,6 +736,10 @@
     "request_button": "Önska",
     "are_you_sure_you_want_to_request_all_seasons": "Är du säker på att du vill begära alla säsonger?",
     "failed_to_login": "Inloggningen Misslyckades",
+    "connect_to_jellyseerr": "Anslut till Jellyseerr",
+    "connect_in_settings": "Jellyseerr är tillgängligt. Anslut i Inställningar för att aktivera förfrågningsfunktioner.",
+    "session_expired": "Sessionen har gått ut",
+    "session_expired_connect_again": "Din Jellyseerr-session har gått ut. Anslut igen i Inställningar.",
     "cast": "Roller",
     "details": "Detaljer",
     "status": "Status",
