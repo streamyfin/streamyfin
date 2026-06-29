@@ -107,6 +107,9 @@
       ],
       "expo-localization",
       "expo-asset",
+      "expo-audio",
+      "expo-image",
+      "expo-sharing",
       [
         "react-native-edge-to-edge",
         {

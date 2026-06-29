@@ -1,0 +1,21 @@
+name: Refresh PR build comment
+description: >-
+  Nudge artifact-comment.yml (via workflow_dispatch) so the PR build-status
+  comment reflects live per-platform progress as each build job finishes.
+
+runs:
+  using: composite
+  steps:
+    # workflow_dispatch fires even when triggered by the GITHUB_TOKEN, and
+    # artifact-comment's concurrency group collapses simultaneous nudges, so
+    # this can't spam the comment. Skipped on forks (their read-only token
+    # cannot dispatch). github.token is used because composite actions cannot
+    # read the secrets context.
+    - if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        HEAD_REF: ${{ github.head_ref }}
+        REPO: ${{ github.repository }}
+      run: gh workflow run artifact-comment.yml --ref "$HEAD_REF" -R "$REPO"

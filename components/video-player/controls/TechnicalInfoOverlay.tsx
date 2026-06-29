@@ -342,12 +342,24 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           {info?.cacheSeconds !== undefined && (
             <Text style={textStyle}>
               Buffer: {info.cacheSeconds.toFixed(1)}s
+              {info?.demuxerMaxBytes !== undefined
+                ? ` (cap ${info.demuxerMaxBytes}MB` +
+                  `${info.demuxerMaxBackBytes !== undefined ? ` / ${info.demuxerMaxBackBytes}MB back` : ""}` +
+                  `${info?.cacheSecsLimit !== undefined && info.cacheSecsLimit < 3600 ? ` · ${info.cacheSecsLimit.toFixed(0)}s` : ""}` +
+                  ")"
+                : ""}
             </Text>
           )}
           {info?.voDriver && (
             <Text style={textStyle}>
               VO: {info.voDriver}
               {info.hwdec ? ` / ${info.hwdec}` : ""}
+            </Text>
+          )}
+          {info?.estimatedVfFps !== undefined && (
+            <Text style={textStyle}>
+              Output FPS: {info.estimatedVfFps.toFixed(2)}
+              {info?.fps ? ` (container ${formatFps(info.fps)})` : ""}
             </Text>
           )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (
