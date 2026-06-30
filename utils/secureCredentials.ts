@@ -162,10 +162,27 @@ export function secureCustomHeaderMetadata(
   headers: CustomHeader[],
   previousHeaders: CustomHeader[] = [],
 ): CustomHeader[] {
+  const retainedKeys = new Set(
+    headers
+      .map((header) => header.secureValueKey)
+      .filter((key): key is string => Boolean(key)),
+  );
   const nextKeys = new Set<string>();
-  const metadata = headers.map((header, index) => {
+  let nextGeneratedIndex = 0;
+  const allocateSecureValueKey = () => {
+    let secureValueKey: string;
+    do {
+      secureValueKey = customHeaderValueKey(scope, nextGeneratedIndex);
+      nextGeneratedIndex += 1;
+    } while (retainedKeys.has(secureValueKey) || nextKeys.has(secureValueKey));
+    return secureValueKey;
+  };
+
+  const metadata = headers.map((header) => {
     const secureValueKey =
-      header.secureValueKey ?? customHeaderValueKey(scope, index);
+      header.secureValueKey && !nextKeys.has(header.secureValueKey)
+        ? header.secureValueKey
+        : allocateSecureValueKey();
     nextKeys.add(secureValueKey);
     SecureStore.setItem(secureValueKey, header.value);
     return {
