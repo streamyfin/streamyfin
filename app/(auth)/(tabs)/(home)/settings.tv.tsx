@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -56,6 +56,9 @@ import {
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
+
+const createLocalHeaderId = () =>
+  `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export default function SettingsTV() {
   const { t } = useTranslation();
@@ -270,7 +273,10 @@ export default function SettingsTV() {
               ];
               const allKeys = storage.getAllKeys();
               for (const key of allKeys) {
-                if (!keysToKeep.includes(key)) {
+                if (
+                  !keysToKeep.includes(key) &&
+                  !key.startsWith("custom_headers_config_")
+                ) {
                   storage.remove(key);
                 }
               }
@@ -1046,6 +1052,14 @@ function TVCustomHeaderEditor({
   const { t } = useTranslation();
   const { showOptions } = useTVOptionModal();
   const typography = useScaledTVTypography();
+  const headerRowIdsRef = useRef<string[]>([]);
+
+  while (headerRowIdsRef.current.length < headers.length) {
+    headerRowIdsRef.current.push(createLocalHeaderId());
+  }
+  if (headerRowIdsRef.current.length > headers.length) {
+    headerRowIdsRef.current = headerRowIdsRef.current.slice(0, headers.length);
+  }
 
   const updateHeader = (index: number, updates: Partial<CustomHeader>) => {
     const next = [...headers];
@@ -1054,7 +1068,15 @@ function TVCustomHeaderEditor({
   };
 
   const addHeader = () => {
+    headerRowIdsRef.current.push(createLocalHeaderId());
     onHeadersChange([...headers, { key: "", value: "", enabled: true }]);
+  };
+
+  const removeHeader = (index: number) => {
+    headerRowIdsRef.current = headerRowIdsRef.current.filter(
+      (_, i) => i !== index,
+    );
+    onHeadersChange(headers.filter((_, i) => i !== index));
   };
 
   const addPreset = () => {
@@ -1068,7 +1090,13 @@ function TVCustomHeaderEditor({
       onSelect: (presetId) => {
         const preset = HEADER_PRESETS.find((p) => p.id === presetId);
         if (preset) {
-          onHeadersChange([...headers, ...preset.headers]);
+          headerRowIdsRef.current.push(
+            ...preset.headers.map(() => createLocalHeaderId()),
+          );
+          onHeadersChange([
+            ...headers,
+            ...preset.headers.map((header) => ({ ...header })),
+          ]);
         }
       },
     });
@@ -1095,7 +1123,10 @@ function TVCustomHeaderEditor({
         />
       ) : (
         headers.map((header, index) => (
-          <View key={index} style={{ marginBottom: 12 }}>
+          <View
+            key={headerRowIdsRef.current[index]}
+            style={{ marginBottom: 12 }}
+          >
             <TVSettingsToggle
               label={header.key || t("custom_headers.header_key")}
               value={header.enabled}
@@ -1121,9 +1152,7 @@ function TVCustomHeaderEditor({
               label={t("common.remove")}
               value=''
               disabled={disabled}
-              onPress={() =>
-                onHeadersChange(headers.filter((_, i) => i !== index))
-              }
+              onPress={() => removeHeader(index)}
             />
           </View>
         ))

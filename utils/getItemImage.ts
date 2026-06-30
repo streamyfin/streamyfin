@@ -31,8 +31,11 @@ export const getItemImage = ({
 
   const authHeaders = getAuthHeaders(api);
   const customHeaders = getCustomHeaders(api.basePath);
-  const { Authorization: _ignoredAuthorization, ...safeCustomHeaders } =
-    customHeaders;
+  const safeCustomHeaders = Object.fromEntries(
+    Object.entries(customHeaders).filter(
+      ([key]) => key.toLowerCase() !== "authorization",
+    ),
+  );
   const headers = { ...safeCustomHeaders, ...authHeaders };
   const headersOrUndefined =
     Object.keys(headers).length > 0 ? headers : undefined;

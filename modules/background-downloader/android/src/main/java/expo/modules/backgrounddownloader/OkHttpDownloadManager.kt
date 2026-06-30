@@ -30,7 +30,7 @@ class OkHttpDownloadManager {
     onComplete: (filePath: String) -> Unit,
     onError: (error: String) -> Unit
   ) {
-    Log.d(TAG, "Starting download: taskId=$taskId, url=$url")
+    Log.d(TAG, "Starting download: taskId=$taskId, host=${redactUrlForLog(url)}")
     
     val requestBuilder = Request.Builder().url(url)
     headers?.forEach { (key, value) ->
@@ -149,5 +149,14 @@ class OkHttpDownloadManager {
   
   fun hasActiveDownloads(): Boolean {
     return activeDownloads.isNotEmpty()
+  }
+
+  private fun redactUrlForLog(urlString: String): String {
+    return try {
+      val url = java.net.URL(urlString)
+      url.host ?: "<unknown-host>"
+    } catch (e: Exception) {
+      "<invalid-url>"
+    }
   }
 }

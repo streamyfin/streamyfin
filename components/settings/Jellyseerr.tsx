@@ -144,7 +144,10 @@ export const JellyseerrSettings = () => {
             </View>
             <Input
               className='border border-neutral-800 mb-2'
-              placeholder='https://jellyseerr.example.com'
+              placeholder={t(
+                "home.settings.plugins.jellyseerr.server_url_placeholder",
+                { defaultValue: "https://jellyseerr.example.com" },
+              )}
               value={jellyseerrServerUrl ?? settings?.jellyseerrServerUrl}
               defaultValue={
                 settings?.jellyseerrServerUrl ?? jellyseerrServerUrl

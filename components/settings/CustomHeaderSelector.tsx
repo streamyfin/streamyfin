@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Switch, TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
@@ -19,6 +19,9 @@ import { storage } from "@/utils/mmkv";
 import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
 import type { CustomHeader } from "@/utils/secureCredentials";
 import { getServerCustomHeaders } from "@/utils/secureCredentials";
+
+const createLocalHeaderId = () =>
+  `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 interface CustomHeaderSelectorProps {
   integrationKey: string; // e.g., "jellyseerr", "jellystat", etc.
@@ -40,7 +43,10 @@ export function CustomHeaderSelector({
     getIntegrationHeaderConfig(integrationKey),
   );
 
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingHeaderId, setEditingHeaderId] = useState<string | null>(null);
+  const headerRowIdsRef = useRef<string[]>(
+    config.customHeaders.map(() => createLocalHeaderId()),
+  );
 
   // Save config when it changes
   useEffect(() => {
@@ -75,10 +81,16 @@ export function CustomHeaderSelector({
       ...HEADER_PRESETS.map((preset) => ({
         text: preset.label,
         onPress: () => {
+          headerRowIdsRef.current.push(
+            ...preset.headers.map(() => createLocalHeaderId()),
+          );
           setConfig((prev) => ({
             ...prev,
             source: "custom",
-            customHeaders: [...prev.customHeaders, ...preset.headers],
+            customHeaders: [
+              ...prev.customHeaders,
+              ...preset.headers.map((header) => ({ ...header })),
+            ],
           }));
           toast.success(
             t("custom_headers.preset_added", {
@@ -95,6 +107,8 @@ export function CustomHeaderSelector({
   }, [t]);
 
   const handleAddCustom = useCallback(() => {
+    const localId = createLocalHeaderId();
+    headerRowIdsRef.current.push(localId);
     setConfig((prev) => ({
       ...prev,
       source: "custom",
@@ -103,8 +117,8 @@ export function CustomHeaderSelector({
         { key: "", value: "", enabled: true },
       ],
     }));
-    setEditingIndex(config.customHeaders.length);
-  }, [config.customHeaders.length]);
+    setEditingHeaderId(localId);
+  }, []);
 
   const handleUpdateHeader = useCallback(
     (index: number, updates: Partial<CustomHeader>) => {
@@ -117,12 +131,20 @@ export function CustomHeaderSelector({
     [],
   );
 
-  const handleRemoveHeader = useCallback((index: number) => {
-    setConfig((prev) => ({
-      ...prev,
-      customHeaders: prev.customHeaders.filter((_, i) => i !== index),
-    }));
-  }, []);
+  const handleRemoveHeader = useCallback(
+    (index: number) => {
+      const removedId = headerRowIdsRef.current[index];
+      headerRowIdsRef.current = headerRowIdsRef.current.filter(
+        (_, i) => i !== index,
+      );
+      if (editingHeaderId === removedId) setEditingHeaderId(null);
+      setConfig((prev) => ({
+        ...prev,
+        customHeaders: prev.customHeaders.filter((_, i) => i !== index),
+      }));
+    },
+    [editingHeaderId],
+  );
 
   const handleToggleEnabled = useCallback(
     (index: number, enabled: boolean) => {
@@ -201,10 +223,13 @@ export function CustomHeaderSelector({
             </View>
           ) : (
             config.customHeaders.map((header, index) => (
-              <View key={index} className='bg-neutral-900 rounded-xl p-3 mb-2'>
+              <View
+                key={headerRowIdsRef.current[index]}
+                className='bg-neutral-900 rounded-xl p-3 mb-2'
+              >
                 <View className='flex-row items-center justify-between'>
                   <View className='flex-1'>
-                    {editingIndex === index ? (
+                    {editingHeaderId === headerRowIdsRef.current[index] ? (
                       <View className='gap-2'>
                         <Input
                           placeholder={t("custom_headers.header_key")}
@@ -224,10 +249,11 @@ export function CustomHeaderSelector({
                           }
                           autoCapitalize='none'
                           autoCorrect={false}
+                          secureTextEntry
                           className='text-sm'
                         />
                         <TouchableOpacity
-                          onPress={() => setEditingIndex(null)}
+                          onPress={() => setEditingHeaderId(null)}
                           className='self-start'
                         >
                           <Text className='text-purple-600 text-sm'>
@@ -236,7 +262,11 @@ export function CustomHeaderSelector({
                         </TouchableOpacity>
                       </View>
                     ) : (
-                      <TouchableOpacity onPress={() => setEditingIndex(index)}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setEditingHeaderId(headerRowIdsRef.current[index])
+                        }
+                      >
                         <Text className='text-white font-medium text-sm'>
                           {header.key || t("custom_headers.header_key")}
                         </Text>

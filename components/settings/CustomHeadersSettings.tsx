@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Switch, TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
@@ -17,32 +17,47 @@ import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
+const createLocalHeaderId = () =>
+  `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export function CustomHeadersSettings(): React.ReactElement | null {
   const { t } = useTranslation();
   const remoteUrl = storage.getString("serverUrl");
   const [headers, setHeaders] = useState<CustomHeader[]>([]);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingHeaderId, setEditingHeaderId] = useState<string | null>(null);
+  const headerRowIdsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (remoteUrl) {
       const existingHeaders = getServerCustomHeaders(remoteUrl);
+      headerRowIdsRef.current = existingHeaders.map(() =>
+        createLocalHeaderId(),
+      );
       setHeaders(existingHeaders);
     }
   }, [remoteUrl]);
 
-  const saveHeaders = useCallback(
+  const persistHeaders = useCallback(
     (newHeaders: CustomHeader[]) => {
       if (!remoteUrl) return;
-      setHeaders(newHeaders);
       updateServerCustomHeaders(remoteUrl, newHeaders);
     },
     [remoteUrl],
   );
 
+  const saveHeaders = useCallback(
+    (newHeaders: CustomHeader[]) => {
+      setHeaders(newHeaders);
+      persistHeaders(newHeaders);
+    },
+    [persistHeaders],
+  );
+
   const handleToggleEnabled = useCallback(
     (index: number, enabled: boolean) => {
-      const updated = [...headers];
-      updated[index].enabled = enabled;
+      const updated = headers.map((header, i) =>
+        i === index ? { ...header, enabled } : header,
+      );
       saveHeaders(updated);
     },
     [headers, saveHeaders],
@@ -50,29 +65,45 @@ export function CustomHeadersSettings(): React.ReactElement | null {
 
   const handleUpdateKey = useCallback(
     (index: number, key: string) => {
-      const updated = [...headers];
-      updated[index].key = key;
-      saveHeaders(updated);
+      const updated = headers.map((header, i) =>
+        i === index ? { ...header, key } : header,
+      );
+      setHeaders(updated);
     },
-    [headers, saveHeaders],
+    [headers],
   );
 
   const handleUpdateValue = useCallback(
     (index: number, value: string) => {
-      const updated = [...headers];
-      updated[index].value = value;
-      saveHeaders(updated);
+      const updated = headers.map((header, i) =>
+        i === index ? { ...header, value } : header,
+      );
+      setHeaders(updated);
     },
-    [headers, saveHeaders],
+    [headers],
   );
+
+  const commitHeaders = useCallback(() => {
+    persistHeaders(headers);
+  }, [headers, persistHeaders]);
+
+  const finishEditing = useCallback(() => {
+    commitHeaders();
+    setEditingHeaderId(null);
+  }, [commitHeaders]);
 
   const handleRemoveHeader = useCallback(
     (index: number) => {
+      const removedId = headerRowIdsRef.current[index];
+      headerRowIdsRef.current = headerRowIdsRef.current.filter(
+        (_, i) => i !== index,
+      );
+      if (editingHeaderId === removedId) setEditingHeaderId(null);
       const updated = headers.filter((_, i) => i !== index);
       saveHeaders(updated);
       toast.success(t("custom_headers.removed"));
     },
-    [headers, saveHeaders, t],
+    [editingHeaderId, headers, saveHeaders, t],
   );
 
   const handleAddPreset = useCallback(() => {
@@ -80,7 +111,13 @@ export function CustomHeadersSettings(): React.ReactElement | null {
       ...HEADER_PRESETS.map((preset) => ({
         text: preset.label,
         onPress: () => {
-          const newHeaders = [...headers, ...preset.headers];
+          headerRowIdsRef.current.push(
+            ...preset.headers.map(() => createLocalHeaderId()),
+          );
+          const newHeaders = [
+            ...headers,
+            ...preset.headers.map((header) => ({ ...header })),
+          ];
           saveHeaders(newHeaders);
           toast.success(
             t("custom_headers.preset_added", {
@@ -97,14 +134,16 @@ export function CustomHeadersSettings(): React.ReactElement | null {
   }, [headers, saveHeaders, t]);
 
   const handleAddCustom = useCallback(() => {
+    const localId = createLocalHeaderId();
     const newHeader: CustomHeader = {
       key: "",
       value: "",
       enabled: true,
     };
+    headerRowIdsRef.current.push(localId);
     const newHeaders = [...headers, newHeader];
     saveHeaders(newHeaders);
-    setEditingIndex(newHeaders.length - 1);
+    setEditingHeaderId(localId);
   }, [headers, saveHeaders]);
 
   if (!remoteUrl) return null;
@@ -128,17 +167,18 @@ export function CustomHeadersSettings(): React.ReactElement | null {
 
         {headers.map((header, index) => (
           <View
-            key={index}
+            key={headerRowIdsRef.current[index]}
             className='border-b border-neutral-800 last:border-b-0'
           >
             <View className='flex-row items-center justify-between px-4 py-3'>
               <View className='flex-1 mr-3'>
-                {editingIndex === index ? (
+                {editingHeaderId === headerRowIdsRef.current[index] ? (
                   <View className='gap-2'>
                     <Input
                       placeholder={t("custom_headers.header_key")}
                       value={header.key}
                       onChangeText={(text) => handleUpdateKey(index, text)}
+                      onBlur={commitHeaders}
                       autoCapitalize='none'
                       autoCorrect={false}
                     />
@@ -146,11 +186,13 @@ export function CustomHeadersSettings(): React.ReactElement | null {
                       placeholder={t("custom_headers.header_value")}
                       value={header.value}
                       onChangeText={(text) => handleUpdateValue(index, text)}
+                      onBlur={commitHeaders}
+                      secureTextEntry
                       autoCapitalize='none'
                       autoCorrect={false}
                     />
                     <TouchableOpacity
-                      onPress={() => setEditingIndex(null)}
+                      onPress={finishEditing}
                       className='self-start'
                     >
                       <Text className='text-purple-600'>
@@ -159,7 +201,11 @@ export function CustomHeadersSettings(): React.ReactElement | null {
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity onPress={() => setEditingIndex(index)}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setEditingHeaderId(headerRowIdsRef.current[index])
+                    }
+                  >
                     <Text className='text-white font-medium'>
                       {header.key || t("custom_headers.header_key")}
                     </Text>

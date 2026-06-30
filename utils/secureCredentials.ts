@@ -115,7 +115,10 @@ export function credentialKey(serverUrl: string, userId: string): string {
 }
 
 function encodeStorageKey(input: string): string {
-  return btoa(input).replace(/[^a-zA-Z0-9]/g, "_");
+  return btoa(input)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 function customHeaderValueKey(scope: string, index: number): string {
@@ -159,14 +162,11 @@ export function secureCustomHeaderMetadata(
   headers: CustomHeader[],
   previousHeaders: CustomHeader[] = [],
 ): CustomHeader[] {
-  for (const header of previousHeaders.filter(isStoredCustomHeader)) {
-    if (header.secureValueKey) {
-      void SecureStore.deleteItemAsync(header.secureValueKey);
-    }
-  }
-
-  return headers.map((header, index) => {
-    const secureValueKey = customHeaderValueKey(scope, index);
+  const nextKeys = new Set<string>();
+  const metadata = headers.map((header, index) => {
+    const secureValueKey =
+      header.secureValueKey ?? customHeaderValueKey(scope, index);
+    nextKeys.add(secureValueKey);
     SecureStore.setItem(secureValueKey, header.value);
     return {
       key: header.key,
@@ -175,6 +175,14 @@ export function secureCustomHeaderMetadata(
       secureValueKey,
     };
   });
+
+  for (const header of previousHeaders.filter(isStoredCustomHeader)) {
+    if (header.secureValueKey && !nextKeys.has(header.secureValueKey)) {
+      void SecureStore.deleteItemAsync(header.secureValueKey);
+    }
+  }
+
+  return metadata;
 }
 
 /**

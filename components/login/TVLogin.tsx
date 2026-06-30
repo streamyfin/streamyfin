@@ -185,7 +185,7 @@ export const TVLogin: React.FC = () => {
       const baseUrl = url.replace(/^https?:\/\//i, "");
       const protocols = ["https", "http"];
       try {
-        return checkHttp(baseUrl, protocols, headers);
+        return await checkHttp(baseUrl, protocols, headers);
       } catch (e) {
         if (e instanceof Error && e.message === "Server too old") {
           throw e;
@@ -237,8 +237,9 @@ export const TVLogin: React.FC = () => {
           if (customHeaders !== undefined) {
             updateServerCustomHeaders(serverUrl, customHeaders);
           }
-          setServerName(data.ServerName || "");
-          return serverUrl;
+          const discoveredServerName = data.ServerName || "";
+          setServerName(discoveredServerName);
+          return { serverUrl, serverName: discoveredServerName };
         }
       } catch (e) {
         if (e instanceof Error && e.message === "Server too old") {
@@ -262,25 +263,28 @@ export const TVLogin: React.FC = () => {
           );
           return;
         }
-        await setServer({ address: result });
+        await setServer({ address: result.serverUrl });
 
         // Update server list and get the new server data
         refreshServers();
 
         // Find or create server entry
         const servers = getPreviousServers();
-        const server = servers.find((s) => s.address === result);
+        const server = servers.find((s) => s.address === result.serverUrl);
 
         if (server) {
           setCurrentServer(server);
-          setSelectedTVServer({ address: result, name: serverName });
+          setSelectedTVServer({
+            address: result.serverUrl,
+            name: result.serverName,
+          });
           setCurrentScreen("user-selection");
         }
       } catch (error) {
         if (__DEV__) console.error("[TVLogin] Error in handleConnect:", error);
       }
     },
-    [checkUrl, setServer, serverName, setSelectedTVServer],
+    [checkUrl, setServer, setSelectedTVServer],
   );
 
   // Handle selecting an existing server
