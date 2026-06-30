@@ -1,8 +1,10 @@
-const {
+import type { ExpoConfig } from "expo/config";
+import {
+  type ConfigPlugin,
   withEntitlementsPlist,
   withInfoPlist,
   withXcodeProject,
-} = require("@expo/config-plugins");
+} from "expo/config-plugins";
 
 const EXTENSION_TARGET_NAME = "StreamyfinTopShelf";
 const TARGET_SOURCE_DIR = "../targets/StreamyfinTopShelf";
@@ -10,19 +12,29 @@ const APP_GROUP_INFO_PLIST_KEY = "StreamyfinAppGroupIdentifier";
 const KEYCHAIN_ACCESS_GROUP_INFO_PLIST_KEY =
   "StreamyfinKeychainAccessGroupIdentifier";
 
-function getBundleIdentifier(config) {
+interface AppExtensionConfig {
+  targetName: string;
+  bundleIdentifier: string;
+  entitlements: {
+    "com.apple.security.application-groups": string[];
+    "keychain-access-groups": string[];
+  };
+}
+
+function getBundleIdentifier(config: ExpoConfig): string {
   return config.ios?.bundleIdentifier || "com.fredrikburmester.streamyfin";
 }
 
-function getAppGroupIdentifier(config) {
+function getAppGroupIdentifier(config: ExpoConfig): string {
   return `group.${getBundleIdentifier(config)}.tvtopshelf`;
 }
 
-function getKeychainAccessGroupIdentifier(config) {
+function getKeychainAccessGroupIdentifier(config: ExpoConfig): string {
   return `$(AppIdentifierPrefix)${getBundleIdentifier(config)}`;
 }
 
-function getBuildConfigurations(project, configurationListId) {
+// The xcode project object has no usable typings — keep `any` here.
+function getBuildConfigurations(project: any, configurationListId: string) {
   const configurationList =
     project.hash.project.objects.XCConfigurationList[configurationListId];
 
@@ -30,18 +42,21 @@ function getBuildConfigurations(project, configurationListId) {
 
   const buildConfigurations = project.pbxXCBuildConfigurationSection();
   return configurationList.buildConfigurations
-    .map((config) => buildConfigurations[config.value])
+    .map((config: { value: string }) => buildConfigurations[config.value])
     .filter(Boolean);
 }
 
-function ensureAppGroup(value, appGroupIdentifier) {
+function ensureAppGroup(value: unknown, appGroupIdentifier: string): string[] {
   const groups = Array.isArray(value) ? value : [];
   return groups.includes(appGroupIdentifier)
     ? groups
     : [...groups, appGroupIdentifier];
 }
 
-function ensureKeychainAccessGroup(value, keychainAccessGroupIdentifier) {
+function ensureKeychainAccessGroup(
+  value: unknown,
+  keychainAccessGroupIdentifier: string,
+): string[] {
   const groups = Array.isArray(value) ? value : [];
   return groups.includes(keychainAccessGroupIdentifier)
     ? groups
@@ -49,13 +64,13 @@ function ensureKeychainAccessGroup(value, keychainAccessGroupIdentifier) {
 }
 
 function ensureAppExtension(
-  appExtensions,
-  targetName,
-  bundleIdentifier,
-  appGroupIdentifier,
-  keychainAccessGroupIdentifier,
-) {
-  const extensionConfig = {
+  appExtensions: unknown,
+  targetName: string,
+  bundleIdentifier: string,
+  appGroupIdentifier: string,
+  keychainAccessGroupIdentifier: string,
+): AppExtensionConfig[] {
+  const extensionConfig: AppExtensionConfig = {
     targetName,
     bundleIdentifier,
     entitlements: {
@@ -63,7 +78,9 @@ function ensureAppExtension(
       "keychain-access-groups": [keychainAccessGroupIdentifier],
     },
   };
-  const extensions = Array.isArray(appExtensions) ? appExtensions : [];
+  const extensions: AppExtensionConfig[] = Array.isArray(appExtensions)
+    ? appExtensions
+    : [];
   // Keep plugin runs idempotent and preserve unrelated app extension entries.
   const existingIndex = extensions.findIndex(
     (appExtension) => appExtension?.targetName === targetName,
@@ -78,7 +95,7 @@ function ensureAppExtension(
   );
 }
 
-const withTVOSTopShelf = (config) => {
+const withTVOSTopShelf: ConfigPlugin = (config) => {
   const appGroupIdentifier = getAppGroupIdentifier(config);
   const keychainAccessGroupIdentifier =
     getKeychainAccessGroupIdentifier(config);
@@ -193,4 +210,4 @@ const withTVOSTopShelf = (config) => {
   });
 };
 
-module.exports = withTVOSTopShelf;
+export default withTVOSTopShelf;
