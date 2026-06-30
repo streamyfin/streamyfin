@@ -201,16 +201,18 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   const handleSeeAllPress = useCallback(() => {
     if (!parentId) return;
-    // Use the relative "/[libraryId]" pathname (same as getItemNavigation) so the
-    // library detail is pushed within the current tab's stack. The fully-qualified
-    // "/(auth)/(tabs)/(libraries)/[libraryId]" path is a cross-tab navigation that
-    // only switches to the libraries tab and drops the nested screen push.
+    // Navigate into the library detail (lives in the libraries tab) sorted by most
+    // recently added. The `fromSeeAll` flag tells the detail page to (a) collapse
+    // the libraries stack so the native tab can't auto-pop it back to the list, and
+    // (b) intercept Back to route to the library list so the user can switch
+    // libraries. See app/(auth)/(tabs)/(libraries)/[libraryId].tsx.
     router.push({
       pathname: "/[libraryId]",
       params: {
         libraryId: parentId,
         sortBy: SortByOption.DateCreated,
         sortOrder: SortOrderOption.Descending,
+        fromSeeAll: "true",
       },
     } as any);
   }, [router, parentId]);
