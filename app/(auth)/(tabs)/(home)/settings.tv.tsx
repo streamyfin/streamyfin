@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -69,6 +69,13 @@ export default function SettingsTV() {
     settings.jellyseerrServerUrl || "",
   );
   const [jellyseerrPassword, setJellyseerrPassword] = useState("");
+
+  // Settings load storage + plugin overrides after mount, and a plugin can lock
+  // the URL at runtime. Keep the local field in sync with the effective value
+  // so it never shows stale/empty text or overwrites a locked URL on blur.
+  useEffect(() => {
+    setJellyseerrServerUrl(settings.jellyseerrServerUrl || "");
+  }, [settings.jellyseerrServerUrl]);
 
   const isJellyseerrLocked =
     pluginSettings?.jellyseerrServerUrl?.locked === true;

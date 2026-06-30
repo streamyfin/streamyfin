@@ -14,8 +14,7 @@ import type {
   PersonResult,
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
-
-const SCALE_PADDING = 20;
+import { scaleSize } from "@/utils/scaleSize";
 
 interface TVJellyseerrPosterProps {
   item: MovieResult | TvResult;
@@ -40,6 +39,8 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
   const title = getTitle(item);
   const year = getYear(item);
 
+  const posterWidth = scaleSize(210);
+
   const isInLibrary =
     item.mediaInfo?.status === MediaStatus.AVAILABLE ||
     item.mediaInfo?.status === MediaStatus.PARTIALLY_AVAILABLE;
@@ -55,7 +56,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
         style={[
           animatedStyle,
           {
-            width: 210,
+            width: posterWidth,
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: focused ? 0.6 : 0,
@@ -65,7 +66,7 @@ const TVJellyseerrPoster: React.FC<TVJellyseerrPosterProps> = ({
       >
         <View
           style={{
-            width: 210,
+            width: posterWidth,
             aspectRatio: 10 / 15,
             borderRadius: 24,
             overflow: "hidden",
@@ -158,13 +159,16 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
     ? jellyseerrApi?.imageProxy(item.profilePath, "w185")
     : null;
 
+  const containerWidth = scaleSize(160);
+  const avatarSize = scaleSize(140);
+
   return (
     <Pressable onPress={onPress} onFocus={handleFocus} onBlur={handleBlur}>
       <Animated.View
         style={[
           animatedStyle,
           {
-            width: 160,
+            width: containerWidth,
             alignItems: "center",
             shadowColor: "#fff",
             shadowOffset: { width: 0, height: 0 },
@@ -175,9 +179,9 @@ const TVJellyseerrPersonPoster: React.FC<TVJellyseerrPersonPosterProps> = ({
       >
         <View
           style={{
-            width: 140,
-            height: 140,
-            borderRadius: 70,
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: avatarSize / 2,
             overflow: "hidden",
             backgroundColor: "rgba(255,255,255,0.1)",
             borderWidth: focused ? 3 : 0,
@@ -257,7 +261,7 @@ const TVJellyseerrMovieSection: React.FC<TVJellyseerrMovieSectionProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: sizes.padding.horizontal,
-          paddingVertical: SCALE_PADDING,
+          paddingVertical: sizes.padding.scale,
           gap: 20,
         }}
         style={{ overflow: "visible" }}
@@ -310,7 +314,7 @@ const TVJellyseerrTvSection: React.FC<TVJellyseerrTvSectionProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: sizes.padding.horizontal,
-          paddingVertical: SCALE_PADDING,
+          paddingVertical: sizes.padding.scale,
           gap: 20,
         }}
         style={{ overflow: "visible" }}
@@ -363,7 +367,7 @@ const TVJellyseerrPersonSection: React.FC<TVJellyseerrPersonSectionProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: sizes.padding.horizontal,
-          paddingVertical: SCALE_PADDING,
+          paddingVertical: sizes.padding.scale,
           gap: 20,
         }}
         style={{ overflow: "visible" }}

@@ -122,13 +122,19 @@ export default function SearchPage() {
 
   const isFocused = useIsFocused();
   const { settings } = useSettings();
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, clearAllJellyseerData } = useJellyseerr();
 
   // Prompt the user to connect when a Jellyseerr server is configured but no
-  // session exists yet (only once per focus, and only while the tab is focused).
+  // session exists yet (once per focus, and only while the tab is focused).
   const jellyseerrAlertedRef = useRef(false);
   useEffect(() => {
-    if (!isFocused || !settings?.jellyseerrServerUrl || jellyseerrApi) return;
+    // Reset when the tab loses focus so the prompt can show again next time
+    // (e.g. after the user disconnects and returns).
+    if (!isFocused) {
+      jellyseerrAlertedRef.current = false;
+      return;
+    }
+    if (!settings?.jellyseerrServerUrl || jellyseerrApi) return;
     if (jellyseerrAlertedRef.current) return;
     jellyseerrAlertedRef.current = true;
     Alert.alert(
@@ -137,22 +143,36 @@ export default function SearchPage() {
     );
   }, [isFocused, settings?.jellyseerrServerUrl, jellyseerrApi, t]);
 
-  // Validate the Jellyseerr session when switching to Discover; warn if expired.
+  // Validate the Jellyseerr session when switching to Discover; if the session
+  // has expired, clear the stale "connected" state and prompt to reconnect.
   useEffect(() => {
     if (
+      !isFocused ||
       searchType !== "Discover" ||
       !jellyseerrApi ||
       !settings?.jellyseerrServerUrl
     )
       return;
+    let cancelled = false;
     validateJellyseerrSession(settings.jellyseerrServerUrl).then((status) => {
-      if (status.valid) return;
+      if (cancelled || status.valid || status.reason !== "expired") return;
+      clearAllJellyseerData();
       Alert.alert(
         t("jellyseerr.session_expired"),
         t("jellyseerr.session_expired_connect_again"),
       );
     });
-  }, [searchType, jellyseerrApi, settings?.jellyseerrServerUrl, t]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isFocused,
+    searchType,
+    jellyseerrApi,
+    settings?.jellyseerrServerUrl,
+    clearAllJellyseerData,
+    t,
+  ]);
 
   const [jellyseerrOrderBy, setJellyseerrOrderBy] =
     useState<JellyseerrSearchSort>(

@@ -76,8 +76,13 @@ export type JellyseerrSessionStatus =
 
 /**
  * Checks whether the persisted Jellyseerr session (user + cookies) is still
- * valid by hitting the server status endpoint. Clears local session data if the
- * request fails (expired/revoked cookie).
+ * valid by hitting an authenticated endpoint (`/auth/me`).
+ *
+ * Returns `expired` only when the server actually rejects the session
+ * (HTTP 401/403). Transient failures (network down, server unreachable, 5xx)
+ * are treated as `valid` so a flaky connection doesn't log the user out. This
+ * helper does not mutate persisted state — the caller decides whether to clear
+ * the session (e.g. via `clearAllJellyseerData`).
  */
 export async function validateJellyseerrSession(
   serverUrl: string,
@@ -91,11 +96,16 @@ export async function validateJellyseerrSession(
 
   try {
     const api = new JellyseerrApi(serverUrl);
-    await api.axios.get(Endpoints.API_V1 + Endpoints.STATUS);
+    await api.axios.get(Endpoints.API_V1 + Endpoints.AUTH_ME);
     return { valid: true };
-  } catch {
-    clearJellyseerrStorageData();
-    return { valid: false, reason: "expired" };
+  } catch (error) {
+    const status = (error as AxiosError)?.response?.status;
+    // Only an auth rejection means the session is gone. Anything else
+    // (offline, DNS failure, server error) should not be reported as expired.
+    if (status === 401 || status === 403) {
+      return { valid: false, reason: "expired" };
+    }
+    return { valid: true };
   }
 }
 
@@ -123,6 +133,7 @@ export enum Endpoints {
   DISCOVER_TV_NETWORK = DISCOVER + TV + NETWORK,
   DISCOVER_MOVIES_STUDIO = `${DISCOVER}${MOVIE}s${STUDIO}`,
   AUTH_JELLYFIN = "/auth/jellyfin",
+  AUTH_ME = "/auth/me",
 }
 
 export type DiscoverEndpoint =
@@ -480,7 +491,7 @@ export const useJellyseerr = () => {
     setJellyseerrUser(undefined);
     updateSettings({ jellyseerrServerUrl: undefined });
     queryClient.removeQueries({ queryKey: ["search", "jellyseerr"] });
-  }, [queryClient]);
+  }, [queryClient, setJellyseerrUser, updateSettings]);
 
   const requestMedia = useCallback(
     (title: string, request: MediaRequestBody, onSuccess?: () => void) => {
