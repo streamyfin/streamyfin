@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
 import { getSubtitleProfiles } from "./subtitles";
@@ -193,7 +194,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
       },
     ],
     SubtitleProfiles: getSubtitleProfiles(),
-  };
+  } satisfies DeviceProfile;
 
   return profile;
 };
