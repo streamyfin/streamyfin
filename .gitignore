@@ -12,10 +12,6 @@ web-build/
 # Platform-specific Build Directories
 /ios
 /android
-/iostv
-/iosmobile
-/androidmobile
-/androidtv
 
 # Gradle caches (top-level + per-module native projects)
 **/.gradle/

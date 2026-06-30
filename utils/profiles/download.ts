@@ -3,17 +3,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-import { generateDeviceProfile } from "./native";
-
-/**
- * @typedef {"auto" | "stereo" | "5.1" | "passthrough"} AudioTranscodeModeType
- */
+import type {
+  DeviceProfile,
+  SubtitleProfile,
+} from "@jellyfin/sdk/lib/generated-client/models";
+import { type AudioTranscodeModeType, generateDeviceProfile } from "./native";
 
 /**
  * Download-specific subtitle profiles.
  * These are more permissive than streaming profiles since we can embed subtitles.
  */
-const downloadSubtitleProfiles = [
+const downloadSubtitleProfiles: SubtitleProfile[] = [
   // Official formats
   { Format: "vtt", Method: "Encode" },
   { Format: "webvtt", Method: "Encode" },
@@ -46,11 +46,10 @@ const downloadSubtitleProfiles = [
 /**
  * Generates a device profile optimized for downloads.
  * Uses the same audio codec logic as streaming but with download-specific bitrate limits.
- *
- * @param {AudioTranscodeModeType} [audioMode="auto"] - Audio transcoding mode
- * @returns {Object} Jellyfin device profile for downloads
  */
-export const generateDownloadProfile = (audioMode = "auto") => {
+export const generateDownloadProfile = (
+  audioMode: AudioTranscodeModeType = "auto",
+): DeviceProfile => {
   // Get the base profile with proper audio codec configuration
   const baseProfile = generateDeviceProfile({ audioMode });
 
