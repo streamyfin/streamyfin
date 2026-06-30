@@ -14,6 +14,7 @@ import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
@@ -443,6 +444,7 @@ export class JellyseerrApi {
 const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 
 export const useJellyseerr = () => {
+  const api = useAtomValue(apiAtom);
   const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
   const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
@@ -459,7 +461,12 @@ export const useJellyseerr = () => {
       );
     }
     return undefined;
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser, customHeadersVersion]);
+  }, [
+    settings?.jellyseerrServerUrl,
+    jellyseerrUser,
+    customHeadersVersion,
+    api?.basePath,
+  ]);
 
   const clearAllJellyseerData = useCallback(async () => {
     clearJellyseerrStorageData();

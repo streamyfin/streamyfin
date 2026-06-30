@@ -349,6 +349,7 @@
         "jellyseerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
+          "server_url_placeholder": "https://jellyseerr.example.com",
           "password": "Password",
           "password_placeholder": "Enter password for Jellyfin user {{username}}",
           "login_button": "Login",

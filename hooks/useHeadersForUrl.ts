@@ -49,8 +49,10 @@ export function useHeadersForUrl(
         return specificity || b.priority - a.priority;
       });
 
-    const h = matches[0]?.getHeaders();
-    if (h && Object.keys(h).length > 0) return h;
+    for (const match of matches) {
+      const h = match.getHeaders();
+      if (h && Object.keys(h).length > 0) return h;
+    }
 
     // External URL - no custom headers
     return undefined;

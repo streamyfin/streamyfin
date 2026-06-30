@@ -2,9 +2,9 @@ import { File, Paths } from "expo-file-system";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { storage } from "@/utils/mmkv";
-import { isUrlForBaseUrl } from "@/utils/urlMatching";
+import { optionsWithOptionalHeaders } from "@/utils/optionalHeaders";
 
 const useImageStorage = () => {
   const api = useAtomValue(apiAtom);
@@ -26,22 +26,18 @@ const useImageStorage = () => {
     async (url?: string | null) => {
       if (!url) return null;
 
-      const customHeaders =
-        api?.basePath && isUrlForBaseUrl(url, api.basePath)
-          ? getCustomHeaders(api.basePath)
-          : {};
-      const headers =
-        Object.keys(customHeaders).length > 0 ? customHeaders : undefined;
+      const headers = getJellyfinCustomHeadersForUrl(url, api?.basePath);
 
       const tmpFile = new File(
         Paths.cache,
         `img-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`,
       );
       try {
-        const downloaded = await File.downloadFileAsync(url, tmpFile, {
-          idempotent: true,
-          headers,
-        });
+        const downloaded = await File.downloadFileAsync(
+          url,
+          tmpFile,
+          optionsWithOptionalHeaders({ idempotent: true }, headers),
+        );
         return await downloaded.base64();
       } catch (error) {
         console.warn("Error fetching image:", error);

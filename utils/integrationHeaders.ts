@@ -69,10 +69,7 @@ export function getIntegrationHeaderConfig(
     storage.getString(configStorageKey(integrationKey)),
   );
   const customHeaders = resolveCustomHeaderValues(config.customHeaders);
-  if (
-    config.source === "custom" &&
-    customHeaders.some((header) => header.value && !header.secureValueKey)
-  ) {
+  if (customHeaders.some((header) => header.value && !header.secureValueKey)) {
     updateIntegrationHeaderConfig(integrationKey, { ...config, customHeaders });
     return getIntegrationHeaderConfig(integrationKey);
   }

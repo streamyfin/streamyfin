@@ -106,10 +106,10 @@ export const useImageColorsReturn = ({
       // Extract colors from the image
       if (!ImageColors?.getColors) return;
 
-      const customHeaders = getJellyfinCustomHeadersForUrl(
-        source.uri,
-        api?.basePath,
-      );
+      const sourceHeaders = "headers" in source ? source.headers : undefined;
+      const customHeaders =
+        sourceHeaders ??
+        getJellyfinCustomHeadersForUrl(source.uri, api?.basePath);
 
       // react-native-image-colors doesn't support custom HTTP headers.
       // Pre-fetch as a base64 data URI when CF headers are needed.

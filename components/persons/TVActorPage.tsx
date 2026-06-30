@@ -34,6 +34,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
@@ -158,10 +159,12 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
 
     const performCrossfade = async () => {
       // Disk-only prefetch to avoid pinning large backdrops in memory cache.
-      try {
-        await Image.prefetch(backdropUrl, "disk");
-      } catch {
-        // Continue even if prefetch fails
+      if (!getJellyfinCustomHeadersForUrl(backdropUrl, api?.basePath)) {
+        try {
+          await Image.prefetch(backdropUrl, "disk");
+        } catch {
+          // Continue even if prefetch fails
+        }
       }
 
       if (isCancelled) return;
@@ -212,7 +215,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     return () => {
       isCancelled = true;
     };
-  }, [backdropUrl]);
+  }, [api?.basePath, backdropUrl]);
 
   // Get actor image URL
   const actorImageUrl = useMemo(() => {

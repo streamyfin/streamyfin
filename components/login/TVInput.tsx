@@ -85,6 +85,7 @@ export const TVInput = forwardRef<TextInput, TVInputProps>(
         >
           <TextInput
             ref={setInputRef}
+            editable={!disabled}
             placeholder={displayPlaceholder}
             placeholderTextColor='rgba(255,255,255,0.35)'
             allowFontScaling={false}
