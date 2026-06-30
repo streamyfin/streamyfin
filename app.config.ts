@@ -1,9 +1,13 @@
-const { execFileSync } = require("node:child_process");
+// Registers the tsx require hook so the TypeScript config plugins referenced
+// from app.json ("./plugins/*.ts") can be loaded by Node during config evaluation.
+import "tsx/cjs";
+import { execFileSync } from "node:child_process";
+import type { ConfigContext, ExpoConfig } from "expo/config";
 
 // Build metadata, injected into `extra.build` and read at runtime via
 // expo-constants (see utils/version.ts). Sources in priority order:
 // EAS cloud build → GitHub Actions → explicit EXPO_PUBLIC_* → local git → null.
-const git = (args) => {
+const git = (args: string[]): string | null => {
   try {
     return execFileSync("git", args, { stdio: ["ignore", "pipe", "ignore"] })
       .toString()
@@ -42,16 +46,16 @@ const buildMeta = {
   builtAt: new Date().toISOString(),
 };
 
-module.exports = ({ config }) => {
+export default ({ config }: ConfigContext): ExpoConfig => {
   if (process.env.EXPO_TV !== "1") {
-    config.plugins.push("expo-background-task");
+    config.plugins?.push("expo-background-task");
 
-    config.plugins.push([
+    config.plugins?.push([
       "react-native-google-cast",
       { useDefaultExpandedMediaControls: true },
     ]);
 
-    config.plugins.push([
+    config.plugins?.push([
       "expo-camera",
       {
         cameraPermission:
@@ -61,7 +65,7 @@ module.exports = ({ config }) => {
   }
 
   // Only override googleServicesFile if env var is set
-  const androidConfig = {};
+  const androidConfig: { googleServicesFile?: string } = {};
   if (process.env.GOOGLE_SERVICES_JSON) {
     androidConfig.googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
   }
@@ -71,5 +75,5 @@ module.exports = ({ config }) => {
   return {
     ...(Object.keys(androidConfig).length > 0 && { android: androidConfig }),
     ...config,
-  };
+  } as ExpoConfig;
 };

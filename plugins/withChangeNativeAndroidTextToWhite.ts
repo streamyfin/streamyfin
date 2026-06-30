@@ -1,8 +1,8 @@
-const { readFileSync, writeFileSync } = require("node:fs");
-const { join } = require("node:path");
-const { withDangerousMod } = require("expo/config-plugins");
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { type ConfigPlugin, withDangerousMod } from "expo/config-plugins";
 
-const withChangeNativeAndroidTextToWhite = (expoConfig) =>
+const withChangeNativeAndroidTextToWhite: ConfigPlugin = (expoConfig) =>
   withDangerousMod(expoConfig, [
     "android",
     (modConfig) => {
@@ -30,4 +30,4 @@ const withChangeNativeAndroidTextToWhite = (expoConfig) =>
     },
   ]);
 
-module.exports = withChangeNativeAndroidTextToWhite;
+export default withChangeNativeAndroidTextToWhite;
