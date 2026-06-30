@@ -1,9 +1,9 @@
-const { withEntitlementsPlist } = require("expo/config-plugins");
+import { type ConfigPlugin, withEntitlementsPlist } from "expo/config-plugins";
 
 /**
  * Expo config plugin to add User Management entitlement for tvOS profile linking
  */
-const withTVUserManagement = (config) => {
+const withTVUserManagement: ConfigPlugin = (config) => {
   // Only add for tvOS builds. The entitlement is restricted by Apple and must
   // be present in the provisioning profile, so injecting it into mobile builds
   // breaks signing ("Entitlement ... not found and could not be included in
@@ -24,4 +24,4 @@ const withTVUserManagement = (config) => {
   });
 };
 
-module.exports = withTVUserManagement;
+export default withTVUserManagement;

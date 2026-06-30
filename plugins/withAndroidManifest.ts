@@ -1,8 +1,12 @@
-const { withAndroidManifest } = require("expo/config-plugins");
+import { type ConfigPlugin, withAndroidManifest } from "expo/config-plugins";
 
-const _withGoogleCastAndroidManifest = (config) =>
+const withGoogleCastAndroidManifest: ConfigPlugin = (config) =>
   withAndroidManifest(config, async (mod) => {
-    const mainApplication = mod.modResults.manifest.application[0];
+    const mainApplication = mod.modResults.manifest.application?.[0];
+
+    if (!mainApplication) {
+      return mod;
+    }
 
     // Initialize activity array if it doesn't exist
     if (!mainApplication.activity) {
@@ -39,4 +43,4 @@ const _withGoogleCastAndroidManifest = (config) =>
     return mod;
   });
 
-module.exports = _withGoogleCastAndroidManifest;
+export default withGoogleCastAndroidManifest;
