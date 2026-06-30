@@ -11,11 +11,16 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+} from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  BackHandler,
   FlatList,
   Platform,
   ScrollView,
@@ -80,8 +85,9 @@ const Page = () => {
     sortBy?: string;
     sortOrder?: string;
     filterBy?: string;
+    fromSeeAll?: string;
   };
-  const { libraryId } = searchParams;
+  const { libraryId, fromSeeAll } = searchParams;
 
   const typography = useScaledTVTypography();
   const posterSizes = useScaledTVPosterSizes();
@@ -112,6 +118,22 @@ const Page = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
+
+  // When this library detail was opened from the home "See All" button, its
+  // libraries stack is just [detail], so the default TV Back would exit to home.
+  // Intercept Back (scoped to while this screen is focused via useFocusEffect) and
+  // route to the library list instead, so the user can switch libraries. Normal
+  // entries from the list keep their native pop-to-list behavior.
+  useFocusEffect(
+    useCallback(() => {
+      if (!Platform.isTV || fromSeeAll !== "true") return;
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        router.replace("/(auth)/(tabs)/(libraries)");
+        return true;
+      });
+      return () => sub.remove();
+    }, [fromSeeAll, router]),
+  );
   const { showItemActions } = useTVItemActionModal();
 
   // TV Filter queries
@@ -268,6 +290,23 @@ const Page = () => {
       title: library?.Name || "",
     });
   }, [library]);
+
+  // If this See-All detail was deep-linked on top of the libraries index, collapse
+  // the libraries stack to just this screen. Otherwise the stack is [index, detail],
+  // which the native bottom tab reliably auto-pops back to the index (the detail
+  // "bounces" to the library list ~0.5s after opening). With [detail] alone it stays
+  // put, and Back is handled explicitly by the fromSeeAll interceptor above.
+  const didCollapseRef = useRef(false);
+  useEffect(() => {
+    if (!Platform.isTV || fromSeeAll !== "true" || didCollapseRef.current)
+      return;
+    const state = navigation.getState();
+    if (state?.routes && state.routes.length > 1) {
+      didCollapseRef.current = true;
+      const top = state.routes[state.routes.length - 1];
+      navigation.reset({ index: 0, routes: [top] } as any);
+    }
+  }, [navigation, fromSeeAll]);
 
   const fetchItems = useCallback(
     async ({
