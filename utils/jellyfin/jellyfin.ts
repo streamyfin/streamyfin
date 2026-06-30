@@ -1,7 +1,7 @@
 import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { normalizeCustomHeaders } from "../normalizeCustomHeaders";
-import { getServerCustomHeaders } from "../secureCredentials";
+import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
+import { getServerCustomHeaders } from "@/utils/secureCredentials";
 
 /**
  * Generates the authorization headers for Jellyfin API requests.

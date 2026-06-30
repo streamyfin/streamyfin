@@ -1,5 +1,5 @@
+import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import { isUrlForBaseUrl } from "@/utils/urlMatching";
-import { getCustomHeaders } from "./jellyfin";
 
 export function getJellyfinCustomHeadersForUrl(
   url: string | null | undefined,

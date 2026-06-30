@@ -451,7 +451,10 @@ export const Login: React.FC = () => {
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
-                  await handleConnect(serverURL, pendingHeaders);
+                  await handleConnect(
+                    serverURL,
+                    showAdvanced ? pendingHeaders : undefined,
+                  );
                 }}
                 className='w-full grow'
               >
@@ -528,6 +531,7 @@ export const Login: React.FC = () => {
                           "custom_headers.header_value_placeholder",
                         )}
                         value={header.value}
+                        secureTextEntry
                         onChangeText={(text) => {
                           const updated = [...pendingHeaders];
                           updated[index] = { ...header, value: text };
@@ -574,12 +578,18 @@ export const Login: React.FC = () => {
                   if (server.serverName) {
                     setServerName(server.serverName);
                   }
-                  await handleConnect(server.address, pendingHeaders);
+                  await handleConnect(
+                    server.address,
+                    showAdvanced ? pendingHeaders : undefined,
+                  );
                 }}
               />
               <PreviousServersList
                 onServerSelect={async (s) => {
-                  await handleConnect(s.address, pendingHeaders);
+                  await handleConnect(
+                    s.address,
+                    showAdvanced ? pendingHeaders : undefined,
+                  );
                 }}
                 onQuickLogin={handleQuickLoginWithSavedCredential}
                 onPasswordLogin={handlePasswordLogin}

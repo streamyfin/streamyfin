@@ -202,6 +202,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
   // Glass effect availability
   const useGlass = isGlassEffectAvailable();
+  const shouldUseGlass = useGlass && !imageHeaders;
 
   // Focus animation
   const animateTo = (value: number) =>
@@ -415,7 +416,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     }
 
     // Glass effect rendering (tvOS 26+)
-    if (useGlass && !imageHeaders) {
+    if (shouldUseGlass) {
       return (
         <View style={{ position: "relative" }}>
           <GlassPosterView
@@ -542,14 +543,14 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         onFocus={() => {
           setFocused(true);
           // Only animate scale when not using glass effect (glass handles its own focus visual)
-          if (!useGlass) {
+          if (!shouldUseGlass) {
             animateTo(scaleAmount);
           }
           onFocusProp?.();
         }}
         onBlur={() => {
           setFocused(false);
-          if (!useGlass) {
+          if (!shouldUseGlass) {
             animateTo(1);
           }
           onBlurProp?.();
@@ -561,12 +562,16 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <Animated.View
           style={{
             // Only apply scale transform when not using glass effect
-            transform: useGlass ? undefined : [{ scale }],
+            transform: shouldUseGlass ? undefined : [{ scale }],
             // Only apply shadow glow when not using glass (glass has its own glow)
-            shadowColor: useGlass ? undefined : shadowColor,
-            shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
-            shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
-            shadowRadius: useGlass ? undefined : focused ? scaleSize(12) : 0,
+            shadowColor: shouldUseGlass ? undefined : shadowColor,
+            shadowOffset: shouldUseGlass ? undefined : { width: 0, height: 0 },
+            shadowOpacity: shouldUseGlass ? undefined : focused ? 0.3 : 0,
+            shadowRadius: shouldUseGlass
+              ? undefined
+              : focused
+                ? scaleSize(12)
+                : 0,
           }}
         >
           {renderPosterImage()}

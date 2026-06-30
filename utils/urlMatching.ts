@@ -14,8 +14,7 @@ export function isUrlForBaseUrl(url: string, baseUrl: string): boolean {
     const basePath = parsedBase.pathname.replace(/\/$/, "");
 
     return (
-      parsedUrl.protocol === parsedBase.protocol &&
-      parsedUrl.host === parsedBase.host &&
+      parsedUrl.origin === parsedBase.origin &&
       (basePath === "" ||
         parsedUrl.pathname === basePath ||
         parsedUrl.pathname.startsWith(`${basePath}/`))

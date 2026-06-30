@@ -15,14 +15,14 @@ import Carousel, {
   type ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
+import { ServerImage } from "@/components/common/ServerImage";
+import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
-import { ServerImage } from "../common/ServerImage";
-import { getItemNavigation } from "../common/TouchableItemRouter";
 
 interface Props extends ViewProps {}
 

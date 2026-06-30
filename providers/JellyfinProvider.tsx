@@ -181,16 +181,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   }, [deviceId]);
 
   // Axios interceptor for custom headers (Cloudflare Zero Trust, Pangolin, etc.)
-  const axiosInterceptorRef = useRef<number | null>(null);
+  const axiosInterceptorRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    axiosInterceptorRef.current?.();
+    axiosInterceptorRef.current = null;
     if (!api) return;
-
-    // Eject stale interceptor before registering a new one
-    if (axiosInterceptorRef.current !== null) {
-      api.axiosInstance.interceptors.request.eject(axiosInterceptorRef.current);
-      axiosInterceptorRef.current = null;
-    }
 
     const serverUrl = api.basePath;
     const activeHeaders = normalizeCustomHeaders(
@@ -203,7 +199,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     });
 
     if (Object.keys(activeHeaders).length > 0) {
-      axiosInterceptorRef.current = api.axiosInstance.interceptors.request.use(
+      const interceptorId = api.axiosInstance.interceptors.request.use(
         (config) => {
           for (const [key, value] of Object.entries(activeHeaders)) {
             config.headers.set(key, value);
@@ -211,7 +207,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           return config;
         },
       );
+      axiosInterceptorRef.current = () => {
+        api.axiosInstance.interceptors.request.eject(interceptorId);
+      };
     }
+
+    return () => {
+      axiosInterceptorRef.current?.();
+      axiosInterceptorRef.current = null;
+    };
   }, [api, customHeadersVersion]);
 
   const initiateQuickConnect = useCallback(async () => {

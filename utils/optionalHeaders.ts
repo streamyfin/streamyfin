@@ -15,5 +15,16 @@ export function optionsWithOptionalHeaders<T extends object>(
   options: T,
   headers?: Record<string, string> | null,
 ): T & { headers?: Record<string, string> } {
-  return hasHeaders(headers) ? { ...options, headers } : options;
+  const existingHeaders = (options as { headers?: Record<string, string> })
+    .headers;
+
+  return hasHeaders(headers)
+    ? {
+        ...options,
+        headers: {
+          ...(existingHeaders ?? {}),
+          ...headers,
+        },
+      }
+    : options;
 }

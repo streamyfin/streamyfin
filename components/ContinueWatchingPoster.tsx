@@ -4,9 +4,9 @@ import { useAtomValue } from "jotai";
 import type React from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
+import { ProgressBar } from "@/components/common/ProgressBar";
+import { ServerImage } from "@/components/common/ServerImage";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { ProgressBar } from "./common/ProgressBar";
-import { ServerImage } from "./common/ServerImage";
 import { WatchedIndicator } from "./WatchedIndicator";
 
 type ContinueWatchingPosterProps = {

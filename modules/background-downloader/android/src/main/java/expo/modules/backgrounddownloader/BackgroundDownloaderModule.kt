@@ -84,7 +84,7 @@ class BackgroundDownloaderModule : Module() {
 
     AsyncFunction("enqueueDownload") { urlString: String, destinationPath: String?, headers: Map<String, String>?, promise: Promise ->
       try {
-        Log.d(TAG, "Enqueuing download: url=$urlString")
+        Log.d(TAG, "Enqueuing download: host=${redactUrlForLog(urlString)}")
         
         // Add to queue
         val wasEmpty = downloadQueue.isEmpty()
@@ -119,7 +119,7 @@ class BackgroundDownloaderModule : Module() {
       downloadQueue.removeAll { queuedItem ->
         queuedItem.url == url
       }
-      Log.d(TAG, "Removed queued download: $url, queue size: ${downloadQueue.size}")
+      Log.d(TAG, "Removed queued download: host=${redactUrlForLog(url)}, queue size: ${downloadQueue.size}")
     }
 
     Function("cancelAllDownloads") {
@@ -162,7 +162,7 @@ class BackgroundDownloaderModule : Module() {
     startDownloadService()
     downloadService?.startDownload()
     
-    Log.d(TAG, "Starting download: taskId=$taskId, url=$urlString")
+    Log.d(TAG, "Starting download: taskId=$taskId, host=${redactUrlForLog(urlString)}")
     
     // Send started event
     sendEvent("onDownloadStarted", mapOf(
@@ -205,7 +205,7 @@ class BackgroundDownloaderModule : Module() {
     
     // Get next item from queue
     val taskInfo = downloadQueue.removeAt(0)
-    Log.d(TAG, "Processing next in queue: ${taskInfo.url}")
+    Log.d(TAG, "Processing next in queue: host=${redactUrlForLog(taskInfo.url)}")
     
     return try {
       startDownloadInternal(taskInfo.url, taskInfo.destinationPath, taskInfo.headers)
@@ -213,6 +213,15 @@ class BackgroundDownloaderModule : Module() {
       Log.e(TAG, "Error processing queue item: ${e.message}", e)
       // Try to process next item
       processNextInQueue()
+    }
+  }
+
+  private fun redactUrlForLog(urlString: String): String {
+    return try {
+      val url = java.net.URL(urlString)
+      url.host ?: "<unknown-host>"
+    } catch (_: Exception) {
+      "<invalid-url>"
     }
   }
 
