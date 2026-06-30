@@ -354,11 +354,14 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           // contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           // contentContainerStyle={{ paddingVertical: SCALE_PADDING }}
           ListFooterComponent={
+            // No fixed width: the footer must size to the "See All" card so the
+            // FlatList's scrollable content extends to fully reveal it. A fixed
+            // (narrow) width clipped the card at the right edge. Trailing space is
+            // provided by contentContainerStyle.paddingRight.
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                width: sizes.padding.horizontal,
               }}
             >
               {isFetchingNextPage && (
