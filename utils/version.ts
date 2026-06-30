@@ -5,7 +5,7 @@ import Constants from "expo-constants";
  * clientInfo auto-tracks the app version instead of a hardcoded string. */
 export const APP_VERSION = Application.nativeApplicationVersion ?? "unknown";
 
-/** Build metadata injected at build time by `app.config.js` into `extra.build`. */
+/** Build metadata injected at build time by `app.config.ts` into `extra.build`. */
 export interface BuildMeta {
   commit?: string | null;
   branch?: string | null;
