@@ -4,16 +4,16 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
+import { Button } from "@/components/Button";
+import { Input } from "@/components/common/Input";
+import { Text } from "@/components/common/Text";
+import { ListGroup } from "@/components/list/ListGroup";
+import { ListItem } from "@/components/list/ListItem";
+import { CustomHeaderSelector } from "@/components/settings/CustomHeaderSelector";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/integrationHeaders";
-import { Button } from "../Button";
-import { Input } from "../common/Input";
-import { Text } from "../common/Text";
-import { ListGroup } from "../list/ListGroup";
-import { ListItem } from "../list/ListItem";
-import { CustomHeaderSelector } from "./CustomHeaderSelector";
 
 export const JellyseerrSettings = () => {
   const { jellyseerrUser, setJellyseerrUser, clearAllJellyseerData } =
@@ -43,7 +43,7 @@ export const JellyseerrSettings = () => {
       const headersToInject = getIntegrationHeaders("jellyseerr");
 
       // Ensure URL has protocol
-      let url = jellyseerrServerUrl || settings.jellyseerrServerUrl || "";
+      let url = jellyseerrServerUrl ?? settings?.jellyseerrServerUrl ?? "";
       if (!url.match(/^https?:\/\//i)) {
         url = `https://${url}`;
       }
@@ -54,11 +54,17 @@ export const JellyseerrSettings = () => {
       );
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
-      return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
+      return {
+        normalizedUrl: url,
+        user: await jellyseerrTempApi.login(
+          user.Name,
+          jellyseerrPassword || "",
+        ),
+      };
     },
-    onSuccess: (user) => {
+    onSuccess: ({ normalizedUrl, user }) => {
       setJellyseerrUser(user);
-      updateSettings({ jellyseerrServerUrl });
+      updateSettings({ jellyseerrServerUrl: normalizedUrl });
     },
     onError: () => {
       toast.error(t("jellyseerr.failed_to_login"));

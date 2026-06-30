@@ -32,7 +32,10 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
 
   const handleConnect = async () => {
     if (serverURL.trim()) {
-      await onConnect(serverURL.trim(), pendingHeaders);
+      await onConnect(
+        serverURL.trim(),
+        showAdvanced ? pendingHeaders : undefined,
+      );
     }
   };
 
@@ -165,6 +168,7 @@ export const TVAddServerForm: React.FC<TVAddServerFormProps> = ({
                 <TVInput
                   placeholder={t("custom_headers.header_value_placeholder")}
                   value={header.value}
+                  secureTextEntry
                   onChangeText={(text) => {
                     const updated = [...pendingHeaders];
                     updated[index] = { ...header, value: text };

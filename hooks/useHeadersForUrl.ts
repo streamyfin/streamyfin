@@ -5,7 +5,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import { getCustomHeaders } from "@/utils/jellyfin/jellyfin";
 import { customHeadersVersionAtom } from "@/utils/secureCredentials";
-import { isUrlForBaseUrl } from "@/utils/urlMatching";
+import { isUrlForBaseUrl, normalizeHttpBaseUrl } from "@/utils/urlMatching";
 
 /**
  * Returns the correct HTTP headers for a given image URI based on which
@@ -24,22 +24,33 @@ export function useHeadersForUrl(
   return useMemo(() => {
     if (!uri) return undefined;
 
-    // Check Jellyseerr first so subpath deployments do not inherit Jellyfin headers.
-    const seerrUrl = settings?.jellyseerrServerUrl;
-    if (seerrUrl) {
-      if (isUrlForBaseUrl(uri, seerrUrl)) {
-        const h = getIntegrationHeaders("jellyseerr");
-        return Object.keys(h).length > 0 ? h : undefined;
-      }
-    }
+    const matches = [
+      settings?.jellyseerrServerUrl
+        ? {
+            baseUrl: settings.jellyseerrServerUrl,
+            getHeaders: () => getIntegrationHeaders("jellyseerr"),
+            priority: 1,
+          }
+        : null,
+      api?.basePath
+        ? {
+            baseUrl: api.basePath,
+            getHeaders: () => getCustomHeaders(api.basePath),
+            priority: 0,
+          }
+        : null,
+    ]
+      .filter((match): match is NonNullable<typeof match> => match !== null)
+      .filter((match) => isUrlForBaseUrl(uri, match.baseUrl))
+      .sort((a, b) => {
+        const specificity =
+          normalizeHttpBaseUrl(b.baseUrl).length -
+          normalizeHttpBaseUrl(a.baseUrl).length;
+        return specificity || b.priority - a.priority;
+      });
 
-    // Jellyfin server
-    if (api?.basePath) {
-      if (isUrlForBaseUrl(uri, api.basePath)) {
-        const h = getCustomHeaders(api.basePath);
-        return Object.keys(h).length > 0 ? h : undefined;
-      }
-    }
+    const h = matches[0]?.getHeaders();
+    if (h && Object.keys(h).length > 0) return h;
 
     // External URL - no custom headers
     return undefined;

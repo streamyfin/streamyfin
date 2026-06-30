@@ -11,6 +11,15 @@ describe("normalizeHttpBaseUrl", () => {
 });
 
 describe("isUrlForBaseUrl", () => {
+  test("matches equivalent URLs when only the default port differs", () => {
+    expect(
+      isUrlForBaseUrl(
+        "https://jellyfin.example.test:443/Items/1/Images/Primary",
+        "https://jellyfin.example.test",
+      ),
+    ).toBe(true);
+  });
+
   test("matches same-origin URLs for a root base URL", () => {
     expect(
       isUrlForBaseUrl(

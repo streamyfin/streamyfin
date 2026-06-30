@@ -62,14 +62,17 @@ describe("optionsWithOptionalHeaders", () => {
 
     expect(
       optionsWithOptionalHeaders(
-        { signal },
+        { headers: { Accept: "application/json" }, signal },
         {
           "X-Auth": "secret",
         },
       ),
     ).toEqual({
       signal,
-      headers: { "X-Auth": "secret" },
+      headers: {
+        Accept: "application/json",
+        "X-Auth": "secret",
+      },
     });
   });
 });
