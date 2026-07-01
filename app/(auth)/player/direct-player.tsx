@@ -1050,6 +1050,10 @@ export default function DirectPlayerPage() {
         previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
     }).toString();
 
+    // Destroy the current mpv instance BEFORE navigating (see goToNextItem
+    // for details on why this prevents OOM on low-RAM devices).
+    videoRef.current?.destroy().catch(() => {});
+
     router.replace(`player/direct-player?${queryParams}` as any);
   }, [
     previousItem,
@@ -1059,6 +1063,7 @@ export default function DirectPlayerPage() {
     stream?.mediaSource,
     bitrateValue,
     router,
+    videoRef,
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
