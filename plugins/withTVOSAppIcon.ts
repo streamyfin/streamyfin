@@ -1,6 +1,6 @@
-const { withXcodeProject } = require("@expo/config-plugins");
+import { type ConfigPlugin, withXcodeProject } from "expo/config-plugins";
 
-const withTVOSAppIcon = (config) => {
+const withTVOSAppIcon: ConfigPlugin = (config) => {
   // Only apply for TV builds
   if (process.env.EXPO_TV !== "1") {
     return config;
@@ -28,4 +28,4 @@ const withTVOSAppIcon = (config) => {
   });
 };
 
-module.exports = withTVOSAppIcon;
+export default withTVOSAppIcon;

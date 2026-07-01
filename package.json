@@ -17,13 +17,13 @@
     "ios:unsigned-build": "cross-env EXPO_TV=0 bun scripts/ios/build-ios.ts --production",
     "ios:unsigned-build:tv": "cross-env EXPO_TV=1 bun scripts/ios/build-ios.ts --production",
     "prepare": "husky",
-    "typecheck": "node scripts/typecheck.js",
+    "typecheck": "bun scripts/typecheck.ts",
     "check": "biome check . --max-diagnostics 1000",
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
     "doctor": "expo-doctor",
-    "i18n:check": "bun scripts/check-i18n-keys.mjs",
-    "i18n:fix-unused": "bun scripts/check-i18n-keys.mjs --fix-unused",
+    "i18n:check": "bun scripts/check-i18n-keys.ts",
+    "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
     "test": "bun run typecheck && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "postinstall": "patch-package"
   },
@@ -136,6 +136,7 @@
     "husky": "9.1.7",
     "lint-staged": "17.0.8",
     "react-test-renderer": "19.2.3",
+    "tsx": "^4.22.4",
     "typescript": "6.0.3"
   },
   "expo": {

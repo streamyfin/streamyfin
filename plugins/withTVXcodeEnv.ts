@@ -1,7 +1,7 @@
-const { withDangerousMod } = require("@expo/config-plugins");
-const { execSync } = require("node:child_process");
-const fs = require("node:fs");
-const path = require("node:path");
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { type ConfigPlugin, withDangerousMod } from "expo/config-plugins";
 
 /**
  * Expo config plugin that adds EXPO_TV=1 and NODE_BINARY to .xcode.env.local for TV builds.
@@ -12,7 +12,7 @@ const path = require("node:path");
  *
  * It also sets NODE_BINARY for nvm users since Xcode can't resolve shell functions.
  */
-const withTVXcodeEnv = (config) => {
+const withTVXcodeEnv: ConfigPlugin = (config) => {
   // Only apply for TV builds
   if (process.env.EXPO_TV !== "1") {
     return config;
@@ -70,7 +70,7 @@ const withTVXcodeEnv = (config) => {
 /**
  * Get the actual node binary path, handling nvm installations.
  */
-function getNodeBinaryPath() {
+function getNodeBinaryPath(): string | null {
   try {
     // First try to get node path directly (works for non-nvm installs)
     const directPath = execSync("which node 2>/dev/null", {
@@ -114,4 +114,4 @@ function getNodeBinaryPath() {
   return null;
 }
 
-module.exports = withTVXcodeEnv;
+export default withTVXcodeEnv;

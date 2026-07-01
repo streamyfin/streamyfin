@@ -3,23 +3,25 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+import type {
+  CodecProfile,
+  DeviceProfile,
+  DirectPlayProfile,
+} from "@jellyfin/sdk/lib/generated-client/models";
 import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
+import type { PlatformType } from "./native";
 
-/**
- * @typedef {"ios" | "android"} PlatformType
- *
- * @typedef {Object} TrackPlayerProfileOptions
- * @property {PlatformType} [platform] - Target platform
- */
+export interface TrackPlayerProfileOptions {
+  /** Target platform */
+  platform?: PlatformType;
+}
 
 /**
  * Audio direct play profiles for react-native-track-player.
  * iOS uses AVPlayer, Android uses ExoPlayer - each has different codec support.
- *
- * @param {PlatformType} platform
  */
-const getDirectPlayProfile = (platform) => {
+const getDirectPlayProfile = (platform: PlatformType): DirectPlayProfile => {
   if (platform === "ios") {
     // iOS AVPlayer supported formats
     return {
@@ -39,10 +41,8 @@ const getDirectPlayProfile = (platform) => {
 
 /**
  * Audio codec profiles for react-native-track-player.
- *
- * @param {PlatformType} platform
  */
-const getCodecProfile = (platform) => {
+const getCodecProfile = (platform: PlatformType): CodecProfile => {
   if (platform === "ios") {
     // iOS AVPlayer codec constraints
     return {
@@ -64,12 +64,11 @@ const getCodecProfile = (platform) => {
  * This profile is specifically for standalone audio playback using:
  * - AVPlayer on iOS
  * - ExoPlayer on Android
- *
- * @param {TrackPlayerProfileOptions} [options] - Profile configuration options
- * @returns {Object} Jellyfin device profile for track player
  */
-export const generateTrackPlayerProfile = (options = {}) => {
-  const platform = options.platform || Platform.OS;
+export const generateTrackPlayerProfile = (
+  options: TrackPlayerProfileOptions = {},
+): DeviceProfile => {
+  const platform = (options.platform || Platform.OS) as PlatformType;
 
   return {
     Name: "Track Player",

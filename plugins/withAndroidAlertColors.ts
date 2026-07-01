@@ -1,10 +1,20 @@
-const {
+import {
+  type ConfigPlugin,
   withAndroidColors,
   withAndroidColorsNight,
-} = require("expo/config-plugins");
+} from "expo/config-plugins";
 
-const withAndroidAlertColors = (config) => {
-  const setColor = (colorsList, name, value) => {
+interface ColorResourceItem {
+  $: { name: string };
+  _: string;
+}
+
+const withAndroidAlertColors: ConfigPlugin = (config) => {
+  const setColor = (
+    colorsList: ColorResourceItem[],
+    name: string,
+    value: string,
+  ) => {
     const existingColor = colorsList.find(
       (item) => item.$ && item.$.name === name,
     );
@@ -20,7 +30,7 @@ const withAndroidAlertColors = (config) => {
 
   config = withAndroidColors(config, (config) => {
     const colors = config.modResults;
-    const colorsList = colors.resources.color || [];
+    const colorsList = (colors.resources.color ?? []) as ColorResourceItem[];
     setColor(colorsList, "colorPrimary", "#000000");
     colors.resources.color = colorsList;
     return config;
@@ -28,7 +38,7 @@ const withAndroidAlertColors = (config) => {
 
   config = withAndroidColorsNight(config, (config) => {
     const colors = config.modResults;
-    const colorsList = colors.resources.color || [];
+    const colorsList = (colors.resources.color ?? []) as ColorResourceItem[];
     setColor(colorsList, "colorPrimary", "#FFFFFF");
     colors.resources.color = colorsList;
     return config;
@@ -37,4 +47,4 @@ const withAndroidAlertColors = (config) => {
   return config;
 };
 
-module.exports = withAndroidAlertColors;
+export default withAndroidAlertColors;

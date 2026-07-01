@@ -1,18 +1,29 @@
-const { AndroidConfig, withAndroidManifest } = require("expo/config-plugins");
-const path = require("node:path");
-const fs = require("node:fs");
+import fs from "node:fs";
+import path from "node:path";
+import {
+  AndroidConfig,
+  type ConfigPlugin,
+  type ExportedConfigWithProps,
+  withAndroidManifest,
+} from "expo/config-plugins";
+
 const fsPromises = fs.promises;
 
 const { getMainApplicationOrThrow } = AndroidConfig.Manifest;
 
-const withTrustLocalCerts = (config) => {
+type AndroidManifest = AndroidConfig.Manifest.AndroidManifest;
+
+const withTrustLocalCerts: ConfigPlugin = (config) => {
   return withAndroidManifest(config, async (mod) => {
     mod.modResults = await setCustomConfigAsync(mod, mod.modResults);
     return mod;
   });
 };
 
-async function setCustomConfigAsync(config, androidManifest) {
+async function setCustomConfigAsync(
+  config: ExportedConfigWithProps<AndroidManifest>,
+  androidManifest: AndroidManifest,
+): Promise<AndroidManifest> {
   const src_file_path = path.join(__dirname, "network_security_config.xml");
   const res_file_path = path.join(
     await AndroidConfig.Paths.getResourceFolderAsync(
@@ -45,4 +56,4 @@ async function setCustomConfigAsync(config, androidManifest) {
   return androidManifest;
 }
 
-module.exports = withTrustLocalCerts;
+export default withTrustLocalCerts;
