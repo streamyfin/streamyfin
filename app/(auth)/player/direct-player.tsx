@@ -1164,8 +1164,9 @@ export default function DirectPlayerPage() {
       if (settings.mpvSubtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
       }
+      const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
       const opacity = Math.min(
-        Math.max(Number(settings.subtitleBackgroundOpacity) || 40, 0),
+        Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 40, 0),
         100,
       );
       const alpha = Math.round((opacity / 100) * 255)
