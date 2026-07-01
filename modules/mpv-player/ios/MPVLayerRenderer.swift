@@ -228,6 +228,21 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
 
+        // CJK subtitle fallback font.
+        //
+        // On iOS/tvOS, libass uses the CoreText font provider. CoreText's
+        // get_fallback returns the system CJK font (e.g. "PingFang SC"),
+        // but the app sandbox blocks libass from opening that font file, so
+        // CJK glyphs render as tofu (▯) and every missing glyph triggers an
+        // expensive failed lookup (the throttling users report).
+        //
+        // mpv's `subfont.ttf` (placed in the config dir) is libass's true
+        // last-resort fallback (`path_default` in ass_font_select), used
+        // after every other font fails. By copying a bundled, CJK-capable
+        // font there, CJK glyphs resolve without per-language font guessing.
+        // Mirrors the Android renderer's copyFontsToConfigDir().
+        setupSubtitleFallbackFont()
+
         // Initialize mpv
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {
@@ -296,6 +311,46 @@ final class MPVLayerRenderer {
         }
 
         isStopping = false
+    }
+
+    /// Copies a bundled CJK-capable font into mpv's config directory as `subfont.ttf`
+    /// and points mpv at that directory, so libass has an openable last-resort
+    /// fallback for CJK glyphs (which the iOS sandbox otherwise blocks).
+    private func setupSubtitleFallbackFont() {
+        guard let mpv = mpv else { return }
+
+        let fm = FileManager.default
+        guard let supportDir = try? fm.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        ) else {
+            return
+        }
+
+        let configDir = supportDir.appendingPathComponent("mpv", isDirectory: true)
+        try? fm.createDirectory(at: configDir, withIntermediateDirectories: true)
+
+        // Look up the bundled Noto Sans CJK font (registered via the expo-font
+        // plugin in app.json). Fall back to a flat bundle resource lookup.
+        let fontURL = Bundle.main.url(
+            forResource: "NotoSansCJKsc-Regular",
+            withExtension: "otf"
+        ) ?? Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil)?
+            .first { $0.lastPathComponent == "NotoSansCJKsc-Regular.otf" }
+
+        let subfont = configDir.appendingPathComponent("subfont.ttf")
+
+        // Copy once; skip if already present so startup stays fast on repeat loads.
+        if let fontURL, !fm.fileExists(atPath: subfont.path) {
+            try? fm.copyItem(at: fontURL, to: subfont)
+        }
+
+        // config-dir makes mpv discover `subfont.ttf` (its default fallback font).
+        // Set before mpv_initialize().
+        mpv_set_option_string(mpv, "config", "yes")
+        mpv_set_option_string(mpv, "config-dir", configDir.path)
     }
     
     func load(

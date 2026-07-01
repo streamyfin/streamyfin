@@ -77,7 +77,8 @@
             "./assets/fonts/OpenDyslexic-Bold.otf",
             "./assets/fonts/OpenDyslexic-BoldItalic.otf",
             "./assets/fonts/OpenDyslexic-Italic.otf",
-            "./assets/fonts/OpenDyslexic-Regular.otf"
+            "./assets/fonts/OpenDyslexic-Regular.otf",
+            "./assets/fonts/NotoSansCJKsc-Regular.otf"
           ]
         }
       ],

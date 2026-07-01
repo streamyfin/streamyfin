@@ -1174,43 +1174,19 @@ export default function DirectPlayerPage() {
         .padStart(2, "0")
         .toUpperCase();
 
-      let font = settings.subtitleFont;
-      let cjkFontOverrideApplied = false;
-      if (
-        Platform.OS === "ios" &&
-        (font === "System" || font === "sans-serif")
-      ) {
-        const mediaSource = stream?.mediaSource;
-        const allSubs =
-          mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") || [];
-        const targetSub = allSubs.find((s) => s.Index === currentSubtitleIndex);
-        const lang = targetSub?.Language?.toLowerCase();
-
-        if (lang === "chi" || lang === "zho" || lang?.startsWith("zh")) {
-          const isTraditionalChinese =
-            lang.includes("hant") || /(^|[-_])(tw|hk|mo)($|[-_])/.test(lang);
-          font = isTraditionalChinese ? "PingFang TC" : "PingFang SC";
-          cjkFontOverrideApplied = true;
-        } else if (lang === "jpn" || lang?.startsWith("ja")) {
-          font = "Hiragino Sans";
-          cjkFontOverrideApplied = true;
-        } else if (lang === "kor" || lang?.startsWith("ko")) {
-          font = "Apple SD Gothic Neo";
-          cjkFontOverrideApplied = true;
-        }
-      }
-
       await videoRef.current?.setSubtitleStyle?.({
         fontSize: settings.subtitleSize ?? settings.mpvSubtitleFontSize,
         color: settings.subtitleColor,
-        font,
+        font: settings.subtitleFont,
         background: settings.subtitleBackground ? `#${alpha}000000` : "",
         backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
       });
 
-      // ASS subtitles can define their own font, which would ignore the CJK
-      // fallback above unless user subtitle styling is forced onto the track.
-      if (settings.subtitleBackground || cjkFontOverrideApplied) {
+      // Force user subtitle styling onto ASS tracks only when the user has
+      // enabled a subtitle background. CJK glyph fallback is handled at the
+      // libass level via the bundled `subfont.ttf` (see MPVLayerRenderer), so
+      // no per-language font override is needed here.
+      if (settings.subtitleBackground) {
         await videoRef.current?.setSubtitleAssOverride?.("force");
       } else {
         await videoRef.current?.setSubtitleAssOverride?.("no");
@@ -1218,7 +1194,7 @@ export default function DirectPlayerPage() {
     };
 
     applySubtitleSettings();
-  }, [isVideoLoaded, settings, currentSubtitleIndex, stream]);
+  }, [isVideoLoaded, settings]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
