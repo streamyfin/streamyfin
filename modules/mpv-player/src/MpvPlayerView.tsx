@@ -24,6 +24,9 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       pause: async () => {
         await nativeRef.current?.pause();
       },
+      destroy: async () => {
+        await nativeRef.current?.destroy();
+      },
       seekTo: async (position: number) => {
         await nativeRef.current?.seekTo(position);
       },

@@ -99,6 +99,14 @@ export interface SubtitleStyleConfig {
 export interface MpvPlayerViewRef {
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  /**
+   * Synchronously destroy the mpv instance + decoder + surface buffers.
+   * Call before navigating away from the player screen so memory is
+   * freed before the next screen mounts. Safe to call multiple times.
+   */
+  destroy: () => Promise<void>;
+  // Pre-libmpv-1.0 alias (kept for source-history reference):
+  // stop: () => Promise<void>;
   seekTo: (position: number) => Promise<void>;
   seekBy: (offset: number) => Promise<void>;
   setSpeed: (speed: number) => Promise<void>;
@@ -165,9 +173,17 @@ export type TechnicalInfo = {
   videoBitrate?: number;
   audioBitrate?: number;
   cacheSeconds?: number;
+  /** Configured demuxer forward cache cap (MiB), read back from mpv */
+  demuxerMaxBytes?: number;
+  /** Configured demuxer backward cache cap (MiB), read back from mpv */
+  demuxerMaxBackBytes?: number;
+  /** Configured cache-secs floor, read back from mpv */
+  cacheSecsLimit?: number;
   droppedFrames?: number;
   /** Active video output driver (read from MPV at runtime) */
   voDriver?: string;
   /** Active hardware decoder (read from MPV at runtime) */
   hwdec?: string;
+  /** Estimated video output fps (mpv "estimated-vf-fps") */
+  estimatedVfFps?: number;
 };

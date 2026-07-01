@@ -295,6 +295,49 @@ class MpvPlayerView: ExpoView {
 		pipController?.updatePlaybackState()
 	}
 
+	/**
+	 * Synchronously stop and destroy the mpv instance + decoder so memory is
+	 * freed before the next screen mounts. Safe to call multiple times — the
+	 * underlying renderer.stop() guards against re-entry.
+	 *
+	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
+	 */
+	func destroy() {
+		renderer?.stop()
+
+		// Reset view state and re-create the mpv handle so a subsequent
+		// loadVideo() on the SAME view instance can actually load.
+		// Without this, stop() leaves renderer.mpv == nil, and the next
+		// loadVideo(config:) calls renderer.load() which early-returns
+		// at `guard let handle = self.mpv else { return }` — but only
+		// after flipping isLoading = true and dispatching the loading
+		// delegate callback, so the JS layer is stuck in a perpetual
+		// "loading" state with no actual playback.
+		//
+		// This path is hit by direct-player.tsx's goToNextItem()/stop(),
+		// which call destroy() immediately before router.replace() to
+		// the same route — Expo Router reuses the same MpvPlayerView
+		// instance, so the next `source` prop update arrives on this
+		// view without a remount. setupView() is otherwise the only
+		// place start() is called, so without re-starting here the
+		// renderer stays dead until the whole view is unmounted and
+		// recreated.
+		//
+		// start() is idempotent (`guard !isRunning else { return }`)
+		// and stop() has already nulled mpv synchronously before
+		// dispatching the async mpv_terminate_destroy, so creating a
+		// fresh handle here is safe even while the old handle's
+		// teardown is still in flight on a background queue (libmpv
+		// handles are independent).
+		currentURL = nil
+		intendedPlayState = false
+		do {
+			try renderer?.start()
+		} catch {
+			onError(["error": "Failed to restart renderer after destroy: \(error.localizedDescription)"])
+		}
+	}
+
 	func seekTo(position: Double) {
 		// Update cached position and Now Playing immediately for smooth Control Center feedback
 		cachedPosition = position

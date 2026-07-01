@@ -152,7 +152,7 @@ import { apiAtom } from "@/providers/JellyfinProvider";
 
 ## Coding Standards
 
-- Use TypeScript for all files (no .js)
+- Use TypeScript for all files (no .js). Tooling-required exceptions: `babel.config.js`, `metro.config.js`, `react-native.config.js`, `tailwind.config.js` (their loaders cannot parse TypeScript)
 - Use functional React components with hooks
 - Use Jotai atoms for global state, React Query for server state
 - Follow BiomeJS formatting rules (2-space indent, semicolons, LF line endings)

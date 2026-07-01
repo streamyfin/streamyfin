@@ -256,8 +256,11 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     let isCancelled = false;
 
     const performCrossfade = async () => {
+      // Disk-only prefetch: backdrops are ~8MB decoded ARGB; keeping them
+      // out of the memory cache avoids bloat when the user cycles through
+      // hero items quickly.
       try {
-        await Image.prefetch(backdropUrl);
+        await Image.prefetch(backdropUrl, "disk");
       } catch {
         // Continue even if prefetch fails
       }
@@ -379,7 +382,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   if (items.length === 0) return null;
 
   // Extra top padding for tvOS to clear the menu bar
-  const tvosTopPadding = Platform.OS === "ios" ? scaleSize(145) : 0;
+  const tvosTopPadding = scaleSize(145);
   const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
 
   return (

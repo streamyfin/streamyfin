@@ -81,8 +81,8 @@
           ]
         }
       ],
-      "./plugins/withExcludeMedia3Dash.js",
-      "./plugins/withTVUserManagement.js",
+      "./plugins/withExcludeMedia3Dash.ts",
+      "./plugins/withTVUserManagement.ts",
       [
         "expo-build-properties",
         {
@@ -117,6 +117,9 @@
       ],
       "expo-localization",
       "expo-asset",
+      "expo-audio",
+      "expo-image",
+      "expo-sharing",
       [
         "react-native-edge-to-edge",
         {
@@ -141,17 +144,17 @@
         }
       ],
       "expo-web-browser",
-      ["./plugins/with-runtime-framework-headers.js"],
-      ["./plugins/withChangeNativeAndroidTextToWhite.js"],
-      ["./plugins/withAndroidAlertColors.js"],
-      ["./plugins/withAndroidManifest.js"],
-      ["./plugins/withTrustLocalCerts.js"],
-      ["./plugins/withGradleProperties.js"],
-      ["./plugins/withTVOSAppIcon.js"],
-      ["./plugins/withTVOSTopShelf.js"],
-      ["./plugins/withTVXcodeEnv.js"],
+      ["./plugins/with-runtime-framework-headers.ts"],
+      ["./plugins/withChangeNativeAndroidTextToWhite.ts"],
+      ["./plugins/withAndroidAlertColors.ts"],
+      ["./plugins/withAndroidManifest.ts"],
+      ["./plugins/withTrustLocalCerts.ts"],
+      ["./plugins/withGradleProperties.ts"],
+      ["./plugins/withTVOSAppIcon.ts"],
+      ["./plugins/withTVOSTopShelf.ts"],
+      ["./plugins/withTVXcodeEnv.ts"],
       [
-        "./plugins/withGitPod.js",
+        "./plugins/withGitPod.ts",
         {
           "podName": "MPVKit",
           "podspecUrl": "https://raw.githubusercontent.com/mpv-ios/MPVKit/0.41.0-av/MPVKit.podspec"

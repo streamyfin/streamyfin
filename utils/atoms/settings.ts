@@ -9,6 +9,7 @@ import {
 import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
+import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -371,11 +372,16 @@ export const defaultValues: Settings = {
   mpvSubtitleFontSize: undefined,
   mpvSubtitleBackgroundEnabled: false,
   mpvSubtitleBackgroundOpacity: 75,
-  // MPV buffer/cache defaults
+  // MPV buffer/cache defaults.
+  // Android TV gets tighter caps — combined with libmpv 1.0's larger
+  // baseline (fontconfig + libxml2 + libplacebo HDR path + scudo
+  // retention) the larger mobile budget pushes 2 GB Android TV boxes
+  // into swap death during 4K HDR playback. Apple TV has more RAM and
+  // keeps the full budget. Users can override via the settings screen.
   mpvCacheEnabled: "auto",
   mpvCacheSeconds: 10,
-  mpvDemuxerMaxBytes: 150, // MB
-  mpvDemuxerMaxBackBytes: 50, // MB
+  mpvDemuxerMaxBytes: Platform.isTV && Platform.OS === "android" ? 75 : 150, // MB
+  mpvDemuxerMaxBackBytes: Platform.isTV && Platform.OS === "android" ? 30 : 50, // MB
   // MPV video output driver defaults (Android only)
   mpvVoDriver: "gpu-next",
   // Gesture controls

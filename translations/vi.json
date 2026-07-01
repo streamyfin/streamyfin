@@ -261,42 +261,6 @@
           "None": "Không hiển thị",
           "OnlyForced": "Bắt buộc"
         },
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "outline_color": "Outline Color",
-        "outline_thickness": "Outline Thickness",
-        "background_opacity": "Background Opacity",
-        "outline_opacity": "Outline Opacity",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Black",
-          "Gray": "Gray",
-          "Silver": "Silver",
-          "White": "White",
-          "Maroon": "Maroon",
-          "Red": "Red",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Yellow",
-          "Olive": "Olive",
-          "Green": "Green",
-          "Teal": "Teal",
-          "Lime": "Lime",
-          "Purple": "Purple",
-          "Navy": "Navy",
-          "Blue": "Blue",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "Không có",
-          "Thin": "Thin",
-          "Normal": "Normal",
-          "Thick": "Thick"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -313,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Khác",
@@ -350,11 +295,6 @@
           "UNKNOWN": "Không rõ"
         },
         "safe_area_in_controls": "Vùng an toàn trong điều khiển",
-        "video_player": "Trình phát video",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Thử nghiệm + PiP)"
-        },
         "show_custom_menu_links": "Hiện liên kết tùy chỉnh",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Ẩn thư viện",
@@ -365,9 +305,6 @@
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Số tập tự chạy tối đa",
         "disabled": "Đã tắt"
-      },
-      "downloads": {
-        "downloads_title": "Tải xuống"
       },
       "music": {
         "title": "Music",
@@ -383,7 +320,6 @@
       "plugins": {
         "plugins_title": "Plugin",
         "jellyseerr": {
-          "jellyseerr_warning": "Tích hợp đang trong giai đoạn thử nghiệm. Nội dung có thể thay đổi.",
           "server_url": "URL máy chủ",
           "server_url_hint": "Ví dụ: http(s)://your-host.url (có port nếu cần)",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -412,23 +348,18 @@
           "read_more_about_marlin": "Tìm hiểu thêm về Marlin.",
           "save_button": "Lưu",
           "toasts": {
-            "saved": "Đã lưu",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Đã lưu"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -444,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -456,7 +386,6 @@
         "delete_all_downloaded_files": "Xóa toàn bộ tập tin đã tải",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -466,8 +395,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -489,15 +416,12 @@
         "system": "Hệ thống"
       },
       "toasts": {
-        "error_deleting_files": "Lỗi khi xóa tập tin",
-        "background_downloads_enabled": "Tải trong nền đã bật",
-        "background_downloads_disabled": "Tải trong nền đã tắt"
+        "error_deleting_files": "Lỗi khi xóa tập tin"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -517,10 +441,7 @@
       "downloads_title": "Tải xuống",
       "series": "Chương trình TV",
       "movies": "Phim",
-      "queue": "Hàng đợi",
       "other_media": "Other media",
-      "queue_hint": "Hàng đợi và tải xuống sẽ bị mất khi khởi động lại ứng dụng",
-      "no_items_in_queue": "Không có mục trong hàng đợi",
       "no_downloaded_items": "Không có mục đã tải",
       "delete_all_movies_button": "Xóa tất cả phim",
       "delete_all_series_button": "Xóa tất cả chương trình TV",
@@ -545,13 +466,8 @@
         "failed_to_delete_all_series": "Xóa chương trình TV thất bại",
         "deleted_media_successfully": "Deleted other media Successfully!",
         "failed_to_delete_media": "Failed to Delete other media",
-        "download_deleted": "Download Deleted",
         "download_cancelled": "Tải xuống bị hủy",
         "could_not_delete_download": "Could Not Delete Download",
-        "download_paused": "Download Paused",
-        "could_not_pause_download": "Could Not Pause Download",
-        "download_resumed": "Download Resumed",
-        "could_not_resume_download": "Could Not Resume Download",
         "download_completed": "Tải xuống hoàn tất",
         "download_failed": "Download Failed",
         "download_failed_for_item": "Tải {{item}} thất bại – {{error}}",
@@ -561,10 +477,7 @@
         "item_already_downloading": "{{item}} is already downloading",
         "all_files_deleted": "All Downloads Deleted Successfully",
         "files_deleted_by_type": "{{count}} {{type}} deleted",
-        "all_files_folders_and_jobs_deleted_successfully": "Đã xóa thành công tất cả tập tin, thư mục và công việc",
-        "failed_to_clean_cache_directory": "Failed to clean cache directory",
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
-        "go_to_downloads": "Tới phần tải về",
         "file_deleted": "{{item}} deleted"
       }
     }
@@ -582,16 +495,17 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Tìm...",
@@ -690,10 +604,6 @@
     "could_not_create_stream_for_chromecast": "Không thể tạo luồng cho Chromecast",
     "message_from_server": "Thông báo từ máy chủ: {{message}}",
     "next_episode": "Tập tiếp theo",
-    "refresh_tracks": "Làm mới các track",
-    "audio_tracks": "Track âm thanh:",
-    "playback_state": "Trạng thái phát:",
-    "index": "Chỉ mục:",
     "continue_watching": "Tiếp tục xem",
     "go_back": "Quay lại",
     "downloaded_file_title": "You have this file downloaded",
@@ -722,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -760,7 +671,6 @@
     "show_more": "Xem thêm",
     "show_less": "Thu gọn",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -783,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Tiếp theo",
@@ -887,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1027,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

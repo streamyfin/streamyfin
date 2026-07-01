@@ -1092,10 +1092,42 @@ final class MPVLayerRenderer {
             info["cacheSeconds"] = cacheSeconds
         }
 
+        // Configured cache limits — read back from mpv to confirm user
+        // settings actually took effect. mpv stores byte sizes as int64
+        // (bytes); convert to MiB for display.
+        var demuxerMaxBytes: Int64 = 0
+        if getProperty(handle: handle, name: "demuxer-max-bytes", format: MPV_FORMAT_INT64, value: &demuxerMaxBytes) >= 0 {
+            info["demuxerMaxBytes"] = Int(demuxerMaxBytes / (1024 * 1024))
+        }
+        var demuxerMaxBackBytes: Int64 = 0
+        if getProperty(handle: handle, name: "demuxer-max-back-bytes", format: MPV_FORMAT_INT64, value: &demuxerMaxBackBytes) >= 0 {
+            info["demuxerMaxBackBytes"] = Int(demuxerMaxBackBytes / (1024 * 1024))
+        }
+        var cacheSecsLimit: Double = 0
+        if getProperty(handle: handle, name: "cache-secs", format: MPV_FORMAT_DOUBLE, value: &cacheSecsLimit) >= 0 {
+            info["cacheSecsLimit"] = cacheSecsLimit
+        }
+
         // Dropped frames
         var droppedFrames: Int64 = 0
         if getProperty(handle: handle, name: "frame-drop-count", format: MPV_FORMAT_INT64, value: &droppedFrames) >= 0 {
             info["droppedFrames"] = Int(droppedFrames)
+        }
+
+        // Active video output driver
+        if let voDriver = getStringProperty(handle: handle, name: "vo") {
+            info["voDriver"] = voDriver
+        }
+
+        // Active hardware decoder
+        if let hwdec = getStringProperty(handle: handle, name: "hwdec-current") {
+            info["hwdec"] = hwdec
+        }
+
+        // Estimated video output fps (post-filter)
+        var estimatedVfFps: Double = 0
+        if getProperty(handle: handle, name: "estimated-vf-fps", format: MPV_FORMAT_DOUBLE, value: &estimatedVfFps) >= 0 && estimatedVfFps > 0 {
+            info["estimatedVfFps"] = estimatedVfFps
         }
 
         return info
