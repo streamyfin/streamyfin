@@ -134,6 +134,10 @@ export const useWatchlist = (item: BaseItemDto) => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: itemQueryKeyPrefix });
       queryClient.invalidateQueries({ queryKey: ["home", "watchlist"] });
+      // The favorites/watchlist "see all" grid keeps its own infinite query
+      // (["favorites", "see-all", ...]); invalidate it so removing an item
+      // from within the see-all screen updates the list in place.
+      queryClient.invalidateQueries({ queryKey: ["favorites", "see-all"] });
     },
   });
 
