@@ -1169,6 +1169,7 @@ export default function DirectPlayerPage() {
         .toUpperCase();
 
       let font = settings.subtitleFont;
+      let cjkFontOverrideApplied = false;
       if (
         Platform.OS === "ios" &&
         (font === "System" || font === "sans-serif")
@@ -1180,11 +1181,16 @@ export default function DirectPlayerPage() {
         const lang = targetSub?.Language?.toLowerCase();
 
         if (lang === "chi" || lang === "zho" || lang?.startsWith("zh")) {
-          font = "PingFang SC";
+          const isTraditionalChinese =
+            lang.includes("hant") || /(^|[-_])(tw|hk|mo)($|[-_])/.test(lang);
+          font = isTraditionalChinese ? "PingFang TC" : "PingFang SC";
+          cjkFontOverrideApplied = true;
         } else if (lang === "jpn" || lang?.startsWith("ja")) {
           font = "Hiragino Sans";
+          cjkFontOverrideApplied = true;
         } else if (lang === "kor" || lang?.startsWith("ko")) {
           font = "Apple SD Gothic Neo";
+          cjkFontOverrideApplied = true;
         }
       }
 
@@ -1196,7 +1202,9 @@ export default function DirectPlayerPage() {
         backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
       });
 
-      if (settings.subtitleBackground) {
+      // ASS subtitles can define their own font, which would ignore the CJK
+      // fallback above unless user subtitle styling is forced onto the track.
+      if (settings.subtitleBackground || cjkFontOverrideApplied) {
         await videoRef.current?.setSubtitleAssOverride?.("force");
       } else {
         await videoRef.current?.setSubtitleAssOverride?.("no");
