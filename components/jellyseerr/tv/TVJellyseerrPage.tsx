@@ -685,29 +685,21 @@ export const TVJellyseerrPage: React.FC = () => {
                     hasTVPreferredFocus={!hasJellyfinMedia}
                     refSetter={!hasJellyfinMedia ? setPlayButtonRef : undefined}
                   >
-                    <View
+                    <Ionicons
+                      name='bag-add'
+                      size={28}
+                      color='#FFFFFF'
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text
                       style={{
-                        height: 40,
-                        flexDirection: "row",
-                        alignItems: "center",
+                        fontSize: typography.callout,
+                        fontWeight: "bold",
+                        color: "#FFFFFF",
                       }}
                     >
-                      <Ionicons
-                        name='bag-add'
-                        size={20}
-                        color='#FFFFFF'
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={{
-                          fontSize: typography.callout,
-                          fontWeight: "600",
-                          color: "#FFFFFF",
-                        }}
-                      >
-                        {t("jellyseerr.request_all")}
-                      </Text>
-                    </View>
+                      {t("jellyseerr.request_all")}
+                    </Text>
                   </TVButton>
                 )}
 
@@ -719,29 +711,21 @@ export const TVJellyseerrPage: React.FC = () => {
                     onPress={handleOpenSeasonSelectModal}
                     variant='secondary'
                   >
-                    <View
+                    <Ionicons
+                      name='list'
+                      size={28}
+                      color='#FFFFFF'
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text
                       style={{
-                        height: 40,
-                        flexDirection: "row",
-                        alignItems: "center",
+                        fontSize: typography.callout,
+                        fontWeight: "bold",
+                        color: "#FFFFFF",
                       }}
                     >
-                      <Ionicons
-                        name='list'
-                        size={20}
-                        color='#FFFFFF'
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={{
-                          fontSize: typography.callout,
-                          fontWeight: "600",
-                          color: "#FFFFFF",
-                        }}
-                      >
-                        {t("jellyseerr.request_seasons")}
-                      </Text>
-                    </View>
+                      {t("jellyseerr.request_seasons")}
+                    </Text>
                   </TVButton>
                 )}
             </View>
