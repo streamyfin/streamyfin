@@ -254,8 +254,8 @@ export default function SettingsTV() {
     settings.audioTranscodeMode || AudioTranscodeMode.Auto;
   const currentSubtitleMode =
     settings.subtitleMode || SubtitlePlaybackMode.Default;
-  const currentAlignX = settings.mpvSubtitleAlignX ?? "center";
-  const currentAlignY = settings.mpvSubtitleAlignY ?? "bottom";
+  const currentAlignX = settings.subtitleAlignX ?? "center";
+  const currentAlignY = settings.subtitleAlignY ?? "bottom";
   const currentTypographyScale =
     settings.tvTypographyScale || TVTypographyScale.Default;
   const currentCacheMode = settings.mpvCacheEnabled ?? "auto";
@@ -324,32 +324,44 @@ export default function SettingsTV() {
   // MPV alignment options
   const alignXOptions: TVOptionItem<string>[] = useMemo(
     () => [
-      { label: "Left", value: "left", selected: currentAlignX === "left" },
       {
-        label: "Center",
+        label: t("home.settings.subtitles.align.left"),
+        value: "left",
+        selected: currentAlignX === "left",
+      },
+      {
+        label: t("home.settings.subtitles.align.center"),
         value: "center",
         selected: currentAlignX === "center",
       },
-      { label: "Right", value: "right", selected: currentAlignX === "right" },
+      {
+        label: t("home.settings.subtitles.align.right"),
+        value: "right",
+        selected: currentAlignX === "right",
+      },
     ],
-    [currentAlignX],
+    [t, currentAlignX],
   );
 
   const alignYOptions: TVOptionItem<string>[] = useMemo(
     () => [
-      { label: "Top", value: "top", selected: currentAlignY === "top" },
       {
-        label: "Center",
+        label: t("home.settings.subtitles.align.top"),
+        value: "top",
+        selected: currentAlignY === "top",
+      },
+      {
+        label: t("home.settings.subtitles.align.center"),
         value: "center",
         selected: currentAlignY === "center",
       },
       {
-        label: "Bottom",
+        label: t("home.settings.subtitles.align.bottom"),
         value: "bottom",
         selected: currentAlignY === "bottom",
       },
     ],
-    [currentAlignY],
+    [t, currentAlignY],
   );
 
   // Cache mode options
@@ -499,13 +511,13 @@ export default function SettingsTV() {
 
   const alignXLabel = useMemo(() => {
     const option = alignXOptions.find((o) => o.selected);
-    return option?.label || "Center";
-  }, [alignXOptions]);
+    return option?.label || t("home.settings.subtitles.align.center");
+  }, [alignXOptions, t]);
 
   const alignYLabel = useMemo(() => {
     const option = alignYOptions.find((o) => o.selected);
-    return option?.label || "Bottom";
-  }, [alignYOptions]);
+    return option?.label || t("home.settings.subtitles.align.bottom");
+  }, [alignYOptions, t]);
 
   const typographyScaleLabel = useMemo(() => {
     const option = typographyScaleOptions.find((o) => o.selected);
@@ -623,69 +635,60 @@ export default function SettingsTV() {
           />
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
-            value={settings.mpvSubtitleScale ?? 1.0}
+            value={settings.subtitleSize}
             onDecrease={() => {
-              const newValue = Math.max(
-                0.1,
-                (settings.mpvSubtitleScale ?? 1.0) - 0.1,
-              );
+              const newValue = Math.max(0.1, settings.subtitleSize - 0.1);
               updateSettings({
-                mpvSubtitleScale: Math.round(newValue * 10) / 10,
+                subtitleSize: Math.round(newValue * 10) / 10,
               });
             }}
             onIncrease={() => {
-              const newValue = Math.min(
-                3.0,
-                (settings.mpvSubtitleScale ?? 1.0) + 0.1,
-              );
+              const newValue = Math.min(3.0, settings.subtitleSize + 0.1);
               updateSettings({
-                mpvSubtitleScale: Math.round(newValue * 10) / 10,
+                subtitleSize: Math.round(newValue * 10) / 10,
               });
             }}
             formatValue={(v) => `${v.toFixed(1)}x`}
           />
           <TVSettingsStepper
-            label='Vertical Margin'
-            value={settings.mpvSubtitleMarginY ?? 0}
+            label={t("home.settings.subtitles.subtitle_margin_y")}
+            value={settings.subtitleMarginY ?? 0}
             onDecrease={() => {
-              const newValue = Math.max(
-                0,
-                (settings.mpvSubtitleMarginY ?? 0) - 5,
-              );
-              updateSettings({ mpvSubtitleMarginY: newValue });
+              const newValue = Math.max(0, (settings.subtitleMarginY ?? 0) - 5);
+              updateSettings({ subtitleMarginY: newValue });
             }}
             onIncrease={() => {
               const newValue = Math.min(
                 100,
-                (settings.mpvSubtitleMarginY ?? 0) + 5,
+                (settings.subtitleMarginY ?? 0) + 5,
               );
-              updateSettings({ mpvSubtitleMarginY: newValue });
+              updateSettings({ subtitleMarginY: newValue });
             }}
           />
           <TVSettingsOptionButton
-            label='Horizontal Alignment'
+            label={t("home.settings.subtitles.subtitle_align_x")}
             value={alignXLabel}
             onPress={() =>
               showOptions({
-                title: "Horizontal Alignment",
+                title: t("home.settings.subtitles.subtitle_align_x"),
                 options: alignXOptions,
                 onSelect: (value) =>
                   updateSettings({
-                    mpvSubtitleAlignX: value as "left" | "center" | "right",
+                    subtitleAlignX: value as "left" | "center" | "right",
                   }),
               })
             }
           />
           <TVSettingsOptionButton
-            label='Vertical Alignment'
+            label={t("home.settings.subtitles.subtitle_align_y")}
             value={alignYLabel}
             onPress={() =>
               showOptions({
-                title: "Vertical Alignment",
+                title: t("home.settings.subtitles.subtitle_align_y"),
                 options: alignYOptions,
                 onSelect: (value) =>
                   updateSettings({
-                    mpvSubtitleAlignY: value as "top" | "center" | "bottom",
+                    subtitleAlignY: value as "top" | "center" | "bottom",
                   }),
               })
             }

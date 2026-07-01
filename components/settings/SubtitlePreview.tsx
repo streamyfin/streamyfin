@@ -22,6 +22,7 @@ export const SubtitlePreview = React.memo(() => {
   const loadAsset = useCallback(async () => {
     setAssetError(false);
     setIsLoading(true);
+    setPlayerReady(false);
     try {
       const asset = Asset.fromModule(require("@/assets/sample_subtitled.mp4"));
       await asset.downloadAsync();
@@ -39,20 +40,56 @@ export const SubtitlePreview = React.memo(() => {
   }, [loadAsset]);
 
   const applyStyle = useCallback(async () => {
-    if (!playerRef.current || !playerReady) return;
+    const player = playerRef.current;
+    if (!player || !playerReady) return;
 
     const alpha = Math.round((settings.subtitleBackgroundOpacity / 100) * 255)
       .toString(16)
       .padStart(2, "0")
       .toUpperCase();
 
-    await playerRef.current.setSubtitleStyle({
-      fontSize: settings.subtitleSize,
-      color: settings.subtitleColor,
-      font: settings.subtitleFont,
-      background: settings.subtitleBackground ? `#${alpha}000000` : "",
-      backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
-    });
+    const shouldForceSubtitleStyle =
+      settings.subtitleBackground ||
+      Math.abs((settings.subtitleSize ?? 1) - 1) > 0.001 ||
+      settings.subtitleFont !== "System" ||
+      settings.subtitleColor.toUpperCase() !== "#FFFFFF" ||
+      settings.subtitleMarginY !== undefined ||
+      settings.subtitleAlignX !== undefined ||
+      settings.subtitleAlignY !== undefined;
+
+    const commands: Array<() => Promise<void>> = [
+      () => player.setSubtitleScale(settings.subtitleSize),
+      () =>
+        player.setSubtitleStyle({
+          color: settings.subtitleColor,
+          font: settings.subtitleFont,
+          background: settings.subtitleBackground ? `#${alpha}000000` : "",
+          backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
+        }),
+    ];
+
+    const { subtitleMarginY, subtitleAlignX, subtitleAlignY } = settings;
+    if (subtitleMarginY !== undefined) {
+      commands.push(() => player.setSubtitleMarginY(subtitleMarginY));
+    }
+    if (subtitleAlignX !== undefined) {
+      commands.push(() => player.setSubtitleAlignX(subtitleAlignX));
+    }
+    if (subtitleAlignY !== undefined) {
+      commands.push(() => player.setSubtitleAlignY(subtitleAlignY));
+    }
+
+    commands.push(() =>
+      player.setSubtitleAssOverride(shouldForceSubtitleStyle ? "force" : "no"),
+    );
+
+    for (const command of commands) {
+      try {
+        await command();
+      } catch (error) {
+        console.error("Failed to apply subtitle preview style:", error);
+      }
+    }
   }, [settings, playerReady, playerRef]);
 
   useEffect(() => {
@@ -100,7 +137,7 @@ export const SubtitlePreview = React.memo(() => {
           initialSubtitleId: 1,
           loop: true,
         }}
-        onLoad={() => {
+        onTracksReady={() => {
           setPlayerReady(true);
         }}
       />

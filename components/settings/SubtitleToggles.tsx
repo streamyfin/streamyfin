@@ -7,7 +7,7 @@ import { Switch } from "react-native-gesture-handler";
 import { Input } from "@/components/common/Input";
 import { Stepper } from "@/components/inputs/Stepper";
 import { SubtitlePreview } from "@/components/settings/SubtitlePreview";
-import { useSettings } from "@/utils/atoms/settings";
+import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -15,6 +15,9 @@ import { PlatformDropdown } from "../PlatformDropdown";
 import { useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
+
+type AlignX = "left" | "center" | "right";
+type AlignY = "top" | "center" | "bottom";
 
 export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   const isTv = Platform.isTV;
@@ -25,7 +28,6 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   const cultures = media.cultures;
   const { t } = useTranslation();
 
-  // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
     settings?.openSubtitlesApiKey || "",
   );
@@ -46,6 +48,35 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     [SubtitlePlaybackMode.Always]: "home.settings.subtitles.modes.Always",
     [SubtitlePlaybackMode.None]: "home.settings.subtitles.modes.None",
   };
+
+  const audioLanguageOptionGroups = useMemo(() => {
+    const options = [
+      {
+        type: "radio" as const,
+        label: t("home.settings.audio.none"),
+        value: "none",
+        selected: !settings?.defaultAudioLanguage,
+        onPress: () => updateSettings({ defaultAudioLanguage: null }),
+      },
+      ...(cultures?.map((culture) => ({
+        type: "radio" as const,
+        label:
+          culture.DisplayName ||
+          culture.ThreeLetterISOLanguageName ||
+          "Unknown",
+        value:
+          culture.ThreeLetterISOLanguageName ||
+          culture.DisplayName ||
+          "unknown",
+        selected:
+          culture.ThreeLetterISOLanguageName ===
+          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName,
+        onPress: () => updateSettings({ defaultAudioLanguage: culture }),
+      })) || []),
+    ];
+
+    return [{ options }];
+  }, [cultures, settings?.defaultAudioLanguage, t, updateSettings]);
 
   const subtitleLanguageOptionGroups = useMemo(() => {
     const options = [
@@ -70,11 +101,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       })) || []),
     ];
 
-    return [
-      {
-        options,
-      },
-    ];
+    return [{ options }];
   }, [cultures, settings?.defaultSubtitleLanguage, t, updateSettings]);
 
   const subtitleModeOptionGroups = useMemo(() => {
@@ -86,12 +113,72 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       onPress: () => updateSettings({ subtitleMode: mode }),
     }));
 
-    return [
-      {
-        options,
-      },
-    ];
+    return [{ options }];
   }, [settings?.subtitleMode, t, updateSettings]);
+
+  const audioTranscodeModeLabels: Record<AudioTranscodeMode, string> = {
+    [AudioTranscodeMode.Auto]: t("home.settings.audio.transcode_mode.auto"),
+    [AudioTranscodeMode.ForceStereo]: t(
+      "home.settings.audio.transcode_mode.stereo",
+    ),
+    [AudioTranscodeMode.Allow51]: t("home.settings.audio.transcode_mode.5_1"),
+    [AudioTranscodeMode.AllowAll]: t(
+      "home.settings.audio.transcode_mode.passthrough",
+    ),
+  };
+
+  const audioTranscodeModeOptions = useMemo(
+    () => [
+      {
+        options: [
+          {
+            type: "radio" as const,
+            label: t("home.settings.audio.transcode_mode.auto"),
+            value: AudioTranscodeMode.Auto,
+            selected:
+              settings?.audioTranscodeMode === AudioTranscodeMode.Auto ||
+              !settings?.audioTranscodeMode,
+            onPress: () =>
+              updateSettings({ audioTranscodeMode: AudioTranscodeMode.Auto }),
+          },
+          {
+            type: "radio" as const,
+            label: t("home.settings.audio.transcode_mode.stereo"),
+            value: AudioTranscodeMode.ForceStereo,
+            selected:
+              settings?.audioTranscodeMode === AudioTranscodeMode.ForceStereo,
+            onPress: () =>
+              updateSettings({
+                audioTranscodeMode: AudioTranscodeMode.ForceStereo,
+              }),
+          },
+          {
+            type: "radio" as const,
+            label: t("home.settings.audio.transcode_mode.5_1"),
+            value: AudioTranscodeMode.Allow51,
+            selected:
+              settings?.audioTranscodeMode === AudioTranscodeMode.Allow51,
+            onPress: () =>
+              updateSettings({
+                audioTranscodeMode: AudioTranscodeMode.Allow51,
+              }),
+          },
+          {
+            type: "radio" as const,
+            label: t("home.settings.audio.transcode_mode.passthrough"),
+            value: AudioTranscodeMode.AllowAll,
+            selected:
+              settings?.audioTranscodeMode === AudioTranscodeMode.AllowAll,
+            onPress: () =>
+              updateSettings({
+                audioTranscodeMode: AudioTranscodeMode.AllowAll,
+              }),
+          },
+        ],
+      },
+    ],
+    [settings?.audioTranscodeMode, t, updateSettings],
+  );
 
   const fontOptions = [
     { label: "System", value: "System" },
@@ -114,16 +201,34 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       },
     }));
 
-    return [
-      {
-        options,
-      },
-    ];
+    return [{ options }];
   }, [
     settings?.subtitleFont,
     pluginSettings?.subtitleFont?.locked,
     updateSettings,
   ]);
+
+  const alignXOptionGroups = useMemo(() => {
+    const options = (["left", "center", "right"] as AlignX[]).map((align) => ({
+      type: "radio" as const,
+      label: t(`home.settings.subtitles.align.${align}`),
+      value: align,
+      selected: align === (settings?.subtitleAlignX ?? "center"),
+      onPress: () => updateSettings({ subtitleAlignX: align }),
+    }));
+    return [{ options }];
+  }, [settings?.subtitleAlignX, t, updateSettings]);
+
+  const alignYOptionGroups = useMemo(() => {
+    const options = (["top", "center", "bottom"] as AlignY[]).map((align) => ({
+      type: "radio" as const,
+      label: t(`home.settings.subtitles.align.${align}`),
+      value: align,
+      selected: align === (settings?.subtitleAlignY ?? "bottom"),
+      onPress: () => updateSettings({ subtitleAlignY: align }),
+    }));
+    return [{ options }];
+  }, [settings?.subtitleAlignY, t, updateSettings]);
 
   const subtitleColors = [
     { name: "White", hex: "#FFFFFF" },
@@ -140,14 +245,93 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   return (
     <View {...props}>
       <ListGroup
-        title={t("home.settings.subtitles.subtitle_title")}
+        className='mb-4'
+        title={t("home.settings.subtitles.language_behavior_title")}
         description={
           <Text className='text-[#8E8D91] text-xs'>
-            {t("home.settings.subtitles.subtitle_hint")}
+            {t("home.settings.subtitles.language_behavior_hint")}
           </Text>
         }
       >
-        <SubtitlePreview />
+        <Text className='px-4 pt-3 pb-1 text-[#8E8D91] text-xs uppercase'>
+          {t("home.settings.audio.audio_title")}
+        </Text>
+
+        <ListItem title={t("home.settings.audio.audio_language")}>
+          <PlatformDropdown
+            groups={audioLanguageOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {settings?.defaultAudioLanguage?.DisplayName ||
+                    t("home.settings.audio.none")}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.audio.language")}
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.audio.play_default_audio_track")}
+          disabled={pluginSettings?.playDefaultAudioTrack?.locked}
+        >
+          <Switch
+            value={settings.playDefaultAudioTrack}
+            disabled={pluginSettings?.playDefaultAudioTrack?.locked}
+            onValueChange={(value) =>
+              updateSettings({ playDefaultAudioTrack: value })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.audio.set_audio_track")}
+          disabled={pluginSettings?.rememberAudioSelections?.locked}
+        >
+          <Switch
+            value={settings.rememberAudioSelections}
+            disabled={pluginSettings?.rememberAudioSelections?.locked}
+            onValueChange={(value) =>
+              updateSettings({ rememberAudioSelections: value })
+            }
+          />
+        </ListItem>
+
+        <ListItem
+          title={t("home.settings.audio.transcode_mode.title")}
+          subtitle={t("home.settings.audio.transcode_mode.description")}
+        >
+          <PlatformDropdown
+            groups={audioTranscodeModeOptions}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {
+                    audioTranscodeModeLabels[
+                      settings?.audioTranscodeMode || AudioTranscodeMode.Auto
+                    ]
+                  }
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.audio.transcode_mode.title")}
+          />
+        </ListItem>
+
+        <Text className='px-4 pt-3 pb-1 text-[#8E8D91] text-xs uppercase'>
+          {t("home.settings.subtitles.subtitle_title")}
+        </Text>
 
         <ListItem title={t("home.settings.subtitles.subtitle_language")}>
           <PlatformDropdown
@@ -206,6 +390,18 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             }
           />
         </ListItem>
+      </ListGroup>
+
+      <ListGroup
+        className='mb-4'
+        title={t("home.settings.subtitles.subtitle_appearance_title")}
+        description={
+          <Text className='text-[#8E8D91] text-xs'>
+            {t("home.settings.subtitles.subtitle_appearance_hint")}
+          </Text>
+        }
+      >
+        <SubtitlePreview />
 
         <ListItem
           title={t("home.settings.subtitles.subtitle_font")}
@@ -269,14 +465,66 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           disabled={pluginSettings?.subtitleSize?.locked}
         >
           <Stepper
-            value={settings.mpvSubtitleScale ?? 1.0}
+            value={settings.subtitleSize}
             disabled={pluginSettings?.subtitleSize?.locked}
             step={0.1}
             min={0.1}
             max={3.0}
             onUpdate={(value) =>
-              updateSettings({ mpvSubtitleScale: Math.round(value * 10) / 10 })
+              updateSettings({ subtitleSize: Math.round(value * 10) / 10 })
             }
+          />
+        </ListItem>
+
+        <ListItem title={t("home.settings.subtitles.subtitle_margin_y")}>
+          <Stepper
+            value={settings.subtitleMarginY ?? 0}
+            step={5}
+            min={-100}
+            max={100}
+            onUpdate={(value) => updateSettings({ subtitleMarginY: value })}
+          />
+        </ListItem>
+
+        <ListItem title={t("home.settings.subtitles.subtitle_align_x")}>
+          <PlatformDropdown
+            groups={alignXOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(
+                    `home.settings.subtitles.align.${settings?.subtitleAlignX ?? "center"}`,
+                  )}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.subtitles.subtitle_align_x")}
+          />
+        </ListItem>
+
+        <ListItem title={t("home.settings.subtitles.subtitle_align_y")}>
+          <PlatformDropdown
+            groups={alignYOptionGroups}
+            trigger={
+              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+                <Text className='mr-1 text-[#8E8D91]'>
+                  {t(
+                    `home.settings.subtitles.align.${settings?.subtitleAlignY ?? "bottom"}`,
+                  )}
+                </Text>
+                <Ionicons
+                  name='chevron-expand-sharp'
+                  size={18}
+                  color='#5A5960'
+                />
+              </View>
+            }
+            title={t("home.settings.subtitles.subtitle_align_y")}
           />
         </ListItem>
 
@@ -303,7 +551,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
               value={settings.subtitleBackgroundOpacity}
               disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
               step={5}
-              min={5}
+              min={0}
               max={100}
               appendValue='%'
               onUpdate={(value) =>
@@ -332,28 +580,23 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         )}
       </ListGroup>
 
-      {/* OpenSubtitles API Key for client-side subtitle fetching */}
       <ListGroup
-        title={
-          t("home.settings.subtitles.opensubtitles_title") || "OpenSubtitles"
-        }
+        title={t("home.settings.subtitles.opensubtitles_title")}
         description={
           <Text className='text-[#8E8D91] text-xs'>
-            {t("home.settings.subtitles.opensubtitles_hint") ||
-              "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured."}
+            {t("home.settings.subtitles.opensubtitles_hint")}
           </Text>
         }
       >
         <View className='p-4'>
           <Text className='text-xs text-gray-400 mb-2'>
-            {t("home.settings.subtitles.opensubtitles_api_key") || "API Key"}
+            {t("home.settings.subtitles.opensubtitles_api_key")}
           </Text>
           <Input
             className='border border-neutral-800'
-            placeholder={
-              t("home.settings.subtitles.opensubtitles_api_key_placeholder") ||
-              "Enter API key..."
-            }
+            placeholder={t(
+              "home.settings.subtitles.opensubtitles_api_key_placeholder",
+            )}
             value={openSubtitlesApiKey}
             onChangeText={setOpenSubtitlesApiKey}
             onBlur={() => {
@@ -364,8 +607,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             secureTextEntry
           />
           <Text className='text-xs text-gray-500 mt-2'>
-            {t("home.settings.subtitles.opensubtitles_get_key") ||
-              "Get your free API key at opensubtitles.com/en/consumers"}
+            {t("home.settings.subtitles.opensubtitles_get_key")}
           </Text>
         </View>
       </ListGroup>

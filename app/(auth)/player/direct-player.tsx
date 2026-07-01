@@ -1145,24 +1145,24 @@ export default function DirectPlayerPage() {
     videoRef,
   ]);
 
-  // Apply subtitle settings when video loads
+  // Apply subtitle settings once MPV has enumerated tracks. `onLoad` fires
+  // before track-list/count is ready, so ASS override/alignment commands can be
+  // dropped if they are sent there (notably on Android).
   useEffect(() => {
-    if (!isVideoLoaded || !videoRef.current) return;
+    if (!tracksReady || !videoRef.current) return;
 
     const applySubtitleSettings = async () => {
-      if (settings.mpvSubtitleScale !== undefined) {
-        await videoRef.current?.setSubtitleScale?.(settings.mpvSubtitleScale);
+      if (settings.subtitleSize !== undefined) {
+        await videoRef.current?.setSubtitleScale?.(settings.subtitleSize);
       }
-      if (settings.mpvSubtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY?.(
-          settings.mpvSubtitleMarginY,
-        );
+      if (settings.subtitleMarginY !== undefined) {
+        await videoRef.current?.setSubtitleMarginY?.(settings.subtitleMarginY);
       }
-      if (settings.mpvSubtitleAlignX !== undefined) {
-        await videoRef.current?.setSubtitleAlignX?.(settings.mpvSubtitleAlignX);
+      if (settings.subtitleAlignX !== undefined) {
+        await videoRef.current?.setSubtitleAlignX?.(settings.subtitleAlignX);
       }
-      if (settings.mpvSubtitleAlignY !== undefined) {
-        await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
+      if (settings.subtitleAlignY !== undefined) {
+        await videoRef.current?.setSubtitleAlignY?.(settings.subtitleAlignY);
       }
       const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
       const opacity = Math.min(
@@ -1175,18 +1175,25 @@ export default function DirectPlayerPage() {
         .toUpperCase();
 
       await videoRef.current?.setSubtitleStyle?.({
-        fontSize: settings.subtitleSize ?? settings.mpvSubtitleFontSize,
         color: settings.subtitleColor,
         font: settings.subtitleFont,
         background: settings.subtitleBackground ? `#${alpha}000000` : "",
         backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
       });
 
-      // Force user subtitle styling onto ASS tracks only when the user has
-      // enabled a subtitle background. CJK glyph fallback is handled at the
-      // libass level via the bundled `subfont.ttf` (see MPVLayerRenderer), so
-      // no per-language font override is needed here.
-      if (settings.subtitleBackground) {
+      const shouldForceSubtitleStyle =
+        settings.subtitleBackground ||
+        Math.abs((settings.subtitleSize ?? 1) - 1) > 0.001 ||
+        settings.subtitleFont !== "System" ||
+        settings.subtitleColor.toUpperCase() !== "#FFFFFF" ||
+        settings.subtitleMarginY !== undefined ||
+        settings.subtitleAlignX !== undefined ||
+        settings.subtitleAlignY !== undefined;
+
+      // ASS subtitles define their own styles, including alignment/margins.
+      // Force overrides whenever the user has customized subtitle appearance
+      // or positioning; otherwise leave authored ASS styling untouched.
+      if (shouldForceSubtitleStyle) {
         await videoRef.current?.setSubtitleAssOverride?.("force");
       } else {
         await videoRef.current?.setSubtitleAssOverride?.("no");
@@ -1194,7 +1201,7 @@ export default function DirectPlayerPage() {
     };
 
     applySubtitleSettings();
-  }, [isVideoLoaded, settings]);
+  }, [tracksReady, settings]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
@@ -1295,7 +1302,10 @@ export default function DirectPlayerPage() {
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}
-                onLoad={() => setIsVideoLoaded(true)}
+                onLoad={() => {
+                  setIsVideoLoaded(true);
+                  setTracksReady(false);
+                }}
                 onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(

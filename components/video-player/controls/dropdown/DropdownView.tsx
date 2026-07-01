@@ -133,8 +133,8 @@ const DropdownView = ({
           type: "radio" as const,
           label: preset.label,
           value: preset.value.toString(),
-          selected: (settings.mpvSubtitleScale ?? 1.0) === preset.value,
-          onPress: () => updateSettings({ mpvSubtitleScale: preset.value }),
+          selected: settings.subtitleSize === preset.value,
+          onPress: () => updateSettings({ subtitleSize: preset.value }),
         })),
       });
     }
@@ -192,7 +192,7 @@ const DropdownView = ({
     audioTracksKey,
     subtitleIndex,
     audioIndex,
-    settings.mpvSubtitleScale,
+    settings.subtitleSize,
     updateSettings,
     playbackSpeed,
     setPlaybackSpeed,

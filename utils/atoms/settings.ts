@@ -123,6 +123,9 @@ export interface MaxAutoPlayEpisodeCount {
   value: number;
 }
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
 /**
  * The plugin may send object-typed settings as plain primitives.
  * Resolve to the proper option object from the available choices.
@@ -131,6 +134,10 @@ const normalizePluginValue = (
   settingsKey: keyof Settings,
   value: unknown,
 ): unknown => {
+  if (settingsKey === "subtitleSize" && isFiniteNumber(value) && value >= 10) {
+    return value / 100;
+  }
+
   if (typeof value !== "object" || value === null) {
     const defaultVal = defaultValues[settingsKey];
     if (
@@ -244,6 +251,9 @@ export type Settings = {
   subtitleBackgroundPadding: number;
   subtitleFont: string;
   subtitleColor: string;
+  subtitleMarginY?: number;
+  subtitleAlignX?: "left" | "center" | "right";
+  subtitleAlignY?: "top" | "center" | "bottom";
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
   useKefinTweaks: boolean;
@@ -256,14 +266,6 @@ export type Settings = {
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
   playbackSpeedPerShow: Record<string, number>;
-  // MPV subtitle settings
-  mpvSubtitleScale?: number;
-  mpvSubtitleMarginY?: number;
-  mpvSubtitleAlignX?: "left" | "center" | "right";
-  mpvSubtitleAlignY?: "top" | "center" | "bottom";
-  mpvSubtitleFontSize?: number;
-  mpvSubtitleBackgroundEnabled?: boolean;
-  mpvSubtitleBackgroundOpacity?: number; // 0-100
   // MPV buffer/cache settings
   mpvCacheEnabled?: MpvCacheMode;
   mpvCacheSeconds?: number;
@@ -346,12 +348,15 @@ export const defaultValues: Settings = {
   rewindSkipTime: 10,
   showCustomMenuLinks: false,
   disableHapticFeedback: false,
-  subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
+  subtitleSize: 1.0,
   subtitleBackground: false,
   subtitleBackgroundOpacity: 40,
   subtitleBackgroundPadding: 12,
   subtitleFont: "System",
   subtitleColor: "#FFFFFF",
+  subtitleMarginY: undefined,
+  subtitleAlignX: undefined,
+  subtitleAlignY: undefined,
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
   useKefinTweaks: false,
@@ -364,14 +369,6 @@ export const defaultValues: Settings = {
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
   playbackSpeedPerShow: {},
-  // MPV subtitle defaults
-  mpvSubtitleScale: undefined,
-  mpvSubtitleMarginY: undefined,
-  mpvSubtitleAlignX: undefined,
-  mpvSubtitleAlignY: undefined,
-  mpvSubtitleFontSize: undefined,
-  mpvSubtitleBackgroundEnabled: false,
-  mpvSubtitleBackgroundOpacity: 75,
   // MPV buffer/cache defaults.
   // Android TV gets tighter caps — combined with libmpv 1.0's larger
   // baseline (fontconfig + libxml2 + libplacebo HDR path + scudo
@@ -413,11 +410,93 @@ export const defaultValues: Settings = {
   inactivityTimeout: InactivityTimeout.Disabled,
 };
 
+type LegacySubtitleSettings = Partial<Settings> & {
+  mpvSubtitleScale?: number;
+  mpvSubtitleMarginY?: number;
+  mpvSubtitleAlignX?: "left" | "center" | "right";
+  mpvSubtitleAlignY?: "top" | "center" | "bottom";
+  mpvSubtitleFontSize?: number;
+  mpvSubtitleBackgroundEnabled?: boolean;
+  mpvSubtitleBackgroundOpacity?: number;
+};
+
+const migrateSubtitleSettings = (settings: LegacySubtitleSettings) => {
+  let changed = false;
+
+  if (isFiniteNumber(settings.mpvSubtitleScale)) {
+    settings.subtitleSize = settings.mpvSubtitleScale;
+    changed = true;
+  } else if (
+    isFiniteNumber(settings.subtitleSize) &&
+    settings.subtitleSize >= 10
+  ) {
+    settings.subtitleSize = settings.subtitleSize / 100;
+    changed = true;
+  }
+
+  if (isFiniteNumber(settings.mpvSubtitleMarginY)) {
+    settings.subtitleMarginY = settings.mpvSubtitleMarginY;
+    changed = true;
+  }
+
+  if (settings.mpvSubtitleAlignX) {
+    settings.subtitleAlignX = settings.mpvSubtitleAlignX;
+    changed = true;
+  }
+
+  if (settings.mpvSubtitleAlignY) {
+    settings.subtitleAlignY = settings.mpvSubtitleAlignY;
+    changed = true;
+  }
+
+  // The legacy MPV background setting lived in a separate advanced section.
+  // Treat an explicit true as user intent, but do not let the old default false
+  // overwrite the primary subtitleBackground setting.
+  if (settings.mpvSubtitleBackgroundEnabled === true) {
+    settings.subtitleBackground = true;
+    changed = true;
+
+    if (isFiniteNumber(settings.mpvSubtitleBackgroundOpacity)) {
+      settings.subtitleBackgroundOpacity =
+        settings.mpvSubtitleBackgroundOpacity;
+    }
+  } else if (
+    settings.subtitleBackgroundOpacity === undefined &&
+    isFiniteNumber(settings.mpvSubtitleBackgroundOpacity)
+  ) {
+    settings.subtitleBackgroundOpacity = settings.mpvSubtitleBackgroundOpacity;
+    changed = true;
+  }
+
+  const legacyKeys: Array<keyof LegacySubtitleSettings> = [
+    "mpvSubtitleScale",
+    "mpvSubtitleMarginY",
+    "mpvSubtitleAlignX",
+    "mpvSubtitleAlignY",
+    "mpvSubtitleFontSize",
+    "mpvSubtitleBackgroundEnabled",
+    "mpvSubtitleBackgroundOpacity",
+  ];
+
+  for (const key of legacyKeys) {
+    if (key in settings) {
+      delete settings[key];
+      changed = true;
+    }
+  }
+
+  return changed;
+};
+
 const loadSettings = (): Partial<Settings> => {
   try {
     const jsonValue = storage.getString("settings");
-    const loadedValues: Partial<Settings> =
+    const loadedValues: LegacySubtitleSettings =
       jsonValue != null ? JSON.parse(jsonValue) : {};
+
+    if (migrateSubtitleSettings(loadedValues)) {
+      storage.set("settings", JSON.stringify(loadedValues));
+    }
 
     return loadedValues;
   } catch (error) {
