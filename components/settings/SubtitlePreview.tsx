@@ -4,15 +4,22 @@ import {
   ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { MpvPlayerView } from "@/modules/mpv-player";
 import type { MpvPlayerViewRef } from "@/modules/mpv-player/src/MpvPlayer.types";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  getEffectiveSubtitleScale,
+  SUBTITLE_PREVIEW_VIDEO_HEIGHT,
+  SUBTITLE_PREVIEW_VIDEO_WIDTH,
+} from "@/utils/subtitles";
 import { Text } from "../common/Text";
 
 export const SubtitlePreview = React.memo(() => {
   const { settings } = useSettings();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [assetUri, setAssetUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [assetError, setAssetError] = useState(false);
@@ -57,8 +64,16 @@ export const SubtitlePreview = React.memo(() => {
       settings.subtitleAlignX !== undefined ||
       settings.subtitleAlignY !== undefined;
 
+    const effectiveScale = getEffectiveSubtitleScale(
+      settings.subtitleSize ?? 1,
+      SUBTITLE_PREVIEW_VIDEO_WIDTH,
+      SUBTITLE_PREVIEW_VIDEO_HEIGHT,
+      screenWidth,
+      screenHeight,
+    );
+
     const commands: Array<() => Promise<void>> = [
-      () => player.setSubtitleScale(settings.subtitleSize),
+      () => player.setSubtitleScale(effectiveScale),
       () =>
         player.setSubtitleStyle({
           color: settings.subtitleColor,
@@ -90,7 +105,7 @@ export const SubtitlePreview = React.memo(() => {
         console.error("Failed to apply subtitle preview style:", error);
       }
     }
-  }, [settings, playerReady, playerRef]);
+  }, [settings, screenWidth, screenHeight, playerReady, playerRef]);
 
   useEffect(() => {
     applyStyle().catch((err: unknown) =>

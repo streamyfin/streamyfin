@@ -60,6 +60,7 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
+import { getEffectiveSubtitleScale } from "@/utils/subtitles";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
@@ -720,6 +721,19 @@ export default function DirectPlayerPage() {
     settings.mpvVoDriver,
   ]);
 
+  const effectiveSubtitleScale = useMemo(() => {
+    const videoStream = stream?.mediaSource?.MediaStreams?.find(
+      (mediaStream) => mediaStream.Type === "Video",
+    );
+    return getEffectiveSubtitleScale(
+      settings.subtitleSize ?? 1,
+      videoStream?.Width,
+      videoStream?.Height,
+      screenWidth,
+      screenHeight,
+    );
+  }, [settings.subtitleSize, stream?.mediaSource, screenWidth, screenHeight]);
+
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
 
@@ -1152,9 +1166,7 @@ export default function DirectPlayerPage() {
     if (!tracksReady || !videoRef.current) return;
 
     const applySubtitleSettings = async () => {
-      if (settings.subtitleSize !== undefined) {
-        await videoRef.current?.setSubtitleScale?.(settings.subtitleSize);
-      }
+      await videoRef.current?.setSubtitleScale?.(effectiveSubtitleScale);
       if (settings.subtitleMarginY !== undefined) {
         await videoRef.current?.setSubtitleMarginY?.(settings.subtitleMarginY);
       }
@@ -1201,7 +1213,7 @@ export default function DirectPlayerPage() {
     };
 
     applySubtitleSettings();
-  }, [tracksReady, settings]);
+  }, [tracksReady, settings, effectiveSubtitleScale]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
