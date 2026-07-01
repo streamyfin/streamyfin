@@ -24,7 +24,7 @@ export const TVTypography = {
   heading: 32,
 
   /** Overview, actor names, card titles, metadata */
-  body: 40,
+  body: 32,
 
   /** Secondary text, labels, subtitles */
   callout: 26,
