@@ -7,7 +7,7 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { Image } from "expo-image";
 import { t } from "i18next";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 // PNG ASSET
 import heart from "@/assets/icons/heart.fill.png";
@@ -23,7 +23,9 @@ type FavoriteTypes =
   | "Video"
   | "BoxSet"
   | "Playlist";
-type EmptyState = Record<FavoriteTypes, boolean>;
+// `null` = not settled yet (loading/unknown); avoids flashing the empty
+// message during a favorites/watchlist switch before the new queries resolve.
+type EmptyState = Record<FavoriteTypes, boolean | null>;
 
 interface FavoritesProps {
   /** Jellyfin item filter. "IsFavorite" (default) or "Likes" for the watchlist view. */
@@ -48,12 +50,12 @@ export const Favorites = ({
   const [user] = useAtom(userAtom);
   const pageSize = 20;
   const [emptyState, setEmptyState] = useState<EmptyState>({
-    Series: false,
-    Movie: false,
-    Episode: false,
-    Video: false,
-    BoxSet: false,
-    Playlist: false,
+    Series: null,
+    Movie: null,
+    Episode: null,
+    Video: null,
+    BoxSet: null,
+    Playlist: null,
   });
 
   const fetchFavoritesByType = useCallback(
@@ -76,42 +78,28 @@ export const Favorites = ({
         limit: limit,
         includeItemTypes: [itemType],
       });
-      const items = response.data.Items || [];
-
-      // Update empty state for this specific type only for the first page
-      if (startIndex === 0) {
-        setEmptyState((prev) => ({
-          ...prev,
-          [itemType as FavoriteTypes]: items.length === 0,
-        }));
-      }
-
-      return items;
+      return response.data.Items || [];
     },
     [api, user, filter],
   );
 
-  // Reset empty state when the account or active view changes. `filter`
-  // matters because switching the favorites/watchlist toggle swaps this
-  // component's props in place (no remount), so stale per-type emptiness
-  // from the previous view must be cleared until the new queries resolve.
-  useEffect(() => {
-    setEmptyState({
-      Series: false,
-      Movie: false,
-      Episode: false,
-      Video: false,
-      BoxSet: false,
-      Playlist: false,
-    });
-  }, [api, user, filter]);
+  // Emptiness is reported by each list once its query settles (incl. cache
+  // hits), so it stays correct where a queryFn side effect would go stale.
+  const setTypeEmpty = useCallback(
+    (type: FavoriteTypes, isEmpty: boolean | null) =>
+      setEmptyState((prev) =>
+        prev[type] === isEmpty ? prev : { ...prev, [type]: isEmpty },
+      ),
+    [],
+  );
 
-  // Check if all categories that have been loaded are empty
+  // Show the empty message only once every category has settled AND is empty.
+  // A `null` (still loading) keeps it hidden, so switching favorites/watchlist
+  // (props swap in place, no remount) never flashes a stale empty state.
   const areAllEmpty = () => {
-    const loadedCategories = Object.values(emptyState);
+    const categories = Object.values(emptyState);
     return (
-      loadedCategories.length > 0 &&
-      loadedCategories.every((isEmpty) => isEmpty)
+      categories.length > 0 && categories.every((isEmpty) => isEmpty === true)
     );
   };
 
@@ -191,6 +179,7 @@ export const Favorites = ({
         title={t("favorites.series")}
         hideIfEmpty
         pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
         onPressSeeAll={() => seeAll("Series", "Series")}
       />
       <InfiniteScrollingCollectionList
@@ -200,6 +189,7 @@ export const Favorites = ({
         hideIfEmpty
         orientation='vertical'
         pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Movie", isEmpty)}
         onPressSeeAll={() => seeAll("Movie", "Movies")}
       />
       <InfiniteScrollingCollectionList
@@ -208,6 +198,7 @@ export const Favorites = ({
         title={t("favorites.episodes")}
         hideIfEmpty
         pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Episode", isEmpty)}
         onPressSeeAll={() => seeAll("Episode", "Episodes")}
       />
       <InfiniteScrollingCollectionList
@@ -216,6 +207,7 @@ export const Favorites = ({
         title={t("favorites.videos")}
         hideIfEmpty
         pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Video", isEmpty)}
         onPressSeeAll={() => seeAll("Video", "Videos")}
       />
       <InfiniteScrollingCollectionList
@@ -224,6 +216,7 @@ export const Favorites = ({
         title={t("favorites.boxsets")}
         hideIfEmpty
         pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("BoxSet", isEmpty)}
         onPressSeeAll={() => seeAll("BoxSet", "Boxsets")}
       />
       <InfiniteScrollingCollectionList
@@ -232,6 +225,7 @@ export const Favorites = ({
         title={t("favorites.playlists")}
         hideIfEmpty
         pageSize={pageSize}
+        onEmptyStateChange={(isEmpty) => setTypeEmpty("Playlist", isEmpty)}
         onPressSeeAll={() => seeAll("Playlist", "Playlists")}
       />
     </View>

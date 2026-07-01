@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -42,6 +42,13 @@ interface Props extends ViewProps {
   isFirstSection?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
   parentId?: string;
+  /**
+   * Reports emptiness whenever the query settles (incl. cache hits):
+   * `null` while loading (unknown), otherwise whether the list is empty.
+   * Lets a parent derive an aggregate empty-state reactively instead of via a
+   * queryFn side effect, which React Query skips when it serves cache.
+   */
+  onEmptyStateChange?: (isEmpty: boolean | null) => void;
 }
 
 type Typography = ReturnType<typeof useScaledTVTypography>;
@@ -123,6 +130,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   isFirstSection = false,
   onItemFocus,
   parentId,
+  onEmptyStateChange,
   ...props
 }) => {
   const typography = useScaledTVTypography();
@@ -181,6 +189,14 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
     return deduped;
   }, [data]);
+
+  // Report emptiness on every settle (incl. cache hits). Callback held in a ref
+  // so an inline parent callback doesn't retrigger the effect each render.
+  const onEmptyStateChangeRef = useRef(onEmptyStateChange);
+  onEmptyStateChangeRef.current = onEmptyStateChange;
+  useEffect(() => {
+    onEmptyStateChangeRef.current?.(isLoading ? null : allItems.length === 0);
+  }, [isLoading, allItems.length]);
 
   const itemWidth =
     orientation === "horizontal" ? posterSizes.episode : posterSizes.poster;
