@@ -199,6 +199,13 @@
         "rewind_length": "Rewind length",
         "seconds_unit": "s"
       },
+      "video_player": {
+        "title": "Video Player",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
+        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display — HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
+      },
       "buffer": {
         "title": "Buffer settings",
         "cache_mode": "Cache mode",

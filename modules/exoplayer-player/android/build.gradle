@@ -1,0 +1,68 @@
+apply plugin: 'com.android.library'
+
+group = 'expo.modules.exoplayerplayer'
+version = '0.1.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+
+def useManagedAndroidSdkVersions = false
+if (useManagedAndroidSdkVersions) {
+  useDefaultAndroidSdkVersions()
+} else {
+  buildscript {
+    ext.safeExtGet = { prop, fallback ->
+      rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+    }
+  }
+  project.android {
+    compileSdkVersion safeExtGet("compileSdkVersion", 36)
+    defaultConfig {
+      minSdkVersion safeExtGet("minSdkVersion", 26)
+      targetSdkVersion safeExtGet("targetSdkVersion", 36)
+    }
+  }
+}
+
+android {
+  namespace "expo.modules.exoplayerplayer"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // Media3 (ExoPlayer). The default tracks react-native-track-player's
+  // pinned version (currently 1.10.1) so we don't end up with two media3
+  // versions on the classpath and duplicate-class errors. The
+  // DASH/SmoothStreaming/RTSP artifacts that RNTP pulls in are excluded
+  // globally via plugins/withExcludeMedia3Dash.js.
+  def media3Version = safeExtGet('media3Version', '1.10.1')
+  implementation "androidx.media3:media3-exoplayer:${media3Version}"
+  implementation "androidx.media3:media3-exoplayer-hls:${media3Version}"
+  implementation "androidx.media3:media3-ui:${media3Version}"
+  implementation "androidx.media3:media3-common:${media3Version}"
+
+  // FFmpeg software decoders — DTS / TrueHD / AC-4 / WMA / older video
+  // codecs that MediaCodec doesn't ship with on most Android TVs.
+  //
+  // This is the Jellyfin-published distribution of media3-decoder-ffmpeg
+  // with prebuilt native libraries (the upstream androidx artifact is a
+  // stub that requires building FFmpeg yourself). RNTP already pulls
+  // 1.9.0+1 in transitively, so declaring it here is mostly defensive —
+  // it guarantees we still get it if RNTP ever drops the dep.
+  //
+  // Version skew: this is built against media3 1.9.0 but RNTP (and we)
+  // resolve media3 core to 1.10.1. RNTP ships the same combination in
+  // production, and Media3 maintains binary compat for Renderer /
+  // RenderersFactory APIs across minor versions, so this works in
+  // practice. Re-evaluate when Jellyfin publishes a 1.10.x build.
+  implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
+}
