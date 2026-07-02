@@ -106,4 +106,33 @@ describe("secureCustomHeaderMetadata", () => {
       "second-secret",
     );
   });
+
+  test("allocates a new key when encoded scope prefixes overlap", () => {
+    const shorterScope = "a";
+    const longerScope = "a\x0f\xC0";
+    const longerScopeMetadata = secureCustomHeaderMetadata(longerScope, [
+      header("CF-Access-Client-Id", "longer-secret"),
+    ]);
+    const overlappingSecureValueKey = longerScopeMetadata[0]?.secureValueKey;
+
+    expect(overlappingSecureValueKey).toBeTruthy();
+
+    const shorterScopeMetadata = secureCustomHeaderMetadata(shorterScope, [
+      header(
+        "CF-Access-Client-Id",
+        "shorter-secret",
+        overlappingSecureValueKey,
+      ),
+    ]);
+
+    expect(shorterScopeMetadata[0]?.secureValueKey).not.toBe(
+      overlappingSecureValueKey,
+    );
+    expect(secureStoreValues.get(overlappingSecureValueKey!)).toBe(
+      "longer-secret",
+    );
+    expect(
+      secureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
+    ).toBe("shorter-secret");
+  });
 });
