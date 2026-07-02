@@ -177,10 +177,14 @@ export function secureCustomHeaderMetadata(
     } while (retainedKeys.has(secureValueKey) || nextKeys.has(secureValueKey));
     return secureValueKey;
   };
+  const currentScopeKeyPrefix = customHeaderValueKey(scope, 0).slice(0, -1);
+  const canReuseSecureValueKey = (secureValueKey: string) =>
+    secureValueKey.startsWith(currentScopeKeyPrefix) &&
+    !nextKeys.has(secureValueKey);
 
   const metadata = headers.map((header) => {
     const secureValueKey =
-      header.secureValueKey && !nextKeys.has(header.secureValueKey)
+      header.secureValueKey && canReuseSecureValueKey(header.secureValueKey)
         ? header.secureValueKey
         : allocateSecureValueKey();
     nextKeys.add(secureValueKey);

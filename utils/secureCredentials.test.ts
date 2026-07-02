@@ -85,4 +85,25 @@ describe("secureCustomHeaderMetadata", () => {
       "new-secret",
     );
   });
+
+  test("allocates a new key when metadata from another scope is reused", () => {
+    const firstScope = "server:https://first.example.test";
+    const secondScope = "server:https://second.example.test";
+    const firstMetadata = secureCustomHeaderMetadata(firstScope, [
+      header("CF-Access-Client-Id", "first-secret"),
+    ]);
+    const copiedSecureValueKey = firstMetadata[0]?.secureValueKey;
+
+    expect(copiedSecureValueKey).toBeTruthy();
+
+    const secondMetadata = secureCustomHeaderMetadata(secondScope, [
+      header("CF-Access-Client-Id", "second-secret", copiedSecureValueKey),
+    ]);
+
+    expect(secondMetadata[0]?.secureValueKey).not.toBe(copiedSecureValueKey);
+    expect(secureStoreValues.get(copiedSecureValueKey!)).toBe("first-secret");
+    expect(secureStoreValues.get(secondMetadata[0]!.secureValueKey!)).toBe(
+      "second-secret",
+    );
+  });
 });
