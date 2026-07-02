@@ -125,6 +125,20 @@ function customHeaderValueKey(scope: string, index: number): string {
   return `${CUSTOM_HEADER_VALUE_KEY_PREFIX}${encodeStorageKey(scope)}_${index}`;
 }
 
+function secureValueKeyScopeMatches(
+  scope: string,
+  secureValueKey: string,
+): boolean {
+  if (!secureValueKey.startsWith(CUSTOM_HEADER_VALUE_KEY_PREFIX)) return false;
+  const encodedScope = encodeStorageKey(scope);
+  const keySuffix = secureValueKey.slice(CUSTOM_HEADER_VALUE_KEY_PREFIX.length);
+  const separatorIndex = keySuffix.lastIndexOf("_");
+
+  return (
+    separatorIndex > -1 && keySuffix.slice(0, separatorIndex) === encodedScope
+  );
+}
+
 function isStoredCustomHeader(header: unknown): header is CustomHeader {
   return (
     !!header &&
@@ -177,9 +191,8 @@ export function secureCustomHeaderMetadata(
     } while (retainedKeys.has(secureValueKey) || nextKeys.has(secureValueKey));
     return secureValueKey;
   };
-  const currentScopeKeyPrefix = customHeaderValueKey(scope, 0).slice(0, -1);
   const canReuseSecureValueKey = (secureValueKey: string) =>
-    secureValueKey.startsWith(currentScopeKeyPrefix) &&
+    secureValueKeyScopeMatches(scope, secureValueKey) &&
     !nextKeys.has(secureValueKey);
 
   const metadata = headers.map((header) => {
