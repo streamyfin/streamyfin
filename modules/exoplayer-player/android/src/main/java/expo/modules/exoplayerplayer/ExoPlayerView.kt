@@ -82,6 +82,12 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
 
+    // Side-loaded subtitle configurations accumulated across loadVideo and
+    // addSubtitleFile. Media3 doesn't expose the live SubtitleConfiguration
+    // list on a playing MediaItem, so we shadow it here to preserve prior
+    // side-loaded subs when addSubtitleFile rebuilds the MediaItem.
+    private var sideLoadedSubs: List<MediaItem.SubtitleConfiguration> = emptyList()
+
     // 1-based track ID mappings (matching MPV's contract).
     // Each list is rebuilt on Tracks changed.
     private var subtitleTrackList: List<TrackEntry> = emptyList()
@@ -371,8 +377,13 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                     .build()
             }
             if (subtitleConfigs.isNotEmpty()) {
+                sideLoadedSubs = subtitleConfigs
                 builder.setSubtitleConfigurations(subtitleConfigs)
+            } else {
+                sideLoadedSubs = emptyList()
             }
+        } else {
+            sideLoadedSubs = emptyList()
         }
 
         return builder.build()
@@ -406,6 +417,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         playerView.player = null
         tracksReadyFired = false
         currentUrl = null
+        sideLoadedSubs = emptyList()
         subtitleTrackList = emptyList()
         audioTrackList = emptyList()
         currentSubtitleId = 0
@@ -547,14 +559,6 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun addSubtitleFile(url: String, select: Boolean) {
         val p = player ?: return
-        // Media3 does not expose the current MediaItem's existing
-        // SubtitleConfigurations, so we cannot append a side-loaded
-        // subtitle to a running item without losing the originals.
-        // For TV, external subs are bundled at load time via
-        // VideoLoadConfig.externalSubtitles (see buildMediaItem). This
-        // method rebuilds the current MediaItem with just the new
-        // subtitle config — acceptable when no other external subs are
-        // in play, which is the typical TV case.
         val mime = mimeTypeForSubtitleUrl(url) ?: return
         val currentMediaItem = p.currentMediaItem ?: return
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
@@ -562,8 +566,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             .setSelectionFlags(if (select) C.SELECTION_FLAG_DEFAULT else 0)
             .build()
 
+        // Rebuild with the full accumulated list so previously loaded
+        // side-loaded subs (from VideoLoadConfig.externalSubtitles or
+        // earlier addSubtitleFile calls) survive.
+        val combined = sideLoadedSubs + newSubConfig
+        sideLoadedSubs = combined
+
         val rebuilt = currentMediaItem.buildUpon()
-            .setSubtitleConfigurations(listOf(newSubConfig))
+            .setSubtitleConfigurations(combined)
             .build()
 
         val wasPlaying = p.isPlaying
@@ -571,6 +581,17 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         p.setMediaItem(rebuilt, pos)
         p.prepare()
         if (wasPlaying) p.play()
+
+        // If text tracks were disabled (e.g. disableSubtitles was called
+        // earlier, or playback started with subtitles off), the new
+        // subtitle — even with SELECTION_FLAG_DEFAULT — won't render.
+        // Re-enable the text track type when the caller asks us to select.
+        if (select) {
+            val params = p.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                .build()
+            p.trackSelectionParameters = params
+        }
     }
 
     // MARK: - Subtitle Positioning / Styling

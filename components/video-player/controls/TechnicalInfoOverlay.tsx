@@ -306,9 +306,10 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
                   what's actually being decoded) over Jellyfin metadata. */}
               {info?.hdrFormat
                 ? ` ${info.hdrFormat}`
-                : formatVideoRange(streamInfo?.videoRange)
-                  ? ` ${formatVideoRange(streamInfo?.videoRange)}`
-                  : ""}
+                : (() => {
+                    const videoRange = formatVideoRange(streamInfo?.videoRange);
+                    return videoRange ? ` ${videoRange}` : "";
+                  })()}
             </Text>
           )}
           {info?.videoCodec && (
@@ -322,11 +323,13 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
               Audio: {formatCodec(info.audioCodec)}
               {/* Prefer player-reported channel count; fall back to
                   Jellyfin metadata for MPV which doesn't populate it. */}
-              {(info.audioChannels ?? streamInfo?.audioChannels)
-                ? ` ${formatAudioChannels(
-                    info.audioChannels ?? streamInfo!.audioChannels!,
-                  )}`
-                : ""}
+              {(() => {
+                const audioChannels =
+                  info.audioChannels ?? streamInfo?.audioChannels;
+                return audioChannels
+                  ? ` ${formatAudioChannels(audioChannels)}`
+                  : "";
+              })()}
               {info.audioSampleRate
                 ? ` @ ${(info.audioSampleRate / 1000).toFixed(1)}kHz`
                 : ""}
@@ -349,7 +352,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {(info?.colorSpace || info?.colorRange || info?.colorTransfer) && (
             <Text style={textStyle}>
-              Color:
+              Color:{" "}
               {[info.colorSpace, info.colorRange, info.colorTransfer]
                 .filter(Boolean)
                 .join(" / ")}

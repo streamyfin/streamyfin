@@ -183,7 +183,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
       CodecProfiles: [
         {
           Type: MediaTypes.Video,
-          Codec: "h263,h264,hevc,vp8,vp9,av1",
+          Codec: "h263,h264,vp8,vp9,av1",
         },
         {
           Type: MediaTypes.Video,

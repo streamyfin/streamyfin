@@ -736,12 +736,12 @@ export default function SettingsTV() {
           />
           {isMpv && (
             <TVSettingsOptionButton
-              label='Horizontal Alignment'
+              label={t("home.settings.subtitles.mpv_subtitle_align_x")}
               value={alignXLabel}
               // ExoPlayer follows authored cue alignment; hide on ExoPlayer.
               onPress={() =>
                 showOptions({
-                  title: "Horizontal Alignment",
+                  title: t("home.settings.subtitles.mpv_subtitle_align_x"),
                   options: alignXOptions,
                   onSelect: (value) =>
                     updateSettings({
