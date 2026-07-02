@@ -32,10 +32,10 @@ async function checkApiReachable(
 ): Promise<boolean> {
   if (!basePath) return false;
   try {
-    const url = basePath.endsWith("/") ? basePath : `${basePath}/`;
+    const url = `${basePath.replace(/\/$/, "")}/System/Info/Public`;
     const response = await fetch(
       url,
-      optionsWithOptionalHeaders({ method: "HEAD" }, headers),
+      optionsWithOptionalHeaders({ method: "GET" }, headers),
     );
     return response.ok;
   } catch {

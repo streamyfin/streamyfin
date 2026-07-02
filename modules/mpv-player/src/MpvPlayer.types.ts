@@ -68,6 +68,8 @@ export type VideoSource = {
   };
   /** MPV video output driver (Android only) */
   voDriver?: "gpu-next" | "gpu";
+  /** MPV hardware decoder mode (Android only). */
+  hwdec?: "mediacodec" | "mediacodec-copy" | "no";
 };
 
 export type MpvPlayerViewProps = {

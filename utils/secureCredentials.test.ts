@@ -36,7 +36,8 @@ mock.module("./store", () => ({
   },
 }));
 
-const { secureCustomHeaderMetadata } = await import("./secureCredentials");
+const { secureCustomHeaderMetadata, secureCustomHeaderMetadataAsync } =
+  await import("./secureCredentials");
 
 import type { CustomHeader } from "./secureCredentials";
 
@@ -134,5 +135,35 @@ describe("secureCustomHeaderMetadata", () => {
     expect(
       secureStoreValues.get(shorterScopeMetadata[0]!.secureValueKey!),
     ).toBe("shorter-secret");
+  });
+
+  test("async metadata storage does not assign a generated key that collides with a retained row key", async () => {
+    const scope = "server:https://example.test";
+    const original = await secureCustomHeaderMetadataAsync(scope, [
+      header("X-First", "first"),
+      header("X-Retained", "retained"),
+    ]);
+    const retainedKey = original[1]?.secureValueKey;
+
+    expect(retainedKey).toBeTruthy();
+
+    const metadata = await secureCustomHeaderMetadataAsync(
+      scope,
+      [
+        header("X-Retained", "retained-new-value", retainedKey),
+        header("X-New", "new-secret"),
+      ],
+      original,
+    );
+    const secureValueKeys = metadata.map((item) => item.secureValueKey);
+
+    expect(metadata[0]?.secureValueKey).toBe(retainedKey);
+    expect(new Set(secureValueKeys).size).toBe(secureValueKeys.length);
+    expect(secureStoreValues.get(metadata[0]!.secureValueKey!)).toBe(
+      "retained-new-value",
+    );
+    expect(secureStoreValues.get(metadata[1]!.secureValueKey!)).toBe(
+      "new-secret",
+    );
   });
 });

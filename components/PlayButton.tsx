@@ -55,6 +55,7 @@ export const PlayButton: React.FC<Props> = ({
   item,
   selectedOptions,
   colors,
+  testID,
 }: Props) => {
   const isOffline = useOfflineMode();
   const { showActionSheetWithOptions } = useActionSheet();
@@ -94,13 +95,20 @@ export const PlayButton: React.FC<Props> = ({
   const handleNormalPlayFlow = useCallback(async () => {
     if (!item) return;
 
+    const maestroPlaybackPosition =
+      process.env.EXPO_PUBLIC_MAESTRO_DEBUG === "1" ? "0" : undefined;
+    const playbackPosition =
+      maestroPlaybackPosition ??
+      item.UserData?.PlaybackPositionTicks?.toString() ??
+      "0";
+
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
       audioIndex: selectedOptions.audioIndex?.toString() ?? "",
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
-      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+      playbackPosition,
       offline: isOffline ? "true" : "false",
     });
 
@@ -505,6 +513,7 @@ export const PlayButton: React.FC<Props> = ({
       accessibilityLabel='Play button'
       accessibilityHint='Tap to play the media'
       onPress={onPress}
+      testID={testID}
       className={"relative flex-1"}
     >
       <View className='absolute w-full h-full top-0 left-0 rounded-full z-10 overflow-hidden'>

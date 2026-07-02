@@ -1,0 +1,1320 @@
+name: 🧪 Maestro Mobile E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      reuse_apk:
+        description: "Reuse the most recent Android APK cache for Maestro/Jellyfin infra debugging."
+        required: false
+        type: boolean
+        default: false
+      flow_scope:
+        description: "Limit manual runs to simple or complex flows while debugging."
+        required: false
+        type: choice
+        default: simple
+        options:
+          - all
+          - simple
+          - complex
+      platform_scope:
+        description: "Limit manual runs to Android or iOS while debugging."
+        required: false
+        type: choice
+        default: ios
+        options:
+          - ios
+          - android
+          - all
+      ios_macos_runner:
+        description: "macOS runner scope for manual iOS simulator rendering diagnostics."
+        required: false
+        type: choice
+        default: macos-15
+        options:
+          - macos-15
+          - macos-15-xlarge
+          - arm-all
+      ios_recording:
+        description: "Record iOS simulator playback videos after screenshot verification."
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    branches: [develop, master]
+    paths:
+      - ".github/workflows/maestro-simple-login.yml"
+      - "android/**"
+      - "app/**"
+      - "assets/**"
+      - "components/**"
+      - "constants/**"
+      - "hooks/**"
+      - "modules/**"
+      - "plugins/**"
+      - "providers/**"
+      - "scripts/**"
+      - "tests/fixtures/jellyfin/**"
+      - "tests/maestro/**"
+      - "translations/**"
+      - "utils/**"
+      - "app.config.js"
+      - "app.json"
+      - "bun.lock"
+      - "Makefile"
+      - "package.json"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  select-maestro-matrix:
+    name: Select Maestro matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      build_matrix: ${{ steps.matrix.outputs.build_matrix }}
+      test_matrix: ${{ steps.matrix.outputs.test_matrix }}
+      ios_runner_matrix: ${{ steps.matrix.outputs.ios_runner_matrix }}
+      run_android: ${{ steps.matrix.outputs.run_android }}
+      run_ios: ${{ steps.matrix.outputs.run_ios }}
+      ios_simple_enabled: ${{ steps.matrix.outputs.ios_simple_enabled }}
+      ios_complex_enabled: ${{ steps.matrix.outputs.ios_complex_enabled }}
+      ios_recording_enabled: ${{ steps.matrix.outputs.ios_recording_enabled }}
+    steps:
+      - name: Build matrix
+        id: matrix
+        env:
+          FLOW_SCOPE: ${{ inputs.flow_scope || 'simple' }}
+          PLATFORM_SCOPE: ${{ inputs.platform_scope || 'ios' }}
+          IOS_MACOS_RUNNER: ${{ inputs.ios_macos_runner || 'macos-15' }}
+          IOS_RECORDING: ${{ inputs.ios_recording || 'false' }}
+        run: |
+          case "$PLATFORM_SCOPE" in
+            all)
+              run_android=true
+              run_ios=true
+              ;;
+            android)
+              run_android=true
+              run_ios=false
+              ;;
+            ios)
+              run_android=false
+              run_ios=true
+              ;;
+            *)
+              printf 'Unsupported platform_scope: %s\n' "$PLATFORM_SCOPE" >&2
+              exit 1
+              ;;
+          esac
+
+          cat > "$RUNNER_TEMP/maestro-build-matrix.json" <<'BUILD_MATRIX_JSON'
+          {"include":[{"device":"phone","label":"📱 Android phone APK","expo_tv":"0","prebuild_command":"bun run prebuild","apk_cache_name":"android-phone-release-apk","gradle_log":"gradle-assemble-phone-release.log","artifact_name":"maestro-phone-release-apk"}]}
+          BUILD_MATRIX_JSON
+
+          case "$FLOW_SCOPE" in
+            simple)
+              ios_simple_enabled=true
+              ios_complex_enabled=false
+              cat > "$RUNNER_TEMP/maestro-test-matrix.json" <<'TEST_MATRIX_JSON'
+          {"include":[{"device":"phone","flow_group":"simple","label":"📱 Android phone simple playback","maestro_target":"android","api_level":35,"emulator_target":"google_apis","emulator_profile":"pixel_6","flow_name":"play-steamboat-willie","artifact_name":"maestro-phone-play-steamboat-artifacts","apk_artifact_name":"maestro-phone-release-apk","cf_access_client_id":"","cf_access_client_secret":""}]}
+          TEST_MATRIX_JSON
+              ;;
+            complex)
+              ios_simple_enabled=false
+              ios_complex_enabled=true
+              cat > "$RUNNER_TEMP/maestro-test-matrix.json" <<'TEST_MATRIX_JSON'
+          {"include":[{"device":"phone","flow_group":"complex","label":"📱 Android phone custom headers","maestro_target":"android","api_level":35,"emulator_target":"google_apis","emulator_profile":"pixel_6","flow_name":"cf","artifact_name":"maestro-phone-cf-artifacts","apk_artifact_name":"maestro-phone-release-apk","cf_access_client_id":"fake-cloudflare-token.access","cf_access_client_secret":"fake-cloudflare-secret"}]}
+          TEST_MATRIX_JSON
+              ;;
+            all)
+              ios_simple_enabled=true
+              ios_complex_enabled=true
+              cat > "$RUNNER_TEMP/maestro-test-matrix.json" <<'TEST_MATRIX_JSON'
+          {"include":[{"device":"phone","flow_group":"simple","label":"📱 Android phone simple playback","maestro_target":"android","api_level":35,"emulator_target":"google_apis","emulator_profile":"pixel_6","flow_name":"play-steamboat-willie","artifact_name":"maestro-phone-play-steamboat-artifacts","apk_artifact_name":"maestro-phone-release-apk","cf_access_client_id":"","cf_access_client_secret":""},{"device":"phone","flow_group":"complex","label":"📱 Android phone custom headers","maestro_target":"android","api_level":35,"emulator_target":"google_apis","emulator_profile":"pixel_6","flow_name":"cf","artifact_name":"maestro-phone-cf-artifacts","apk_artifact_name":"maestro-phone-release-apk","cf_access_client_id":"fake-cloudflare-token.access","cf_access_client_secret":"fake-cloudflare-secret"}]}
+          TEST_MATRIX_JSON
+              ;;
+            *)
+              printf 'Unsupported flow_scope: %s\n' "$FLOW_SCOPE" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$IOS_RECORDING" in
+            true|false)
+              ios_recording_enabled="$IOS_RECORDING"
+              ;;
+            *)
+              printf 'Unsupported ios_recording: %s\n' "$IOS_RECORDING" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$IOS_MACOS_RUNNER" in
+            arm-all)
+              cat > "$RUNNER_TEMP/maestro-ios-runner-matrix.json" <<'IOS_RUNNER_MATRIX_JSON'
+          {"include":[{"ios_macos_runner":"macos-15"},{"ios_macos_runner":"macos-15-xlarge"}]}
+          IOS_RUNNER_MATRIX_JSON
+              ;;
+            macos-15|macos-15-xlarge)
+              printf '{"include":[{"ios_macos_runner":"%s"}]}\n' "$IOS_MACOS_RUNNER" > "$RUNNER_TEMP/maestro-ios-runner-matrix.json"
+              ;;
+            *)
+              printf 'Unsupported ios_macos_runner: %s\n' "$IOS_MACOS_RUNNER" >&2
+              exit 1
+              ;;
+          esac
+
+          {
+            printf 'build_matrix<<EOF\n'
+            cat "$RUNNER_TEMP/maestro-build-matrix.json"
+            printf '\nEOF\n'
+            printf 'test_matrix<<EOF\n'
+            cat "$RUNNER_TEMP/maestro-test-matrix.json"
+            printf '\nEOF\n'
+            printf 'ios_runner_matrix<<EOF\n'
+            cat "$RUNNER_TEMP/maestro-ios-runner-matrix.json"
+            printf '\nEOF\n'
+            printf 'run_android=%s\n' "$run_android"
+            printf 'run_ios=%s\n' "$run_ios"
+            printf 'ios_simple_enabled=%s\n' "$ios_simple_enabled"
+            printf 'ios_complex_enabled=%s\n' "$ios_complex_enabled"
+            printf 'ios_recording_enabled=%s\n' "$ios_recording_enabled"
+          } >> "$GITHUB_OUTPUT"
+
+  prepare-maestro-dependencies:
+    name: Prepare Maestro dependencies
+    needs: select-maestro-matrix
+    if: needs.select-maestro-matrix.outputs.run_android == 'true' || needs.select-maestro-matrix.outputs.run_ios == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    outputs:
+      node_modules_cache_key: ${{ steps.node-modules-key.outputs.value }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.x"
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: 🔑 Compute node_modules cache key
+        id: node-modules-key
+        run: printf 'value=%s-%s-node-modules-maestro-%s\n' "${{ runner.os }}" "${{ runner.arch }}" "${{ hashFiles('bun.lock') }}" >> "$GITHUB_OUTPUT"
+
+      - name: 💾 Cache Bun download cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-maestro-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-maestro-
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 💾 Restore node_modules
+        id: node-modules-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: node_modules
+          key: ${{ steps.node-modules-key.outputs.value }}
+
+      - name: 📦 Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 12
+        run: |
+          for attempt in 1 2 3; do
+            if bun install --frozen-lockfile --network-concurrency 8; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+
+      - name: ✅ Verify dependencies
+        run: test -d node_modules && test -x node_modules/.bin/expo
+
+      - name: 💾 Save node_modules
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: node_modules
+          key: ${{ steps.node-modules-key.outputs.value }}
+
+  android-apk-build:
+    name: Build ${{ matrix.label }}
+    needs:
+      - select-maestro-matrix
+      - prepare-maestro-dependencies
+    if: needs.select-maestro-matrix.outputs.run_android == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-maestro-matrix.outputs.build_matrix) }}
+
+    steps:
+      - name: 🗑️ Free disk space
+        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
+        with:
+          tool-cache: false
+          mandb: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: 📥 Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.x"
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: 💾 Restore node_modules
+        id: node-modules-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: node_modules
+          key: ${{ needs.prepare-maestro-dependencies.outputs.node_modules_cache_key }}
+
+      - name: 💾 Cache Bun download cache
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-maestro-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-maestro-
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies if cache is unavailable
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 12
+        run: bun install --frozen-lockfile --network-concurrency 8
+
+      - name: 💾 Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-maestro-${{ matrix.device }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-maestro-${{ matrix.device }}-
+            ${{ runner.os }}-gradle-maestro-
+            ${{ runner.os }}-gradle-
+
+      - name: 🔑 Compute Android APK cache key
+        id: android-apk-cache-key
+        run: |
+          key=$({
+            printf 'device=%s\n' "${{ matrix.device }}"
+            git ls-files \
+              android \
+              app \
+              assets \
+              components \
+              constants \
+              hooks \
+              modules \
+              patches \
+              plugins \
+              providers \
+              scripts \
+              translations \
+              utils \
+              app.config.js \
+              app.json \
+              bun.lock \
+              package.json \
+              | sort \
+              | xargs sha256sum
+          } | sha256sum | awk '{ print $1 }')
+          printf 'APK cache key input hash: %s\n' "$key"
+          printf 'value=%s\n' "$key" >> "$GITHUB_OUTPUT"
+
+      - name: 🛠️ Generate Android project
+        run: ${{ matrix.prebuild_command }}
+
+      - name: 💾 Restore Android release APK
+        id: android-apk-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: android/app/build/outputs/apk/release/app-release.apk
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.apk_cache_name }}-${{ steps.android-apk-cache-key.outputs.value }}
+          restore-keys: |
+            ${{ github.event_name == 'workflow_dispatch' && inputs.reuse_apk == true && format('{0}-{1}-{2}-', runner.os, runner.arch, matrix.apk_cache_name) || 'unused-android-release-apk-restore-key-' }}
+
+      - name: 🔎 Check Android release APK cache
+        id: android-apk
+        run: |
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            echo "cached=true" >> "$GITHUB_OUTPUT"
+            ls -lh android/app/build/outputs/apk/release/app-release.apk
+          else
+            echo "cached=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 🏗️ Build release APK
+        if: steps.android-apk.outputs.cached != 'true'
+        timeout-minutes: 35
+        env:
+          EXPO_PUBLIC_MAESTRO_DEBUG: "1"
+          EXPO_TV: ${{ matrix.expo_tv }}
+          NODE_ENV: production
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.caching=true -Dorg.gradle.workers.max=2 -Xmx4g
+        run: |
+          set -o pipefail
+          mkdir -p tests/maestro/artifacts
+          cd android
+          ./gradlew assembleRelease \
+            -PreactNativeArchitectures=x86_64 \
+            -Pandroid.enablePngCrunchInReleaseBuilds=false \
+            --build-cache \
+            --no-daemon \
+            --stacktrace \
+            --info 2>&1 | tee "../tests/maestro/artifacts/${{ matrix.gradle_log }}"
+
+      - name: ✅ Verify Android release APK
+        run: test -f android/app/build/outputs/apk/release/app-release.apk && ls -lh android/app/build/outputs/apk/release/app-release.apk
+
+      - name: 💾 Save Android release APK cache
+        if: steps.android-apk.outputs.cached != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: android/app/build/outputs/apk/release/app-release.apk
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.apk_cache_name }}-${{ steps.android-apk-cache-key.outputs.value }}
+
+      - name: 📤 Upload Android release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: 📤 Upload Android build artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maestro-${{ matrix.device }}-build-artifacts
+          path: tests/maestro/artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+
+  android-e2e:
+    name: ${{ matrix.label }}
+    needs:
+      - select-maestro-matrix
+      - prepare-maestro-dependencies
+      - android-apk-build
+    if: needs.select-maestro-matrix.outputs.run_android == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-maestro-matrix.outputs.test_matrix) }}
+
+    env:
+      ENV_FILE: tests/maestro/.env.local
+      MAESTRO_APP_ID: com.fredrikburmester.streamyfin
+      MAESTRO_PLATFORM: android
+      MAESTRO_TARGET: ${{ matrix.maestro_target }}
+      MAESTRO_USERNAME: admin
+      MAESTRO_PASSWORD: admin
+      MAESTRO_FLOW_NAME: ${{ matrix.flow_name }}
+      MAESTRO_CF_ACCESS_CLIENT_ID: ${{ matrix.cf_access_client_id }}
+      MAESTRO_CF_ACCESS_CLIENT_SECRET: ${{ matrix.cf_access_client_secret }}
+      TV_API_LEVEL: ${{ matrix.api_level }}
+      TV_EMULATOR_TARGET: ${{ matrix.emulator_target }}
+      TV_EMULATOR_PROFILE: ${{ matrix.emulator_profile }}
+
+    steps:
+      - name: 🗑️ Free disk space
+        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
+        with:
+          tool-cache: false
+          mandb: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: 📥 Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.x"
+
+      - name: 💾 Restore node_modules
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: node_modules
+          key: ${{ needs.prepare-maestro-dependencies.outputs.node_modules_cache_key }}
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: 📥 Download Android release APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ matrix.apk_artifact_name }}
+          path: android/app/build/outputs/apk/release
+
+      - name: ✅ Verify downloaded APK
+        run: test -f android/app/build/outputs/apk/release/app-release.apk && ls -lh android/app/build/outputs/apk/release/app-release.apk
+
+      - name: 💾 Cache Jellyfin fixture media
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: tests/fixtures/jellyfin/media
+          key: ${{ runner.os }}-jellyfin-media-${{ hashFiles('tests/fixtures/jellyfin/scripts/download-media.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-jellyfin-media-
+
+      - name: 💾 Cache Maestro CLI
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.maestro
+          key: ${{ runner.os }}-maestro-cli-v1
+
+      - name: 🎞️ Install media tooling
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: 🎞️ Prepare Jellyfin fixture media
+        run: make jellyfin-download-media
+
+      - name: 🐳 Start Jellyfin fixture
+        run: make jellyfin-up
+
+      - name: 🧪 Test Jellyfin fixture
+        run: make jellyfin-api-test
+
+      - name: 🧰 Install Maestro CLI
+        run: |
+          if [ ! -x "$HOME/.maestro/bin/maestro" ]; then
+            curl -fsSL "https://get.maestro.mobile.dev" | bash
+          fi
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: ⚙️ Enable emulator CPU acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 🚀 Run Maestro flow
+        if: matrix.device != 'tv'
+        timeout-minutes: 20
+        uses: ReactiveCircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
+        with:
+          api-level: ${{ matrix.api_level }}
+          arch: x86_64
+          profile: ${{ matrix.emulator_profile }}
+          target: ${{ matrix.emulator_target }}
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: sh tests/maestro/run-android-emulator-flow.sh "${{ matrix.device }}" "${{ matrix.flow_name }}"
+
+      - name: 📺 Install TV emulator SDK
+        if: matrix.device == 'tv'
+        timeout-minutes: 8
+        run: sh tests/maestro/run-tv-debug-step.sh install-sdk
+
+      - name: 📺 Create TV AVD
+        if: matrix.device == 'tv'
+        timeout-minutes: 3
+        run: sh tests/maestro/run-tv-debug-step.sh create-avd
+
+      - name: 📺 Run TV emulator and Maestro flow
+        if: matrix.device == 'tv'
+        timeout-minutes: 30
+        run: |
+          set +e
+          status=0
+
+          sh tests/maestro/run-tv-debug-step.sh start
+          status=$?
+
+          if [ "$status" -eq 0 ]; then
+            sh tests/maestro/run-tv-debug-step.sh install-apk
+            status=$?
+          fi
+
+          if [ "$status" -eq 0 ]; then
+            sh tests/maestro/run-tv-debug-step.sh adb-launch
+            status=$?
+          fi
+
+          if [ "$status" -eq 0 ]; then
+            sh tests/maestro/run-tv-debug-step.sh maestro-flow
+            status=$?
+          fi
+
+          sh tests/maestro/run-tv-debug-step.sh stop || true
+          exit "$status"
+
+      - name: ✅ Verify Android playback screenshot
+        if: matrix.device != 'tv'
+        run: |
+          require_artifact() {
+            label=$1
+            pattern=$2
+            if ! find tests/maestro/artifacts -type f -path "$pattern" -print -quit | grep .; then
+              printf 'Missing %s: %s\n' "$label" "$pattern" >&2
+              exit 1
+            fi
+          }
+
+          require_artifact "Android playback screenshot" "tests/maestro/artifacts/*-${{ matrix.flow_name }}/10-playing-5s.png"
+          android_screenshot=$(find tests/maestro/artifacts -type f -path "tests/maestro/artifacts/*-${{ matrix.flow_name }}/10-playing-5s.png" -print -quit)
+          node tests/maestro/verify-ios-playback-artifacts.mjs "$android_screenshot"
+
+      - name: 🎞️ Inspect Android playback recording
+        if: matrix.device != 'tv'
+        run: |
+          recording=$(find tests/maestro/artifacts -type f -path "tests/maestro/artifacts/videos/${{ matrix.device }}-${{ matrix.flow_name }}.mp4" -print -quit)
+          if [ -z "$recording" ]; then
+            printf 'warning: Android playback recording was not produced; screenshot verifier remains the playback gate.\n' >&2
+            exit 0
+          fi
+
+          if ! ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "$recording"; then
+            printf 'warning: Android playback recording was not readable; screenshot verifier remains the playback gate.\n' >&2
+            exit 0
+          fi
+
+          frame="tests/maestro/artifacts/android-${{ matrix.flow_name }}-recording-frame.png"
+          if ! ffmpeg -y -sseof -8 -i "$recording" -frames:v 1 "$frame"; then
+            printf 'warning: Android playback recording frame could not be extracted; screenshot verifier remains the playback gate.\n' >&2
+            exit 0
+          fi
+          if ! node tests/maestro/verify-ios-playback-artifacts.mjs "$frame"; then
+            printf 'warning: Android playback recording frame did not pass visual verification; screenshot verifier remains the playback gate.\n' >&2
+          fi
+
+      - name: 🧾 Dump Jellyfin logs
+        if: failure()
+        working-directory: tests/fixtures/jellyfin
+        run: |
+          mkdir -p ../../maestro/artifacts
+          docker compose logs --no-color > ../../maestro/artifacts/jellyfin-compose.log || true
+
+      - name: 📤 Upload Maestro artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: tests/maestro/artifacts
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: 🧹 Stop Jellyfin fixture
+        if: always()
+        run: make jellyfin-down
+
+  ios-e2e:
+    name: 🍎 iOS simulator flows (${{ matrix.ios_macos_runner }})
+    needs:
+      - select-maestro-matrix
+      - prepare-maestro-dependencies
+    if: needs.select-maestro-matrix.outputs.run_ios == 'true'
+    runs-on: ${{ matrix.ios_macos_runner }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select-maestro-matrix.outputs.ios_runner_matrix) }}
+
+    env:
+      ENV_FILE: tests/maestro/.env.local
+      MAESTRO_APP_ID: com.fredrikburmester.streamyfin
+      MAESTRO_PLATFORM: ios
+      MAESTRO_TARGET: ios
+      MAESTRO_USERNAME: admin
+      MAESTRO_PASSWORD: admin
+      MAESTRO_CF_ACCESS_CLIENT_ID: fakecloudflaretoken
+      MAESTRO_CF_ACCESS_CLIENT_SECRET: fakecloudflaresecret
+      IOS_SIMULATOR_NAME: iPhone 16
+      IOS_BUILD_CONFIGURATION: Release
+      IOS_APP_CACHE_PATH: .ios-simulator-cache/Streamyfin.app
+      IOS_DERIVED_DATA_PATH: .ios-derived-data
+      IOS_NATIVE_PROJECT_PATH: ios
+      IOS_METRO_PORT: "8081"
+      EXPO_PUBLIC_MAESTRO_DEBUG: "1"
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+          show-progress: false
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.x"
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: 🧰 Select Xcode 26
+        run: |
+          xcode_path=$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort | tail -n 1)
+          if [ -z "$xcode_path" ]; then
+            printf 'Xcode 26 is required for Swift tools 6.2 packages.\n' >&2
+            find /Applications -maxdepth 1 -type d -name 'Xcode*.app' -print >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_path"
+          xcodebuild -version
+          swift --version
+
+      - name: 💾 Restore node_modules
+        id: node-modules-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: node_modules
+          key: ${{ needs.prepare-maestro-dependencies.outputs.node_modules_cache_key }}
+
+      - name: 💾 Cache Bun download cache
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-maestro-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-maestro-
+            ${{ runner.os }}-${{ runner.arch }}-bun-
+
+      - name: 📦 Install dependencies if cache is unavailable
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 12
+        run: bun install --frozen-lockfile --network-concurrency 8
+
+      - name: 🔑 Compute iOS app cache key
+        id: ios-app-cache-key
+        run: |
+          app_key=$({
+            printf 'configuration=%s\n' "$IOS_BUILD_CONFIGURATION"
+            printf 'scheme=%s\n' "${IOS_SCHEME:-Streamyfin}"
+            printf 'maestro_debug=%s\n' "$EXPO_PUBLIC_MAESTRO_DEBUG"
+            xcodebuild -version
+            git ls-files \
+              ios \
+              app \
+              assets \
+              components \
+              constants \
+              hooks \
+              modules \
+              patches \
+              plugins \
+              providers \
+              scripts \
+              translations \
+              utils \
+              app.config.js \
+              app.json \
+              bun.lock \
+              package.json \
+              | sort \
+              | xargs shasum -a 256
+          } | shasum -a 256 | awk '{ print $1 }')
+          native_key=$({
+            printf 'configuration=%s\n' "$IOS_BUILD_CONFIGURATION"
+            printf 'scheme=%s\n' "${IOS_SCHEME:-Streamyfin}"
+            printf 'maestro_debug=%s\n' "$EXPO_PUBLIC_MAESTRO_DEBUG"
+            xcodebuild -version
+            git ls-files \
+              ios \
+              modules \
+              patches \
+              plugins \
+              scripts \
+              app.config.js \
+              app.json \
+              bun.lock \
+              package.json \
+              | sort \
+              | xargs shasum -a 256
+          } | shasum -a 256 | awk '{ print $1 }')
+          printf 'iOS app cache key input hash: %s\n' "$app_key"
+          printf 'iOS native DerivedData cache key input hash: %s\n' "$native_key"
+          printf 'value=%s\n' "$app_key" >> "$GITHUB_OUTPUT"
+          printf 'native_value=%s\n' "$native_key" >> "$GITHUB_OUTPUT"
+
+      - name: 💾 Restore iOS simulator app
+        id: ios-app-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.IOS_APP_CACHE_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-simulator-app-${{ steps.ios-app-cache-key.outputs.value }}
+
+      - name: 💾 Restore iOS native project
+        if: steps.ios-app-cache.outputs.cache-hit != 'true'
+        id: ios-native-project-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.IOS_NATIVE_PROJECT_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-native-project-${{ steps.ios-app-cache-key.outputs.native_value }}
+
+      - name: 💾 Restore iOS DerivedData
+        if: steps.ios-app-cache.outputs.cache-hit != 'true'
+        id: ios-derived-data-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.IOS_DERIVED_DATA_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-derived-data-native-${{ steps.ios-app-cache-key.outputs.native_value }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-derived-data-native-${{ steps.ios-app-cache-key.outputs.native_value }}-
+            ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-derived-data-native-${{ steps.ios-app-cache-key.outputs.native_value }}
+
+      - name: 🔎 Report iOS cache restore state
+        run: |
+          printf 'iOS app cache hit: %s\n' "${{ steps.ios-app-cache.outputs.cache-hit }}"
+          printf 'iOS app matched key: %s\n' "${{ steps.ios-app-cache.outputs.cache-matched-key }}"
+          printf 'iOS app primary key: %s\n' "${{ steps.ios-app-cache.outputs.cache-primary-key }}"
+          printf 'iOS native project cache hit: %s\n' "${{ steps.ios-native-project-cache.outputs.cache-hit }}"
+          printf 'iOS native project matched key: %s\n' "${{ steps.ios-native-project-cache.outputs.cache-matched-key }}"
+          printf 'iOS native project primary key: %s\n' "${{ steps.ios-native-project-cache.outputs.cache-primary-key }}"
+          printf 'iOS DerivedData cache hit: %s\n' "${{ steps.ios-derived-data-cache.outputs.cache-hit }}"
+          printf 'iOS DerivedData matched key: %s\n' "${{ steps.ios-derived-data-cache.outputs.cache-matched-key }}"
+          printf 'iOS DerivedData primary key: %s\n' "${{ steps.ios-derived-data-cache.outputs.cache-primary-key }}"
+          if [ -d "$IOS_APP_CACHE_PATH" ]; then
+            printf 'iOS app cache path exists: yes\n'
+            du -sh "$IOS_APP_CACHE_PATH"
+          else
+            printf 'iOS app cache path exists: no\n'
+          fi
+          if [ -d "$IOS_NATIVE_PROJECT_PATH" ]; then
+            printf 'iOS native project path exists: yes\n'
+            du -sh "$IOS_NATIVE_PROJECT_PATH"
+          else
+            printf 'iOS native project path exists: no\n'
+          fi
+          if [ -d "$IOS_DERIVED_DATA_PATH" ]; then
+            printf 'iOS DerivedData path exists: yes\n'
+            du -sh "$IOS_DERIVED_DATA_PATH"
+          else
+            printf 'iOS DerivedData path exists: no\n'
+          fi
+
+      - name: 💾 Cache Maestro CLI
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.maestro
+          key: ${{ runner.os }}-maestro-cli-v1
+
+      - name: 🧰 Install Maestro CLI
+        run: |
+          if [ ! -x "$HOME/.maestro/bin/maestro" ]; then
+            curl -fsSL "https://get.maestro.mobile.dev" | bash
+          fi
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: 🏗️ Build/cache iOS simulator app
+        timeout-minutes: 45
+        run: sh tests/maestro/run-ios-simulator-flow.sh build
+
+      - name: 🔎 Report iOS build output state
+        if: always()
+        run: |
+          printf 'iOS app cache hit: %s\n' "${{ steps.ios-app-cache.outputs.cache-hit }}"
+          printf 'iOS app matched key: %s\n' "${{ steps.ios-app-cache.outputs.cache-matched-key }}"
+          printf 'iOS app primary key: %s\n' "${{ steps.ios-app-cache.outputs.cache-primary-key }}"
+          printf 'iOS native project cache hit: %s\n' "${{ steps.ios-native-project-cache.outputs.cache-hit }}"
+          printf 'iOS native project matched key: %s\n' "${{ steps.ios-native-project-cache.outputs.cache-matched-key }}"
+          printf 'iOS native project primary key: %s\n' "${{ steps.ios-native-project-cache.outputs.cache-primary-key }}"
+          printf 'iOS DerivedData cache hit: %s\n' "${{ steps.ios-derived-data-cache.outputs.cache-hit }}"
+          printf 'iOS DerivedData matched key: %s\n' "${{ steps.ios-derived-data-cache.outputs.cache-matched-key }}"
+          printf 'iOS DerivedData primary key: %s\n' "${{ steps.ios-derived-data-cache.outputs.cache-primary-key }}"
+          printf 'iOS app cache candidate after build:\n'
+          if [ -d "$IOS_APP_CACHE_PATH" ]; then
+            du -sh "$IOS_APP_CACHE_PATH"
+            find "$IOS_APP_CACHE_PATH" -maxdepth 2 -type f -print | sed -n '1,80p'
+          else
+            printf 'missing: %s\n' "$IOS_APP_CACHE_PATH"
+          fi
+
+          printf 'iOS native project cache candidate after build:\n'
+          if [ -d "$IOS_NATIVE_PROJECT_PATH" ]; then
+            du -sh "$IOS_NATIVE_PROJECT_PATH"
+            find "$IOS_NATIVE_PROJECT_PATH" -maxdepth 2 -type f \( -name 'Podfile' -o -name 'Podfile.lock' -o -name 'Manifest.lock' -o -name 'project.pbxproj' \) -print
+          else
+            printf 'missing: %s\n' "$IOS_NATIVE_PROJECT_PATH"
+          fi
+
+          printf 'iOS DerivedData app candidates:\n'
+          if [ -d "$IOS_DERIVED_DATA_PATH" ]; then
+            du -sh "$IOS_DERIVED_DATA_PATH"
+            find "$IOS_DERIVED_DATA_PATH" -path '*/Build/Products/*.app' -type d -print
+          else
+            printf 'missing: %s\n' "$IOS_DERIVED_DATA_PATH"
+          fi
+
+          if [ -f tests/maestro/artifacts/ios-xcodebuild.log ]; then
+            printf 'Recent iOS xcodebuild log tail:\n'
+            tail -120 tests/maestro/artifacts/ios-xcodebuild.log
+          fi
+
+      - name: 💾 Cache Jellyfin fixture media
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: tests/fixtures/jellyfin/media
+          key: ${{ runner.os }}-jellyfin-media-${{ hashFiles('tests/fixtures/jellyfin/scripts/download-media.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-jellyfin-media-
+
+      - name: 🎞️ Install media tooling
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            brew install ffmpeg
+          fi
+
+      - name: 🎞️ Prepare Jellyfin fixture media
+        run: make jellyfin-download-media
+
+      - name: 🍿 Install Jellyfin for macOS
+        run: brew install --cask jellyfin
+
+      - name: 🍿 Start native Jellyfin fixture
+        run: |
+          mkdir -p tests/maestro/artifacts
+          cd tests/fixtures/jellyfin
+
+          rm -rf ./config ./cache
+          mkdir -p ./config ./cache
+          cp -R ./base_config/. ./config/
+
+          media_dir=$(pwd)/media
+          ./scripts/normalize-media-paths.sh ./config "$media_dir"
+
+          jellyfin_bin=$(find /Applications/Jellyfin.app -type f -name jellyfin -perm -111 | head -n 1)
+          if [ -z "$jellyfin_bin" ]; then
+            jellyfin_bin=$(find /Applications/Jellyfin.app -type f -name Jellyfin -perm -111 | head -n 1)
+          fi
+          if [ -z "$jellyfin_bin" ]; then
+            find /Applications/Jellyfin.app -type f -perm -111
+            exit 1
+          fi
+
+          "$jellyfin_bin" \
+            --nowebclient \
+            --datadir "$(pwd)/config" \
+            --configdir "$(pwd)/config/config" \
+            --cachedir "$(pwd)/cache" \
+            --logdir "$(pwd)/config/log" \
+            > ../../maestro/artifacts/jellyfin-macos.log 2>&1 &
+          printf '%s\n' "$!" > ../../maestro/artifacts/jellyfin-macos.pid
+
+          make wait-ready
+          jellyfin_host_ip=$(MAESTRO_TARGET=device ./scripts/detect-access-urls.sh maestro)
+          jellyfin_host_ip=${jellyfin_host_ip#http://}
+          jellyfin_host_ip=${jellyfin_host_ip%:8096}
+          MAESTRO_IOS_DIRECT_SERVER_URL=http://localhost:8096
+          MAESTRO_SERVER_URL=$MAESTRO_IOS_DIRECT_SERVER_URL
+          MAESTRO_IOS_SERVER_URL=$MAESTRO_IOS_DIRECT_SERVER_URL
+          MAESTRO_IOS_HOST_IP_SERVER_URL=http://$jellyfin_host_ip:8096
+          export MAESTRO_SERVER_URL
+          export MAESTRO_IOS_SERVER_URL
+          printf 'Waiting for iOS simulator Jellyfin URL: %s\n' "$MAESTRO_SERVER_URL"
+          for _ in $(seq 1 60); do
+            if curl -fsS "$MAESTRO_SERVER_URL/System/Info/Public" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "$MAESTRO_SERVER_URL/System/Info/Public" >/dev/null
+          mkdir -p ../../maestro
+          {
+            printf 'MAESTRO_SERVER_URL=%s\n' "$MAESTRO_SERVER_URL"
+            printf 'MAESTRO_IOS_SERVER_URL=%s\n' "$MAESTRO_IOS_SERVER_URL"
+            printf 'MAESTRO_IOS_DIRECT_SERVER_URL=%s\n' "$MAESTRO_IOS_DIRECT_SERVER_URL"
+            printf 'MAESTRO_IOS_HOST_IP_SERVER_URL=%s\n' "$MAESTRO_IOS_HOST_IP_SERVER_URL"
+          } > ../../maestro/.env.local
+          JELLYFIN_URL="http://localhost:8096" MAESTRO_ENV_FILE="../../maestro/.env.local" make configure-maestro-ids
+
+      - name: 🚀 Run iOS direct playback flow
+        if: needs.select-maestro-matrix.outputs.ios_simple_enabled == 'true'
+        timeout-minutes: 20
+        run: sh tests/maestro/run-ios-simulator-flow.sh simple
+
+      - name: ☁️ Start iOS CF header proxy
+        if: needs.select-maestro-matrix.outputs.ios_complex_enabled == 'true'
+        run: |
+          JELLYFIN_CF_PROXY_PORT=18096
+          export JELLYFIN_CF_PROXY_PORT
+          export JELLYFIN_CF_PROXY_TARGET=http://127.0.0.1:8096
+
+          node tests/fixtures/jellyfin/scripts/cloudflare-access-proxy.mjs \
+            > tests/maestro/artifacts/cf-proxy.log 2>&1 &
+          printf '%s\n' "$!" > tests/maestro/artifacts/cf-proxy.pid
+
+          direct_url=$(sed -n 's/^MAESTRO_IOS_SERVER_URL=//p' tests/maestro/.env.local)
+          if [ -z "$direct_url" ]; then
+            direct_url=$(sed -n 's/^MAESTRO_SERVER_URL=//p' tests/maestro/.env.local)
+          fi
+          jellyfin_host=${direct_url#http://}
+          jellyfin_host=${jellyfin_host%:8096}
+          MAESTRO_IOS_CF_SERVER_URL=http://$jellyfin_host:$JELLYFIN_CF_PROXY_PORT
+          MAESTRO_SERVER_URL=$MAESTRO_IOS_CF_SERVER_URL
+          MAESTRO_IOS_SERVER_URL=$MAESTRO_IOS_CF_SERVER_URL
+          export MAESTRO_SERVER_URL
+          export MAESTRO_IOS_SERVER_URL
+
+          printf 'Waiting for iOS CF proxy URL: %s\n' "$MAESTRO_SERVER_URL"
+          for _ in $(seq 1 60); do
+            if curl -fsS "$MAESTRO_SERVER_URL/_cf_proxy_health" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS "$MAESTRO_SERVER_URL/_cf_proxy_health" >/dev/null
+          curl -fsS \
+            -H "cf-access-client-id: $MAESTRO_CF_ACCESS_CLIENT_ID" \
+            -H "cf-access-client-secret: $MAESTRO_CF_ACCESS_CLIENT_SECRET" \
+            "$MAESTRO_SERVER_URL/System/Info/Public" >/dev/null
+          tmp_env=$(mktemp)
+          awk -v url="$MAESTRO_SERVER_URL" '
+            BEGIN { replaced = 0 }
+            /^MAESTRO_SERVER_URL=/ {
+              print "MAESTRO_SERVER_URL=" url
+              replaced = 1
+              next
+            }
+            { print }
+            END {
+              if (!replaced) {
+                print "MAESTRO_SERVER_URL=" url
+              }
+            }
+          ' tests/maestro/.env.local > "$tmp_env"
+          awk -v url="$MAESTRO_IOS_SERVER_URL" '
+            BEGIN { replaced = 0 }
+            /^MAESTRO_IOS_SERVER_URL=/ {
+              print "MAESTRO_IOS_SERVER_URL=" url
+              replaced = 1
+              next
+            }
+            { print }
+            END {
+              if (!replaced) {
+                print "MAESTRO_IOS_SERVER_URL=" url
+              }
+            }
+          ' "$tmp_env" > "$tmp_env.next"
+          mv "$tmp_env.next" "$tmp_env"
+          awk -v url="$MAESTRO_IOS_CF_SERVER_URL" '
+            BEGIN { replaced = 0 }
+            /^MAESTRO_IOS_CF_SERVER_URL=/ {
+              print "MAESTRO_IOS_CF_SERVER_URL=" url
+              replaced = 1
+              next
+            }
+            { print }
+            END {
+              if (!replaced) {
+                print "MAESTRO_IOS_CF_SERVER_URL=" url
+              }
+            }
+          ' "$tmp_env" > "$tmp_env.next"
+          mv "$tmp_env.next" "$tmp_env"
+          mv "$tmp_env" tests/maestro/.env.local
+
+      - name: ☁️ Run iOS CF playback flow
+        if: needs.select-maestro-matrix.outputs.ios_complex_enabled == 'true'
+        timeout-minutes: 20
+        run: sh tests/maestro/run-ios-simulator-flow.sh cf
+
+      - name: 🔎 Check iOS native project cache path
+        if: always() && !cancelled() && steps.ios-app-cache.outputs.cache-hit != 'true'
+        id: built-ios-native-project-cache
+        run: |
+          if [ -d "$IOS_NATIVE_PROJECT_PATH" ]; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+            du -sh "$IOS_NATIVE_PROJECT_PATH"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 💾 Save iOS native project
+        if: always() && !cancelled() && steps.ios-app-cache.outputs.cache-hit != 'true' && steps.ios-native-project-cache.outputs.cache-hit != 'true' && steps.built-ios-native-project-cache.outputs.exists == 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.IOS_NATIVE_PROJECT_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-native-project-${{ steps.ios-app-cache-key.outputs.native_value }}
+
+      - name: 🔎 Check built iOS app cache path
+        if: always() && !cancelled() && steps.ios-app-cache.outputs.cache-hit != 'true'
+        id: built-ios-app-cache
+        run: |
+          if [ -d "$IOS_APP_CACHE_PATH" ]; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+            du -sh "$IOS_APP_CACHE_PATH"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 💾 Save iOS simulator app
+        if: always() && !cancelled() && steps.ios-app-cache.outputs.cache-hit != 'true' && steps.built-ios-app-cache.outputs.exists == 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.IOS_APP_CACHE_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-simulator-app-${{ steps.ios-app-cache-key.outputs.value }}
+
+      - name: 🔎 Check iOS DerivedData cache path
+        if: always() && !cancelled() && steps.ios-app-cache.outputs.cache-hit != 'true'
+        id: built-ios-derived-data-cache
+        run: |
+          if [ -d "$IOS_DERIVED_DATA_PATH" ]; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+            du -sh "$IOS_DERIVED_DATA_PATH"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 💾 Save iOS DerivedData
+        if: always() && !cancelled() && steps.ios-app-cache.outputs.cache-hit != 'true' && steps.built-ios-app-cache.outputs.exists != 'true' && steps.built-ios-derived-data-cache.outputs.exists == 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.IOS_DERIVED_DATA_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ios-${{ env.IOS_BUILD_CONFIGURATION }}-derived-data-native-${{ steps.ios-app-cache-key.outputs.native_value }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: ✅ Verify iOS direct playback screenshot
+        if: needs.select-maestro-matrix.outputs.ios_simple_enabled == 'true'
+        run: |
+          verify_any_artifact() {
+            label=$1
+            pattern=$2
+
+            matches=$(find tests/maestro/artifacts -type f -path "$pattern" | sort)
+            if [ -z "$matches" ]; then
+              printf 'Missing %s: %s\n' "$label" "$pattern" >&2
+              exit 1
+            fi
+
+            valid=0
+            for screenshot in $matches; do
+              if node tests/maestro/verify-ios-playback-artifacts.mjs "$screenshot"; then
+                printf 'Verified %s: %s\n' "$label" "$screenshot"
+                valid=1
+                break
+              fi
+            done
+
+            if [ "$valid" -ne 1 ]; then
+              printf 'No %s screenshot showed rendered playback.\n' "$label" >&2
+              exit 1
+            fi
+          }
+
+          verify_any_artifact "iOS direct playback" "tests/maestro/artifacts/*-ios-play-steamboat-willie/13-playing-10s.png"
+
+      - name: ✅ Verify iOS CF screenshots
+        if: needs.select-maestro-matrix.outputs.ios_complex_enabled == 'true'
+        run: |
+          require_artifact() {
+            label=$1
+            pattern=$2
+            if ! find tests/maestro/artifacts -type f -path "$pattern" -print -quit | grep .; then
+              printf 'Missing %s: %s\n' "$label" "$pattern" >&2
+              exit 1
+            fi
+          }
+
+          verify_any_artifact() {
+            label=$1
+            pattern=$2
+
+            matches=$(find tests/maestro/artifacts -type f -path "$pattern" | sort)
+            if [ -z "$matches" ]; then
+              printf 'Missing %s: %s\n' "$label" "$pattern" >&2
+              exit 1
+            fi
+
+            valid=0
+            for screenshot in $matches; do
+              if node tests/maestro/verify-ios-playback-artifacts.mjs "$screenshot"; then
+                printf 'Verified %s: %s\n' "$label" "$screenshot"
+                valid=1
+                break
+              fi
+            done
+
+            if [ "$valid" -ne 1 ]; then
+              printf 'No %s screenshot showed rendered playback.\n' "$label" >&2
+              exit 1
+            fi
+          }
+
+          require_artifact "iOS CF login screenshot" "tests/maestro/artifacts/*-ios-cf/04-login-screen.png"
+          verify_any_artifact "iOS CF playback" "tests/maestro/artifacts/*-ios-cf/13-playing-10s.png"
+
+      - name: 🎥 Record iOS simple flow
+        if: needs.select-maestro-matrix.outputs.ios_simple_enabled == 'true' && needs.select-maestro-matrix.outputs.ios_recording_enabled == 'true'
+        continue-on-error: true
+        timeout-minutes: 12
+        run: sh tests/maestro/run-ios-simulator-flow.sh record
+
+      - name: 🎥 Record iOS CF playback flow
+        if: needs.select-maestro-matrix.outputs.ios_complex_enabled == 'true' && needs.select-maestro-matrix.outputs.ios_recording_enabled == 'true'
+        continue-on-error: true
+        timeout-minutes: 12
+        run: sh tests/maestro/run-ios-simulator-flow.sh cf-record
+
+      - name: ✅ Verify iOS simulator recording
+        if: needs.select-maestro-matrix.outputs.ios_simple_enabled == 'true' && needs.select-maestro-matrix.outputs.ios_recording_enabled == 'true'
+        continue-on-error: true
+        run: |
+          recording=$(find tests/maestro/artifacts -type f -path "tests/maestro/artifacts/*-record-direct-playback-simulator-ios/direct-playback-simulator-ios.mov" -print -quit)
+          if [ -z "$recording" ]; then
+            printf 'Missing iOS direct playback recording.\n' >&2
+            exit 1
+          fi
+
+          valid_frame=0
+          for second in 70 75 80; do
+            frame="tests/maestro/artifacts/ios-direct-recording-frame-${second}s.png"
+            if ffmpeg -y -ss "$second" -i "$recording" -frames:v 1 "$frame" &&
+              node tests/maestro/verify-ios-playback-artifacts.mjs "$frame"; then
+              valid_frame=1
+              break
+            fi
+          done
+
+          if [ "$valid_frame" -ne 1 ]; then
+            printf 'No sampled iOS direct recording frame showed rendered playback.\n' >&2
+            exit 1
+          fi
+
+      - name: ✅ Verify iOS CF simulator recording
+        if: needs.select-maestro-matrix.outputs.ios_complex_enabled == 'true' && needs.select-maestro-matrix.outputs.ios_recording_enabled == 'true'
+        continue-on-error: true
+        run: |
+          recording=$(find tests/maestro/artifacts -type f -path "tests/maestro/artifacts/*-record-cf-playback-simulator-ios/cf-playback-simulator-ios.mov" -print -quit)
+          if [ -z "$recording" ]; then
+            printf 'Missing iOS CF playback recording.\n' >&2
+            exit 1
+          fi
+
+          valid_frame=0
+          for second in 70 75 80; do
+            frame="tests/maestro/artifacts/ios-cf-recording-frame-${second}s.png"
+            if ffmpeg -y -ss "$second" -i "$recording" -frames:v 1 "$frame" &&
+              node tests/maestro/verify-ios-playback-artifacts.mjs "$frame"; then
+              valid_frame=1
+              break
+            fi
+          done
+
+          if [ "$valid_frame" -ne 1 ]; then
+            printf 'No sampled iOS CF recording frame showed rendered playback.\n' >&2
+            exit 1
+          fi
+
+      - name: 🧾 Dump Jellyfin logs
+        if: failure()
+        run: |
+          if [ -f tests/maestro/artifacts/ios-simulator-debug.log ]; then
+            tail -200 tests/maestro/artifacts/ios-simulator-debug.log
+          fi
+          if [ -f tests/maestro/artifacts/ios-metro.log ]; then
+            tail -200 tests/maestro/artifacts/ios-metro.log
+          fi
+          if [ -f tests/maestro/artifacts/ios-xcodebuild.log ]; then
+            tail -200 tests/maestro/artifacts/ios-xcodebuild.log
+          fi
+          if [ -f tests/maestro/artifacts/jellyfin-macos.log ]; then
+            tail -200 tests/maestro/artifacts/jellyfin-macos.log
+          fi
+          if [ -f tests/maestro/artifacts/cf-proxy.log ]; then
+            tail -200 tests/maestro/artifacts/cf-proxy.log
+          fi
+
+      - name: 📤 Upload iOS simulator artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maestro-ios-simulator-artifacts
+          path: tests/maestro/artifacts
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: 📤 Upload iOS simulator recordings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maestro-ios-simulator-recordings
+          path: |
+            tests/maestro/artifacts/**/*.mov
+            tests/maestro/artifacts/**/*.mp4
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: 🧹 Stop native Jellyfin fixture
+        if: always()
+        run: |
+          if [ -f tests/maestro/artifacts/cf-proxy.pid ]; then
+            kill "$(cat tests/maestro/artifacts/cf-proxy.pid)" 2>/dev/null || true
+          fi
+          if [ -f tests/maestro/artifacts/jellyfin-macos.pid ]; then
+            kill "$(cat tests/maestro/artifacts/jellyfin-macos.pid)" 2>/dev/null || true
+          fi

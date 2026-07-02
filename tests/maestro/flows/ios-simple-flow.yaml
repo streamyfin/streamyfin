@@ -1,0 +1,16 @@
+appId: ${MAESTRO_APP_ID}
+name: SimpleFlow
+---
+- runFlow: _launch-ios.yaml
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/01-launched
+- tapOn:
+    id: "server-url-input"
+- inputText: "${MAESTRO_LOGIN_SERVER_URL}"
+- pressKey: Enter
+- runFlow: _connect.yaml
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/02-server-connected
+- runFlow: _login.yaml
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/03-home

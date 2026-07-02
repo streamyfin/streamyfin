@@ -1,0 +1,77 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared: Enter credentials, login, handle intro, wait for home screen
+
+# Screenshot: Before entering credentials
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-01-entering-credentials
+
+- tapOn:
+    id: "username-input"
+- inputText: "${MAESTRO_USERNAME}"
+
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
+    commands:
+      - tapOn:
+          id: "password-input"
+      - inputText: "${MAESTRO_PASSWORD}"
+
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+
+# Screenshot: After entering credentials, before login
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-02-credentials-entered
+
+- tapOn:
+    id: "login-button"
+
+# Screenshot: After login button tap
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-03-login-submitted
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - takeScreenshot:
+          path: ${MAESTRO_ARTIFACT_DIR}/login-03a-save-password-dialog
+      - tapOn:
+          text: "Not Now"
+          optional: true
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-04-post-login
+- tapOn:
+    id: "intro-done-button"
+    optional: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Done"
+          optional: true
+      - tapOn:
+          point: "50%,86%"
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# Screenshot: On home screen
+- extendedWaitUntil:
+    visible: "Home|Continue Watching|Next Up|No Items"
+    timeout: 60000
+- assertNotVisible: "Welcome to Streamyfin"
+- assertNotVisible: "Server Unreachable"
+- assertNotVisible: "Could not reach the server"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/login-05-home-screen

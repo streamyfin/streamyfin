@@ -33,7 +33,7 @@ import type {
 } from "@/utils/secureCredentials";
 import {
   getServerCustomHeaders,
-  updateServerCustomHeaders,
+  updateServerCustomHeadersForConnection,
 } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
@@ -205,8 +205,15 @@ export const Login: React.FC = () => {
   const checkUrl = useCallback(
     async (url: string, headers?: CustomHeader[]) => {
       setLoadingServerCheck(true);
+      const explicitProtocol = url.match(/^(https?):\/\//i)?.[1]?.toLowerCase();
       const baseUrl = url.replace(/^https?:\/\//i, "");
-      const protocols = ["https", "http"];
+      const protocols = explicitProtocol
+        ? [explicitProtocol]
+        : baseUrl.startsWith("localhost") ||
+            baseUrl.startsWith("127.0.0.1") ||
+            baseUrl.startsWith("[::1]")
+          ? ["http", "https"]
+          : ["https", "http"];
       try {
         return checkHttp(baseUrl, protocols, headers);
       } catch (e) {
@@ -258,7 +265,10 @@ export const Login: React.FC = () => {
           }
           // Save headers after successful connection
           if (customHeaders !== undefined) {
-            updateServerCustomHeaders(serverUrl, customHeaders);
+            await updateServerCustomHeadersForConnection(
+              serverUrl,
+              customHeaders,
+            );
           }
           setServerName(data.ServerName || "");
           return serverUrl;
@@ -285,7 +295,14 @@ export const Login: React.FC = () => {
           return;
         }
         await setServer({ address: result });
-      } catch {}
+      } catch (error) {
+        Alert.alert(
+          t("login.connection_failed"),
+          error instanceof Error
+            ? error.message
+            : t("login.could_not_connect_to_server"),
+        );
+      }
     },
     [checkUrl, setServer],
   );
@@ -334,6 +351,7 @@ export const Login: React.FC = () => {
                 </Text>
                 <Text className='text-xs text-neutral-400'>{api.basePath}</Text>
                 <Input
+                  testID='username-input'
                   placeholder={t("login.username_placeholder")}
                   onChangeText={(text) =>
                     setCredentials((prev) => ({ ...prev, username: text }))
@@ -358,6 +376,7 @@ export const Login: React.FC = () => {
                 />
 
                 <Input
+                  testID='password-input'
                   placeholder={t("login.password_placeholder")}
                   onChangeText={(text) =>
                     setCredentials((prev) => ({ ...prev, password: text }))
@@ -397,6 +416,7 @@ export const Login: React.FC = () => {
                 </TouchableOpacity>
                 <View className='flex flex-row items-center justify-between'>
                   <Button
+                    testID='login-button'
                     onPress={handleLogin}
                     loading={loading}
                     disabled={!credentials.username.trim()}
@@ -437,6 +457,7 @@ export const Login: React.FC = () => {
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>
               <Input
+                testID='server-url-input'
                 aria-label='Server URL'
                 placeholder={t("server.server_url_placeholder")}
                 onChangeText={setServerURL}
@@ -448,6 +469,7 @@ export const Login: React.FC = () => {
                 maxLength={500}
               />
               <Button
+                testID='connect-button'
                 loading={loadingServerCheck}
                 disabled={loadingServerCheck}
                 onPress={async () => {
@@ -463,6 +485,7 @@ export const Login: React.FC = () => {
 
               {/* Advanced: Custom Headers */}
               <TouchableOpacity
+                testID='advanced-custom-headers'
                 onPress={() => setShowAdvanced(!showAdvanced)}
                 className='flex flex-row items-center py-2'
                 activeOpacity={0.7}
@@ -484,6 +507,7 @@ export const Login: React.FC = () => {
                     {HEADER_PRESETS.map((preset) => (
                       <TouchableOpacity
                         key={preset.id}
+                        testID={`header-preset-${preset.id}`}
                         onPress={() => setPendingHeaders(preset.headers)}
                         className='bg-neutral-800 rounded-lg px-3 py-2'
                       >
@@ -527,6 +551,11 @@ export const Login: React.FC = () => {
                         />
                       </View>
                       <Input
+                        testID={
+                          header.key
+                            ? `header-value-${header.key}`
+                            : `header-value-${index}`
+                        }
                         placeholder={t(
                           "custom_headers.header_value_placeholder",
                         )}

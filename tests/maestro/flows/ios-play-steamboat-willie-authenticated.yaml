@@ -1,0 +1,37 @@
+appId: ${MAESTRO_APP_ID}
+name: IOSPlaySteamboatWillieAuthenticated
+---
+# Assumes the app is already logged in and showing the home screen.
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/07-home-screen
+
+# Open the Library tab, then the Movies library. The home screen may not mount
+# every fixture movie, so this route is more deterministic than tapping Home.
+- tapOn:
+    text: "Library"
+- extendedWaitUntil:
+    visible:
+      id: "${MAESTRO_MOVIES_LIBRARY_ID}"
+    timeout: 15000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/08-library-tab
+- tapOn:
+    id: "${MAESTRO_MOVIES_LIBRARY_ID}"
+
+# Tap on Steamboat Willie movie.
+- extendedWaitUntil:
+    visible:
+      id: "${MAESTRO_STEAMBOAT_WILLIE_ID}"
+    timeout: 15000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/09-movies-library
+- tapOn:
+    id: "${MAESTRO_STEAMBOAT_WILLIE_ID}"
+
+# Wait for item detail screen and take screenshot.
+- extendedWaitUntil:
+    visible:
+      id: "play-button"
+    timeout: 10000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/10-movie-detail

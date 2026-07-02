@@ -1,0 +1,39 @@
+appId: ${MAESTRO_APP_ID}
+name: CF-Flow
+---
+- runFlow: _launch-ios.yaml
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/01-launched
+- tapOn:
+    id: "advanced-custom-headers"
+- tapOn:
+    id: "header-preset-cloudflare"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/02-cloudflare-preset
+- tapOn:
+    id: "server-url-input"
+- inputText: "${MAESTRO_LOGIN_SERVER_URL}"
+- pressKey: Enter
+- tapOn:
+    id: "header-value-CF-Access-Client-Id"
+- inputText: "${MAESTRO_CF_ACCESS_CLIENT_ID}"
+- pressKey: Enter
+- tapOn:
+    id: "header-value-CF-Access-Client-Secret"
+- inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
+- pressKey: Enter
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
+- waitForAnimationToEnd:
+    timeout: 3000
+- scrollUntilVisible:
+    element:
+      id: "connect-button"
+    direction: UP
+    timeout: 10000
+- runFlow: _connect.yaml
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/04-login-screen
+- runFlow: _login.yaml
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/06-home
