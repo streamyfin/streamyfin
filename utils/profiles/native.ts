@@ -19,6 +19,8 @@ export interface ProfileOptions {
   player?: PlayerType;
   /** Audio transcoding mode */
   audioMode?: AudioTranscodeModeType;
+  /** Force video playback through a transcoding profile. Used by simulator E2E. */
+  forceVideoTranscoding?: boolean;
 }
 
 /**
@@ -131,6 +133,17 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
     platform,
     audioMode,
   );
+  const videoDirectPlayProfiles = options.forceVideoTranscoding
+    ? []
+    : [
+        {
+          Type: MediaTypes.Video,
+          Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
+          VideoCodec:
+            "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
+          AudioCodec: directPlayCodec,
+        },
+      ];
 
   /**
    * Device profile for MPV player
@@ -165,13 +178,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
       getAudioCodecProfile(platform),
     ],
     DirectPlayProfiles: [
-      {
-        Type: MediaTypes.Video,
-        Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
-        VideoCodec:
-          "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
-        AudioCodec: directPlayCodec,
-      },
+      ...videoDirectPlayProfiles,
       getAudioDirectPlayProfile(platform),
     ],
     TranscodingProfiles: [

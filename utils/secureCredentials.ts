@@ -139,6 +139,41 @@ function secureValueKeyScopeMatches(
   );
 }
 
+function createCustomHeaderValueKeyAllocator(headers: CustomHeader[]) {
+  const retainedKeys = new Set(
+    headers
+      .map((header) => header.secureValueKey)
+      .filter((key): key is string => Boolean(key)),
+  );
+  const nextKeys = new Set<string>();
+  let nextGeneratedIndex = 0;
+
+  return {
+    nextKeys,
+    allocate(scope: string, header: CustomHeader): string {
+      if (
+        header.secureValueKey &&
+        secureValueKeyScopeMatches(scope, header.secureValueKey) &&
+        !nextKeys.has(header.secureValueKey)
+      ) {
+        nextKeys.add(header.secureValueKey);
+        return header.secureValueKey;
+      }
+
+      let secureValueKey: string;
+      do {
+        secureValueKey = customHeaderValueKey(scope, nextGeneratedIndex);
+        nextGeneratedIndex += 1;
+      } while (
+        retainedKeys.has(secureValueKey) ||
+        nextKeys.has(secureValueKey)
+      );
+      nextKeys.add(secureValueKey);
+      return secureValueKey;
+    },
+  };
+}
+
 function isStoredCustomHeader(header: unknown): header is CustomHeader {
   return (
     !!header &&
@@ -156,6 +191,13 @@ function getSecureHeaderValue(header: CustomHeader): string {
   return SecureStore.getItem(header.secureValueKey) ?? "";
 }
 
+async function getSecureHeaderValueAsync(
+  header: CustomHeader,
+): Promise<string> {
+  if (!header.secureValueKey) return header.value;
+  return (await SecureStore.getItemAsync(header.secureValueKey)) ?? "";
+}
+
 /**
  * Resolves secure header values for display or request injection.
  */
@@ -169,6 +211,20 @@ export function resolveCustomHeaderValues(
 }
 
 /**
+ * Resolves secure header values without blocking the JavaScript thread.
+ */
+export async function resolveCustomHeaderValuesAsync(
+  headers: CustomHeader[],
+): Promise<CustomHeader[]> {
+  return Promise.all(
+    headers.filter(isStoredCustomHeader).map(async (header) => ({
+      ...header,
+      value: await getSecureHeaderValueAsync(header),
+    })),
+  );
+}
+
+/**
  * Stores header values in SecureStore and returns MMKV-safe header metadata.
  */
 export function secureCustomHeaderMetadata(
@@ -176,31 +232,10 @@ export function secureCustomHeaderMetadata(
   headers: CustomHeader[],
   previousHeaders: CustomHeader[] = [],
 ): CustomHeader[] {
-  const retainedKeys = new Set(
-    headers
-      .map((header) => header.secureValueKey)
-      .filter((key): key is string => Boolean(key)),
-  );
-  const nextKeys = new Set<string>();
-  let nextGeneratedIndex = 0;
-  const allocateSecureValueKey = () => {
-    let secureValueKey: string;
-    do {
-      secureValueKey = customHeaderValueKey(scope, nextGeneratedIndex);
-      nextGeneratedIndex += 1;
-    } while (retainedKeys.has(secureValueKey) || nextKeys.has(secureValueKey));
-    return secureValueKey;
-  };
-  const canReuseSecureValueKey = (secureValueKey: string) =>
-    secureValueKeyScopeMatches(scope, secureValueKey) &&
-    !nextKeys.has(secureValueKey);
+  const keyAllocator = createCustomHeaderValueKeyAllocator(headers);
 
   const metadata = headers.map((header) => {
-    const secureValueKey =
-      header.secureValueKey && canReuseSecureValueKey(header.secureValueKey)
-        ? header.secureValueKey
-        : allocateSecureValueKey();
-    nextKeys.add(secureValueKey);
+    const secureValueKey = keyAllocator.allocate(scope, header);
     SecureStore.setItem(secureValueKey, header.value);
     return {
       key: header.key,
@@ -211,10 +246,50 @@ export function secureCustomHeaderMetadata(
   });
 
   for (const header of previousHeaders.filter(isStoredCustomHeader)) {
-    if (header.secureValueKey && !nextKeys.has(header.secureValueKey)) {
+    if (
+      header.secureValueKey &&
+      !keyAllocator.nextKeys.has(header.secureValueKey)
+    ) {
       void SecureStore.deleteItemAsync(header.secureValueKey);
     }
   }
+
+  return metadata;
+}
+
+/**
+ * Stores header values in SecureStore without blocking the JavaScript thread.
+ */
+export async function secureCustomHeaderMetadataAsync(
+  scope: string,
+  headers: CustomHeader[],
+  previousHeaders: CustomHeader[] = [],
+): Promise<CustomHeader[]> {
+  const keyAllocator = createCustomHeaderValueKeyAllocator(headers);
+
+  const metadata = await Promise.all(
+    headers.map(async (header) => {
+      const secureValueKey = keyAllocator.allocate(scope, header);
+      await SecureStore.setItemAsync(secureValueKey, header.value);
+      return {
+        key: header.key,
+        value: "",
+        enabled: header.enabled,
+        secureValueKey,
+      };
+    }),
+  );
+
+  await Promise.all(
+    previousHeaders
+      .filter(isStoredCustomHeader)
+      .map((header) =>
+        header.secureValueKey &&
+        !keyAllocator.nextKeys.has(header.secureValueKey)
+          ? SecureStore.deleteItemAsync(header.secureValueKey)
+          : undefined,
+      ),
+  );
 
   return metadata;
 }
@@ -544,6 +619,82 @@ export function updateServerCustomHeaders(
 }
 
 /**
+ * Update custom headers for a server without blocking the JavaScript thread.
+ */
+export async function updateServerCustomHeadersAsync(
+  serverUrl: string,
+  headers: CustomHeader[],
+): Promise<void> {
+  const servers = getPreviousServers();
+  const existingServerIndex = servers.findIndex((s) => s.address === serverUrl);
+  const previousHeaders =
+    existingServerIndex >= 0
+      ? (servers[existingServerIndex].customHeaders ?? [])
+      : [];
+  const secureHeaders = await secureCustomHeaderMetadataAsync(
+    `server:${serverUrl}`,
+    await resolveCustomHeaderValuesAsync(headers),
+    previousHeaders,
+  );
+
+  if (existingServerIndex >= 0) {
+    servers[existingServerIndex] = {
+      ...servers[existingServerIndex],
+      customHeaders: secureHeaders,
+    };
+  } else {
+    servers.push({
+      address: serverUrl,
+      customHeaders: secureHeaders,
+      accounts: [],
+    } as SavedServer);
+  }
+
+  storage.set("previousServers", JSON.stringify(servers));
+  bumpCustomHeadersVersion();
+}
+
+function updateServerCustomHeadersWithoutSecureStore(
+  serverUrl: string,
+  headers: CustomHeader[],
+): void {
+  const servers = getPreviousServers();
+  const existingServerIndex = servers.findIndex((s) => s.address === serverUrl);
+  const storedHeaders = headers.filter(isStoredCustomHeader).map((header) => ({
+    key: header.key,
+    value: header.value,
+    enabled: header.enabled,
+  }));
+
+  if (existingServerIndex >= 0) {
+    servers[existingServerIndex] = {
+      ...servers[existingServerIndex],
+      customHeaders: storedHeaders,
+    };
+  } else {
+    servers.push({
+      address: serverUrl,
+      customHeaders: storedHeaders,
+      accounts: [],
+    } as SavedServer);
+  }
+
+  storage.set("previousServers", JSON.stringify(servers));
+  bumpCustomHeadersVersion();
+}
+
+/**
+ * Update headers for a just-validated server without letting async secure
+ * storage failures block the login transition.
+ */
+export async function updateServerCustomHeadersForConnection(
+  serverUrl: string,
+  headers: CustomHeader[],
+): Promise<void> {
+  updateServerCustomHeadersWithoutSecureStore(serverUrl, headers);
+}
+
+/**
  * Get custom headers for a server.
  */
 export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
@@ -553,8 +704,7 @@ export function getServerCustomHeaders(serverUrl: string): CustomHeader[] {
     isStoredCustomHeader,
   );
   if (customHeaders.some((header) => header.value && !header.secureValueKey)) {
-    updateServerCustomHeaders(serverUrl, customHeaders);
-    return getServerCustomHeaders(serverUrl);
+    void updateServerCustomHeadersAsync(serverUrl, customHeaders);
   }
   return resolveCustomHeaderValues(customHeaders);
 }

@@ -1,0 +1,75 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared: Enter server URL, connect, and login (assumes app is already open on server URL screen)
+
+- extendedWaitUntil:
+    visible: "Server URL"
+    timeout: 10000
+
+- tapOn:
+    id: "server-url-input"
+- waitForAnimationToEnd
+- inputText: "${MAESTRO_LOGIN_SERVER_URL}"
+- waitForAnimationToEnd
+- hideKeyboard
+
+- tapOn:
+    id: "connect-button"
+
+- extendedWaitUntil:
+    visible: "Username"
+    timeout: 30000
+- assertVisible: "Password"
+
+- tapOn:
+    id: "username-input"
+- waitForAnimationToEnd
+- inputText: "${MAESTRO_USERNAME}"
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
+    commands:
+      - tapOn:
+          id: "password-input"
+      - waitForAnimationToEnd
+      - inputText: "${MAESTRO_PASSWORD}"
+      - waitForAnimationToEnd
+
+- hideKeyboard
+
+- tapOn:
+    id: "login-button"
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Not Now"
+          optional: true
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: "intro-done-button"
+    optional: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Done"
+          optional: true
+      - tapOn:
+          point: "50%,86%"
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+- extendedWaitUntil:
+    visible: "Home|Continue Watching|Next Up|No Items"
+    timeout: 60000
+- assertNotVisible: "Welcome to Streamyfin"

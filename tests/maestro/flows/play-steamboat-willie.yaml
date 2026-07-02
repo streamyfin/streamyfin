@@ -1,0 +1,46 @@
+appId: ${MAESTRO_APP_ID}
+name: PlaySteamboatWillie
+---
+# Log in, then play a fixture movie from the home screen.
+- runFlow: simple-flow.yaml
+
+# Take screenshot of home screen
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/07-home-screen
+
+# Tap on Steamboat Willie movie
+- tapOn:
+    id: "${MAESTRO_STEAMBOAT_WILLIE_ID}"
+
+# Wait for item detail screen and take screenshot
+- extendedWaitUntil:
+    visible:
+      id: "play-button"
+    timeout: 10000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/08-movie-detail
+
+# Tap the play button
+- tapOn:
+    id: "play-button"
+
+# Wait for the player transition before capturing playback evidence.
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Got it"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Take screenshot of playing video
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/09-playing
+
+# Wait a bit to let video actually start playing
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Take final screenshot
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/10-playing-5s

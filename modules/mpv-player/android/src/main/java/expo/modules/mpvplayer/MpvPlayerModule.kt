@@ -46,7 +46,8 @@ class MpvPlayerModule : Module() {
                     cacheEnabled = cacheConfig?.get("enabled") as? String,
                     cacheSeconds = (cacheConfig?.get("cacheSeconds") as? Number)?.toInt(),
                     demuxerMaxBytes = (cacheConfig?.get("maxBytes") as? Number)?.toInt(),
-                    demuxerMaxBackBytes = (cacheConfig?.get("maxBackBytes") as? Number)?.toInt()
+                    demuxerMaxBackBytes = (cacheConfig?.get("maxBackBytes") as? Number)?.toInt(),
+                    hwdec = source["hwdec"] as? String
                 )
                 
                 view.loadVideo(config)

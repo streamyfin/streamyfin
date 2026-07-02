@@ -142,7 +142,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
      */
     private var voDriver: String = "gpu-next"
 
-    fun start(voDriver: String = "gpu-next") {
+    fun start(voDriver: String = "gpu-next", hwdec: String? = null) {
         if (isRunning) return
 
         try {
@@ -189,14 +189,6 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             mpv?.setOptionString("gpu-context", "android")
             mpv?.setOptionString("opengl-es", "yes")
             
-            // Hardware decoder codecs (shared)
-            mpv?.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
-
-            // Pause on initial cache fill (shared default). The actual
-            // cache mode, cache-secs, and demuxer cache sizes come from
-            // user preferences and are applied per-load in load().
-            mpv?.setOptionString("cache-pause-initial", "yes")
-
             // Hardware decode path + TV-only memory options. Demuxer cache
             // sizes and cache-secs are NOT set here — they come from user
             // preferences via load().
@@ -210,11 +202,26 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             //  - Real TV hardware: zero-copy `mediacodec` (fastest on
             //    low-power devices) + fast profile.
             //  - Real phone: `mediacodec-copy` (broadest compatibility).
+            val hwdecMode = hwdec ?: when {
+                isEmulator() -> "no"
+                isTV -> "mediacodec"
+                else -> "mediacodec-copy"
+            }
+            if (hwdecMode != "no") {
+                mpv?.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
+            }
+
+            // Pause on initial cache fill (shared default). The actual
+            // cache mode, cache-secs, and demuxer cache sizes come from
+            // user preferences and are applied per-load in load().
+            mpv?.setOptionString("cache-pause-initial", "yes")
+            mpv?.setOptionString("hwdec", hwdecMode)
+
             when {
-                isEmulator() -> mpv?.setOptionString("hwdec", "no")
                 isTV -> {
-                    mpv?.setOptionString("hwdec", "mediacodec")
-                    mpv?.setOptionString("profile", "fast")
+                    if (hwdecMode == "mediacodec") {
+                        mpv?.setOptionString("profile", "fast")
+                    }
                     // Don't retain already-played content for backward
                     // seeking over a network source — Jellyfin can re-fetch
                     // on demand. Saves up to ~30 MiB on long seeks and
@@ -225,7 +232,6 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                     // underruns that happen when the kernel is swap-thrashing.
                     mpv?.setOptionString("audio-buffer", "0.5")
                 }
-                else -> mpv?.setOptionString("hwdec", "mediacodec-copy")
             }
             
             // Seeking optimization - faster seeking at the cost of less precision

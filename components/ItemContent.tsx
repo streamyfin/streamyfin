@@ -242,6 +242,7 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                 selectedOptions={selectedOptions}
                 item={item}
                 colors={itemColors}
+                testID='play-button'
               />
               <View className='w-1' />
               {!isOffline && (

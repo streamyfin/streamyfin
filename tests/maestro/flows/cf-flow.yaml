@@ -1,0 +1,73 @@
+appId: ${MAESTRO_APP_ID}
+name: CF-Flow
+---
+- clearState
+- launchApp
+- extendedWaitUntil:
+    visible: "Enter the URL to your Jellyfin server"
+    timeout: 30000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/01-launched
+- tapOn:
+    id: "advanced-custom-headers"
+- tapOn:
+    id: "header-preset-cloudflare"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/02-cloudflare-preset
+- tapOn:
+    id: "server-url-input"
+- inputText: "${MAESTRO_LOGIN_SERVER_URL}"
+- hideKeyboard
+- tapOn:
+    id: "header-value-CF-Access-Client-Id"
+- inputText: "${MAESTRO_CF_ACCESS_CLIENT_ID}"
+- hideKeyboard
+- tapOn:
+    id: "header-value-CF-Access-Client-Secret"
+- inputText: "${MAESTRO_CF_ACCESS_CLIENT_SECRET}"
+- hideKeyboard
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-headers-entered
+- scrollUntilVisible:
+    element:
+      id: "connect-button"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "connect-button"
+- extendedWaitUntil:
+    visible: "Username"
+    timeout: 60000
+- assertVisible: "Password"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/04-login-screen
+- tapOn:
+    id: "username-input"
+- inputText: "${MAESTRO_USERNAME}"
+- runFlow:
+    when:
+      true: ${MAESTRO_PASSWORD != null && MAESTRO_PASSWORD.length > 0}
+    commands:
+      - tapOn:
+          id: "password-input"
+      - inputText: "${MAESTRO_PASSWORD}"
+- hideKeyboard
+- tapOn:
+    id: "login-button"
+- extendedWaitUntil:
+    visible: "Home|Welcome to Streamyfin|Continue Watching|Next Up|No Items"
+    timeout: 45000
+- runFlow:
+    when:
+      visible: "Welcome to Streamyfin"
+    commands:
+      - takeScreenshot:
+          path: ${MAESTRO_ARTIFACT_DIR}/05-intro-screen
+      - tapOn:
+          id: "intro-done-button"
+- extendedWaitUntil:
+    visible: "Home|Continue Watching|Next Up|No Items"
+    timeout: 30000
+- assertNotVisible: "Welcome to Streamyfin"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/06-home

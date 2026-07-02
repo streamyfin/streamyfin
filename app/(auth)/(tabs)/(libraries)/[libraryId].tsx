@@ -424,6 +424,7 @@ const Page = () => {
           marginBottom: 4,
         }}
         item={item}
+        testID={item.Id ? `media-item-${item.Id}` : undefined}
       >
         <View
           style={{

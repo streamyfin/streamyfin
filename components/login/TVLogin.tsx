@@ -27,7 +27,7 @@ import {
   type SavedServer,
   type SavedServerAccount,
   saveAccountCredential,
-  updateServerCustomHeaders,
+  updateServerCustomHeadersForConnection,
 } from "@/utils/secureCredentials";
 import { TVAddServerForm } from "./TVAddServerForm";
 import { TVAddUserForm } from "./TVAddUserForm";
@@ -235,7 +235,10 @@ export const TVLogin: React.FC = () => {
           }
           // Save headers after successful connection
           if (customHeaders !== undefined) {
-            updateServerCustomHeaders(serverUrl, customHeaders);
+            await updateServerCustomHeadersForConnection(
+              serverUrl,
+              customHeaders,
+            );
           }
           const discoveredServerName = data.ServerName || "";
           setServerName(discoveredServerName);

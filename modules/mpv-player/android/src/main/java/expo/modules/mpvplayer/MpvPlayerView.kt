@@ -29,6 +29,7 @@ data class VideoLoadConfig(
     val cacheSeconds: Int? = null,
     val demuxerMaxBytes: Int? = null,
     val demuxerMaxBackBytes: Int? = null,
+    val hwdec: String? = null
 )
 
 /**
@@ -151,11 +152,11 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      * Start the renderer with the given VO driver.
      * Called lazily on first loadVideo so user settings are available.
      */
-    private fun ensureRendererStarted(voDriver: String?) {
+    private fun ensureRendererStarted(voDriver: String?, hwdec: String?) {
         if (rendererStarted) return
 
         try {
-            renderer?.start(voDriver ?: "gpu-next")
+            renderer?.start(voDriver ?: "gpu-next", hwdec)
             rendererStarted = true
 
             // If the surface is already alive (surfaceCreated fired before
@@ -191,7 +192,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         // If we have a pending load, execute it now
         pendingConfig?.let { config ->
-            ensureRendererStarted(config.voDriver)
+            ensureRendererStarted(config.voDriver, config.hwdec)
             loadVideoInternal(config)
             pendingConfig = null
         }
@@ -244,7 +245,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
 
         // Ensure renderer is started with the configured VO driver
-        ensureRendererStarted(config.voDriver)
+        ensureRendererStarted(config.voDriver, config.hwdec)
 
         loadVideoInternal(config)
     }
