@@ -1,3 +1,4 @@
+import NetInfo from "@react-native-community/netinfo";
 import { Platform, requireNativeModule } from "expo-modules-core";
 
 // Only load the native module on iOS
@@ -5,15 +6,19 @@ const WifiSsidModule =
   Platform.OS === "ios" ? requireNativeModule("WifiSsid") : null;
 
 /**
- * Get the current WiFi SSID on iOS.
- * Returns null on Android or if not connected to WiFi.
+ * Get the current WiFi SSID.
+ * Returns null if not connected to WiFi.
  *
- * Requires:
- * - Location permission granted
- * - com.apple.developer.networking.wifi-info entitlement
- * - Access WiFi Information capability enabled in Apple Developer Portal
+ * Requires location permission granted on both platforms.
+ * iOS additionally requires the com.apple.developer.networking.wifi-info
+ * entitlement and Access WiFi Information capability.
  */
 export async function getSSID(): Promise<string | null> {
+  if (Platform.OS === "android") {
+    const state = await NetInfo.fetch("wifi");
+    return state.type === "wifi" ? (state.details.ssid ?? null) : null;
+  }
+
   if (!WifiSsidModule) {
     return null;
   }
