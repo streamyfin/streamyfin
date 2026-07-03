@@ -9,14 +9,19 @@ const WifiSsidModule =
  * Get the current WiFi SSID.
  * Returns null if not connected to WiFi.
  *
- * Requires location permission granted on both platforms.
+ * Requires location permission granted on both platforms (Android also
+ * needs device-level location services turned on).
  * iOS additionally requires the com.apple.developer.networking.wifi-info
  * entitlement and Access WiFi Information capability.
  */
 export async function getSSID(): Promise<string | null> {
   if (Platform.OS === "android") {
     const state = await NetInfo.fetch("wifi");
-    return state.type === "wifi" ? (state.details.ssid ?? null) : null;
+    if (state.type !== "wifi") return null;
+    const ssid = state.details.ssid;
+    // Android reports this placeholder instead of null when it can't resolve
+    // the real SSID (e.g. missing location permission on some OS versions).
+    return ssid && ssid !== "<unknown ssid>" ? ssid : null;
   }
 
   if (!WifiSsidModule) {
