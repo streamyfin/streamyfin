@@ -16,12 +16,18 @@ const WifiSsidModule =
  */
 export async function getSSID(): Promise<string | null> {
   if (Platform.OS === "android") {
-    const state = await NetInfo.fetch("wifi");
-    if (state.type !== "wifi") return null;
-    const ssid = state.details.ssid;
-    // Android reports this placeholder instead of null when it can't resolve
-    // the real SSID (e.g. missing location permission on some OS versions).
-    return ssid && ssid !== "<unknown ssid>" ? ssid : null;
+    try {
+      const state = await NetInfo.fetch("wifi");
+      if (state.type !== "wifi") return null;
+      const ssid = state.details.ssid;
+      // Android reports this placeholder instead of null when it can't
+      // resolve the real SSID (e.g. missing location permission on some
+      // OS versions).
+      return ssid && ssid !== "<unknown ssid>" ? ssid : null;
+    } catch (error) {
+      console.error("[WifiSsid] Error getting SSID:", error);
+      return null;
+    }
   }
 
   if (!WifiSsidModule) {
