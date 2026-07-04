@@ -225,7 +225,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
         { Format: "ttml", Method: "External" },
         { Format: "pgssub", Method: "Encode" },
       ],
-    };
+    } satisfies DeviceProfile;
   }
 
   const { directPlayCodec, maxAudioChannels } = getVideoAudioCodecs(
