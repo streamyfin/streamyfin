@@ -39,7 +39,7 @@ export const useWatchlist = (item: BaseItemDto) => {
   const setIsWatchlisted = useCallback(
     (value: boolean | null | undefined) => {
       if (watchlistKey && typeof value === "boolean") {
-        +setWatchlist((prev) => ({ ...prev, [watchlistKey]: value }));
+        setWatchlist((prev) => ({ ...prev, [watchlistKey]: value }));
       }
     },
     [watchlistKey, setWatchlist],
