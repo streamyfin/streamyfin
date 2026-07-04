@@ -588,25 +588,8 @@
     "videos": "Videor",
     "boxsets": "Box Set",
     "playlists": "Spellistor",
-    "seeAllSeries": "Favoritmarkerade serier",
-    "seeAllMovies": "Favoritmarkerade filmer",
-    "seeAllEpisodes": "Favoritmarkerade avsnitt",
-    "seeAllVideos": "Favoritmarkerade videor",
-    "seeAllBoxsets": "Favoritmarkerade box set",
-    "seeAllPlaylists": "Favoritmarkerade spellistor",
     "noDataTitle": "Inga favoriter än",
-    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst.",
-    "watchlist": "Bevakningslista"
-  },
-  "kefintweaksWatchlist": {
-    "seeAllSeries": "Bevakade serier",
-    "seeAllMovies": "Bevakade filmer",
-    "seeAllEpisodes": "Bevakade avsnitt",
-    "seeAllVideos": "Bevakade videor",
-    "seeAllBoxsets": "Bevakade box set",
-    "seeAllPlaylists": "Bevakade spellistor",
-    "noDataTitle": "Inga bevakade objekt än",
-    "noData": "Lägg till objekt i din bevakningslista för att se dem visas här."
+    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst."
   },
   "custom_links": {
     "no_links": "Inga Länkar"
