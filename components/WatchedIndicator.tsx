@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import type React from "react";
+import React from "react";
 import { Platform, View, type ViewStyle } from "react-native";
 import { Text } from "@/components/common/Text";
 import { scaleSize } from "@/utils/scaleSize";
