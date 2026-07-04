@@ -5,7 +5,7 @@ import { useImperativeHandle, useRef } from "react";
 import type {
   MpvPlayerViewProps,
   MpvPlayerViewRef,
-} from "../../mpv-player/src/MpvPlayer.types";
+} from "@/modules/mpv-player";
 
 const NativeView: React.ComponentType<MpvPlayerViewProps & { ref?: any }> =
   requireNativeView("ExoPlayer");

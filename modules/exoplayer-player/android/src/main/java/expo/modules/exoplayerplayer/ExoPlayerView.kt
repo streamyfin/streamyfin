@@ -582,13 +582,16 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         p.prepare()
         if (wasPlaying) p.play()
 
-        // If text tracks were disabled (e.g. disableSubtitles was called
-        // earlier, or playback started with subtitles off), the new
-        // subtitle — even with SELECTION_FLAG_DEFAULT — won't render.
-        // Re-enable the text track type when the caller asks us to select.
+        // Re-enabling text tracks alone isn't enough: a prior text override
+        // (e.g. left in place by disableSubtitles, or set by setSubtitleTrack
+        // before this add) survives the MediaItem rebuild and, since embedded
+        // subtitle groups persist across it, would win over the new sub's
+        // SELECTION_FLAG_DEFAULT. Clear any text override so the new default
+        // sub is the one that renders.
         if (select) {
             val params = p.trackSelectionParameters.buildUpon()
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
                 .build()
             p.trackSelectionParameters = params
         }
