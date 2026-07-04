@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { Platform, View, type ViewStyle } from "react-native";
+import { Text } from "@/components/common/Text";
 import { scaleSize } from "@/utils/scaleSize";
-import { Text } from "./common/Text";
 
 const isAggregateType = (item: BaseItemDto) =>
   item.Type === "Series" || item.Type === "BoxSet";
@@ -39,39 +39,43 @@ const mobileBadgeBase: ViewStyle = {
  * unconditionally as an overlay (e.g. on top of the tvOS glass poster, where
  * the watched checkmark is drawn natively and only the count needs RN).
  */
-export const UnplayedCountBadge: React.FC<{ item: BaseItemDto }> = ({
-  item,
-}) => {
-  if (!isAggregateType(item)) return null;
-  if (item.UserData?.Played) return null;
-  const unplayed = item.UserData?.UnplayedItemCount ?? 0;
-  if (unplayed <= 0) return null;
+export const UnplayedCountBadge: React.FC<{ item: BaseItemDto }> = React.memo(
+  ({ item }) => {
+    if (!isAggregateType(item)) return null;
+    if (item.UserData?.Played) return null;
+    const unplayed = item.UserData?.UnplayedItemCount ?? 0;
+    if (unplayed <= 0) return null;
 
-  if (Platform.isTV) {
-    return (
-      <View
-        style={[
-          tvBadgeBase,
-          { minWidth: scaleSize(28), paddingHorizontal: scaleSize(7) },
-        ]}
-      >
-        <Text
-          style={{ fontSize: scaleSize(15), fontWeight: "700", color: "black" }}
+    if (Platform.isTV) {
+      return (
+        <View
+          style={[
+            tvBadgeBase,
+            { minWidth: scaleSize(28), paddingHorizontal: scaleSize(7) },
+          ]}
         >
+          <Text
+            style={{
+              fontSize: scaleSize(15),
+              fontWeight: "700",
+              color: "black",
+            }}
+          >
+            {unplayed}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[mobileBadgeBase, { minWidth: 20, paddingHorizontal: 5 }]}>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }}>
           {unplayed}
         </Text>
       </View>
     );
-  }
-
-  return (
-    <View style={[mobileBadgeBase, { minWidth: 20, paddingHorizontal: 5 }]}>
-      <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }}>
-        {unplayed}
-      </Text>
-    </View>
-  );
-};
+  },
+);
 
 export const WatchedIndicator: React.FC<{ item: BaseItemDto }> = ({ item }) => {
   const isMovieOrEpisode = item.Type === "Movie" || item.Type === "Episode";

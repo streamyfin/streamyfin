@@ -3,9 +3,9 @@ import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo } from "react";
 import { View } from "react-native";
+import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
-import { WatchedIndicator } from "../WatchedIndicator";
 
 type MoviePosterProps = {
   item: BaseItemDto;
