@@ -155,58 +155,6 @@ export const Favorites = () => {
     />
   );
 
-  if (areAllEmpty()) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          paddingTop: insets.top + TOP_PADDING,
-          paddingHorizontal: HORIZONTAL_PADDING,
-        }}
-      >
-        {tabBadges}
-        <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Image
-            style={{
-              width: 64,
-              height: 64,
-              marginBottom: 16,
-              tintColor: Colors.primary,
-            }}
-            contentFit='contain'
-            source={heart}
-          />
-          <Text
-            style={{
-              fontSize: typography.heading,
-              fontWeight: "bold",
-              marginBottom: 8,
-              color: "#FFFFFF",
-            }}
-          >
-            {t(emptyTitleKey)}
-          </Text>
-          <Text
-            style={{
-              textAlign: "center",
-              opacity: 0.7,
-              fontSize: typography.body,
-              color: "#FFFFFF",
-            }}
-          >
-            {t(emptyTextKey)}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       nestedScrollEnabled
@@ -214,12 +162,57 @@ export const Favorites = () => {
       contentContainerStyle={{
         paddingTop: insets.top + TOP_PADDING,
         paddingBottom: insets.bottom + 60,
+        flexGrow: 1,
       }}
     >
-      <View style={{ gap: SECTION_GAP }}>
+      <View style={{ gap: SECTION_GAP, flex: 1 }}>
         {watchlistEnabled && (
           <View style={{ paddingHorizontal: HORIZONTAL_PADDING }}>
             {tabBadges}
+          </View>
+        )}
+        {/* Rendered alongside the lists (never instead of them) so they stay
+            mounted and re-report emptiness on a favorites/watchlist switch;
+            an early return here would freeze the all-empty state. */}
+        {areAllEmpty() && (
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              paddingHorizontal: HORIZONTAL_PADDING,
+            }}
+          >
+            <Image
+              style={{
+                width: 64,
+                height: 64,
+                marginBottom: 16,
+                tintColor: Colors.primary,
+              }}
+              contentFit='contain'
+              source={heart}
+            />
+            <Text
+              style={{
+                fontSize: typography.heading,
+                fontWeight: "bold",
+                marginBottom: 8,
+                color: "#FFFFFF",
+              }}
+            >
+              {t(emptyTitleKey)}
+            </Text>
+            <Text
+              style={{
+                textAlign: "center",
+                opacity: 0.7,
+                fontSize: typography.body,
+                color: "#FFFFFF",
+              }}
+            >
+              {t(emptyTextKey)}
+            </Text>
           </View>
         )}
         <InfiniteScrollingCollectionList
