@@ -189,6 +189,16 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         override fun onTracksChanged(tracks: Tracks) {
             rebuildTrackMaps(tracks)
+            // currentSubtitleId is a hand-maintained cache (ExoPlayer has no
+            // mpv-style "sid" property to read live), so re-derive it from the
+            // actual selection on every track change. Without this, any path
+            // that selects a track without going through setSubtitleTrack —
+            // notably addSubtitleFile(select=true), which clears the text
+            // override and lets the new SELECTION_FLAG_DEFAULT sub render —
+            // leaves the cache stale and getCurrentSubtitleTrack() reporting
+            // the old id. Run before applyInitialTrackSelections() so an
+            // explicit initial selection still wins.
+            syncCurrentSubtitleIdFromSelection(tracks)
             applyInitialTrackSelections()
             // A track change can re-initialize the codec under a different
             // name (e.g. adaptive switch from HEVC to AV1). Clear stale
@@ -499,6 +509,20 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
         subtitleTrackList = subtitles
         audioTrackList = audios
+    }
+
+    /**
+     * Mirror the player's actually-selected text track into [currentSubtitleId].
+     * Must run after [rebuildTrackMaps] so the 1-based IDs in [subtitleTrackList]
+     * are current for this [tracks] snapshot. Falls back to 0 (subs off) when no
+     * text track is selected.
+     */
+    private fun syncCurrentSubtitleIdFromSelection(tracks: Tracks) {
+        val groups = tracks.groups
+        val selected = subtitleTrackList.firstOrNull { entry ->
+            groups[entry.trackGroupIndex].isTrackSelected(entry.trackIndex)
+        }
+        currentSubtitleId = selected?.id ?: 0
     }
 
     private fun applyInitialTrackSelections() {
