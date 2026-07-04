@@ -60,6 +60,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const {
     data,
     isLoading,
+    isError,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -111,13 +112,16 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     return deduped;
   }, [data]);
 
-  // Report emptiness on every settle (incl. cache hits). Callback held in a ref
-  // so an inline parent callback doesn't retrigger the effect each render.
+  // Report emptiness on every settle (incl. cache hits). Errors report null
+  // (unknown) so a failed fetch never reads as "no content". Callback held in
+  // a ref so an inline parent callback doesn't retrigger the effect each render.
   const onEmptyStateChangeRef = useRef(onEmptyStateChange);
   onEmptyStateChangeRef.current = onEmptyStateChange;
   useEffect(() => {
-    onEmptyStateChangeRef.current?.(isLoading ? null : allItems.length === 0);
-  }, [isLoading, allItems.length]);
+    onEmptyStateChangeRef.current?.(
+      isLoading || isError ? null : allItems.length === 0,
+    );
+  }, [isLoading, isError, allItems.length]);
 
   const snapOffsets = useMemo(() => {
     const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)

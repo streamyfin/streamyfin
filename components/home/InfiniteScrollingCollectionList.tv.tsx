@@ -153,24 +153,30 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     [onItemFocus],
   );
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: queryKey,
-      queryFn: ({ pageParam = 0, ...context }) =>
-        queryFn({ ...context, queryKey, pageParam }),
-      getNextPageParam: (lastPage, allPages) => {
-        if (lastPage.length < effectivePageSize) {
-          return undefined;
-        }
-        return allPages.reduce((acc, page) => acc + page.length, 0);
-      },
-      initialPageParam: 0,
-      staleTime: 60 * 1000,
-      refetchInterval: 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      enabled,
-    });
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKey,
+    queryFn: ({ pageParam = 0, ...context }) =>
+      queryFn({ ...context, queryKey, pageParam }),
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < effectivePageSize) {
+        return undefined;
+      }
+      return allPages.reduce((acc, page) => acc + page.length, 0);
+    },
+    initialPageParam: 0,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    enabled,
+  });
 
   const { t } = useTranslation();
 
@@ -190,13 +196,16 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     return deduped;
   }, [data]);
 
-  // Report emptiness on every settle (incl. cache hits). Callback held in a ref
-  // so an inline parent callback doesn't retrigger the effect each render.
+  // Report emptiness on every settle (incl. cache hits). Errors report null
+  // (unknown) so a failed fetch never reads as "no content". Callback held in
+  // a ref so an inline parent callback doesn't retrigger the effect each render.
   const onEmptyStateChangeRef = useRef(onEmptyStateChange);
   onEmptyStateChangeRef.current = onEmptyStateChange;
   useEffect(() => {
-    onEmptyStateChangeRef.current?.(isLoading ? null : allItems.length === 0);
-  }, [isLoading, allItems.length]);
+    onEmptyStateChangeRef.current?.(
+      isLoading || isError ? null : allItems.length === 0,
+    );
+  }, [isLoading, isError, allItems.length]);
 
   const itemWidth =
     orientation === "horizontal" ? posterSizes.episode : posterSizes.poster;
