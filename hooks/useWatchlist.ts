@@ -19,31 +19,30 @@ export const useWatchlist = (item: BaseItemDto) => {
   const [user] = useAtom(userAtom);
   const [watchlist, setWatchlist] = useAtom(watchlistAtom);
 
-  const itemId = item.Id ?? "";
+  const watchlistKey = user?.Id && item.Id ? `${user.Id}:${item.Id}` : "";
 
   // Get current watchlist status from shared state, falling back to item data
-  const isWatchlisted = itemId
-    ? (watchlist[itemId] ?? item.UserData?.Likes)
+  const isWatchlisted = watchlistKey
+    ? (watchlist[watchlistKey] ?? item.UserData?.Likes)
     : item.UserData?.Likes;
 
   // Update shared state when item data changes
   useEffect(() => {
-    if (itemId && item.UserData?.Likes !== undefined) {
+    if (watchlistKey && item.UserData?.Likes !== undefined) {
       setWatchlist((prev) => ({
         ...prev,
-        [itemId]: item.UserData!.Likes!,
+        [watchlistKey]: item.UserData!.Likes!,
       }));
     }
-  }, [itemId, item.UserData?.Likes, setWatchlist]);
-
+  }, [watchlistKey, item.UserData?.Likes, setWatchlist]);
   // Helper to update watchlist status in shared state
   const setIsWatchlisted = useCallback(
     (value: boolean | null | undefined) => {
-      if (itemId && typeof value === "boolean") {
-        setWatchlist((prev) => ({ ...prev, [itemId]: value }));
+      if (watchlistKey && typeof value === "boolean") {
+        +setWatchlist((prev) => ({ ...prev, [watchlistKey]: value }));
       }
     },
-    [itemId, setWatchlist],
+    [watchlistKey, setWatchlist],
   );
 
   // Use refs to avoid stale closure issues in mutationFn
@@ -142,12 +141,16 @@ export const useWatchlist = (item: BaseItemDto) => {
   });
 
   const toggleWatchlist = useCallback(() => {
+    // Ignore taps while a flip is in flight so overlapping requests can't
+    // race and leave Jellyfin's Likes value out of sync with the UI.
+    if (watchlistMutation.isPending) return;
     watchlistMutation.mutate(!isWatchlisted);
   }, [watchlistMutation, isWatchlisted]);
 
   return {
     isWatchlisted,
     toggleWatchlist,
+    isPending: watchlistMutation.isPending,
     watchlistMutation,
   };
 };

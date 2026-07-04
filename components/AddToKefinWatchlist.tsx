@@ -13,7 +13,7 @@ interface Props extends ViewProps {
  * Render only when settings.useKefinTweaks is enabled.
  */
 export const AddToKefinWatchlist: FC<Props> = ({ item, ...props }) => {
-  const { isWatchlisted, toggleWatchlist } = useWatchlist(item);
+  const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
 
   return (
     <View {...props}>
@@ -22,6 +22,7 @@ export const AddToKefinWatchlist: FC<Props> = ({ item, ...props }) => {
         icon={isWatchlisted ? "bookmark" : "bookmark-outline"}
         color={isWatchlisted ? "purple" : "white"}
         onPress={toggleWatchlist}
+        disabled={isPending}
       />
     </View>
   );

@@ -17,14 +17,14 @@ export const TVWatchlistButton: React.FC<TVWatchlistButtonProps> = ({
   item,
   disabled,
 }) => {
-  const { isWatchlisted, toggleWatchlist } = useWatchlist(item);
+  const { isWatchlisted, toggleWatchlist, isPending } = useWatchlist(item);
 
   return (
     <TVButton
       onPress={toggleWatchlist}
       variant='glass'
       square
-      disabled={disabled}
+      disabled={disabled || isPending}
     >
       <Ionicons
         name={isWatchlisted ? "bookmark" : "bookmark-outline"}
