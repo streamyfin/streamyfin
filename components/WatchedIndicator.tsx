@@ -1,43 +1,112 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
-import { Platform, View } from "react-native";
+import { Platform, View, type ViewStyle } from "react-native";
+import { scaleSize } from "@/utils/scaleSize";
+import { Text } from "./common/Text";
+
+const isAggregateType = (item: BaseItemDto) =>
+  item.Type === "Series" || item.Type === "BoxSet";
+
+// TV sizes are scaled relative to a 1920×1080 reference (see scaleSize).
+const tvBadgeBase: ViewStyle = {
+  position: "absolute",
+  top: scaleSize(8),
+  right: scaleSize(8),
+  height: scaleSize(28),
+  borderRadius: scaleSize(14),
+  backgroundColor: "rgba(255,255,255,0.92)",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+// Mobile uses raw dp — no scaling.
+const mobileBadgeBase: ViewStyle = {
+  position: "absolute",
+  top: 4,
+  right: 4,
+  height: 20,
+  borderRadius: 10,
+  backgroundColor: "#9333ea",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+/**
+ * Renders the unplayed-episode count badge for Series/BoxSet items that still
+ * have episodes left to watch. Returns null for non-aggregate types, fully
+ * watched items, or items with no unplayed count, so it is safe to mount
+ * unconditionally as an overlay (e.g. on top of the tvOS glass poster, where
+ * the watched checkmark is drawn natively and only the count needs RN).
+ */
+export const UnplayedCountBadge: React.FC<{ item: BaseItemDto }> = ({
+  item,
+}) => {
+  if (!isAggregateType(item)) return null;
+  if (item.UserData?.Played) return null;
+  const unplayed = item.UserData?.UnplayedItemCount ?? 0;
+  if (unplayed <= 0) return null;
+
+  if (Platform.isTV) {
+    return (
+      <View
+        style={[
+          tvBadgeBase,
+          { minWidth: scaleSize(28), paddingHorizontal: scaleSize(7) },
+        ]}
+      >
+        <Text
+          style={{ fontSize: scaleSize(15), fontWeight: "700", color: "black" }}
+        >
+          {unplayed}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[mobileBadgeBase, { minWidth: 20, paddingHorizontal: 5 }]}>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }}>
+        {unplayed}
+      </Text>
+    </View>
+  );
+};
 
 export const WatchedIndicator: React.FC<{ item: BaseItemDto }> = ({ item }) => {
+  const isMovieOrEpisode = item.Type === "Movie" || item.Type === "Episode";
+  const isAggregate = isAggregateType(item);
+  const isPlayed = item.UserData?.Played === true;
+
   if (Platform.isTV) {
-    // TV: Show white checkmark when watched
-    if (
-      item.UserData?.Played &&
-      (item.Type === "Movie" || item.Type === "Episode")
-    ) {
+    // Fully watched → white checkmark badge (top-right)
+    if (isPlayed && (isMovieOrEpisode || isAggregate)) {
       return (
-        <View
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            backgroundColor: "rgba(255,255,255,0.9)",
-            borderRadius: 14,
-            width: 28,
-            height: 28,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Ionicons name='checkmark' size={18} color='black' />
+        <View style={[tvBadgeBase, { width: scaleSize(28) }]}>
+          <Ionicons name='checkmark' size={scaleSize(18)} color='black' />
         </View>
       );
     }
-    return null;
+    // Series/BoxSet with remaining episodes → count badge
+    return <UnplayedCountBadge item={item} />;
   }
 
-  // Mobile: Show purple triangle for unwatched
+  // Mobile: purple corner ribbon for unwatched Movie/Episode (existing behavior)
   return (
     <>
-      {item.UserData?.Played === false &&
-        (item.Type === "Movie" || item.Type === "Episode") && (
-          <View className='bg-purple-600 w-8 h-8 absolute -top-4 -right-4 rotate-45' />
-        )}
+      {isMovieOrEpisode && !isPlayed && (
+        <View className='bg-purple-600 w-8 h-8 absolute -top-4 -right-4 rotate-45' />
+      )}
+
+      {/* Fully watched Series/BoxSet → small purple checkmark */}
+      {isAggregate && isPlayed && (
+        <View style={[mobileBadgeBase, { width: 20 }]}>
+          <Ionicons name='checkmark' size={13} color='white' />
+        </View>
+      )}
+
+      {/* Series/BoxSet with remaining episodes → count badge */}
+      <UnplayedCountBadge item={item} />
     </>
   );
 };

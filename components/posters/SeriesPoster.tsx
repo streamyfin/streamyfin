@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { WatchedIndicator } from "../WatchedIndicator";
 
 type MoviePosterProps = {
   item: BaseItemDto;
@@ -52,6 +53,7 @@ const SeriesPoster: React.FC<MoviePosterProps> = ({ item }) => {
           width: "100%",
         }}
       />
+      <WatchedIndicator item={item} />
     </View>
   );
 };
