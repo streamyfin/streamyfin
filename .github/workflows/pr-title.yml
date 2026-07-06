@@ -1,19 +1,13 @@
 name: 📝 PR Title
 
-# pull_request_target so fork PRs get a write token — this workflow only reads
-# the PR title and posts/updates a sticky comment; it never checks out or runs
-# PR code, so it is not exposed to the usual _target code-execution risk.
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronize, reopened]
     branches: [develop, master]
 
 permissions:
   contents: read
 
-# Key on the PR number, not github.ref: under pull_request_target github.ref is
-# the base branch (shared by every PR), which would collapse all PRs into one
-# group and cross-cancel their title checks.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
