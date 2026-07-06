@@ -931,6 +931,10 @@ export default function DirectPlayerPage() {
         bitrateValue: bitrateValue?.toString() ?? "",
         playbackPosition: msToTicks(progress.get()).toString(),
       }).toString();
+      // Destroy the current mpv instance before re-navigating, same rationale as
+      // goToNextItem: Expo Router briefly holds two players during the
+      // transition and two decoders/surfaces OOM-kill low-RAM devices.
+      videoRef.current?.destroy().catch(() => {});
       router.replace(`player/direct-player?${queryParams}` as any);
     },
     [
@@ -1105,6 +1109,10 @@ export default function DirectPlayerPage() {
         previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
     }).toString();
 
+    // Free the current mpv instance before navigating, matching goToNextItem —
+    // otherwise two decoders/surfaces overlap during the transition and can
+    // OOM-kill low-RAM devices.
+    videoRef.current?.destroy().catch(() => {});
     router.replace(`player/direct-player?${queryParams}` as any);
   }, [
     previousItem,
@@ -1117,14 +1125,24 @@ export default function DirectPlayerPage() {
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
-  const addSubtitleFile = useCallback(async (path: string) => {
-    // Move the live index off the previous server sub BEFORE the add: the
-    // sub-add fires onTracksReady, whose re-apply would otherwise resolve the
-    // stale index and clobber the freshly selected local sub (disable it, or
-    // re-select the old track). The sentinel resolves to notFound → no-op.
-    setCurrentSubtitleIndex(LOCAL_SUBTITLE_INDEX_START);
-    await videoRef.current?.addSubtitleFile?.(path, true);
-  }, []);
+  const addSubtitleFile = useCallback(
+    async (path: string) => {
+      // Set the live index to the new local sub's REAL index BEFORE the add.
+      // Local subs are keyed LOCAL_SUBTITLE_INDEX_START - position, so use the
+      // downloaded path's position (not a blanket sentinel, which would collide
+      // with the first local sub at -100 and mis-record the selection). Any
+      // local index resolves to notFound on the onTracksReady re-apply, so it
+      // still doesn't clobber the freshly selected track; carry-over now keeps
+      // the correct local sub.
+      const locals = itemId ? getSubtitlesForItem(itemId) : [];
+      const pos = locals.findIndex((s) => s.filePath === path);
+      setCurrentSubtitleIndex(
+        LOCAL_SUBTITLE_INDEX_START - (pos >= 0 ? pos : 0),
+      );
+      await videoRef.current?.addSubtitleFile?.(path, true);
+    },
+    [itemId],
+  );
 
   // TV: Refresh subtitle tracks after server-side subtitle download
   // Re-fetches the media source to pick up newly downloaded subtitles

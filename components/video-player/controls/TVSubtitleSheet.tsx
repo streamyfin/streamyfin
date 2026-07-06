@@ -33,7 +33,6 @@ import {
   type SubtitleSearchResult,
   useRemoteSubtitles,
 } from "@/hooks/useRemoteSubtitles";
-import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 
 interface TVSubtitleSheetProps {
@@ -97,19 +96,13 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(300)).current;
 
-  // Order like jellyfin-web (embedded first, externals last, forced/default up).
-  const sortedTracks = useMemo(
-    () => [...subtitleTracks].sort(compareTracksForMenu),
-    [subtitleTracks],
-  );
-
   const initialSelectedTrackIndex = useMemo(() => {
     if (currentSubtitleIndex === -1) return 0;
-    const trackIdx = sortedTracks.findIndex(
+    const trackIdx = subtitleTracks.findIndex(
       (t) => t.Index === currentSubtitleIndex,
     );
     return trackIdx >= 0 ? trackIdx + 1 : 0;
-  }, [sortedTracks, currentSubtitleIndex]);
+  }, [subtitleTracks, currentSubtitleIndex]);
 
   useEffect(() => {
     if (visible) {
@@ -222,7 +215,7 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
       value: -1,
       selected: currentSubtitleIndex === -1,
     };
-    const options = sortedTracks.map((track) => ({
+    const options = subtitleTracks.map((track) => ({
       label:
         track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
       sublabel: track.Codec?.toUpperCase(),
@@ -230,7 +223,7 @@ export const TVSubtitleSheet: React.FC<TVSubtitleSheetProps> = ({
       selected: track.Index === currentSubtitleIndex,
     }));
     return [noneOption, ...options];
-  }, [sortedTracks, currentSubtitleIndex, t]);
+  }, [subtitleTracks, currentSubtitleIndex, t]);
 
   if (!visible) return null;
 
