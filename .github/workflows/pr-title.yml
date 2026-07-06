@@ -1,15 +1,21 @@
 name: 📝 PR Title
 
+# pull_request_target so fork PRs get a write token — this workflow only reads
+# the PR title and posts/updates a sticky comment; it never checks out or runs
+# PR code, so it is not exposed to the usual _target code-execution risk.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, synchronize, reopened]
     branches: [develop, master]
 
 permissions:
   contents: read
 
+# Key on the PR number, not github.ref: under pull_request_target github.ref is
+# the base branch (shared by every PR), which would collapse all PRs into one
+# group and cross-cancel their title checks.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -38,7 +44,7 @@ jobs:
             ${{ steps.lint_pr_title.outputs.error_message }}
             ```
 
-      - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
+      - if: ${{ success() && steps.lint_pr_title.outputs.error_message == null }}
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           header: pr-title-lint-error
