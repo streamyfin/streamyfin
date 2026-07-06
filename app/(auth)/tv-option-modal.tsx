@@ -76,13 +76,23 @@ export default function TVOptionModal() {
   }, [isReady]);
 
   const handleSelect = (value: any) => {
-    // Close FIRST, run the callback after this modal route is dismissed: an
-    // onSelect that navigates (e.g. the transcode audio switch replacing the
-    // player) would otherwise target the MODAL route and be swallowed.
-    const onSelect = modalState?.onSelect;
+    if (modalState?.deferApplyUntilDismissed) {
+      // onSelect navigates (the transcode audio switch replacing the player);
+      // a router.replace fired while this modal is the active route would be
+      // swallowed. Close FIRST, apply after dismissal.
+      const onSelect = modalState.onSelect;
+      store.set(tvOptionModalAtom, null);
+      router.back();
+      InteractionManager.runAfterInteractions(() => onSelect?.(value));
+      return;
+    }
+    // State-only callers (detail page, library filters, settings): run before
+    // closing so the re-render happens while the modal is up. Deferring it until
+    // after dismissal re-renders the page after focus returns and yanks TV
+    // focus, leaving navigation stuck.
+    modalState?.onSelect(value);
     store.set(tvOptionModalAtom, null);
     router.back();
-    InteractionManager.runAfterInteractions(() => onSelect?.(value));
   };
 
   const handleClose = useCallback(() => {
