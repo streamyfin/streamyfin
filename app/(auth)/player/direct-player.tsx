@@ -893,6 +893,22 @@ export default function DirectPlayerPage() {
       // Check if we're transcoding
       const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
 
+      // A transcoded stream only carries the audio track the server encoded
+      // into it — switching requires re-negotiating the stream with the new
+      // index (like the mobile menu's replacePlayer), not an mpv aid change.
+      if (isTranscoding) {
+        const queryParams = new URLSearchParams({
+          itemId: item?.Id ?? "",
+          audioIndex: String(index),
+          subtitleIndex: String(currentSubtitleIndex),
+          mediaSourceId: stream?.mediaSource?.Id ?? "",
+          bitrateValue: bitrateValue?.toString() ?? "",
+          playbackPosition: msToTicks(progress.get()).toString(),
+        }).toString();
+        router.replace(`player/direct-player?${queryParams}` as any);
+        return;
+      }
+
       // Convert Jellyfin index to MPV track ID
       const mpvTrackId = getMpvAudioId(
         stream?.mediaSource,
@@ -904,7 +920,14 @@ export default function DirectPlayerPage() {
         await videoRef.current?.setAudioTrack?.(mpvTrackId);
       }
     },
-    [stream?.mediaSource],
+    [
+      stream?.mediaSource,
+      item?.Id,
+      currentSubtitleIndex,
+      bitrateValue,
+      router,
+      progress,
+    ],
   );
 
   // TV subtitle track change handler

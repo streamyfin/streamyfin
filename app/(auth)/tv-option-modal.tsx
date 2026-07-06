@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  InteractionManager,
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
@@ -75,9 +76,13 @@ export default function TVOptionModal() {
   }, [isReady]);
 
   const handleSelect = (value: any) => {
-    modalState?.onSelect(value);
+    // Close FIRST, run the callback after this modal route is dismissed: an
+    // onSelect that navigates (e.g. the transcode audio switch replacing the
+    // player) would otherwise target the MODAL route and be swallowed.
+    const onSelect = modalState?.onSelect;
     store.set(tvOptionModalAtom, null);
     router.back();
+    InteractionManager.runAfterInteractions(() => onSelect?.(value));
   };
 
   const handleClose = useCallback(() => {
