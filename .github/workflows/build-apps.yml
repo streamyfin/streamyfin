@@ -252,7 +252,7 @@ jobs:
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.5"
+              xcode-version: "26.6"
 
           - name: 🏗️ Setup EAS
             uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
@@ -325,7 +325,7 @@ jobs:
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.5"
+              xcode-version: "26.6"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
@@ -393,7 +393,7 @@ jobs:
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.5"
+              xcode-version: "26.6"
 
           - name: 🏗️ Setup EAS
             uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
@@ -464,7 +464,7 @@ jobs:
             uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
             with:
               # renovate: datasource=custom.xcode depName=xcode versioning=loose
-              xcode-version: "26.5"
+              xcode-version: "26.6"
 
       - name: 💾 Cache Bun dependencies
         uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
