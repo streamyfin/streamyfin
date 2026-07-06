@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -645,8 +646,14 @@ export default function TVSubtitleModal() {
 
   const handleTrackSelect = useCallback(
     (option: { setTrack?: () => void }) => {
-      option.setTrack?.();
+      // Close FIRST, apply after the modal route is dismissed: setTrack can
+      // trigger replacePlayer (burn-in switches while transcoding), and a
+      // router.replace fired while this modal is the active route targets the
+      // MODAL instead of the player screen — the navigation is swallowed and
+      // the selection silently no-ops (same trap as the setParams note in
+      // Controls.tv's handleOpenSubtitleSheet).
       handleClose();
+      InteractionManager.runAfterInteractions(() => option.setTrack?.());
     },
     [handleClose],
   );
