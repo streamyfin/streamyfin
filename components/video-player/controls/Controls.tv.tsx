@@ -601,6 +601,9 @@ export const Controls: FC<Props> = ({
       mediaSourceId: mediaSource?.Id,
       subtitleTracks: tracksWithoutDisable,
       currentSubtitleIndex: subtitleIndex ?? -1,
+      // In-player selection can navigate (replacePlayer for burn-in switches);
+      // apply it after the modal route is dismissed so it isn't swallowed.
+      deferApplyUntilDismissed: true,
       onDisableSubtitles: () => {
         // Find and call the "Disable" track's setTrack from VideoContext
         const disableTrack = videoContextSubtitleTracks?.find(

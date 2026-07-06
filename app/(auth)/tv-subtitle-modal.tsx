@@ -646,16 +646,23 @@ export default function TVSubtitleModal() {
 
   const handleTrackSelect = useCallback(
     (option: { setTrack?: () => void }) => {
-      // Close FIRST, apply after the modal route is dismissed: setTrack can
-      // trigger replacePlayer (burn-in switches while transcoding), and a
-      // router.replace fired while this modal is the active route targets the
-      // MODAL instead of the player screen — the navigation is swallowed and
-      // the selection silently no-ops (same trap as the setParams note in
-      // Controls.tv's handleOpenSubtitleSheet).
+      if (modalState?.deferApplyUntilDismissed) {
+        // Player: setTrack can navigate (replacePlayer for a burn-in switch
+        // while transcoding); a router.replace fired while this modal is the
+        // active route targets the MODAL and is swallowed. Close FIRST, apply
+        // after dismissal.
+        handleClose();
+        InteractionManager.runAfterInteractions(() => option.setTrack?.());
+        return;
+      }
+      // Detail page: setTrack only updates state. Run it BEFORE closing so the
+      // re-render happens while the modal is up; deferring it until after
+      // dismissal re-renders the detail page after focus returns and yanks TV
+      // focus, leaving navigation stuck.
+      option.setTrack?.();
       handleClose();
-      InteractionManager.runAfterInteractions(() => option.setTrack?.());
     },
-    [handleClose],
+    [handleClose, modalState?.deferApplyUntilDismissed],
   );
 
   const handleDownload = useCallback(
