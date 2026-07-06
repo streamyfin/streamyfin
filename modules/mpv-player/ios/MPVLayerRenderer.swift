@@ -786,7 +786,9 @@ final class MPVLayerRenderer {
 
             // Identity fields used to map a Jellyfin subtitle to the real track
             // (instead of fragile positional counting). `external` + `external-filename`
-            // uniquely identify a sub-added sidecar; `ff-index` aids embedded matching.
+            // uniquely identify a sub-added sidecar. `ff-index` is exposed for
+            // diagnostics / potential future exact-index matching; the current
+            // resolver matches embedded tracks by language/title, not ff-index.
             var external: Int32 = 0
             getProperty(handle: handle, name: "track-list/\(i)/external", format: MPV_FORMAT_FLAG, value: &external)
             track["external"] = external != 0

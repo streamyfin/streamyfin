@@ -91,7 +91,9 @@ export const compareTracksForMenu = (a: MediaStream, b: MediaStream): number =>
   Number(a.IsExternal ?? false) - Number(b.IsExternal ?? false) ||
   Number(b.IsForced ?? false) - Number(a.IsForced ?? false) ||
   Number(b.IsDefault ?? false) - Number(a.IsDefault ?? false) ||
-  (a.Index ?? 0) - (b.Index ?? 0);
+  // Missing Index sorts to the end (not 0, which would float it to the top and
+  // collide with a real Index 0).
+  (a.Index ?? Number.MAX_SAFE_INTEGER) - (b.Index ?? Number.MAX_SAFE_INTEGER);
 
 /**
  * Identity of a subtitle track as reported by the *player's real track list*

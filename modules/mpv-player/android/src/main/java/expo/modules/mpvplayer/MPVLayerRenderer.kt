@@ -539,7 +539,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
 
             // Identity fields used to map a Jellyfin subtitle to the real track
             // (instead of fragile positional counting). `external` + `external-filename`
-            // uniquely identify a sub-added sidecar; `ff-index` aids embedded matching.
+            // uniquely identify a sub-added sidecar. `ff-index` is exposed for
+            // diagnostics / potential future exact-index matching; the current
+            // resolver matches embedded tracks by language/title, not ff-index.
             val external = mpv?.getPropertyBoolean("track-list/$i/external") ?: false
             track["external"] = external
             mpv?.getPropertyString("track-list/$i/external-filename")?.let {
