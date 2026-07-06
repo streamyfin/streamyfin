@@ -16,30 +16,27 @@ jobs:
   validate_pr_title:
     name: "📝 Validate PR Title"
     runs-on: ubuntu-26.04
-    permissions:
-      pull-requests: write
-      contents: read
     steps:
       - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         id: lint_pr_title
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
-        if: always() && (steps.lint_pr_title.outputs.error_message != null)
-        with:
-          header: pr-title-lint-error
-          message: |
-            Hey there and thank you for opening this pull request! 👋🏼
-            We require pull request titles to follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/).
+      # Fork PRs only get a read-only GITHUB_TOKEN here, so the sticky comment
+      # is posted from the privileged pr-title-comment.yml (workflow_run). Hand
+      # off the result (PR number + lint error) as an artifact for it to read.
+      - if: always()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LINT_ERROR: ${{ steps.lint_pr_title.outputs.error_message }}
+        run: |
+          mkdir -p pr-title-result
+          printf '%s' "$PR_NUMBER" > pr-title-result/number
+          printf '%s' "$LINT_ERROR" > pr-title-result/error
 
-            **Error details:**
-            ```
-            ${{ steps.lint_pr_title.outputs.error_message }}
-            ```
-
-      - if: ${{ success() && steps.lint_pr_title.outputs.error_message == null }}
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          header: pr-title-lint-error
-          delete: true
+          name: pr-title-result
+          path: pr-title-result/
+          retention-days: 1
