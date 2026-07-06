@@ -851,6 +851,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 initialAudioId?.let { if (it > 0) setAudioTrack(it) }
                 initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
 
+                // The disable above can race a JS-side identity selection that
+                // landed before FILE_LOADED (JS no longer passes an initial sid).
+                // Re-emit tracksReady so the idempotent JS re-apply always runs
+                // after it — for embedded-only files this is the only
+                // post-FILE_LOADED fire.
+                mainHandler.post { delegate?.onTracksReady() }
+
                 if (!isReadyToSeek) {
                     isReadyToSeek = true
                     mainHandler.post { delegate?.onReadyToSeek() }

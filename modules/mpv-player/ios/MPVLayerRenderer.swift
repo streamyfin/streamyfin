@@ -508,6 +508,15 @@ final class MPVLayerRenderer {
             } else {
                 disableSubtitles()
             }
+            // The disable above can race a JS-side identity selection that
+            // landed before FILE_LOADED (JS no longer passes an initial sid).
+            // Re-emit tracksReady so the idempotent JS re-apply always runs
+            // after it — for embedded-only files this is the only
+            // post-FILE_LOADED fire.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.delegate?.renderer(self, didBecomeTracksReady: true)
+            }
             if !isReadyToSeek {
                 isReadyToSeek = true
                 DispatchQueue.main.async { [weak self] in
@@ -759,8 +768,8 @@ final class MPVLayerRenderer {
                   trackType == "sub" else { continue }
             
             var trackId: Int64 = 0
-            getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId)
-            
+            guard getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId) >= 0 else { continue }
+
             var track: [String: Any] = ["id": Int(trackId)]
             
             if let title = getStringProperty(handle: handle, name: "track-list/\(i)/title") {
@@ -892,8 +901,8 @@ final class MPVLayerRenderer {
                   trackType == "audio" else { continue }
             
             var trackId: Int64 = 0
-            getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId)
-            
+            guard getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId) >= 0 else { continue }
+
             var track: [String: Any] = ["id": Int(trackId)]
             
             if let title = getStringProperty(handle: handle, name: "track-list/\(i)/title") {
