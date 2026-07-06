@@ -40,7 +40,10 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
-import type { Track } from "@/components/video-player/controls/types";
+import {
+  LOCAL_SUBTITLE_INDEX_START,
+  type Track,
+} from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -249,9 +252,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // State to trigger refresh of local subtitles list
     const [localSubtitlesRefreshKey, setLocalSubtitlesRefreshKey] = useState(0);
-
-    // Starting index for local (client-downloaded) subtitles
-    const LOCAL_SUBTITLE_INDEX_START = -100;
 
     // Convert MediaStream[] to Track[] for the modal (with setTrack callbacks)
     // Also includes locally downloaded subtitles from OpenSubtitles

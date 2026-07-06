@@ -64,14 +64,11 @@ import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import {
   applyMpvSubtitleSelection,
   compareTracksForMenu,
+  getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import type { Track } from "../types";
+import { LOCAL_SUBTITLE_INDEX_START, type Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
-
-// Starting index for local (client-downloaded) subtitles
-// Uses negative indices to avoid collision with Jellyfin indices
-const LOCAL_SUBTITLE_INDEX_START = -100;
 
 interface VideoContextProps {
   subtitleTracks: Track[] | null;
@@ -292,13 +289,15 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
               // Mirror how external subs are loaded into MPV (online: basePath +
               // DeliveryUrl, offline: local DeliveryUrl) so identity matching by
               // external-filename lines up.
-              getExpectedExternalUrl: (s) => {
-                if (!s.DeliveryUrl) return undefined;
-                if (offline) return s.DeliveryUrl;
-                return api?.basePath
-                  ? `${api.basePath}${s.DeliveryUrl}`
-                  : undefined;
-              },
+              getExpectedExternalUrl: (s) =>
+                getExternalSubtitleUrl(s, { offline, basePath: api?.basePath }),
+            }).then((result) => {
+              // Safety net: a menu-listed sub the player can't select (server-
+              // burned Encode, sidecar never sub-added) only shows up after the
+              // server re-processes the stream with it.
+              if (result.kind === "notFound" || result.kind === "burnedIn") {
+                replacePlayer({ subtitleIndex: String(sub.Index) });
+              }
             });
           },
         });
