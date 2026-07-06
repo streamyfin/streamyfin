@@ -22,10 +22,19 @@ import type {
 // literal so this util needs no *runtime* import of the SDK barrel — which pulls in
 // the axios-dependent `/api` modules and breaks unit tests under `bun test`.
 const EXTERNAL_DELIVERY = "External" as SubtitleDeliveryMethod;
+const ENCODE_DELIVERY = "Encode" as SubtitleDeliveryMethod;
 
 /** Check if subtitle is image-based (PGS, VOBSUB, etc.) */
 export const isImageBasedSubtitle = (sub: MediaStream): boolean =>
   sub.IsTextSubtitleStream === false;
+
+/**
+ * Burned into the video by the server (`DeliveryMethod === Encode`, e.g. image
+ * subs while transcoding, or sidecar formats no profile can deliver). Never a
+ * selectable player track — switching to/away requires a stream refresh.
+ */
+export const isBurnedInSubtitle = (sub: MediaStream): boolean =>
+  sub.DeliveryMethod === ENCODE_DELIVERY;
 
 /**
  * A Jellyfin subtitle stream is "external" when the server delivers it as a
@@ -40,7 +49,28 @@ export const isImageBasedSubtitle = (sub: MediaStream): boolean =>
  * external (→ `notFound`).
  */
 export const isExternalSubtitle = (sub: MediaStream): boolean =>
-  sub.DeliveryMethod === EXTERNAL_DELIVERY || sub.IsExternal === true;
+  sub.DeliveryMethod === EXTERNAL_DELIVERY ||
+  (sub.DeliveryMethod == null && sub.IsExternal === true);
+
+/**
+ * The exact URL/path an external sub is (or would be) loaded into the player
+ * with. Single source of truth for BOTH the load site (`videoSource`
+ * externalSubtitles) and identity matching (`getExpectedExternalUrl`) — the
+ * filename match only works while the two stay byte-identical.
+ *
+ * Server contract (MediaInfoHelper.SetDeviceSpecificSubtitleInfo): DeliveryUrl
+ * is server-relative (`/Videos/...`, may carry `?ApiKey=`) UNLESS
+ * `IsExternalUrl` is set — then it is already an absolute URL and must not be
+ * prefixed. Offline: DeliveryUrl holds the local file path.
+ */
+export const getExternalSubtitleUrl = (
+  sub: MediaStream,
+  opts: { offline: boolean; basePath?: string | null },
+): string | undefined => {
+  if (!sub.DeliveryUrl) return undefined;
+  if (opts.offline || sub.IsExternalUrl) return sub.DeliveryUrl;
+  return opts.basePath ? `${opts.basePath}${sub.DeliveryUrl}` : undefined;
+};
 
 /**
  * Order subtitle MediaStreams for the selection menu exactly like jellyfin-web's
@@ -50,11 +80,15 @@ export const isExternalSubtitle = (sub: MediaStream): boolean =>
  *
  * The Jellyfin server inserts external (sidecar) streams at the FRONT of
  * `MediaStreams` (low indices), so raw Index order shows externals first — this
- * comparator flips that to match web (externals last). Uses {@link isExternalSubtitle}
- * (not the raw `IsExternal` flag) so ordering and resolution agree.
+ * comparator flips that to match web (externals last). Uses the raw `IsExternal`
+ * flag exactly like web's `sortTracks` (itemHelper.js): it is a property of the
+ * FILE, so the menu order stays identical between direct play and transcode —
+ * delivery-based grouping would reshuffle entries when the server re-delivers
+ * extracted text subs as External and burns image subs (Encode). Ordering is
+ * purely cosmetic; selection resolves by `Index` identity regardless.
  */
 export const compareTracksForMenu = (a: MediaStream, b: MediaStream): number =>
-  Number(isExternalSubtitle(a)) - Number(isExternalSubtitle(b)) ||
+  Number(a.IsExternal ?? false) - Number(b.IsExternal ?? false) ||
   Number(b.IsForced ?? false) - Number(a.IsForced ?? false) ||
   Number(b.IsDefault ?? false) - Number(a.IsDefault ?? false) ||
   (a.Index ?? 0) - (b.Index ?? 0);
@@ -79,6 +113,8 @@ export type PlayerSubtitleTrack = {
 export type SubtitleSelection =
   | { kind: "select"; trackId: number }
   | { kind: "disable" }
+  /** Target is server-burned (Encode) — only a stream refresh can show/hide it. */
+  | { kind: "burnedIn" }
   | { kind: "notFound" };
 
 /** Decode percent-encoding and strip a leading `file://` scheme for tolerant comparison. */
@@ -105,12 +141,237 @@ const externalFilenameMatches = (
 const eq = (a?: string | null, b?: string | null): boolean =>
   !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
+/**
+ * ISO 639-1 (2-letter) and ISO 639-2/T tags mapped to their ISO 639-2/B form,
+ * so tags from different muxers/servers compare equal ("de"/"deu"/"ger" → "ger").
+ * Jellyfin normalizes probe results to 639-2/B, but mkv `LanguageIETF` tags
+ * ("en-US") and some muxers' 639-1 or /T tags leak through to mpv's `lang`.
+ */
+const LANG_CANONICAL: Record<string, string> = {
+  // ISO 639-1 → 639-2/B
+  aa: "aar",
+  ab: "abk",
+  ae: "ave",
+  af: "afr",
+  ak: "aka",
+  am: "amh",
+  an: "arg",
+  ar: "ara",
+  as: "asm",
+  av: "ava",
+  ay: "aym",
+  az: "aze",
+  ba: "bak",
+  be: "bel",
+  bg: "bul",
+  bh: "bih",
+  bi: "bis",
+  bm: "bam",
+  bn: "ben",
+  bo: "tib",
+  br: "bre",
+  bs: "bos",
+  ca: "cat",
+  ce: "che",
+  ch: "cha",
+  co: "cos",
+  cr: "cre",
+  cs: "cze",
+  cu: "chu",
+  cv: "chv",
+  cy: "wel",
+  da: "dan",
+  de: "ger",
+  dv: "div",
+  dz: "dzo",
+  ee: "ewe",
+  el: "gre",
+  en: "eng",
+  eo: "epo",
+  es: "spa",
+  et: "est",
+  eu: "baq",
+  fa: "per",
+  ff: "ful",
+  fi: "fin",
+  fj: "fij",
+  fo: "fao",
+  fr: "fre",
+  fy: "fry",
+  ga: "gle",
+  gd: "gla",
+  gl: "glg",
+  gn: "grn",
+  gu: "guj",
+  gv: "glv",
+  ha: "hau",
+  he: "heb",
+  hi: "hin",
+  ho: "hmo",
+  hr: "hrv",
+  ht: "hat",
+  hu: "hun",
+  hy: "arm",
+  hz: "her",
+  ia: "ina",
+  id: "ind",
+  ie: "ile",
+  ig: "ibo",
+  ii: "iii",
+  ik: "ipk",
+  io: "ido",
+  is: "ice",
+  it: "ita",
+  iu: "iku",
+  ja: "jpn",
+  jv: "jav",
+  ka: "geo",
+  kg: "kon",
+  ki: "kik",
+  kj: "kua",
+  kk: "kaz",
+  kl: "kal",
+  km: "khm",
+  kn: "kan",
+  ko: "kor",
+  kr: "kau",
+  ks: "kas",
+  ku: "kur",
+  kv: "kom",
+  kw: "cor",
+  ky: "kir",
+  la: "lat",
+  lb: "ltz",
+  lg: "lug",
+  li: "lim",
+  ln: "lin",
+  lo: "lao",
+  lt: "lit",
+  lu: "lub",
+  lv: "lav",
+  mg: "mlg",
+  mh: "mah",
+  mi: "mao",
+  mk: "mac",
+  ml: "mal",
+  mn: "mon",
+  mr: "mar",
+  ms: "may",
+  mt: "mlt",
+  my: "bur",
+  na: "nau",
+  nb: "nob",
+  nd: "nde",
+  ne: "nep",
+  ng: "ndo",
+  nl: "dut",
+  nn: "nno",
+  no: "nor",
+  nr: "nbl",
+  nv: "nav",
+  ny: "nya",
+  oc: "oci",
+  oj: "oji",
+  om: "orm",
+  or: "ori",
+  os: "oss",
+  pa: "pan",
+  pi: "pli",
+  pl: "pol",
+  ps: "pus",
+  pt: "por",
+  qu: "que",
+  rm: "roh",
+  rn: "run",
+  ro: "rum",
+  ru: "rus",
+  rw: "kin",
+  sa: "san",
+  sc: "srd",
+  sd: "snd",
+  se: "sme",
+  sg: "sag",
+  si: "sin",
+  sk: "slo",
+  sl: "slv",
+  sm: "smo",
+  sn: "sna",
+  so: "som",
+  sq: "alb",
+  sr: "srp",
+  ss: "ssw",
+  st: "sot",
+  su: "sun",
+  sv: "swe",
+  sw: "swa",
+  ta: "tam",
+  te: "tel",
+  tg: "tgk",
+  th: "tha",
+  ti: "tir",
+  tk: "tuk",
+  tl: "tgl",
+  tn: "tsn",
+  to: "ton",
+  tr: "tur",
+  ts: "tso",
+  tt: "tat",
+  tw: "twi",
+  ty: "tah",
+  ug: "uig",
+  uk: "ukr",
+  ur: "urd",
+  uz: "uzb",
+  ve: "ven",
+  vi: "vie",
+  vo: "vol",
+  wa: "wln",
+  wo: "wol",
+  xh: "xho",
+  yi: "yid",
+  yo: "yor",
+  za: "zha",
+  zh: "chi",
+  zu: "zul",
+  // ISO 639-2/T → /B (the 20 languages with two distinct 3-letter codes)
+  bod: "tib",
+  ces: "cze",
+  cym: "wel",
+  deu: "ger",
+  ell: "gre",
+  eus: "baq",
+  fas: "per",
+  fra: "fre",
+  hye: "arm",
+  isl: "ice",
+  kat: "geo",
+  mkd: "mac",
+  mri: "mao",
+  msa: "may",
+  mya: "bur",
+  nld: "dut",
+  ron: "rum",
+  slk: "slo",
+  sqi: "alb",
+  zho: "chi",
+};
+
+/** Canonicalize a language tag: lowercase, primary subtag ("en-US" → "en"), 639-2/B. */
+const canonicalLang = (raw: string): string => {
+  const primary = raw.trim().toLowerCase().split("-")[0];
+  return LANG_CANONICAL[primary] ?? primary;
+};
+
+/** Language-tag comparison across ISO 639-1 / 639-2 B/T / IETF variants. */
+const langEq = (a?: string | null, b?: string | null): boolean =>
+  !!a && !!b && canonicalLang(a) === canonicalLang(b);
+
 /** Match an embedded player track to a Jellyfin stream by language/title (codec-agnostic). */
 const embeddedIdentityMatches = (
   track: PlayerSubtitleTrack,
   stream: MediaStream,
 ): boolean => {
-  if (eq(track.language, stream.Language)) {
+  if (langEq(track.language, stream.Language)) {
     // When both carry a title it must agree; otherwise language alone is enough.
     if (track.title && stream.Title) return eq(track.title, stream.Title);
     return true;
@@ -160,6 +421,10 @@ export const resolveSubtitleTrack = (params: {
   const target = subtitleStreams.find((s) => s.Index === jellyfinSubtitleIndex);
   if (!target) return { kind: "notFound" };
 
+  // Server-burned subs are pixels, not tracks — signal the caller to refresh
+  // the stream instead of hunting for a track that cannot exist.
+  if (isBurnedInSubtitle(target)) return { kind: "burnedIn" };
+
   if (isExternalSubtitle(target)) {
     const playerExternals = playerTracks.filter((t) => t.external === true);
 
@@ -186,8 +451,12 @@ export const resolveSubtitleTrack = (params: {
     return { kind: "notFound" };
   }
 
-  // Embedded / in-container subtitle.
-  const embeddedStreams = subtitleStreams.filter((s) => !isExternalSubtitle(s));
+  // Embedded / in-container subtitle. Burned-in (Encode) streams are excluded:
+  // they are baked into the video and never appear in the player's track list,
+  // so counting them would shift every ordinal below.
+  const embeddedStreams = subtitleStreams.filter(
+    (s) => !isExternalSubtitle(s) && !isBurnedInSubtitle(s),
+  );
   const playerEmbedded = playerTracks.filter((t) => t.external !== true);
 
   // 1) Identity by language/title (unique match wins).
@@ -198,15 +467,28 @@ export const resolveSubtitleTrack = (params: {
     return { kind: "select", trackId: identityMatches[0].id };
   }
 
-  // 2) Fallback: embedded order is container order on both sides → ordinal.
+  // 2) Multiple same-identity tracks: ordinal within the same-identity GROUP —
+  //    the k-th matching stream corresponds to the k-th matching player track
+  //    (container order is preserved on both sides, filter preserves order).
+  //    The group ordinal, not the global one: with [jpn, eng, eng] the first
+  //    eng is global position 1 but group position 0.
+  if (identityMatches.length > 1) {
+    const groupStreams = embeddedStreams.filter((s) =>
+      identityMatches.some((t) => embeddedIdentityMatches(t, s)),
+    );
+    const groupOrdinal = groupStreams.findIndex(
+      (s) => s.Index === jellyfinSubtitleIndex,
+    );
+    if (groupOrdinal >= 0) {
+      const idx = Math.min(groupOrdinal, identityMatches.length - 1);
+      return { kind: "select", trackId: identityMatches[idx].id };
+    }
+  }
+
+  // 3) Fallback: embedded order is container order on both sides → ordinal.
   const ordinal = embeddedStreams.findIndex(
     (s) => s.Index === jellyfinSubtitleIndex,
   );
-  if (identityMatches.length > 1 && ordinal >= 0) {
-    // Multiple same-language tracks: pick by position among the matches.
-    const idx = Math.min(ordinal, identityMatches.length - 1);
-    return { kind: "select", trackId: identityMatches[idx].id };
-  }
   if (ordinal >= 0 && ordinal < playerEmbedded.length) {
     return { kind: "select", trackId: playerEmbedded[ordinal].id };
   }
@@ -257,6 +539,19 @@ export const applyMpvSubtitleSelection = async (
   // rejection from getSubtitleTracks/setSubtitleTrack/disableSubtitles must be
   // swallowed here instead of escaping as an unhandled promise rejection.
   try {
+    // Short-circuit the outcomes that don't need the player's track list, so
+    // the common subtitles-off case skips a full native enumeration.
+    if (params.jellyfinSubtitleIndex === -1) {
+      await player.disableSubtitles();
+      return { kind: "disable" };
+    }
+    const burnTarget = params.subtitleStreams?.find(
+      (s) => s.Index === params.jellyfinSubtitleIndex,
+    );
+    if (burnTarget && isBurnedInSubtitle(burnTarget)) {
+      return { kind: "burnedIn" };
+    }
+
     const tracks = (await player.getSubtitleTracks()) ?? [];
     const selection = resolveSubtitleTrack({
       subtitleStreams: params.subtitleStreams,

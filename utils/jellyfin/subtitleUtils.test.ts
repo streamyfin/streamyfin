@@ -4,7 +4,9 @@ import type {
   SubtitleDeliveryMethod,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
+  applyMpvSubtitleSelection,
   compareTracksForMenu,
+  getExternalSubtitleUrl,
   isExternalSubtitle,
   type PlayerSubtitleTrack,
   resolveSubtitleTrack,
@@ -13,6 +15,8 @@ import {
 // String-enum values as typed literals — avoids a runtime SDK import (see subtitleUtils.ts).
 const External = "External" as SubtitleDeliveryMethod;
 const Embed = "Embed" as SubtitleDeliveryMethod;
+const Encode = "Encode" as SubtitleDeliveryMethod;
+const Hls = "Hls" as SubtitleDeliveryMethod;
 
 // --- fixtures --------------------------------------------------------------
 
@@ -63,6 +67,22 @@ describe("isExternalSubtitle", () => {
     expect(isExternalSubtitle(sub({ Index: 3, DeliveryUrl: "/x.srt" }))).toBe(
       false,
     );
+  });
+
+  test("a sidecar re-delivered by the server (Hls/Encode) is NOT external", () => {
+    // IsExternal only wins while no device-specific delivery method is assigned;
+    // once the server picks Hls (inside the stream) or Encode (burned), the
+    // track is not a sub-added sidecar and must not use the external path.
+    expect(
+      isExternalSubtitle(
+        sub({ Index: 0, IsExternal: true, DeliveryMethod: Hls }),
+      ),
+    ).toBe(false);
+    expect(
+      isExternalSubtitle(
+        sub({ Index: 0, IsExternal: true, DeliveryMethod: Encode }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -217,5 +237,249 @@ describe("compareTracksForMenu — jellyfin-web order", () => {
     expect([...streams].sort(compareTracksForMenu).map((s) => s.Index)).toEqual(
       [7, 0, 1, 2, 3],
     );
+  });
+});
+
+describe("resolveSubtitleTrack — same-identity group ordinal (duplicate languages)", () => {
+  // [jpn, eng, eng] with no titles: the eng group starts at embedded position 1,
+  // so the group ordinal (not the global one) must drive the pick.
+  const streams = [
+    emb(0, { Language: "jpn" }),
+    emb(1, { Language: "eng" }),
+    emb(2, { Language: "eng" }),
+  ];
+  const playerTracks = [
+    track({ id: 1, language: "jpn" }),
+    track({ id: 2, language: "eng" }),
+    track({ id: 3, language: "eng" }),
+  ];
+
+  test("first eng selects the first matching player track", () => {
+    expect(resolve(streams, 1, playerTracks)).toEqual({
+      kind: "select",
+      trackId: 2,
+    });
+  });
+
+  test("second eng selects the second matching player track", () => {
+    expect(resolve(streams, 2, playerTracks)).toEqual({
+      kind: "select",
+      trackId: 3,
+    });
+  });
+});
+
+describe("resolveSubtitleTrack — server-burned (Encode) streams", () => {
+  const burned = emb(2, {
+    DeliveryMethod: Encode,
+    IsTextSubtitleStream: false,
+    Codec: "pgssub",
+  });
+
+  test("selecting a burned-in sub returns burnedIn (a stream refresh, not a track)", () => {
+    expect(resolve([burned, emb(3)], 2, [track({ id: 1 })])).toEqual({
+      kind: "burnedIn",
+    });
+  });
+
+  test("burned-in streams do not shift the embedded ordinal", () => {
+    // Player only demuxes the two untagged text subs; the burned PGS is pixels.
+    const streams = [burned, emb(3), emb(4)];
+    const playerTracks = [track({ id: 1 }), track({ id: 2 })];
+    expect(resolve(streams, 3, playerTracks)).toEqual({
+      kind: "select",
+      trackId: 1,
+    });
+    expect(resolve([burned, emb(3)], 3, [track({ id: 1 })])).toEqual({
+      kind: "select",
+      trackId: 1,
+    });
+  });
+});
+
+describe("resolveSubtitleTrack — Hls-delivered sidecar goes through the embedded path", () => {
+  test("resolves by identity against the player's in-stream track", () => {
+    const hlsSidecar = sub({
+      Index: 0,
+      IsExternal: true,
+      DeliveryMethod: Hls,
+      DeliveryUrl: "/videos/x/subs/0.vtt",
+      Language: "fre",
+    });
+    const r = resolve([hlsSidecar, emb(1, { Language: "eng" })], 0, [
+      track({ id: 1, language: "fre" }),
+      track({ id: 2, language: "eng" }),
+    ]);
+    expect(r).toEqual({ kind: "select", trackId: 1 });
+  });
+});
+
+describe("applyMpvSubtitleSelection — short-circuits", () => {
+  test("disable (-1) never reads the player track list", async () => {
+    let enumerated = false;
+    let disabled = false;
+    const r = await applyMpvSubtitleSelection(
+      {
+        getSubtitleTracks: async () => {
+          enumerated = true;
+          return [];
+        },
+        setSubtitleTrack: () => {},
+        disableSubtitles: () => {
+          disabled = true;
+        },
+      },
+      { subtitleStreams: [], jellyfinSubtitleIndex: -1 },
+    );
+    expect(r).toEqual({ kind: "disable" });
+    expect(disabled).toBe(true);
+    expect(enumerated).toBe(false);
+  });
+
+  test("burned-in target returns without touching the player", async () => {
+    let enumerated = false;
+    const r = await applyMpvSubtitleSelection(
+      {
+        getSubtitleTracks: async () => {
+          enumerated = true;
+          return [];
+        },
+        setSubtitleTrack: () => {},
+        disableSubtitles: () => {},
+      },
+      {
+        subtitleStreams: [
+          emb(2, { DeliveryMethod: Encode, IsTextSubtitleStream: false }),
+        ],
+        jellyfinSubtitleIndex: 2,
+      },
+    );
+    expect(r).toEqual({ kind: "burnedIn" });
+    expect(enumerated).toBe(false);
+  });
+});
+
+describe("getExternalSubtitleUrl — server contract (MediaInfoHelper)", () => {
+  test("server-relative DeliveryUrl gets the basePath prefix", () => {
+    expect(
+      getExternalSubtitleUrl(ext(0, { DeliveryUrl: "/sub/0.srt" }), {
+        offline: false,
+        basePath: "http://srv",
+      }),
+    ).toBe("http://srv/sub/0.srt");
+  });
+
+  test("IsExternalUrl means DeliveryUrl is already absolute — no prefix", () => {
+    expect(
+      getExternalSubtitleUrl(
+        ext(0, {
+          DeliveryUrl: "https://cdn.example/sub.srt",
+          IsExternalUrl: true,
+        }),
+        { offline: false, basePath: "http://srv" },
+      ),
+    ).toBe("https://cdn.example/sub.srt");
+  });
+
+  test("offline returns the stored local path as-is", () => {
+    expect(
+      getExternalSubtitleUrl(ext(0, { DeliveryUrl: "file:///subs/0.srt" }), {
+        offline: true,
+        basePath: "http://srv",
+      }),
+    ).toBe("file:///subs/0.srt");
+  });
+
+  test("no DeliveryUrl or no basePath online → undefined", () => {
+    expect(
+      getExternalSubtitleUrl(sub({ Index: 0, IsExternal: true }), {
+        offline: false,
+        basePath: "http://srv",
+      }),
+    ).toBeUndefined();
+    expect(
+      getExternalSubtitleUrl(ext(0), { offline: false, basePath: undefined }),
+    ).toBeUndefined();
+  });
+});
+
+describe("resolveSubtitleTrack — language tag variants (ISO 639-1 / 639-2 B-T / IETF)", () => {
+  test("Jellyfin 639-2/B matches mpv 639-2/T and 639-1 tags", () => {
+    // Server says "ger" (639-2/B); muxers can surface "deu" (/T) or "de" (639-1).
+    const streams = [emb(0, { Language: "ger" }), emb(1, { Language: "fre" })];
+    const playerT = [
+      track({ id: 1, language: "deu" }),
+      track({ id: 2, language: "fra" }),
+    ];
+    expect(resolve(streams, 0, playerT)).toEqual({
+      kind: "select",
+      trackId: 1,
+    });
+    expect(resolve(streams, 1, playerT)).toEqual({
+      kind: "select",
+      trackId: 2,
+    });
+
+    const player1 = [
+      track({ id: 1, language: "de" }),
+      track({ id: 2, language: "fr" }),
+    ];
+    expect(resolve(streams, 0, player1)).toEqual({
+      kind: "select",
+      trackId: 1,
+    });
+  });
+
+  test("IETF tags reduce to their primary subtag", () => {
+    const streams = [emb(0, { Language: "eng" }), emb(1, { Language: "spa" })];
+    const player = [
+      track({ id: 1, language: "en-US" }),
+      track({ id: 2, language: "es-419" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 1 });
+    expect(resolve(streams, 1, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+
+  test("different languages still never match ('ger' vs 'gre')", () => {
+    const streams = [emb(0, { Language: "ger" })];
+    const player = [
+      track({ id: 1, language: "gre" }),
+      track({ id: 2, language: "ger" }),
+    ];
+    expect(resolve(streams, 0, player)).toEqual({ kind: "select", trackId: 2 });
+  });
+});
+
+describe("compareTracksForMenu — stable order across play methods (8 Mile live find)", () => {
+  test("transcode re-delivery (SRT→External, PGS→Encode) must not reshuffle the menu", () => {
+    // In-file order: srt(1) srt(2) pgs(3) pgs(4), plus a real sidecar ext(0).
+    const directPlay = [
+      ext(0, { Language: "eng" }),
+      emb(1, { Language: "fre" }),
+      emb(2, { Language: "eng" }),
+      emb(3, { Language: "fre", IsTextSubtitleStream: false }),
+      emb(4, { Language: "eng", IsTextSubtitleStream: false }),
+    ];
+    // Same file while transcoding: server re-delivers embedded text as External
+    // (extracted) and burns image subs (Encode). IsExternal stays a FILE property.
+    const transcoding = [
+      ext(0, { Language: "eng" }),
+      emb(1, { Language: "fre", DeliveryMethod: External, DeliveryUrl: "/x1" }),
+      emb(2, { Language: "eng", DeliveryMethod: External, DeliveryUrl: "/x2" }),
+      emb(3, {
+        Language: "fre",
+        IsTextSubtitleStream: false,
+        DeliveryMethod: Encode,
+      }),
+      emb(4, {
+        Language: "eng",
+        IsTextSubtitleStream: false,
+        DeliveryMethod: Encode,
+      }),
+    ];
+    const order = (streams: MediaStream[]) =>
+      [...streams].sort(compareTracksForMenu).map((s) => s.Index);
+    expect(order(directPlay)).toEqual([1, 2, 3, 4, 0]);
+    expect(order(transcoding)).toEqual(order(directPlay));
   });
 });
