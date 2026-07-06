@@ -905,6 +905,11 @@ export default function DirectPlayerPage() {
           bitrateValue: bitrateValue?.toString() ?? "",
           playbackPosition: msToTicks(progress.get()).toString(),
         }).toString();
+        // Destroy the current mpv instance BEFORE navigating, same rationale as
+        // goToNextItem/goToPreviousItem: Expo Router briefly holds two players
+        // during the transition, and two simultaneous decoders OOM-kill low-RAM
+        // devices. Resume is preserved via the playbackPosition param.
+        videoRef.current?.destroy().catch(() => {});
         router.replace(`player/direct-player?${queryParams}` as any);
         return;
       }
