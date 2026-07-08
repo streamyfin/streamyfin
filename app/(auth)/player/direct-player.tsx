@@ -25,7 +25,10 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
-import { LOCAL_SUBTITLE_INDEX_START } from "@/components/video-player/controls/types";
+import {
+  LOCAL_SUBTITLE_INDEX_START,
+  toServerSubtitleIndex,
+} from "@/components/video-player/controls/types";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -888,7 +891,9 @@ export default function DirectPlayerPage() {
         const queryParams = new URLSearchParams({
           itemId: item?.Id ?? "",
           audioIndex: String(index),
-          subtitleIndex: String(currentSubtitleIndex),
+          // A local (client-downloaded) sub only exists in the dying mpv
+          // instance — the server must be asked for "none" (-1) instead.
+          subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
           bitrateValue: bitrateValue?.toString() ?? "",
           playbackPosition: msToTicks(progress.get()).toString(),
@@ -954,7 +959,9 @@ export default function DirectPlayerPage() {
       const queryParams = new URLSearchParams({
         itemId: item?.Id ?? "",
         audioIndex: params.audioIndex ?? String(currentAudioIndex ?? ""),
-        subtitleIndex: params.subtitleIndex ?? String(currentSubtitleIndex),
+        subtitleIndex:
+          params.subtitleIndex ??
+          String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
         bitrateValue: bitrateValue?.toString() ?? "",
         playbackPosition: msToTicks(progress.get()).toString(),

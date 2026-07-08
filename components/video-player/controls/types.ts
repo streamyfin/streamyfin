@@ -36,4 +36,12 @@ type Track = {
  */
 export const LOCAL_SUBTITLE_INDEX_START = -100;
 
+/**
+ * Map a client-side subtitle index to what the Jellyfin stream API understands.
+ * Local sentinel indexes have no matching MediaStream on the server, which
+ * expects -1 ("no subtitles") when re-negotiating a stream.
+ */
+export const toServerSubtitleIndex = (index: number): number =>
+  index <= LOCAL_SUBTITLE_INDEX_START ? -1 : index;
+
 export type { EmbeddedSubtitle, ExternalSubtitle, Track, TranscodedSubtitle };

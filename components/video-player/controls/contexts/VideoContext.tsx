@@ -126,10 +126,17 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     audioIndex?: string;
     subtitleIndex?: string;
   }) => {
+    // The URL param can hold a local-sub sentinel (selected via setParams) that
+    // only exists in the dying player — the server must get "none" (-1) instead.
+    // NaN (missing/blank param) fails the comparison and passes through as-is.
+    const fallbackSubtitleIndex =
+      Number.parseInt(subtitleIndex, 10) <= LOCAL_SUBTITLE_INDEX_START
+        ? "-1"
+        : subtitleIndex;
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
       audioIndex: params.audioIndex ?? audioIndex,
-      subtitleIndex: params.subtitleIndex ?? subtitleIndex,
+      subtitleIndex: params.subtitleIndex ?? fallbackSubtitleIndex,
       mediaSourceId: mediaSource?.Id ?? "",
       bitrateValue: bitrateValue,
       playbackPosition: playbackPosition,
