@@ -133,7 +133,7 @@
     "@types/react": "~19.2.10",
     "@types/react-test-renderer": "19.1.0",
     "cross-env": "10.1.0",
-    "expo-doctor": "1.19.9",
+    "expo-doctor": "1.20.0",
     "husky": "9.1.7",
     "lint-staged": "17.0.8",
     "react-test-renderer": "19.2.3",
