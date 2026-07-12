@@ -7,6 +7,7 @@ import {
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
+  getMediaInfoApi,
   getPlaystateApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
@@ -305,6 +306,47 @@ export default function DirectPlayerPage() {
   // Ref to store the stream fetch function for refreshing subtitle tracks
   const refetchStreamRef = useRef<(() => Promise<Stream | null>) | null>(null);
 
+  // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
+  // never closed, Jellyfin's M3U tuner limit fills up and every channel then
+  // fails with "simultaneous stream limit has been reached". reportPlaybackStopped
+  // handles a clean stop, but a channel switch (the player re-fetches in place)
+  // or an unmount after an error bypass it, so track the open live stream and
+  // release it on those paths too.
+  const openLiveStreamIdRef = useRef<string | null>(null);
+  const apiRef = useRef(api);
+  apiRef.current = api;
+
+  const releaseLiveStream = useCallback(
+    (liveStreamId: string | null) => {
+      if (!liveStreamId || !apiRef.current || offline) return;
+      // Best effort: a failed close must not break teardown, and the slot is
+      // also freed by the server's reap as a backstop.
+      getMediaInfoApi(apiRef.current)
+        .closeLiveStream({ liveStreamId })
+        .catch(() => {});
+    },
+    [offline],
+  );
+
+  // Release the previous live stream when the stream changes (channel switch)…
+  useEffect(() => {
+    const liveStreamId = stream?.mediaSource?.LiveStreamId ?? null;
+    const previous = openLiveStreamIdRef.current;
+    if (previous && previous !== liveStreamId) {
+      releaseLiveStream(previous);
+    }
+    openLiveStreamIdRef.current = liveStreamId;
+  }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
+
+  // …and the current one when the player unmounts.
+  useEffect(
+    () => () => {
+      releaseLiveStream(openLiveStreamIdRef.current);
+      openLiveStreamIdRef.current = null;
+    },
+    [releaseLiveStream],
+  );
+
   useEffect(() => {
     const fetchStreamData = async (): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
@@ -432,6 +474,12 @@ export default function DirectPlayerPage() {
       mediaSourceId: mediaSourceId,
       positionTicks: currentTimeInTicks,
       playSessionId: stream.sessionId,
+      // Release the server-side live stream (and its tuner slot) on stop.
+      // Jellyfin only closes a live stream opened via autoOpenLiveStream when
+      // onPlaybackStopped is called with its liveStreamId; without it the stream
+      // leaks and Live TV eventually fails for everyone with "M3U simultaneous
+      // stream limit has been reached". Undefined for non-live items (no-op).
+      liveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
     });
   }, [
     api,
