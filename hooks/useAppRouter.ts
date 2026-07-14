@@ -2,7 +2,7 @@
 // SDK 56 expo-router's Metro check rejects direct @react-navigation imports.
 import { useRouter } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 
 /**
@@ -29,6 +29,20 @@ export function useAppRouter() {
   // When present it reflects the focus state of the screen this hook lives in.
   const navigation = useContext(NavigationContext);
 
+  // Synchronous re-entry guard for TV: a single remote "select" on Android TV
+  // can fire onPress more than once within the same JS batch
+  // (react-native-tvos#110/#138), BEFORE react-navigation commits the pushed
+  // route — so isFocused() still reads true for the duplicate. The ref flips
+  // synchronously on the first push and resets when the screen regains focus.
+  const pushInFlightRef = useRef(false);
+
+  useEffect(() => {
+    if (!navigation) return;
+    return navigation.addListener("focus", () => {
+      pushInFlightRef.current = false;
+    });
+  }, [navigation]);
+
   const push = useCallback(
     (href: Parameters<typeof router.push>[0]) => {
       // Rapid-push guard: a push blurs the source screen synchronously in the
@@ -36,7 +50,11 @@ export function useAppRouter() {
       // this screen — duplicate or not — is dropped until focus returns, so taps
       // fired before the pushed screen renders can't stack screens.
       // No navigation context => nothing to guard (deep-link pushes from root).
-      if (navigation?.isFocused?.() === false) return;
+      if (navigation) {
+        if (navigation.isFocused?.() === false || pushInFlightRef.current)
+          return;
+        pushInFlightRef.current = true;
+      }
       if (typeof href === "string") {
         router.push(href as any);
       } else {
