@@ -82,6 +82,13 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var pendingConfig: VideoLoadConfig? = null
     private var tracksReadyFired: Boolean = false
 
+    // Resume position handed to setMediaSource() on load. seekTo() uses it to
+    // drop the redundant re-seek the JS layer fires once tracks are ready
+    // (direct-player seeks to the same resume position). ExoPlayer re-buffers
+    // on every seek — even a no-op to the current position — so without this
+    // the start stutters.
+    private var loadStartPositionMs: Long = 0L
+
     // Side-loaded subtitle configurations accumulated across loadVideo and
     // addSubtitleFile. Media3 doesn't expose the live SubtitleConfiguration
     // list on a playing MediaItem, so we shadow it here to preserve prior
@@ -354,15 +361,20 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val mediaSource = DefaultMediaSourceFactory(dataSourceFactory)
             .createMediaSource(mediaItem)
 
-        p.setMediaSource(mediaSource)
-        p.prepare()
+        // Resolve the resume position once and hand it to setMediaSource() so
+        // ExoPlayer prepares from that position directly. Calling prepare()
+        // first (which buffers from 0) and seekTo() afterwards makes the
+        // opening seconds replay from the start before jumping to the resume
+        // point — the "repeats the first few seconds" symptom. C.TIME_UNSET
+        // falls back to the media's default start position (0).
+        val startMs = config.startPosition?.let { sp ->
+            if (sp > 0) (sp * 1000).toLong() else C.TIME_UNSET
+        } ?: C.TIME_UNSET
 
-        // Apply initial playback position
-        config.startPosition?.let { startPosSec ->
-            if (startPosSec > 0) {
-                p.seekTo((startPosSec * 1000).toLong())
-            }
-        }
+        loadStartPositionMs = if (startMs != C.TIME_UNSET) startMs else 0L
+
+        p.setMediaSource(mediaSource, startMs)
+        p.prepare()
 
         if (config.autoplay) {
             p.play()
@@ -427,6 +439,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         playerView.player = null
         tracksReadyFired = false
         currentUrl = null
+        loadStartPositionMs = 0L
         sideLoadedSubs = emptyList()
         subtitleTrackList = emptyList()
         audioTrackList = emptyList()
@@ -438,7 +451,17 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun seekTo(positionSec: Double) {
-        player?.seekTo((positionSec * 1000).toLong())
+        val targetMs = (positionSec * 1000).toLong()
+        // Drop the redundant initial seek that mirrors the resume position we
+        // already applied via setMediaSource() — see loadInternal. Only the
+        // first seek after load is eligible, so a genuine seek to ~the start
+        // later on still works.
+        if (loadStartPositionMs > 0 && Math.abs(targetMs - loadStartPositionMs) < 1000L) {
+            loadStartPositionMs = 0L
+            return
+        }
+        loadStartPositionMs = 0L
+        player?.seekTo(targetMs)
     }
 
     fun seekBy(offsetSec: Double) {
