@@ -10,20 +10,24 @@ import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
 import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import { storage } from "@/utils/mmkv";
+import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
 import {
   generatePairingCode,
   type PairingCredentials,
   startPairingListener,
 } from "@/utils/pairingService";
 import { scaleSize } from "@/utils/scaleSize";
+import type { CustomHeader } from "@/utils/secureCredentials";
 import {
   type AccountSecurityType,
   getPreviousServers,
+  getServerCustomHeaders,
   hashPIN,
   removeServerFromList,
   type SavedServer,
   type SavedServerAccount,
   saveAccountCredential,
+  updateServerCustomHeadersForConnection,
 } from "@/utils/secureCredentials";
 import { TVAddServerForm } from "./TVAddServerForm";
 import { TVAddUserForm } from "./TVAddUserForm";
@@ -175,29 +179,48 @@ export const TVLogin: React.FC = () => {
   }, [serverName, navigation]);
 
   // Server URL checking
-  const checkUrl = useCallback(async (url: string) => {
-    setLoadingServerCheck(true);
-    const baseUrl = url.replace(/^https?:\/\//i, "");
-    const protocols = ["https", "http"];
-    try {
-      return checkHttp(baseUrl, protocols);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Server too old") {
-        throw e;
+  const checkUrl = useCallback(
+    async (url: string, headers?: CustomHeader[]) => {
+      setLoadingServerCheck(true);
+      const baseUrl = url.replace(/^https?:\/\//i, "");
+      const protocols = ["https", "http"];
+      try {
+        return await checkHttp(baseUrl, protocols, headers);
+      } catch (e) {
+        if (e instanceof Error && e.message === "Server too old") {
+          throw e;
+        }
+        return undefined;
+      } finally {
+        setLoadingServerCheck(false);
       }
-      return undefined;
-    } finally {
-      setLoadingServerCheck(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  async function checkHttp(baseUrl: string, protocols: string[]) {
+  async function checkHttp(
+    baseUrl: string,
+    protocols: string[],
+    customHeaders?: CustomHeader[],
+  ) {
     for (const protocol of protocols) {
       try {
-        const response = await fetch(
-          `${protocol}://${baseUrl}/System/Info/Public`,
-          { mode: "cors" },
-        );
+        const serverUrl = `${protocol}://${baseUrl}`;
+
+        // Build headers: explicit customHeaders may intentionally be an empty list.
+        const source =
+          customHeaders !== undefined
+            ? customHeaders
+            : getServerCustomHeaders(serverUrl);
+        const headersToInject = normalizeCustomHeaders(source);
+
+        const response = await fetch(`${serverUrl}/System/Info/Public`, {
+          mode: "cors",
+          headers:
+            Object.keys(headersToInject).length > 0
+              ? headersToInject
+              : undefined,
+        });
         if (response.ok) {
           const data = (await response.json()) as PublicSystemInfo;
           const serverVersion = data.Version?.split(".");
@@ -210,8 +233,16 @@ export const TVLogin: React.FC = () => {
               throw new Error("Server too old");
             }
           }
-          setServerName(data.ServerName || "");
-          return `${protocol}://${baseUrl}`;
+          // Save headers after successful connection
+          if (customHeaders !== undefined) {
+            await updateServerCustomHeadersForConnection(
+              serverUrl,
+              customHeaders,
+            );
+          }
+          const discoveredServerName = data.ServerName || "";
+          setServerName(discoveredServerName);
+          return { serverUrl, serverName: discoveredServerName };
         }
       } catch (e) {
         if (e instanceof Error && e.message === "Server too old") {
@@ -224,10 +255,10 @@ export const TVLogin: React.FC = () => {
 
   // Handle connecting to a new server
   const handleConnect = useCallback(
-    async (url: string) => {
+    async (url: string, headers?: CustomHeader[]) => {
       url = url.trim().replace(/\/$/, "");
       try {
-        const result = await checkUrl(url);
+        const result = await checkUrl(url, headers);
         if (result === undefined) {
           Alert.alert(
             t("login.connection_failed"),
@@ -235,25 +266,28 @@ export const TVLogin: React.FC = () => {
           );
           return;
         }
-        await setServer({ address: result });
+        await setServer({ address: result.serverUrl });
 
         // Update server list and get the new server data
         refreshServers();
 
         // Find or create server entry
         const servers = getPreviousServers();
-        const server = servers.find((s) => s.address === result);
+        const server = servers.find((s) => s.address === result.serverUrl);
 
         if (server) {
           setCurrentServer(server);
-          setSelectedTVServer({ address: result, name: serverName });
+          setSelectedTVServer({
+            address: result.serverUrl,
+            name: result.serverName,
+          });
           setCurrentScreen("user-selection");
         }
       } catch (error) {
         if (__DEV__) console.error("[TVLogin] Error in handleConnect:", error);
       }
     },
-    [checkUrl, setServer, serverName, setSelectedTVServer],
+    [checkUrl, setServer, setSelectedTVServer],
   );
 
   // Handle selecting an existing server

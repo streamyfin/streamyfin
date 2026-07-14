@@ -1,12 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import { useMemo } from "react";
 import { View } from "react-native";
+import { ProgressBar } from "@/components/common/ProgressBar";
+import { ServerImage } from "@/components/common/ServerImage";
 import { apiAtom } from "@/providers/JellyfinProvider";
-import { ProgressBar } from "./common/ProgressBar";
 import { WatchedIndicator } from "./WatchedIndicator";
 
 type ContinueWatchingPosterProps = {
@@ -74,12 +74,10 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     `}
     >
       <View className='w-full h-full flex items-center justify-center'>
-        <Image
+        <ServerImage
           key={item.Id}
           id={item.Id}
-          source={{
-            uri: url,
-          }}
+          uri={url}
           cachePolicy={"memory-disk"}
           contentFit='cover'
           className='w-full h-full'

@@ -25,15 +25,18 @@ class OkHttpDownloadManager {
     taskId: Int,
     url: String,
     destinationPath: String,
+    headers: Map<String, String>?,
     onProgress: (bytesWritten: Long, totalBytes: Long) -> Unit,
     onComplete: (filePath: String) -> Unit,
     onError: (error: String) -> Unit
   ) {
-    Log.d(TAG, "Starting download: taskId=$taskId, url=$url")
+    Log.d(TAG, "Starting download: taskId=$taskId, host=${redactUrlForLog(url)}")
     
-    val request = Request.Builder()
-      .url(url)
-      .build()
+    val requestBuilder = Request.Builder().url(url)
+    headers?.forEach { (key, value) ->
+      requestBuilder.addHeader(key, value)
+    }
+    val request = requestBuilder.build()
     
     val call = client.newCall(request)
     activeDownloads[taskId] = call
@@ -147,5 +150,13 @@ class OkHttpDownloadManager {
   fun hasActiveDownloads(): Boolean {
     return activeDownloads.isNotEmpty()
   }
-}
 
+  private fun redactUrlForLog(urlString: String): String {
+    return try {
+      val url = java.net.URL(urlString)
+      url.host ?: "<unknown-host>"
+    } catch (e: Exception) {
+      "<invalid-url>"
+    }
+  }
+}

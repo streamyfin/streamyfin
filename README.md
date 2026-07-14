@@ -35,6 +35,7 @@
 - 🤖 **Seerr (formerly Jellyseerr) integration**: Request media directly in the app
 - 👁️ **Sessions view:** View all active sessions currently streaming on your server
 - 📡 **Chromecast**: Cast your media to any Chromecast-enabled device
+- 🔐 **Custom proxy headers**: Authenticate Jellyfin and Seerr requests through access gateways such as Cloudflare Zero Trust or Pangolin tunnels. See [Custom Headers](./docs/custom-headers.md).
 
 ## 🧪 Experimental Features
 

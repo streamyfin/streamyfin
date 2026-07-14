@@ -489,6 +489,7 @@ export async function downloadTrack(
     const taskId = await BackgroundDownloader.startDownload(
       url,
       destinationPath,
+      options.headers,
     );
     activeDownloads.set(taskId, { itemId, permanent });
     console.log(

@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import type React from "react";
 import {
   createContext,
@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,14 +26,18 @@ import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
-import { writeErrorLog, writeInfoLog } from "@/utils/log";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
+import { writeDebugLog, writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
+import { normalizeCustomHeaders } from "@/utils/normalizeCustomHeaders";
 import {
   type AccountSecurityType,
   addAccountToServer,
   addServerToList,
+  customHeadersVersionAtom,
   deleteAccountCredential,
   getAccountCredential,
+  getServerCustomHeaders,
   hashPIN,
   migrateToMultiAccount,
   saveAccountCredential,
@@ -159,6 +164,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
   const [api, setApi] = useAtom(apiAtom);
   const [user, setUser] = useAtom(userAtom);
+  const customHeadersVersion = useAtomValue(customHeadersVersionAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
   const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
@@ -173,6 +179,44 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }, DeviceId="${deviceId}", Version="${APP_VERSION}"`,
     };
   }, [deviceId]);
+
+  // Axios interceptor for custom headers (Cloudflare Zero Trust, Pangolin, etc.)
+  const axiosInterceptorRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    axiosInterceptorRef.current?.();
+    axiosInterceptorRef.current = null;
+    if (!api) return;
+
+    const serverUrl = api.basePath;
+    const activeHeaders = normalizeCustomHeaders(
+      getServerCustomHeaders(serverUrl),
+    );
+
+    writeDebugLog("[CustomHeaders] Axios interceptor setup", {
+      serverUrl,
+      activeHeaderCount: Object.keys(activeHeaders).length,
+    });
+
+    if (Object.keys(activeHeaders).length > 0) {
+      const interceptorId = api.axiosInstance.interceptors.request.use(
+        (config) => {
+          for (const [key, value] of Object.entries(activeHeaders)) {
+            config.headers.set(key, value);
+          }
+          return config;
+        },
+      );
+      axiosInterceptorRef.current = () => {
+        api.axiosInstance.interceptors.request.eject(interceptorId);
+      };
+    }
+
+    return () => {
+      axiosInterceptorRef.current?.();
+      axiosInterceptorRef.current = null;
+    };
+  }, [api, customHeadersVersion]);
 
   const initiateQuickConnect = useCallback(async () => {
     if (!api || !deviceId) return;
@@ -354,8 +398,12 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
           if (recentPluginSettings?.jellyseerrServerUrl?.value) {
+            const jellyseerrHeaders = getIntegrationHeaders("jellyseerr");
             const jellyseerrApi = new JellyseerrApi(
               recentPluginSettings.jellyseerrServerUrl.value,
+              Object.keys(jellyseerrHeaders).length > 0
+                ? jellyseerrHeaders
+                : undefined,
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {

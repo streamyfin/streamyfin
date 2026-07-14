@@ -1,0 +1,36 @@
+appId: ${MAESTRO_APP_ID}
+name: PlaySteamboatWillieAuthenticated
+---
+# Assumes the app is already logged in and showing the home screen.
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/07-home-screen
+
+- tapOn:
+    id: "${MAESTRO_STEAMBOAT_WILLIE_ID}"
+
+- extendedWaitUntil:
+    visible:
+      id: "play-button"
+    timeout: 10000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/08-movie-detail
+
+- tapOn:
+    id: "play-button"
+
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Got it"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/09-playing
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/10-playing-5s

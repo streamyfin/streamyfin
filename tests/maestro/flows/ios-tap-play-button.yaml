@@ -1,0 +1,6 @@
+appId: ${MAESTRO_APP_ID}
+name: IOSTapPlayButton
+---
+- tapOn:
+    id: "play-button"
+    waitToSettleTimeoutMs: 0

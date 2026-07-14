@@ -79,6 +79,7 @@ jobs:
           - "lint"
           - "check"
           - "format"
+          - "test:unit"
           - "typecheck"
           - "i18n:check"
 

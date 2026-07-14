@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LibraryOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Enabled>true</Enabled>
+  <EnablePhotos>true</EnablePhotos>
+  <EnableRealtimeMonitor>true</EnableRealtimeMonitor>
+  <EnableLUFSScan>true</EnableLUFSScan>
+  <EnableChapterImageExtraction>false</EnableChapterImageExtraction>
+  <ExtractChapterImagesDuringLibraryScan>false</ExtractChapterImagesDuringLibraryScan>
+  <EnableTrickplayImageExtraction>false</EnableTrickplayImageExtraction>
+  <ExtractTrickplayImagesDuringLibraryScan>false</ExtractTrickplayImagesDuringLibraryScan>
+  <PathInfos>
+    <MediaPathInfo>
+      <Path>/media/movies</Path>
+    </MediaPathInfo>
+  </PathInfos>
+  <SaveLocalMetadata>false</SaveLocalMetadata>
+  <EnableAutomaticSeriesGrouping>false</EnableAutomaticSeriesGrouping>
+  <EnableEmbeddedTitles>false</EnableEmbeddedTitles>
+  <EnableEmbeddedExtrasTitles>false</EnableEmbeddedExtrasTitles>
+  <EnableEmbeddedEpisodeInfos>false</EnableEmbeddedEpisodeInfos>
+  <AutomaticRefreshIntervalDays>0</AutomaticRefreshIntervalDays>
+  <PreferredMetadataLanguage />
+  <MetadataCountryCode />
+  <SeasonZeroDisplayName>Specials</SeasonZeroDisplayName>
+  <MetadataSavers />
+  <DisabledLocalMetadataReaders />
+  <LocalMetadataReaderOrder>
+    <string>Nfo</string>
+  </LocalMetadataReaderOrder>
+  <DisabledSubtitleFetchers />
+  <SubtitleFetcherOrder />
+  <DisabledMediaSegmentProviders />
+  <MediaSegmentProviderOrder />
+  <SkipSubtitlesIfEmbeddedSubtitlesPresent>false</SkipSubtitlesIfEmbeddedSubtitlesPresent>
+  <SkipSubtitlesIfAudioTrackMatches>false</SkipSubtitlesIfAudioTrackMatches>
+  <SubtitleDownloadLanguages />
+  <RequirePerfectSubtitleMatch>true</RequirePerfectSubtitleMatch>
+  <SaveSubtitlesWithMedia>true</SaveSubtitlesWithMedia>
+  <DisabledLyricFetchers />
+  <LyricFetcherOrder />
+  <CustomTagDelimiters>
+    <string>/</string>
+    <string>|</string>
+    <string>;</string>
+    <string>\</string>
+  </CustomTagDelimiters>
+  <DelimiterWhitelist />
+  <AutomaticallyAddToCollection>false</AutomaticallyAddToCollection>
+  <AllowEmbeddedSubtitles>AllowAll</AllowEmbeddedSubtitles>
+  <TypeOptions>
+    <TypeOptions>
+      <Type>Movie</Type>
+      <MetadataFetchers>
+        <string>TheMovieDb</string>
+        <string>The Open Movie Database</string>
+      </MetadataFetchers>
+      <MetadataFetcherOrder>
+        <string>TheMovieDb</string>
+        <string>The Open Movie Database</string>
+      </MetadataFetcherOrder>
+      <ImageFetchers>
+        <string>TheMovieDb</string>
+        <string>The Open Movie Database</string>
+        <string>Embedded Image Extractor</string>
+        <string>Screen Grabber</string>
+      </ImageFetchers>
+      <ImageFetcherOrder>
+        <string>TheMovieDb</string>
+        <string>The Open Movie Database</string>
+        <string>Embedded Image Extractor</string>
+        <string>Screen Grabber</string>
+      </ImageFetcherOrder>
+      <ImageOptions />
+    </TypeOptions>
+  </TypeOptions>
+</LibraryOptions>

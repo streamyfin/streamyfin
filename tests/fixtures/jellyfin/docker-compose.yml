@@ -1,0 +1,19 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.10
+    container_name: streamyfin-test-jellyfin
+    runtime: runc
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+    volumes:
+      - ./config:/config
+      - ./cache:/cache
+      - ./media:/media:ro
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8096/System/Info/Public"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 30s

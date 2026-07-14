@@ -30,8 +30,16 @@ export interface ActiveDownload {
 }
 
 export interface BackgroundDownloaderModuleType {
-  startDownload(url: string, destinationPath?: string): Promise<number>;
-  enqueueDownload(url: string, destinationPath?: string): Promise<number>;
+  startDownload(
+    url: string,
+    destinationPath?: string,
+    headers?: Record<string, string>,
+  ): Promise<number>;
+  enqueueDownload(
+    url: string,
+    destinationPath?: string,
+    headers?: Record<string, string>,
+  ): Promise<number>;
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;

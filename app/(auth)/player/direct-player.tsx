@@ -52,6 +52,7 @@ import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -62,6 +63,8 @@ import {
 import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
+
+const IS_MAESTRO_DEBUG = process.env.EXPO_PUBLIC_MAESTRO_DEBUG === "1";
 
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
@@ -89,6 +92,12 @@ export default function DirectPlayerPage() {
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
+  const [maestroPlaybackTelemetry, setMaestroPlaybackTelemetry] = useState({
+    isPlaying: false,
+    isLoading: true,
+    position: 0,
+    progress: 0,
+  });
 
   // TV audio/subtitle selection state (tracks current selection for dynamic changes)
   const [currentAudioIndex, setCurrentAudioIndex] = useState<
@@ -364,7 +373,13 @@ export default function DirectPlayerPage() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: generateDeviceProfile(),
+            deviceProfile: generateDeviceProfile({
+              forceVideoTranscoding: IS_MAESTRO_DEBUG && Platform.OS === "ios",
+            }),
+            allowVideoStreamCopy:
+              IS_MAESTRO_DEBUG && Platform.OS === "ios" ? false : undefined,
+            allowAudioStreamCopy:
+              IS_MAESTRO_DEBUG && Platform.OS === "ios" ? false : undefined,
           });
           if (!res) return null;
           const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
@@ -534,10 +549,13 @@ export default function DirectPlayerPage() {
 
   /** Progress handler for MPV - position in seconds */
   const onProgress = useCallback(
-    async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
+    async (data?: { nativeEvent?: MpvOnProgressEventPayload | null }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
-      const { position, cacheSeconds } = data.nativeEvent;
+      const nativeEvent = data?.nativeEvent;
+      if (!nativeEvent) return;
+
+      const { position, cacheSeconds } = nativeEvent;
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
 
@@ -546,6 +564,12 @@ export default function DirectPlayerPage() {
       }
 
       progress.set(currentTime);
+      setMaestroPlaybackTelemetry((previous) => ({
+        ...previous,
+        isLoading: false,
+        position,
+        progress: nativeEvent.progress,
+      }));
 
       // Update cache progress (current position + buffered seconds ahead)
       if (cacheSeconds !== undefined && cacheSeconds > 0) {
@@ -597,6 +621,10 @@ export default function DirectPlayerPage() {
       quality: 90,
       width: 500,
     });
+    const artworkHeaders = getJellyfinCustomHeadersForUrl(
+      artworkUri,
+      api.basePath,
+    );
 
     return {
       title: item.Name || "",
@@ -609,6 +637,7 @@ export default function DirectPlayerPage() {
           ? item.SeasonName
           : undefined,
       artworkUri: artworkUri || undefined,
+      artworkHeaders,
     };
   }, [item, api]);
 
@@ -673,6 +702,7 @@ export default function DirectPlayerPage() {
       },
       // Pass VO driver setting (Android only)
       voDriver: settings.mpvVoDriver,
+      hwdec: IS_MAESTRO_DEBUG && Platform.OS === "android" ? "no" : undefined,
     };
 
     // Add external subtitles only for online playback
@@ -694,6 +724,15 @@ export default function DirectPlayerPage() {
       // Add any required headers from the media source (e.g., for external/remote streams)
       if (stream?.requiredHttpHeaders) {
         Object.assign(headers, stream.requiredHttpHeaders);
+      }
+
+      // Add custom headers (Cloudflare Zero Trust, Pangolin, etc.)
+      const customHeaders = getJellyfinCustomHeadersForUrl(
+        stream?.url,
+        api?.basePath,
+      );
+      if (customHeaders) {
+        Object.assign(headers, customHeaders);
       }
 
       if (Object.keys(headers).length > 0) {
@@ -808,6 +847,11 @@ export default function DirectPlayerPage() {
         setIsPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
+        setMaestroPlaybackTelemetry((previous) => ({
+          ...previous,
+          isPlaying: true,
+          isLoading: false,
+        }));
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
         if (item?.Id) {
@@ -821,6 +865,10 @@ export default function DirectPlayerPage() {
 
       if (isPaused) {
         setIsPlaying(false);
+        setMaestroPlaybackTelemetry((previous) => ({
+          ...previous,
+          isPlaying: false,
+        }));
         // Resume inactivity timer when paused (TV only)
         resumeInactivityTimer();
         if (item?.Id) {
@@ -834,6 +882,10 @@ export default function DirectPlayerPage() {
 
       if (isLoading !== undefined) {
         setIsBuffering(isLoading);
+        setMaestroPlaybackTelemetry((previous) => ({
+          ...previous,
+          isLoading,
+        }));
       }
     },
     [
@@ -857,6 +909,12 @@ export default function DirectPlayerPage() {
   );
 
   const [isMounted, setIsMounted] = useState(false);
+
+  const maestroPlaybackTelemetryLabel = useMemo(
+    () =>
+      `isPlaying=${maestroPlaybackTelemetry.isPlaying} isLoading=${maestroPlaybackTelemetry.isLoading} position=${Math.floor(maestroPlaybackTelemetry.position)} progress=${maestroPlaybackTelemetry.progress.toFixed(3)}`,
+    [maestroPlaybackTelemetry],
+  );
 
   // Add useEffect to handle mounting
   useEffect(() => {
@@ -1341,6 +1399,24 @@ export default function DirectPlayerPage() {
                 >
                   <Loader />
                 </View>
+              )}
+              {IS_MAESTRO_DEBUG && (
+                <Text
+                  testID='maestro-playback-telemetry'
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    left: 8,
+                    zIndex: 1000,
+                    color: "white",
+                    backgroundColor: "rgba(0, 0, 0, 0.75)",
+                    fontSize: 10,
+                    paddingHorizontal: 4,
+                    paddingVertical: 2,
+                  }}
+                >
+                  {maestroPlaybackTelemetryLabel}
+                </Text>
               )}
             </View>
             {isMounted === true &&

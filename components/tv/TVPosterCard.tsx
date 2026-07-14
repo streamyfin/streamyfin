@@ -15,12 +15,14 @@ import { Text } from "@/components/common/Text";
 import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useHeadersForUrl } from "@/hooks/useHeadersForUrl";
 import {
   GlassPosterView,
   isGlassEffectAvailable,
 } from "@/modules/glass-poster";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
+import { sourceWithOptionalHeaders } from "@/utils/optionalHeaders";
 import { scaleSize } from "@/utils/scaleSize";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
@@ -171,6 +173,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       width: width * 2, // 2x for quality on large screens
     });
   }, [api, item, orientation, width, imageUrlGetter]);
+  const imageHeaders = useHeadersForUrl(imageUrl);
 
   // Progress calculation
   const progress = useMemo(() => {
@@ -199,6 +202,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
   // Glass effect availability
   const useGlass = isGlassEffectAvailable();
+  const shouldUseGlass = useGlass && !imageHeaders;
 
   // Focus animation
   const animateTo = (value: number) =>
@@ -412,7 +416,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     }
 
     // Glass effect rendering (tvOS 26+)
-    if (useGlass) {
+    if (shouldUseGlass) {
       return (
         <View style={{ position: "relative" }}>
           <GlassPosterView
@@ -448,7 +452,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <Image
           placeholder={{ blurhash }}
           key={item.Id}
-          source={{ uri: imageUrl }}
+          source={sourceWithOptionalHeaders(imageUrl, imageHeaders)}
           recyclingKey={item.Id}
           cachePolicy='memory-disk'
           contentFit='cover'
@@ -539,14 +543,14 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         onFocus={() => {
           setFocused(true);
           // Only animate scale when not using glass effect (glass handles its own focus visual)
-          if (!useGlass) {
+          if (!shouldUseGlass) {
             animateTo(scaleAmount);
           }
           onFocusProp?.();
         }}
         onBlur={() => {
           setFocused(false);
-          if (!useGlass) {
+          if (!shouldUseGlass) {
             animateTo(1);
           }
           onBlurProp?.();
@@ -558,12 +562,16 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <Animated.View
           style={{
             // Only apply scale transform when not using glass effect
-            transform: useGlass ? undefined : [{ scale }],
+            transform: shouldUseGlass ? undefined : [{ scale }],
             // Only apply shadow glow when not using glass (glass has its own glow)
-            shadowColor: useGlass ? undefined : shadowColor,
-            shadowOffset: useGlass ? undefined : { width: 0, height: 0 },
-            shadowOpacity: useGlass ? undefined : focused ? 0.3 : 0,
-            shadowRadius: useGlass ? undefined : focused ? scaleSize(12) : 0,
+            shadowColor: shouldUseGlass ? undefined : shadowColor,
+            shadowOffset: shouldUseGlass ? undefined : { width: 0, height: 0 },
+            shadowOpacity: shouldUseGlass ? undefined : focused ? 0.3 : 0,
+            shadowRadius: shouldUseGlass
+              ? undefined
+              : focused
+                ? scaleSize(12)
+                : 0,
           }}
         >
           {renderPosterImage()}

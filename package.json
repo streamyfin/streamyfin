@@ -21,6 +21,7 @@
     "check": "biome check . --max-diagnostics 1000",
     "lint": "biome check --write --unsafe --max-diagnostics 1000",
     "format": "biome format --write .",
+    "test:unit": "bun test",
     "doctor": "expo-doctor",
     "i18n:check": "bun scripts/check-i18n-keys.ts",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
@@ -135,6 +136,7 @@
     "expo-doctor": "1.20.0",
     "husky": "9.1.7",
     "lint-staged": "17.0.8",
+    "pngjs": "5.0.0",
     "react-test-renderer": "19.2.3",
     "tsx": "^4.22.4",
     "typescript": "6.0.3"

@@ -1,0 +1,21 @@
+appId: ${MAESTRO_APP_ID}
+name: AndroidCloudflareOpenHeadersFlow
+---
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/02-server-url-entered
+- tapOn:
+    id: "advanced-custom-headers"
+- extendedWaitUntil:
+    visible:
+      id: "header-preset-cloudflare"
+    timeout: 30000
+- tapOn:
+    id: "header-preset-cloudflare"
+- extendedWaitUntil:
+    visible:
+      id: "header-value-CF-Access-Client-Id"
+    timeout: 30000
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/03-cloudflare-preset
+- tapOn:
+    id: "header-value-CF-Access-Client-Id"

@@ -61,7 +61,10 @@ public class MpvPlayerModule: Module {
           }
         }
         if !stringMetadata.isEmpty {
-          view.setNowPlayingMetadata(stringMetadata)
+          view.setNowPlayingMetadata(
+            stringMetadata,
+            artworkHeaders: metadata["artworkHeaders"] as? [String: String]
+          )
         }
       }
 

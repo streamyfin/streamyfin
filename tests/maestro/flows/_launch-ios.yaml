@@ -1,0 +1,24 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Shared iOS simulator launch for Expo development builds.
+- runFlow:
+    when:
+      visible: "Open"
+    commands:
+      - tapOn: "Open"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      # Fallback for iOS system alerts where text tapping reports success but
+      # leaves the prompt open. This taps the left-side "Don't Allow" button.
+      - tapOn:
+          point: "33%,59%"
+- extendedWaitUntil:
+    visible: "Enter the URL to your Jellyfin server"
+    timeout: 180000

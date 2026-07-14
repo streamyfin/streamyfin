@@ -1,0 +1,7 @@
+appId: ${MAESTRO_APP_ID}
+name: IOSPlaySteamboatWillie
+---
+# Log in on iOS, then play a fixture movie from the Movies library.
+- runFlow: ios-simple-flow.yaml
+
+- runFlow: ios-play-steamboat-willie-authenticated.yaml

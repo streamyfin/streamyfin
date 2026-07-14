@@ -1,8 +1,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { uniqBy } from "lodash";
 import { useMemo } from "react";
+import { ServerImage } from "@/components/common/ServerImage";
 import ParallaxSlideShow from "@/components/jellyseerr/ParallaxSlideShow";
 import JellyseerrPoster from "@/components/posters/JellyseerrPoster";
 import { Endpoints, useJellyseerr } from "@/hooks/useJellyseerr";
@@ -87,13 +87,11 @@ export default function JellyseerrCompanyPage() {
       }}
       isLoading={isLoading}
       logo={
-        <Image
+        <ServerImage
           id={companyId}
           key={companyId}
           className='bottom-1 w-1/2'
-          source={{
-            uri: jellyseerrApi?.imageProxy(image, COMPANY_LOGO_IMAGE_FILTER),
-          }}
+          uri={jellyseerrApi?.imageProxy(image, COMPANY_LOGO_IMAGE_FILTER)}
           cachePolicy={"memory-disk"}
           contentFit='contain'
           style={{

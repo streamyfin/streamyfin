@@ -1,0 +1,16 @@
+# Runtime directories (generated from static config)
+/config
+/cache
+
+# Docker volumes
+/data
+
+# Logs
+*.log
+
+# Generated fixture media
+/media/**/*.mp4
+/media/**/*.mp3
+/media/**/*.webm
+/media/**/*.tmp
+/media/**/*.tmp.mp4

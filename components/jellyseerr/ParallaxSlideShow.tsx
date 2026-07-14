@@ -1,4 +1,5 @@
 import { FlashList } from "@shopify/flash-list";
+import { Image } from "expo-image";
 import type React from "react";
 import {
   type PropsWithChildren,
@@ -11,11 +12,14 @@ import { Animated, View, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { useHeadersForUrl } from "@/hooks/useHeadersForUrl";
+import { sourceWithOptionalHeaders } from "@/utils/optionalHeaders";
 import { GridSkeleton } from "./GridSkeleton";
 
 const ANIMATION_ENTER = 250;
 const ANIMATION_EXIT = 250;
 const BACKDROP_DURATION = 5000;
+const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 type Render = React.ComponentType<any> | React.ReactElement | null | undefined;
 
@@ -48,6 +52,8 @@ const ParallaxSlideShow = <T,>({
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const currentImage = images?.[currentIndex];
+  const headers = useHeadersForUrl(currentImage);
 
   const enterAnimation = useCallback(
     () =>
@@ -106,18 +112,19 @@ const ParallaxSlideShow = <T,>({
         headerHeight={300}
         onEndReached={onEndReached}
         headerImage={
-          <Animated.Image
-            key={images?.[currentIndex]}
-            id={images?.[currentIndex]}
-            source={{
-              uri: images?.[currentIndex],
-            }}
-            style={{
-              width: "100%",
-              height: "100%",
-              opacity: fadeAnim,
-            }}
-          />
+          currentImage ? (
+            <AnimatedImage
+              key={currentImage}
+              source={sourceWithOptionalHeaders(currentImage, headers)}
+              style={{
+                width: "100%",
+                height: "100%",
+                opacity: fadeAnim,
+              }}
+            />
+          ) : (
+            <View />
+          )
         }
         logo={logo}
       >

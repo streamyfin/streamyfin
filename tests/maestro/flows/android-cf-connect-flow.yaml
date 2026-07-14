@@ -1,0 +1,21 @@
+appId: ${MAESTRO_APP_ID}
+name: AndroidCloudflareConnectFlow
+---
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/05-cloudflare-headers-entered
+- scrollUntilVisible:
+    element:
+      id: "connect-button"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    id: "connect-button"
+- extendedWaitUntil:
+    visible:
+      id: "username-input"
+    timeout: 60000
+- assertVisible: "Password"
+- takeScreenshot:
+    path: ${MAESTRO_ARTIFACT_DIR}/04-login-screen
+- tapOn:
+    id: "username-input"

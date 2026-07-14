@@ -27,6 +27,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { settingsAtom } from "@/utils/atoms/settings";
 import { getAudioStreamUrl } from "@/utils/jellyfin/audio/getAudioStreamUrl";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { storage } from "@/utils/mmkv";
 
 // Conditionally import TrackPlayer only on non-TV platforms
@@ -318,12 +319,18 @@ const itemToTrack = (
   url: string,
   api: Api,
   preferLocalAudio = true,
+  headers?: Record<string, string>,
 ): Track => {
   const albumId = item.AlbumId || item.ParentId;
   const artworkId = albumId || item.Id;
   const artwork = artworkId
     ? `${api.basePath}/Items/${artworkId}/Images/Primary?maxHeight=512&maxWidth=512&quality=90`
     : undefined;
+  const artworkHeaders = getJellyfinCustomHeadersForUrl(artwork, api.basePath);
+  const artworkSource =
+    artwork && artworkHeaders
+      ? { uri: artwork, headers: artworkHeaders }
+      : artwork;
 
   // Check if track is cached locally (permanent downloads take precedence)
   // getLocalPath returns full file:// URI if cached, null otherwise
@@ -336,15 +343,19 @@ const itemToTrack = (
     );
   }
 
-  return {
+  const track: Track = {
     id: item.Id || "",
     url: finalUrl,
     title: item.Name || "Unknown",
     artist: item.Artists?.join(", ") || item.AlbumArtist || "Unknown Artist",
     album: item.Album || undefined,
-    artwork,
+    artwork: artworkSource,
     duration: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : undefined,
   };
+  if (!cachedUrl && headers) {
+    track.headers = headers;
+  }
+  return track;
 };
 
 // Full implementation for non-TV platforms
@@ -599,7 +610,13 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (!result) return null;
 
         return {
-          track: itemToTrack(item, result.url, api, false),
+          track: itemToTrack(
+            item,
+            result.url,
+            api,
+            false,
+            getJellyfinCustomHeadersForUrl(result.url, api.basePath),
+          ),
           sessionId: result.sessionId,
           mediaSource: result.mediaSource,
           isTranscoding: result.isTranscoding,
@@ -1606,6 +1623,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
           downloadTrack(itemId, result.url, {
             permanent: false,
             container: result.mediaSource?.Container || undefined,
+            headers: getJellyfinCustomHeadersForUrl(result.url, api.basePath),
           }).catch(() => {
             // Silent fail - caching is best-effort
           });

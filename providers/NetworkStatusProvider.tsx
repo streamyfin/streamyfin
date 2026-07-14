@@ -11,6 +11,9 @@ import {
   useState,
 } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
+import { optionsWithOptionalHeaders } from "@/utils/optionalHeaders";
+import { customHeadersVersionAtom } from "@/utils/secureCredentials";
 
 interface NetworkStatusContextType {
   isConnected: boolean;
@@ -23,11 +26,17 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(
   null,
 );
 
-async function checkApiReachable(basePath?: string): Promise<boolean> {
+async function checkApiReachable(
+  basePath?: string,
+  headers?: Record<string, string>,
+): Promise<boolean> {
   if (!basePath) return false;
   try {
-    const url = basePath.endsWith("/") ? basePath : `${basePath}/`;
-    const response = await fetch(url, { method: "HEAD" });
+    const url = `${basePath.replace(/\/$/, "")}/System/Info/Public`;
+    const response = await fetch(
+      url,
+      optionsWithOptionalHeaders({ method: "GET" }, headers),
+    );
     return response.ok;
   } catch {
     return false;
@@ -39,15 +48,17 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const [serverConnected, setServerConnected] = useState<boolean | null>(true);
   const [loading, setLoading] = useState(false);
   const [api] = useAtom(apiAtom);
+  const [customHeadersVersion] = useAtom(customHeadersVersionAtom);
   const queryClient = useQueryClient();
   const wasServerConnected = useRef<boolean | null>(null);
 
   const validateConnection = useCallback(async () => {
     if (!api?.basePath) return false;
-    const reachable = await checkApiReachable(api.basePath);
+    const headers = getJellyfinCustomHeadersForUrl(api.basePath, api.basePath);
+    const reachable = await checkApiReachable(api.basePath, headers);
     setServerConnected(reachable);
     return reachable;
-  }, [api?.basePath]);
+  }, [api?.basePath, customHeadersVersion]);
 
   const retryCheck = useCallback(async () => {
     setLoading(true);

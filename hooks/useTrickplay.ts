@@ -1,5 +1,5 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
+
 import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -60,27 +60,8 @@ export const useTrickplay = (item: BaseItemDto) => {
     [trickplayInfo, item, throttleDelay, getTrickplayUrl],
   );
 
-  /** Prefetches all the trickplay images for the item, limiting concurrency to avoid I/O spikes. */
-  const prefetchAllTrickplayImages = useCallback(async () => {
-    if (!trickplayInfo || !item.Id) return;
-    const maxConcurrent = 4;
-    const total = trickplayInfo.totalImageSheets;
-    const urls: string[] = [];
-    for (let index = 0; index < total; index++) {
-      const url = getTrickplayUrl(item, index);
-      if (url) urls.push(url);
-    }
-    for (let i = 0; i < urls.length; i += maxConcurrent) {
-      const batch = urls.slice(i, i + maxConcurrent);
-      await Promise.all(
-        batch.map(
-          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
-        ),
-      );
-      // Yield to the event loop between batches to avoid blocking
-      await Promise.resolve();
-    }
-  }, [trickplayInfo, item, getTrickplayUrl]);
+  // Image.prefetch has no headers support — trickplay images will be fetched on-demand by expo-image.
+  const prefetchAllTrickplayImages = useCallback(async () => {}, []);
 
   return {
     trickPlayUrl,

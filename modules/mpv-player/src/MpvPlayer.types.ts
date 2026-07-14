@@ -34,6 +34,7 @@ export type NowPlayingMetadata = {
   artist?: string;
   albumTitle?: string;
   artworkUri?: string;
+  artworkHeaders?: Record<string, string>;
 };
 
 export type MpvPlayerModuleEvents = {
@@ -67,6 +68,8 @@ export type VideoSource = {
   };
   /** MPV video output driver (Android only) */
   voDriver?: "gpu-next" | "gpu";
+  /** MPV hardware decoder mode (Android only). */
+  hwdec?: "mediacodec" | "mediacodec-copy" | "no";
 };
 
 export type MpvPlayerViewProps = {

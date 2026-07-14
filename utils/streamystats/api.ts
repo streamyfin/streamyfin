@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getIntegrationHeaders } from "@/utils/integrationHeaders";
 import type {
   AddWatchlistItemResponse,
   CreateWatchlistRequest,
@@ -31,8 +32,11 @@ export const createStreamystatsApi = (config: StreamystatsApiConfig) => {
   const { serverUrl, jellyfinToken } = config;
 
   const baseUrl = serverUrl.endsWith("/") ? serverUrl.slice(0, -1) : serverUrl;
+  const { Authorization: _ignoredAuthorization, ...integrationHeaders } =
+    getIntegrationHeaders("streamystats");
 
   const headers = {
+    ...integrationHeaders,
     Authorization: `MediaBrowser Token="${jellyfinToken}"`,
   };
 

@@ -157,6 +157,8 @@ export const getStreamUrl = async ({
   maxStreamingBitrate,
   playSessionId,
   deviceProfile,
+  allowVideoStreamCopy,
+  allowAudioStreamCopy,
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
@@ -169,6 +171,8 @@ export const getStreamUrl = async ({
   maxStreamingBitrate?: number;
   playSessionId?: string | null;
   deviceProfile: any;
+  allowVideoStreamCopy?: boolean;
+  allowAudioStreamCopy?: boolean;
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   height?: number;
@@ -245,6 +249,8 @@ export const getStreamUrl = async ({
         startTimeTicks,
         isPlayback: true,
         autoOpenLiveStream: true,
+        allowVideoStreamCopy,
+        allowAudioStreamCopy,
         maxStreamingBitrate,
         audioStreamIndex,
         mediaSourceId,

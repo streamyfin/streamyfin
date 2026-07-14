@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
@@ -9,6 +8,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { ServerImage } from "@/components/common/ServerImage";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
@@ -181,10 +181,8 @@ const page: React.FC = () => {
         headerHeight={400}
         headerImage={
           backdropUrl ? (
-            <Image
-              source={{
-                uri: backdropUrl,
-              }}
+            <ServerImage
+              uri={backdropUrl}
               style={{
                 width: "100%",
                 height: "100%",
@@ -202,10 +200,8 @@ const page: React.FC = () => {
         }
         logo={
           logoUrl ? (
-            <Image
-              source={{
-                uri: logoUrl,
-              }}
+            <ServerImage
+              uri={logoUrl}
               style={{
                 height: 130,
                 width: "100%",

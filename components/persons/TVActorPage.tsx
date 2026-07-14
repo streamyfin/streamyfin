@@ -23,6 +23,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ServerImage } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { Loader } from "@/components/Loader";
@@ -33,6 +34,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { getJellyfinCustomHeadersForUrl } from "@/utils/jellyfin/customHeadersForUrl";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 
@@ -157,10 +159,12 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
 
     const performCrossfade = async () => {
       // Disk-only prefetch to avoid pinning large backdrops in memory cache.
-      try {
-        await Image.prefetch(backdropUrl, "disk");
-      } catch {
-        // Continue even if prefetch fails
+      if (!getJellyfinCustomHeadersForUrl(backdropUrl, api?.basePath)) {
+        try {
+          await Image.prefetch(backdropUrl, "disk");
+        } catch {
+          // Continue even if prefetch fails
+        }
       }
 
       if (isCancelled) return;
@@ -211,7 +215,7 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
     return () => {
       isCancelled = true;
     };
-  }, [backdropUrl]);
+  }, [api?.basePath, backdropUrl]);
 
   // Get actor image URL
   const actorImageUrl = useMemo(() => {
@@ -313,8 +317,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
           }}
         >
           {layer0Url ? (
-            <Image
-              source={{ uri: layer0Url }}
+            <ServerImage
+              uri={layer0Url}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -332,8 +336,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
           }}
         >
           {layer1Url ? (
-            <Image
-              source={{ uri: layer1Url }}
+            <ServerImage
+              uri={layer1Url}
               style={{ width: "100%", height: "100%" }}
               contentFit='cover'
             />
@@ -387,8 +391,8 @@ export const TVActorPage: React.FC<TVActorPageProps> = ({ personId }) => {
             }}
           >
             {actorImageUrl ? (
-              <Image
-                source={{ uri: actorImageUrl }}
+              <ServerImage
+                uri={actorImageUrl}
                 style={{ width: "100%", height: "100%" }}
                 contentFit='cover'
               />
