@@ -1,8 +1,11 @@
 {
   "name": "wifi-ssid",
   "version": "1.0.0",
-  "platforms": ["ios"],
+  "platforms": ["ios", "android"],
   "ios": {
     "modules": ["WifiSsidModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.wifissid.WifiSsidModule"]
   }
 }

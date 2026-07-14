@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Switch, TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
 import { useWifiSSID } from "@/hooks/useWifiSSID";
+import { openLocationSettings } from "@/modules/wifi-ssid";
 import { useServerUrl } from "@/providers/ServerUrlProvider";
 import { storage } from "@/utils/mmkv";
 import {
@@ -26,16 +27,26 @@ const DEFAULT_CONFIG: LocalNetworkConfig = {
 
 interface StatusDisplayProps {
   currentSSID: string | null;
+  connectedToWifi: boolean;
   isUsingLocalUrl: boolean;
+  locationBlocked: boolean;
+  onOpenLocationSettings: () => void;
   t: (key: string) => string;
 }
 
 function StatusDisplay({
   currentSSID,
+  connectedToWifi,
   isUsingLocalUrl,
+  locationBlocked,
+  onOpenLocationSettings,
   t,
 }: StatusDisplayProps): React.ReactElement {
-  const wifiStatus = currentSSID ?? t("home.settings.network.not_connected");
+  const wifiStatus = currentSSID
+    ? currentSSID
+    : connectedToWifi
+      ? t("home.settings.network.ssid_hidden")
+      : t("home.settings.network.not_connected");
   const urlType = isUsingLocalUrl
     ? t("home.settings.network.local")
     : t("home.settings.network.remote");
@@ -55,6 +66,23 @@ function StatusDisplay({
         </Text>
         <Text className={urlTypeColor}>{urlType}</Text>
       </View>
+
+      {locationBlocked && (
+        <View className='mt-2 pt-2 border-t border-neutral-800'>
+          <Text className='text-xs text-amber-400'>
+            {t("home.settings.network.location_off_description")}
+          </Text>
+          <TouchableOpacity
+            onPress={onOpenLocationSettings}
+            className='mt-2 self-start'
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text className='text-xs text-blue-400 font-semibold'>
+              {t("home.settings.network.open_location_settings")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -62,7 +90,17 @@ function StatusDisplay({
 export function LocalNetworkSettings(): React.ReactElement | null {
   const { t } = useTranslation();
   const { permissionStatus, requestPermission } = useWifiSSID();
-  const { isUsingLocalUrl, currentSSID, refreshUrlState } = useServerUrl();
+  const { isUsingLocalUrl, currentSSID, connectedToWifi, refreshUrlState } =
+    useServerUrl();
+
+  // Connected to Wi-Fi and have permission, but the OS won't reveal the SSID —
+  // on Android this means device Location services are off.
+  const locationBlocked =
+    permissionStatus === "granted" && connectedToWifi && !currentSSID;
+
+  const handleOpenLocationSettings = useCallback(() => {
+    openLocationSettings();
+  }, []);
 
   const remoteUrl = storage.getString("serverUrl");
   const [config, setConfig] = useState<LocalNetworkConfig>(DEFAULT_CONFIG);
@@ -195,18 +233,23 @@ export function LocalNetworkSettings(): React.ReactElement | null {
             )}
           </ListGroup>
 
-          <View className='py-2'>
-            <Button
-              onPress={handleAddCurrentNetwork}
-              disabled={!currentSSID || permissionStatus !== "granted"}
-            >
-              {addNetworkButtonText}
-            </Button>
-          </View>
+          {!locationBlocked && (
+            <View className='py-2'>
+              <Button
+                onPress={handleAddCurrentNetwork}
+                disabled={!currentSSID || permissionStatus !== "granted"}
+              >
+                {addNetworkButtonText}
+              </Button>
+            </View>
+          )}
 
           <StatusDisplay
             currentSSID={currentSSID}
+            connectedToWifi={connectedToWifi}
             isUsingLocalUrl={isUsingLocalUrl}
+            locationBlocked={locationBlocked}
+            onOpenLocationSettings={handleOpenLocationSettings}
             t={t}
           />
         </View>
