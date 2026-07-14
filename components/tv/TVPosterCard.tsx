@@ -435,7 +435,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             an unplayed-episode count, so render it as an RN overlay on top.
             Returns null when not applicable (non-series / fully watched).
           */}
-          <UnplayedCountBadge item={item} />
+          {showWatchedIndicator && <UnplayedCountBadge item={item} />}
         </View>
       );
     }
@@ -468,7 +468,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         />
         {PlayButtonOverlay}
         {NowPlayingBadge}
-        <WatchedIndicator item={item} />
+        {showWatchedIndicator && <WatchedIndicator item={item} />}
         <ProgressBar item={item} />
       </View>
     );
