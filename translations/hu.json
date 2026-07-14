@@ -484,7 +484,6 @@
   },
   "common": {
     "no_results": "No Results",
-    "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Videó",
     "audio": "Hang",
@@ -621,7 +620,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",

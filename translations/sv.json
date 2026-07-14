@@ -484,7 +484,6 @@
   },
   "common": {
     "no_results": "Inga resultat",
-    "select": "Välj",
     "no_trailer_available": "Ingen trailer tillgänglig",
     "video": "Video",
     "audio": "Ljud",
@@ -621,7 +620,6 @@
     "using_jellyfin_server": "Använder Jellyfin-server",
     "language": "Språk",
     "results": "Resultat",
-    "searching": "Söker...",
     "search_failed": "Sökningen misslyckades",
     "no_subtitle_provider": "Ingen undertextleverantör konfigurerad på servern",
     "no_subtitles_found": "Inga undertexter hittades",
