@@ -45,6 +45,8 @@ export const UnplayedCountBadge: React.FC<{ item: BaseItemDto }> = React.memo(
     if (item.UserData?.Played) return null;
     const unplayed = item.UserData?.UnplayedItemCount ?? 0;
     if (unplayed <= 0) return null;
+    // Cap at 1k+ to keep the badge compact (jellyfin-web caps at 99+).
+    const label = unplayed >= 1000 ? "1k+" : String(unplayed);
 
     if (Platform.isTV) {
       return (
@@ -61,7 +63,7 @@ export const UnplayedCountBadge: React.FC<{ item: BaseItemDto }> = React.memo(
               color: "black",
             }}
           >
-            {unplayed}
+            {label}
           </Text>
         </View>
       );
@@ -70,7 +72,7 @@ export const UnplayedCountBadge: React.FC<{ item: BaseItemDto }> = React.memo(
     return (
       <View style={[mobileBadgeBase, { minWidth: 20, paddingHorizontal: 5 }]}>
         <Text style={{ fontSize: 12, fontWeight: "700", color: "white" }}>
-          {unplayed}
+          {label}
         </Text>
       </View>
     );
