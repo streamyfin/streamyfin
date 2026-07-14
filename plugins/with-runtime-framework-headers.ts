@@ -1,4 +1,4 @@
-const { withPodfile } = require("expo/config-plugins");
+import { type ConfigPlugin, withPodfile } from "expo/config-plugins";
 
 const PATCH_START = "## >>> runtime-framework headers";
 const PATCH_END = "## <<< runtime-framework headers";
@@ -13,7 +13,7 @@ const EXTRA_HDRS = [
   `\${PODS_CONFIGURATION_BUILD_DIR}/React-rendererconsistency/React_rendererconsistency.framework/Headers`,
 ];
 
-function buildPatch() {
+function buildPatch(): string {
   return [
     PATCH_START,
     "  extra_hdrs = [",
@@ -91,7 +91,7 @@ function buildPatch() {
   ].join("\n");
 }
 
-module.exports = function withRuntimeFrameworkHeaders(config) {
+const withRuntimeFrameworkHeaders: ConfigPlugin = (config) => {
   return withPodfile(config, (config) => {
     let podfile = config.modResults.contents;
 
@@ -125,3 +125,5 @@ end
     return config;
   });
 };
+
+export default withRuntimeFrameworkHeaders;

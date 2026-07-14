@@ -203,12 +203,18 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
   const handleSeeAllPress = useCallback(() => {
     if (!parentId) return;
+    // Navigate into the library detail (lives in the libraries tab) sorted by most
+    // recently added. The `fromSeeAll` flag tells the detail page to (a) collapse
+    // the libraries stack so the native tab can't auto-pop it back to the list, and
+    // (b) intercept Back to route to the library list so the user can switch
+    // libraries. See app/(auth)/(tabs)/(libraries)/[libraryId].tsx.
     router.push({
-      pathname: "/(auth)/(tabs)/(libraries)/[libraryId]",
+      pathname: "/[libraryId]",
       params: {
         libraryId: parentId,
         sortBy: SortByOption.DateCreated,
         sortOrder: SortOrderOption.Descending,
+        fromSeeAll: "true",
       },
     } as any);
   }, [router, parentId]);
@@ -352,11 +358,14 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
           // contentOffset={{ x: -sizes.padding.horizontal, y: 0 }}
           // contentContainerStyle={{ paddingVertical: SCALE_PADDING }}
           ListFooterComponent={
+            // No fixed width: the footer must size to the "See All" card so the
+            // FlatList's scrollable content extends to fully reveal it. A fixed
+            // (narrow) width clipped the card at the right edge. Trailing space is
+            // provided by contentContainerStyle.paddingRight.
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                width: sizes.padding.horizontal,
               }}
             >
               {isFetchingNextPage && (

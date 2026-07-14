@@ -13,7 +13,10 @@ import {
 } from "react-native";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
-import { WatchedIndicator } from "@/components/WatchedIndicator";
+import {
+  UnplayedCountBadge,
+  WatchedIndicator,
+} from "@/components/WatchedIndicator";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
@@ -438,6 +441,12 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           />
           {PlayButtonOverlay}
           {NowPlayingBadge}
+          {/*
+            The glass view draws the watched checkmark natively but cannot show
+            an unplayed-episode count, so render it as an RN overlay on top.
+            Returns null when not applicable (non-series / fully watched).
+          */}
+          {showWatchedIndicator && <UnplayedCountBadge item={item} />}
         </View>
       );
     }
@@ -470,7 +479,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         />
         {PlayButtonOverlay}
         {NowPlayingBadge}
-        <WatchedIndicator item={item} />
+        {showWatchedIndicator && <WatchedIndicator item={item} />}
         <ProgressBar item={item} />
       </View>
     );

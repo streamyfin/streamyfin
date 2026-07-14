@@ -1,6 +1,14 @@
-const { withPodfile } = require("@expo/config-plugins");
+import { type ConfigPlugin, withPodfile } from "expo/config-plugins";
 
-const withGitPod = (config, { podName, podspecUrl }) => {
+interface GitPodOptions {
+  podName: string;
+  podspecUrl: string;
+}
+
+const withGitPod: ConfigPlugin<GitPodOptions> = (
+  config,
+  { podName, podspecUrl },
+) => {
   return withPodfile(config, (config) => {
     const podfile = config.modResults.contents;
 
@@ -21,4 +29,4 @@ const withGitPod = (config, { podName, podspecUrl }) => {
   });
 };
 
-module.exports = withGitPod;
+export default withGitPod;

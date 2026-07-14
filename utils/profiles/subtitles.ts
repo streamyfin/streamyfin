@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+import type { SubtitleProfile } from "@jellyfin/sdk/lib/generated-client/models";
 
 // Image-based formats - these need to be burned in by Jellyfin (Encode method)
 // because MPV cannot load them externally over HTTP
@@ -13,7 +14,7 @@ const IMAGE_BASED_FORMATS = [
   "pgssub",
   "teletext",
   "vobsub",
-];
+] as const;
 
 // Text-based formats - these can be loaded externally by MPV
 const TEXT_BASED_FORMATS = [
@@ -37,10 +38,10 @@ const TEXT_BASED_FORMATS = [
   "text",
   "vplayer",
   "xsub",
-];
+] as const;
 
-export const getSubtitleProfiles = () => {
-  const profiles = [];
+export const getSubtitleProfiles = (): SubtitleProfile[] => {
+  const profiles: SubtitleProfile[] = [];
 
   // Image-based formats: Embed or Encode (burn-in), NOT External
   for (const format of IMAGE_BASED_FORMATS) {
@@ -58,4 +59,4 @@ export const getSubtitleProfiles = () => {
 };
 
 // Export for use in player filtering
-export const IMAGE_SUBTITLE_CODECS = IMAGE_BASED_FORMATS;
+export const IMAGE_SUBTITLE_CODECS: readonly string[] = IMAGE_BASED_FORMATS;
