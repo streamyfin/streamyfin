@@ -31,9 +31,10 @@ export function useAppRouter() {
 
   const push = useCallback(
     (href: Parameters<typeof router.push>[0]) => {
-      // Duplicate-screen guard: a push blurs the source screen synchronously in
-      // the navigation state (only the native render is slow). A second tap then
-      // sees an unfocused screen and is dropped. Resets automatically on return.
+      // Rapid-push guard: a push blurs the source screen synchronously in the
+      // navigation state (only the native render is slow). Any further push from
+      // this screen — duplicate or not — is dropped until focus returns, so taps
+      // fired before the pushed screen renders can't stack screens.
       // No navigation context => nothing to guard (deep-link pushes from root).
       if (navigation?.isFocused?.() === false) return;
       if (typeof href === "string") {
