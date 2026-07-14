@@ -37,7 +37,7 @@ export const PendingAccountSaveModal: React.FC = () => {
         const serverName = pending?.serverName;
         setPending(null);
         saveCurrentAccount({ securityType, pinCode, serverName }).catch(
-          () => {},
+          (error) => console.warn("Failed to save account:", error),
         );
       }}
     />
