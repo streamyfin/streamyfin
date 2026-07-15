@@ -437,7 +437,7 @@ export const TVLogin: React.FC = () => {
       } else {
         Alert.alert(
           t("login.connection_failed"),
-          t("login.an_unexpected_error_occured"),
+          t("login.an_unexpected_error_occurred"),
         );
       }
     } finally {
@@ -499,7 +499,7 @@ export const TVLogin: React.FC = () => {
         const message =
           error instanceof Error
             ? error.message
-            : t("login.an_unexpected_error_occured");
+            : t("login.an_unexpected_error_occurred");
         Alert.alert(t("login.connection_failed"), message);
         goToQRScreen();
       } finally {
@@ -523,7 +523,7 @@ export const TVLogin: React.FC = () => {
         } else {
           Alert.alert(
             t("login.connection_failed"),
-            t("login.an_unexpected_error_occured"),
+            t("login.an_unexpected_error_occurred"),
           );
         }
       } finally {
@@ -768,7 +768,7 @@ export const TVLogin: React.FC = () => {
               const message =
                 error instanceof Error
                   ? error.message
-                  : t("login.an_unexpected_error_occured");
+                  : t("login.an_unexpected_error_occurred");
               Alert.alert(t("login.connection_failed"), message);
               goToQRScreen();
             });
