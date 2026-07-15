@@ -1,0 +1,43 @@
+name: 🔒 Close Referenced Issues
+
+on:
+  pull_request_target:
+    types: [closed]
+
+# pull_request_target (not pull_request) gives the job a write-capable token, so
+# referenced issues get closed even on PRs from forks. Safe here because we never
+# check out or run PR code — we only read the PR title/body via the event payload
+# and the issue references it lists.
+permissions:
+  contents: read
+
+jobs:
+  close:
+    name: 🧹 Close issues & comment on merged PRs
+    # Only on real merges into develop (the integration branch). Closing issues on
+    # a discarded PR — or a merge into a feature branch — doesn't make sense.
+    if: "${{ github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'develop' && github.repository == 'streamyfin/streamyfin' }}"
+    runs-on: ubuntu-26.04
+    permissions:
+      issues: write
+      pull-requests: read
+      contents: read
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e1 # v7.0.0
+
+      - name: 🍞 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618ae5fe8019c62421857d6 # v2.2.0
+        with:
+          # renovate: datasource=npm depName=bun
+          bun-version: "1.3.14"
+
+      - name: 🔒 Close issues listed in the PR's Ticket/Issue section
+        run: bun scripts/close-referenced-issues.ts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
