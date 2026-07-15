@@ -192,15 +192,25 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // device inherits the previous user's data).
   // Saved credentials are kept so the user can quick-login again.
   const clearSessionState = useCallback(async () => {
+    // All synchronous teardown first: if the async Jellyseerr cleanup below
+    // fails or resolves late (user may already be re-authenticating), the
+    // session/cache state is already gone.
     storage.remove("token");
     storage.remove("user");
+    storage.remove("REACT_QUERY_OFFLINE_CACHE");
     clearTVDiscoverySafely();
     setUser(null);
     setApi(null);
     setPluginSettings(undefined);
-    await clearAllJellyseerData();
     queryClient.clear();
-    storage.remove("REACT_QUERY_OFFLINE_CACHE");
+
+    try {
+      await clearAllJellyseerData();
+    } catch (e) {
+      writeErrorLog(
+        `Failed to clear Jellyseerr data: ${e instanceof Error ? e.message : e}`,
+      );
+    }
   }, [setUser, setApi, setPluginSettings, clearAllJellyseerData, queryClient]);
 
   const handleSessionExpired = useCallback(() => {
