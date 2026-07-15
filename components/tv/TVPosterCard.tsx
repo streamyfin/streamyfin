@@ -72,6 +72,9 @@ export interface TVPosterCardProps {
 
   /** Custom image URL getter - if not provided, uses smart URL logic */
   imageUrlGetter?: (item: BaseItemDto) => string | undefined;
+
+  /** For horizontal episodes, prefer the episode's own image over the series thumb */
+  preferEpisodeImage?: boolean;
 }
 
 /**
@@ -108,6 +111,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   glowColor = "white",
   scaleAmount = 1.05,
   imageUrlGetter,
+  preferEpisodeImage = false,
 }) => {
   const api = useAtomValue(apiAtom);
   const posterSizes = useScaledTVPosterSizes();
@@ -139,6 +143,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     if (orientation === "horizontal") {
       // Episode: prefer series thumb image for consistent look (like hero section)
       if (item.Type === "Episode") {
+        // Opt-in: use the episode's own image instead of the series thumb.
+        if (preferEpisodeImage && item.ImageTags?.Primary) {
+          return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
+        }
         // First try parent/series thumb (horizontal series artwork)
         if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
           return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
@@ -173,7 +181,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       item,
       width: width * 2, // 2x for quality on large screens
     });
-  }, [api, item, orientation, width, imageUrlGetter]);
+  }, [api, item, orientation, width, imageUrlGetter, preferEpisodeImage]);
 
   // Progress calculation
   const progress = useMemo(() => {
