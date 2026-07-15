@@ -195,6 +195,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     setApi(null);
     queryClient.clear();
     storage.remove("REACT_QUERY_OFFLINE_CACHE");
+    // Same TV-discovery cleanup as a manual logout, so a forced expiry
+    // doesn't leave stale discovery state behind.
+    clearTVDiscoverySafely();
     // Saved credentials are kept so the user can quick-login again.
   }, [setUser, setApi, queryClient]);
 
@@ -713,6 +716,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           getUserApi(apiInstance)
             .getCurrentUser()
             .then(async (response) => {
+              // The response can resolve long after startup (no axios timeout).
+              // If the session changed meanwhile (logout, account switch), drop
+              // it instead of repopulating a stale user / re-saving credentials.
+              if (getTokenFromStorage() !== token) return;
               setUser(response.data);
 
               // Migrate current session to secure storage if not already saved
