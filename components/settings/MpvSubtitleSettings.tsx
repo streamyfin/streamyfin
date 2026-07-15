@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, Switch, View, type ViewProps } from "react-native";
 import { Stepper } from "@/components/inputs/Stepper";
 import { Text } from "../common/Text";
@@ -17,20 +18,21 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
   const isTv = Platform.isTV;
   const media = useMedia();
   const { settings, updateSettings } = media;
+  const { t } = useTranslation();
 
   const alignXOptions: AlignX[] = ["left", "center", "right"];
   const alignYOptions: AlignY[] = ["top", "center", "bottom"];
 
   const alignXLabels: Record<AlignX, string> = {
-    left: "Left",
-    center: "Center",
-    right: "Right",
+    left: t("home.settings.subtitles.align.left"),
+    center: t("home.settings.subtitles.align.center"),
+    right: t("home.settings.subtitles.align.right"),
   };
 
   const alignYLabels: Record<AlignY, string> = {
-    top: "Top",
-    center: "Center",
-    bottom: "Bottom",
+    top: t("home.settings.subtitles.align.top"),
+    center: t("home.settings.subtitles.align.center"),
+    bottom: t("home.settings.subtitles.align.bottom"),
   };
 
   const alignXOptionGroups = useMemo(() => {
@@ -60,16 +62,18 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
   return (
     <View {...props}>
       <ListGroup
-        title='MPV Subtitle Settings'
+        title={t("home.settings.subtitles.mpv_settings_title")}
         description={
           <Text className='text-[#8E8D91] text-xs'>
-            Advanced subtitle customization for MPV player
+            {t("home.settings.subtitles.mpv_settings_description")}
           </Text>
         }
       >
         {!isTv && (
           <>
-            <ListItem title='Vertical Margin'>
+            <ListItem
+              title={t("home.settings.subtitles.mpv_subtitle_margin_y")}
+            >
               <Stepper
                 value={settings.mpvSubtitleMarginY ?? 0}
                 step={5}
@@ -81,7 +85,7 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
               />
             </ListItem>
 
-            <ListItem title='Horizontal Alignment'>
+            <ListItem title={t("home.settings.subtitles.mpv_subtitle_align_x")}>
               <PlatformDropdown
                 groups={alignXOptionGroups}
                 trigger={
@@ -96,11 +100,11 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
                     />
                   </View>
                 }
-                title='Horizontal Alignment'
+                title={t("home.settings.subtitles.mpv_subtitle_align_x")}
               />
             </ListItem>
 
-            <ListItem title='Vertical Alignment'>
+            <ListItem title={t("home.settings.subtitles.mpv_subtitle_align_y")}>
               <PlatformDropdown
                 groups={alignYOptionGroups}
                 trigger={
@@ -115,13 +119,13 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
                     />
                   </View>
                 }
-                title='Vertical Alignment'
+                title={t("home.settings.subtitles.mpv_subtitle_align_y")}
               />
             </ListItem>
           </>
         )}
 
-        <ListItem title='Opaque Background'>
+        <ListItem title={t("home.settings.subtitles.opaque_background")}>
           <Switch
             value={settings.mpvSubtitleBackgroundEnabled ?? false}
             onValueChange={(value) =>
@@ -131,7 +135,7 @@ export const MpvSubtitleSettings: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         {settings.mpvSubtitleBackgroundEnabled && (
-          <ListItem title='Background Opacity'>
+          <ListItem title={t("home.settings.subtitles.background_opacity")}>
             <Stepper
               value={settings.mpvSubtitleBackgroundOpacity ?? 75}
               step={5}
