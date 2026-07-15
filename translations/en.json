@@ -387,6 +387,8 @@
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} used",
         "delete_all_downloaded_files": "Delete all downloaded files",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
         "clear_music_cache": "Clear music cache",
