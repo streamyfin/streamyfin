@@ -14,6 +14,7 @@ import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
+import { shouldShowPlayerMenu } from "./utils/shouldShowPlayerMenu";
 import { type AspectRatio } from "./VideoScalingModeSelector";
 import { ZoomToggle } from "./ZoomToggle";
 
@@ -109,7 +110,11 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       className='flex flex-row justify-between'
     >
       <View className='mr-auto' pointerEvents='box-none'>
-        {!Platform.isTV && (!offline || !mediaSource?.TranscodingUrl) && (
+        {shouldShowPlayerMenu({
+          isTV: Platform.isTV,
+          offline,
+          isTranscoded: Boolean(mediaSource?.TranscodingUrl),
+        }) && (
           <View pointerEvents='auto'>
             <DropdownView
               playbackSpeed={playbackSpeed}
