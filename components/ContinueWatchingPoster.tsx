@@ -35,8 +35,10 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     }
     if (item.Type === "Episode") {
-      if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-        return `${api?.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
+      // Matched pair: the parent that owns the Thumb (ParentThumbItemId), not the
+      // backdrop owner — otherwise the Thumb tag is requested on the wrong item → black.
+      if (item.ParentThumbItemId && item.ParentThumbImageTag) {
+        return `${api?.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=389&quality=80&tag=${item.ParentThumbImageTag}`;
       }
 
       return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
@@ -61,7 +63,8 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
     }
 
     return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
-  }, [item]);
+    // useEpisodePoster in deps so flipping the prop re-computes the URL live.
+  }, [item, useEpisodePoster]);
 
   if (!url)
     return <View className='aspect-video border border-neutral-800 w-44' />;
