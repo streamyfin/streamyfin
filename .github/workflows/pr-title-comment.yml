@@ -20,7 +20,12 @@ concurrency:
 
 jobs:
   comment:
-    if: github.event.workflow_run.event == 'pull_request'
+    # Only run when the lint run actually produced a result artifact: a run
+    # cancelled by concurrency (rapid pushes to the same PR) completes with
+    # conclusion "cancelled" before uploading it, and would fail the download.
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      contains(fromJSON('["success", "failure"]'), github.event.workflow_run.conclusion)
     runs-on: ubuntu-26.04
     steps:
       - name: ⬇️ Download lint result

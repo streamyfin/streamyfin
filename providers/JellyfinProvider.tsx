@@ -386,7 +386,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             default:
               throw new Error(
                 t(
-                  "login.an_unexpected_error_occured_did_you_enter_the_correct_url",
+                  "login.an_unexpected_error_occurred_did_you_enter_the_correct_url",
                 ),
               );
           }
