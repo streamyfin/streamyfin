@@ -146,7 +146,7 @@ export const Login: React.FC = () => {
       } else {
         Alert.alert(
           t("login.connection_failed"),
-          t("login.an_unexpected_error_occured"),
+          t("login.an_unexpected_error_occurred"),
         );
       }
     } finally {
