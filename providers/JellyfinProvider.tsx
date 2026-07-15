@@ -186,20 +186,30 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   // session on the first 401 so the app drops cleanly to the login screen.
   const sessionExpiredRef = useRef(false);
 
+  // Shared teardown for manual logout AND forced session expiry — keeping it
+  // in one place prevents the two paths from drifting (a 401 expiry must wipe
+  // plugin settings / Jellyseerr state too, or the next login on the same
+  // device inherits the previous user's data).
+  // Saved credentials are kept so the user can quick-login again.
+  const clearSessionState = useCallback(async () => {
+    storage.remove("token");
+    storage.remove("user");
+    clearTVDiscoverySafely();
+    setUser(null);
+    setApi(null);
+    setPluginSettings(undefined);
+    await clearAllJellyseerData();
+    queryClient.clear();
+    storage.remove("REACT_QUERY_OFFLINE_CACHE");
+  }, [setUser, setApi, setPluginSettings, clearAllJellyseerData, queryClient]);
+
   const handleSessionExpired = useCallback(() => {
     if (sessionExpiredRef.current) return; // run once per session
     sessionExpiredRef.current = true;
-    storage.remove("token");
-    storage.remove("user");
-    setUser(null);
-    setApi(null);
-    queryClient.clear();
-    storage.remove("REACT_QUERY_OFFLINE_CACHE");
-    // Same TV-discovery cleanup as a manual logout, so a forced expiry
-    // doesn't leave stale discovery state behind.
-    clearTVDiscoverySafely();
-    // Saved credentials are kept so the user can quick-login again.
-  }, [setUser, setApi, queryClient]);
+    clearSessionState().catch((e) =>
+      writeErrorLog(`Session-expiry cleanup failed: ${e?.message ?? e}`),
+    );
+  }, [clearSessionState]);
 
   useEffect(() => {
     // Only guard an authenticated session. A pre-auth api (login screen) keeps
@@ -375,7 +385,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       if (!api?.basePath || !user?.Id || !user.Name || !token) return;
       const securityType = options?.securityType || "none";
       let pinHash: string | undefined;
-      if (securityType === "pin" && options?.pinCode) {
+      if (securityType === "pin") {
+        // Never persist a "pin" credential without its hash — it would be
+        // impossible to unlock.
+        if (!options?.pinCode) throw new Error("PIN code is required");
         pinHash = await hashPIN(options.pinCode);
       }
       await saveAccountCredential({
@@ -424,18 +437,24 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             if (securityType === "pin" && options.pinCode) {
               pinHash = await hashPIN(options.pinCode);
             }
-
-            await saveAccountCredential({
-              serverUrl: api.basePath,
-              serverName: serverName || "",
-              token: auth.data.AccessToken,
-              userId: auth.data.User.Id || "",
-              username,
-              savedAt: Date.now(),
-              securityType,
-              pinHash,
-              primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
-            });
+            if (securityType === "pin" && !pinHash) {
+              // Never persist a "pin" credential without its hash — it would be
+              // impossible to unlock. Skip the save rather than failing a login
+              // that already succeeded.
+              writeErrorLog("Account save skipped: PIN required but missing");
+            } else {
+              await saveAccountCredential({
+                serverUrl: api.basePath,
+                serverName: serverName || "",
+                token: auth.data.AccessToken,
+                userId: auth.data.User.Id || "",
+                username,
+                savedAt: Date.now(),
+                securityType,
+                pinHash,
+                primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
+              });
+            }
           }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
@@ -495,19 +514,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
-      storage.remove("token");
-      storage.remove("user");
-      clearTVDiscoverySafely();
-      setUser(null);
-      setApi(null);
-      setPluginSettings(undefined);
-      await clearAllJellyseerData();
-
-      // Clear React Query cache to prevent data from previous account lingering
-      queryClient.clear();
-      storage.remove("REACT_QUERY_OFFLINE_CACHE");
-
-      // Note: We keep saved credentials for quick switching back
+      await clearSessionState();
     },
     onError: (error) => {
       console.error("Logout failed:", error);
