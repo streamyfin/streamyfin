@@ -230,10 +230,7 @@ export async function downloadAdditionalAssets(params: {
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
     downloadTrickplayImages(item, api),
-    // Only download subtitles for non-transcoded streams
-    mediaSource.TranscodingUrl
-      ? Promise.resolve(mediaSource)
-      : downloadSubtitles(mediaSource, item, api),
+    downloadSubtitles(mediaSource, item, api),
     item.Id
       ? fetchSegments(item.Id, api)
       : Promise.resolve({

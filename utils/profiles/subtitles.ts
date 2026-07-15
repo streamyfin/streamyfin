@@ -60,3 +60,4 @@ export const getSubtitleProfiles = (): SubtitleProfile[] => {
 
 // Export for use in player filtering
 export const IMAGE_SUBTITLE_CODECS: readonly string[] = IMAGE_BASED_FORMATS;
+export const TEXT_SUBTITLE_CODECS: readonly string[] = TEXT_BASED_FORMATS;

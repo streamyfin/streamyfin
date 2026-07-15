@@ -62,9 +62,8 @@ mock.module("expo-file-system", () => ({
 const { apiAtom } = await import("@/providers/JellyfinProvider");
 const { store } = await import("@/utils/store");
 const { makeApi } = await import("@/test-utils/jellyfinApi");
-const { downloadTrickplayImages, downloadSubtitles } = await import(
-  "./additionalDownloads"
-);
+const { downloadTrickplayImages, downloadSubtitles, downloadAdditionalAssets } =
+  await import("./additionalDownloads");
 
 const api = makeApi();
 
@@ -140,6 +139,48 @@ describe("downloadSubtitles", () => {
     ]);
     expect(result.MediaStreams?.[0].DeliveryUrl).toBe(
       "file:///documents/some_movie__subtitle_3.srt",
+    );
+  });
+});
+
+describe("downloadAdditionalAssets", () => {
+  test("downloads external subtitles for a transcoded media source", async () => {
+    const mediaSource: MediaSourceInfo = {
+      TranscodingUrl: "/videos/item-2/stream.ts?PlaySessionId=session-1",
+      MediaStreams: [
+        {
+          Type: "Subtitle",
+          DeliveryMethod: "External",
+          DeliveryUrl: "/Videos/item-2/subs/2/Stream.srt",
+          Index: 2,
+          Codec: "srt",
+        },
+      ],
+    };
+    const item: BaseItemDto = { Id: "item-2", Name: "Some Movie" };
+
+    const result = await downloadAdditionalAssets({
+      item,
+      mediaSource,
+      api,
+      saveImageFn: async () => {},
+      saveSeriesImageFn: async () => {},
+    });
+
+    expect(downloads).toEqual([
+      {
+        url: "https://jellyfin.example.com/Videos/item-2/subs/2/Stream.srt",
+        destination: "file:///documents/item-2_subtitle_2.srt",
+        options: {
+          headers: {
+            Authorization:
+              'MediaBrowser DeviceId="device-1", Token="SECRET_TOKEN"',
+          },
+        },
+      },
+    ]);
+    expect(result.updatedMediaSource.MediaStreams?.[0].DeliveryUrl).toBe(
+      "file:///documents/item-2_subtitle_2.srt",
     );
   });
 });

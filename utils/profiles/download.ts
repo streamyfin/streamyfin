@@ -8,39 +8,18 @@ import type {
   SubtitleProfile,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { type AudioTranscodeModeType, generateDeviceProfile } from "./native";
+import { IMAGE_SUBTITLE_CODECS, TEXT_SUBTITLE_CODECS } from "./subtitles";
 
 /**
  * Download-specific subtitle profiles.
- * These are more permissive than streaming profiles since we can embed subtitles.
  */
 const downloadSubtitleProfiles: SubtitleProfile[] = [
-  // Official formats
-  { Format: "vtt", Method: "Encode" },
-  { Format: "webvtt", Method: "Encode" },
-  { Format: "srt", Method: "Encode" },
-  { Format: "subrip", Method: "Encode" },
-  { Format: "ttml", Method: "Encode" },
-  { Format: "dvdsub", Method: "Encode" },
-  { Format: "ass", Method: "Encode" },
-  { Format: "idx", Method: "Encode" },
-  { Format: "pgs", Method: "Encode" },
-  { Format: "pgssub", Method: "Encode" },
-  { Format: "ssa", Method: "Encode" },
-  // Other formats
-  { Format: "microdvd", Method: "Encode" },
-  { Format: "mov_text", Method: "Encode" },
-  { Format: "mpl2", Method: "Encode" },
-  { Format: "pjs", Method: "Encode" },
-  { Format: "realtext", Method: "Encode" },
-  { Format: "scc", Method: "Encode" },
-  { Format: "smi", Method: "Encode" },
-  { Format: "stl", Method: "Encode" },
-  { Format: "sub", Method: "Encode" },
-  { Format: "subviewer", Method: "Encode" },
-  { Format: "teletext", Method: "Encode" },
-  { Format: "text", Method: "Encode" },
-  { Format: "vplayer", Method: "Encode" },
-  { Format: "xsub", Method: "Encode" },
+  ...TEXT_SUBTITLE_CODECS.map(
+    (Format): SubtitleProfile => ({ Format, Method: "External" }),
+  ),
+  ...IMAGE_SUBTITLE_CODECS.map(
+    (Format): SubtitleProfile => ({ Format, Method: "Encode" }),
+  ),
 ];
 
 /**
