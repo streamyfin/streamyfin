@@ -30,9 +30,8 @@ export function isTabRoute(s: string): s is TabRoute {
 /**
  * Check if we're at the root of a tab
  */
-function isAtTabRoot(segments: string[]): boolean {
-  const lastSegment = segments[segments.length - 1];
-  return isTabRoute(lastSegment) || lastSegment === "index";
+export function isAtTabRoot(segments: string[]): boolean {
+  return isTabRoute(segments[segments.length - 1]);
 }
 
 /**

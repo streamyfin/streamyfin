@@ -17,6 +17,7 @@ import { TVNavBar } from "@/components/tv/TVNavBar";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import {
+  isAtTabRoot,
   isTabRoute,
   useTVHomeBackHandler,
   useTVTabRootBackHandler,
@@ -50,8 +51,7 @@ function TVTabLayout() {
   const router = useRouter();
 
   const currentTab = segments.find(isTabRoute);
-  const lastSegment = segments[segments.length - 1] ?? "";
-  const atTabRoot = isTabRoute(lastSegment) || lastSegment === "index";
+  const atTabRoot = isAtTabRoot(segments);
 
   const tabs: TVNavBarTab[] = useMemo(
     () =>
