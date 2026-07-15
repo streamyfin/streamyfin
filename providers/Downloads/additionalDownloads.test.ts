@@ -26,6 +26,8 @@ type RecordedDownload = {
   options?: { headers?: Record<string, string> };
 };
 const downloads: RecordedDownload[] = [];
+let inFlight = 0;
+let maxInFlight = 0;
 
 class FakeDirectory {
   uri: string;
@@ -49,6 +51,10 @@ class FakeFile {
     destination: FakeFile,
     options?: { headers?: Record<string, string> },
   ) => {
+    inFlight++;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    inFlight--;
     downloads.push({ url, destination: destination.uri, options });
     return destination;
   };
@@ -87,6 +93,8 @@ const trickplayItem: BaseItemDto = {
 
 beforeEach(() => {
   downloads.length = 0;
+  inFlight = 0;
+  maxInFlight = 0;
   store.set(apiAtom, api);
 });
 
@@ -140,6 +148,23 @@ describe("downloadSubtitles", () => {
     expect(result.MediaStreams?.[0].DeliveryUrl).toBe(
       "file:///documents/some_movie__subtitle_3.srt",
     );
+  });
+
+  test("downloads subtitles one at a time (concurrent extraction corrupts Jellyfin's output)", async () => {
+    const mediaSource: MediaSourceInfo = {
+      MediaStreams: [0, 1, 2].map((index) => ({
+        Type: "Subtitle",
+        DeliveryMethod: "External",
+        DeliveryUrl: `/Videos/item-1/subs/${index}/Stream.srt`,
+        Index: index,
+        Codec: "srt",
+      })),
+    };
+
+    await downloadSubtitles(mediaSource, trickplayItem, api);
+
+    expect(downloads.length).toBe(3);
+    expect(maxInFlight).toBe(1);
   });
 });
 

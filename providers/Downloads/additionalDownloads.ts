@@ -90,8 +90,10 @@ export async function downloadSubtitles(
   }
 
   const filename = generateFilename(item);
-  const downloadPromises = externalSubtitles.map(async (subtitle) => {
-    if (!subtitle.DeliveryUrl) return;
+  // Sequential on purpose: concurrent subtitle requests make Jellyfin's
+  // first-time extraction race with itself and serve corrupted files
+  for (const subtitle of externalSubtitles) {
+    if (!subtitle.DeliveryUrl) continue;
 
     const url = (api.basePath || "") + subtitle.DeliveryUrl;
     const extension = subtitle.Codec || "srt";
@@ -103,7 +105,7 @@ export async function downloadSubtitles(
     // Skip if already exists
     if (destination.exists) {
       subtitle.DeliveryUrl = destination.uri;
-      return;
+      continue;
     }
 
     try {
@@ -117,9 +119,7 @@ export async function downloadSubtitles(
         error,
       );
     }
-  });
-
-  await Promise.all(downloadPromises);
+  }
 
   return mediaSource;
 }
