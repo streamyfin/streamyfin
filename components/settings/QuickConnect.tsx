@@ -58,7 +58,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           successHapticFeedback();
           Alert.alert(
             t("home.settings.quick_connect.success"),
-            t("home.settings.quick_connect.quick_connect_autorized"),
+            t("home.settings.quick_connect.quick_connect_authorized"),
           );
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
