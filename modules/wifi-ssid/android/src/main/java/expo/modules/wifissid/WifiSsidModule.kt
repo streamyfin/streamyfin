@@ -55,13 +55,13 @@ class WifiSsidModule : Module() {
    * location-sensitive).
    */
   private fun readWifi(): Pair<String?, Boolean> {
-    val appContext = context.applicationContext
+    val androidContext = context.applicationContext
     var connectedToWifi = false
     var ssid: String? = null
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       try {
-        val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val cm = androidContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val caps = cm?.let { manager ->
           manager.activeNetwork?.let { net -> manager.getNetworkCapabilities(net) }
         }
@@ -72,11 +72,23 @@ class WifiSsidModule : Module() {
       } catch (e: Exception) {
         Log.e(TAG, "Error reading Wi-Fi via ConnectivityManager", e)
       }
+    } else {
+      // Pre-Q (API 26–28): NetworkCapabilities/transportInfo aren't available, so
+      // detect a Wi-Fi connection via the legacy active-network API. Without this,
+      // connectedToWifi stays false on Android 8/9 even when connected, so the
+      // "connected but SSID hidden" state never surfaces there.
+      try {
+        val cm = androidContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        @Suppress("DEPRECATION")
+        connectedToWifi = cm?.activeNetworkInfo?.type == ConnectivityManager.TYPE_WIFI
+      } catch (e: Exception) {
+        Log.e(TAG, "Error reading Wi-Fi via ConnectivityManager (legacy)", e)
+      }
     }
 
     if (ssid == null && hasFineLocationPermission()) {
       try {
-        val wm = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val wm = androidContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
         @Suppress("DEPRECATION")
         ssid = wm?.connectionInfo?.ssid?.sanitize()
       } catch (e: Exception) {

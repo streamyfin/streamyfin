@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -102,16 +103,25 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
     };
   }, [ssid, permissionStatus, evaluateAndSwitchUrl]);
 
+  const value = useMemo(
+    () => ({
+      effectiveServerUrl,
+      isUsingLocalUrl,
+      currentSSID: ssid,
+      connectedToWifi,
+      refreshUrlState,
+    }),
+    [
+      effectiveServerUrl,
+      isUsingLocalUrl,
+      ssid,
+      connectedToWifi,
+      refreshUrlState,
+    ],
+  );
+
   return (
-    <ServerUrlContext.Provider
-      value={{
-        effectiveServerUrl,
-        isUsingLocalUrl,
-        currentSSID: ssid,
-        connectedToWifi,
-        refreshUrlState,
-      }}
-    >
+    <ServerUrlContext.Provider value={value}>
       {children}
     </ServerUrlContext.Provider>
   );

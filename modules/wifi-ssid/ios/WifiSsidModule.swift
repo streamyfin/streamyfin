@@ -41,6 +41,10 @@ public class WifiSsidModule: Module {
     }
     pathMonitor.start(queue: monitorQueue)
   }
+
+  deinit {
+    pathMonitor.cancel()
+  }
   #endif
 
   public func definition() -> ModuleDefinition {

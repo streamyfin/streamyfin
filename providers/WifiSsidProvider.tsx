@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { Platform } from "react-native";
@@ -129,16 +130,19 @@ export function WifiSsidProvider({ children }: Props): React.ReactElement {
     return () => clearInterval(interval);
   }, [permissionStatus, fetchSSID]);
 
+  const value = useMemo(
+    () => ({
+      ssid,
+      connectedToWifi,
+      permissionStatus,
+      requestPermission,
+      isLoading,
+    }),
+    [ssid, connectedToWifi, permissionStatus, requestPermission, isLoading],
+  );
+
   return (
-    <WifiSsidContext.Provider
-      value={{
-        ssid,
-        connectedToWifi,
-        permissionStatus,
-        requestPermission,
-        isLoading,
-      }}
-    >
+    <WifiSsidContext.Provider value={value}>
       {children}
     </WifiSsidContext.Provider>
   );
