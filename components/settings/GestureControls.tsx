@@ -2,7 +2,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ViewProps } from "react-native";
-import { Switch } from "react-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
@@ -39,7 +39,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           )}
           disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.enableHorizontalSwipeSkip}
             disabled={pluginSettings?.enableHorizontalSwipeSkip?.locked}
             onValueChange={(enableHorizontalSwipeSkip) =>
@@ -55,7 +55,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           )}
           disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.enableLeftSideBrightnessSwipe}
             disabled={pluginSettings?.enableLeftSideBrightnessSwipe?.locked}
             onValueChange={(enableLeftSideBrightnessSwipe) =>
@@ -71,7 +71,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           )}
           disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.enableRightSideVolumeSwipe}
             disabled={pluginSettings?.enableRightSideVolumeSwipe?.locked}
             onValueChange={(enableRightSideVolumeSwipe) =>
@@ -87,7 +87,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           )}
           disabled={pluginSettings?.hideVolumeSlider?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.hideVolumeSlider}
             disabled={pluginSettings?.hideVolumeSlider?.locked}
             onValueChange={(hideVolumeSlider) =>
@@ -103,7 +103,7 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           )}
           disabled={pluginSettings?.hideBrightnessSlider?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.hideBrightnessSlider}
             disabled={pluginSettings?.hideBrightnessSlider?.locked}
             onValueChange={(hideBrightnessSlider) =>

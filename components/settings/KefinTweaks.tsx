@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Switch, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { useSettings } from "@/utils/atoms/settings";
 
 export const KefinTweaksSettings = () => {
@@ -20,7 +21,7 @@ export const KefinTweaksSettings = () => {
             {isEnabled ? t("Watchlist On") : t("Watchlist Off")}
           </Text>
 
-          <Switch
+          <SettingSwitch
             value={isEnabled}
             onValueChange={(value) => updateSettings({ useKefinTweaks: value })}
             trackColor={{ false: "#555", true: "purple" }}

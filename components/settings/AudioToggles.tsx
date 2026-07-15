@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View, type ViewProps } from "react-native";
-import { Switch } from "react-native-gesture-handler";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -135,7 +135,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           title={t("home.settings.audio.set_audio_track")}
           disabled={pluginSettings?.rememberAudioSelections?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.rememberAudioSelections}
             disabled={pluginSettings?.rememberAudioSelections?.locked}
             onValueChange={(value) =>

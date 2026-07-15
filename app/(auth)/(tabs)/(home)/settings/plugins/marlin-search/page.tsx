@@ -4,13 +4,13 @@ import { useTranslation } from "react-i18next";
 import {
   Linking,
   ScrollView,
-  Switch,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -72,7 +72,7 @@ export default function MarlinSearchPage() {
         paddingRight: insets.right,
       }}
     >
-      <DisabledSetting disabled={disabled} className='px-4'>
+      <DisabledSetting disabled={disabled} className='px-4 pt-4'>
         <ListGroup>
           <DisabledSetting
             disabled={
@@ -90,7 +90,7 @@ export default function MarlinSearchPage() {
                 queryClient.invalidateQueries({ queryKey: ["search"] });
               }}
             >
-              <Switch
+              <SettingSwitch
                 value={settings.searchEngine === "Marlin"}
                 disabled={!!pluginSettings?.streamyStatsServerUrl?.value}
                 onValueChange={(value) => {
