@@ -20,7 +20,7 @@ describe("getDownloadUrl", () => {
     // so this URL must carry (non-legacy) query auth.
     const api = makeApi({
       PlaySessionId: "session-1",
-      MediaSources: [{ Id: "media-1", Container: "mkv" }],
+      MediaSources: [{ Id: "media-1" }],
     });
 
     const result = await getDownloadUrl({

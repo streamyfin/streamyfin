@@ -106,20 +106,8 @@ const getDownloadUrl = (
     playSessionId?: string | null;
   },
 ): StreamResult => {
-  // First, handle download-specific transcoding modifications
-  let downloadMediaSource = mediaSource;
-  if (mediaSource?.TranscodingUrl) {
-    downloadMediaSource = {
-      ...mediaSource,
-      TranscodingUrl: mediaSource.TranscodingUrl.replace(
-        "master.m3u8",
-        "stream",
-      ),
-    };
-  }
-
   // Get the base URL with download-specific parameters
-  let url = getPlaybackUrl(api, itemId, downloadMediaSource, {
+  let url = getPlaybackUrl(api, itemId, mediaSource, {
     ...params,
     container: "ts",
     static: "false",

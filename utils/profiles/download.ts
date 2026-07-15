@@ -67,8 +67,8 @@ export const generateDownloadProfile = (
       if (profile.Type === "Video") {
         return {
           ...profile,
+          Protocol: "http" as const,
           CopyTimestamps: false,
-          EnableSubtitlesInManifest: true,
         };
       }
       return profile;
