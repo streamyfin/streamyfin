@@ -1,7 +1,10 @@
 import { Image } from "expo-image";
+import { useAtomValue } from "jotai";
 import type { FC } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { CONTROLS_CONSTANTS } from "./constants";
 
 // Slightly larger preview (scale 1.6 vs old 1.4) to give the overlay text
@@ -41,11 +44,15 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
   imageScale = 1,
   chapterName,
 }) => {
+  const api = useAtomValue(apiAtom);
+
   if (!trickPlayUrl || !trickplayInfo) {
     return null;
   }
 
   const { x, y, url } = trickPlayUrl;
+  const headers =
+    api && !url.startsWith("file") ? getAuthHeaders(api) : undefined;
   const tileWidth = CONTROLS_CONSTANTS.TILE_WIDTH;
   const tileHeight = tileWidth / trickplayInfo.aspectRatio!;
   const timeStr = `${time.hours > 0 ? `${time.hours}:` : ""}${
@@ -94,7 +101,7 @@ export const TrickplayBubble: FC<TrickplayBubbleProps> = ({
               { translateY: -y * tileHeight },
             ],
           }}
-          source={{ uri: url }}
+          source={{ uri: url, headers }}
           contentFit='cover'
         />
         {/*

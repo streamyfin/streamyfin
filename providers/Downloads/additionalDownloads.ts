@@ -5,6 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Directory, File, Paths } from "expo-file-system";
 import { getItemImage } from "@/utils/getItemImage";
+import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
 import { fetchAndParseSegments } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import type { MediaTimeSegment, TrickPlayData } from "./types";
@@ -16,6 +17,7 @@ import { generateFilename } from "./utils";
  */
 export async function downloadTrickplayImages(
   item: BaseItemDto,
+  api: Api,
 ): Promise<TrickPlayData | undefined> {
   const trickplayInfo = getTrickplayInfo(item);
   if (!trickplayInfo || !item.Id) {
@@ -46,7 +48,9 @@ export async function downloadTrickplayImages(
     }
 
     downloadPromises.push(
-      File.downloadFileAsync(url, destination)
+      File.downloadFileAsync(url, destination, {
+        headers: getAuthHeaders(api),
+      })
         .then(() => {
           totalSize += destination.size;
         })
@@ -74,7 +78,7 @@ export async function downloadTrickplayImages(
 export async function downloadSubtitles(
   mediaSource: MediaSourceInfo,
   item: BaseItemDto,
-  apiBasePath: string,
+  api: Api,
 ): Promise<MediaSourceInfo> {
   const externalSubtitles = mediaSource.MediaStreams?.filter(
     (stream) =>
@@ -89,7 +93,7 @@ export async function downloadSubtitles(
   const downloadPromises = externalSubtitles.map(async (subtitle) => {
     if (!subtitle.DeliveryUrl) return;
 
-    const url = apiBasePath + subtitle.DeliveryUrl;
+    const url = (api.basePath || "") + subtitle.DeliveryUrl;
     const extension = subtitle.Codec || "srt";
     const destination = new File(
       Paths.document,
@@ -103,7 +107,9 @@ export async function downloadSubtitles(
     }
 
     try {
-      await File.downloadFileAsync(url, destination);
+      await File.downloadFileAsync(url, destination, {
+        headers: getAuthHeaders(api),
+      });
       subtitle.DeliveryUrl = destination.uri;
     } catch (error) {
       console.error(
@@ -223,11 +229,11 @@ export async function downloadAdditionalAssets(params: {
     segments,
     // Cover images (fire and forget, errors are logged)
   ] = await Promise.all([
-    downloadTrickplayImages(item),
+    downloadTrickplayImages(item, api),
     // Only download subtitles for non-transcoded streams
     mediaSource.TranscodingUrl
       ? Promise.resolve(mediaSource)
-      : downloadSubtitles(mediaSource, item, api.basePath || ""),
+      : downloadSubtitles(mediaSource, item, api),
     item.Id
       ? fetchSegments(item.Id, api)
       : Promise.resolve({

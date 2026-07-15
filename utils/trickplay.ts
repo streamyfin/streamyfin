@@ -61,5 +61,5 @@ export const generateTrickplayUrl = (item: BaseItemDto, sheetIndex: number) => {
   const api = store.get(apiAtom);
   const resolution = getTrickplayInfo(item)?.resolution;
   if (!resolution || !api) return null;
-  return `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${sheetIndex}.jpg?ApiKey=${api.accessToken}`;
+  return `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${sheetIndex}.jpg`;
 };

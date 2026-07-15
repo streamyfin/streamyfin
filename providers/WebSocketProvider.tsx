@@ -16,6 +16,7 @@ import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
 import { getOrSetDeviceId } from "@/utils/device";
+import { getWebSocketUrl } from "@/utils/jellyfin/getWebSocketUrl";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
@@ -171,12 +172,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       return;
     }
 
-    const protocol = api.basePath.includes("https") ? "wss" : "ws";
-    const url = `${protocol}://${api.basePath
-      .replace("https://", "")
-      .replace("http://", "")}/socket?ApiKey=${
-      api.accessToken
-    }&deviceId=${deviceId}`;
+    const url = getWebSocketUrl(api.basePath, api.accessToken, deviceId);
 
     const newWebSocket = new WebSocket(url);
     let keepAliveInterval: ReturnType<typeof setInterval> | null = null;

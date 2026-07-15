@@ -3,6 +3,9 @@ import { Image } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
+import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
+import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
 import {
   generateTrickplayUrl,
@@ -70,11 +73,13 @@ export const useTrickplay = (item: BaseItemDto) => {
       const url = getTrickplayUrl(item, index);
       if (url) urls.push(url);
     }
+    const api = store.get(apiAtom);
+    const headers = !isOffline && api ? getAuthHeaders(api) : undefined;
     for (let i = 0; i < urls.length; i += maxConcurrent) {
       const batch = urls.slice(i, i + maxConcurrent);
       await Promise.all(
         batch.map(
-          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
+          (url) => Image.prefetch(url, { headers }).catch(() => {}), // Ignore errors
         ),
       );
       // Yield to the event loop between batches to avoid blocking
