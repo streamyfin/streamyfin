@@ -46,7 +46,7 @@ describe("generateDownloadProfile", () => {
     ]);
   });
 
-  test("video transcoding profile requests a progressive http ts stream", () => {
+  test("video transcoding profile requests a progressive http fmp4 stream", () => {
     const profile = generateDownloadProfile("auto");
 
     const video = profile.TranscodingProfiles?.find((p) => p.Type === "Video");
@@ -54,14 +54,20 @@ describe("generateDownloadProfile", () => {
     // Context must stay "Streaming": the server's MediaInfoHelper hardcodes
     // EncodingContext.Streaming for PlaybackInfo, so "Static" profiles are
     // never matched. Protocol "http" makes the server return the progressive
-    // /videos/{id}/stream.ts URL directly instead of an HLS playlist.
+    // /videos/{id}/stream.mp4 URL directly instead of an HLS playlist; a
+    // progressive mp4 is written as fragmented MP4 by the server.
+    //
+    // The audio list keeps eac3 (proper ec-3 tag in mp4, stream-copies with
+    // Dolby Atmos metadata intact) and drops dts: ffmpeg muxes DTS into mp4
+    // under the legacy mp4a/esds dialect that only ffmpeg-family software
+    // reads reliably, so DTS sources get a deterministic transcode instead.
     expect(video).toEqual({
       Type: "Video",
       Context: "Streaming",
       Protocol: "http",
-      Container: "ts",
+      Container: "mp4",
       VideoCodec: "h264,hevc",
-      AudioCodec: "aac,mp3,ac3,dts",
+      AudioCodec: "aac,mp3,ac3,eac3",
       MaxAudioChannels: "6",
       CopyTimestamps: false,
     });

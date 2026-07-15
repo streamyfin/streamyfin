@@ -109,7 +109,7 @@ const getDownloadUrl = (
   // Get the base URL with download-specific parameters
   let url = getPlaybackUrl(api, itemId, mediaSource, {
     ...params,
-    container: "ts",
+    container: "mp4",
     static: "false",
   });
 

@@ -61,4 +61,25 @@ describe("getDownloadStreamUrl", () => {
     expect(result?.url).toBe(`https://jellyfin.example.com${transcodingUrl}`);
     expect(result?.sessionId).toBe("session-1");
   });
+
+  test("requests an mp4 stream when the server offers no TranscodingUrl", async () => {
+    const api = makeApi({
+      PlaySessionId: "session-1",
+      MediaSources: [{ Id: "media-1" }],
+    });
+
+    const result = await getDownloadStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      maxStreamingBitrate: 3_000_000,
+      audioStreamIndex: 0,
+      subtitleStreamIndex: -1,
+      deviceId: "device-1",
+    });
+
+    const url = new URL(result!.url!);
+    expect(url.searchParams.get("container")).toBe("mp4");
+    expect(url.searchParams.get("static")).toBe("false");
+  });
 });

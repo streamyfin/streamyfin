@@ -47,6 +47,8 @@ export const generateDownloadProfile = (
         return {
           ...profile,
           Protocol: "http" as const,
+          Container: "mp4",
+          AudioCodec: "aac,mp3,ac3,eac3",
           CopyTimestamps: false,
         };
       }
