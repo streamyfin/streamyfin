@@ -312,9 +312,10 @@ export default function DirectPlayerPage() {
   // handles a clean stop, but a channel switch (the player re-fetches in place)
   // or an unmount after an error bypass it, so track the open live stream and
   // release it on those paths too.
-  const openLiveStreamIdRef = useRef<string | null>(null);
   const apiRef = useRef(api);
-  apiRef.current = api;
+  useEffect(() => {
+    apiRef.current = api;
+  }, [api]);
 
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
@@ -328,24 +329,13 @@ export default function DirectPlayerPage() {
     [offline],
   );
 
-  // Release the previous live stream when the stream changes (channel switch)…
+  // The effect cleanup releases the live stream both when it changes (channel
+  // switch, which re-runs the effect) and when the player unmounts, so no
+  // manual previous-id tracking is needed.
   useEffect(() => {
     const liveStreamId = stream?.mediaSource?.LiveStreamId ?? null;
-    const previous = openLiveStreamIdRef.current;
-    if (previous && previous !== liveStreamId) {
-      releaseLiveStream(previous);
-    }
-    openLiveStreamIdRef.current = liveStreamId;
+    return () => releaseLiveStream(liveStreamId);
   }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
-
-  // …and the current one when the player unmounts.
-  useEffect(
-    () => () => {
-      releaseLiveStream(openLiveStreamIdRef.current);
-      openLiveStreamIdRef.current = null;
-    },
-    [releaseLiveStream],
-  );
 
   useEffect(() => {
     const fetchStreamData = async (): Promise<Stream | null> => {
