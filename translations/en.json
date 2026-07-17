@@ -56,6 +56,7 @@
   "save_account": {
     "title": "Save account",
     "save_for_later": "Save this account",
+    "not_saved": "Account was not saved",
     "security_option": "Security option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",

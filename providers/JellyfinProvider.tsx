@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { AppState, Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import uuid from "react-native-uuid";
+import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
@@ -450,8 +451,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             if (securityType === "pin" && !pinHash) {
               // Never persist a "pin" credential without its hash — it would be
               // impossible to unlock. Skip the save rather than failing a login
-              // that already succeeded.
+              // that already succeeded, and tell the user it didn't happen.
               writeErrorLog("Account save skipped: PIN required but missing");
+              toast.error(t("save_account.not_saved"));
             } else {
               await saveAccountCredential({
                 serverUrl: api.basePath,
