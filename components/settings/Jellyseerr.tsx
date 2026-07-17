@@ -33,22 +33,25 @@ export const JellyseerrSettings = () => {
     string | undefined
   >(settings?.jellyseerrServerUrl || undefined);
 
+  // When the URL is admin-pinned, ignore any locally-typed value so the login
+  // targets the same server the (read-only) input displays.
+  const effectiveServerUrl = urlLocked
+    ? settings?.jellyseerrServerUrl
+    : jellyseerrServerUrl || settings?.jellyseerrServerUrl;
+
   const loginToJellyseerrMutation = useMutation({
     mutationFn: async () => {
-      if (!jellyseerrServerUrl && !settings?.jellyseerrServerUrl)
-        throw new Error("Missing server url");
+      if (!effectiveServerUrl) throw new Error("Missing server url");
       if (!user?.Name)
         throw new Error("Missing required information for login");
-      const jellyseerrTempApi = new JellyseerrApi(
-        jellyseerrServerUrl || settings.jellyseerrServerUrl || "",
-      );
+      const jellyseerrTempApi = new JellyseerrApi(effectiveServerUrl);
       const testResult = await jellyseerrTempApi.test();
       if (!testResult.isValid) throw new Error("Invalid server url");
       return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
     },
     onSuccess: (user) => {
       setJellyseerrUser(user);
-      updateSettings({ jellyseerrServerUrl });
+      updateSettings({ jellyseerrServerUrl: effectiveServerUrl });
     },
     onError: () => {
       toast.error(t("jellyseerr.failed_to_login"));
@@ -149,7 +152,7 @@ export const JellyseerrSettings = () => {
               />
               {urlLocked && (
                 <Text className='text-xs text-red-600 mb-2'>
-                  Disabled by admin
+                  {t("home.settings.disabled_by_admin")}
                 </Text>
               )}
             </View>

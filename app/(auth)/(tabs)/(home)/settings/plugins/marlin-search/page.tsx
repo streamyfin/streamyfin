@@ -28,7 +28,9 @@ export default function MarlinSearchPage() {
 
   const searchEngineLocked = pluginSettings?.searchEngine?.locked === true;
   const marlinUrlLocked = pluginSettings?.marlinServerUrl?.locked === true;
-  const hasStreamystats = !!pluginSettings?.streamyStatsServerUrl?.value;
+  // Effective (user/admin merged) URL, same source the search screen uses —
+  // the raw plugin value misses a user-configured Streamystats.
+  const hasStreamystats = !!settings?.streamyStatsServerUrl;
 
   const onSave = (val: string) => {
     updateSettings({
@@ -74,6 +76,9 @@ export default function MarlinSearchPage() {
               "home.settings.plugins.marlin_search.enable_marlin_search",
             )}
             disabledByAdmin={searchEngineLocked}
+            // Streamystats owns the search engine while configured — block the
+            // row tap too, not just the Switch, so it can't force "Jellyfin".
+            disabled={hasStreamystats}
             onPress={() => {
               updateSettings({ searchEngine: "Jellyfin" });
               queryClient.invalidateQueries({ queryKey: ["search"] });

@@ -118,6 +118,7 @@
     },
     "settings": {
       "settings_title": "Settings",
+      "disabled_by_admin": "Disabled by admin",
       "log_out_button": "Log out",
       "switch_user": {
         "title": "Switch user",
@@ -370,6 +371,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Couldn't refresh settings from server",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh settings from server"

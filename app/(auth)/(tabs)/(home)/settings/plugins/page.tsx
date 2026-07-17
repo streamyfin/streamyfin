@@ -13,8 +13,15 @@ export default function PluginsPage() {
   const { refreshStreamyfinPluginSettings } = useSettings();
 
   const handleRefreshFromServer = useCallback(async () => {
-    await refreshStreamyfinPluginSettings();
-    toast.success(t("home.settings.plugins.streamystats.toasts.refreshed"));
+    // Returns undefined when the API call fails (handled internally).
+    const refreshed = await refreshStreamyfinPluginSettings();
+    if (refreshed) {
+      toast.success(t("home.settings.plugins.streamystats.toasts.refreshed"));
+    } else {
+      toast.error(
+        t("home.settings.plugins.streamystats.toasts.refresh_failed"),
+      );
+    }
   }, [refreshStreamyfinPluginSettings, t]);
 
   return (
