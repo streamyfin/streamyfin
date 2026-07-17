@@ -19,7 +19,9 @@ interface BottomControlsProps {
   currentTime: number;
   remainingTime: number;
   showSkipButton: boolean;
+  skipButtonText: string;
   showSkipCreditButton: boolean;
+  skipCreditButtonText: string;
   hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
@@ -72,7 +74,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
   currentTime,
   remainingTime,
   showSkipButton,
+  skipButtonText,
   showSkipCreditButton,
+  skipCreditButtonText,
   hasContentAfterCredits,
   skipIntro,
   skipCredit,
@@ -152,7 +156,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
-            buttonText='Skip Intro'
+            buttonText={skipButtonText}
           />
           {/* Smart Skip Credits behavior:
               - Show "Skip Credits" if there's content after credits OR no next episode
@@ -162,7 +166,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               showSkipCreditButton && (hasContentAfterCredits || !nextItem)
             }
             onPress={skipCredit}
-            buttonText='Skip Credits'
+            buttonText={skipCreditButtonText}
           />
           {settings.autoPlayNextEpisode !== false &&
             (settings.maxAutoPlayEpisodeCount.value === -1 ||
