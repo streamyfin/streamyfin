@@ -64,7 +64,7 @@ const ContinueWatchingPoster: React.FC<ContinueWatchingPosterProps> = ({
 
     return `${api?.basePath}/Items/${item.Id}/Images/Primary?fillHeight=389&quality=80`;
     // useEpisodePoster in deps so flipping the prop re-computes the URL live.
-  }, [item, useEpisodePoster]);
+  }, [api, item, useEpisodePoster]);
 
   if (!url)
     return <View className='aspect-video border border-neutral-800 w-44' />;
