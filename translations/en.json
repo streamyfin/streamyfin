@@ -296,10 +296,6 @@
         },
         "safe_area_in_controls": "Safe area in controls",
         "video_player": "Video Player",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
-        },
         "show_custom_menu_links": "Show custom menu links",
         "show_large_home_carousel": "Show large home carousel (beta)",
         "hide_libraries": "Hide libraries",
@@ -653,10 +649,6 @@
     "skip_commercial": "Skip commercial",
     "skip_preview": "Skip preview",
     "skip_credits": "Skip credits",
-    "refresh_tracks": "Refresh tracks",
-    "audio_tracks": "Audio tracks:",
-    "playback_state": "Playback state:",
-    "index": "Index:",
     "stopPlayback": "Stop playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
