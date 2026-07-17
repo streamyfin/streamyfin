@@ -55,19 +55,26 @@ export function useAppRouter() {
           return;
         pushInFlightRef.current = true;
       }
-      if (typeof href === "string") {
-        router.push(href as any);
-      } else {
-        const callerParams = (href.params ?? {}) as Record<string, unknown>;
-        const hasExplicitOffline = "offline" in callerParams;
-        router.push({
-          ...href,
-          params: {
-            // Only add offline if caller hasn't explicitly set it
-            ...(isOffline && !hasExplicitOffline && { offline: "true" }),
-            ...callerParams,
-          },
-        } as any);
+      try {
+        if (typeof href === "string") {
+          router.push(href as any);
+        } else {
+          const callerParams = (href.params ?? {}) as Record<string, unknown>;
+          const hasExplicitOffline = "offline" in callerParams;
+          router.push({
+            ...href,
+            params: {
+              // Only add offline if caller hasn't explicitly set it
+              ...(isOffline && !hasExplicitOffline && { offline: "true" }),
+              ...callerParams,
+            },
+          } as any);
+        }
+      } catch (e) {
+        // A push that throws never blurs the screen, so the focus listener
+        // would never reset the guard — release it here to avoid a stuck lock.
+        pushInFlightRef.current = false;
+        throw e;
       }
     },
     [router, isOffline, navigation],
