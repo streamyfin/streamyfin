@@ -275,6 +275,11 @@ export default function DirectPlayerPage() {
     };
 
     if (itemId) {
+      setItem(null);
+      setDownloadedItem(null);
+      // Clear the previous episode's stream so the loader gate stays closed
+      // until the new item's stream resolves (avoids a stale MPV source frame).
+      setStream(null);
       fetchItemData();
     }
   }, [itemId, offline, api, user?.Id]);
@@ -344,6 +349,12 @@ export default function DirectPlayerPage() {
         // Don't attempt to fetch stream data if item is not available
         if (!item?.Id) {
           console.log("Item not loaded yet, skipping stream data fetch");
+          setStreamStatus({ isLoading: false, isError: false });
+          return null;
+        }
+
+        // Ensure item matches the current itemId to avoid race conditions
+        if (item.Id !== itemId) {
           setStreamStatus({ isLoading: false, isError: false });
           return null;
         }
@@ -420,6 +431,7 @@ export default function DirectPlayerPage() {
     item,
     user?.Id,
     downloadedItem,
+    offline,
   ]);
 
   useEffect(() => {
@@ -459,27 +471,21 @@ export default function DirectPlayerPage() {
     if (!item?.Id || !stream?.sessionId || offline || !api) return;
 
     const currentTimeInTicks = msToTicks(progress.get());
-    await getPlaystateApi(api).onPlaybackStopped({
-      itemId: item.Id,
-      mediaSourceId: mediaSourceId,
-      positionTicks: currentTimeInTicks,
-      playSessionId: stream.sessionId,
-      // Release the server-side live stream (and its tuner slot) on stop.
-      // Jellyfin only closes a live stream opened via autoOpenLiveStream when
-      // onPlaybackStopped is called with its liveStreamId; without it the stream
-      // leaks and Live TV eventually fails for everyone with "M3U simultaneous
-      // stream limit has been reached". Undefined for non-live items (no-op).
-      liveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
+    await getPlaystateApi(api).reportPlaybackStopped({
+      playbackStopInfo: {
+        ItemId: item.Id,
+        MediaSourceId: mediaSourceId,
+        PositionTicks: currentTimeInTicks,
+        PlaySessionId: stream.sessionId,
+        // Release the server-side live stream (and its tuner slot) on stop.
+        // Jellyfin only closes a live stream opened via autoOpenLiveStream when
+        // the stop report carries its LiveStreamId; without it the stream leaks
+        // and Live TV eventually fails for everyone with "M3U simultaneous
+        // stream limit has been reached". Undefined for non-live items (no-op).
+        LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
+      },
     });
-  }, [
-    api,
-    item,
-    mediaSourceId,
-    stream,
-    progress,
-    offline,
-    revalidateProgressCache,
-  ]);
+  }, [api, item, mediaSourceId, stream, progress, offline]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -488,18 +494,32 @@ export default function DirectPlayerPage() {
     });
     reportPlaybackStopped();
     setIsPlaybackStopped(true);
-    videoRef.current?.pause();
+    // Synchronously destroy the mpv instance + decoder + surface buffers
+    // BEFORE the screen unmounts. Otherwise the next screen (or the next
+    // episode's player) mounts while the old 4K decoder is still alive,
+    // causing OOM on low-RAM devices. Native stop() is idempotent so the
+    // later React unmount cleanup is still safe.
+    videoRef.current?.destroy().catch(() => {});
+    // Pre-libmpv-1.0 used `stop()`:
+    // videoRef.current?.stop();
     revalidateProgressCache();
     // Resume inactivity timer when leaving player (TV only)
     resumeInactivityTimer();
+    // Release the keep-awake wakelock acquired during playback so it
+    // doesn't follow us back to the home screen and block the TV
+    // screensaver. activateKeepAwakeAsync() is tag-scoped to this module
+    // and only released on the "paused" event; without this, navigating
+    // away mid-play leaves FLAG_KEEP_SCREEN_ON set on the window.
+    deactivateKeepAwake();
   }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
 
   useEffect(() => {
     const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
     return () => {
+      reportPlaybackStopped();
       beforeRemoveListener();
     };
-  }, [navigation, stop]);
+  }, [navigation, stop, reportPlaybackStopped]);
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
@@ -911,6 +931,27 @@ export default function DirectPlayerPage() {
       // Check if we're transcoding
       const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
 
+      // A transcoded stream only carries the audio track the server encoded
+      // into it — switching requires re-negotiating the stream with the new
+      // index (like the mobile menu's replacePlayer), not an mpv aid change.
+      if (isTranscoding) {
+        const queryParams = new URLSearchParams({
+          itemId: item?.Id ?? "",
+          audioIndex: String(index),
+          subtitleIndex: String(currentSubtitleIndex),
+          mediaSourceId: stream?.mediaSource?.Id ?? "",
+          bitrateValue: bitrateValue?.toString() ?? "",
+          playbackPosition: msToTicks(progress.get()).toString(),
+        }).toString();
+        // Destroy the current mpv instance BEFORE navigating, same rationale as
+        // goToNextItem/goToPreviousItem: Expo Router briefly holds two players
+        // during the transition, and two simultaneous decoders OOM-kill low-RAM
+        // devices. Resume is preserved via the playbackPosition param.
+        videoRef.current?.destroy().catch(() => {});
+        router.replace(`player/direct-player?${queryParams}` as any);
+        return;
+      }
+
       // Convert Jellyfin index to MPV track ID
       const mpvTrackId = getMpvAudioId(
         stream?.mediaSource,
@@ -922,7 +963,14 @@ export default function DirectPlayerPage() {
         await videoRef.current?.setAudioTrack?.(mpvTrackId);
       }
     },
-    [stream?.mediaSource],
+    [
+      stream?.mediaSource,
+      item?.Id,
+      currentSubtitleIndex,
+      bitrateValue,
+      router,
+      progress,
+    ],
   );
 
   // TV subtitle track change handler
@@ -1136,6 +1184,15 @@ export default function DirectPlayerPage() {
         nextItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
     }).toString();
 
+    // Destroy the current mpv instance BEFORE navigating so the old 4K
+    // decoder + surface buffers are freed before the new player screen
+    // mounts. Without this, Expo Router briefly holds two simultaneous
+    // mpv instances during the transition (~768 MB of surface buffers
+    // for two 4K HDR10+ decoders) and OOM-kills the app on low-RAM
+    // devices. Native stop() is idempotent so the subsequent React
+    // unmount cleanup is still safe.
+    videoRef.current?.destroy().catch(() => {});
+
     router.replace(`player/direct-player?${queryParams}` as any);
   }, [
     nextItem,
@@ -1146,6 +1203,7 @@ export default function DirectPlayerPage() {
     bitrateValue,
     router,
     isPlaybackStopped,
+    videoRef,
   ]);
 
   // Apply subtitle settings when video loads
@@ -1298,7 +1356,7 @@ export default function DirectPlayerPage() {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
                     t("player.error"),
-                    t("player.an_error_occured_while_playing_the_video"),
+                    t("player.an_error_occurred_while_playing_the_video"),
                   );
                   writeToLog("ERROR", "Video Error", e.nativeEvent);
                 }}

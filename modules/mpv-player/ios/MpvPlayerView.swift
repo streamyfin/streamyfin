@@ -61,6 +61,7 @@ class MpvPlayerView: ExpoView {
 	let onProgress = EventDispatcher()
 	let onError = EventDispatcher()
 	let onTracksReady = EventDispatcher()
+	let onPictureInPictureChange = EventDispatcher()
 
 	private var currentURL: URL?
 	private var cachedPosition: Double = 0
@@ -81,7 +82,6 @@ class MpvPlayerView: ExpoView {
 	private func setupView() {
 		clipsToBounds = true
 		backgroundColor = .black
-		configureAudioSession()
 
 		videoContainer = UIView()
 		videoContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -141,21 +141,26 @@ class MpvPlayerView: ExpoView {
 		CATransaction.commit()
 	}
 
+	// MARK: - Audio Session & Notifications
+
 	private func configureAudioSession() {
-		let audioSession = AVAudioSession.sharedInstance()
+		let session = AVAudioSession.sharedInstance()
 		do {
-			try audioSession.setCategory(
-				.playback,
-				mode: .moviePlayback,
-				policy: .longFormAudio,
-				options: []
-			)
-			try audioSession.setActive(true)
+			try session.setCategory(.playback, mode: .moviePlayback, policy: .longFormAudio, options: [])
+			try session.setActive(true)
 		} catch {
 			print("Failed to configure audio session: \(error)")
 		}
 	}
-	// MARK: - Audio Session & Notifications
+
+	/// Deactivate the session AND reset the category — `setActive(false)` alone
+	/// leaves `.playback`/`.longFormAudio` on the shared singleton, so any later
+	/// reactivation (foreground, route change, other modules) re-steals audio.
+	private func tearDownAudioSession() {
+		let session = AVAudioSession.sharedInstance()
+		try? session.setActive(false, options: .notifyOthersOnDeactivation)
+		try? session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+	}
 
 	private func setupNotifications() {
 		// Handle audio session interruptions (e.g., incoming calls, other apps playing audio)
@@ -270,6 +275,7 @@ class MpvPlayerView: ExpoView {
 
 	func play() {
 		intendedPlayState = true
+		configureAudioSession()
 		setupRemoteCommands()
 		renderer?.play()
 		pipController?.setPlaybackRate(1.0)
@@ -281,6 +287,49 @@ class MpvPlayerView: ExpoView {
 		renderer?.pausePlayback()
 		pipController?.setPlaybackRate(0.0)
 		pipController?.updatePlaybackState()
+	}
+
+	/**
+	 * Synchronously stop and destroy the mpv instance + decoder so memory is
+	 * freed before the next screen mounts. Safe to call multiple times — the
+	 * underlying renderer.stop() guards against re-entry.
+	 *
+	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
+	 */
+	func destroy() {
+		renderer?.stop()
+
+		// Reset view state and re-create the mpv handle so a subsequent
+		// loadVideo() on the SAME view instance can actually load.
+		// Without this, stop() leaves renderer.mpv == nil, and the next
+		// loadVideo(config:) calls renderer.load() which early-returns
+		// at `guard let handle = self.mpv else { return }` — but only
+		// after flipping isLoading = true and dispatching the loading
+		// delegate callback, so the JS layer is stuck in a perpetual
+		// "loading" state with no actual playback.
+		//
+		// This path is hit by direct-player.tsx's goToNextItem()/stop(),
+		// which call destroy() immediately before router.replace() to
+		// the same route — Expo Router reuses the same MpvPlayerView
+		// instance, so the next `source` prop update arrives on this
+		// view without a remount. setupView() is otherwise the only
+		// place start() is called, so without re-starting here the
+		// renderer stays dead until the whole view is unmounted and
+		// recreated.
+		//
+		// start() is idempotent (`guard !isRunning else { return }`)
+		// and stop() has already nulled mpv synchronously before
+		// dispatching the async mpv_terminate_destroy, so creating a
+		// fresh handle here is safe even while the old handle's
+		// teardown is still in flight on a background queue (libmpv
+		// handles are independent).
+		currentURL = nil
+		intendedPlayState = false
+		do {
+			try renderer?.start()
+		} catch {
+			onError(["error": "Failed to restart renderer after destroy: \(error.localizedDescription)"])
+		}
 	}
 
 	func seekTo(position: Double) {
@@ -440,6 +489,7 @@ class MpvPlayerView: ExpoView {
 		renderer?.stop()
 		displayLayer.removeFromSuperlayer()
 		clearNowPlayingInfo()
+		tearDownAudioSession()
 		NotificationCenter.default.removeObserver(self)
 	}
 }
@@ -519,9 +569,7 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 	}
 
 	func renderer(_: MPVLayerRenderer, didSelectAudioOutput audioOutput: String) {
-		// Audio output is now active - this is the right time to activate audio session and set Now Playing
-		print("[MPV] Audio output ready (\(audioOutput)), activating audio session and syncing Now Playing")
-		nowPlayingManager.activateAudioSession()
+		print("[MPV] Audio output ready (\(audioOutput)), syncing Now Playing")
 		syncNowPlaying(isPlaying: !isPaused())
 	}
 }
@@ -633,6 +681,9 @@ extension MpvPlayerView: PiPControllerDelegate {
 		print("PiP did start: \(didStartPictureInPicture)")
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
+		// Notify JS of the actual PiP active state. `didStartPictureInPicture`
+		// is `false` when AVKit reports a failure to start, so reflect that.
+		onPictureInPictureChange(["isActive": didStartPictureInPicture])
 	}
 	
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
@@ -651,6 +702,9 @@ extension MpvPlayerView: PiPControllerDelegate {
 		if _isZoomedToFill {
 			displayLayer.videoGravity = .resizeAspectFill
 		}
+		// Notify JS that PiP has fully stopped so the controls overlay can
+		// be re-mounted when the user returns to full screen.
+		onPictureInPictureChange(["isActive": false])
 	}
 	
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {

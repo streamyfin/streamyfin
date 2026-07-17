@@ -13,6 +13,8 @@ name: 🚀 Release (EAS build + submit)
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
+  # Queue successive releases in order instead of dropping the extra pending run.
+  queue: max
 
 on:
   push:
@@ -22,8 +24,9 @@ on:
 jobs:
   approve:
     name: 🔐 Approve release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: production
+    permissions: {}
     steps:
       - name: ✅ Release approved
         run: echo "Release approved for ${{ github.sha }}"
@@ -31,7 +34,7 @@ jobs:
   build:
     name: 🚀 ${{ matrix.name }}
     needs: approve
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     strategy:
@@ -62,37 +65,39 @@ jobs:
             artifact_name: streamyfin-android-tv-apk
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+      - parallel:
+          - name: 📥 Checkout code
+            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            with:
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: latest
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
+
+          - name: 🏗️ Setup EAS
+            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            with:
+              eas-version: latest
+              token: ${{ secrets.EXPO_TOKEN }}
+              eas-cache: true
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.os }}-bun-cache
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
-
-      - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@b184ff86a3c926240f1b6db41764c83a01c02eef # main
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          eas-cache: true
 
       # tvOS uses credentialsSource: local — restore the gitignored
       # credentials.json + cert + provisioning profiles from secrets.
@@ -176,13 +181,13 @@ jobs:
     name: 📦 Draft GitHub Release
     needs: build
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       actions: read # required for `gh run download` to list/fetch this run's artifacts
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           show-progress: false

@@ -564,6 +564,9 @@ export const Controls: FC<Props> = ({
       title: t("item_card.audio"),
       options: audioOptions,
       onSelect: handleAudioChange,
+      // In-player audio selection navigates (replacePlayer while transcoding);
+      // apply it after the modal is dismissed so it isn't swallowed.
+      deferApplyUntilDismissed: true,
     });
     controlsInteractionRef.current();
   }, [showOptions, t, audioOptions, handleAudioChange]);

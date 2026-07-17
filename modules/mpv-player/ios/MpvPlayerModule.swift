@@ -74,7 +74,13 @@ public class MpvPlayerModule: Module {
       AsyncFunction("pause") { (view: MpvPlayerView) in
         view.pause()
       }
-      
+
+      // Synchronously destroy mpv instance + decoder before navigating
+      // away from the player screen (cross-platform; matches Android).
+      AsyncFunction("destroy") { (view: MpvPlayerView) in
+        view.destroy()
+      }
+
       // Async function to seek to position
       AsyncFunction("seekTo") { (view: MpvPlayerView, position: Double) in
         view.seekTo(position: position)
@@ -213,7 +219,7 @@ public class MpvPlayerModule: Module {
       }
 
       // Defines events that the view can send to JavaScript
-      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
     }
   }
 }

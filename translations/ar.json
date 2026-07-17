@@ -16,14 +16,14 @@
     "got_it": "حسنًا",
     "connection_failed": "فشل الاتصال",
     "could_not_connect_to_server": "تعذر الاتصال بالخادم. يرجى التحقق من الرابط واتصال الشبكة.",
-    "an_unexpected_error_occured": "حدث خطأ غير متوقع",
+    "an_unexpected_error_occurred": "حدث خطأ غير متوقع",
     "change_server": "تغيير الخادم",
     "invalid_username_or_password": "اسم المستخدم أو كلمة المرور غير صالحة",
     "user_does_not_have_permission_to_log_in": "ليس لدى المستخدم صَلاحِيَة تسجيل الدخول",
     "server_is_taking_too_long_to_respond_try_again_later": "يستغرق الخادم وقتًا طويلاً للرد، يرجى المحاولة مرة أخرى لاحقًا",
     "server_received_too_many_requests_try_again_later": "تلقى الخادم عددًا كبيرًا جدًا من الطلبات، يرجى المحاولة مرة أخرى لاحقًا.",
     "there_is_a_server_error": "هناك خطأ في الخادم",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "حدث خطأ غير متوقع. هل أدخلت رابط الخادم بشكل صحيح؟",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "حدث خطأ غير متوقع. هل أدخلت رابط الخادم بشكل صحيح؟",
     "too_old_server_text": "تم اكتشاف خادم Jellyfin غير مدعوم",
     "too_old_server_description": "يرجى تحديث Jellyfin إلى أحدث إصدار"
   },
@@ -188,7 +188,7 @@
         "authorize_button": "تفويض الدخول السريع",
         "enter_the_quick_connect_code": "أدخل رمز الدخول السريع...",
         "success": "نجاح",
-        "quick_connect_autorized": "تم تفويض الدخول السريع",
+        "quick_connect_authorized": "تم تفويض الدخول السريع",
         "error": "خطأ",
         "invalid_code": "رمز غير صالح",
         "authorize": "تفويض"
@@ -261,43 +261,6 @@
           "None": "لا شيء",
           "OnlyForced": "فقط الإجبارية"
         },
-        "text_color": "لون النص",
-        "background_color": "لون الخلفية",
-        "outline_color": "لون إطار الخط",
-        "outline_thickness": "سمك إطار الخط",
-        "background_opacity": "شفافية الخلفية",
-        "outline_opacity": "شفافية إطار الخط",
-        "bold_text": "خط عريض",
-        "colors": {
-          "Black": "أسود",
-          "Gray": "رمادي",
-          "Silver": "فضي",
-          "White": "أبيض",
-          "Maroon": "أحمر داكن",
-          "Red": "أحمر",
-          "Fuchsia": "وردي",
-          "Yellow": "أصفر",
-          "Olive": "‫أخضر زيتوني‬‎",
-          "Green": "أخضر",
-          "Teal": "أزرق مخضر",
-          "Lime": "ليموني",
-          "Purple": "بنفسجي",
-          "Navy": "كحلي",
-          "Blue": "أزرق",
-          "Aqua": "أزرق بحري"
-        },
-        "thickness": {
-          "None": "لا شيء",
-          "Thin": "نحيف",
-          "Normal": "عادي",
-          "Thick": "سميك"
-        },
-        "subtitle_color": "لون الترجمة",
-        "subtitle_background_color": "لون الخلفية",
-        "subtitle_font": "خط الترجمة",
-        "ksplayer_title": "إعدادات KSPlayer",
-        "hardware_decode": "فك الترميز بواسطة الجهاز",
-        "hardware_decode_description": "استخدم تسريع العتاد لفك ترميز الفيديو. قم بتعطيله إذا واجهت مشكلات في التشغيل.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "إعدادات ترجمة VLC",
-        "hint": "تخصيص مظهر الترجمة لمشغل VLC. تصبح التغييرات سارية المفعول عند التشغيل التالي.",
-        "text_color": "لون النص",
-        "background_color": "لون الخلفية",
-        "background_opacity": "شفافية الخلفية",
-        "outline_color": "لون إطار الخط",
-        "outline_opacity": "شفافية إطار الخط",
-        "outline_thickness": "سمك إطار الخط",
-        "bold": "خط عريض",
-        "margin": "الهامش السفلي"
-      },
-      "video_player": {
-        "title": "مشغل الفيديو",
-        "video_player": "مشغل الفيديو",
-        "video_player_description": "اختر مشغل الفيديو الذي سيتم استخدامه على نظام iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "أخرى",
@@ -351,24 +295,16 @@
           "UNKNOWN": "غير معروف"
         },
         "safe_area_in_controls": "المنطقة الآمنة لعناصر التحكم",
-        "video_player": "مشغل الفيديو",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (تجريبي + صورة داخل صورة)"
-        },
         "show_custom_menu_links": "إظهار روابط القائمة المخصصة",
         "show_large_home_carousel": "إظهار شريط العرض الكبير (تجريبي)",
         "hide_libraries": "إخفاء المكتبات",
-        "select_liraries_you_want_to_hide": "اختر المكتبات التي تريد إخفاءها من تبويب المكتبة وأقسام الصفحة الرئيسية.",
+        "select_libraries_you_want_to_hide": "اختر المكتبات التي تريد إخفاءها من تبويب المكتبة وأقسام الصفحة الرئيسية.",
         "disable_haptic_feedback": "تعطيل ردود الفعل اللمسية",
         "default_quality": "الجودة الافتراضية",
         "default_playback_speed": "سرعة التشغيل الافتراضية",
         "auto_play_next_episode": "تشغيل الحلقة التالية تلقائياً",
         "max_auto_play_episode_count": "الحد الأقصى لعدد الحلقات التي يتم تشغيلها تلقائيًا",
         "disabled": "معطل"
-      },
-      "downloads": {
-        "downloads_title": "التنزيلات"
       },
       "music": {
         "title": "الموسيقى",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "الإضافات",
         "jellyseerr": {
-          "jellyseerr_warning": "هذا الربط في مراحله الأولى. توقع حدوث تغييرات.",
           "server_url": "رابط الخادم",
           "server_url_hint": "مثال: http(s)://your-host.url\n(أضف المنفذ إذا لزم الأمر)",
           "server_url_placeholder": "رابط Seerr...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "اقرأ المزيد عن مارلن.",
           "save_button": "حفظ",
           "toasts": {
-            "saved": "تم الحفظ",
-            "refreshed": "تم تحديث الإعدادات من الخادم"
-          },
-          "refresh_from_server": "تحديث الإعدادات من الخادم"
+            "saved": "تم الحفظ"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "تفعيل Streamystats",
           "disable_streamystats": "تعطيل Streamystats",
           "enable_search": "استخدم للبحث",
           "url": "الرابط",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "أدخل رابط خادم Streamystats الخاص بك. يجب أن يتضمن الرابط البروتوكول http أو https مع رقم المنفذ اختيارياً.",
           "read_more_about_streamystats": "اقرأ المزيد عن Streamystats.",
-          "save_button": "حفظ",
           "save": "حفظ",
           "features_title": "المميزات",
-          "home_sections_title": "أقسام الرئيسية",
           "enable_movie_recommendations": "توصيات الأفلام",
           "enable_series_recommendations": "توصيات المسلسلات",
           "enable_promoted_watchlists": "قوائم مشاهدة مختارة",
@@ -445,8 +375,7 @@
           "refresh_from_server": "تحديث الإعدادات من الخادم"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "تفعيل الربط مع قائمة المشاهدة الخاصة بنا",
-          "watchlist_button": "تبديل حالة ربط قائمة المشاهدة"
+          "watchlist_enabler": "تفعيل الربط مع قائمة المشاهدة الخاصة بنا"
         }
       },
       "storage": {
@@ -455,9 +384,10 @@
         "device_usage": "الجهاز {{availableSpace}}%",
         "size_used": "تم استخدام {{used}} من {{total}}",
         "delete_all_downloaded_files": "حذف جميع الملفات التي تم تنزيلها",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "التخزين المؤقت للموسيقى",
         "music_cache_description": "تخزين الأغاني تلقائياً أثناء الاستماع لضمان تشغيل أكثر سلاسة ودعم الاستماع بدون اتصال",
-        "enable_music_cache": "تمكين التخزين المؤقت للموسيقى",
         "clear_music_cache": "مسح التخزين المؤقت للموسيقى",
         "music_cache_size": "تم تخزين {{size}} مؤقتاً",
         "music_cache_cleared": "تم مسح التخزين المؤقت للموسيقى",
@@ -467,8 +397,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +418,12 @@
         "system": "النظام"
       },
       "toasts": {
-        "error_deleting_files": "خطأ في حذف الملفات",
-        "background_downloads_enabled": "تم تفعيل التنزيلات في الخلفية",
-        "background_downloads_disabled": "تم تعطيل التنزيلات في الخلفية"
+        "error_deleting_files": "خطأ في حذف الملفات"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -516,15 +441,12 @@
     },
     "downloads": {
       "downloads_title": "التنزيلات",
-      "tvseries": "مسلسلات",
+      "series": "مسلسلات",
       "movies": "أفلام",
-      "queue": "قائمة الانتظار",
       "other_media": "وسائط أخرى",
-      "queue_hint": "ستفقد قائمة الانتظار والتنزيلات عند إعادة تشغيل التطبيق",
-      "no_items_in_queue": "لا توجد عناصر في قائمة الانتظار",
       "no_downloaded_items": "لا توجد عناصر تم تنزيلها",
       "delete_all_movies_button": "حذف جميع الأفلام",
-      "delete_all_tvseries_button": "حذف جميع المسلسلات",
+      "delete_all_series_button": "حذف جميع المسلسلات",
       "delete_all_button": "حذف الكل",
       "delete_all_other_media_button": "حذف الوسائط الأخرى",
       "active_download": "التنزيل الجاري",
@@ -542,17 +464,12 @@
         "you_are_not_allowed_to_download_files": "غير مسموح لك بتنزيل الملفات.",
         "deleted_all_movies_successfully": "تم حذف جميع الأفلام بنجاح!",
         "failed_to_delete_all_movies": "فشل حذف جميع الأفلام",
-        "deleted_all_tvseries_successfully": "تم حذف جميع المسلسلات بنجاح!",
-        "failed_to_delete_all_tvseries": "فشل حذف جميع المسلسلات",
+        "deleted_all_series_successfully": "تم حذف جميع المسلسلات بنجاح!",
+        "failed_to_delete_all_series": "فشل حذف جميع المسلسلات",
         "deleted_media_successfully": "تم حذف الوسائط الأخرى بنجاح!",
         "failed_to_delete_media": "فشل حذف الوسائط الأخرى",
-        "download_deleted": "تم حذف التنزيل",
         "download_cancelled": "تم إلغاء التنزيل",
         "could_not_delete_download": "تعذر حذف التنزيل",
-        "download_paused": "تم إيقاف التنزيل مؤقتًا",
-        "could_not_pause_download": "تعذر إيقاف التنزيل مؤقتًا",
-        "download_resumed": "تم استئناف التنزيل",
-        "could_not_resume_download": "تعذر استئناف التنزيل",
         "download_completed": "اكتمل التنزيل",
         "download_failed": "فشل التنزيل",
         "download_failed_for_item": "فشل تنزيل {{item}} - {{error}}",
@@ -562,17 +479,13 @@
         "item_already_downloading": "{{item}} قيد التنزيل بالفعل",
         "all_files_deleted": "تم حذف جميع التنزيلات بنجاح",
         "files_deleted_by_type": "تم حذف {{count}} {{type}}",
-        "all_files_folders_and_jobs_deleted_successfully": "تم حذف جميع الملفات والمجلدات والمهام بنجاح",
-        "failed_to_clean_cache_directory": "فشل تنظيف مجلد ذاكرة التخزين المؤقت",
         "could_not_get_download_url_for_item": "تعذر الحصول على عنوان URL للتنزيل لـ{{itemName}}",
-        "go_to_downloads": "الذهاب إلى التنزيلات",
         "file_deleted": "تم حذف {{item}}"
       }
     }
   },
   "common": {
     "no_results": "No Results",
-    "select": "اختر",
     "no_trailer_available": "لا يوجد مقطع دعائي متوفر",
     "video": "فيديو",
     "audio": "الصوت",
@@ -583,16 +496,17 @@
     "none": "لا شيء",
     "track": "أغنية",
     "cancel": "إلغاء",
-    "stop": "Stop",
     "delete": "حذف",
     "ok": "حسناً",
     "remove": "إزالة",
-    "next": "التالي",
     "back": "رجوع",
     "continue": "متابعة",
     "verifying": "جارٍ التحقق...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "بحث...",
@@ -686,15 +600,11 @@
     "mpv_player_title": "MPV Player",
     "error": "خطأ",
     "failed_to_get_stream_url": "فشل في الحصول على رابط البث",
-    "an_error_occured_while_playing_the_video": "حدث خطأ أثناء تشغيل الفيديو. تحقق من السجلات في الإعدادات.",
+    "an_error_occurred_while_playing_the_video": "حدث خطأ أثناء تشغيل الفيديو. تحقق من السجلات في الإعدادات.",
     "client_error": "خطأ في المشغّل",
     "could_not_create_stream_for_chromecast": "تعذر إنشاء بث لـChromecast",
     "message_from_server": "رسالة من الخادم: {{message}}",
     "next_episode": "الحلقة التالية",
-    "refresh_tracks": "تحديث المسارات",
-    "audio_tracks": "مسارات الصوت:",
-    "playback_state": "حالة التشغيل:",
-    "index": "الفِهْرِس:",
     "continue_watching": "متابعة المشاهدة",
     "go_back": "رجوع",
     "downloaded_file_title": "تم تنزيل هذا الملف",
@@ -712,7 +622,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "عرض المزيد",
     "show_less": "عرض أقل",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "التالي",
@@ -888,13 +798,9 @@
       "playlists": "قوائم التشغيل",
       "tracks": "الأغاني"
     },
-    "filters": {
-      "all": "الكل"
-    },
     "recently_added": "أضيف مؤخرًا",
     "recently_played": "تم تشغيله مؤخرًا",
     "frequently_played": "الأكثر تشغيلاً",
-    "explore": "اكتشف",
     "top_tracks": "أفضل الأغاني",
     "play": "تشغيل",
     "shuffle": "ترتيب عشوائي",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
