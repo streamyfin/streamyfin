@@ -14,6 +14,7 @@ import { t } from "i18next";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { RTRating } from "@/utils/jellyseerr/server/api/rating/rottentomatoes";
 import {
@@ -48,6 +49,7 @@ import type {
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
 import { writeErrorLog } from "@/utils/log";
+import { getAccountCredential } from "@/utils/secureCredentials";
 
 interface SearchParams {
   query: string;
@@ -113,6 +115,7 @@ export type TestResult =
 
 export class JellyseerrApi {
   axios: AxiosInstance;
+  private reloginCallback?: () => Promise<void>;
 
   constructor(baseUrl: string) {
     this.axios = axios.create({
@@ -123,6 +126,10 @@ export class JellyseerrApi {
     });
 
     this.setInterceptors();
+  }
+
+  setReloginCallback(callback: () => Promise<void>) {
+    this.reloginCallback = callback;
   }
 
   async test(): Promise<TestResult> {
@@ -386,7 +393,21 @@ export class JellyseerrApi {
       .then(({ data }) => data);
   }
 
+  private static isRefreshing = false;
+  private static queue: Array<{
+    resolve: (value: unknown) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
+
   private setInterceptors() {
+    const flushQueue = (error?: unknown) => {
+      for (const { resolve, reject } of JellyseerrApi.queue) {
+        if (error) reject(error);
+        else resolve(undefined);
+      }
+      JellyseerrApi.queue = [];
+    };
+
     this.axios.interceptors.response.use(
       async (response) => {
         const cookies = response.headers["set-cookie"];
@@ -398,13 +419,40 @@ export class JellyseerrApi {
         }
         return response;
       },
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
         writeErrorLog(
           `Jellyseerr response error\nerror: ${error.toString()}\nurl: ${error?.config?.url}`,
           error.response?.data,
         );
-        if (error.response?.status === 403) {
+        const status = error.response?.status;
+        if (status === 401 || status === 403) {
+          if (JellyseerrApi.isRefreshing) {
+            return new Promise((resolve, reject) => {
+              JellyseerrApi.queue.push({ resolve, reject });
+            }).then(() => this.axios.request(error.config!));
+          }
+
+          JellyseerrApi.isRefreshing = true;
+          try {
+            if (this.reloginCallback) {
+              console.log("[Seerr] Session expired, attempting re-login…");
+              await this.reloginCallback();
+              console.log(
+                "[Seerr] Re-login successful, retrying queued requests",
+              );
+              flushQueue();
+              JellyseerrApi.isRefreshing = false;
+              return this.axios.request(error.config!);
+            }
+          } catch (reloginError) {
+            console.warn("[Seerr] Re-login failed:", reloginError);
+            flushQueue(reloginError);
+          }
+          console.warn(
+            "[Seerr] Session expired and re-login not possible, clearing session data",
+          );
           clearJellyseerrStorageData();
+          toast.error(t("session_expired"));
         }
         return Promise.reject(error);
       },
@@ -436,15 +484,38 @@ const jellyseerrUserAtom = atom(storage.get<JellyseerrUser>(JELLYSEERR_USER));
 export const useJellyseerr = () => {
   const { settings, updateSettings } = useSettings();
   const [jellyseerrUser, setJellyseerrUser] = useAtom(jellyseerrUserAtom);
+  const [jellyfinApi] = useAtom(apiAtom);
+  const [jellyfinUser] = useAtom(userAtom);
   const queryClient = useNetworkAwareQueryClient();
 
   const jellyseerrApi = useMemo(() => {
     const cookies = storage.get<string[]>(JELLYSEERR_COOKIES);
     if (settings?.jellyseerrServerUrl && cookies && jellyseerrUser) {
-      return new JellyseerrApi(settings?.jellyseerrServerUrl);
+      const api = new JellyseerrApi(settings?.jellyseerrServerUrl);
+      api.setReloginCallback(async () => {
+        const serverUrl = jellyfinApi?.basePath;
+        const userId = jellyfinUser?.Id;
+        if (!serverUrl || !userId)
+          throw new Error("No Jellyfin session available");
+        const credential = await getAccountCredential(serverUrl, userId);
+        if (!credential?.seerrPassword)
+          throw new Error("No stored Seerr password");
+        const user = await api.login(
+          credential.username,
+          credential.seerrPassword,
+        );
+        setJellyseerrUser(user);
+      });
+      return api;
     }
     return undefined;
-  }, [settings?.jellyseerrServerUrl, jellyseerrUser]);
+  }, [
+    settings?.jellyseerrServerUrl,
+    jellyseerrUser,
+    setJellyseerrUser,
+    jellyfinApi?.basePath,
+    jellyfinUser?.Id,
+  ]);
 
   const clearAllJellyseerData = useCallback(async () => {
     clearJellyseerrStorageData();

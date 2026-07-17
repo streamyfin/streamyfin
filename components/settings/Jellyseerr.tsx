@@ -5,8 +5,12 @@ import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { toast } from "sonner-native";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
-import { userAtom } from "@/providers/JellyfinProvider";
+import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import {
+  getAccountCredential,
+  saveAccountCredential,
+} from "@/utils/secureCredentials";
 import { Button } from "../Button";
 import { Input } from "../common/Input";
 import { Text } from "../common/Text";
@@ -20,6 +24,7 @@ export const JellyseerrSettings = () => {
   const { t } = useTranslation();
 
   const [user] = useAtom(userAtom);
+  const [api] = useAtom(apiAtom);
   const { settings, updateSettings } = useSettings();
 
   const [jellyseerrPassword, setJellyseerrPassword] = useState<
@@ -43,9 +48,21 @@ export const JellyseerrSettings = () => {
       if (!testResult.isValid) throw new Error("Invalid server url");
       return jellyseerrTempApi.login(user.Name, jellyseerrPassword || "");
     },
-    onSuccess: (user) => {
-      setJellyseerrUser(user);
+    onSuccess: async (jellyseerrUser) => {
+      setJellyseerrUser(jellyseerrUser);
       updateSettings({ jellyseerrServerUrl });
+      // Save password to Jellyfin credential for Seerr re-login
+      const serverUrl = api?.basePath;
+      const userId = user?.Id;
+      if (serverUrl && userId) {
+        const credential = await getAccountCredential(serverUrl, userId);
+        if (credential) {
+          await saveAccountCredential({
+            ...credential,
+            seerrPassword: jellyseerrPassword || "",
+          });
+        }
+      }
     },
     onError: () => {
       toast.error(t("jellyseerr.failed_to_login"));

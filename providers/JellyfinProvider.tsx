@@ -345,6 +345,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               token: auth.data.AccessToken,
               userId: auth.data.User.Id || "",
               username,
+              seerrPassword: password,
               savedAt: Date.now(),
               securityType,
               pinHash,
@@ -359,7 +360,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             );
             await jellyseerrApi.test().then((result) => {
               if (result.isValid && result.requiresPass) {
-                jellyseerrApi.login(username, password).then(setJellyseerrUser);
+                jellyseerrApi.login(username, password).then((user) => {
+                  setJellyseerrUser(user);
+                });
               }
             });
           }
