@@ -51,8 +51,10 @@ export const HeaderBackButton: React.FC<Props> = ({
       onPress={() => router.back()}
       // Match the Settings page back button: chevron flush to the edge with a
       // 16px gap before the title (the old `p-2` pushed both arrow and title
-      // too far right). drop-shadow keeps it readable over images.
+      // too far right). drop-shadow keeps it readable over images. hitSlop
+      // keeps the touch area at ~44dp now that the padding is gone.
       style={{ marginRight: 16 }}
+      hitSlop={8}
       {...pressableProps}
     >
       <Feather
