@@ -147,9 +147,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         if (preferEpisodeImage && item.ImageTags?.Primary) {
           return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
         }
-        // First try parent/series thumb (horizontal series artwork)
-        if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
+        // First try parent/series thumb (horizontal series artwork).
+        // Matched pair: ParentThumbItemId owns the Thumb tag, not ParentBackdropItemId.
+        if (item.ParentThumbItemId && item.ParentThumbImageTag) {
+          return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
         }
         // Fall back to episode's own primary image
         if (item.ImageTags?.Primary) {
