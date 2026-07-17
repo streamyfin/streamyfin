@@ -54,8 +54,8 @@ export const HeaderBackButton: React.FC<Props> = ({
       // too far right). drop-shadow keeps it readable over images. hitSlop
       // keeps the touch area at ~44dp now that the padding is gone.
       style={{ marginRight: 16 }}
-      hitSlop={8}
       {...pressableProps}
+      hitSlop={8}
     >
       <Feather
         className='drop-shadow-2xl'
