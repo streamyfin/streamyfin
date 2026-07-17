@@ -140,9 +140,11 @@ export const Home = () => {
     let isCancelled = false;
 
     const performCrossfade = async () => {
-      // Prefetch the image before starting the crossfade
+      // Prefetch to disk only - the full-size 1920x1080 backdrop (~8MB
+      // decoded ARGB) is too large to pin in the memory cache on every
+      // focus change. Disk cache is fast enough for a 500ms crossfade.
       try {
-        await Image.prefetch(backdropUrl);
+        await Image.prefetch(backdropUrl, "disk");
       } catch {
         // Continue even if prefetch fails
       }

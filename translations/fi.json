@@ -16,14 +16,14 @@
     "got_it": "Okei",
     "connection_failed": "Yhteys epäonnistui",
     "could_not_connect_to_server": "Yhteyttä palvelimeen ei voitu muodostaa. Tarkista URL-osoite ja verkkoyhteytesi.",
-    "an_unexpected_error_occured": "Odottamaton virhe tapahtui",
+    "an_unexpected_error_occurred": "Odottamaton virhe tapahtui",
     "change_server": "Vaihda palvelinta",
     "invalid_username_or_password": "Virheellinen käyttäjätunnus tai salasana",
     "user_does_not_have_permission_to_log_in": "Käyttäjällä ei ole oikeuksia kirjautua sisään",
     "server_is_taking_too_long_to_respond_try_again_later": "Palvelin reagoi liian hitaasti, yritä myöhemmin uudelleen",
     "server_received_too_many_requests_try_again_later": "Palvelin sai liian monta pyyntöä, yritä myöhemmin uudelleen.",
     "there_is_a_server_error": "Palvelimessa on virhe",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Odottamaton virhe tapahtui. Syötitkö palvelimen URL-osoitteen oikein?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "Odottamaton virhe tapahtui. Syötitkö palvelimen URL-osoitteen oikein?",
     "too_old_server_text": "Ei-tuettu Jellyfin-palvelin löydetty",
     "too_old_server_description": "Ole hyvä ja päivitä Jellyfin uusimpaan versioon"
   },
@@ -188,7 +188,7 @@
         "authorize_button": "Valtuuta pikayhdistys",
         "enter_the_quick_connect_code": "Syötä nopean yhteyden koodi...",
         "success": "Onnistui",
-        "quick_connect_autorized": "Pikayhdistys valtuutettu",
+        "quick_connect_authorized": "Pikayhdistys valtuutettu",
         "error": "Virhe",
         "invalid_code": "Virheellinen koodi",
         "authorize": "Valtuuta"
@@ -261,43 +261,6 @@
           "None": "Ei mitään",
           "OnlyForced": "Vain pakotettu"
         },
-        "text_color": "Tekstin väri",
-        "background_color": "Taustaväri",
-        "outline_color": "Ääriviivan väri",
-        "outline_thickness": "Ääriviivan paksuus",
-        "background_opacity": "Taustan läpinäkyvyys",
-        "outline_opacity": "Ääriviivan Läpinäkyvyys",
-        "bold_text": "Lihavoi teksti",
-        "colors": {
-          "Black": "Musta",
-          "Gray": "Harmaa",
-          "Silver": "Hopea",
-          "White": "Valkoinen",
-          "Maroon": "Maroon",
-          "Red": "Punainen",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Keltainen",
-          "Olive": "Oliivit",
-          "Green": "Vihreä",
-          "Teal": "Sinappi",
-          "Lime": "Limea",
-          "Purple": "Violetti",
-          "Navy": "Laiva",
-          "Blue": "Sininen",
-          "Aqua": "Vesi"
-        },
-        "thickness": {
-          "None": "Ei mitään",
-          "Thin": "Ohut",
-          "Normal": "Normaali",
-          "Thick": "Paksu"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Muut",
@@ -351,24 +295,16 @@
           "UNKNOWN": "Tuntematon"
         },
         "safe_area_in_controls": "Turvallinen alue ohjaimissa",
-        "video_player": "Videosoitin",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Kokeellinen + PiP)"
-        },
         "show_custom_menu_links": "Näytä mukautetut valikkolinkit",
         "show_large_home_carousel": "Näytä suuri kotikaruselli (beta)",
         "hide_libraries": "Piilota kirjastot",
-        "select_liraries_you_want_to_hide": "Valitse kirjastot, jotka haluat piilottaa Kirjasto-välilehdeltä ja etusivun osioista.",
+        "select_libraries_you_want_to_hide": "Valitse kirjastot, jotka haluat piilottaa Kirjasto-välilehdeltä ja etusivun osioista.",
         "disable_haptic_feedback": "Poista haptinen palautteet käytöstä",
         "default_quality": "Oletuslaatu",
         "default_playback_speed": "Default Playback Speed",
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Automaattisten Toistojaksojen Maksimimäärä",
         "disabled": "Pois Käytöstä"
-      },
-      "downloads": {
-        "downloads_title": "Lataukset"
       },
       "music": {
         "title": "Music",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Liitännäiset",
         "jellyseerr": {
-          "jellyseerr_warning": "Tämä integraatio on alkuvaiheessa. Odota muutoksia.",
           "server_url": "Palvelimen URL",
           "server_url_hint": "Esimerkki: http(s)://verkkotunnus.url\n(lisää portti tarvittaessa)",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Lue lisää Marlinista.",
           "save_button": "Tallenna",
           "toasts": {
-            "saved": "Tallennettu",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Tallennettu"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -455,9 +384,10 @@
         "device_usage": "Laitteen käyttö {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} käytössä",
         "delete_all_downloaded_files": "Poista kaikki ladatut tiedostot",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +397,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +418,12 @@
         "system": "Järjestelmä"
       },
       "toasts": {
-        "error_deleting_files": "Virhe tiedostojen poistamisessa",
-        "background_downloads_enabled": "Taustalataukset käytössä",
-        "background_downloads_disabled": "Taustalataukset pois käytöstä"
+        "error_deleting_files": "Virhe tiedostojen poistamisessa"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +443,7 @@
       "downloads_title": "Lataukset",
       "series": "TV-sarjat",
       "movies": "Elokuvat",
-      "queue": "Jonot",
       "other_media": "Muu media",
-      "queue_hint": "Jonot ja lataukset menetetään sovelluksen uudelleenkäynnistyksen yhteydessä",
-      "no_items_in_queue": "Ei kohteita jonossa",
       "no_downloaded_items": "Ei ladattuja kohteita",
       "delete_all_movies_button": "Poista kaikki elokuvat",
       "delete_all_series_button": "Poista kaikki TV-sarjat",
@@ -546,13 +468,8 @@
         "failed_to_delete_all_series": "Kaikkien TV-sarjojen poistaminen epäonnistui",
         "deleted_media_successfully": "Muu media poistettu onnistuneesti!",
         "failed_to_delete_media": "Muiden medioiden poistaminen epäonnistui",
-        "download_deleted": "Lataus Poistettu",
         "download_cancelled": "Lataus peruutettu",
         "could_not_delete_download": "Latausta Ei Voitu Poistaa",
-        "download_paused": "Lataus Keskeytetty",
-        "could_not_pause_download": "Latausta Ei Voitu Keskeyttää",
-        "download_resumed": "Lataus Jatketaan",
-        "could_not_resume_download": "Latausta Ei Voitu Jatkaa.",
         "download_completed": "Lataus valmis",
         "download_failed": "Lataus epäonnistui",
         "download_failed_for_item": "Lataus epäonnistui kohteelle {{item}} - {{error}}",
@@ -562,17 +479,13 @@
         "item_already_downloading": "{{item}} is already downloading",
         "all_files_deleted": "Kaikki lataukset poistettu onnistuneesti",
         "files_deleted_by_type": "{{count}} {{type}} poistettu",
-        "all_files_folders_and_jobs_deleted_successfully": "Kaikki tiedostot, kansiot ja tehtävät poistettu onnistuneesti",
-        "failed_to_clean_cache_directory": "Välimuistin hakemiston puhdistus epäonnistui",
         "could_not_get_download_url_for_item": "Latauksen URL-osoitetta ei voitu ladata {{itemName}}",
-        "go_to_downloads": "Siirry latauksiin",
         "file_deleted": "{{item}} poistettu"
       }
     }
   },
   "common": {
     "no_results": "No Results",
-    "select": "Valitse",
     "no_trailer_available": "Perävaunua ei saatavilla",
     "video": "Video",
     "audio": "Ääni",
@@ -583,16 +496,17 @@
     "none": "Ei mitään",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Haku...",
@@ -686,15 +600,11 @@
     "mpv_player_title": "MPV Player",
     "error": "Virhe",
     "failed_to_get_stream_url": "Lähetyksen URL-osoitteen haku epäonnistui",
-    "an_error_occured_while_playing_the_video": "Videon toiston yhteydessä tapahtui virhe. Tarkista lokit asetuksista.",
+    "an_error_occurred_while_playing_the_video": "Videon toiston yhteydessä tapahtui virhe. Tarkista lokit asetuksista.",
     "client_error": "Asiakkaan Virhe",
     "could_not_create_stream_for_chromecast": "Suoratoistoa ei voitu luoda Chromecastia varten",
     "message_from_server": "Viesti palvelimelta: {{message}}",
     "next_episode": "Seuraava Jakso",
-    "refresh_tracks": "Päivitä Kappaleet",
-    "audio_tracks": "Ääni Kappaleet:",
-    "playback_state": "Toiston Tila:",
-    "index": "Indeksi:",
     "continue_watching": "Jatka katsomista",
     "go_back": "Siirry Takaisin",
     "downloaded_file_title": "Tämä tiedosto on ladattuna",
@@ -712,7 +622,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "Näytä Lisää",
     "show_less": "Näytä Vähemmän",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Seuraava",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

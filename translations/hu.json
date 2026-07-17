@@ -16,14 +16,14 @@
     "got_it": "Értettem",
     "connection_failed": "Kapcsolódás Sikertelen",
     "could_not_connect_to_server": "Nem sikerült csatlakozni a szerverhez. Kérjük, ellenőrizd az URL-t és a hálózati kapcsolatot.",
-    "an_unexpected_error_occured": "Váratlan Hiba Történt",
+    "an_unexpected_error_occurred": "Váratlan Hiba Történt",
     "change_server": "Szerverváltás",
     "invalid_username_or_password": "Érvénytelen Felhasználónév vagy Jelszó",
     "user_does_not_have_permission_to_log_in": "A felhasználónak nincs jogosultsága a bejelentkezéshez",
     "server_is_taking_too_long_to_respond_try_again_later": "A szerver túl sokáig válaszol, próbáld újra később",
     "server_received_too_many_requests_try_again_later": "A szerver túl sok kérést kapott, próbáld újra később.",
     "there_is_a_server_error": "Szerverhiba történt",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Váratlan hiba történt. Helyesen adtad meg a szerver URL-jét?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "Váratlan hiba történt. Helyesen adtad meg a szerver URL-jét?",
     "too_old_server_text": "Nem Támogatott Jellyfin-szerver",
     "too_old_server_description": "Frissítsd a Jellyfint a legújabb verzióra"
   },
@@ -188,7 +188,7 @@
         "authorize_button": "Gyorscsatlakozás Engedélyezése",
         "enter_the_quick_connect_code": "Add meg a gyors csatlakozási kódot...",
         "success": "Siker",
-        "quick_connect_autorized": "Gyorscsatlakozás Engedélyezve",
+        "quick_connect_authorized": "Gyorscsatlakozás Engedélyezve",
         "error": "Hiba",
         "invalid_code": "Érvénytelen Kód",
         "authorize": "Engedélyezés"
@@ -261,43 +261,6 @@
           "None": "Nincs",
           "OnlyForced": "Csak Kényszerített"
         },
-        "text_color": "Szövegszín",
-        "background_color": "Háttérszín",
-        "outline_color": "Körvonal színe",
-        "outline_thickness": "Körvonal Vastagsága",
-        "background_opacity": "Háttér Áttetszőség",
-        "outline_opacity": "Körvonal Áttetszőség",
-        "bold_text": "Félkövér Szöveg",
-        "colors": {
-          "Black": "Fekete",
-          "Gray": "Szürke",
-          "Silver": "Ezüst",
-          "White": "Fehér",
-          "Maroon": "Sötétvörös",
-          "Red": "Piros",
-          "Fuchsia": "Fukszia",
-          "Yellow": "Sárga",
-          "Olive": "Oliva",
-          "Green": "Zöld",
-          "Teal": "Türkiz",
-          "Lime": "Lime",
-          "Purple": "Lila",
-          "Navy": "Sötétkék",
-          "Blue": "Kék",
-          "Aqua": "Türkizkék"
-        },
-        "thickness": {
-          "None": "Nincs",
-          "Thin": "Vékony",
-          "Normal": "Normál",
-          "Thick": "Vastag"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Egyéb",
@@ -351,24 +295,16 @@
           "UNKNOWN": "Ismeretlen"
         },
         "safe_area_in_controls": "Biztonsági Sáv a Vezérlőkben",
-        "video_player": "Videólejátszó",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Kísérleti + PiP)"
-        },
         "show_custom_menu_links": "Egyéni Menülinkek Megjelenítése",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Könyvtárak Elrejtése",
-        "select_liraries_you_want_to_hide": "Válaszd ki azokat a könyvtárakat, amelyeket el szeretnél rejteni a Könyvtár fülön és a kezdőlapon.",
+        "select_libraries_you_want_to_hide": "Válaszd ki azokat a könyvtárakat, amelyeket el szeretnél rejteni a Könyvtár fülön és a kezdőlapon.",
         "disable_haptic_feedback": "Haptikus Visszajelzés Letiltása",
         "default_quality": "Alapértelmezett Minőség",
         "default_playback_speed": "Default Playback Speed",
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Max. Auto. Epizódlejátszás",
         "disabled": "Letiltva"
-      },
-      "downloads": {
-        "downloads_title": "Letöltések"
       },
       "music": {
         "title": "Music",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Bővítmények",
         "jellyseerr": {
-          "jellyseerr_warning": "Ez az integráció még korai stádiumban van. Számíts a változásokra.",
           "server_url": "Szerver URL",
           "server_url_hint": "Példa: http(s)://a-te-szolgáltatód.url\n(adj meg portot, ha szükséges)",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Tudj Meg Többet a Marlinról",
           "save_button": "Mentés",
           "toasts": {
-            "saved": "Mentve",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Mentve"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -455,9 +384,10 @@
         "device_usage": "Eszköz {{availableSpace}}%",
         "size_used": "{{used}} / {{total}} Használatban",
         "delete_all_downloaded_files": "Minden Letöltött Fájl Törlése",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +397,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +418,12 @@
         "system": "Rendszer"
       },
       "toasts": {
-        "error_deleting_files": "Hiba a Fájlok Törlésekor",
-        "background_downloads_enabled": "Background downloads enabled",
-        "background_downloads_disabled": "Background downloads disabled"
+        "error_deleting_files": "Hiba a Fájlok Törlésekor"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +443,7 @@
       "downloads_title": "Letöltések",
       "series": "Sorozatok",
       "movies": "Filmek",
-      "queue": "Sor",
       "other_media": "Other media",
-      "queue_hint": "A sor és a letöltések az alkalmazás újraindításakor elvesznek",
-      "no_items_in_queue": "Nincs Elem a Sorban",
       "no_downloaded_items": "Nincsenek Letöltött Elemek",
       "delete_all_movies_button": "Összes Film Törlése",
       "delete_all_series_button": "Összes Sorozat Törlése",
@@ -546,13 +468,8 @@
         "failed_to_delete_all_series": "Nem Sikerült Törölni Az Összes Sorozatot",
         "deleted_media_successfully": "Deleted other media Successfully!",
         "failed_to_delete_media": "Failed to Delete other media",
-        "download_deleted": "Letöltés Törölve",
         "download_cancelled": "Download Cancelled",
         "could_not_delete_download": "Nem Sikerült Törölni a Letöltést",
-        "download_paused": "Letöltés Szüneteltetve",
-        "could_not_pause_download": "Nem Sikerült Szüneteltetni a Letöltést",
-        "download_resumed": "Letöltés Folytatva",
-        "could_not_resume_download": "Nem Sikerült Folytatni a Letöltést",
         "download_completed": "Letöltés Befejezve",
         "download_failed": "Download Failed",
         "download_failed_for_item": "A(z) {{item}} letöltése sikertelen - {{error}}",
@@ -562,17 +479,13 @@
         "item_already_downloading": "{{item}} is already downloading",
         "all_files_deleted": "All Downloads Deleted Successfully",
         "files_deleted_by_type": "{{count}} {{type}} deleted",
-        "all_files_folders_and_jobs_deleted_successfully": "Minden fájl, mappa és feladat sikeresen törölve",
-        "failed_to_clean_cache_directory": "Failed to clean cache directory",
         "could_not_get_download_url_for_item": "Could not get download URL for {{itemName}}",
-        "go_to_downloads": "Ugrás a Letöltésekhez",
         "file_deleted": "{{item}} deleted"
       }
     }
   },
   "common": {
     "no_results": "No Results",
-    "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Videó",
     "audio": "Hang",
@@ -583,16 +496,17 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Keresés...",
@@ -686,15 +600,11 @@
     "mpv_player_title": "MPV Player",
     "error": "Hiba",
     "failed_to_get_stream_url": "Nem sikerült lekérni a stream URL-t",
-    "an_error_occured_while_playing_the_video": "Hiba történt a videó lejátszása közben. Ellenőrizd a naplókat a beállításokban.",
+    "an_error_occurred_while_playing_the_video": "Hiba történt a videó lejátszása közben. Ellenőrizd a naplókat a beállításokban.",
     "client_error": "Kliens Hiba",
     "could_not_create_stream_for_chromecast": "A Chromecast stream létrehozása sikertelen volt",
     "message_from_server": "Üzenet a szervertől: {{message}}",
     "next_episode": "Következő Epizód",
-    "refresh_tracks": "Sávok Frissítése",
-    "audio_tracks": "Hangsávok:",
-    "playback_state": "Lejátszás Állapota:",
-    "index": "Index:",
     "continue_watching": "Folytatás",
     "go_back": "Vissza",
     "downloaded_file_title": "You have this file downloaded",
@@ -712,7 +622,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "Több Megjelenítése",
     "show_less": "Kevesebb Megjelenítése",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Következő",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

@@ -16,14 +16,14 @@
     "got_it": "Rozumím",
     "connection_failed": "Připojení se nezdařilo",
     "could_not_connect_to_server": "Nelze se připojit k serveru. Zkontrolujte adresu URL a síťové připojení.",
-    "an_unexpected_error_occured": "Došlo k neočekávané chybě",
+    "an_unexpected_error_occurred": "Došlo k neočekávané chybě",
     "change_server": "Změnit server",
     "invalid_username_or_password": "Neplatné uživatelské jméno nebo heslo",
     "user_does_not_have_permission_to_log_in": "Uživatel nemá oprávnění k přihlášení",
     "server_is_taking_too_long_to_respond_try_again_later": "Reakce na server trvá příliš dlouho, zkuste to znovu později",
     "server_received_too_many_requests_try_again_later": "Server obdržel příliš mnoho požadavků, opakujte akci později.",
     "there_is_a_server_error": "Došlo k chybě serveru",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Došlo k neočekávané chybě. Vložili jste adresu URL serveru?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "Došlo k neočekávané chybě. Vložili jste adresu URL serveru?",
     "too_old_server_text": "Objeven nepodporovaný Jellyfin server",
     "too_old_server_description": "Prosím aktualizujte Jellyfin na nejnovější verzi"
   },
@@ -188,7 +188,7 @@
         "authorize_button": "Autorizovat rychlé připojení",
         "enter_the_quick_connect_code": "Zadejte kód rychlého připojení...",
         "success": "Úspěšně",
-        "quick_connect_autorized": "Oprávněné Rychlé připojení",
+        "quick_connect_authorized": "Oprávněné Rychlé připojení",
         "error": "Chyba",
         "invalid_code": "Neplatný kód",
         "authorize": "Autorizovat"
@@ -261,43 +261,6 @@
           "None": "Nic",
           "OnlyForced": "Pouze vynucené"
         },
-        "text_color": "Barva textu",
-        "background_color": "Barva pozadí",
-        "outline_color": "Barva obrysu",
-        "outline_thickness": "Obrys tloušťky",
-        "background_opacity": "Průhlednost pozadí",
-        "outline_opacity": "Průhlednost obrysu",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Černý",
-          "Gray": "Šedá",
-          "Silver": "Stříbro",
-          "White": "Bílý",
-          "Maroon": "Maroon",
-          "Red": "Červená",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Žlutá",
-          "Olive": "Olivy",
-          "Green": "Zelená",
-          "Teal": "Modrozelený",
-          "Lime": "Světle zelená",
-          "Purple": "Fialová",
-          "Navy": "Námořní loď",
-          "Blue": "Modrá",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "Nic",
-          "Thin": "Tenké",
-          "Normal": "Normální",
-          "Thick": "Tlustá"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Ostatní",
@@ -351,24 +295,16 @@
           "UNKNOWN": "Neznámý"
         },
         "safe_area_in_controls": "Bezpečná oblast v ovládání",
-        "video_player": "Video přehrávač",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (experimentální + PiP)"
-        },
         "show_custom_menu_links": "Zobrazit vlastní Menu odkazy",
         "show_large_home_carousel": "Zobrazit velký přehled (beta)",
         "hide_libraries": "Skrýt knihovny",
-        "select_liraries_you_want_to_hide": "Vyberte knihovny, které chcete skrýt v záložce Knihovna a v sekcích domovské stránky.",
+        "select_libraries_you_want_to_hide": "Vyberte knihovny, které chcete skrýt v záložce Knihovna a v sekcích domovské stránky.",
         "disable_haptic_feedback": "Zakázat Haptickou zpětnou vazbu",
         "default_quality": "Výchozí kvalita",
         "default_playback_speed": "Default Playback Speed",
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Maximální počet automatických přehrávání epizod",
         "disabled": "Zakázáno"
-      },
-      "downloads": {
-        "downloads_title": "Stahování"
       },
       "music": {
         "title": "Music",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Pluginy",
         "jellyseerr": {
-          "jellyseerr_warning": "Tato integrace je v raných fázích. Očekávejte změnu situace.",
           "server_url": "URL serveru",
           "server_url_hint": "Příklad: http(s)://your-host.url\n(přidat port, pokud je vyžadováno)",
           "server_url_placeholder": "Seerr URL",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Přečtěte si více o Marlinu.",
           "save_button": "Uložit",
           "toasts": {
-            "saved": "Uloženo",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Uloženo"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -455,9 +384,10 @@
         "device_usage": "Zařízení {{availableSpace}}%",
         "size_used": "{{used}} z {{total}} využito",
         "delete_all_downloaded_files": "Odstranit všechny stažené soubory",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +397,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +418,12 @@
         "system": "Systém"
       },
       "toasts": {
-        "error_deleting_files": "Chyba při mazání souborů",
-        "background_downloads_enabled": "Stahování na pozadí povoleno",
-        "background_downloads_disabled": "Stahování na pozadí zakázáno"
+        "error_deleting_files": "Chyba při mazání souborů"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +443,7 @@
       "downloads_title": "Stahování",
       "series": "Televizní série",
       "movies": "Filmy",
-      "queue": "Fronta",
       "other_media": "Ostatní média",
-      "queue_hint": "Fronta a stahování budou ztraceny při restartu aplikace",
-      "no_items_in_queue": "Žádné položky ve frontě",
       "no_downloaded_items": "Žádné stažené položky",
       "delete_all_movies_button": "Odstranit všechny filmy",
       "delete_all_series_button": "Odstranit všechny TV-série",
@@ -546,13 +468,8 @@
         "failed_to_delete_all_series": "Nepodařilo se odstranit všechny TV-série",
         "deleted_media_successfully": "Ostatní média úspěšně smazána!",
         "failed_to_delete_media": "Nepodařilo se odstranit ostatní média",
-        "download_deleted": "Stahování smazáno",
         "download_cancelled": "Download Cancelled",
         "could_not_delete_download": "Stahování nelze odstranit",
-        "download_paused": "Stahování pozastaveno",
-        "could_not_pause_download": "Nelze pozastavit stahování",
-        "download_resumed": "Stahování obnoveno",
-        "could_not_resume_download": "Nelze pokračovat v stahování",
         "download_completed": "Stahování dokončeno",
         "download_failed": "Download Failed",
         "download_failed_for_item": "Stahování se nezdařilo pro {{item}} - {{error}}",
@@ -562,17 +479,13 @@
         "item_already_downloading": "{{item}} is already downloading",
         "all_files_deleted": "All Downloads Deleted Successfully",
         "files_deleted_by_type": "{{count}} {{type}} deleted",
-        "all_files_folders_and_jobs_deleted_successfully": "Všechny soubory, složky a úlohy byly úspěšně odstraněny",
-        "failed_to_clean_cache_directory": "Nepodařilo se vyčistit adresář mezipaměti",
         "could_not_get_download_url_for_item": "Nelze získat URL pro stažení {{itemName}}",
-        "go_to_downloads": "Přejít na stahování",
         "file_deleted": "{{item}} deleted"
       }
     }
   },
   "common": {
     "no_results": "No Results",
-    "select": "Vybrat",
     "no_trailer_available": "Přípojné vozidlo není k dispozici",
     "video": "Video",
     "audio": "Zvuk",
@@ -583,16 +496,17 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Hledat...",
@@ -686,15 +600,11 @@
     "mpv_player_title": "MPV Player",
     "error": "Chyba",
     "failed_to_get_stream_url": "Nepodařilo se získat URL streamu",
-    "an_error_occured_while_playing_the_video": "Při přehrávání videa došlo k chybě. Zkontrolujte logy v nastavení.",
+    "an_error_occurred_while_playing_the_video": "Při přehrávání videa došlo k chybě. Zkontrolujte logy v nastavení.",
     "client_error": "Chyba klienta",
     "could_not_create_stream_for_chromecast": "Nelze vytvořit stream pro Chromecast",
     "message_from_server": "Zpráva od serveru: {{message}}",
     "next_episode": "Další epizoda",
-    "refresh_tracks": "Obnovit skladby",
-    "audio_tracks": "Zvukové stopy:",
-    "playback_state": "Stav přehrávání:",
-    "index": "Index:",
     "continue_watching": "Pokračovat ve sledování",
     "go_back": "Zpět",
     "downloaded_file_title": "You have this file downloaded",
@@ -712,7 +622,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "Zobrazit více",
     "show_less": "Zobrazit méně",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Další",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

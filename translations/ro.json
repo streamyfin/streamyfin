@@ -16,14 +16,14 @@
     "got_it": "Am înţeles",
     "connection_failed": "Conectare eșuată",
     "could_not_connect_to_server": "Nu s-a putut conecta la server. Verificați adresa URL și conexiunea la internet.",
-    "an_unexpected_error_occured": "A apărut o eroare neașteptată",
+    "an_unexpected_error_occurred": "A apărut o eroare neașteptată",
     "change_server": "Schimba",
     "invalid_username_or_password": "Nume de utilizator sau parolă greșită",
     "user_does_not_have_permission_to_log_in": "Utilizatorul nu are permisiunea de a se conecta",
     "server_is_taking_too_long_to_respond_try_again_later": "Serverul răspunde prea greu, încearcă din nou mai târziu.",
     "server_received_too_many_requests_try_again_later": "Serverul a primit prea multe solicitări, încercați din nou mai târziu.",
     "there_is_a_server_error": "Eroare de server",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "A apărut o eroare neașteptată. Ați introdus corect adresa URL a serverului?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "A apărut o eroare neașteptată. Ați introdus corect adresa URL a serverului?",
     "too_old_server_text": "Serverul Jellyfin Neacceptat Descoperit",
     "too_old_server_description": "Vă rugăm să actualizați Jellyfin la cea mai recentă versiune"
   },
@@ -188,7 +188,7 @@
         "authorize_button": "Autorizare conectare rapidă",
         "enter_the_quick_connect_code": "Introduceți codul pt. conectare rapidă...",
         "success": "Succes",
-        "quick_connect_autorized": "Conectare rapidă autorizată",
+        "quick_connect_authorized": "Conectare rapidă autorizată",
         "error": "Eroare",
         "invalid_code": "Cod invalid.",
         "authorize": "Autorizează"
@@ -261,43 +261,6 @@
           "None": "Niciuna",
           "OnlyForced": "OnlyForced"
         },
-        "text_color": "Culoare text",
-        "background_color": "Culoare fundal",
-        "outline_color": "Culoare contur",
-        "outline_thickness": "Grosime contur",
-        "background_opacity": "Opacitatea fundalului",
-        "outline_opacity": "Opacitatea conturului",
-        "bold_text": "Bold Text",
-        "colors": {
-          "Black": "Negru",
-          "Gray": "Gri",
-          "Silver": "Argint",
-          "White": "Alb",
-          "Maroon": "Maro",
-          "Red": "Roșu",
-          "Fuchsia": "Fuchsia",
-          "Yellow": "Galben",
-          "Olive": "Oliv",
-          "Green": "Verde",
-          "Teal": "Turcoaz",
-          "Lime": "Verde-Deschis",
-          "Purple": "Violet",
-          "Navy": "Marină",
-          "Blue": "Albastru",
-          "Aqua": "Aqua"
-        },
-        "thickness": {
-          "None": "Nimic",
-          "Thin": "Subțire",
-          "Normal": "Normală",
-          "Thick": "Grozav"
-        },
-        "subtitle_color": "Subtitle Color",
-        "subtitle_background_color": "Background Color",
-        "subtitle_font": "Subtitle Font",
-        "ksplayer_title": "KSPlayer Settings",
-        "hardware_decode": "Hardware Decoding",
-        "hardware_decode_description": "Use hardware acceleration for video decoding. Disable if you experience playback issues.",
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
         "opensubtitles_api_key": "API Key",
@@ -314,25 +277,6 @@
           "top": "Top",
           "bottom": "Bottom"
         }
-      },
-      "vlc_subtitles": {
-        "title": "VLC Subtitle Settings",
-        "hint": "Customize subtitle appearance for VLC player. Changes take effect on next playback.",
-        "text_color": "Text Color",
-        "background_color": "Background Color",
-        "background_opacity": "Background Opacity",
-        "outline_color": "Outline Color",
-        "outline_opacity": "Outline Opacity",
-        "outline_thickness": "Outline Thickness",
-        "bold": "Bold Text",
-        "margin": "Bottom Margin"
-      },
-      "video_player": {
-        "title": "Video Player",
-        "video_player": "Video Player",
-        "video_player_description": "Choose which video player to use on iOS.",
-        "ksplayer": "KSPlayer",
-        "vlc": "VLC"
       },
       "other": {
         "other_title": "Altele",
@@ -351,24 +295,16 @@
           "UNKNOWN": "Necunoscut"
         },
         "safe_area_in_controls": "Zona sigură pentru controale",
-        "video_player": "Player video",
-        "video_players": {
-          "VLC_3": "VLC 3",
-          "VLC_4": "VLC 4 (Experimental + PiP)"
-        },
         "show_custom_menu_links": "Afișează link-uri personalizate în meniu",
         "show_large_home_carousel": "Arată Caruselul Media Mare (beta)",
         "hide_libraries": "Ascunde bibliotecile",
-        "select_liraries_you_want_to_hide": "Selectează bibliotecile pe care dorești să le ascunzi din fila Bibliotecă și din secțiunile paginii principale.",
+        "select_libraries_you_want_to_hide": "Selectează bibliotecile pe care dorești să le ascunzi din fila Bibliotecă și din secțiunile paginii principale.",
         "disable_haptic_feedback": "Dezactivează vibrațiile tactile",
         "default_quality": "Calitate implicită",
         "default_playback_speed": "Default Playback Speed",
         "auto_play_next_episode": "Auto-play Next Episode",
         "max_auto_play_episode_count": "Maxim episoade redare automată",
         "disabled": "Dezactivat"
-      },
-      "downloads": {
-        "downloads_title": "Descărcări"
       },
       "music": {
         "title": "Music",
@@ -384,7 +320,6 @@
       "plugins": {
         "plugins_title": "Plugin-uri",
         "jellyseerr": {
-          "jellyseerr_warning": "Această integrare este în stadii incipiente. Așteptați-vă ca lucrurile să se schimbe.",
           "server_url": "URL Server",
           "server_url_hint": "Exemplu: http(s)://your-host.url\n(adăugați portul dacă este necesar)",
           "server_url_placeholder": "Jellyseerr URL...",
@@ -413,23 +348,18 @@
           "read_more_about_marlin": "Citește mai multe despre Marlin.",
           "save_button": "Salvează",
           "toasts": {
-            "saved": "Salvat",
-            "refreshed": "Settings refreshed from server"
-          },
-          "refresh_from_server": "Refresh Settings from Server"
+            "saved": "Salvat"
+          }
         },
         "streamystats": {
-          "enable_streamystats": "Enable Streamystats",
           "disable_streamystats": "Disable Streamystats",
           "enable_search": "Use for Search",
           "url": "URL",
           "server_url_placeholder": "http(s)://streamystats.example.com",
           "streamystats_search_hint": "Enter the URL for your Streamystats server. The URL should include http or https and optionally the port.",
           "read_more_about_streamystats": "Read More About Streamystats.",
-          "save_button": "Save",
           "save": "Save",
           "features_title": "Features",
-          "home_sections_title": "Home Sections",
           "enable_movie_recommendations": "Movie Recommendations",
           "enable_series_recommendations": "Series Recommendations",
           "enable_promoted_watchlists": "Promoted Watchlists",
@@ -445,8 +375,7 @@
           "refresh_from_server": "Refresh Settings from Server"
         },
         "kefinTweaks": {
-          "watchlist_enabler": "Enable our Watchlist integration",
-          "watchlist_button": "Toggle Watchlist integration"
+          "watchlist_enabler": "Enable our Watchlist integration"
         }
       },
       "storage": {
@@ -455,9 +384,10 @@
         "device_usage": "Dispozitiv {{availableSpace}}%",
         "size_used": "{{used}} din {{total}} folosit",
         "delete_all_downloaded_files": "Ștergeți toate fișierele descărcate",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
         "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
-        "enable_music_cache": "Enable Music Cache",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,8 +397,6 @@
         "clear_all_cache": "Clear All Cache",
         "clear_all_cache_confirm": "Clear All Cache?",
         "clear_all_cache_confirm_desc": "Are you sure you want to clear all cached data? This will clear all cached images, music files, subtitles, and query caches. Your settings and login session will be kept.",
-        "clear_all_cache_success": "Cache Cleared",
-        "clear_all_cache_success_desc": "All cache has been cleared successfully.",
         "clear_all_cache_error_desc": "An error occurred while clearing the cache."
       },
       "intro": {
@@ -490,15 +418,12 @@
         "system": "Sistem"
       },
       "toasts": {
-        "error_deleting_files": "Eroare la ștergerea fișierelor",
-        "background_downloads_enabled": "Descărcări în fundal activate",
-        "background_downloads_disabled": "Descărcări în fundal dezactivate"
+        "error_deleting_files": "Eroare la ștergerea fișierelor"
       },
       "security": {
         "title": "Security",
         "inactivity_timeout": {
           "title": "Inactivity Timeout",
-          "description": "Auto logout after inactivity",
           "disabled": "Disabled",
           "1_minute": "1 minute",
           "5_minutes": "5 minutes",
@@ -518,10 +443,7 @@
       "downloads_title": "Descărcări",
       "series": "Seriale",
       "movies": "Filme",
-      "queue": "Coadă",
       "other_media": "Alte suporturi",
-      "queue_hint": "Descărcările se vor pierde la repornirea aplicației",
-      "no_items_in_queue": "Niciun articol în coadă",
       "no_downloaded_items": "Niciun element descărcat",
       "delete_all_movies_button": "Șterge toate filmele",
       "delete_all_series_button": "Șterge toate serialele",
@@ -546,13 +468,8 @@
         "failed_to_delete_all_series": "Nu s-au putut șterge toate serialele",
         "deleted_media_successfully": "Alte fișiere șterse cu succes!",
         "failed_to_delete_media": "Ștergerea altor fișiere media a eșuat",
-        "download_deleted": "Descărcare ştearsă",
         "download_cancelled": "Descărcare anulată",
         "could_not_delete_download": "Nu s-a putut șterge descărcarea",
-        "download_paused": "Descărcare întreruptă",
-        "could_not_pause_download": "Nu s-a putut întrerupe descărcarea",
-        "download_resumed": "Descărcare din nou",
-        "could_not_resume_download": "Nu s-a putut relua descărcarea",
         "download_completed": "Descărcare completă",
         "download_failed": "Descărcare eșuată",
         "download_failed_for_item": "Descărcarea a eșuat {{item}} - {{error}}",
@@ -562,17 +479,13 @@
         "item_already_downloading": "{{item}} se descarcă deja",
         "all_files_deleted": "Toate descărcările au fost șterse cu succes",
         "files_deleted_by_type": "{{count}} {{type}} au fost șterse",
-        "all_files_folders_and_jobs_deleted_successfully": "Toate fișierele, folderele și lucrările au fost șterse cu succes",
-        "failed_to_clean_cache_directory": "Curățarea directorului cache a eșuat",
         "could_not_get_download_url_for_item": "Nu s-a putut obține URL-ul de descărcare pentru {{itemName}}",
-        "go_to_downloads": "Accesați descărcările",
         "file_deleted": "{{item}} șters"
       }
     }
   },
   "common": {
     "no_results": "No Results",
-    "select": "Selectare",
     "no_trailer_available": "Nicio remorcă disponibilă",
     "video": "Video",
     "audio": "Audio",
@@ -583,16 +496,17 @@
     "none": "Nimic",
     "track": "Limbă audio",
     "cancel": "Cancel",
-    "stop": "Stop",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
-    "next": "Next",
     "back": "Back",
     "continue": "Continue",
     "verifying": "Verifying...",
     "login": "Login",
-    "refresh": "Refresh"
+    "episodes": "Episodes",
+    "movies": "Movies",
+    "loading": "Loading…",
+    "seeAll": "See all"
   },
   "search": {
     "search": "Caută...",
@@ -686,15 +600,11 @@
     "mpv_player_title": "MPV Player",
     "error": "Eroare",
     "failed_to_get_stream_url": "Nu s-a putut obține adresa URL a fluxului",
-    "an_error_occured_while_playing_the_video": "A apărut o eroare la redarea videoclipului. Verificați jurnalele în setări.",
+    "an_error_occurred_while_playing_the_video": "A apărut o eroare la redarea videoclipului. Verificați jurnalele în setări.",
     "client_error": "Eroare client",
     "could_not_create_stream_for_chromecast": "Nu s-a putut crea un flux pentru Chromecast",
     "message_from_server": "Mesaj de la server: {{message}}",
     "next_episode": "Episodul următor",
-    "refresh_tracks": "Reîmprospătare piese",
-    "audio_tracks": "Audio:",
-    "playback_state": "Stare de redare:",
-    "index": "Indice:",
     "continue_watching": "Continuă să vizionezi",
     "go_back": "Înapoi",
     "downloaded_file_title": "Aveţi acest fişier descărcat",
@@ -712,7 +622,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -723,7 +632,8 @@
     "stopPlayback": "Stop Playback",
     "stopPlayingTitle": "Stop playing \"{{title}}\"?",
     "stopPlayingConfirm": "Are you sure you want to stop playback?",
-    "downloaded": "Downloaded"
+    "downloaded": "Downloaded",
+    "missing_parameters": "Missing playback parameters"
   },
   "chapters": {
     "title": "Chapters",
@@ -761,7 +671,6 @@
     "show_more": "Arată mai mult",
     "show_less": "Arată mai puțin",
     "left": "left",
-    "more_info": "More Info",
     "director": "Director",
     "cast": "Cast",
     "technical_details": "Technical Details",
@@ -784,7 +693,8 @@
     "resume_playback": "Resume Playback",
     "resume_playback_description": "Do you want to continue where you left off or start from the beginning?",
     "play_from_start": "Play from Start",
-    "continue_from": "Continue from {{time}}"
+    "continue_from": "Continue from {{time}}",
+    "no_data_available": "No data available"
   },
   "live_tv": {
     "next": "Următorul",
@@ -888,13 +798,9 @@
       "playlists": "Playlists",
       "tracks": "tracks"
     },
-    "filters": {
-      "all": "All"
-    },
     "recently_added": "Recently Added",
     "recently_played": "Recently Played",
     "frequently_played": "Frequently Played",
-    "explore": "Explore",
     "top_tracks": "Top Tracks",
     "play": "Play",
     "shuffle": "Shuffle",
@@ -1028,7 +934,6 @@
   "pairing": {
     "pair_with_phone": "Pair with Phone",
     "pair_with_phone_title": "Login TV",
-    "pair_with_phone_description": "Scan the QR code displayed on your TV to log in",
     "waiting_for_phone": "Waiting for phone...",
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",

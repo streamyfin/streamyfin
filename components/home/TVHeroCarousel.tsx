@@ -65,10 +65,11 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
     const posterUrl = useMemo(() => {
       if (!api) return null;
 
-      // For episodes, always use series thumb
+      // For episodes, always use series thumb.
+      // Matched pair: ParentThumbItemId owns the Thumb tag, not ParentBackdropItemId.
       if (item.Type === "Episode") {
-        if (item.ParentThumbImageTag) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
+        if (item.ParentThumbItemId && item.ParentThumbImageTag) {
+          return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=400&quality=80&tag=${item.ParentThumbImageTag}`;
         }
         if (item.SeriesId) {
           return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=400&quality=80`;
@@ -256,8 +257,11 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
     let isCancelled = false;
 
     const performCrossfade = async () => {
+      // Disk-only prefetch: backdrops are ~8MB decoded ARGB; keeping them
+      // out of the memory cache avoids bloat when the user cycles through
+      // hero items quickly.
       try {
-        await Image.prefetch(backdropUrl);
+        await Image.prefetch(backdropUrl, "disk");
       } catch {
         // Continue even if prefetch fails
       }
@@ -379,7 +383,7 @@ export const TVHeroCarousel: React.FC<TVHeroCarouselProps> = ({
   if (items.length === 0) return null;
 
   // Extra top padding for tvOS to clear the menu bar
-  const tvosTopPadding = Platform.OS === "ios" ? scaleSize(145) : 0;
+  const tvosTopPadding = scaleSize(145);
   const heroHeight = SCREEN_HEIGHT * sizes.padding.heroHeight;
 
   return (

@@ -12,7 +12,10 @@ import {
 } from "react-native";
 import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
-import { WatchedIndicator } from "@/components/WatchedIndicator";
+import {
+  UnplayedCountBadge,
+  WatchedIndicator,
+} from "@/components/WatchedIndicator";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import {
@@ -136,9 +139,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     if (orientation === "horizontal") {
       // Episode: prefer series thumb image for consistent look (like hero section)
       if (item.Type === "Episode") {
-        // First try parent/series thumb (horizontal series artwork)
-        if (item.ParentBackdropItemId && item.ParentThumbImageTag) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
+        // First try parent/series thumb (horizontal series artwork).
+        // Matched pair: ParentThumbItemId owns the Thumb tag, not ParentBackdropItemId.
+        if (item.ParentThumbItemId && item.ParentThumbImageTag) {
+          return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
         }
         // Fall back to episode's own primary image
         if (item.ImageTags?.Primary) {
@@ -427,6 +431,12 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           />
           {PlayButtonOverlay}
           {NowPlayingBadge}
+          {/*
+            The glass view draws the watched checkmark natively but cannot show
+            an unplayed-episode count, so render it as an RN overlay on top.
+            Returns null when not applicable (non-series / fully watched).
+          */}
+          {showWatchedIndicator && <UnplayedCountBadge item={item} />}
         </View>
       );
     }
@@ -448,8 +458,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <Image
           placeholder={{ blurhash }}
           key={item.Id}
-          id={item.Id}
           source={{ uri: imageUrl }}
+          recyclingKey={item.Id}
           cachePolicy='memory-disk'
           contentFit='cover'
           style={{
@@ -459,7 +469,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         />
         {PlayButtonOverlay}
         {NowPlayingBadge}
-        <WatchedIndicator item={item} />
+        {showWatchedIndicator && <WatchedIndicator item={item} />}
         <ProgressBar item={item} />
       </View>
     );
