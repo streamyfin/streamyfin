@@ -32,6 +32,7 @@ import {
 } from "@/components/video-player/controls/utils/playback-speed-settings";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useIntroPlayback } from "@/hooks/useIntroPlayback";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
@@ -61,8 +62,8 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
-import { generateDeviceProfile } from "../../../utils/profiles/native";
+import { generateDeviceProfile } from "@/utils/profiles/native";
+import { msToTicks, ticksToMs, ticksToSeconds } from "@/utils/time";
 
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
@@ -100,6 +101,8 @@ export default function DirectPlayerPage() {
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
   const cacheProgress = useSharedValue(0);
+  // Track whether we've already triggered completion for the current intro
+  const introCompletionTriggered = useSharedValue(false);
   const VolumeManager = Platform.isTV
     ? null
     : require("react-native-volume-manager");
@@ -170,6 +173,14 @@ export default function DirectPlayerPage() {
     isLoading: true,
     isError: false,
   });
+
+  // Intro playback hook - manages intro video playback before main content
+  const { intros, currentIntro, isPlayingIntro, skipAllIntros } =
+    useIntroPlayback({
+      api,
+      itemId: item?.Id || null,
+      userId: user?.Id,
+    });
 
   // Playback manager for progress reporting and adjacent items
   const playbackManager = usePlaybackManager({ item, isOffline: offline });
@@ -308,6 +319,9 @@ export default function DirectPlayerPage() {
     isError: false,
   });
 
+  // Intro stream state - separate from main content stream
+  const [introStream, setIntroStream] = useState<Stream | null>(null);
+
   // Ref to store the stream fetch function for refreshing subtitle tracks
   const refetchStreamRef = useRef<(() => Promise<Stream | null>) | null>(null);
 
@@ -433,6 +447,57 @@ export default function DirectPlayerPage() {
     downloadedItem,
     offline,
   ]);
+
+  // Fetch intro stream when current intro changes
+  useEffect(() => {
+    const fetchIntroStreamData = async () => {
+      // Don't fetch intro stream if offline or no current intro
+      if (offline || !currentIntro?.Id || !api || !user?.Id) {
+        setIntroStream(null);
+        return;
+      }
+
+      try {
+        const res = await getStreamUrl({
+          api,
+          item: currentIntro,
+          startTimeTicks: 0, // Always start from beginning for intros
+          userId: user.Id,
+          audioStreamIndex: audioIndex,
+          maxStreamingBitrate: bitrateValue,
+          mediaSourceId: undefined,
+          subtitleStreamIndex: subtitleIndex,
+          deviceProfile: generateDeviceProfile(),
+        });
+        if (!res) return;
+        const { mediaSource, sessionId, url } = res;
+
+        if (!sessionId || !mediaSource || !url) {
+          console.error("Failed to get intro stream URL");
+          return;
+        }
+        setIntroStream({ mediaSource, sessionId, url });
+      } catch (error) {
+        console.error("Failed to fetch intro stream:", error);
+      }
+    };
+    fetchIntroStreamData();
+  }, [
+    currentIntro,
+    api,
+    user?.Id,
+    audioIndex,
+    bitrateValue,
+    subtitleIndex,
+    offline,
+  ]);
+
+  // Reset intro completion flag when a new intro starts playing
+  useEffect(() => {
+    if (isPlayingIntro) {
+      introCompletionTriggered.value = false;
+    }
+  }, [isPlayingIntro, currentIntro]);
 
   useEffect(() => {
     if (!stream || !api || offline) return;
@@ -606,6 +671,21 @@ export default function DirectPlayerPage() {
         lastUrlUpdateTime.value = now;
       }
 
+      // Handle intro completion - check if intro has reached its end
+      if (isPlayingIntro && currentIntro) {
+        const introDuration = ticksToMs(currentIntro.RunTimeTicks || 0);
+        // Check if we're near the end of the intro (within 1000ms buffer)
+        // Use a larger buffer to ensure reliable detection even with short intros
+        // or if MPV doesn't fire progress callbacks frequently
+        if (currentTime >= introDuration - 1000) {
+          // Only trigger once per intro to avoid multiple calls
+          if (!introCompletionTriggered.value) {
+            introCompletionTriggered.value = true;
+            skipAllIntros();
+          }
+        }
+      }
+
       if (!item?.Id) return;
 
       playbackManager.reportPlaybackProgress(
@@ -622,6 +702,9 @@ export default function DirectPlayerPage() {
       isSeeking,
       isPlaybackStopped,
       isBuffering,
+      isPlayingIntro,
+      currentIntro,
+      skipAllIntros,
     ],
   );
 
@@ -652,9 +735,11 @@ export default function DirectPlayerPage() {
 
   /** Build video source config for MPV */
   const videoSource = useMemo<MpvVideoSource | undefined>(() => {
-    if (!stream?.url) return undefined;
+    // Use intro stream if playing intro, otherwise use main content stream
+    const activeStream = isPlayingIntro ? introStream : stream;
+    if (!activeStream?.url) return undefined;
 
-    const mediaSource = stream.mediaSource;
+    const mediaSource = activeStream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
     // Get external subtitle URLs
@@ -690,14 +775,17 @@ export default function DirectPlayerPage() {
     );
 
     // Calculate start position directly here to avoid timing issues
-    const startTicks = playbackPositionFromUrl
-      ? Number.parseInt(playbackPositionFromUrl, 10)
-      : (item?.UserData?.PlaybackPositionTicks ?? 0);
+    // For intros, always start from 0
+    const startTicks = isPlayingIntro
+      ? 0
+      : playbackPositionFromUrl
+        ? Number.parseInt(playbackPositionFromUrl, 10)
+        : (item?.UserData?.PlaybackPositionTicks ?? 0);
     const startPos = ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
     const source: MpvVideoSource = {
-      url: stream.url,
+      url: activeStream.url,
       startPosition: startPos,
       autoplay: true,
       initialSubtitleId,
@@ -743,6 +831,8 @@ export default function DirectPlayerPage() {
   }, [
     stream?.url,
     stream?.mediaSource,
+    introStream?.url,
+    introStream?.mediaSource,
     stream?.requiredHttpHeaders,
     item?.UserData?.PlaybackPositionTicks,
     playbackPositionFromUrl,
@@ -751,6 +841,7 @@ export default function DirectPlayerPage() {
     subtitleIndex,
     audioIndex,
     offline,
+    isPlayingIntro,
     settings.mpvCacheEnabled,
     settings.mpvCacheSeconds,
     settings.mpvDemuxerMaxBytes,
@@ -1445,6 +1536,9 @@ export default function DirectPlayerPage() {
                   getTechnicalInfo={getTechnicalInfo}
                   playMethod={playMethod}
                   transcodeReasons={transcodeReasons}
+                  isPlayingIntro={isPlayingIntro}
+                  skipAllIntros={skipAllIntros}
+                  intros={intros}
                 />
               ))}
           </View>

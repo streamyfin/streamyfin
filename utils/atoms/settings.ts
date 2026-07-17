@@ -176,6 +176,9 @@ export enum VideoPlayer {
   MPV = 0,
 }
 
+// Segment skip behavior options
+export type SegmentSkipMode = "none" | "ask" | "auto";
+
 // TV Typography scale presets
 export enum TVTypographyScale {
   Small = "small",
@@ -247,6 +250,12 @@ export type Settings = {
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
+  // Media segment skip preferences
+  skipIntro: SegmentSkipMode;
+  skipOutro: SegmentSkipMode;
+  skipRecap: SegmentSkipMode;
+  skipCommercial: SegmentSkipMode;
+  skipPreview: SegmentSkipMode;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -350,6 +359,12 @@ export const defaultValues: Settings = {
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
+  // Media segment skip defaults
+  skipIntro: "ask",
+  skipOutro: "ask",
+  skipRecap: "ask",
+  skipCommercial: "ask",
+  skipPreview: "ask",
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},

@@ -35,7 +35,9 @@ interface BottomControlsProps {
   currentTime: number;
   remainingTime: number;
   showSkipButton: boolean;
+  skipButtonText: string;
   showSkipCreditButton: boolean;
+  skipCreditButtonText: string;
   hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
@@ -75,6 +77,11 @@ interface BottomControlsProps {
     minutes: number;
     seconds: number;
   };
+
+  // Intro playback props
+  isPlayingIntro?: boolean;
+  skipAllIntros?: () => void;
+  intros?: BaseItemDto[];
 }
 
 export const BottomControls: FC<BottomControlsProps> = ({
@@ -87,7 +94,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
   currentTime,
   remainingTime,
   showSkipButton,
+  skipButtonText,
   showSkipCreditButton,
+  skipCreditButtonText,
   hasContentAfterCredits,
   skipIntro,
   skipCredit,
@@ -108,6 +117,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickPlayUrl,
   trickplayInfo,
   time,
+  isPlayingIntro = false,
+  skipAllIntros,
+  intros = [],
 }) => {
   const { settings } = useSettings();
   const { t } = useTranslation();
@@ -180,10 +192,18 @@ export const BottomControls: FC<BottomControlsProps> = ({
           ) : null}
         </View>
         <View className='flex flex-row items-center space-x-2 shrink-0'>
+          {/* Skip Intro button - shows when playing intro videos */}
+          {isPlayingIntro && intros.length > 0 && skipAllIntros && (
+            <SkipButton
+              showButton={true}
+              onPress={skipAllIntros}
+              buttonText='Skip Intro'
+            />
+          )}
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
-            buttonText='Skip Intro'
+            buttonText={skipButtonText}
           />
           {/* Smart Skip Credits behavior:
               - Show "Skip Credits" if there's content after credits OR no next episode
@@ -193,7 +213,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
               showSkipCreditButton && (hasContentAfterCredits || !nextItem)
             }
             onPress={skipCredit}
-            buttonText='Skip Credits'
+            buttonText={skipCreditButtonText}
           />
           {settings.autoPlayNextEpisode !== false &&
             (settings.maxAutoPlayEpisodeCount.value === -1 ||
