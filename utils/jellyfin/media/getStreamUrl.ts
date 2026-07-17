@@ -5,13 +5,14 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { BaseItemKind } from "@jellyfin/sdk/lib/generated-client/models/base-item-kind";
 import { getMediaInfoApi } from "@jellyfin/sdk/lib/utils/api";
-import { generateDownloadProfile } from "@/utils/profiles/download";
-import type { AudioTranscodeModeType } from "@/utils/profiles/native";
+import { generateDownloadProfile } from "../../profiles/download";
+import type { AudioTranscodeModeType } from "../../profiles/native";
 
 interface StreamResult {
   url: string;
   sessionId: string | null;
   mediaSource: MediaSourceInfo | undefined;
+  requiredHttpHeaders?: Record<string, string>;
 }
 
 /**
@@ -50,10 +51,24 @@ const getPlaybackUrl = (
     return `${api.basePath}${transcodeUrl}`;
   }
 
+  // Handle remote/external streams (like live TV with external URLs)
+  // These have Protocol "Http" and IsRemote true, with the actual URL in Path
+  if (
+    mediaSource?.IsRemote &&
+    mediaSource?.Protocol === "Http" &&
+    mediaSource?.Path
+  ) {
+    console.log("Video is remote stream, using direct Path:", mediaSource.Path);
+    return mediaSource.Path;
+  }
+
   // Fall back to direct play
+  // Use the mediaSource's actual container when available (important for live TV
+  // where the container may be ts/hls, not mp4)
+  const container = params.container || mediaSource?.Container || "mp4";
   const streamParams = new URLSearchParams({
     static: params.static || "true",
-    container: params.container || "mp4",
+    container,
     mediaSourceId: mediaSource?.Id || "",
     subtitleStreamIndex: params.subtitleStreamIndex?.toString() || "",
     audioStreamIndex: params.audioStreamIndex?.toString() || "",
@@ -163,6 +178,7 @@ export const getStreamUrl = async ({
   url: string | null;
   sessionId: string | null;
   mediaSource: MediaSourceInfo | undefined;
+  requiredHttpHeaders?: Record<string, string>;
 } | null> => {
   if (!api || !userId || !item?.Id) {
     console.warn("Missing required parameters for getStreamUrl");
@@ -210,6 +226,9 @@ export const getStreamUrl = async ({
       url,
       sessionId: sessionId || null,
       mediaSource,
+      requiredHttpHeaders: mediaSource?.RequiredHttpHeaders as
+        | Record<string, string>
+        | undefined,
     };
   }
 
@@ -254,6 +273,9 @@ export const getStreamUrl = async ({
     url,
     sessionId: sessionId || null,
     mediaSource,
+    requiredHttpHeaders: mediaSource?.RequiredHttpHeaders as
+      | Record<string, string>
+      | undefined,
   };
 };
 

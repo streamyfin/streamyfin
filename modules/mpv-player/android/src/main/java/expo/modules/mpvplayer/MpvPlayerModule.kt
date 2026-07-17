@@ -28,7 +28,11 @@ class MpvPlayerModule : Module() {
                 if (source == null) return@Prop
                 
                 val urlString = source["url"] as? String ?: return@Prop
-                
+
+                // Parse cache config if provided (mirrors iOS)
+                @Suppress("UNCHECKED_CAST")
+                val cacheConfig = source["cacheConfig"] as? Map<String, Any?>
+
                 @Suppress("UNCHECKED_CAST")
                 val config = VideoLoadConfig(
                     url = urlString,
@@ -37,10 +41,21 @@ class MpvPlayerModule : Module() {
                     startPosition = (source["startPosition"] as? Number)?.toDouble(),
                     autoplay = (source["autoplay"] as? Boolean) ?: true,
                     initialSubtitleId = (source["initialSubtitleId"] as? Number)?.toInt(),
-                    initialAudioId = (source["initialAudioId"] as? Number)?.toInt()
+                    initialAudioId = (source["initialAudioId"] as? Number)?.toInt(),
+                    voDriver = source["voDriver"] as? String,
+                    cacheEnabled = cacheConfig?.get("enabled") as? String,
+                    cacheSeconds = (cacheConfig?.get("cacheSeconds") as? Number)?.toInt(),
+                    demuxerMaxBytes = (cacheConfig?.get("maxBytes") as? Number)?.toInt(),
+                    demuxerMaxBackBytes = (cacheConfig?.get("maxBackBytes") as? Number)?.toInt()
                 )
                 
                 view.loadVideo(config)
+            }
+
+            // Now Playing metadata for media controls (iOS-only, no-op on Android)
+            // Android handles media session differently via MediaSessionCompat
+            Prop("nowPlayingMetadata") { _: MpvPlayerView, _: Map<String, String>? ->
+                // No-op on Android - media session integration would require MediaSessionCompat
             }
 
             // Async function to play video
@@ -51,6 +66,15 @@ class MpvPlayerModule : Module() {
             // Async function to pause video
             AsyncFunction("pause") { view: MpvPlayerView ->
                 view.pause()
+            }
+
+            // Stop playback and release the MediaCodec decoder + demuxer.
+            // Does not synchronously tear down the native mpv handle (see
+            // MPVLib / MpvPlayerView.destroy docs). Call before navigating
+            // away from the player screen to avoid OOM during screen
+            // transitions on low-RAM devices.
+            AsyncFunction("destroy") { view: MpvPlayerView ->
+                view.destroy()
             }
 
             // Async function to seek to position
@@ -151,6 +175,18 @@ class MpvPlayerModule : Module() {
                 view.setSubtitleFontSize(size)
             }
 
+            AsyncFunction("setSubtitleBorderStyle") { view: MpvPlayerView, style: String ->
+                view.setSubtitleBorderStyle(style)
+            }
+
+            AsyncFunction("setSubtitleBackgroundColor") { view: MpvPlayerView, color: String ->
+                view.setSubtitleBackgroundColor(color)
+            }
+
+            AsyncFunction("setSubtitleAssOverride") { view: MpvPlayerView, mode: String ->
+                view.setSubtitleAssOverride(mode)
+            }
+
             // Audio track functions
             AsyncFunction("getAudioTracks") { view: MpvPlayerView ->
                 view.getAudioTracks()
@@ -179,7 +215,7 @@ class MpvPlayerModule : Module() {
             }
 
             // Defines events that the view can send to JavaScript
-            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
         }
     }
 }

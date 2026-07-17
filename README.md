@@ -73,7 +73,7 @@ Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building 
 
 ## 🛣️ Roadmap
 
-Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
+Check out our [Roadmap](https://github.com/orgs/streamyfin/projects/3/views/1) to see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
 
 ## 📥 Download Streamyfin
 
@@ -125,6 +125,10 @@ For the TV version suffix the npm commands with `:tv`.
 
 `npm run prebuild:tv`  
 `npm run ios:tv or npm run android:tv`
+
+TV platform integration notes:
+
+- [TV Discovery](./docs/tv-discovery.md)
 
 ## 👋 Get in Touch with Us
 

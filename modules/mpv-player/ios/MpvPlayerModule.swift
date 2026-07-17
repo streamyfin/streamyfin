@@ -29,7 +29,10 @@ public class MpvPlayerModule: Module {
         guard let source = source,
               let urlString = source["url"] as? String,
               let videoURL = URL(string: urlString) else { return }
-        
+
+        // Parse cache config if provided
+        let cacheConfig = source["cacheConfig"] as? [String: Any]
+
         let config = VideoLoadConfig(
           url: videoURL,
           headers: source["headers"] as? [String: String],
@@ -37,10 +40,29 @@ public class MpvPlayerModule: Module {
           startPosition: source["startPosition"] as? Double,
           autoplay: (source["autoplay"] as? Bool) ?? true,
           initialSubtitleId: source["initialSubtitleId"] as? Int,
-          initialAudioId: source["initialAudioId"] as? Int
+          initialAudioId: source["initialAudioId"] as? Int,
+          cacheEnabled: cacheConfig?["enabled"] as? String,
+          cacheSeconds: cacheConfig?["cacheSeconds"] as? Int,
+          demuxerMaxBytes: cacheConfig?["maxBytes"] as? Int,
+          demuxerMaxBackBytes: cacheConfig?["maxBackBytes"] as? Int
         )
-        
+
         view.loadVideo(config: config)
+      }
+
+      // Now Playing metadata for iOS Control Center and Lock Screen
+      Prop("nowPlayingMetadata") { (view: MpvPlayerView, metadata: [String: Any]?) in
+        guard let metadata = metadata else { return }
+        // Convert Any values to String, filtering out nil/null values
+        var stringMetadata: [String: String] = [:]
+        for (key, value) in metadata {
+          if let stringValue = value as? String {
+            stringMetadata[key] = stringValue
+          }
+        }
+        if !stringMetadata.isEmpty {
+          view.setNowPlayingMetadata(stringMetadata)
+        }
       }
 
       // Async function to play video
@@ -52,7 +74,13 @@ public class MpvPlayerModule: Module {
       AsyncFunction("pause") { (view: MpvPlayerView) in
         view.pause()
       }
-      
+
+      // Synchronously destroy mpv instance + decoder before navigating
+      // away from the player screen (cross-platform; matches Android).
+      AsyncFunction("destroy") { (view: MpvPlayerView) in
+        view.destroy()
+      }
+
       // Async function to seek to position
       AsyncFunction("seekTo") { (view: MpvPlayerView, position: Double) in
         view.seekTo(position: position)
@@ -150,7 +178,19 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleFontSize") { (view: MpvPlayerView, size: Int) in
         view.setSubtitleFontSize(size)
       }
-      
+
+      AsyncFunction("setSubtitleBackgroundColor") { (view: MpvPlayerView, color: String) in
+        view.setSubtitleBackgroundColor(color)
+      }
+
+      AsyncFunction("setSubtitleBorderStyle") { (view: MpvPlayerView, style: String) in
+        view.setSubtitleBorderStyle(style)
+      }
+
+      AsyncFunction("setSubtitleAssOverride") { (view: MpvPlayerView, mode: String) in
+        view.setSubtitleAssOverride(mode)
+      }
+
       // Audio track functions
       AsyncFunction("getAudioTracks") { (view: MpvPlayerView) -> [[String: Any]] in
         return view.getAudioTracks()
@@ -179,7 +219,7 @@ public class MpvPlayerModule: Module {
       }
 
       // Defines events that the view can send to JavaScript
-      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady")
+      Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
     }
   }
 }

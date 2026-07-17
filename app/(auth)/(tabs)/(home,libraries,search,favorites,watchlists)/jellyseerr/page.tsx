@@ -6,6 +6,7 @@ import {
   BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import type { BottomSheetModalMethods } from "@gorhom/bottom-sheet/lib/typescript/types";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -21,6 +22,7 @@ import { GenreTags } from "@/components/GenreTags";
 import Cast from "@/components/jellyseerr/Cast";
 import DetailFacts from "@/components/jellyseerr/DetailFacts";
 import RequestModal from "@/components/jellyseerr/RequestModal";
+import { TVJellyseerrPage } from "@/components/jellyseerr/tv";
 import { OverviewText } from "@/components/OverviewText";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
@@ -52,7 +54,8 @@ import type {
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
-const Page: React.FC = () => {
+// Mobile page component
+const MobilePage: React.FC = () => {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
@@ -74,7 +77,7 @@ const Page: React.FC = () => {
   const [issueMessage, setIssueMessage] = useState<string>();
   const [requestBody, _setRequestBody] = useState<MediaRequestBody>();
   const [issueTypeDropdownOpen, setIssueTypeDropdownOpen] = useState(false);
-  const advancedReqModalRef = useRef<BottomSheetModal>(null);
+  const advancedReqModalRef = useRef<BottomSheetModalMethods>(null);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const {
@@ -540,6 +543,14 @@ const Page: React.FC = () => {
       )}
     </View>
   );
+};
+
+// Platform-conditional page component
+const Page: React.FC = () => {
+  if (Platform.isTV) {
+    return <TVJellyseerrPage />;
+  }
+  return <MobilePage />;
 };
 
 export default Page;

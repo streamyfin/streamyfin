@@ -11,7 +11,7 @@ import DisabledSetting from "@/components/settings/DisabledSetting";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function HideLibrariesPage() {
   const { settings, updateSettings, pluginSettings } = useSettings();
   const user = useAtomValue(userAtom);
   const api = useAtomValue(apiAtom);
@@ -60,7 +60,7 @@ export default function page() {
         ))}
       </ListGroup>
       <Text className='px-4 text-xs text-neutral-500 mt-1'>
-        {t("home.settings.other.select_liraries_you_want_to_hide")}
+        {t("home.settings.other.select_libraries_you_want_to_hide")}
       </Text>
     </DisabledSetting>
   );

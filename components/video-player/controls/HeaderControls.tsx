@@ -5,12 +5,11 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { type FC, useCallback, useState } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import useRouter from "@/hooks/useAppRouter";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
-import { useSettings } from "@/utils/atoms/settings";
 import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 import DropdownView from "./dropdown/DropdownView";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
@@ -58,9 +57,8 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
 }) => {
-  const { settings } = useSettings();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const insets = useControlsSafeAreaInsets();
   const lightHapticFeedback = useHaptic("light");
   const { orientation, lockOrientation } = useOrientation();
   const [isTogglingOrientation, setIsTogglingOrientation] = useState(false);
@@ -99,10 +97,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       style={[
         {
           position: "absolute",
-          top: (settings?.safeAreaInControlsEnabled ?? true) ? insets.top : 0,
-          left: (settings?.safeAreaInControlsEnabled ?? true) ? insets.left : 0,
-          right:
-            (settings?.safeAreaInControlsEnabled ?? true) ? insets.right : 0,
+          top: insets.top,
+          left: insets.left,
+          right: insets.right,
           padding: HEADER_LAYOUT.CONTAINER_PADDING,
         },
       ]}
@@ -123,7 +120,9 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
       </View>
 
       <View className='flex flex-row items-center space-x-2'>
-        {!Platform.isTV && (
+        {/* Rotate toggle is Android-only: iOS does not reliably rotate the
+            player back to portrait programmatically. */}
+        {Platform.OS === "android" && (
           <TouchableOpacity
             onPress={toggleOrientation}
             disabled={isTogglingOrientation}

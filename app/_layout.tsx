@@ -2,17 +2,20 @@ import "@/augmentations";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import NetInfo from "@react-native-community/netinfo";
-import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as BackgroundTask from "expo-background-task";
 import * as Device from "expo-device";
+import { Image } from "expo-image";
+import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
 import { GlobalModal } from "@/components/GlobalModal";
+import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
 import i18n from "@/i18n";
 import { DownloadProvider } from "@/providers/DownloadProvider";
 import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
+import { InactivityProvider } from "@/providers/InactivityProvider";
 import { IntroSheetProvider } from "@/providers/IntroSheetProvider";
 import {
   apiAtom,
@@ -54,19 +57,36 @@ import * as TaskManager from "expo-task-manager";
 import { Provider as JotaiProvider, useAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nextProvider } from "react-i18next";
-import { Appearance } from "react-native";
+import { Appearance, LogBox } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+// Suppress harmless tvOS warning from react-native-gesture-handler
+if (Platform.isTV) {
+  LogBox.ignoreLogs(["HoverGestureHandler is not supported on tvOS"]);
+}
+
 import useRouter from "@/hooks/useAppRouter";
 import { userAtom } from "@/providers/JellyfinProvider";
-import { store } from "@/utils/store";
+import { store as jotaiStore, store } from "@/utils/store";
 import "react-native-reanimated";
+import {
+  configureReanimatedLogger,
+  ReanimatedLogLevel,
+} from "react-native-reanimated";
 import { Toaster } from "sonner-native";
+
+// Disable strict mode warnings for reading shared values during render
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
 
 if (!Platform.isTV) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
     }),
@@ -81,6 +101,22 @@ SplashScreen.setOptions({
   duration: 500,
   fade: true,
 });
+
+// Cap expo-image's in-memory cache. Default is unbounded (maxMemoryCost=0),
+// which on a 2GB Android TV box leads to ~200MB of decoded backdrops/posters
+// pinned in RAM after browsing. Caps are intentionally tighter on TV (which
+// has less RAM and runs alongside libmpv/MediaCodec) than on mobile.
+// Cost is measured in bytes of decoded bitmap (ARGB8888 = 4 bytes/pixel).
+try {
+  Image.configureCache({
+    maxMemoryCost: Platform.isTV
+      ? 8 * 1024 * 1024 // ~8 MB on TV
+      : 128 * 1024 * 1024, // ~128 MB on mobile
+    maxDiskSize: 200 * 1024 * 1024, // 200 MB disk cache on all platforms
+  });
+} catch {
+  // configureCache is a no-op on some platforms/versions; safe to ignore.
+}
 
 function useNotificationObserver() {
   const router = useRouter();
@@ -178,7 +214,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <JotaiProvider>
+      <JotaiProvider store={jotaiStore}>
         <ActionSheetProvider>
           <I18nextProvider i18n={i18n}>
             <Layout />
@@ -232,6 +268,11 @@ function Layout() {
   const _segments = useSegments();
   const router = useRouter();
 
+  // Enable TV menu key interception so React Native handles it instead of tvOS
+  useEffect(() => {
+    enableTVMenuKeyInterception();
+  }, []);
+
   useEffect(() => {
     i18n.changeLanguage(
       settings?.preferedLanguage ?? getLocales()[0].languageCode ?? "en",
@@ -252,22 +293,19 @@ function Layout() {
           deviceId: getOrSetDeviceId(),
           userId: user.Id,
         })
-        .then((_) => console.log("Posted expo push token"))
         .catch((_) =>
           writeErrorLog("Failed to push expo push token to plugin"),
         );
-    } else console.log("No token available");
+    }
   }, [api, expoPushToken, user]);
 
   const registerNotifications = useCallback(async () => {
     if (Platform.OS === "android") {
-      console.log("Setting android notification channel 'default'");
       await Notifications?.setNotificationChannelAsync("default", {
         name: "default",
       });
 
       // Create dedicated channel for download notifications
-      console.log("Setting android notification channel 'downloads'");
       await Notifications?.setNotificationChannelAsync("downloads", {
         name: "Downloads",
         importance: Notifications.AndroidImportance.DEFAULT,
@@ -313,9 +351,12 @@ function Layout() {
       notificationListener.current =
         Notifications?.addNotificationReceivedListener(
           (notification: Notification) => {
+            // Log only the title — serializing the whole notification touches
+            // the deprecated dataString getter (deprecation warning) and dumps
+            // noisy payloads into the console.
             console.log(
-              "Notification received while app running",
-              notification,
+              "Notification received while app running:",
+              notification.request.content.title,
             );
           },
         );
@@ -342,8 +383,8 @@ function Layout() {
                   url = `/(auth)/(tabs)/home/items/page?id=${itemId}`;
                   // summarized season notification for multiple episodes. Bring them to series season
                 } else {
-                  const seriesId = data.seriesId;
-                  const seasonIndex = data.seasonIndex;
+                  const seriesId = data?.seriesId;
+                  const seasonIndex = data?.seasonIndex;
                   if (seasonIndex) {
                     url = `/(auth)/(tabs)/home/series/${seriesId}?seasonIndex=${seasonIndex}`;
                   } else {
@@ -375,86 +416,153 @@ function Layout() {
         maxAge: 1000 * 60 * 60 * 24, // 24 hours max cache age
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => {
-            // Only persist successful queries
-            return query.state.status === "success";
+            return (
+              query.state.status === "success" && query.options.gcTime !== 0
+            );
           },
         },
       }}
     >
       <JellyfinProvider>
-        <ServerUrlProvider>
-          <NetworkStatusProvider>
-            <PlaySettingsProvider>
-              <LogProvider>
-                <WebSocketProvider>
-                  <DownloadProvider>
-                    <MusicPlayerProvider>
-                      <GlobalModalProvider>
-                        <BottomSheetModalProvider>
-                          <IntroSheetProvider>
-                            <ThemeProvider value={DarkTheme}>
-                              <SystemBars style='light' hidden={false} />
-                              <Stack initialRouteName='(auth)/(tabs)'>
-                                <Stack.Screen
-                                  name='(auth)/(tabs)'
-                                  options={{
-                                    headerShown: false,
-                                    title: "",
-                                    header: () => null,
+        <InactivityProvider>
+          <ServerUrlProvider>
+            <NetworkStatusProvider>
+              <PlaySettingsProvider>
+                <LogProvider>
+                  <WebSocketProvider>
+                    <DownloadProvider>
+                      <MusicPlayerProvider>
+                        <GlobalModalProvider>
+                          <BottomSheetModalProvider>
+                            <IntroSheetProvider>
+                              <ThemeProvider value={DarkTheme}>
+                                <SystemBars style='light' hidden={false} />
+                                <Stack initialRouteName='(auth)/(tabs)'>
+                                  <Stack.Screen
+                                    name='(auth)/(tabs)'
+                                    options={{
+                                      headerShown: false,
+                                      title: "",
+                                      header: () => null,
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/player'
+                                    options={{
+                                      headerShown: false,
+                                      title: "",
+                                      header: () => null,
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/now-playing'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "modal",
+                                      gestureEnabled: true,
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='login'
+                                    options={{
+                                      headerShown: true,
+                                      title: "",
+                                      headerTransparent: Platform.OS === "ios",
+                                    }}
+                                  />
+                                  <Stack.Screen name='+not-found' />
+                                  <Stack.Screen
+                                    name='(auth)/tv-option-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/tv-subtitle-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/tv-request-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/tv-season-select-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/tv-series-season-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='tv-account-action-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='tv-account-select-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                  <Stack.Screen
+                                    name='(auth)/tv-user-switch-modal'
+                                    options={{
+                                      headerShown: false,
+                                      presentation: "transparentModal",
+                                      animation: "fade",
+                                    }}
+                                  />
+                                </Stack>
+                                <Toaster
+                                  duration={4000}
+                                  toastOptions={{
+                                    style: {
+                                      backgroundColor: "#262626",
+                                      borderColor: "#363639",
+                                      borderWidth: 1,
+                                    },
+                                    titleStyle: {
+                                      color: "white",
+                                    },
                                   }}
+                                  closeButton
                                 />
-                                <Stack.Screen
-                                  name='(auth)/player'
-                                  options={{
-                                    headerShown: false,
-                                    title: "",
-                                    header: () => null,
-                                  }}
-                                />
-                                <Stack.Screen
-                                  name='(auth)/now-playing'
-                                  options={{
-                                    headerShown: false,
-                                    presentation: "modal",
-                                    gestureEnabled: true,
-                                  }}
-                                />
-                                <Stack.Screen
-                                  name='login'
-                                  options={{
-                                    headerShown: true,
-                                    title: "",
-                                    headerTransparent: Platform.OS === "ios",
-                                  }}
-                                />
-                                <Stack.Screen name='+not-found' />
-                              </Stack>
-                              <Toaster
-                                duration={4000}
-                                toastOptions={{
-                                  style: {
-                                    backgroundColor: "#262626",
-                                    borderColor: "#363639",
-                                    borderWidth: 1,
-                                  },
-                                  titleStyle: {
-                                    color: "white",
-                                  },
-                                }}
-                                closeButton
-                              />
-                              <GlobalModal />
-                            </ThemeProvider>
-                          </IntroSheetProvider>
-                        </BottomSheetModalProvider>
-                      </GlobalModalProvider>
-                    </MusicPlayerProvider>
-                  </DownloadProvider>
-                </WebSocketProvider>
-              </LogProvider>
-            </PlaySettingsProvider>
-          </NetworkStatusProvider>
-        </ServerUrlProvider>
+                                {!Platform.isTV && <GlobalModal />}
+                              </ThemeProvider>
+                            </IntroSheetProvider>
+                          </BottomSheetModalProvider>
+                        </GlobalModalProvider>
+                      </MusicPlayerProvider>
+                    </DownloadProvider>
+                  </WebSocketProvider>
+                </LogProvider>
+              </PlaySettingsProvider>
+            </NetworkStatusProvider>
+          </ServerUrlProvider>
+        </InactivityProvider>
       </JellyfinProvider>
     </PersistQueryClientProvider>
   );

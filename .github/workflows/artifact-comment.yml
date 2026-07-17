@@ -18,7 +18,7 @@ jobs:
   comment-artifacts:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
     name: 📦 Post Build Artifacts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       pull-requests: write
@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: 🔍 Get PR and Artifacts
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             // Check if we're running from a fork (more precise detection)
@@ -144,7 +144,7 @@ jobs:
               )
               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-            console.log(`Found ${buildRuns.length} non-cancelled build workflow runs for this commit`);
+            console.log(`Found ${buildRuns.length} build workflow runs for this commit`);
 
             // Log current status of each build for debugging
             buildRuns.forEach(run => {
@@ -184,6 +184,31 @@ jobs:
             const latestAndroidRun = findBestRun('Android APK Build');
             const latestIOSRun = findBestRun('iOS IPA Build');
 
+            // Map our build targets to their job display names. Exact name is
+            // tried first so a signed target never collides with its
+            // "(Unsigned)" sibling (whose name contains the signed name).
+            const jobMappings = {
+              'Android Phone': ['🤖 Build Android APK (Phone)'],
+              'Android TV': ['🤖 Build Android APK (TV)'],
+              'iOS': ['🍎 Build iOS IPA (Phone)'],
+              'iOS Unsigned': ['🍎 Build iOS IPA (Phone - Unsigned)'],
+              'tvOS': ['🍎 Build tvOS IPA'],
+              'tvOS Unsigned': ['🍎 Build tvOS IPA (Unsigned)']
+            };
+
+            // Prefer an exact name match over a substring match so
+            // '...(Phone)' doesn't swallow '...(Phone - Unsigned)'.
+            const findJobForTarget = (jobs, jobNames) =>
+              jobs.find(j => jobNames.some(name => j.name === name)) ||
+              jobs.find(j => jobNames.some(name => j.name.includes(name)));
+
+            // Format a millisecond duration as "Xm Ys".
+            const fmtDuration = (ms) => {
+              const min = Math.floor(ms / 60000);
+              const sec = Math.floor((ms % 60000) / 1000);
+              return `${min}m ${sec}s`;
+            };
+
             // For the consolidated workflow, get individual job statuses
             if (latestAppsRun) {
               console.log(`Getting individual job statuses for run ${latestAppsRun.id} (status: ${latestAppsRun.status}, conclusion: ${latestAppsRun.conclusion || 'none'})`);
@@ -216,19 +241,10 @@ jobs:
                   return; // Exit early
                 }
                 
-                // Map job names to our build targets
-                const jobMappings = {
-                  'Android Phone': ['🤖 Build Android APK (Phone)', 'build-android-phone'],
-                  'Android TV': ['🤖 Build Android APK (TV)', 'build-android-tv'],  
-                  'iOS Phone': ['🍎 Build iOS IPA (Phone)', 'build-ios-phone']
-                };
-                
                 // Create individual status for each job
                 for (const [platform, jobNames] of Object.entries(jobMappings)) {
-                  const job = jobs.jobs.find(j => 
-                    jobNames.some(name => j.name.includes(name) || j.name === name)
-                  );
-                  
+                  const job = findJobForTarget(jobs.jobs, jobNames);
+
                   if (job) {
                     buildStatuses[platform] = {
                       name: job.name,
@@ -236,7 +252,9 @@ jobs:
                       conclusion: job.conclusion,
                       url: job.html_url,
                       runId: latestAppsRun.id,
-                      created_at: job.started_at || latestAppsRun.created_at
+                      created_at: job.started_at || latestAppsRun.created_at,
+                      started_at: job.started_at,
+                      completed_at: job.completed_at
                     };
                     console.log(`Mapped ${platform} to job: ${job.name} (${job.status}/${job.conclusion || 'none'})`);
                   } else {
@@ -247,22 +265,30 @@ jobs:
                       conclusion: latestAppsRun.conclusion,
                       url: latestAppsRun.html_url,
                       runId: latestAppsRun.id,
-                      created_at: latestAppsRun.created_at
+                      created_at: latestAppsRun.created_at,
+                      started_at: latestAppsRun.run_started_at,
+                      completed_at: latestAppsRun.updated_at
                     };
                   }
                 }
                 
               } catch (error) {
                 console.log(`Failed to get jobs for run ${latestAppsRun.id}:`, error.message);
-                // Fallback to workflow-level status
-                buildStatuses['Android Phone'] = buildStatuses['Android TV'] = buildStatuses['iOS Phone'] = {
+                // Fallback to workflow-level status for every build target.
+                // Keys must match jobMappings / buildTargets statusKey values.
+                const fallbackStatus = {
                   name: latestAppsRun.name,
                   status: latestAppsRun.status,
                   conclusion: latestAppsRun.conclusion,
                   url: latestAppsRun.html_url,
                   runId: latestAppsRun.id,
-                  created_at: latestAppsRun.created_at
+                  created_at: latestAppsRun.created_at,
+                  started_at: latestAppsRun.run_started_at,
+                  completed_at: latestAppsRun.updated_at
                 };
+                for (const platform of Object.keys(jobMappings)) {
+                  buildStatuses[platform] = fallbackStatus;
+                }
               }
               
               // Collect artifacts if any job has completed successfully
@@ -344,6 +370,43 @@ jobs:
               console.log(`- Artifact: ${artifact.name} (from run ${artifact.workflow_run.id})`);
             });
 
+            // Pull per-job durations from the latest successful develop build so
+            // in-progress / queued targets can show a realistic ETA instead of
+            // an open-ended spinner. Best-effort: any failure just drops the ETA.
+            let referenceDurations = {};
+            try {
+              const { data: devRuns } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build-apps.yml',
+                branch: 'develop',
+                status: 'success',
+                per_page: 1
+              });
+
+              if (devRuns.workflow_runs.length > 0) {
+                const refRun = devRuns.workflow_runs[0];
+                const { data: refJobs } = await github.rest.actions.listJobsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: refRun.id
+                });
+
+                for (const [platform, jobNames] of Object.entries(jobMappings)) {
+                  const job = findJobForTarget(refJobs.jobs, jobNames);
+                  if (job && job.conclusion === 'success' && job.started_at && job.completed_at) {
+                    referenceDurations[platform] = new Date(job.completed_at) - new Date(job.started_at);
+                  }
+                }
+                console.log(`Reference durations from develop run ${refRun.id}:`,
+                  Object.fromEntries(Object.entries(referenceDurations).map(([k, v]) => [k, fmtDuration(v)])));
+              } else {
+                console.log('No successful develop build found for ETA reference');
+              }
+            } catch (error) {
+              console.log('Failed to fetch develop reference durations:', error.message);
+            }
+
             // Build comment body with progressive status for individual builds
             let commentBody = `## 🔧 Build Status for PR #${pr.number}\n\n`;
             commentBody += `🔗 **Commit**: [\`${targetCommitSha.substring(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${targetCommitSha})\n\n`;            // Progressive build status and downloads table
@@ -353,10 +416,12 @@ jobs:
 
             // Process each expected build target individually
             const buildTargets = [
-              { name: 'Android Phone', platform: '🤖', device: '📱', statusKey: 'Android Phone', artifactPattern: /android.*phone/i },
-              { name: 'Android TV', platform: '🤖', device: '📺', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
-              { name: 'iOS Phone', platform: '🍎', device: '📱', statusKey: 'iOS Phone', artifactPattern: /ios.*phone/i },
-              { name: 'iOS TV', platform: '🍎', device: '📺', statusKey: 'iOS TV', artifactPattern: /ios.*tv/i }
+              { name: 'Android Phone', platform: '🤖', device: '📱 Phone', statusKey: 'Android Phone', artifactPattern: /android.*phone/i },
+              { name: 'Android TV', platform: '🤖', device: '📺 TV', statusKey: 'Android TV', artifactPattern: /android.*tv/i },
+              { name: 'iOS', platform: '🍎', device: '📱 Phone', statusKey: 'iOS', artifactPattern: /^(?!.*unsigned).*ios.*phone.*ipa/i },
+              { name: 'iOS Unsigned', platform: '🍎', device: '📱 Phone Unsigned', statusKey: 'iOS Unsigned', artifactPattern: /ios.*phone.*unsigned/i },
+              { name: 'tvOS', platform: '🍎', device: '📺 TV', statusKey: 'tvOS', artifactPattern: /^(?!.*unsigned).*ios.*tv.*ipa/i },
+              { name: 'tvOS Unsigned', platform: '🍎', device: '📺 TV Unsigned', statusKey: 'tvOS Unsigned', artifactPattern: /ios.*tv.*unsigned/i }
             ];
 
             for (const target of buildTargets) {
@@ -371,16 +436,30 @@ jobs:
               let status = '⏳ Pending';
               let downloadLink = '*Waiting for build...*';
 
-              // Special case for iOS TV - show as disabled
-              if (target.name === 'iOS TV') {
+              // Signed tvOS stays disabled until EAS has tvOS provisioning
+              // profiles (app + TopShelf targets); non-interactive builds can't
+              // create them. Unsigned tvOS builds, so it flows through normally.
+              if (target.name === 'tvOS') {
                 status = '💤 Disabled';
-                downloadLink = '*Disabled for now*';
+                downloadLink = '*Disabled — signed tvOS needs EAS provisioning profiles*';
               } else if (matchingStatus) {
                 if (matchingStatus.conclusion === 'success' && matchingArtifact) {
                   status = '✅ Complete';
                   const directLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${matchingArtifact.workflow_run.id}/artifacts/${matchingArtifact.id}`;
                   const fileType = target.name.includes('Android') ? 'APK' : 'IPA';
-                  downloadLink = `[📥 Download ${fileType}](${directLink})`;
+                  
+                  // Format file size
+                  const sizeInMB = (matchingArtifact.size_in_bytes / (1024 * 1024)).toFixed(1);
+                  const sizeInfo = `(${sizeInMB} MB)`;
+                  
+                  // Calculate build duration
+                  let durationInfo = '';
+                  if (matchingStatus.started_at && matchingStatus.completed_at) {
+                    const durationMs = new Date(matchingStatus.completed_at) - new Date(matchingStatus.started_at);
+                    durationInfo = ` - ${fmtDuration(durationMs)}`;
+                  }
+
+                  downloadLink = `[📥 Download ${fileType}](${directLink}) ${sizeInfo}${durationInfo}`;
                 } else if (matchingStatus.conclusion === 'failure') {
                   status = `❌ [Failed](${matchingStatus.url})`;
                   downloadLink = '*Build failed*';
@@ -389,10 +468,16 @@ jobs:
                   downloadLink = '*Build cancelled*';
                 } else if (matchingStatus.status === 'in_progress') {
                   status = `🔄 [Building...](${matchingStatus.url})`;
-                  downloadLink = '*Build in progress...*';
+                  const ref = referenceDurations[target.statusKey];
+                  downloadLink = ref
+                    ? `*Building… ~${fmtDuration(ref)} (avg on develop)*`
+                    : '*Build in progress...*';
                 } else if (matchingStatus.status === 'queued') {
                   status = `⏳ [Queued](${matchingStatus.url})`;
-                  downloadLink = '*Waiting to start...*';
+                  const ref = referenceDurations[target.statusKey];
+                  downloadLink = ref
+                    ? `*Waiting to start… ~${fmtDuration(ref)} once running (avg on develop)*`
+                    : '*Waiting to start...*';
                 } else if (matchingStatus.status === 'completed' && !matchingStatus.conclusion) {
                   // Workflow completed but conclusion not yet available (rare edge case)
                   status = `🔄 [Finishing...](${matchingStatus.url})`;
@@ -408,12 +493,27 @@ jobs:
                 }
               }
 
-              commentBody += `| ${target.platform} ${target.name.split(' ')[0]} | ${target.device} ${target.name.split(' ')[1]} | ${status} | ${downloadLink} |\n`;
+              commentBody += `| ${target.platform} ${target.name} | ${target.device} | ${status} | ${downloadLink} |\n`;
             }
 
             commentBody += `\n`;
 
-            // Show installation instructions if we have any artifacts
+            // Static rundown of the build optimisations + what each artifact
+            // installs on. Always shown (even mid-build) so testers know what
+            // to expect before downloads are ready.
+            commentBody += `<details>\n`;
+            commentBody += `<summary>📦 Build details &amp; device compatibility</summary>\n\n`;
+            commentBody += `These CI builds are trimmed for size and speed. What that means for installing them:\n\n`;
+            commentBody += `| Artifact | Architectures | Installs on |\n`;
+            commentBody += `|---|---|---|\n`;
+            commentBody += `| 🤖 Android Phone APK | \`arm64-v8a\` | Every 64-bit Android phone (all since ~2017). **Not** an x86_64 emulator or a 32-bit device. |\n`;
+            commentBody += `| 📺 Android TV APK | \`arm64-v8a\` + \`armeabi-v7a\` | Modern boxes **and** older / cheap 32-bit Android TV sticks. No x86_64. |\n`;
+            commentBody += `| 🍎 iOS / tvOS IPA | \`arm64\` | iPhone / Apple TV (all current devices). |\n\n`;
+            commentBody += `**Why no x86_64?** That slice only runs on Android emulators / Chromebooks, never a real phone or TV box — dropping it shrinks the APK and speeds up the build. Local \`bun run android\` is unaffected (it still builds x86_64 from \`app.json\`).\n\n`;
+            commentBody += `**Runners:** Android on \`ubuntu-26.04\`; iOS / tvOS on Apple Silicon (\`macos-26\`). The size/speed win comes from the ABI trim above, not the runner.\n`;
+            commentBody += `</details>\n\n`;
+
+            // Installation instructions only matter once something is downloadable.
             if (allArtifacts.length > 0) {
               commentBody += `### 🔧 Installation Instructions\n\n`;
               commentBody += `- **Android APK**: Download and install directly on your device (enable "Install from unknown sources")\n`;

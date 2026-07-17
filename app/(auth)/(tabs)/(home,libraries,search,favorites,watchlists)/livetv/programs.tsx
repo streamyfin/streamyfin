@@ -2,12 +2,21 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { getLiveTvApi } from "@jellyfin/sdk/lib/utils/api";
 import { useAtom } from "jotai";
 import { useTranslation } from "react-i18next";
-import { ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollingCollectionList } from "@/components/home/ScrollingCollectionList";
+import { TVLiveTVPage } from "@/components/livetv/TVLiveTVPage";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 
 export default function page() {
+  if (Platform.isTV) {
+    return <TVLiveTVPage />;
+  }
+
+  return <MobileLiveTVPrograms />;
+}
+
+function MobileLiveTVPrograms() {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const insets = useSafeAreaInsets();
