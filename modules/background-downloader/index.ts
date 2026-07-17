@@ -5,6 +5,7 @@ import type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  StorageLocation,
 } from "./src/BackgroundDownloader.types";
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
 
@@ -15,6 +16,7 @@ export interface BackgroundDownloader {
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
+  getAvailableStorageLocations(): Promise<StorageLocation[]>;
 
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
@@ -64,6 +66,10 @@ const BackgroundDownloader: BackgroundDownloader = {
     return await BackgroundDownloaderModule.getActiveDownloads();
   },
 
+  async getAvailableStorageLocations(): Promise<StorageLocation[]> {
+    return await BackgroundDownloaderModule.getAvailableStorageLocations();
+  },
+
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
   ): EventSubscription {
@@ -106,4 +112,5 @@ export type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  StorageLocation,
 };

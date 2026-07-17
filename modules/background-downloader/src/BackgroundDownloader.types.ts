@@ -29,6 +29,15 @@ export interface ActiveDownload {
   state: "running" | "suspended" | "canceling" | "completed" | "unknown";
 }
 
+export interface StorageLocation {
+  id: string;
+  path: string;
+  type: "internal" | "external";
+  label: string;
+  totalSpace: number;
+  freeSpace: number;
+}
+
 export interface BackgroundDownloaderModuleType {
   startDownload(url: string, destinationPath?: string): Promise<number>;
   enqueueDownload(url: string, destinationPath?: string): Promise<number>;
@@ -36,6 +45,7 @@ export interface BackgroundDownloaderModuleType {
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
+  getAvailableStorageLocations(): Promise<StorageLocation[]>;
   addListener(
     eventName: string,
     listener: (event: any) => void,

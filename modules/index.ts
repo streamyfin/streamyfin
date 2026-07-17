@@ -5,6 +5,7 @@ export type {
   DownloadErrorEvent,
   DownloadProgressEvent,
   DownloadStartedEvent,
+  StorageLocation,
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
 // Glass Poster (tvOS 26+)

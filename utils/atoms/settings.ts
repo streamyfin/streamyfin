@@ -224,6 +224,7 @@ export type Settings = {
   streamyStatsSeriesRecommendations?: boolean;
   streamyStatsPromotedWatchlists?: boolean;
   downloadQuality?: DownloadOption;
+  downloadStorageLocation?: string;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
@@ -321,6 +322,7 @@ export const defaultValues: Settings = {
   streamyStatsSeriesRecommendations: false,
   streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
+  downloadStorageLocation: undefined,
   defaultBitrate: BITRATES[0],
   libraryOptions: {
     display: "list",

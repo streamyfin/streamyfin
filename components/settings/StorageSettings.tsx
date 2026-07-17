@@ -1,4 +1,6 @@
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, View } from "react-native";
 import { toast } from "sonner-native";
@@ -6,15 +8,20 @@ import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
+import { useSettings } from "@/utils/atoms/settings";
+import { getStorageLabel } from "@/utils/storage";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
+import { StorageLocationPicker } from "./StorageLocationPicker";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
+  const { settings } = useSettings();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
 
   const { data: size } = useQuery({
     queryKey: ["appSize"],
@@ -30,6 +37,12 @@ export const StorageSettings = () => {
     },
     // Keep the bar moving while a download is writing to disk.
     refetchInterval: 10 * 1000,
+  });
+
+  const { data: storageLabel } = useQuery({
+    queryKey: ["storageLabel", settings.downloadStorageLocation],
+    queryFn: () => getStorageLabel(settings.downloadStorageLocation),
+    enabled: Platform.OS === "android",
   });
 
   const onDeleteClicked = () => {
@@ -125,14 +138,32 @@ export const StorageSettings = () => {
         </View>
       </View>
       {!Platform.isTV && (
-        <ListGroup>
-          <ListItem
-            textColor='red'
-            onPress={onDeleteClicked}
-            title={t("home.settings.storage.delete_all_downloaded_files")}
-          />
-        </ListGroup>
+        <>
+          {Platform.OS === "android" && (
+            <ListGroup>
+              <ListItem
+                title={t("settings.storage.download_location", {
+                  defaultValue: "Download Location",
+                })}
+                value={storageLabel || "Internal Storage"}
+                onPress={() => bottomSheetModalRef.current?.present()}
+              />
+            </ListGroup>
+          )}
+          <ListGroup>
+            <ListItem
+              textColor='red'
+              onPress={onDeleteClicked}
+              title={t("home.settings.storage.delete_all_downloaded_files")}
+            />
+          </ListGroup>
+        </>
       )}
+
+      <StorageLocationPicker
+        ref={bottomSheetModalRef}
+        onClose={() => bottomSheetModalRef.current?.dismiss()}
+      />
     </View>
   );
 };

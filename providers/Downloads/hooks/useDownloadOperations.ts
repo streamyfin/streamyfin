@@ -6,13 +6,16 @@ import { File, Paths } from "expo-file-system";
 import type { MutableRefObject } from "react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
 import DeviceInfo from "react-native-device-info";
 import { toast } from "sonner-native";
 import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
+import { useSettings } from "@/utils/atoms/settings";
 import { getOrSetDeviceId } from "@/utils/device";
 import useDownloadHelper from "@/utils/download";
+import { getStoragePath } from "@/utils/storage";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -49,6 +52,7 @@ export function useDownloadOperations({
   onDataChange,
 }: UseDownloadOperationsProps) {
   const { t } = useTranslation();
+  const { settings } = useSettings();
   const { saveSeriesPrimaryImage } = useDownloadHelper();
   const { saveImage } = useImageStorage();
 
@@ -81,6 +85,12 @@ export function useDownloadOperations({
           return;
         }
 
+        // Get storage path if custom location is set
+        let storagePath: string | undefined;
+        if (Platform.OS === "android" && settings.downloadStorageLocation) {
+          storagePath = await getStoragePath(settings.downloadStorageLocation);
+        }
+
         // Download all additional assets BEFORE starting native video download
         const additionalAssets = await downloadAdditionalAssets({
           item,
@@ -88,6 +98,7 @@ export function useDownloadOperations({
           api,
           saveImageFn: saveImage,
           saveSeriesImageFn: saveSeriesPrimaryImage,
+          storagePath,
         });
 
         // Ensure URL is absolute (not relative) before storing
@@ -123,10 +134,19 @@ export function useDownloadOperations({
         // Add to processes
         setProcesses((prev) => [...prev, jobStatus]);
 
-        // Generate destination path
+        // Generate destination path using custom storage location if set
         const filename = generateFilename(item);
-        const videoFile = new File(Paths.document, `${filename}.mp4`);
-        const destinationPath = uriToFilePath(videoFile.uri);
+        let destinationPath: string;
+
+        if (storagePath) {
+          // Use custom storage location
+          destinationPath = `${storagePath}/${filename}.mp4`;
+          console.log(`[DOWNLOAD] Using custom storage: ${destinationPath}`);
+        } else {
+          // Use default Paths.document
+          const videoFile = new File(Paths.document, `${filename}.mp4`);
+          destinationPath = uriToFilePath(videoFile.uri);
+        }
 
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
         console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
