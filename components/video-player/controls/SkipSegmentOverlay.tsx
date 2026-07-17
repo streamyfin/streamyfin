@@ -48,7 +48,7 @@ const useDelayedHide = (value: boolean, duration: number): boolean => {
     const t = setTimeout(() => setDisplay(false), duration);
     return () => clearTimeout(t);
   }, [value, duration]);
-  return display;
+  return value || display;
 };
 
 /**
