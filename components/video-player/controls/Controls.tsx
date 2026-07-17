@@ -38,6 +38,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SkipSegmentOverlay } from "./SkipSegmentOverlay";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
@@ -570,11 +571,8 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
               hasContentAfterCredits={hasContentAfterCredits}
-              skipIntro={skipIntro}
-              skipCredit={skipCredit}
               nextItem={nextItem}
               handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
               handleNextEpisodeManual={handleNextEpisodeManual}
@@ -594,6 +592,17 @@ export const Controls: FC<Props> = ({
               time={isSliding || showRemoteBubble ? time : remoteTime}
             />
           </Animated.View>
+          {/* Skip Intro / Skip Credits float independently of the controls so
+              they're visible (and tappable) without summoning the controls. */}
+          <SkipSegmentOverlay
+            showSkipButton={showSkipButton}
+            showSkipCreditButton={showSkipCreditButton}
+            hasContentAfterCredits={hasContentAfterCredits}
+            hasNextItem={!!nextItem}
+            skipIntro={skipIntro}
+            skipCredit={skipCredit}
+            controlsVisible={showControls}
+          />
         </>
       )}
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (
