@@ -274,6 +274,9 @@ export type Settings = {
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  // Use the episode's own image (instead of the series thumb) for the
+  // "Next Up" and "Continue Watching" home rows.
+  useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
@@ -382,6 +385,7 @@ export const defaultValues: Settings = {
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
+  useEpisodeImagesForNextUp: false,
   // TV-specific settings
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
