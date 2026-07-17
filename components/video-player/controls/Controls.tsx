@@ -339,6 +339,16 @@ export const Controls: FC<Props> = ({
       maxMs,
     );
 
+  // Whether the "Next Episode" countdown will actually be rendered. The Skip
+  // Credits button yields to it only when this is true; if autoplay is
+  // disabled or its episode limit is reached, Skip Credits must stay available
+  // (mirrors the NextEpisodeCountDownButton mount gate in BottomControls).
+  const willShowNextEpisode =
+    !!nextItem &&
+    settings.autoPlayNextEpisode !== false &&
+    (settings.maxAutoPlayEpisodeCount.value === -1 ||
+      settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
       if (!item || !settings) {
@@ -598,7 +608,7 @@ export const Controls: FC<Props> = ({
             showSkipButton={showSkipButton}
             showSkipCreditButton={showSkipCreditButton}
             hasContentAfterCredits={hasContentAfterCredits}
-            hasNextItem={!!nextItem}
+            willShowNextEpisode={willShowNextEpisode}
             skipIntro={skipIntro}
             skipCredit={skipCredit}
             controlsVisible={showControls}

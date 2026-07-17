@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import Animated, {
   Easing,
@@ -14,7 +14,7 @@ interface Props {
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
-  hasNextItem: boolean;
+  willShowNextEpisode: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   controlsVisible: boolean;
@@ -34,6 +34,23 @@ const VISIBLE_BOTTOM = 65;
 const VISIBLE_RIGHT = 42;
 const ANIM_DURATION = 250;
 
+// Keeps `value` true for `duration` ms after it turns false. SkipButton hides
+// itself instantly via a `hidden` (display:none) class, which would preempt
+// the parent's opacity fade-out — lagging the flag keeps the button rendered
+// (and visible) while the fade plays out.
+const useDelayedHide = (value: boolean, duration: number): boolean => {
+  const [display, setDisplay] = useState(value);
+  useEffect(() => {
+    if (value) {
+      setDisplay(true);
+      return;
+    }
+    const t = setTimeout(() => setDisplay(false), duration);
+    return () => clearTimeout(t);
+  }, [value, duration]);
+  return display;
+};
+
 /**
  * Floating Skip Intro / Skip Credits buttons shown independently of the
  * player controls. They appear on their own during an intro or credits segment
@@ -43,7 +60,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
   showSkipButton,
   showSkipCreditButton,
   hasContentAfterCredits,
-  hasNextItem,
+  willShowNextEpisode,
   skipIntro,
   skipCredit,
   controlsVisible,
@@ -51,8 +68,14 @@ export const SkipSegmentOverlay: FC<Props> = ({
   const insets = useControlsSafeAreaInsets();
 
   const showCredit =
-    showSkipCreditButton && (hasContentAfterCredits || !hasNextItem);
+    showSkipCreditButton && (hasContentAfterCredits || !willShowNextEpisode);
   const visible = showSkipButton || showCredit;
+
+  // Drive each SkipButton with a lagged flag so it stays visible while the
+  // opacity fade-out plays, instead of disappearing the instant its segment
+  // ends. `visible` above still drives opacity/pointerEvents immediately.
+  const renderSkip = useDelayedHide(showSkipButton, ANIM_DURATION);
+  const renderCredit = useDelayedHide(showCredit, ANIM_DURATION);
 
   const opacity = useSharedValue(visible ? 1 : 0);
 
@@ -79,12 +102,12 @@ export const SkipSegmentOverlay: FC<Props> = ({
       pointerEvents={visible ? "box-none" : "none"}
     >
       <SkipButton
-        showButton={showSkipButton}
+        showButton={renderSkip}
         onPress={skipIntro}
         buttonText='Skip Intro'
       />
       <SkipButton
-        showButton={showCredit}
+        showButton={renderCredit}
         onPress={skipCredit}
         buttonText='Skip Credits'
       />
