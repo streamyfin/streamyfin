@@ -11,6 +11,7 @@ import { Animated, View, type ViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
+import { GridSkeleton } from "./GridSkeleton";
 
 const ANIMATION_ENTER = 250;
 const ANIMATION_EXIT = 250;
@@ -28,6 +29,7 @@ interface Props<T> {
   renderItem: (item: T, index: number) => Render;
   keyExtractor: (item: T) => string;
   onEndReached?: (() => void) | null | undefined;
+  isLoading?: boolean;
 }
 
 const ParallaxSlideShow = <T,>({
@@ -40,6 +42,7 @@ const ParallaxSlideShow = <T,>({
   renderItem,
   keyExtractor,
   onEndReached,
+  isLoading = false,
 }: PropsWithChildren<Props<T> & ViewProps>) => {
   const insets = useSafeAreaInsets();
 
@@ -124,27 +127,40 @@ const ParallaxSlideShow = <T,>({
           </View>
           {MainContent?.()}
           <View>
-            <FlashList
-              data={data}
-              ListEmptyComponent={
-                <View className='flex flex-col items-center justify-center h-full'>
-                  <Text className='font-bold text-xl text-neutral-500'>
-                    No results
-                  </Text>
-                </View>
-              }
-              contentInsetAdjustmentBehavior='automatic'
-              ListHeaderComponent={
+            {isLoading ? (
+              <View>
                 <Text className='text-lg font-bold my-2'>{listHeader}</Text>
-              }
-              nestedScrollEnabled
-              showsVerticalScrollIndicator={false}
-              //@ts-expect-error
-              renderItem={({ item, index }) => renderItem(item, index)}
-              keyExtractor={keyExtractor}
-              numColumns={3}
-              ItemSeparatorComponent={() => <View className='h-2 w-2' />}
-            />
+                <View className='px-4'>
+                  <View className='flex flex-row flex-wrap'>
+                    {Array.from({ length: 9 }, (_, i) => (
+                      <GridSkeleton key={i} index={i} />
+                    ))}
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <FlashList
+                data={data}
+                ListEmptyComponent={
+                  <View className='flex flex-col items-center justify-center h-full'>
+                    <Text className='font-bold text-xl text-neutral-500'>
+                      No results
+                    </Text>
+                  </View>
+                }
+                contentInsetAdjustmentBehavior='automatic'
+                ListHeaderComponent={
+                  <Text className='text-lg font-bold my-2'>{listHeader}</Text>
+                }
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                //@ts-expect-error
+                renderItem={({ item, index }) => renderItem(item, index)}
+                keyExtractor={keyExtractor}
+                numColumns={3}
+                ItemSeparatorComponent={() => <View className='h-2 w-2' />}
+              />
+            )}
           </View>
         </View>
       </ParallaxScrollView>

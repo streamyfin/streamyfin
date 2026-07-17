@@ -5,9 +5,12 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
+
+import { BackHandler, Platform } from "react-native";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
@@ -60,10 +63,6 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
     (content: ReactNode, options?: ModalOptions) => {
       setModalState({ content, options });
       setIsVisible(true);
-      // Wait for state update and layout to complete before presenting
-      requestAnimationFrame(() => {
-        modalRef.current?.present();
-      });
     },
     [],
   );
@@ -76,6 +75,25 @@ export const GlobalModalProvider: React.FC<GlobalModalProviderProps> = ({
       setModalState({ content: null, options: undefined });
     });
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const onBackPress = () => {
+      if (isVisible) {
+        hideModal();
+        return true;
+      }
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress,
+    );
+
+    return () => subscription.remove();
+  }, [isVisible, hideModal]);
 
   const value = {
     showModal,

@@ -1,0 +1,38 @@
+# Custom EAS Build config for Android (production AAB).
+#
+# Why this exists: EAS's managed build can't detect Bun's text lockfile
+# (bun.lock) and falls back to yarn, which breaks our install. The managed
+# steps `eas/install_node_modules` and `eas/prebuild` both use "the package
+# manager detected based on your project", so we replace them with explicit
+# `bun` commands. Everything else uses EAS's built-in functions so we still
+# get remote versioning, credentials, and artifact upload.
+#
+# Referenced from eas.json: build.production.android.config = android-production.yml
+build:
+  name: Android production (bun)
+  steps:
+    - eas/checkout
+
+    - run:
+        name: Install dependencies (bun, frozen)
+        command: bun install --frozen-lockfile
+
+    # android/ is gitignored, so generate native code fresh. --no-install
+    # because deps are already installed above; bunx keeps it on bun.
+    - run:
+        name: Prebuild (Android, bun)
+        command: bunx expo prebuild --platform android --no-install
+
+    # Applies the EAS-resolved remote versionCode/versionName (autoIncrement
+    # in eas.json) into the freshly prebuilt android/ project.
+    - eas/configure_android_version
+
+    # Injects the remote Android keystore / signing config.
+    - eas/inject_android_credentials
+
+    # Build the Play Store app bundle (.aab).
+    - eas/run_gradle:
+        inputs:
+          command: :app:bundleRelease
+
+    - eas/find_and_upload_build_artifacts

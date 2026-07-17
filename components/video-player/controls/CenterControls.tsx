@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { FC } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useSettings } from "@/utils/atoms/settings";
 import AudioSlider from "./AudioSlider";
 import BrightnessSlider from "./BrightnessSlider";
@@ -18,6 +18,12 @@ interface CenterControlsProps {
   togglePlay: () => void;
   handleSkipBackward: () => void;
   handleSkipForward: () => void;
+  // Chapter navigation props
+  hasChapters?: boolean;
+  hasPreviousChapter?: boolean;
+  hasNextChapter?: boolean;
+  goToPreviousChapter?: () => void;
+  goToNextChapter?: () => void;
 }
 
 export const CenterControls: FC<CenterControlsProps> = ({
@@ -29,36 +35,43 @@ export const CenterControls: FC<CenterControlsProps> = ({
   togglePlay,
   handleSkipBackward,
   handleSkipForward,
+  hasChapters = false,
+  hasPreviousChapter = false,
+  hasNextChapter = false,
+  goToPreviousChapter,
+  goToNextChapter,
 }) => {
   const { settings } = useSettings();
-  const insets = useSafeAreaInsets();
+  const insets = useControlsSafeAreaInsets();
 
   return (
     <View
       style={{
         position: "absolute",
         top: "50%",
-        left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-        right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
+        left: insets.left,
+        right: insets.right,
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
         transform: [{ translateY: -22.5 }],
-        paddingHorizontal: "28%",
+        paddingHorizontal: hasChapters ? "18%" : "28%",
       }}
       pointerEvents={showControls ? "box-none" : "none"}
     >
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          transform: [{ rotate: "270deg" }],
-          left: 0,
-          bottom: 30,
-        }}
-      >
-        <BrightnessSlider />
-      </View>
+      {!settings?.hideBrightnessSlider && (
+        <View
+          style={{
+            position: "absolute",
+            alignItems: "center",
+            transform: [{ rotate: "270deg" }],
+            left: 0,
+            bottom: 30,
+          }}
+        >
+          <BrightnessSlider />
+        </View>
+      )}
 
       {!Platform.isTV && (
         <TouchableOpacity onPress={handleSkipBackward}>
@@ -92,6 +105,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
         </TouchableOpacity>
       )}
 
+      {!Platform.isTV && hasChapters && (
+        <TouchableOpacity
+          onPress={goToPreviousChapter}
+          disabled={!hasPreviousChapter}
+          style={{ opacity: hasPreviousChapter ? 1 : 0.3 }}
+        >
+          <Ionicons
+            name='play-back'
+            size={ICON_SIZES.CENTER - 10}
+            color='white'
+          />
+        </TouchableOpacity>
+      )}
+
       <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
         <TouchableOpacity onPress={togglePlay}>
           {!isBuffering ? (
@@ -105,6 +132,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
           )}
         </TouchableOpacity>
       </View>
+
+      {!Platform.isTV && hasChapters && (
+        <TouchableOpacity
+          onPress={goToNextChapter}
+          disabled={!hasNextChapter}
+          style={{ opacity: hasNextChapter ? 1 : 0.3 }}
+        >
+          <Ionicons
+            name='play-forward'
+            size={ICON_SIZES.CENTER - 10}
+            color='white'
+          />
+        </TouchableOpacity>
+      )}
 
       {!Platform.isTV && (
         <TouchableOpacity onPress={handleSkipForward}>
@@ -135,18 +176,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
         </TouchableOpacity>
       )}
 
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          transform: [{ rotate: "270deg" }],
-          bottom: 30,
-          right: 0,
-          opacity: showAudioSlider || showControls ? 1 : 0,
-        }}
-      >
-        <AudioSlider setVisibility={setShowAudioSlider} />
-      </View>
+      {!settings?.hideVolumeSlider && (
+        <View
+          style={{
+            position: "absolute",
+            alignItems: "center",
+            transform: [{ rotate: "270deg" }],
+            bottom: 30,
+            right: 0,
+            opacity: showAudioSlider || showControls ? 1 : 0,
+          }}
+        >
+          <AudioSlider setVisibility={setShowAudioSlider} />
+        </View>
+      )}
     </View>
   );
 };

@@ -1,6 +1,5 @@
 # Dependencies and Package Managers
 node_modules/
-bun.lock
 bun.lockb
 package-lock.json
 
@@ -13,15 +12,12 @@ web-build/
 # Platform-specific Build Directories
 /ios
 /android
-/iostv
-/iosmobile
-/androidmobile
-/androidtv
 
-# Module-specific Builds
-modules/vlc-player/android/build
-modules/player/android
-modules/hls-downloader/android/build
+# Gradle caches (top-level + per-module native projects)
+**/.gradle/
+
+# Native module build outputs (any module)
+modules/*/android/build/
 
 # Generated Applications
 Streamyfin.app
@@ -50,7 +46,6 @@ npm-debug.*
 .idea/
 .ruby-lsp
 .cursor/
-.claude/
 
 # Environment and Configuration
 expo-env.d.ts
@@ -62,7 +57,20 @@ expo-env.d.ts
 pc-api-7079014811501811218-719-3b9f15aeccf8.json
 credentials.json
 streamyfin-4fec1-firebase-adminsdk.json
+/profiles/
+certs/
 
 # Version and Backup Files
 /version-backup-*
-modules/background-downloader/android/build/*
+
+# ios:unsigned-build Artifacts
+build/
+# but keep EAS custom build configs (the generic build/ rule above matches .eas/build/)
+!.eas/build/
+!.eas/build/**
+.claude/
+.agents/skills/**
+skills-lock.json
+
+# CI-injected Google Play service account key (written at build time)
+google-service-account.json

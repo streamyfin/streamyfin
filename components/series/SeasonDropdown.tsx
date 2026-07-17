@@ -54,29 +54,28 @@ export const SeasonDropdown: React.FC<Props> = ({
     [state, item, keys],
   );
 
+  // Always use IndexNumber for Season objects (not keys.index which is for the item)
   const sortByIndex = (a: BaseItemDto, b: BaseItemDto) =>
-    Number(a[keys.index]) - Number(b[keys.index]);
+    Number(a.IndexNumber) - Number(b.IndexNumber);
 
   const optionGroups = useMemo(
     () => [
       {
         options:
           seasons?.sort(sortByIndex).map((season: any) => {
-            const title =
-              season[keys.title] ||
-              season.Name ||
-              `Season ${season.IndexNumber}`;
+            const title = season.Name || `Season ${season.IndexNumber}`;
             return {
               type: "radio" as const,
               label: title,
               value: season.Id || season.IndexNumber,
-              selected: Number(season[keys.index]) === Number(seasonIndex),
+              // Compare season's IndexNumber with the selected seasonIndex
+              selected: Number(season.IndexNumber) === Number(seasonIndex),
               onPress: () => onSelect(season),
             };
           }) || [],
       },
     ],
-    [seasons, keys, seasonIndex, onSelect],
+    [seasons, seasonIndex, onSelect],
   );
 
   useEffect(() => {

@@ -5,6 +5,12 @@
   <img src="https://raw.githubusercontent.com/streamyfin/.github/refs/heads/main/streamyfin-github-banner.png" alt="Streamyfin" width="100%">
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/aJvAYeycyY">
+    <img alt="Streamyfin Discord" src="https://img.shields.io/badge/Discord-Streamyfin-blue?style=flat-square&logo=discord">
+  </a>
+</p>
+
 **Streamyfin is a user-friendly Jellyfin video streaming client built with Expo. Designed as an alternative to other Jellyfin clients, it aims to offer a smooth and reliable streaming experience. We hope you'll find it a valuable addition to your media streaming toolbox.**
 
 ---
@@ -54,6 +60,11 @@ The Jellyfin Plugin for Streamyfin is a plugin you install into Jellyfin that ho
 
 Chromecast support is currently under development. Video casting is already available, and we're actively working on adding subtitle support and additional features.
 
+### 🎬 MPV Player
+
+Streamyfin uses [MPV](https://mpv.io/) as its primary video player on all platforms, powered by [MPVKit](https://github.com/mpvkit/MPVKit). MPV is a powerful, open-source media player known for its wide format support and high-quality playback.
+Thanks to [@Alexk2309](https://github.com/Alexk2309) for the hard work building the native MPV module in Streamyfin.
+
 ### 🔍 Jellysearch
 
 [Jellysearch](https://gitlab.com/DomiStyle/jellysearch) works with Streamyfin
@@ -62,7 +73,7 @@ Chromecast support is currently under development. Video casting is already avai
 
 ## 🛣️ Roadmap
 
-Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
+Check out our [Roadmap](https://github.com/orgs/streamyfin/projects/3/views/1) to see what we're working on next, we are always open to feedback and suggestions. Please let us know if you have any ideas or feature requests.
 
 ## 📥 Download Streamyfin
 
@@ -70,6 +81,7 @@ Check out our [Roadmap](https://github.com/users/fredrikburmester/projects/5) To
   <a href="https://apps.apple.com/app/streamyfin/id6593660679?l=en-GB"><img height=50 alt="Get Streamyfin on App Store" src="./assets/Download_on_the_App_Store_Badge.png"/></a>
   <a href="https://play.google.com/store/apps/details?id=com.fredrikburmester.streamyfin"><img height=50 alt="Get Streamyfin on Google Play Store" src="./assets/Google_Play_Store_badge_EN.svg"/></a>
   <a href="https://github.com/streamyfin/streamyfin/releases/latest"><img height=50 alt="Get Streamyfin on Github" src="./assets/Download_on_Github_.png"/></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/streamyfin/streamyfin"><img height=50 alt="Add Streamyfin to Obtainium" src="./assets/Download_with_Obtainium.png"/></a>
 </div>
 
 ### 🧪 Beta Testing
@@ -104,6 +116,7 @@ You can contribute translations directly on our [Crowdin project page](https://c
 1. Use node `>20`
 2. Install dependencies `bun i && bun run submodule-reload`
 3. Make sure you have xcode and/or android studio installed. (follow the guides for expo: https://docs.expo.dev/workflow/android-studio-emulator/)
+   - If iOS builds fail with `missing Metal Toolchain` (KSPlayer shaders), run `npm run ios:install-metal-toolchain` once
 4. Install BiomeJS extension in VSCode/Your IDE (https://biomejs.dev/)
 4. run `npm run prebuild`
 5. Create an expo dev build by running `npm run ios` or `npm run android`. This will open a simulator on your computer and run the app
@@ -112,6 +125,10 @@ For the TV version suffix the npm commands with `:tv`.
 
 `npm run prebuild:tv`  
 `npm run ios:tv or npm run android:tv`
+
+TV platform integration notes:
+
+- [TV Discovery](./docs/tv-discovery.md)
 
 ## 👋 Get in Touch with Us
 
@@ -228,6 +245,7 @@ We also thank all other developers who have contributed to Streamyfin, your effo
 
 A special mention to the following people and projects for their contributions:
 
+- [@Alexk2309](https://github.com/Alexk2309) for building the native MPV module that integrates [MPVKit](https://github.com/mpvkit/MPVKit) with React Native
 - [Reiverr](https://github.com/aleksilassila/reiverr) for invaluable help with understanding the Jellyfin API
 - [Jellyfin TS SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) for providing the TypeScript SDK
 - [Seerr](https://github.com/seerr-team/seerr) for enabling API integration with their project

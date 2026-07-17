@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
@@ -8,6 +7,7 @@ import { Linking, Switch, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import useRouter from "@/hooks/useAppRouter";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { ScreenOrientationEnum, useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
@@ -141,36 +141,6 @@ export const OtherSettings: React.FC = () => {
           />
         </ListItem>
 
-        {/* {(Platform.OS === "ios" || Platform.isTVOS)&& (
-          <ListItem
-            title={t("home.settings.other.video_player")}
-            disabled={pluginSettings?.defaultPlayer?.locked}
-          >
-            <Dropdown
-              data={Object.values(VideoPlayer).filter(isNumber)}
-              disabled={pluginSettings?.defaultPlayer?.locked}
-              keyExtractor={String}
-              titleExtractor={(item) => t(`home.settings.other.video_players.${VideoPlayer[item]}`)}
-              title={
-                <TouchableOpacity className="flex flex-row items-center justify-between py-1.5 pl-3">
-                  <Text className="mr-1 text-[#8E8D91]">
-                    {t(`home.settings.other.video_players.${VideoPlayer[settings.defaultPlayer]}`)}
-                  </Text>
-                  <Ionicons
-                    name="chevron-expand-sharp"
-                    size={18}
-                    color="#5A5960"
-                  />
-                </TouchableOpacity>
-              }
-              label={t("home.settings.other.orientation")}
-              onSelected={(defaultPlayer) =>
-                updateSettings({ defaultPlayer })
-              }
-            />
-          </ListItem>
-        )} */}
-
         <ListItem
           title={t("home.settings.other.show_custom_menu_links")}
           disabled={pluginSettings?.showCustomMenuLinks?.locked}
@@ -185,14 +155,6 @@ export const OtherSettings: React.FC = () => {
             disabled={pluginSettings?.showCustomMenuLinks?.locked}
             onValueChange={(value) =>
               updateSettings({ showCustomMenuLinks: value })
-            }
-          />
-        </ListItem>
-        <ListItem title={t("home.settings.other.show_large_home_carousel")}>
-          <Switch
-            value={settings.showLargeHomeCarousel}
-            onValueChange={(value) =>
-              updateSettings({ showLargeHomeCarousel: value })
             }
           />
         </ListItem>
@@ -234,7 +196,10 @@ export const OtherSettings: React.FC = () => {
             }
           />
         </ListItem>
-        <ListItem title={t("home.settings.other.max_auto_play_episode_count")}>
+        <ListItem
+          title={t("home.settings.other.max_auto_play_episode_count")}
+          disabled={pluginSettings?.maxAutoPlayEpisodeCount?.locked}
+        >
           <PlatformDropdown
             groups={autoPlayEpisodeOptions}
             trigger={

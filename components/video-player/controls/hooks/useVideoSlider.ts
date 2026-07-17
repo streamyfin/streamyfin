@@ -8,7 +8,6 @@ interface UseVideoSliderProps {
   progress: SharedValue<number>;
   isSeeking: SharedValue<boolean>;
   isPlaying: boolean;
-  isVlc: boolean;
   seek: (value: number) => void;
   play: () => void;
   pause: () => void;
@@ -16,11 +15,14 @@ interface UseVideoSliderProps {
   showControls: boolean;
 }
 
+/**
+ * Hook to manage video slider interactions.
+ * MPV player uses milliseconds for time values.
+ */
 export function useVideoSlider({
   progress,
   isSeeking,
   isPlaying,
-  isVlc,
   seek,
   play,
   pause,
@@ -62,21 +64,35 @@ export function useVideoSlider({
       setIsSliding(false);
       isSeeking.value = false;
       progress.value = value;
-      const seekValue = Math.max(
-        0,
-        Math.floor(isVlc ? value : ticksToSeconds(value)),
-      );
+      // MPV uses ms, seek expects ms
+      const seekValue = Math.max(0, Math.floor(value));
       seek(seekValue);
       if (wasPlayingRef.current) {
         play();
       }
     },
-    [isVlc, seek, play, progress, isSeeking],
+    [seek, play, progress, isSeeking],
+  );
+
+  // Programmatic seek (chapter list, hotkeys) that bypasses the slide gesture.
+  // Reads `isPlaying` directly instead of `wasPlayingRef`, which is only set
+  // during a real slide and would carry stale state on a tap-to-seek.
+  const seekTo = useCallback(
+    (value: number) => {
+      const seekValue = Math.max(0, Math.floor(value));
+      progress.value = seekValue;
+      seek(seekValue);
+      if (isPlaying) {
+        play();
+      }
+    },
+    [seek, play, progress, isPlaying],
   );
 
   const handleSliderChange = useCallback(
     debounce((value: number) => {
-      const progressInTicks = isVlc ? msToTicks(value) : value;
+      // Convert ms to ticks for trickplay
+      const progressInTicks = msToTicks(value);
       calculateTrickplayUrl(progressInTicks);
       const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
       const hours = Math.floor(progressInSeconds / 3600);
@@ -84,7 +100,7 @@ export function useVideoSlider({
       const seconds = progressInSeconds % 60;
       setTime({ hours, minutes, seconds });
     }, CONTROLS_CONSTANTS.SLIDER_DEBOUNCE_MS),
-    [isVlc, calculateTrickplayUrl],
+    [calculateTrickplayUrl],
   );
 
   return {
@@ -95,5 +111,6 @@ export function useVideoSlider({
     handleTouchEnd,
     handleSliderComplete,
     handleSliderChange,
+    seekTo,
   };
 }

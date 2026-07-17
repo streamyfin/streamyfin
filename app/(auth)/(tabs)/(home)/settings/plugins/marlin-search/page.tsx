@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,9 +15,10 @@ import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import DisabledSetting from "@/components/settings/DisabledSetting";
+import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useSettings } from "@/utils/atoms/settings";
 
-export default function page() {
+export default function MarlinSearchPage() {
   const navigation = useNavigation();
 
   const { t } = useTranslation();
@@ -26,7 +26,7 @@ export default function page() {
   const insets = useSafeAreaInsets();
 
   const { settings, updateSettings, pluginSettings } = useSettings();
-  const queryClient = useQueryClient();
+  const queryClient = useNetworkAwareQueryClient();
 
   const [value, setValue] = useState<string>(settings?.marlinServerUrl || "");
 
@@ -60,7 +60,7 @@ export default function page() {
         ),
       });
     }
-  }, [navigation, value]);
+  }, [navigation, value, pluginSettings?.marlinServerUrl?.locked, t]);
 
   if (!settings) return null;
 
@@ -75,7 +75,10 @@ export default function page() {
       <DisabledSetting disabled={disabled} className='px-4'>
         <ListGroup>
           <DisabledSetting
-            disabled={pluginSettings?.searchEngine?.locked === true}
+            disabled={
+              pluginSettings?.searchEngine?.locked === true ||
+              !!pluginSettings?.streamyStatsServerUrl?.value
+            }
             showText={!pluginSettings?.marlinServerUrl?.locked}
           >
             <ListItem
@@ -89,6 +92,7 @@ export default function page() {
             >
               <Switch
                 value={settings.searchEngine === "Marlin"}
+                disabled={!!pluginSettings?.streamyStatsServerUrl?.value}
                 onValueChange={(value) => {
                   updateSettings({
                     searchEngine: value ? "Marlin" : "Jellyfin",

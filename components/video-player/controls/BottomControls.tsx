@@ -1,26 +1,42 @@
-import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import type { FC } from "react";
-import { View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import type {
+  BaseItemDto,
+  ChapterInfo,
+} from "@jellyfin/sdk/lib/generated-client";
+import { type FC, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Pressable, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { type SharedValue } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChapterList } from "@/components/chapters/ChapterList";
+import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useSettings } from "@/utils/atoms/settings";
+import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
 import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
+// Chapter tick height in dp — matches the slider track height for a clean,
+// flush look (no top/bottom overflow).
+const TICK_HEIGHT = 10;
+
 interface BottomControlsProps {
   item: BaseItemDto;
+  /** Item chapters, used for the tick overlay and chapter list. */
+  chapters?: ChapterInfo[] | null;
+  /** Total media duration in milliseconds. */
+  durationMs: number;
   showControls: boolean;
   isSliding: boolean;
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  isVlc: boolean;
   showSkipButton: boolean;
   showSkipCreditButton: boolean;
+  hasContentAfterCredits: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   nextItem?: BaseItemDto | null;
@@ -38,6 +54,8 @@ interface BottomControlsProps {
   handleSliderChange: (value: number) => void;
   handleTouchStart: () => void;
   handleTouchEnd: () => void;
+  /** Programmatic seek (chapter list, hotkeys) — bypasses slide gesture state. */
+  seekTo: (value: number) => void;
 
   // Trickplay props
   trickPlayUrl: {
@@ -61,14 +79,16 @@ interface BottomControlsProps {
 
 export const BottomControls: FC<BottomControlsProps> = ({
   item,
+  chapters,
+  durationMs,
   showControls,
   isSliding,
   showRemoteBubble,
   currentTime,
   remainingTime,
-  isVlc,
   showSkipButton,
   showSkipCreditButton,
+  hasContentAfterCredits,
   skipIntro,
   skipCredit,
   nextItem,
@@ -84,30 +104,54 @@ export const BottomControls: FC<BottomControlsProps> = ({
   handleSliderChange,
   handleTouchStart,
   handleTouchEnd,
+  seekTo,
   trickPlayUrl,
   trickplayInfo,
   time,
 }) => {
   const { settings } = useSettings();
-  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const insets = useControlsSafeAreaInsets();
+  const [chapterListVisible, setChapterListVisible] = useState(false);
+
+  // Only expose chapter UI when there are at least two real markers.
+  const chapterMarkerList = useMemo(
+    () => chapterMarkers(chapters, durationMs),
+    [chapters, durationMs],
+  );
+  const hasChapters = chapterMarkerList.length > 1;
+
+  // Current chapter name for the always-visible header label (live playback).
+  const currentChapterName = useMemo(
+    () => (hasChapters ? chapterNameAt(currentTime, chapters) : null),
+    [hasChapters, currentTime, chapters],
+  );
+
+  // Chapter name at the scrubbed position for the trickplay bubble. `time` is
+  // an {h,m,s} object derived from the slider's dragged value — convert back
+  // to ms for the lookup. Only useful while actively scrubbing.
+  const scrubChapterName = useMemo(() => {
+    if (!hasChapters) return null;
+    const scrubMs =
+      (time.hours * 3600 + time.minutes * 60 + time.seconds) * 1000;
+    return chapterNameAt(scrubMs, chapters);
+  }, [hasChapters, time.hours, time.minutes, time.seconds, chapters]);
 
   return (
     <View
       style={[
         {
           position: "absolute",
-          right: settings?.safeAreaInControlsEnabled ? insets.right : 0,
-          left: settings?.safeAreaInControlsEnabled ? insets.left : 0,
-          bottom: settings?.safeAreaInControlsEnabled
-            ? Math.max(insets.bottom - 17, 0)
-            : 0,
+          right: insets.right,
+          left: insets.left,
+          bottom: Math.max(insets.bottom - 17, 0),
         },
       ]}
       className={"flex flex-col px-2"}
       onTouchStart={handleControlsInteraction}
     >
       <View
-        className='shrink flex flex-col justify-center h-full'
+        className='shrink flex flex-col justify-center'
         style={{
           flexDirection: "row",
           justifyContent: "space-between",
@@ -129,32 +173,54 @@ export const BottomControls: FC<BottomControlsProps> = ({
           {item?.Type === "Audio" && (
             <Text className='text-xs opacity-50'>{item?.Album}</Text>
           )}
+          {currentChapterName ? (
+            <Text className='text-xs opacity-70 mt-1' numberOfLines={1}>
+              {currentChapterName}
+            </Text>
+          ) : null}
         </View>
-        <View className='flex flex-row space-x-2 shrink-0'>
+        <View className='flex flex-row items-center space-x-2 shrink-0'>
           <SkipButton
             showButton={showSkipButton}
             onPress={skipIntro}
             buttonText='Skip Intro'
           />
+          {/* Smart Skip Credits behavior:
+              - Show "Skip Credits" if there's content after credits OR no next episode
+              - Show "Next Episode" if credits extend to video end AND next episode exists */}
           <SkipButton
-            showButton={showSkipCreditButton}
+            showButton={
+              showSkipCreditButton && (hasContentAfterCredits || !nextItem)
+            }
             onPress={skipCredit}
             buttonText='Skip Credits'
           />
-          {(settings.maxAutoPlayEpisodeCount.value === -1 ||
-            settings.autoPlayEpisodeCount <
-              settings.maxAutoPlayEpisodeCount.value) && (
-            <NextEpisodeCountDownButton
-              show={
-                !nextItem
-                  ? false
-                  : isVlc
-                    ? remainingTime < 10000
-                    : remainingTime < 10
-              }
-              onFinish={handleNextEpisodeAutoPlay}
-              onPress={handleNextEpisodeManual}
-            />
+          {settings.autoPlayNextEpisode !== false &&
+            (settings.maxAutoPlayEpisodeCount.value === -1 ||
+              settings.autoPlayEpisodeCount <
+                settings.maxAutoPlayEpisodeCount.value) && (
+              <NextEpisodeCountDownButton
+                show={
+                  !nextItem
+                    ? false
+                    : // Show during credits if no content after, OR near end of video
+                      (showSkipCreditButton && !hasContentAfterCredits) ||
+                      remainingTime < 10000
+                }
+                onFinish={handleNextEpisodeAutoPlay}
+                onPress={handleNextEpisodeManual}
+              />
+            )}
+          {hasChapters && (
+            <Pressable
+              onPress={() => setChapterListVisible(true)}
+              hitSlop={10}
+              className='justify-center ml-4'
+              accessibilityRole='button'
+              accessibilityLabel={t("chapters.open")}
+            >
+              <Ionicons name='bookmarks' size={24} color='white' />
+            </Pressable>
           )}
         </View>
       </View>
@@ -168,6 +234,9 @@ export const BottomControls: FC<BottomControlsProps> = ({
               height: 10,
               justifyContent: "center",
               alignItems: "stretch",
+              // Allow chapter ticks taller than the 10px track to bleed out
+              // top/bottom (RN defaults to overflow: "hidden" on Android).
+              overflow: "visible",
             }}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -195,6 +264,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
                     trickPlayUrl={trickPlayUrl}
                     trickplayInfo={trickplayInfo}
                     time={time}
+                    chapterName={scrubChapterName}
                   />
                 )
               }
@@ -204,14 +274,21 @@ export const BottomControls: FC<BottomControlsProps> = ({
               minimumValue={min}
               maximumValue={max}
             />
+            <ChapterTicks markers={chapterMarkerList} height={TICK_HEIGHT} />
           </View>
           <TimeDisplay
             currentTime={currentTime}
             remainingTime={remainingTime}
-            isVlc={isVlc}
           />
         </View>
       </View>
+      <ChapterList
+        visible={chapterListVisible}
+        chapters={chapters}
+        currentPositionMs={currentTime}
+        onSeek={seekTo}
+        onClose={() => setChapterListVisible(false)}
+      />
     </View>
   );
 };

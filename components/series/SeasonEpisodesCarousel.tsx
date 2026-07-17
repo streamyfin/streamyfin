@@ -1,12 +1,14 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
-import { router } from "expo-router";
 import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, type ViewStyle } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { getDownloadedEpisodesBySeasonId } from "@/utils/downloads/offline-series";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -17,7 +19,6 @@ import { ItemCardText } from "../ItemCardText";
 interface Props {
   item?: BaseItemDto | null;
   loading?: boolean;
-  isOffline?: boolean;
   style?: ViewStyle;
   containerStyle?: ViewStyle;
 }
@@ -25,22 +26,23 @@ interface Props {
 export const SeasonEpisodesCarousel: React.FC<Props> = ({
   item,
   loading,
-  isOffline,
   style,
   containerStyle,
 }) => {
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
+  const router = useRouter();
+  const isOffline = useOfflineMode();
+  // Read the live (cached) downloads DB inside the query rather than the
+  // provider's downloadedItems snapshot, so refetches after
+  // updateDownloadedItem() reflect the latest state instead of a stale
+  // refreshKey-gated snapshot. getAllDownloadedItems() is cached, so this stays cheap.
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
 
   const scrollRef = useRef<HorizontalScrollRef>(null);
 
   const scrollToIndex = (index: number) => {
-    scrollRef.current?.scrollToIndex(index, 16);
+    scrollRef.current?.scrollToIndex(index, -16);
   };
 
   const seasonId = useMemo(() => {
@@ -51,11 +53,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
     queryKey: ["episodes", seasonId, isOffline],
     queryFn: async () => {
       if (isOffline) {
-        return downloadedFiles
-          ?.filter(
-            (f) => f.item.Type === "Episode" && f.item.SeasonId === seasonId,
-          )
-          .map((f) => f.item);
+        return getDownloadedEpisodesBySeasonId(getDownloadedItems(), seasonId!);
       }
       if (!api || !user?.Id || !item?.SeriesId) return [];
       const response = await getTvShowsApi(api).getEpisodes({
@@ -73,7 +71,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
       });
       return response.data.Items as BaseItemDto[];
     },
-    enabled: !!api && !!user?.Id && !!seasonId,
+    enabled: !!seasonId && (isOffline || (!!api && !!user?.Id)),
   });
 
   useEffect(() => {
@@ -86,6 +84,11 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
       }
     }
   }, [episodes, item]);
+
+  const snapOffsets = useMemo(() => {
+    const itemWidth = 184; // w-44 (176px) + mr-2 (8px)
+    return episodes?.map((_, index) => index * itemWidth) || [];
+  }, [episodes]);
 
   return (
     <HorizontalScroll
@@ -101,7 +104,7 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           onPress={() => {
             router.setParams({ id: _item.Id });
           }}
-          className={`flex flex-col w-44 
+          className={`flex flex-col w-44
                   ${item?.Id === _item.Id ? "" : "opacity-50"}
                 `}
         >
@@ -109,6 +112,8 @@ export const SeasonEpisodesCarousel: React.FC<Props> = ({
           <ItemCardText item={_item} />
         </TouchableOpacity>
       )}
+      snapToOffsets={snapOffsets}
+      decelerationRate='fast'
     />
   );
 };

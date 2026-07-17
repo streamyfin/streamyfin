@@ -1,25 +1,27 @@
-import type { ParamListBase, RouteProp } from "@react-navigation/native";
-import type { NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import { Stack } from "expo-router";
+import type { ComponentProps } from "react";
 import { Platform } from "react-native";
 import { HeaderBackButton } from "../common/HeaderBackButton";
 
-type ICommonScreenOptions =
-  | NativeStackNavigationOptions
-  | ((prop: {
-      route: RouteProp<ParamListBase, string>;
-      navigation: any;
-    }) => NativeStackNavigationOptions);
+type ICommonScreenOptions = ComponentProps<typeof Stack.Screen>["options"];
 
 export const commonScreenOptions: ICommonScreenOptions = {
   title: "",
-  headerShown: true,
+  headerShown: !Platform.isTV,
   headerTransparent: Platform.OS === "ios",
   headerShadowVisible: false,
   headerBlurEffect: "none",
   headerLeft: () => <HeaderBackButton />,
 };
 
-const routes = ["persons/[personId]", "items/page", "series/[id]"];
+const routes = [
+  "persons/[personId]",
+  "items/page",
+  "series/[id]",
+  "music/album/[albumId]",
+  "music/artist/[artistId]",
+  "music/playlist/[playlistId]",
+];
 
 export const nestedTabPageScreenOptions: Record<string, ICommonScreenOptions> =
   Object.fromEntries(routes.map((route) => [route, commonScreenOptions]));

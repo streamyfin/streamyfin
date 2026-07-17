@@ -9,13 +9,15 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { type Href, router } from "expo-router";
+import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { type Href } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -62,6 +64,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   const [user] = useAtom(userAtom);
   const [queue, _setQueue] = useAtom(queueAtom);
   const { settings } = useSettings();
+  const router = useRouter();
   const [downloadUnwatchedOnly, setDownloadUnwatchedOnly] = useState(false);
 
   const { processes, startBackgroundDownload, downloadedItems } = useDownload();
@@ -71,12 +74,16 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     SelectedOptions | undefined
   >(undefined);
 
+  const playSettingsOptions = useMemo(
+    () => ({ applyLanguagePreferences: true }),
+    [],
+  );
   const {
     defaultAudioIndex,
     defaultBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
-  } = useDefaultPlaySettings(items[0], settings);
+  } = useDefaultPlaySettings(items[0], settings, playSettingsOptions);
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
@@ -109,7 +116,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
   useEffect(() => {
     setSelectedOptions(() => ({
       bitrate: defaultBitrate,
-      mediaSource: defaultMediaSource,
+      mediaSource: defaultMediaSource ?? undefined,
       subtitleIndex: defaultSubtitleIndex ?? -1,
       audioIndex: defaultAudioIndex,
     }));
@@ -170,9 +177,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       firstItem.Type !== "Episode"
         ? "/downloads"
         : ({
-            pathname: `/downloads/${firstItem.SeriesId}`,
+            pathname: "/series/[id]",
             params: {
-              episodeSeasonIndex: firstItem.ParentIndexNumber,
+              id: firstItem.SeriesId!,
+              seasonIndex: firstItem.ParentIndexNumber?.toString(),
+              offline: "true",
             },
           } as Href),
     );
@@ -191,9 +200,30 @@ export const DownloadItems: React.FC<DownloadProps> = ({
         );
       }
       const downloadDetailsPromises = items.map(async (item) => {
+        // Ensure the snapshot we store offline carries the Chapters array.
+        // Page-level fetches sometimes use a fields filter that omits it; the
+        // offline player would then render no chapter ticks / list.
+        let itemForDownload = item;
+        if (!itemForDownload.Chapters && itemForDownload.Id) {
+          try {
+            const enriched = await getUserLibraryApi(api).getItem({
+              itemId: itemForDownload.Id,
+              userId: user.Id!,
+            });
+            if (enriched.data) {
+              itemForDownload = enriched.data;
+            }
+          } catch (e) {
+            console.warn(
+              "[DownloadItem] failed to refresh item for Chapters, falling back to original",
+              e,
+            );
+          }
+        }
+
         const { mediaSource, audioIndex, subtitleIndex } =
           itemsNotDownloaded.length > 1
-            ? getDefaultPlaySettings(item, settings!)
+            ? getDefaultPlaySettings(itemForDownload, settings!)
             : {
                 mediaSource: selectedOptions?.mediaSource,
                 audioIndex: selectedOptions?.audioIndex,
@@ -202,18 +232,19 @@ export const DownloadItems: React.FC<DownloadProps> = ({
 
         const downloadDetails = await getDownloadUrl({
           api,
-          item,
+          item: itemForDownload,
           userId: user.Id!,
           mediaSource: mediaSource!,
           audioStreamIndex: audioIndex ?? -1,
           subtitleStreamIndex: subtitleIndex ?? -1,
           maxBitrate: selectedOptions?.bitrate || defaultBitrate,
           deviceId: api.deviceInfo.id,
+          audioMode: settings?.audioTranscodeMode,
         });
 
         return {
           url: downloadDetails?.url,
-          item,
+          item: itemForDownload,
           mediaSource: downloadDetails?.mediaSource,
         };
       });
@@ -236,11 +267,23 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           );
           continue;
         }
+        // Get the audio/subtitle indices that were used for this download
+        const downloadAudioIndex =
+          itemsNotDownloaded.length > 1
+            ? getDefaultPlaySettings(item, settings!).audioIndex
+            : selectedOptions?.audioIndex;
+        const downloadSubtitleIndex =
+          itemsNotDownloaded.length > 1
+            ? getDefaultPlaySettings(item, settings!).subtitleIndex
+            : selectedOptions?.subtitleIndex;
+
         await startBackgroundDownload(
           url,
           item,
           mediaSource,
           selectedOptions?.bitrate || defaultBitrate,
+          downloadAudioIndex,
+          downloadSubtitleIndex,
         );
       }
     },

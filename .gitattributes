@@ -1,1 +1,28 @@
-.modules/vlc-player/Frameworks/*.xcframework filter=lfs diff=lfs merge=lfs -text
+# Normalise line endings to LF for everyone. Files are stored as LF in git and
+# checked out as LF on every OS, so Windows clones stop producing CRLF churn
+# (no more "LF will be replaced by CRLF" warnings) regardless of core.autocrlf.
+* text=auto eol=lf
+
+# Windows-only scripts must stay CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets — never touched / never normalised
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.mp4 binary
+*.mov binary
+*.pdf binary
+*.keystore binary
+*.jks binary
+*.p12 binary

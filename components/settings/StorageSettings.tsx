@@ -1,8 +1,8 @@
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { Alert, Platform, View } from "react-native";
 import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
@@ -18,6 +18,7 @@ export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
   const { settings } = useSettings();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const successHapticFeedback = useHaptic("success");
   const errorHapticFeedback = useHaptic("error");
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
@@ -34,6 +35,8 @@ export const StorageSettings = () => {
         used: (app.total - app.remaining) / app.total,
       };
     },
+    // Keep the bar moving while a download is writing to disk.
+    refetchInterval: 10 * 1000,
   });
 
   const { data: storageLabel } = useQuery({
@@ -42,14 +45,34 @@ export const StorageSettings = () => {
     enabled: Platform.OS === "android",
   });
 
-  const onDeleteClicked = async () => {
-    try {
-      await deleteAllFiles();
-      successHapticFeedback();
-    } catch (_e) {
-      errorHapticFeedback();
-      toast.error(t("home.settings.toasts.error_deleting_files"));
-    }
+  const onDeleteClicked = () => {
+    Alert.alert(
+      t("home.settings.storage.delete_all_downloaded_files_confirm"),
+      t("home.settings.storage.delete_all_downloaded_files_confirm_desc"),
+      [
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+        },
+        {
+          text: t("common.ok"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAllFiles();
+              successHapticFeedback();
+            } catch (_e) {
+              errorHapticFeedback();
+              toast.error(t("home.settings.toasts.error_deleting_files"));
+            } finally {
+              // Reflect the freed space immediately instead of waiting for
+              // the next poll.
+              queryClient.invalidateQueries({ queryKey: ["appSize"] });
+            }
+          },
+        },
+      ],
+    );
   };
 
   const calculatePercentage = (value: number, total: number) => {

@@ -16,7 +16,7 @@ export interface MenuLink {
   icon: string;
 }
 
-export default function menuLinks() {
+export default function CustomLinksPage() {
   const [api] = useAtom(apiAtom);
   const insets = useSafeAreaInsets();
   const [menuLinks, setMenuLinks] = useState<MenuLink[]>([]);
@@ -29,7 +29,7 @@ export default function menuLinks() {
       );
       const config = response?.data;
 
-      if (!config && !Object.hasOwn(config, "menuLinks")) {
+      if (!config || !Object.hasOwn(config, "menuLinks")) {
         console.error("Menu links not found");
         return;
       }

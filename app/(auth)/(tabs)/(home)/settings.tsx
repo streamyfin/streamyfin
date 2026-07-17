@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from "expo-router";
+import { useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
@@ -11,9 +11,14 @@ import { AppLanguageSelector } from "@/components/settings/AppLanguageSelector";
 import { QuickConnect } from "@/components/settings/QuickConnect";
 import { StorageSettings } from "@/components/settings/StorageSettings";
 import { UserInfo } from "@/components/settings/UserInfo";
+import useRouter from "@/hooks/useAppRouter";
 import { useJellyfin, userAtom } from "@/providers/JellyfinProvider";
 
-export default function settings() {
+// TV-specific settings component
+const SettingsTV = Platform.isTV ? require("./settings.tv").default : null;
+
+// Mobile settings component
+function SettingsMobile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [_user] = useAtom(userAtom);
@@ -54,6 +59,20 @@ export default function settings() {
 
         <QuickConnect className='mb-4' />
 
+        {Platform.OS !== "ios" && (
+          <View className='mb-4'>
+            <ListGroup title={t("pairing.pair_with_phone_title")}>
+              <ListItem
+                onPress={() =>
+                  router.push("/(auth)/(tabs)/(home)/companion-login")
+                }
+                title={t("pairing.pair_with_phone")}
+                textColor='blue'
+              />
+            </ListGroup>
+          </View>
+        )}
+
         <View className='mb-4'>
           <AppLanguageSelector />
         </View>
@@ -71,6 +90,11 @@ export default function settings() {
               title={t("home.settings.audio_subtitles.title")}
             />
             <ListItem
+              onPress={() => router.push("/settings/music/page")}
+              showArrow
+              title={t("home.settings.music.title")}
+            />
+            <ListItem
               onPress={() => router.push("/settings/appearance/page")}
               showArrow
               title={t("home.settings.appearance.title")}
@@ -86,6 +110,11 @@ export default function settings() {
               title={t("home.settings.intro.title")}
             />
             <ListItem
+              onPress={() => router.push("/settings/network/page")}
+              showArrow
+              title={t("home.settings.network.title")}
+            />
+            <ListItem
               onPress={() => router.push("/settings/logs/page")}
               showArrow
               title={t("home.settings.logs.logs_title")}
@@ -93,8 +122,17 @@ export default function settings() {
           </ListGroup>
         </View>
 
-        {!Platform.isTV && <StorageSettings />}
+        <StorageSettings />
       </View>
     </ScrollView>
   );
+}
+
+export default function settings() {
+  // Use TV settings component on TV platforms
+  if (Platform.isTV && SettingsTV) {
+    return <SettingsTV />;
+  }
+
+  return <SettingsMobile />;
 }

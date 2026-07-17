@@ -1,51 +1,34 @@
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
-import { BITRATES } from "@/components/BitrateSelector";
 import type { Settings } from "@/utils/atoms/settings";
+import {
+  getDefaultPlaySettings,
+  type PlaySettingsOptions,
+} from "@/utils/jellyfin/getDefaultPlaySettings";
 
-// Used only for initial play settings.
+/**
+ * React hook wrapper for getDefaultPlaySettings.
+ * Used in UI components for initial playback (no previous track state).
+ *
+ * @param item - The media item to play
+ * @param settings - User settings (language preferences, bitrate, etc.)
+ * @param options - Optional flags to control behavior (e.g., applyLanguagePreferences for TV)
+ */
 const useDefaultPlaySettings = (
-  item: BaseItemDto,
+  item: BaseItemDto | null | undefined,
   settings: Settings | null,
-) => {
-  const playSettings = useMemo(() => {
-    // 1. Get first media source
-    const mediaSource = item.MediaSources?.[0];
-
-    // 2. Get default or preferred audio
-    const defaultAudioIndex = mediaSource?.DefaultAudioStreamIndex;
-    const preferedAudioIndex = mediaSource?.MediaStreams?.find(
-      (x) =>
-        x.Type === "Audio" &&
-        x.Language ===
-          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName,
-    )?.Index;
-
-    const firstAudioIndex = mediaSource?.MediaStreams?.find(
-      (x) => x.Type === "Audio",
-    )?.Index;
-
-    // 4. Get default bitrate from settings or fallback to max
-    let bitrate = settings?.defaultBitrate ?? BITRATES[0];
-    // value undefined seems to get lost in settings. This is just a failsafe
-    if (bitrate.key === BITRATES[0].key) {
-      bitrate = BITRATES[0];
-    }
+  options?: PlaySettingsOptions,
+) =>
+  useMemo(() => {
+    const { mediaSource, audioIndex, subtitleIndex, bitrate } =
+      getDefaultPlaySettings(item, settings, undefined, options);
 
     return {
-      defaultAudioIndex:
-        preferedAudioIndex ?? defaultAudioIndex ?? firstAudioIndex ?? undefined,
-      defaultSubtitleIndex: mediaSource?.DefaultSubtitleStreamIndex ?? -1,
-      defaultMediaSource: mediaSource ?? undefined,
-      defaultBitrate: bitrate ?? undefined,
+      defaultMediaSource: mediaSource,
+      defaultAudioIndex: audioIndex,
+      defaultSubtitleIndex: subtitleIndex,
+      defaultBitrate: bitrate,
     };
-  }, [
-    item.MediaSources,
-    settings?.defaultAudioLanguage,
-    settings?.defaultSubtitleLanguage,
-  ]);
-
-  return playSettings;
-};
+  }, [item, settings, options]);
 
 export default useDefaultPlaySettings;

@@ -1,12 +1,15 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { Platform, View } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 import { useAtom } from "jotai";
+import { HeaderBackButton } from "@/components/common/HeaderBackButton";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
 
@@ -41,164 +44,125 @@ export default function IndexLayout() {
       <Stack.Screen
         name='downloads/index'
         options={{
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <Stack.Screen
-        name='downloads/[seriesId]'
-        options={{
-          headerShown: true,
-          headerBlurEffect: "none",
-          headerTransparent: Platform.OS === "ios",
-          headerShadowVisible: false,
-          title: t("home.downloads.tvseries"),
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
-          headerShown: true,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings'
         options={{
           title: t("home.settings.settings_title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
+        }}
+      />
+      <Stack.Screen
+        name='companion-login'
+        options={{
+          title: t("companion_login.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/playback-controls/page'
         options={{
           title: t("home.settings.playback_controls.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/audio-subtitles/page'
         options={{
           title: t("home.settings.audio_subtitles.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/appearance/page'
         options={{
           title: t("home.settings.appearance.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Stack.Screen
+        name='settings/music/page'
+        options={{
+          title: t("home.settings.music.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/appearance/hide-libraries/page'
         options={{
           title: t("home.settings.other.hide_libraries"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/plugins/page'
         options={{
           title: t("home.settings.plugins.plugins_title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => (
-            <TouchableOpacity
+            <Pressable
               onPress={() => _router.back()}
               className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
+            </Pressable>
           ),
         }}
       />
@@ -206,85 +170,77 @@ export default function IndexLayout() {
         name='settings/plugins/marlin-search/page'
         options={{
           title: "Marlin Search",
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/plugins/jellyseerr/page'
         options={{
           title: "Jellyseerr",
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/streamystats/page'
+        options={{
+          title: "Streamystats",
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Stack.Screen
+        name='settings/plugins/kefinTweaks/page'
+        options={{
+          title: "KefinTweaks",
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/intro/page'
         options={{
           title: t("home.settings.intro.title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
         name='settings/logs/page'
         options={{
           title: t("home.settings.logs.logs_title"),
+          headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => _router.back()}
-              className='pl-0.5'
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
-        name='intro/page'
+        name='settings/network/page'
         options={{
-          headerShown: false,
-          title: "",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
-          presentation: "modal",
+          title: t("home.settings.network.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
@@ -294,12 +250,8 @@ export default function IndexLayout() {
         name='collections/[collectionId]'
         options={{
           title: "",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => _router.back()} className='pl-0.5'>
-              <Feather name='chevron-left' size={28} color='white' />
-            </TouchableOpacity>
-          ),
-          headerShown: true,
+          headerLeft: () => <HeaderBackButton />,
+          headerShown: !Platform.isTV,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -313,13 +265,13 @@ const SettingsButton = () => {
   const router = useRouter();
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => {
         router.push("/(auth)/settings");
       }}
     >
       <Feather name='settings' color={"white"} size={22} />
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -328,7 +280,7 @@ const SessionsButton = () => {
   const { sessions = [] } = useSessions({} as useSessionsProps);
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => {
         router.push("/(auth)/sessions");
       }}
@@ -339,6 +291,6 @@ const SessionsButton = () => {
         color={sessions.length === 0 ? "white" : "#9333ea"}
         size={28}
       />
-    </TouchableOpacity>
+    </Pressable>
   );
 };

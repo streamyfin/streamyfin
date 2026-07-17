@@ -9,7 +9,7 @@ import {
   useQuery,
 } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { View, type ViewProps } from "react-native";
 import { useInView } from "@/hooks/useInView";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -67,6 +67,12 @@ export const MediaListSection: React.FC<Props> = ({
     [api, user?.Id, collection?.Id],
   );
 
+  const snapOffsets = useMemo(() => {
+    const itemWidth = 120; // w-28 (112px) + mr-2 (8px)
+    // Generate offsets for a reasonable number of items
+    return Array.from({ length: 50 }, (_, index) => index * itemWidth);
+  }, []);
+
   if (!collection) return null;
 
   return (
@@ -92,6 +98,8 @@ export const MediaListSection: React.FC<Props> = ({
         )}
         queryFn={fetchItems}
         queryKey={["media-list", collection.Id!]}
+        snapToOffsets={snapOffsets}
+        decelerationRate='fast'
       />
     </View>
   );

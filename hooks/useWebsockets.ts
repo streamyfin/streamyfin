@@ -1,7 +1,7 @@
-import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
+import useRouter from "@/hooks/useAppRouter";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 
 interface UseWebSocketProps {
@@ -95,8 +95,6 @@ export const useWebSocket = ({
     const args = lastMessage?.Data?.Arguments as
       | Record<string, string>
       | undefined; // Arguments are Dictionary<string, string>
-
-    console.log("[WS] ~ ", lastMessage);
 
     if (command === "PlayPause") {
       console.log("Command ~ PlayPause");

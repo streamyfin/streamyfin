@@ -6,6 +6,7 @@ import {
   type SortOrder,
   SubtitlePlaybackMode,
 } from "@jellyfin/sdk/lib/generated-client";
+import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo } from "react";
 import { Platform } from "react-native";
@@ -122,6 +123,46 @@ export interface MaxAutoPlayEpisodeCount {
   value: number;
 }
 
+/**
+ * The plugin may send object-typed settings as plain primitives.
+ * Resolve to the proper option object from the available choices.
+ */
+const normalizePluginValue = (
+  settingsKey: keyof Settings,
+  value: unknown,
+): unknown => {
+  if (typeof value !== "object" || value === null) {
+    const defaultVal = defaultValues[settingsKey];
+    if (
+      typeof defaultVal === "object" &&
+      defaultVal !== null &&
+      "key" in defaultVal &&
+      "value" in defaultVal
+    ) {
+      // defaultBitrate needs a lookup because its keys are human-readable
+      // (e.g. "8 Mb/s") that can't be derived from the raw value (e.g. 8000000).
+      // Other { key, value } settings like maxAutoPlayEpisodeCount work with
+      // the fallback because their keys are just String(value) (e.g. "5").
+      if (settingsKey === "defaultBitrate") {
+        const match = BITRATES.find(
+          (b) => b.key === value || b.value === value,
+        );
+        if (match) return match;
+      }
+      // maxAutoPlayEpisodeCount: 0 is invalid (breaks autoplay), clamp to -1
+      // -1 key must match the translated dropdown label so the UI shows "Disabled"
+      if (
+        settingsKey === "maxAutoPlayEpisodeCount" &&
+        (value === 0 || value === -1)
+      ) {
+        return { key: t("home.settings.other.disabled"), value: -1 };
+      }
+      return { key: String(value), value };
+    }
+  }
+  return value;
+};
+
 export type HomeSectionLatestResolver = {
   parentId?: string;
   limit?: number;
@@ -130,20 +171,58 @@ export type HomeSectionLatestResolver = {
   includeItemTypes?: Array<BaseItemKind>;
 };
 
+// Video player enum - currently only MPV is supported
 export enum VideoPlayer {
-  // NATIVE, //todo: changes will make this a lot more easier to implement if we want. delete if not wanted
-  VLC_3 = 0,
-  VLC_4 = 1,
+  MPV = 0,
 }
+
+// TV Typography scale presets
+export enum TVTypographyScale {
+  Small = "small",
+  Default = "default",
+  Large = "large",
+  ExtraLarge = "extraLarge",
+}
+
+// Audio transcoding mode - controls how surround audio is handled
+// This controls server-side transcoding behavior for audio streams.
+// MPV decodes via FFmpeg and supports most formats, but mobile devices
+// can't passthrough to external receivers, so this primarily affects
+// bandwidth usage and server load.
+export enum AudioTranscodeMode {
+  Auto = "auto", // Platform defaults (recommended)
+  ForceStereo = "stereo", // Always transcode to stereo
+  Allow51 = "5.1", // Allow up to 5.1, transcode 7.1+
+  AllowAll = "passthrough", // Direct play all audio formats
+}
+
+// Inactivity timeout for TV - auto logout after period of no activity
+export enum InactivityTimeout {
+  Disabled = 0,
+  OneMinute = 60000,
+  FiveMinutes = 300000,
+  FifteenMinutes = 900000,
+  ThirtyMinutes = 1800000,
+  OneHour = 3600000,
+  FourHours = 14400000,
+  TwentyFourHours = 86400000,
+}
+
+// MPV cache mode - controls how caching is enabled
+export type MpvCacheMode = "auto" | "yes" | "no";
+export type MpvVoDriver = "gpu-next" | "gpu";
 
 export type Settings = {
   home?: Home | null;
   deviceProfile?: "Expo" | "Native" | "Old";
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
-  searchEngine: "Marlin" | "Jellyfin";
+  searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
   marlinServerUrl?: string;
-  openInVLC?: boolean;
+  streamyStatsServerUrl?: string;
+  streamyStatsMovieRecommendations?: boolean;
+  streamyStatsSeriesRecommendations?: boolean;
+  streamyStatsPromotedWatchlists?: boolean;
   downloadQuality?: DownloadOption;
   downloadStorageLocation?: string;
   defaultBitrate?: Bitrate;
@@ -163,24 +242,60 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
-  defaultPlayer: VideoPlayer;
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
-  vlcTextColor?: string;
-  vlcBackgroundColor?: string;
-  vlcOutlineColor?: string;
-  vlcOutlineThickness?: string;
-  vlcBackgroundOpacity?: number;
-  vlcOutlineOpacity?: number;
-  vlcIsBold?: boolean;
+  autoPlayNextEpisode: boolean;
+  // Playback speed settings
+  defaultPlaybackSpeed: number;
+  playbackSpeedPerMedia: Record<string, number>;
+  playbackSpeedPerShow: Record<string, number>;
+  // MPV subtitle settings
+  mpvSubtitleScale?: number;
+  mpvSubtitleMarginY?: number;
+  mpvSubtitleAlignX?: "left" | "center" | "right";
+  mpvSubtitleAlignY?: "top" | "center" | "bottom";
+  mpvSubtitleFontSize?: number;
+  mpvSubtitleBackgroundEnabled?: boolean;
+  mpvSubtitleBackgroundOpacity?: number; // 0-100
+  // MPV buffer/cache settings
+  mpvCacheEnabled?: MpvCacheMode;
+  mpvCacheSeconds?: number;
+  mpvDemuxerMaxBytes?: number; // MB
+  mpvDemuxerMaxBackBytes?: number; // MB
+  // MPV video output driver (Android only)
+  mpvVoDriver?: MpvVoDriver;
   // Gesture controls
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
+  hideVolumeSlider: boolean;
+  hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
-  showLargeHomeCarousel: boolean;
+  mergeNextUpAndContinueWatching: boolean;
+  // TV-specific settings
+  showHomeBackdrop: boolean;
+  showTVHeroCarousel: boolean;
+  tvTypographyScale: TVTypographyScale;
+  showSeriesPosterOnEpisode: boolean;
+  tvThemeMusicEnabled: boolean;
+  // Appearance
+  hideRemoteSessionButton: boolean;
+  hideWatchlistsTab: boolean;
+  // Audio look-ahead caching
+  audioLookaheadEnabled: boolean;
+  audioLookaheadCount: number;
+  audioMaxCacheSizeMB: number;
+  // Music playback
+  preferLocalAudio: boolean;
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode;
+  // OpenSubtitles API key for client-side subtitle fetching
+  openSubtitlesApiKey?: string;
+  // TV-only: Inactivity timeout for auto-logout
+  inactivityTimeout: InactivityTimeout;
 };
 
 export interface Lockable<T> {
@@ -202,7 +317,10 @@ export const defaultValues: Settings = {
   preferedLanguage: undefined,
   searchEngine: "Jellyfin",
   marlinServerUrl: "",
-  openInVLC: false,
+  streamyStatsServerUrl: "",
+  streamyStatsMovieRecommendations: false,
+  streamyStatsSeriesRecommendations: false,
+  streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
   downloadStorageLocation: undefined,
   defaultBitrate: BITRATES[0],
@@ -225,27 +343,66 @@ export const defaultValues: Settings = {
   rewindSkipTime: 10,
   showCustomMenuLinks: false,
   disableHapticFeedback: false,
-  subtitleSize: Platform.OS === "ios" ? 60 : 100,
+  subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
-  defaultPlayer: VideoPlayer.VLC_3, // ios-only setting. does not matter what this is for android
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
-  vlcTextColor: undefined,
-  vlcBackgroundColor: undefined,
-  vlcOutlineColor: undefined,
-  vlcOutlineThickness: undefined,
-  vlcBackgroundOpacity: undefined,
-  vlcOutlineOpacity: undefined,
-  vlcIsBold: undefined,
+  autoPlayNextEpisode: true,
+  // Playback speed defaults
+  defaultPlaybackSpeed: 1.0,
+  playbackSpeedPerMedia: {},
+  playbackSpeedPerShow: {},
+  // MPV subtitle defaults
+  mpvSubtitleScale: undefined,
+  mpvSubtitleMarginY: undefined,
+  mpvSubtitleAlignX: undefined,
+  mpvSubtitleAlignY: undefined,
+  mpvSubtitleFontSize: undefined,
+  mpvSubtitleBackgroundEnabled: false,
+  mpvSubtitleBackgroundOpacity: 75,
+  // MPV buffer/cache defaults.
+  // Android TV gets tighter caps — combined with libmpv 1.0's larger
+  // baseline (fontconfig + libxml2 + libplacebo HDR path + scudo
+  // retention) the larger mobile budget pushes 2 GB Android TV boxes
+  // into swap death during 4K HDR playback. Apple TV has more RAM and
+  // keeps the full budget. Users can override via the settings screen.
+  mpvCacheEnabled: "auto",
+  mpvCacheSeconds: 10,
+  mpvDemuxerMaxBytes: Platform.isTV && Platform.OS === "android" ? 75 : 150, // MB
+  mpvDemuxerMaxBackBytes: Platform.isTV && Platform.OS === "android" ? 30 : 50, // MB
+  // MPV video output driver defaults (Android only)
+  mpvVoDriver: "gpu-next",
   // Gesture controls
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  hideVolumeSlider: false,
+  hideBrightnessSlider: false,
   usePopularPlugin: true,
-  showLargeHomeCarousel: false,
+  mergeNextUpAndContinueWatching: false,
+  // TV-specific settings
+  showHomeBackdrop: true,
+  showTVHeroCarousel: true,
+  tvTypographyScale: TVTypographyScale.Default,
+  showSeriesPosterOnEpisode: false,
+  tvThemeMusicEnabled: true,
+  // Appearance
+  hideRemoteSessionButton: false,
+  hideWatchlistsTab: false,
+  // Audio look-ahead caching defaults
+  audioLookaheadEnabled: true,
+  audioLookaheadCount: 1,
+  audioMaxCacheSizeMB: 500,
+  // Music playback
+  preferLocalAudio: true,
+  // Audio transcoding mode
+  audioTranscodeMode: AudioTranscodeMode.Auto,
+  // TV-only: Inactivity timeout (disabled by default)
+  inactivityTimeout: InactivityTimeout.Disabled,
 };
 
 const loadSettings = (): Partial<Settings> => {
@@ -291,6 +448,14 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
+const hasMeaningfulSettingValue = (value: unknown) =>
+  value !== undefined && value !== null && value !== "";
+
+const getEffectiveSettingValue = <K extends keyof Settings>(
+  settings: Partial<Settings> | null | undefined,
+  settingsKey: K,
+) => settings?.[settingsKey] ?? defaultValues[settingsKey];
+
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -315,16 +480,33 @@ export const useSettings = () => {
     if (!api) {
       return;
     }
-    const settings = await api.getStreamyfinPluginConfig().then(
+    const newPluginSettings = await api.getStreamyfinPluginConfig().then(
       ({ data }) => {
         writeInfoLog("Got plugin settings", data?.settings);
         return data?.settings;
       },
       (_err) => undefined,
     );
-    setPluginSettings(settings);
-    return settings;
-  }, [api]);
+    setPluginSettings(newPluginSettings);
+
+    // Locked/unlocked values are handled by the settings memo, which
+    // applies locked values at runtime without overwriting user storage.
+    // We only handle auto-enabling Streamystats here.
+    if (newPluginSettings && _settings) {
+      const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
+      if (streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats") {
+        const newSettings = {
+          ...defaultValues,
+          ..._settings,
+          searchEngine: "Streamystats",
+        } as Settings;
+        setSettings(newSettings);
+        saveSettings(newSettings);
+      }
+    }
+
+    return newPluginSettings;
+  }, [api, _settings]);
 
   const updateSettings = (update: Partial<Settings>) => {
     if (!_settings) {
@@ -348,28 +530,27 @@ export const useSettings = () => {
 
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
   // If admin sets locked to false but provides a value,
-  // use user settings first and fallback on admin setting if required.
+  // use persisted settings first, then app defaults, and only fallback on the
+  // plugin value when neither provides a meaningful value.
   const settings: Settings = useMemo(() => {
-    const unlockedPluginDefaults: Partial<Settings> = {};
     const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
       Partial<Settings>
     >((acc, [key, setting]) => {
       if (setting) {
-        const { value, locked } = setting;
+        let { value } = setting;
+        const { locked } = setting;
         const settingsKey = key as keyof Settings;
 
-        // Make sure we override default settings with plugin settings when they are not locked.
-        if (
-          !locked &&
-          value !== undefined &&
-          _settings?.[settingsKey] !== value
-        ) {
-          (unlockedPluginDefaults as any)[settingsKey] = value;
-        }
+        // Normalize object-typed settings from plugin (plain primitive → { key, value })
+        value = normalizePluginValue(settingsKey, value);
+
+        const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
 
         (acc as any)[settingsKey] = locked
           ? value
-          : (_settings?.[settingsKey] ?? value);
+          : hasMeaningfulSettingValue(effectiveValue)
+            ? effectiveValue
+            : value;
       }
       return acc;
     }, {});

@@ -21,7 +21,6 @@ interface Props extends ViewProps {
   queryKey: QueryKey;
   queryFn: QueryFunction<BaseItemDto[]>;
   hideIfEmpty?: boolean;
-  isOffline?: boolean;
   scrollY?: number; // For lazy loading
   enableLazyLoading?: boolean; // Enable/disable lazy loading
 }
@@ -33,7 +32,6 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   queryFn,
   queryKey,
   hideIfEmpty = false,
-  isOffline = false,
   scrollY = 0,
   enableLazyLoading = false,
   ...props
@@ -46,7 +44,6 @@ export const ScrollingCollectionList: React.FC<Props> = ({
     queryKey: queryKey,
     queryFn,
     staleTime: 60 * 1000, // 1 minute
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     enabled: enableLazyLoading ? isInView : true,
@@ -106,7 +103,6 @@ export const ScrollingCollectionList: React.FC<Props> = ({
               <TouchableItemRouter
                 item={item}
                 key={item.Id}
-                isOffline={isOffline}
                 className={`mr-2 
                   ${orientation === "horizontal" ? "w-44" : "w-28"}
                 `}

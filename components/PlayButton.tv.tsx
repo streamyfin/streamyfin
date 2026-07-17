@@ -1,6 +1,5 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useRouter } from "expo-router";
 import { useAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -14,10 +13,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
-import { useSettings } from "@/utils/atoms/settings";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
@@ -50,7 +49,6 @@ export const PlayButton: React.FC<Props> = ({
   const startColor = useSharedValue(effectiveColors);
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
-  const { settings } = useSettings();
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
@@ -61,7 +59,6 @@ export const PlayButton: React.FC<Props> = ({
   );
 
   const onPress = () => {
-    console.log("onpress");
     if (!item) return;
 
     lightHapticFeedback();
@@ -72,6 +69,7 @@ export const PlayButton: React.FC<Props> = ({
       subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
       mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
       bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
+      playbackPosition: item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
     });
 
     const queryString = queryParams.toString();
@@ -80,7 +78,7 @@ export const PlayButton: React.FC<Props> = ({
   };
 
   const derivedTargetWidth = useDerivedValue(() => {
-    if (!item || !item.RunTimeTicks) return 0;
+    if (!item?.RunTimeTicks) return 0;
     const userData = item.UserData;
     if (userData?.PlaybackPositionTicks) {
       return userData.PlaybackPositionTicks > 0
@@ -207,15 +205,6 @@ export const PlayButton: React.FC<Props> = ({
           <Animated.Text style={animatedTextStyle}>
             <Ionicons name='play-circle' size={24} />
           </Animated.Text>
-          {settings?.openInVLC && (
-            <Animated.Text style={animatedTextStyle}>
-              <MaterialCommunityIcons
-                name='vlc'
-                size={18}
-                color={animatedTextStyle.color}
-              />
-            </Animated.Text>
-          )}
         </View>
       </View>
     </TouchableOpacity>

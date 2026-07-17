@@ -55,7 +55,6 @@ export const writeToLog = (level: LogLevel, message: string, data?: any) => {
   const recentLogs = logs.slice(Math.max(logs.length - maxLogs, 0));
 
   storage.set("logs", JSON.stringify(recentLogs));
-  console.log(message);
 };
 
 export const writeInfoLog = (message: string, data?: any) =>
@@ -71,21 +70,6 @@ export const writeDebugLog = (message: string, data?: any) => {
 export const readFromLog = (): LogEntry[] => {
   const logs = storage.getString("logs");
   return logs ? JSON.parse(logs) : [];
-};
-
-export const clearLogs = () => {
-  storage.remove("logs");
-};
-
-export const dumpDownloadDiagnostics = (extra: any = {}) => {
-  const diagnostics = {
-    timestamp: new Date().toISOString(),
-    processes: extra?.processes || [],
-    nativeTasks: extra?.nativeTasks || [],
-    focusedProcess: extra?.focusedProcess || null,
-  };
-  writeDebugLog("Download diagnostics", diagnostics);
-  return diagnostics;
 };
 
 export function useLog() {

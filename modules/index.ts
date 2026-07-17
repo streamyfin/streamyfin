@@ -1,17 +1,4 @@
-import type {
-  ChapterInfo,
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  TrackInfo,
-  VideoLoadStartPayload,
-  VideoProgressPayload,
-  VideoStateChangePayload,
-  VlcPlayerSource,
-  VlcPlayerViewProps,
-  VlcPlayerViewRef,
-} from "./VlcPlayer.types";
-import VlcPlayerView from "./VlcPlayerView";
-
+// Background Downloader
 export type {
   ActiveDownload,
   DownloadCompleteEvent,
@@ -20,23 +7,34 @@ export type {
   DownloadStartedEvent,
   StorageLocation,
 } from "./background-downloader";
-// Background Downloader
 export { default as BackgroundDownloader } from "./background-downloader";
-
-// Component
-export { VlcPlayerView };
-
-// Component Types
-export type { VlcPlayerViewProps, VlcPlayerViewRef };
-
-// Media Types
-export type { ChapterInfo, TrackInfo, VlcPlayerSource };
-
-// Playback Events (alphabetically sorted)
+// Glass Poster (tvOS 26+)
+export type { GlassPosterViewProps } from "./glass-poster";
+export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
+// MPV Player (iOS + Android)
 export type {
-  PlaybackStatePayload,
-  ProgressUpdatePayload,
-  VideoLoadStartPayload,
-  VideoProgressPayload,
-  VideoStateChangePayload,
-};
+  AudioTrack as MpvAudioTrack,
+  MpvPlayerViewProps,
+  MpvPlayerViewRef,
+  OnErrorEventPayload as MpvOnErrorEventPayload,
+  OnLoadEventPayload as MpvOnLoadEventPayload,
+  OnPlaybackStateChangePayload as MpvOnPlaybackStateChangePayload,
+  OnProgressEventPayload as MpvOnProgressEventPayload,
+  OnTracksReadyEventPayload as MpvOnTracksReadyEventPayload,
+  SubtitleTrack as MpvSubtitleTrack,
+  VideoSource as MpvVideoSource,
+} from "./mpv-player";
+export { MpvPlayerView } from "./mpv-player";
+// Top Shelf cache (tvOS)
+export type {
+  TopShelfCacheItem,
+  TopShelfCachePayload,
+  TopShelfCacheSection,
+} from "./top-shelf-cache";
+export { clearTopShelfCache, writeTopShelfCache } from "./top-shelf-cache";
+// TV recommendations (Android TV)
+export {
+  clearTvRecommendations,
+  refreshTvRecommendations,
+  syncTvRecommendations,
+} from "./tv-recommendations";

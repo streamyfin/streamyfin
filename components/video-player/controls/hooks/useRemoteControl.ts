@@ -1,184 +1,237 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 import { type SharedValue, useSharedValue } from "react-native-reanimated";
-import { msToTicks, ticksToSeconds } from "@/utils/time";
-import { CONTROLS_CONSTANTS } from "../constants";
-
-// TV event handler with fallback for non-TV platforms
-let useTVEventHandler: (callback: (evt: any) => void) => void;
-if (Platform.isTV) {
-  try {
-    useTVEventHandler = require("react-native").useTVEventHandler;
-  } catch {
-    // Fallback for non-TV platforms
-    useTVEventHandler = () => {};
-  }
-} else {
-  // No-op hook for non-TV platforms
-  useTVEventHandler = () => {};
-}
+import { useTVBackPress } from "@/hooks/useTVBackPress";
+import { useTVEventHandler } from "@/hooks/useTVEventHandler";
 
 interface UseRemoteControlProps {
-  progress: SharedValue<number>;
-  min: SharedValue<number>;
-  max: SharedValue<number>;
-  isVlc: boolean;
   showControls: boolean;
-  isPlaying: boolean;
-  seek: (value: number) => void;
-  play: () => void;
-  togglePlay: () => void;
   toggleControls: () => void;
-  calculateTrickplayUrl: (progressInTicks: number) => void;
-  handleSeekForward: (seconds: number) => void;
-  handleSeekBackward: (seconds: number) => void;
+  /** When true, disables handling D-pad events (e.g., when settings modal is open) */
+  disableSeeking?: boolean;
+  /** Callback for back/menu button press (tvOS: menu, Android TV: back) */
+  onBack?: () => void;
+  /** Callback to hide controls (called on back press when controls are visible) */
+  onHideControls?: () => void;
+  /** Title of the video being played (shown in exit confirmation) */
+  videoTitle?: string;
+  /** Whether the progress bar currently has focus */
+  isProgressBarFocused?: boolean;
+  /** Callback for seeking left when progress bar is focused */
+  onSeekLeft?: () => void;
+  /** Callback for seeking right when progress bar is focused */
+  onSeekRight?: () => void;
+  /** Callback for seeking left when controls are hidden (minimal seek mode) */
+  onMinimalSeekLeft?: () => void;
+  /** Callback for seeking right when controls are hidden (minimal seek mode) */
+  onMinimalSeekRight?: () => void;
+  /** Callback for any interaction that should reset the controls timeout */
+  onInteraction?: () => void;
+  /** Callback when long press seek left starts (eventKeyAction: 0) */
+  onLongSeekLeftStart?: () => void;
+  /** Callback when long press seek right starts (eventKeyAction: 0) */
+  onLongSeekRightStart?: () => void;
+  /** Callback when long press seek ends (eventKeyAction: 1) */
+  onLongSeekStop?: () => void;
+  /** Callback when up/down D-pad pressed (to show controls with play button focused) */
+  onVerticalDpad?: () => void;
+  /** Called before the exit confirmation Alert is shown (e.g., to pause countdown) */
+  onWillExit?: () => void;
+  /** Called when the user cancels the exit confirmation Alert */
+  onCancelExit?: () => void;
+  // Legacy props - kept for backwards compatibility with mobile Controls.tsx
+  // These are ignored in the simplified implementation
+  progress?: SharedValue<number>;
+  min?: SharedValue<number>;
+  max?: SharedValue<number>;
+  isPlaying?: boolean;
+  seek?: (value: number) => void;
+  play?: () => void;
+  togglePlay?: () => void;
+  calculateTrickplayUrl?: (progressInTicks: number) => void;
+  handleSeekForward?: (seconds: number) => void;
+  handleSeekBackward?: (seconds: number) => void;
 }
 
+/**
+ * Hook to manage TV remote control interactions.
+ * Simplified version - D-pad navigation is handled by native focus system.
+ * This hook handles:
+ * - Showing controls on any button press
+ * - Play/pause button on TV remote
+ */
 export function useRemoteControl({
-  progress,
-  min,
-  max,
-  isVlc,
   showControls,
-  isPlaying,
-  seek,
-  play,
   togglePlay,
-  toggleControls,
-  calculateTrickplayUrl,
-  handleSeekForward,
-  handleSeekBackward,
+  onBack,
+  onHideControls,
+  videoTitle,
+  isProgressBarFocused,
+  onSeekLeft,
+  onSeekRight,
+  onMinimalSeekLeft,
+  onMinimalSeekRight,
+  onInteraction,
+  onLongSeekLeftStart,
+  onLongSeekRightStart,
+  onLongSeekStop,
+  onVerticalDpad,
+  onWillExit,
+  onCancelExit,
 }: UseRemoteControlProps) {
+  // Keep these for backward compatibility with the component
   const remoteScrubProgress = useSharedValue<number | null>(null);
   const isRemoteScrubbing = useSharedValue(false);
-  const [showRemoteBubble, setShowRemoteBubble] = useState(false);
-  const [longPressScrubMode, setLongPressScrubMode] = useState<
-    "FF" | "RW" | null
-  >(null);
-  const [isSliding, setIsSliding] = useState(false);
-  const [time, setTime] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [showRemoteBubble] = useState(false);
+  const [isSliding] = useState(false);
+  const [time] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
-  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const SCRUB_INTERVAL = isVlc
-    ? CONTROLS_CONSTANTS.SCRUB_INTERVAL_MS
-    : CONTROLS_CONSTANTS.SCRUB_INTERVAL_TICKS;
+  // Use refs to avoid stale closures in BackHandler
+  const showControlsRef = useRef(showControls);
+  const onHideControlsRef = useRef(onHideControls);
+  const onBackRef = useRef(onBack);
+  const videoTitleRef = useRef(videoTitle);
+  const onWillExitRef = useRef(onWillExit);
+  const onCancelExitRef = useRef(onCancelExit);
 
-  const updateTime = useCallback(
-    (progressValue: number) => {
-      const progressInTicks = isVlc ? msToTicks(progressValue) : progressValue;
-      const progressInSeconds = Math.floor(ticksToSeconds(progressInTicks));
-      const hours = Math.floor(progressInSeconds / 3600);
-      const minutes = Math.floor((progressInSeconds % 3600) / 60);
-      const seconds = progressInSeconds % 60;
-      setTime({ hours, minutes, seconds });
-    },
-    [isVlc],
-  );
+  useEffect(() => {
+    showControlsRef.current = showControls;
+    onHideControlsRef.current = onHideControls;
+    onBackRef.current = onBack;
+    videoTitleRef.current = videoTitle;
+    onWillExitRef.current = onWillExit;
+    onCancelExitRef.current = onCancelExit;
+  }, [
+    showControls,
+    onHideControls,
+    onBack,
+    videoTitle,
+    onWillExit,
+    onCancelExit,
+  ]);
+
+  // BackHandler owns player exit: Android TV sends hardware back here, and
+  // react-native-tvos maps the Apple TV menu button to the same API.
+  useTVBackPress(() => {
+    if (showControlsRef.current && onHideControlsRef.current) {
+      // Controls are visible, so the first back press only hides them.
+      onHideControlsRef.current();
+      return true;
+    }
+    if (onBackRef.current) {
+      // Signal Controls that exit is imminent (pauses countdown, sets guard)
+      onWillExitRef.current?.();
+
+      // Controls are hidden, so confirm before leaving playback.
+      Alert.alert(
+        "Stop Playback",
+        videoTitleRef.current
+          ? `Stop playing "${videoTitleRef.current}"?`
+          : "Are you sure you want to stop playback?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => onCancelExitRef.current?.(),
+          },
+          { text: "Stop", style: "destructive", onPress: onBackRef.current },
+        ],
+      );
+      return true;
+    }
+    return false;
+  }, []);
 
   // TV remote control handling (no-op on non-TV platforms)
   useTVEventHandler((evt) => {
     if (!evt) return;
 
-    switch (evt.eventType) {
-      case "longLeft": {
-        setLongPressScrubMode((prev) => (!prev ? "RW" : null));
-        break;
-      }
-      case "longRight": {
-        setLongPressScrubMode((prev) => (!prev ? "FF" : null));
-        break;
-      }
-      case "left":
-      case "right": {
-        isRemoteScrubbing.value = true;
-        setShowRemoteBubble(true);
-
-        const direction = evt.eventType === "left" ? -1 : 1;
-        const base = remoteScrubProgress.value ?? progress.value;
-        const updated = Math.max(
-          min.value,
-          Math.min(max.value, base + direction * SCRUB_INTERVAL),
-        );
-        remoteScrubProgress.value = updated;
-        const progressInTicks = isVlc ? msToTicks(updated) : updated;
-        calculateTrickplayUrl(progressInTicks);
-        updateTime(updated);
-        break;
-      }
-      case "select": {
-        if (isRemoteScrubbing.value && remoteScrubProgress.value != null) {
-          progress.value = remoteScrubProgress.value;
-
-          const seekTarget = isVlc
-            ? Math.max(0, remoteScrubProgress.value)
-            : Math.max(0, ticksToSeconds(remoteScrubProgress.value));
-
-          seek(seekTarget);
-          if (isPlaying) play();
-
-          isRemoteScrubbing.value = false;
-          remoteScrubProgress.value = null;
-          setShowRemoteBubble(false);
-        } else {
-          togglePlay();
-        }
-        break;
-      }
-      case "down":
-      case "up":
-        // cancel scrubbing on other directions
-        isRemoteScrubbing.value = false;
-        remoteScrubProgress.value = null;
-        setShowRemoteBubble(false);
-        break;
-      default:
-        break;
+    // Back/menu is handled by useTVBackPress above. Keep this handler focused
+    // on remote-control events like play/pause, D-pad, and long seek.
+    if (evt.eventType === "menu") {
+      return;
     }
 
-    if (!showControls) toggleControls();
+    // Handle play/pause button press on TV remote
+    if (evt.eventType === "playPause") {
+      togglePlay?.();
+      onInteraction?.();
+      return;
+    }
+
+    // Handle long press D-pad for continuous seeking (works in both modes)
+    // Must be checked BEFORE the showControls check to work when controls are hidden
+    if (evt.eventType === "longLeft") {
+      if (evt.eventKeyAction === 0 && onLongSeekLeftStart) {
+        // Key pressed - start continuous seeking backward
+        onLongSeekLeftStart();
+      } else if (evt.eventKeyAction === 1 && onLongSeekStop) {
+        // Key released - stop seeking
+        onLongSeekStop();
+      }
+      return;
+    }
+
+    if (evt.eventType === "longRight") {
+      if (evt.eventKeyAction === 0 && onLongSeekRightStart) {
+        // Key pressed - start continuous seeking forward
+        onLongSeekRightStart();
+      } else if (evt.eventKeyAction === 1 && onLongSeekStop) {
+        // Key released - stop seeking
+        onLongSeekStop();
+      }
+      return;
+    }
+
+    // Handle D-pad when controls are hidden
+    if (!showControls) {
+      // Ignore select/enter events - let the native Pressable handle them
+      // This prevents controls from showing when pressing buttons like skip intro
+      if (evt.eventType === "select" || evt.eventType === "enter") {
+        return;
+      }
+      // Minimal seek mode for left/right
+      if (evt.eventType === "left" && onMinimalSeekLeft) {
+        onMinimalSeekLeft();
+        return;
+      }
+      if (evt.eventType === "right" && onMinimalSeekRight) {
+        onMinimalSeekRight();
+        return;
+      }
+      // Up/down shows controls with play button focused
+      if (
+        (evt.eventType === "up" || evt.eventType === "down") &&
+        onVerticalDpad
+      ) {
+        onVerticalDpad();
+        return;
+      }
+      // Ignore all other events (focus/blur, swipes, etc.)
+      // User can press up/down to show controls
+      return;
+    }
+
+    // Controls are showing - handle seeking when progress bar is focused
+    if (isProgressBarFocused) {
+      if (evt.eventType === "left" && onSeekLeft) {
+        onSeekLeft();
+        return;
+      }
+      if (evt.eventType === "right" && onSeekRight) {
+        onSeekRight();
+        return;
+      }
+    }
+
+    // Reset the timeout on any D-pad navigation when controls are showing
+    onInteraction?.();
   });
-
-  useEffect(() => {
-    let isActive = true;
-    let seekTime = CONTROLS_CONSTANTS.LONG_PRESS_INITIAL_SEEK;
-
-    const scrubWithLongPress = () => {
-      if (!isActive || !longPressScrubMode) return;
-
-      setIsSliding(true);
-      const scrubFn =
-        longPressScrubMode === "FF" ? handleSeekForward : handleSeekBackward;
-      scrubFn(seekTime);
-      seekTime *= CONTROLS_CONSTANTS.LONG_PRESS_ACCELERATION;
-
-      longPressTimeoutRef.current = setTimeout(
-        scrubWithLongPress,
-        CONTROLS_CONSTANTS.LONG_PRESS_INTERVAL,
-      );
-    };
-
-    if (longPressScrubMode) {
-      isActive = true;
-      scrubWithLongPress();
-    }
-
-    return () => {
-      isActive = false;
-      setIsSliding(false);
-      if (longPressTimeoutRef.current) {
-        clearTimeout(longPressTimeoutRef.current);
-        longPressTimeoutRef.current = null;
-      }
-    };
-  }, [longPressScrubMode, handleSeekForward, handleSeekBackward]);
 
   return {
     remoteScrubProgress,
     isRemoteScrubbing,
     showRemoteBubble,
-    longPressScrubMode,
     isSliding,
     time,
   };

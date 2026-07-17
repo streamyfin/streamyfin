@@ -2,11 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useGlobalSearchParams } from "expo-router";
 import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useRef } from "react";
 import { TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import {
   HorizontalScroll,
@@ -18,11 +16,17 @@ import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useDownload } from "@/providers/DownloadProvider";
-import type { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import {
+  getDownloadedEpisodesForSeason,
+  getDownloadedSeasonNumbers,
+} from "@/utils/downloads/offline-series";
 import { getUserItemData } from "@/utils/jellyfin/user-library/getUserItemData";
 import { runtimeTicksToSeconds } from "@/utils/time";
+import { HEADER_LAYOUT, ICON_SIZES } from "./constants";
 
 type Props = {
   item: BaseItemDto;
@@ -40,10 +44,8 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   const scrollToIndex = (index: number) => {
     scrollViewRef.current?.scrollToIndex(index, 100);
   };
-  const { offline } = useGlobalSearchParams<{
-    offline: string;
-  }>();
-  const isOffline = offline === "true";
+  const isOffline = useOfflineMode();
+  const insets = useControlsSafeAreaInsets();
 
   // Set the initial season index
   useEffect(() => {
@@ -55,11 +57,12 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     }
   }, []);
 
+  // Read the live (cached) downloads DB inside the query rather than the
+  // provider's downloadedItems snapshot. The snapshot only refreshes on the
+  // provider refreshKey, so after updateDownloadedItem() invalidates
+  // ["episodes"]/["seasons"] (e.g. progress/played writes) the refetch would
+  // return stale data. getAllDownloadedItems() is cached, so this stays cheap.
   const { getDownloadedItems } = useDownload();
-  const downloadedFiles = useMemo(
-    () => getDownloadedItems(),
-    [getDownloadedItems],
-  );
 
   const seasonIndex = seasonIndexState[item.ParentId ?? ""];
 
@@ -68,15 +71,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     queryFn: async () => {
       if (isOffline) {
         if (!item.SeriesId) return [];
-        const seriesEpisodes = downloadedFiles?.filter(
-          (f: DownloadedItem) => f.item.SeriesId === item.SeriesId,
-        );
-        const seasonNumbers = Array.from(
-          new Set(
-            seriesEpisodes
-              ?.map((f: DownloadedItem) => f.item.ParentIndexNumber)
-              .filter(Boolean),
-          ),
+        const seasonNumbers = getDownloadedSeasonNumbers(
+          getDownloadedItems(),
+          item.SeriesId,
         );
         // Create fake season objects
         return seasonNumbers.map((seasonNumber) => ({
@@ -117,14 +114,12 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
     queryKey: ["episodes", item.SeriesId, selectedSeasonId],
     queryFn: async () => {
       if (isOffline) {
-        if (!item.SeriesId) return [];
-        return downloadedFiles
-          ?.filter(
-            (f: DownloadedItem) =>
-              f.item.SeriesId === item.SeriesId &&
-              f.item.ParentIndexNumber === seasonIndex,
-          )
-          .map((f: DownloadedItem) => f.item);
+        if (!item.SeriesId || typeof seasonIndex !== "number") return [];
+        return getDownloadedEpisodesForSeason(
+          getDownloadedItems(),
+          item.SeriesId,
+          seasonIndex,
+        );
       }
       if (!api || !user?.Id || !item.Id || !selectedSeasonId) return [];
       const res = await getTvShowsApi(api).getEpisodes({
@@ -153,6 +148,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
 
   const queryClient = useQueryClient();
   useEffect(() => {
+    // Don't prefetch when offline - data is already local
+    if (isOffline) return;
+
     for (const e of episodes || []) {
       queryClient.prefetchQuery({
         queryKey: ["item", e.Id],
@@ -168,7 +166,7 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
         staleTime: 60 * 5 * 1000,
       });
     }
-  }, [episodes]);
+  }, [episodes, isOffline]);
 
   // Scroll to the current item when episodes are fetched
   useEffect(() => {
@@ -181,15 +179,21 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
   }, [episodes, item.Id]);
 
   return (
-    <SafeAreaView
+    <View
       style={{
         position: "absolute",
         backgroundColor: "black",
         height: "100%",
         width: "100%",
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
       }}
     >
-      <View className='flex-row items-center p-4 z-10'>
+      <View
+        style={{ padding: HEADER_LAYOUT.CONTAINER_PADDING }}
+        className='flex-row items-center z-10'
+      >
         {seasons && seasons.length > 0 && !episodesLoading && episodes && (
           <SeasonDropdown
             item={item}
@@ -207,9 +211,9 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           onPress={async () => {
             close();
           }}
-          className='aspect-square flex flex-col bg-neutral-800/90 rounded-xl items-center justify-center p-2 ml-auto'
+          className='aspect-square flex flex-col rounded-xl items-center justify-center p-2 ml-auto'
         >
-          <Ionicons name='close' size={24} color='white' />
+          <Ionicons name='close' size={ICON_SIZES.HEADER} color='white' />
         </TouchableOpacity>
       </View>
 
@@ -274,6 +278,6 @@ export const EpisodeList: React.FC<Props> = ({ item, close, goToItem }) => {
           showsHorizontalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
