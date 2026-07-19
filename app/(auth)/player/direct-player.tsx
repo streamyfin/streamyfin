@@ -555,12 +555,12 @@ export default function DirectPlayerPage() {
     reportPlaybackStoppedRef.current = reportPlaybackStopped;
   }, [stop, reportPlaybackStopped]);
 
-  // Report playback stopped only on a real unmount (leaving the player).
+  // Report playback stopped only on a real source switch or unmount.
   useEffect(() => {
     return () => {
       reportPlaybackStoppedRef.current();
     };
-  }, []);
+  }, [item?.Id, stream?.sessionId, mediaSourceId]);
 
   // Stop on navigation-away. Re-subscribing when the navigation object identity
   // changes (e.g. after a setParams) no longer reports anything on its own.
