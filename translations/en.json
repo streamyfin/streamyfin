@@ -184,7 +184,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to Wi-Fi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect the Wi-Fi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect the Wi-Fi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID hidden",
+        "location_off_description": "Connected to Wi-Fi, but the network name is hidden. Enable device Location services and grant the app location permission to detect it.",
+        "open_location_settings": "Open Location settings"
       },
       "user_info": {
         "user_info_title": "User info",
