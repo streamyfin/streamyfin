@@ -52,7 +52,7 @@ export const getAudioStreamUrl = async (
       container: mediaSource?.Container || "mp3",
       mediaSourceId: mediaSource?.Id || "",
       deviceId: api.deviceInfo.id,
-      api_key: api.accessToken,
+      ApiKey: api.accessToken,
       userId,
     });
 
