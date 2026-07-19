@@ -289,7 +289,24 @@ export function useDownloadOperations({
   );
 
   const appSizeUsage = useCallback(async () => {
-    const totalSize = calculateTotalDownloadedSize();
+    let totalSize = calculateTotalDownloadedSize();
+
+    // Also count in-progress downloads (they write straight to their final
+    // path) so the growing file shows up as app usage instead of drifting
+    // into the generic device share until completion.
+    for (const process of processes) {
+      try {
+        const file = new File(
+          Paths.document,
+          `${generateFilename(process.item)}.mp4`,
+        );
+        if (file.exists) {
+          totalSize += file.size ?? 0;
+        }
+      } catch {
+        // File not created yet — ignore.
+      }
+    }
 
     try {
       const [freeDiskStorage, totalDiskCapacity] = await Promise.all([
@@ -310,7 +327,7 @@ export function useDownloadOperations({
         appSize: totalSize,
       };
     }
-  }, []);
+  }, [processes]);
 
   return {
     startBackgroundDownload,

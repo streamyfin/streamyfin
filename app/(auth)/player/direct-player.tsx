@@ -7,6 +7,7 @@ import {
   RepeatMode,
 } from "@jellyfin/sdk/lib/generated-client";
 import {
+  getMediaInfoApi,
   getPlaystateApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
@@ -310,6 +311,37 @@ export default function DirectPlayerPage() {
   // Ref to store the stream fetch function for refreshing subtitle tracks
   const refetchStreamRef = useRef<(() => Promise<Stream | null>) | null>(null);
 
+  // Live TV opens a server-side live stream via autoOpenLiveStream. If it is
+  // never closed, Jellyfin's M3U tuner limit fills up and every channel then
+  // fails with "simultaneous stream limit has been reached". reportPlaybackStopped
+  // handles a clean stop, but a channel switch (the player re-fetches in place)
+  // or an unmount after an error bypass it, so track the open live stream and
+  // release it on those paths too.
+  const apiRef = useRef(api);
+  useEffect(() => {
+    apiRef.current = api;
+  }, [api]);
+
+  const releaseLiveStream = useCallback(
+    (liveStreamId: string | null) => {
+      if (!liveStreamId || !apiRef.current || offline) return;
+      // Best effort: a failed close must not break teardown, and the slot is
+      // also freed by the server's reap as a backstop.
+      getMediaInfoApi(apiRef.current)
+        .closeLiveStream({ liveStreamId })
+        .catch(() => {});
+    },
+    [offline],
+  );
+
+  // The effect cleanup releases the live stream both when it changes (channel
+  // switch, which re-runs the effect) and when the player unmounts, so no
+  // manual previous-id tracking is needed.
+  useEffect(() => {
+    const liveStreamId = stream?.mediaSource?.LiveStreamId ?? null;
+    return () => releaseLiveStream(liveStreamId);
+  }, [stream?.mediaSource?.LiveStreamId, releaseLiveStream]);
+
   useEffect(() => {
     const fetchStreamData = async (): Promise<Stream | null> => {
       setStreamStatus({ isLoading: true, isError: false });
@@ -445,6 +477,12 @@ export default function DirectPlayerPage() {
         MediaSourceId: mediaSourceId,
         PositionTicks: currentTimeInTicks,
         PlaySessionId: stream.sessionId,
+        // Release the server-side live stream (and its tuner slot) on stop.
+        // Jellyfin only closes a live stream opened via autoOpenLiveStream when
+        // the stop report carries its LiveStreamId; without it the stream leaks
+        // and Live TV eventually fails for everyone with "M3U simultaneous
+        // stream limit has been reached". Undefined for non-live items (no-op).
+        LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
       },
     });
   }, [api, item, mediaSourceId, stream, progress, offline]);
@@ -893,6 +931,27 @@ export default function DirectPlayerPage() {
       // Check if we're transcoding
       const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
 
+      // A transcoded stream only carries the audio track the server encoded
+      // into it — switching requires re-negotiating the stream with the new
+      // index (like the mobile menu's replacePlayer), not an mpv aid change.
+      if (isTranscoding) {
+        const queryParams = new URLSearchParams({
+          itemId: item?.Id ?? "",
+          audioIndex: String(index),
+          subtitleIndex: String(currentSubtitleIndex),
+          mediaSourceId: stream?.mediaSource?.Id ?? "",
+          bitrateValue: bitrateValue?.toString() ?? "",
+          playbackPosition: msToTicks(progress.get()).toString(),
+        }).toString();
+        // Destroy the current mpv instance BEFORE navigating, same rationale as
+        // goToNextItem/goToPreviousItem: Expo Router briefly holds two players
+        // during the transition, and two simultaneous decoders OOM-kill low-RAM
+        // devices. Resume is preserved via the playbackPosition param.
+        videoRef.current?.destroy().catch(() => {});
+        router.replace(`player/direct-player?${queryParams}` as any);
+        return;
+      }
+
       // Convert Jellyfin index to MPV track ID
       const mpvTrackId = getMpvAudioId(
         stream?.mediaSource,
@@ -904,7 +963,14 @@ export default function DirectPlayerPage() {
         await videoRef.current?.setAudioTrack?.(mpvTrackId);
       }
     },
-    [stream?.mediaSource],
+    [
+      stream?.mediaSource,
+      item?.Id,
+      currentSubtitleIndex,
+      bitrateValue,
+      router,
+      progress,
+    ],
   );
 
   // TV subtitle track change handler
@@ -1290,7 +1356,7 @@ export default function DirectPlayerPage() {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
                     t("player.error"),
-                    t("player.an_error_occured_while_playing_the_video"),
+                    t("player.an_error_occurred_while_playing_the_video"),
                   );
                   writeToLog("ERROR", "Video Error", e.nativeEvent);
                 }}

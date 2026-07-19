@@ -15,6 +15,7 @@ import {
 import { SectionHeader } from "@/components/common/SectionHeader";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
+import { useSettings } from "@/utils/atoms/settings";
 import { Colors } from "../../constants/Colors";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
@@ -94,6 +95,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   }, [isSuccess, onLoaded]);
 
   const { t } = useTranslation();
+  const { settings } = useSettings();
 
   // Flatten all pages into a single array (and de-dupe by Id to avoid UI duplicates)
   const allItems = useMemo(() => {
@@ -206,7 +208,10 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
                 `}
               >
                 {item.Type === "Episode" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
+                  <ContinueWatchingPoster
+                    item={item}
+                    useEpisodePoster={settings?.useEpisodeImagesForNextUp}
+                  />
                 )}
                 {item.Type === "Episode" && orientation === "vertical" && (
                   <SeriesPoster item={item} />

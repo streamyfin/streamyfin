@@ -9,6 +9,7 @@ import { ScrollView, View, type ViewProps } from "react-native";
 import { Text } from "@/components/common/Text";
 import MoviePoster from "@/components/posters/MoviePoster";
 import { useInView } from "@/hooks/useInView";
+import { useSettings } from "@/utils/atoms/settings";
 import ContinueWatchingPoster from "../ContinueWatchingPoster";
 import { TouchableItemRouter } from "../common/TouchableItemRouter";
 import { ItemCardText } from "../ItemCardText";
@@ -50,6 +51,7 @@ export const ScrollingCollectionList: React.FC<Props> = ({
   });
 
   const { t } = useTranslation();
+  const { settings } = useSettings();
 
   // Show skeleton if loading OR if lazy loading is enabled and not in view yet
   const shouldShowSkeleton = isLoading || (enableLazyLoading && !isInView);
@@ -108,7 +110,10 @@ export const ScrollingCollectionList: React.FC<Props> = ({
                 `}
               >
                 {item.Type === "Episode" && orientation === "horizontal" && (
-                  <ContinueWatchingPoster item={item} />
+                  <ContinueWatchingPoster
+                    item={item}
+                    useEpisodePoster={settings?.useEpisodeImagesForNextUp}
+                  />
                 )}
                 {item.Type === "Episode" && orientation === "vertical" && (
                   <SeriesPoster item={item} />

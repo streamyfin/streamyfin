@@ -1,8 +1,8 @@
 import { type BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useState } from "react";
 import { View, type ViewProps } from "react-native";
+import { WatchedIndicator } from "@/components/WatchedIndicator";
 import { ItemImage } from "../common/ItemImage";
-import { WatchedIndicator } from "../WatchedIndicator";
 
 interface Props extends ViewProps {
   item: BaseItemDto;
