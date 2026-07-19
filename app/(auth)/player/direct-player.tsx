@@ -481,9 +481,9 @@ export default function DirectPlayerPage() {
     // listener (via stop()) and once from the unmount cleanup backstop. Dedupe
     // per PlaySessionId — not a plain boolean, since the component survives
     // in-place item switches and the next session must report again.
-    if (reportedStopSessionIdRef.current === stream.sessionId) return;
-    reportedStopSessionIdRef.current = stream.sessionId;
-
+    const sessionId = stream.sessionId;
+    if (reportedStopSessionIdRef.current === sessionId) return;
+    reportedStopSessionIdRef.current = sessionId;
     const currentTimeInTicks = msToTicks(progress.get());
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
@@ -491,7 +491,7 @@ export default function DirectPlayerPage() {
           ItemId: item.Id,
           MediaSourceId: mediaSourceId,
           PositionTicks: currentTimeInTicks,
-          PlaySessionId: stream.sessionId,
+          PlaySessionId: sessionId,
           // Release the server-side live stream (and its tuner slot) on stop.
           // Jellyfin only closes a live stream opened via autoOpenLiveStream when
           // the stop report carries its LiveStreamId; without it the stream leaks
@@ -505,7 +505,9 @@ export default function DirectPlayerPage() {
       // report from a WebSocket remote-stop (player still mounted) must not
       // suppress the report when the user then navigates away. Callers are
       // fire-and-forget, so swallow instead of rethrowing unhandled.
-      reportedStopSessionIdRef.current = null;
+      if (reportedStopSessionIdRef.current === sessionId) {
+        reportedStopSessionIdRef.current = null;
+      }
       writeToLog(
         "ERROR",
         "reportPlaybackStopped failed",
