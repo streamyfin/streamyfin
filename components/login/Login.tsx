@@ -3,7 +3,7 @@ import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -22,13 +22,14 @@ import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
 import { QuickConnectCodeModal } from "@/components/login/QuickConnectCodeModal";
 import { PreviousServersList } from "@/components/PreviousServersList";
-import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
-import { apiAtom, useJellyfin, userAtom } from "@/providers/JellyfinProvider";
-import type {
-  AccountSecurityType,
-  SavedServer,
-} from "@/utils/secureCredentials";
+import {
+  apiAtom,
+  pendingAccountSaveAtom,
+  useJellyfin,
+  userAtom,
+} from "@/providers/JellyfinProvider";
+import type { SavedServer } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
@@ -36,9 +37,9 @@ const CredentialsSchema = z.object({
 
 export const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const user = useAtomValue(userAtom);
   const {
     setServer,
     login,
@@ -48,6 +49,7 @@ export const Login: React.FC = () => {
     loginWithSavedCredential,
     loginWithPassword,
   } = useJellyfin();
+  const setPendingAccountSave = useSetAtom(pendingAccountSaveAtom);
 
   const {
     apiUrl: _apiUrl,
@@ -93,13 +95,24 @@ export const Login: React.FC = () => {
     }
   }, [api?.basePath, stopQuickConnectPolling]);
 
-  // Save account state
+  // Save account state — only the intent lives here; the protection picker is
+  // the global PendingAccountSaveModal, shown after the login succeeds.
   const [saveAccount, setSaveAccount] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [pendingLogin, setPendingLogin] = useState<{
-    username: string;
-    password: string;
-  } | null>(null);
+
+  // Tracks an in-flight Quick Connect attempt (code issued, provider polling).
+  const [quickConnectActive, setQuickConnectActive] = useState(false);
+
+  // A Quick Connect login with "save account" on flags the post-login save:
+  // the protection picker shows globally once the session exists (this screen
+  // unmounts on login, so it can't host the modal).
+  useEffect(() => {
+    if (user) {
+      if (quickConnectActive && saveAccount) {
+        setPendingAccountSave({ serverName });
+      }
+      setQuickConnectActive(false);
+    }
+  }, [user]);
 
   // Handle URL params for server connection
   useEffect(() => {
@@ -146,29 +159,22 @@ export const Login: React.FC = () => {
     const result = CredentialsSchema.safeParse(credentials);
     if (!result.success) return;
 
-    if (saveAccount) {
-      setPendingLogin({
-        username: credentials.username,
-        password: credentials.password,
-      });
-      setShowSaveModal(true);
-    } else {
-      await performLogin(credentials.username, credentials.password);
+    const ok = await performLogin(credentials.username, credentials.password);
+    // The protection picker shows AFTER a successful login (global modal) —
+    // never for a failed one.
+    if (ok && saveAccount) {
+      setPendingAccountSave({ serverName });
     }
   };
 
   const performLogin = async (
     username: string,
     password: string,
-    options?: {
-      saveAccount?: boolean;
-      securityType?: AccountSecurityType;
-      pinCode?: string;
-    },
-  ) => {
+  ): Promise<boolean> => {
     setLoading(true);
     try {
-      await login(username, password, serverName, options);
+      await login(username, password, serverName);
+      return true;
     } catch (error) {
       if (error instanceof Error) {
         Alert.alert(t("login.connection_failed"), error.message);
@@ -178,23 +184,9 @@ export const Login: React.FC = () => {
           t("login.an_unexpected_error_occurred"),
         );
       }
+      return false;
     } finally {
       setLoading(false);
-      setPendingLogin(null);
-    }
-  };
-
-  const handleSaveAccountConfirm = async (
-    securityType: AccountSecurityType,
-    pinCode?: string,
-  ) => {
-    setShowSaveModal(false);
-    if (pendingLogin) {
-      await performLogin(pendingLogin.username, pendingLogin.password, {
-        saveAccount: true,
-        securityType,
-        pinCode,
-      });
     }
   };
 
@@ -288,6 +280,7 @@ export const Login: React.FC = () => {
     try {
       const code = await initiateQuickConnect();
       if (code) {
+        setQuickConnectActive(true);
         setQuickConnectCode(code);
       }
     } catch (_error) {
@@ -464,16 +457,6 @@ export const Login: React.FC = () => {
           </View>
         )}
       </KeyboardAvoidingView>
-
-      <SaveAccountModal
-        visible={showSaveModal}
-        onClose={() => {
-          setShowSaveModal(false);
-          setPendingLogin(null);
-        }}
-        onSave={handleSaveAccountConfirm}
-        username={pendingLogin?.username || credentials.username}
-      />
 
       {/* Dismissing only hides the code — polling continues so the login still
           completes if the code is authorized from another device afterwards. */}

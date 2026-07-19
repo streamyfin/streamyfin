@@ -15,12 +15,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import { AppState, Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
 import uuid from "react-native-uuid";
+import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
@@ -91,6 +93,12 @@ export const apiAtom = atom<Api | null>(initialApi);
 export const userAtom = atom<UserDto | null>(initialUser);
 export const wsAtom = atom<WebSocket | null>(null);
 export const cacheVersionAtom = atom<number>(0);
+// Set by a login flow that wants the account saved: the protection picker
+// shows AFTER the session is authorized (the login screen unmounts on
+// success, so the modal lives at the root — see PendingAccountSaveModal).
+export const pendingAccountSaveAtom = atom<{ serverName?: string } | null>(
+  null,
+);
 
 interface LoginOptions {
   saveAccount?: boolean;
@@ -108,6 +116,11 @@ interface JellyfinContextValue {
     serverName?: string,
     options?: LoginOptions,
   ) => Promise<void>;
+  saveCurrentAccount: (options?: {
+    securityType?: AccountSecurityType;
+    pinCode?: string;
+    serverName?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   initiateQuickConnect: () => Promise<string | undefined>;
   stopQuickConnectPolling: () => void;
@@ -164,6 +177,69 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   const { setPluginSettings, refreshStreamyfinPluginSettings } = useSettings();
   const { clearAllJellyseerData, setJellyseerrUser } = useJellyseerr();
   const queryClient = useQueryClient();
+
+  // --- Session-expiry handling ----------------------------------------------
+  // When the server revokes the token (e.g. the device/session is deleted), a
+  // 401 can surface from any authenticated request. Without central handling
+  // the dead token stays in storage, so every reload re-fires authed calls →
+  // 401 spam + uncaught rejections, and the app lingers in a half-authenticated
+  // state. A single response interceptor on the authenticated api clears the
+  // session on the first 401 so the app drops cleanly to the login screen.
+  const sessionExpiredRef = useRef(false);
+
+  // Shared teardown for manual logout AND forced session expiry — keeping it
+  // in one place prevents the two paths from drifting (a 401 expiry must wipe
+  // plugin settings / Jellyseerr state too, or the next login on the same
+  // device inherits the previous user's data).
+  // Saved credentials are kept so the user can quick-login again.
+  const clearSessionState = useCallback(async () => {
+    // All synchronous teardown first: if the async Jellyseerr cleanup below
+    // fails or resolves late (user may already be re-authenticating), the
+    // session/cache state is already gone.
+    storage.remove("token");
+    storage.remove("user");
+    storage.remove("REACT_QUERY_OFFLINE_CACHE");
+    clearTVDiscoverySafely();
+    setUser(null);
+    setApi(null);
+    setPluginSettings(undefined);
+    queryClient.clear();
+
+    try {
+      await clearAllJellyseerData();
+    } catch (e) {
+      writeErrorLog(
+        `Failed to clear Jellyseerr data: ${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }, [setUser, setApi, setPluginSettings, clearAllJellyseerData, queryClient]);
+
+  const handleSessionExpired = useCallback(() => {
+    if (sessionExpiredRef.current) return; // run once per session
+    sessionExpiredRef.current = true;
+    clearSessionState().catch((e) =>
+      writeErrorLog(`Session-expiry cleanup failed: ${e?.message ?? e}`),
+    );
+  }, [clearSessionState]);
+
+  useEffect(() => {
+    // Only guard an authenticated session. A pre-auth api (login screen) keeps
+    // its own handling — a wrong-password 401 is not a session expiry.
+    if (!api?.accessToken) return;
+    sessionExpiredRef.current = false; // re-arm for this fresh session
+    const interceptorId = api.axiosInstance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error?.response?.status === 401) {
+          handleSessionExpired();
+        }
+        return Promise.reject(error);
+      },
+    );
+    return () => {
+      api.axiosInstance.interceptors.response.eject(interceptorId);
+    };
+  }, [api, handleSessionExpired]);
 
   const headers = useMemo(() => {
     if (!deviceId) return {};
@@ -307,6 +383,40 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     },
   });
 
+  // Persist the CURRENT session to secure storage — used by the post-login
+  // save-account modal (the protection picker shows AFTER a successful
+  // login, for both the password and Quick Connect flows).
+  const saveCurrentAccount = useCallback(
+    async (options?: {
+      securityType?: AccountSecurityType;
+      pinCode?: string;
+      serverName?: string;
+    }) => {
+      const token = storage.getString("token");
+      if (!api?.basePath || !user?.Id || !user.Name || !token) return;
+      const securityType = options?.securityType || "none";
+      let pinHash: string | undefined;
+      if (securityType === "pin") {
+        // Never persist a "pin" credential without its hash — it would be
+        // impossible to unlock.
+        if (!options?.pinCode) throw new Error("PIN code is required");
+        pinHash = await hashPIN(options.pinCode);
+      }
+      await saveAccountCredential({
+        serverUrl: api.basePath,
+        serverName: options?.serverName || "",
+        token,
+        userId: user.Id,
+        username: user.Name,
+        savedAt: Date.now(),
+        securityType,
+        pinHash,
+        primaryImageTag: user.PrimaryImageTag ?? undefined,
+      });
+    },
+    [api?.basePath, user],
+  );
+
   const loginMutation = useMutation({
     mutationFn: async ({
       username,
@@ -338,18 +448,25 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             if (securityType === "pin" && options.pinCode) {
               pinHash = await hashPIN(options.pinCode);
             }
-
-            await saveAccountCredential({
-              serverUrl: api.basePath,
-              serverName: serverName || "",
-              token: auth.data.AccessToken,
-              userId: auth.data.User.Id || "",
-              username,
-              savedAt: Date.now(),
-              securityType,
-              pinHash,
-              primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
-            });
+            if (securityType === "pin" && !pinHash) {
+              // Never persist a "pin" credential without its hash — it would be
+              // impossible to unlock. Skip the save rather than failing a login
+              // that already succeeded, and tell the user it didn't happen.
+              writeErrorLog("Account save skipped: PIN required but missing");
+              toast.error(t("save_account.not_saved"));
+            } else {
+              await saveAccountCredential({
+                serverUrl: api.basePath,
+                serverName: serverName || "",
+                token: auth.data.AccessToken,
+                userId: auth.data.User.Id || "",
+                username,
+                savedAt: Date.now(),
+                securityType,
+                pinHash,
+                primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
+              });
+            }
           }
 
           const recentPluginSettings = await refreshStreamyfinPluginSettings();
@@ -409,19 +526,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           writeErrorLog("Failed to delete expo push token for device"),
         );
 
-      storage.remove("token");
-      storage.remove("user");
-      clearTVDiscoverySafely();
-      setUser(null);
-      setApi(null);
-      setPluginSettings(undefined);
-      await clearAllJellyseerData();
-
-      // Clear React Query cache to prevent data from previous account lingering
-      queryClient.clear();
-      storage.remove("REACT_QUERY_OFFLINE_CACHE");
-
-      // Note: We keep saved credentials for quick switching back
+      await clearSessionState();
     },
     onError: (error) => {
       console.error("Logout failed:", error);
@@ -509,7 +614,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
     },
     onError: (error) => {
-      console.error("Quick login failed:", error);
+      // Expected, handled case (e.g. revoked token → "Session Expired", or
+      // server unreachable): the UI surfaces the message, so warn, don't error.
+      console.warn("Quick login failed:", error);
     },
   });
 
@@ -620,54 +727,66 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
             setUser(storedUser);
           }
 
-          // Dismiss splash screen with cached data immediately,
-          // fetch fresh user data in the background
-          setInitialLoaded(true);
+          // Validate the token and refresh user data in the background. Do NOT
+          // await this: the Jellyfin SDK axios instance has no timeout, so when
+          // offline this call hangs for the full OS TCP timeout (75-120s) and
+          // blocks splash dismissal. The cached storedUser (set above) is enough
+          // to render; on success we just refresh it.
+          getUserApi(apiInstance)
+            .getCurrentUser()
+            .then(async (response) => {
+              // The response can resolve long after startup (no axios timeout).
+              // If the session changed meanwhile (logout, account switch), drop
+              // it instead of repopulating a stale user / re-saving credentials.
+              if (getTokenFromStorage() !== token) return;
+              setUser(response.data);
 
-          try {
-            const response = await getUserApi(apiInstance).getCurrentUser();
-            setUser(response.data);
-
-            // Migrate current session to secure storage if not already saved
-            if (storedUser?.Id && storedUser?.Name) {
-              const existingCredential = await getAccountCredential(
-                serverUrl,
-                storedUser.Id,
-              );
-              if (!existingCredential) {
-                await saveAccountCredential({
+              // Migrate current session to secure storage if not already saved
+              if (storedUser?.Id && storedUser?.Name) {
+                const existingCredential = await getAccountCredential(
                   serverUrl,
-                  serverName: "",
-                  token,
-                  userId: storedUser.Id,
-                  username: storedUser.Name,
-                  savedAt: Date.now(),
-                  securityType: "none",
-                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                });
-              } else if (
-                response.data.PrimaryImageTag !==
-                existingCredential.primaryImageTag
-              ) {
-                // Update image tag if it has changed
-                addAccountToServer(serverUrl, existingCredential.serverName, {
-                  userId: existingCredential.userId,
-                  username: existingCredential.username,
-                  securityType: existingCredential.securityType,
-                  savedAt: existingCredential.savedAt,
-                  primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-                });
+                  storedUser.Id,
+                );
+                if (!existingCredential) {
+                  await saveAccountCredential({
+                    serverUrl,
+                    serverName: "",
+                    token,
+                    userId: storedUser.Id,
+                    username: storedUser.Name,
+                    savedAt: Date.now(),
+                    securityType: "none",
+                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                  });
+                } else if (
+                  response.data.PrimaryImageTag !==
+                  existingCredential.primaryImageTag
+                ) {
+                  // Update image tag if it has changed
+                  addAccountToServer(serverUrl, existingCredential.serverName, {
+                    userId: existingCredential.userId,
+                    username: existingCredential.username,
+                    securityType: existingCredential.securityType,
+                    savedAt: existingCredential.savedAt,
+                    primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                  });
+                }
               }
-            }
-          } catch (e) {
-            // Background fetch failed — app already rendered with cached data
-            console.warn("Background user fetch failed, using cached data:", e);
-          }
-        } else {
-          setInitialLoaded(true);
+            })
+            .catch((e) => {
+              // Expected, handled case (offline, or a token the server rejects —
+              // the UI prompts re-login): warn, don't error. Log only
+              // status/message — never the raw error (axios errors carry the
+              // request config incl. the Authorization header / token).
+              console.warn(
+                "Background user validation failed:",
+                e?.response?.status ?? e?.message ?? "unknown error",
+              );
+            });
         }
       } catch (e) {
         console.error(e);
+      } finally {
         setInitialLoaded(true);
       }
     };
@@ -681,6 +800,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     removeServer: () => removeServerMutation.mutateAsync(),
     login: (username, password, serverName, options) =>
       loginMutation.mutateAsync({ username, password, serverName, options }),
+    saveCurrentAccount,
     logout: () => logoutMutation.mutateAsync(),
     initiateQuickConnect,
     stopQuickConnectPolling,

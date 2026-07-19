@@ -39,7 +39,11 @@ import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useIntroSheet } from "@/providers/IntroSheetProvider";
-import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import {
+  apiAtom,
+  pendingAccountSaveAtom,
+  userAtom,
+} from "@/providers/JellyfinProvider";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
@@ -89,6 +93,9 @@ const HomeMobile = () => {
   const invalidateCache = useInvalidatePlaybackProgressCache();
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set());
   const { showIntro } = useIntroSheet();
+  // Gate the intro so it can't steal presentation from the post-login
+  // save-account sheet (both are BottomSheetModals): wait until no save is pending.
+  const pendingAccountSave = useAtomValue(pendingAccountSaveAtom);
 
   // Fallback refresh for newly added content when returning to the home screen
   // (primary path is the LibraryChanged WebSocket event).
@@ -97,7 +104,9 @@ const HomeMobile = () => {
   // Show intro modal on first launch
   useEffect(() => {
     const hasShownIntro = storage.getBoolean("hasShownIntro");
-    if (!hasShownIntro) {
+    // Defer while the save-account sheet is up; this effect re-runs and schedules
+    // the intro once the sheet is dismissed (pendingAccountSaveAtom cleared).
+    if (!hasShownIntro && !pendingAccountSave) {
       const timer = setTimeout(() => {
         showIntro();
       }, 1000);
@@ -106,7 +115,7 @@ const HomeMobile = () => {
         clearTimeout(timer);
       };
     }
-  }, [showIntro]);
+  }, [showIntro, pendingAccountSave]);
 
   useEffect(() => {
     if (isConnected && !prevIsConnected.current) {
