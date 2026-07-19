@@ -54,6 +54,7 @@
     "expo-brightness": "~56.0.5",
     "expo-build-properties": "~56.0.18",
     "expo-camera": "~56.0.8",
+    "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.18",
     "expo-crypto": "~56.0.4",
     "expo-dev-client": "~56.0.20",
