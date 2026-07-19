@@ -72,4 +72,16 @@ describe("generateDownloadProfile", () => {
       CopyTimestamps: false,
     });
   });
+
+  test("transcoded downloads honor the audioTranscodeMode channel limit", () => {
+    const channels = (mode: Parameters<typeof generateDownloadProfile>[0]) =>
+      generateDownloadProfile(mode).TranscodingProfiles?.find(
+        (profile) => profile.Type === "Video",
+      )?.MaxAudioChannels;
+
+    expect(channels("stereo")).toBe("2");
+    expect(channels("5.1")).toBe("6");
+    expect(channels("passthrough")).toBe("8");
+    expect(channels("auto")).toBe("6");
+  });
 });
