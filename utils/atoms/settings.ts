@@ -453,11 +453,6 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
 const hasMeaningfulSettingValue = (value: unknown) =>
   value !== undefined && value !== null && value !== "";
 
-const getEffectiveSettingValue = <K extends keyof Settings>(
-  settings: Partial<Settings> | null | undefined,
-  settingsKey: K,
-) => settings?.[settingsKey] ?? defaultValues[settingsKey];
-
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -514,7 +509,17 @@ export const useSettings = () => {
     if (!_settings) {
       return;
     }
-    const hasChanges = Object.entries(update).some(
+    // Admin-locked settings are enforced at write time too: a control that
+    // isn't disabled in the UI must not persist a value the admin pinned.
+    // The read memo already overrides locked keys, but without this guard the
+    // write would silently land in user storage and resurface once unlocked.
+    const sanitizedUpdate = Object.fromEntries(
+      Object.entries(update).filter(
+        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
+      ),
+    ) as Partial<Settings>;
+
+    const hasChanges = Object.entries(sanitizedUpdate).some(
       ([key, value]) => _settings[key as keyof Settings] !== value,
     );
 
@@ -523,7 +528,7 @@ export const useSettings = () => {
       const newSettings = {
         ...defaultValues,
         ..._settings,
-        ...update,
+        ...sanitizedUpdate,
       } as Settings;
       setSettings(newSettings);
       saveSettings(newSettings);
@@ -546,13 +551,24 @@ export const useSettings = () => {
         // Normalize object-typed settings from plugin (plain primitive → { key, value })
         value = normalizePluginValue(settingsKey, value);
 
-        const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
+        // When unlocked, keep the user's value only if they explicitly diverged
+        // from the app default. Otherwise the plugin value is the admin's
+        // default and must win over the hardcoded app default — e.g. a toggle
+        // that was always locked then unlocked should reflect the plugin
+        // default, not the app's `false`. Object-typed settings compare by
+        // reference, so their behaviour is unchanged.
+        const userValue = _settings?.[settingsKey];
+        const userDiverged =
+          hasMeaningfulSettingValue(userValue) &&
+          userValue !== defaultValues[settingsKey];
 
         (acc as any)[settingsKey] = locked
           ? value
-          : hasMeaningfulSettingValue(effectiveValue)
-            ? effectiveValue
-            : value;
+          : userDiverged
+            ? userValue
+            : hasMeaningfulSettingValue(value)
+              ? value
+              : defaultValues[settingsKey];
       }
       return acc;
     }, {});

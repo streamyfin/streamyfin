@@ -22,12 +22,7 @@ export default function StreamystatsPage() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const {
-    settings,
-    updateSettings,
-    pluginSettings,
-    refreshStreamyfinPluginSettings,
-  } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const queryClient = useNetworkAwareQueryClient();
 
   // Local state for all editable fields
@@ -49,7 +44,21 @@ export default function StreamystatsPage() {
   );
 
   const isUrlLocked = pluginSettings?.streamyStatsServerUrl?.locked === true;
-  const isStreamystatsEnabled = !!url;
+  const searchLocked = pluginSettings?.searchEngine?.locked === true;
+  const movieRecsLocked =
+    pluginSettings?.streamyStatsMovieRecommendations?.locked === true;
+  const seriesRecsLocked =
+    pluginSettings?.streamyStatsSeriesRecommendations?.locked === true;
+  const promotedWatchlistsLocked =
+    pluginSettings?.streamyStatsPromotedWatchlists?.locked === true;
+  const hideWatchlistsTabLocked =
+    pluginSettings?.hideWatchlistsTab?.locked === true;
+  // The input renders the locked admin URL; enablement must follow the same
+  // effective value or every toggle stays disabled until local state syncs.
+  const effectiveUrl = isUrlLocked
+    ? (settings?.streamyStatsServerUrl ?? "")
+    : url;
+  const isStreamystatsEnabled = !!effectiveUrl;
 
   const onSave = useCallback(() => {
     const cleanUrl = url.endsWith("/") ? url.slice(0, -1) : url;
@@ -113,17 +122,6 @@ export default function StreamystatsPage() {
     Linking.openURL("https://github.com/fredrikburmester/streamystats");
   };
 
-  const handleRefreshFromServer = useCallback(async () => {
-    const newPluginSettings = await refreshStreamyfinPluginSettings();
-    // Update local state with new values
-    const newUrl = newPluginSettings?.streamyStatsServerUrl?.value || "";
-    setUrl(newUrl);
-    if (newUrl) {
-      setUseForSearch(true);
-    }
-    toast.success(t("home.settings.plugins.streamystats.toasts.refreshed"));
-  }, [refreshStreamyfinPluginSettings, t]);
-
   if (!settings) return null;
 
   return (
@@ -146,7 +144,7 @@ export default function StreamystatsPage() {
               placeholder={t(
                 "home.settings.plugins.streamystats.server_url_placeholder",
               )}
-              value={url}
+              value={effectiveUrl}
               keyboardType='url'
               returnKeyType='done'
               autoCapitalize='none'
@@ -171,11 +169,18 @@ export default function StreamystatsPage() {
         >
           <ListItem
             title={t("home.settings.plugins.streamystats.enable_search")}
-            disabledByAdmin={pluginSettings?.searchEngine?.locked === true}
+            disabledByAdmin={searchLocked}
           >
+            {/* Locked controls show the live admin value and can't be toggled —
+                local form state would let the switch flip while the write guard
+                drops the change. */}
             <SettingSwitch
-              value={useForSearch}
-              disabled={!isStreamystatsEnabled}
+              value={
+                searchLocked
+                  ? settings?.searchEngine === "Streamystats"
+                  : useForSearch
+              }
+              disabled={!isStreamystatsEnabled || searchLocked}
               onValueChange={setUseForSearch}
             />
           </ListItem>
@@ -183,67 +188,68 @@ export default function StreamystatsPage() {
             title={t(
               "home.settings.plugins.streamystats.enable_movie_recommendations",
             )}
-            disabledByAdmin={
-              pluginSettings?.streamyStatsMovieRecommendations?.locked === true
-            }
+            disabledByAdmin={movieRecsLocked}
           >
             <SettingSwitch
-              value={movieRecs}
+              value={
+                movieRecsLocked
+                  ? (settings?.streamyStatsMovieRecommendations ?? false)
+                  : movieRecs
+              }
               onValueChange={setMovieRecs}
-              disabled={!isStreamystatsEnabled}
+              disabled={!isStreamystatsEnabled || movieRecsLocked}
             />
           </ListItem>
           <ListItem
             title={t(
               "home.settings.plugins.streamystats.enable_series_recommendations",
             )}
-            disabledByAdmin={
-              pluginSettings?.streamyStatsSeriesRecommendations?.locked === true
-            }
+            disabledByAdmin={seriesRecsLocked}
           >
             <SettingSwitch
-              value={seriesRecs}
+              value={
+                seriesRecsLocked
+                  ? (settings?.streamyStatsSeriesRecommendations ?? false)
+                  : seriesRecs
+              }
               onValueChange={setSeriesRecs}
-              disabled={!isStreamystatsEnabled}
+              disabled={!isStreamystatsEnabled || seriesRecsLocked}
             />
           </ListItem>
           <ListItem
             title={t(
               "home.settings.plugins.streamystats.enable_promoted_watchlists",
             )}
-            disabledByAdmin={
-              pluginSettings?.streamyStatsPromotedWatchlists?.locked === true
-            }
+            disabledByAdmin={promotedWatchlistsLocked}
           >
             <SettingSwitch
-              value={promotedWatchlists}
+              value={
+                promotedWatchlistsLocked
+                  ? (settings?.streamyStatsPromotedWatchlists ?? false)
+                  : promotedWatchlists
+              }
               onValueChange={setPromotedWatchlists}
-              disabled={!isStreamystatsEnabled}
+              disabled={!isStreamystatsEnabled || promotedWatchlistsLocked}
             />
           </ListItem>
           <ListItem
             title={t("home.settings.plugins.streamystats.hide_watchlists_tab")}
-            disabledByAdmin={pluginSettings?.hideWatchlistsTab?.locked === true}
+            disabledByAdmin={hideWatchlistsTabLocked}
           >
             <SettingSwitch
-              value={hideWatchlistsTab}
+              value={
+                hideWatchlistsTabLocked
+                  ? (settings?.hideWatchlistsTab ?? false)
+                  : hideWatchlistsTab
+              }
               onValueChange={setHideWatchlistsTab}
-              disabled={!isStreamystatsEnabled}
+              disabled={!isStreamystatsEnabled || hideWatchlistsTabLocked}
             />
           </ListItem>
         </ListGroup>
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
           {t("home.settings.plugins.streamystats.home_sections_hint")}
         </Text>
-
-        <TouchableOpacity
-          onPress={handleRefreshFromServer}
-          className='mt-6 py-3 rounded-xl bg-neutral-800'
-        >
-          <Text className='text-center text-blue-500'>
-            {t("home.settings.plugins.streamystats.refresh_from_server")}
-          </Text>
-        </TouchableOpacity>
 
         {/* Disable button - only show if URL is not locked and Streamystats is enabled */}
         {!isUrlLocked && isStreamystatsEnabled && (

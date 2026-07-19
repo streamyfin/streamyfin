@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { PropsWithChildren, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "../common/Text";
 
@@ -32,7 +33,10 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
   disabledByAdmin = false,
   ...viewProps
 }) => {
-  const effectiveSubtitle = disabledByAdmin ? "Disabled by admin" : subtitle;
+  const { t } = useTranslation();
+  const effectiveSubtitle = disabledByAdmin
+    ? t("home.settings.disabled_by_admin")
+    : subtitle;
   const isDisabled = disabled || disabledByAdmin;
   // Keep the row floor uniform; Android trims padding slightly (its native
   // controls sit taller). Switch height is capped via SettingSwitch so toggle
