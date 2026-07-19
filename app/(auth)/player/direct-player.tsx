@@ -506,7 +506,11 @@ export default function DirectPlayerPage() {
       // suppress the report when the user then navigates away. Callers are
       // fire-and-forget, so swallow instead of rethrowing unhandled.
       reportedStopSessionIdRef.current = null;
-      writeToLog("ERROR", "reportPlaybackStopped failed", error);
+      writeToLog(
+        "ERROR",
+        "reportPlaybackStopped failed",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }, [api, item, mediaSourceId, stream, progress, offline]);
 
