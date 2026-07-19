@@ -127,7 +127,6 @@ export default function Page() {
           values={[order]}
           title={t("library.filters.sort_order")}
           renderItemLabel={(order) => t(`library.filters.${order}`)}
-          disableSearch={true}
         />
         <FilterButton
           id={levelsFilterId}
@@ -137,7 +136,6 @@ export default function Page() {
           values={levels}
           title={t("home.settings.logs.level")}
           renderItemLabel={(level) => level}
-          disableSearch={true}
           multiple={true}
         />
       </View>
