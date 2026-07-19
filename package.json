@@ -28,7 +28,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "1.2.0",
+    "@bottom-tabs/react-navigation": "1.4.0",
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~56.0.15",
     "@expo/react-native-action-sheet": "^4.1.1",
@@ -87,7 +87,7 @@
     "react-i18next": "17.0.8",
     "react-native": "npm:react-native-tvos@0.85.3-0",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-bottom-tabs": "1.2.0",
+    "react-native-bottom-tabs": "1.4.0",
     "react-native-circular-progress": "^1.4.1",
     "react-native-collapsible": "^1.6.2",
     "react-native-country-flag": "^2.0.2",
