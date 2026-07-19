@@ -116,6 +116,8 @@ export type HomeSectionNextUpResolver = {
   limit?: number;
   enableResumable?: boolean;
   enableRewatching?: boolean;
+  nextUpDaysCutoff?: string;
+  disableFirstEpisode?: boolean;
 };
 
 export interface MaxAutoPlayEpisodeCount {
@@ -274,6 +276,14 @@ export type Settings = {
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  // Hide Next Up entries for series not watched within the last N days
+  // (stored as a string for the settings text input; empty = no cutoff).
+  // Plugin-configured home sections can override this per section via
+  // HomeSectionNextUpResolver.nextUpDaysCutoff.
+  nextUpDaysCutoff?: string;
+  // Don't offer a series' first episode in Next Up (hides shows you haven't
+  // started). Per-section plugin override: HomeSectionNextUpResolver.disableFirstEpisode.
+  nextUpDisableFirstEpisode: boolean;
   // Use the episode's own image (instead of the series thumb) for the
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
@@ -385,6 +395,7 @@ export const defaultValues: Settings = {
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
+  nextUpDisableFirstEpisode: false,
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
   showHomeBackdrop: true,

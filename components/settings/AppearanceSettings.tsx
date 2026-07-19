@@ -1,7 +1,7 @@
 import type React from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking } from "react-native";
+import { Linking, TextInput } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
@@ -13,6 +13,12 @@ export const AppearanceSettings: React.FC = () => {
   const router = useRouter();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { t } = useTranslation();
+
+  // Local state, committed on blur: every keystroke would otherwise rebuild
+  // the (still-mounted) home screen's queries per intermediate value.
+  const [nextUpDaysCutoff, setNextUpDaysCutoff] = useState(
+    settings?.nextUpDaysCutoff ?? "",
+  );
 
   const disabled = useMemo(
     () =>
@@ -54,6 +60,39 @@ export const AppearanceSettings: React.FC = () => {
             value={settings.mergeNextUpAndContinueWatching}
             onValueChange={(value) =>
               updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+        </ListItem>
+        <ListItem
+          title={t("home.settings.appearance.next_up_days_cutoff")}
+          subtitle={t("home.settings.appearance.next_up_days_cutoff_hint")}
+        >
+          <TextInput
+            className='text-white text-right min-w-[60px]'
+            keyboardType='number-pad'
+            placeholder={t("home.settings.appearance.next_up_days_cutoff_off")}
+            placeholderTextColor='#8E8D91'
+            value={nextUpDaysCutoff}
+            onChangeText={(text) =>
+              setNextUpDaysCutoff(text.replace(/[^0-9]/g, ""))
+            }
+            onEndEditing={() =>
+              updateSettings({
+                nextUpDaysCutoff: nextUpDaysCutoff || undefined,
+              })
+            }
+          />
+        </ListItem>
+        <ListItem
+          title={t("home.settings.appearance.next_up_disable_first_episode")}
+          subtitle={t(
+            "home.settings.appearance.next_up_disable_first_episode_hint",
+          )}
+        >
+          <SettingSwitch
+            value={settings.nextUpDisableFirstEpisode}
+            onValueChange={(value) =>
+              updateSettings({ nextUpDisableFirstEpisode: value })
             }
           />
         </ListItem>

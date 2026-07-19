@@ -47,6 +47,7 @@ import {
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
+import { getNextUpDateCutoff } from "@/utils/jellyfin/getNextUpDateCutoff";
 import { storage } from "@/utils/mmkv";
 
 // Conditionally load TV version
@@ -55,7 +56,7 @@ const HomeTV = Platform.isTV ? require("./Home.tv").Home : null;
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
   title?: string;
-  queryKey: (string | undefined | null)[];
+  queryKey: (string | boolean | undefined | null)[];
   queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
@@ -311,7 +312,12 @@ const HomeMobile = () => {
       ? [
           {
             title: t("home.continue_and_next_up"),
-            queryKey: ["home", "continueAndNextUp"],
+            queryKey: [
+              "home",
+              "continueAndNextUp",
+              settings.nextUpDaysCutoff ?? null,
+              settings.nextUpDisableFirstEpisode,
+            ],
             queryFn: async ({ pageParam = 0 }) => {
               // Fetch both in parallel
               const [resumeResponse, nextUpResponse] = await Promise.all([
@@ -328,6 +334,10 @@ const HomeMobile = () => {
                   limit: 20,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   enableResumable: false,
+                  nextUpDateCutoff: getNextUpDateCutoff(
+                    settings.nextUpDaysCutoff,
+                  ),
+                  disableFirstEpisode: settings.nextUpDisableFirstEpisode,
                 }),
               ]);
 
@@ -369,7 +379,12 @@ const HomeMobile = () => {
           },
           {
             title: t("home.next_up"),
-            queryKey: ["home", "nextUp-all"],
+            queryKey: [
+              "home",
+              "nextUp-all",
+              settings.nextUpDaysCutoff ?? null,
+              settings.nextUpDisableFirstEpisode,
+            ],
             queryFn: async ({ pageParam = 0 }) =>
               (
                 await getTvShowsApi(api).getNextUp({
@@ -378,6 +393,10 @@ const HomeMobile = () => {
                   limit: 10,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   enableResumable: false,
+                  nextUpDateCutoff: getNextUpDateCutoff(
+                    settings.nextUpDaysCutoff,
+                  ),
+                  disableFirstEpisode: settings.nextUpDisableFirstEpisode,
                 })
               ).data.Items || [],
             type: "InfiniteScrollingCollectionList",
@@ -423,6 +442,8 @@ const HomeMobile = () => {
     createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.nextUpDaysCutoff,
+    settings.nextUpDisableFirstEpisode,
   ]);
 
   const customSections = useMemo(() => {
@@ -433,7 +454,23 @@ const HomeMobile = () => {
       const pageSize = 10;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", "custom", String(index), section.title ?? null],
+        queryKey: [
+          "home",
+          "custom",
+          String(index),
+          section.title ?? null,
+          // Only Next Up sections depend on the cutoff; keep other section
+          // types' keys stable so a setting change doesn't refetch them.
+          section.nextUp
+            ? (section.nextUp.nextUpDaysCutoff ??
+              settings.nextUpDaysCutoff ??
+              null)
+            : null,
+          section.nextUp
+            ? (section.nextUp.disableFirstEpisode ??
+              settings.nextUpDisableFirstEpisode)
+            : null,
+        ],
         queryFn: async ({ pageParam = 0 }) => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
@@ -457,6 +494,13 @@ const HomeMobile = () => {
               enableImageTypes: ["Primary", "Backdrop", "Thumb"],
               enableResumable: section.nextUp?.enableResumable,
               enableRewatching: section.nextUp?.enableRewatching,
+              // Per-section plugin config wins; global setting is the fallback.
+              nextUpDateCutoff: getNextUpDateCutoff(
+                section.nextUp?.nextUpDaysCutoff ?? settings.nextUpDaysCutoff,
+              ),
+              disableFirstEpisode:
+                section.nextUp?.disableFirstEpisode ??
+                settings.nextUpDisableFirstEpisode,
             });
             return response.data.Items || [];
           }
@@ -501,7 +545,14 @@ const HomeMobile = () => {
       });
     });
     return ss;
-  }, [api, user?.Id, settings?.home?.sections, t]);
+  }, [
+    api,
+    user?.Id,
+    settings?.home?.sections,
+    settings.nextUpDaysCutoff,
+    settings.nextUpDisableFirstEpisode,
+    t,
+  ]);
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
@@ -517,7 +568,7 @@ const HomeMobile = () => {
   }, [highPrioritySectionKeys, loadedSections]);
 
   const markSectionLoaded = useCallback(
-    (queryKey: (string | undefined | null)[]) => {
+    (queryKey: (string | boolean | undefined | null)[]) => {
       const key = queryKey.join("-");
       setLoadedSections((prev) => new Set(prev).add(key));
     },
