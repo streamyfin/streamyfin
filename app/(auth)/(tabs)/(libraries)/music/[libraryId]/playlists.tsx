@@ -122,7 +122,7 @@ export default function PlaylistsScreen() {
     return (
       <View className='flex-1 justify-center items-center bg-black px-6'>
         <Text className='text-neutral-500 text-center'>
-          Missing music library id.
+          {t("music.missing_library_id")}
         </Text>
       </View>
     );

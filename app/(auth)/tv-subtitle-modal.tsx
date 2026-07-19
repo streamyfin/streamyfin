@@ -192,6 +192,7 @@ const SubtitleResultCard = React.forwardRef<
 >(({ result, hasTVPreferredFocus, isDownloading, onPress }, ref) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.03 });
+  const { t } = useTranslation();
 
   return (
     <Pressable
@@ -328,7 +329,7 @@ const SubtitleResultCard = React.forwardRef<
               ]}
             >
               <Text style={[styles.flagText, { fontSize: scaleSize(10) }]}>
-                Hash Match
+                {t("player.hash_match")}
               </Text>
             </View>
           )}

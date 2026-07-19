@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -184,6 +185,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
     currentAudioIndex,
   }) => {
     const typography = useScaledTVTypography();
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const safeInsets = useControlsSafeAreaInsets();
     const [info, setInfo] = useState<TechnicalInfo | null>(null);
@@ -312,13 +314,13 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {info?.videoCodec && (
             <Text style={textStyle}>
-              Video: {formatCodec(info.videoCodec)}
+              {t("player.technical_info.video")} {formatCodec(info.videoCodec)}
               {info.fps ? ` @ ${formatFps(info.fps)} fps` : ""}
             </Text>
           )}
           {info?.audioCodec && (
             <Text style={textStyle}>
-              Audio: {formatCodec(info.audioCodec)}
+              {t("player.technical_info.audio")} {formatCodec(info.audioCodec)}
               {streamInfo?.audioChannels
                 ? ` ${formatAudioChannels(streamInfo.audioChannels)}`
                 : ""}
@@ -326,12 +328,13 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {streamInfo?.subtitleCodec && (
             <Text style={textStyle}>
-              Subtitle: {formatCodec(streamInfo.subtitleCodec)}
+              {t("player.technical_info.subtitle")}{" "}
+              {formatCodec(streamInfo.subtitleCodec)}
             </Text>
           )}
           {(info?.videoBitrate || info?.audioBitrate) && (
             <Text style={textStyle}>
-              Bitrate:{" "}
+              {t("player.technical_info.bitrate")}{" "}
               {info.videoBitrate
                 ? formatBitrate(info.videoBitrate)
                 : info.audioBitrate
@@ -341,7 +344,9 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {info?.cacheSeconds !== undefined && (
             <Text style={textStyle}>
-              Buffer: {info.cacheSeconds.toFixed(1)}s
+              {t("player.technical_info.buffer_seconds", {
+                seconds: info.cacheSeconds.toFixed(1),
+              })}
               {info?.demuxerMaxBytes !== undefined
                 ? ` (cap ${info.demuxerMaxBytes}MB` +
                   `${info.demuxerMaxBackBytes !== undefined ? ` / ${info.demuxerMaxBackBytes}MB back` : ""}` +
@@ -352,7 +357,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {info?.voDriver && (
             <Text style={textStyle}>
-              VO: {info.voDriver}
+              {t("player.technical_info.vo")} {info.voDriver}
               {info.hwdec ? ` / ${info.hwdec}` : ""}
             </Text>
           )}
@@ -364,10 +369,14 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (
             <Text style={[textStyle, styles.warningText]}>
-              Dropped: {info.droppedFrames} frames
+              {t("player.technical_info.dropped_frames", {
+                count: info.droppedFrames,
+              })}
             </Text>
           )}
-          {!info && !playMethod && <Text style={textStyle}>Loading...</Text>}
+          {!info && !playMethod && (
+            <Text style={textStyle}>{t("player.technical_info.loading")}</Text>
+          )}
         </View>
       </Animated.View>
     );

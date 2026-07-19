@@ -324,32 +324,44 @@ export default function SettingsTV() {
   // MPV alignment options
   const alignXOptions: TVOptionItem<string>[] = useMemo(
     () => [
-      { label: "Left", value: "left", selected: currentAlignX === "left" },
       {
-        label: "Center",
+        label: t("home.settings.subtitles.align.left"),
+        value: "left",
+        selected: currentAlignX === "left",
+      },
+      {
+        label: t("home.settings.subtitles.align.center"),
         value: "center",
         selected: currentAlignX === "center",
       },
-      { label: "Right", value: "right", selected: currentAlignX === "right" },
+      {
+        label: t("home.settings.subtitles.align.right"),
+        value: "right",
+        selected: currentAlignX === "right",
+      },
     ],
-    [currentAlignX],
+    [currentAlignX, t],
   );
 
   const alignYOptions: TVOptionItem<string>[] = useMemo(
     () => [
-      { label: "Top", value: "top", selected: currentAlignY === "top" },
       {
-        label: "Center",
+        label: t("home.settings.subtitles.align.top"),
+        value: "top",
+        selected: currentAlignY === "top",
+      },
+      {
+        label: t("home.settings.subtitles.align.center"),
         value: "center",
         selected: currentAlignY === "center",
       },
       {
-        label: "Bottom",
+        label: t("home.settings.subtitles.align.bottom"),
         value: "bottom",
         selected: currentAlignY === "bottom",
       },
     ],
-    [currentAlignY],
+    [currentAlignY, t],
   );
 
   // Cache mode options
@@ -499,13 +511,13 @@ export default function SettingsTV() {
 
   const alignXLabel = useMemo(() => {
     const option = alignXOptions.find((o) => o.selected);
-    return option?.label || "Center";
-  }, [alignXOptions]);
+    return option?.label || t("home.settings.subtitles.align.center");
+  }, [alignXOptions, t]);
 
   const alignYLabel = useMemo(() => {
     const option = alignYOptions.find((o) => o.selected);
-    return option?.label || "Bottom";
-  }, [alignYOptions]);
+    return option?.label || t("home.settings.subtitles.align.bottom");
+  }, [alignYOptions, t]);
 
   const typographyScaleLabel = useMemo(() => {
     const option = typographyScaleOptions.find((o) => o.selected);
@@ -645,7 +657,7 @@ export default function SettingsTV() {
             formatValue={(v) => `${v.toFixed(1)}x`}
           />
           <TVSettingsStepper
-            label='Vertical Margin'
+            label={t("home.settings.subtitles.mpv_subtitle_margin_y")}
             value={settings.mpvSubtitleMarginY ?? 0}
             onDecrease={() => {
               const newValue = Math.max(
@@ -663,11 +675,11 @@ export default function SettingsTV() {
             }}
           />
           <TVSettingsOptionButton
-            label='Horizontal Alignment'
+            label={t("home.settings.subtitles.mpv_subtitle_align_x")}
             value={alignXLabel}
             onPress={() =>
               showOptions({
-                title: "Horizontal Alignment",
+                title: t("home.settings.subtitles.mpv_subtitle_align_x"),
                 options: alignXOptions,
                 onSelect: (value) =>
                   updateSettings({
@@ -677,11 +689,11 @@ export default function SettingsTV() {
             }
           />
           <TVSettingsOptionButton
-            label='Vertical Alignment'
+            label={t("home.settings.subtitles.mpv_subtitle_align_y")}
             value={alignYLabel}
             onPress={() =>
               showOptions({
-                title: "Vertical Alignment",
+                title: t("home.settings.subtitles.mpv_subtitle_align_y"),
                 options: alignYOptions,
                 onSelect: (value) =>
                   updateSettings({
@@ -852,6 +864,13 @@ export default function SettingsTV() {
             value={settings.mergeNextUpAndContinueWatching}
             onToggle={(value) =>
               updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.use_episode_images_next_up")}
+            value={settings.useEpisodeImagesForNextUp}
+            onToggle={(value) =>
+              updateSettings({ useEpisodeImagesForNextUp: value })
             }
           />
           <TVSettingsToggle

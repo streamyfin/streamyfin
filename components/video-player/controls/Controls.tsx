@@ -3,9 +3,10 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
+import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
 import { type FC, useCallback, useEffect, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -204,6 +205,22 @@ export const Controls: FC<Props> = ({
     isPlaying,
     seek,
     play,
+  });
+
+  useKeyEventListener((e) => {
+    if (episodeView || showAudioSlider) return;
+    if (e?.eventType !== "press") return;
+    const key = e.key;
+
+    if (key === " " || key === "Spacebar" || key === "Space") {
+      togglePlay();
+    } else if (!Platform.isTV && key === "ArrowLeft") {
+      // Exclude TV platforms to prevent conflicts with the remote control,
+      // which uses the same arrow keys for directional UI navigation.
+      handleSkipBackward();
+    } else if (!Platform.isTV && key === "ArrowRight") {
+      handleSkipForward();
+    }
   });
 
   // Time management hook

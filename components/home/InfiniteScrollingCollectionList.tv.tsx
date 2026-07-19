@@ -24,6 +24,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { SortByOption, SortOrderOption } from "@/utils/atoms/filters";
+import { useSettings } from "@/utils/atoms/settings";
 import { scaleSize } from "@/utils/scaleSize";
 
 // Extra padding to accommodate scale animation (1.05x) and glow shadow
@@ -165,6 +166,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     });
 
   const { t } = useTranslation();
+  const { settings } = useSettings();
 
   const allItems = useMemo(() => {
     const items = data?.pages.flat() ?? [];
@@ -231,6 +233,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             hasTVPreferredFocus={isFirstItem}
             onFocus={() => handleItemFocus(item)}
             width={itemWidth}
+            preferEpisodeImage={settings?.useEpisodeImagesForNextUp}
           />
         </View>
       );
@@ -243,6 +246,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
       showItemActions,
       handleItemFocus,
       ITEM_GAP,
+      settings?.useEpisodeImagesForNextUp,
     ],
   );
 

@@ -235,7 +235,7 @@ export const TVLiveTVPage: React.FC = () => {
             marginBottom: 24,
           }}
         >
-          Live TV
+          {t("live_tv.title")}
         </Text>
 
         {/* Tab Bar */}

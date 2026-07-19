@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import {
@@ -47,6 +48,7 @@ const DropdownView = ({
   const { settings, updateSettings } = useSettings();
   const router = useRouter();
   const isOffline = useOfflineMode();
+  const { t } = useTranslation();
 
   const { subtitleIndex, audioIndex, bitrateValue, playbackPosition } =
     useLocalSearchParams<{
@@ -101,7 +103,7 @@ const DropdownView = ({
     // Quality Section
     if (!isOffline) {
       groups.push({
-        title: "Quality",
+        title: t("player.menu.quality"),
         options:
           BITRATES?.map((bitrate) => ({
             type: "radio" as const,
@@ -116,7 +118,7 @@ const DropdownView = ({
     // Subtitle Section
     if (subtitleTracks && subtitleTracks.length > 0) {
       groups.push({
-        title: "Subtitles",
+        title: t("player.menu.subtitles"),
         options: subtitleTracks.map((sub) => ({
           type: "radio" as const,
           label: sub.name,
@@ -128,7 +130,7 @@ const DropdownView = ({
 
       // Subtitle Scale Section
       groups.push({
-        title: "Subtitle Scale",
+        title: t("player.menu.subtitle_scale"),
         options: SUBTITLE_SCALE_PRESETS.map((preset) => ({
           type: "radio" as const,
           label: preset.label,
@@ -142,7 +144,7 @@ const DropdownView = ({
     // Audio Section
     if (audioTracks && audioTracks.length > 0) {
       groups.push({
-        title: "Audio",
+        title: t("player.menu.audio"),
         options: audioTracks.map((track) => ({
           type: "radio" as const,
           label: track.name,
@@ -156,7 +158,7 @@ const DropdownView = ({
     // Speed Section
     if (setPlaybackSpeed) {
       groups.push({
-        title: "Speed",
+        title: t("player.menu.speed"),
         options: PLAYBACK_SPEEDS.map((speed) => ({
           type: "radio" as const,
           label: speed.label,
@@ -174,8 +176,8 @@ const DropdownView = ({
           {
             type: "action" as const,
             label: showTechnicalInfo
-              ? "Hide Technical Info"
-              : "Show Technical Info",
+              ? t("player.menu.hide_technical_info")
+              : t("player.menu.show_technical_info"),
             onPress: onToggleTechnicalInfo,
           },
         ],
@@ -185,6 +187,7 @@ const DropdownView = ({
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    t,
     isOffline,
     bitrateValue,
     changeBitrate,
@@ -217,7 +220,7 @@ const DropdownView = ({
 
   return (
     <PlatformDropdown
-      title='Playback Options'
+      title={t("player.menu.playback_options")}
       groups={optionGroups}
       trigger={trigger}
       expoUIConfig={{}}

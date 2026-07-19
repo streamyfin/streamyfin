@@ -44,9 +44,22 @@ export const isSubtitleInMpv = (
 /**
  * Calculate the MPV track ID for a given Jellyfin subtitle index.
  *
- * MPV track IDs are 1-based and only count subtitles that are actually in MPV.
- * We iterate through all subtitles, counting only those in MPV, until we find
- * the one matching the Jellyfin index.
+ * MPV track IDs are 1-based, but MPV's track list is NOT in MediaStreams order:
+ *   1. Embedded/HLS subs are enumerated from the container (or HLS playlist)
+ *      first, in MediaStreams order.
+ *   2. External subs are appended via `sub-add` AFTER the file loads, in the
+ *      order they are passed to MPV (here, also MediaStreams order — see
+ *      direct-player.tsx where the externalSubtitles array is built by
+ *      filtering MediaStreams).
+ *
+ * Iterating in pure MediaStreams order produces the wrong MPV ID whenever an
+ * External sub is listed before an Embed sub in MediaStreams (common when
+ * Jellyfin prepends a converted SRT/VTT ahead of an original PGS/ASS track),
+ * causing e.g. English to select Spanish. We therefore count in two phases
+ * that mirror MPV's actual ordering.
+ *
+ * Image-based subs (PGS/VOBSUB) during transcoding are burned into the video
+ * and absent from MPV's track list; they are skipped in both phases.
  *
  * @param mediaSource - The media source containing subtitle streams
  * @param jellyfinSubtitleIndex - The Jellyfin server-side subtitle index (-1 = disabled)
@@ -74,14 +87,30 @@ export const getMpvSubtitleId = (
     return undefined;
   }
 
-  // Count MPV track position (1-based)
+  const isExternal = (sub: MediaStream) =>
+    sub.DeliveryMethod === SubtitleDeliveryMethod.External;
+
   let mpvIndex = 0;
+
+  // Phase 1: embedded / HLS subs — these occupy MPV track IDs first because
+  // they come from the container or HLS playlist.
   for (const sub of allSubs) {
-    if (isSubtitleInMpv(sub, isTranscoding)) {
-      mpvIndex++;
-      if (sub.Index === jellyfinSubtitleIndex) {
-        return mpvIndex;
-      }
+    if (isExternal(sub)) continue;
+    if (!isSubtitleInMpv(sub, isTranscoding)) continue;
+    mpvIndex++;
+    if (sub.Index === jellyfinSubtitleIndex) {
+      return mpvIndex;
+    }
+  }
+
+  // Phase 2: external subs — appended via `sub-add` after the file loads,
+  // so they come last in MPV's track list.
+  for (const sub of allSubs) {
+    if (!isExternal(sub)) continue;
+    if (!isSubtitleInMpv(sub, isTranscoding)) continue;
+    mpvIndex++;
+    if (sub.Index === jellyfinSubtitleIndex) {
+      return mpvIndex;
     }
   }
 
