@@ -518,13 +518,33 @@ export default function DirectPlayerPage() {
     deactivateKeepAwake();
   }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
 
+  // Keep refs to the latest stop / stopped-report so the effects below don't
+  // need these churning callbacks in their dependency arrays. Reporting
+  // "stopped" from an effect cleanup that re-runs during playback (e.g. when
+  // the 30s router.setParams position write mutates navigation state) caused a
+  // spurious PlaybackStopped every URL_UPDATE_INTERVAL.
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  const reportPlaybackStoppedRef = useRef(reportPlaybackStopped);
+  reportPlaybackStoppedRef.current = reportPlaybackStopped;
+
+  // Report playback stopped only on a real unmount (leaving the player).
   useEffect(() => {
-    const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
     return () => {
-      reportPlaybackStopped();
+      reportPlaybackStoppedRef.current();
+    };
+  }, []);
+
+  // Stop on navigation-away. Re-subscribing when the navigation object identity
+  // changes (e.g. after a setParams) no longer reports anything on its own.
+  useEffect(() => {
+    const beforeRemoveListener = navigation.addListener("beforeRemove", () =>
+      stopRef.current(),
+    );
+    return () => {
       beforeRemoveListener();
     };
-  }, [navigation, stop, reportPlaybackStopped]);
+  }, [navigation]);
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
