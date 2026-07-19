@@ -143,7 +143,7 @@ export class JellyseerrApi {
         if (inRange(status, 200, 299)) {
           if (data.version < "2.0.0") {
             const error = t(
-              "jellyseerr.toasts.jellyseer_does_not_meet_requirements",
+              "jellyseerr.toasts.jellyseerr_does_not_meet_requirements",
             );
             toast.error(error);
             throw Error(error);

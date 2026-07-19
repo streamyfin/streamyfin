@@ -279,6 +279,10 @@
         "mpv_subtitle_margin_y": "Vertical margin",
         "mpv_subtitle_align_x": "Horizontal align",
         "mpv_subtitle_align_y": "Vertical align",
+        "mpv_settings_title": "MPV Subtitle Settings",
+        "mpv_settings_description": "Advanced subtitle customization for MPV player",
+        "opaque_background": "Opaque Background",
+        "background_opacity": "Background Opacity",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -449,10 +453,13 @@
     },
     "sessions": {
       "title": "Sessions",
-      "no_active_sessions": "No active sessions"
+      "no_active_sessions": "No active sessions",
+      "select_session": "Select Session",
+      "now_playing": "Now playing:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "Transcoding",
       "series": "Series",
       "movies": "Movies",
       "other_media": "Other media",
@@ -508,6 +515,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
+    "open_menu": "Open Menu",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -609,7 +618,31 @@
   },
   "player": {
     "live": "LIVE",
+    "menu": {
+      "quality": "Quality",
+      "subtitles": "Subtitles",
+      "subtitle_scale": "Subtitle Scale",
+      "audio": "Audio",
+      "speed": "Speed",
+      "playback_options": "Playback Options",
+      "show_technical_info": "Show Technical Info",
+      "hide_technical_info": "Hide Technical Info"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Audio:",
+      "subtitle": "Subtitle:",
+      "bitrate": "Bitrate:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Dropped: {{count}} frames",
+      "loading": "Loading..."
+    },
     "mpv_player_title": "MPV player",
+    "aspect_ratio": "Aspect Ratio",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Hash Match",
+    "still_watching": "Are you still watching?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
@@ -709,6 +742,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "Next",
     "previous": "Previous",
     "coming_soon": "Coming soon",
@@ -780,7 +814,7 @@
     "request_selected": "Request selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",
       "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server url",
       "issue_submitted": "Issue submitted!",
@@ -793,6 +827,16 @@
       "failed_to_decline_request": "Failed to decline request"
     }
   },
+  "accessibility": {
+    "play_button": "Play button",
+    "play_hint": "Tap to play the media",
+    "toggle_orientation": "Toggle screen orientation",
+    "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
+  },
+  "not_found": {
+    "title": "This screen doesn't exist.",
+    "go_home": "Go to home screen!"
+  },
   "tabs": {
     "home": "Home",
     "search": "Search",
@@ -803,6 +847,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "No track playing",
+    "queue_empty": "Queue is empty",
+    "playing_from_queue": "Playing from queue",
+    "up_next": "Up next",
+    "now_playing": "Now Playing",
+    "missing_library_id": "Missing music library id.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",

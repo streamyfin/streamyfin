@@ -14,6 +14,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Dimensions,
@@ -72,6 +73,7 @@ const ARTWORK_SIZE = SCREEN_WIDTH - 80;
 type ViewMode = "player" | "queue";
 
 export default function NowPlayingScreen() {
+  const { t } = useTranslation();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
   const router = useRouter();
@@ -230,7 +232,9 @@ export default function NowPlayingScreen() {
             paddingBottom: Platform.OS === "android" ? insets.bottom : 0,
           }}
         >
-          <Text className='text-neutral-500'>No track playing</Text>
+          <Text className='text-neutral-500'>
+            {t("music.no_track_playing")}
+          </Text>
         </View>
       </BottomSheetModalProvider>
     );
@@ -267,7 +271,7 @@ export default function NowPlayingScreen() {
                     : "text-neutral-500"
                 }
               >
-                Now Playing
+                {t("music.now_playing")}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -718,6 +722,7 @@ const QueueView: React.FC<QueueViewProps> = ({
   onRemoveFromQueue,
   onReorderQueue,
 }) => {
+  const { t } = useTranslation();
   const renderQueueItem = useCallback(
     ({ item, drag, isActive, getIndex }: RenderItemParams<BaseItemDto>) => {
       const index = getIndex() ?? 0;
@@ -831,13 +836,15 @@ const QueueView: React.FC<QueueViewProps> = ({
       ListHeaderComponent={
         <View className='px-4 py-2'>
           <Text className='text-neutral-400 text-xs uppercase tracking-wider'>
-            {history.length > 0 ? "Playing from queue" : "Up next"}
+            {history.length > 0
+              ? t("music.playing_from_queue")
+              : t("music.up_next")}
           </Text>
         </View>
       }
       ListEmptyComponent={
         <View className='flex-1 items-center justify-center py-20'>
-          <Text className='text-neutral-500'>Queue is empty</Text>
+          <Text className='text-neutral-500'>{t("music.queue_empty")}</Text>
         </View>
       }
     />
