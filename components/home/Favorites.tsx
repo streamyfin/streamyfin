@@ -36,6 +36,8 @@ interface FavoritesProps {
   emptyTextKey?: string;
   /** Namespace for the see-all page headers ("favorites" or "kefintweaksWatchlist"). */
   seeAllNamespace?: "kefintweaksWatchlist" | "favorites";
+  /** Route the "See all" screen lives at; defaults to the favorites tab. */
+  seeAllPathname?: string;
 }
 
 export const Favorites = ({
@@ -44,6 +46,7 @@ export const Favorites = ({
   emptyTitleKey = "favorites.noDataTitle",
   emptyTextKey = "favorites.noData",
   seeAllNamespace = "favorites",
+  seeAllPathname = "/(auth)/(tabs)/(favorites)/see-all",
 }: FavoritesProps = {}) => {
   const router = useRouter();
   const [api] = useAtom(apiAtom);
@@ -148,11 +151,11 @@ export const Favorites = ({
           ? t(`kefintweaksWatchlist.seeAll${name}`)
           : t(`favorites.seeAll${name}`);
       router.push({
-        pathname: "/(auth)/(tabs)/(favorites)/see-all",
+        pathname: seeAllPathname,
         params: { type, title, filter },
       } as any);
     },
-    [router, filter, seeAllNamespace],
+    [router, filter, seeAllNamespace, seeAllPathname],
   );
 
   return (

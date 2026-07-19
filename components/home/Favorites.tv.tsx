@@ -12,12 +12,10 @@ import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import heart from "@/assets/icons/heart.fill.png";
 import { Text } from "@/components/common/Text";
-import { TVFavoritesTabBadges } from "@/components/favorites/TVFavoritesTabBadges";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList.tv";
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
-import { useSettings } from "@/utils/atoms/settings";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
@@ -34,32 +32,35 @@ type FavoriteTypes =
 // message during a favorites/watchlist switch before the new queries resolve.
 type EmptyState = Record<FavoriteTypes, boolean | null>;
 
-export const Favorites = () => {
+interface FavoritesProps {
+  /** Jellyfin item filter. "IsFavorite" (default) or "Likes" for the watchlist view. */
+  filter?: ItemFilter;
+  /** Query key segment used to keep favorites/watchlist caches separate. */
+  queryKeyBase?: string;
+  emptyTitleKey?: string;
+  emptyTextKey?: string;
+  /** false when a toggle sits above these lists (so the toggle takes first focus). */
+  isFirstSection?: boolean;
+  /** Overrides the default nav-bar clearance; used when a toggle already clears it. */
+  contentTopPadding?: number;
+}
+
+export const Favorites = ({
+  filter = "IsFavorite",
+  queryKeyBase = "favorites",
+  emptyTitleKey = "favorites.noDataTitle",
+  emptyTextKey = "favorites.noData",
+  isFirstSection = true,
+  contentTopPadding,
+}: FavoritesProps = {}) => {
   const typography = useScaledTVTypography();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
   const [user] = useAtom(userAtom);
-  const { settings } = useSettings();
   const pageSize = 20;
 
-  // KefinTweaks watchlist (Likes-backed) view, toggled in-place like Discover.
-  const watchlistEnabled = settings?.useKefinTweaks ?? false;
-  const [viewType, setViewType] = useState<"Favorites" | "Watchlist">(
-    "Favorites",
-  );
-  const filter: ItemFilter =
-    watchlistEnabled && viewType === "Watchlist" ? "Likes" : "IsFavorite";
-  const queryKeyBase =
-    watchlistEnabled && viewType === "Watchlist" ? "watchlist" : "favorites";
-  // Translation namespace for the empty state, swapped for the KefinTweaks
-  // watchlist (Likes-backed) view. Section titles stay generic ("Series").
-  const emptyNamespace =
-    watchlistEnabled && viewType === "Watchlist"
-      ? "kefintweaksWatchlist"
-      : "favorites";
-  const emptyTitleKey = `${emptyNamespace}.noDataTitle`;
-  const emptyTextKey = `${emptyNamespace}.noData`;
+  const topPadding = contentTopPadding ?? insets.top + TOP_PADDING;
 
   const [emptyState, setEmptyState] = useState<EmptyState>({
     Series: null,
@@ -146,31 +147,17 @@ export const Favorites = () => {
     [fetchFavoritesByType, pageSize],
   );
 
-  const tabBadges = (
-    <TVFavoritesTabBadges
-      viewType={viewType}
-      setViewType={setViewType}
-      enabled={watchlistEnabled}
-      hasTVPreferredFocus={watchlistEnabled}
-    />
-  );
-
   return (
     <ScrollView
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
-        paddingTop: insets.top + TOP_PADDING,
+        paddingTop: topPadding,
         paddingBottom: insets.bottom + 60,
         flexGrow: 1,
       }}
     >
       <View style={{ gap: SECTION_GAP, flex: 1 }}>
-        {watchlistEnabled && (
-          <View style={{ paddingHorizontal: HORIZONTAL_PADDING }}>
-            {tabBadges}
-          </View>
-        )}
         {/* Rendered alongside the lists (never instead of them) so they stay
             mounted and re-report emptiness on a favorites/watchlist switch;
             an early return here would freeze the all-empty state. */}
@@ -221,7 +208,7 @@ export const Favorites = () => {
           title={t("favorites.series")}
           hideIfEmpty
           pageSize={pageSize}
-          isFirstSection={!watchlistEnabled}
+          isFirstSection={isFirstSection}
           onEmptyStateChange={(isEmpty) => setTypeEmpty("Series", isEmpty)}
         />
         <InfiniteScrollingCollectionList

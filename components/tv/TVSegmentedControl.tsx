@@ -1,20 +1,17 @@
-import React from "react";
-import { useTranslation } from "react-i18next";
+import type React from "react";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 
-type ViewType = "Favorites" | "Watchlist";
-
-interface TVFavoritesTabBadgeProps {
+interface TVSegmentBadgeProps {
   label: string;
   isSelected: boolean;
   onPress: () => void;
   hasTVPreferredFocus?: boolean;
 }
 
-const TVFavoritesTabBadge: React.FC<TVFavoritesTabBadgeProps> = ({
+const TVSegmentBadge: React.FC<TVSegmentBadgeProps> = ({
   label,
   isSelected,
   onPress,
@@ -72,46 +69,41 @@ const TVFavoritesTabBadge: React.FC<TVFavoritesTabBadgeProps> = ({
   );
 };
 
-export interface TVFavoritesTabBadgesProps {
-  viewType: ViewType;
-  setViewType: (type: ViewType) => void;
-  /** Only render the toggle when the KefinTweaks watchlist is enabled. */
-  enabled: boolean;
+export interface TVSegmentedControlOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+interface TVSegmentedControlProps<T extends string> {
+  options: TVSegmentedControlOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  /** When true, the currently-selected badge receives initial TV focus. */
   hasTVPreferredFocus?: boolean;
 }
 
-export const TVFavoritesTabBadges: React.FC<TVFavoritesTabBadgesProps> = ({
-  viewType,
-  setViewType,
-  enabled,
+/**
+ * Focusable TV segmented control (design: white focus, blurred pill unfocused).
+ * Generalized from the former TVFavoritesTabBadges so it can drive any
+ * segmented swap on TV. Only the selected badge takes preferred focus.
+ */
+export function TVSegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
   hasTVPreferredFocus = false,
-}) => {
-  const { t } = useTranslation();
-
-  if (!enabled) {
-    return null;
-  }
-
+}: TVSegmentedControlProps<T>) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        gap: 16,
-        marginBottom: 24,
-      }}
-    >
-      <TVFavoritesTabBadge
-        label={t("tabs.favorites")}
-        isSelected={viewType === "Favorites"}
-        onPress={() => setViewType("Favorites")}
-        hasTVPreferredFocus={hasTVPreferredFocus && viewType === "Favorites"}
-      />
-      <TVFavoritesTabBadge
-        label={t("favorites.watchlist")}
-        isSelected={viewType === "Watchlist"}
-        onPress={() => setViewType("Watchlist")}
-        hasTVPreferredFocus={hasTVPreferredFocus && viewType === "Watchlist"}
-      />
+    <View style={{ flexDirection: "row", gap: 16, marginBottom: 24 }}>
+      {options.map((option) => (
+        <TVSegmentBadge
+          key={option.value}
+          label={option.label}
+          isSelected={value === option.value}
+          onPress={() => onChange(option.value)}
+          hasTVPreferredFocus={hasTVPreferredFocus && value === option.value}
+        />
+      ))}
     </View>
   );
-};
+}

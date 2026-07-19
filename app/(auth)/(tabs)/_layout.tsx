@@ -61,9 +61,12 @@ function TVTabLayout() {
         { key: "(home)", label: t("tabs.home") },
         { key: "(search)", label: t("tabs.search") },
         { key: "(favorites)", label: t("tabs.favorites") },
-        !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
-          ? null
-          : { key: "(watchlists)", label: t("watchlists.title") },
+        // `hideWatchlistsTab` only suppresses the Streamystats side; KefinTweaks
+        // keeps the tab visible on its own.
+        (settings?.streamyStatsServerUrl && !settings?.hideWatchlistsTab) ||
+        settings?.useKefinTweaks
+          ? { key: "(watchlists)", label: t("watchlists.title") }
+          : null,
         { key: "(libraries)", label: t("tabs.library") },
         !settings?.showCustomMenuLinks
           ? null
@@ -73,6 +76,7 @@ function TVTabLayout() {
     [
       settings?.streamyStatsServerUrl,
       settings?.hideWatchlistsTab,
+      settings?.useKefinTweaks,
       settings?.showCustomMenuLinks,
       t,
     ],
@@ -203,8 +207,13 @@ export default function TabLayout() {
           name='(watchlists)'
           options={{
             title: t("watchlists.title"),
-            tabBarItemHidden:
-              !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
+            // Shown when Streamystats (URL set & not hidden) OR KefinTweaks is
+            // enabled. `hideWatchlistsTab` only suppresses the Streamystats side.
+            tabBarItemHidden: !(
+              (settings?.streamyStatsServerUrl &&
+                !settings?.hideWatchlistsTab) ||
+              settings?.useKefinTweaks
+            ),
             tabBarIcon:
               Platform.OS === "android"
                 ? (_e) => require("@/assets/icons/list.star.png")
