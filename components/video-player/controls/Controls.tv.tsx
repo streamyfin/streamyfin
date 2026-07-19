@@ -260,6 +260,12 @@ export const Controls: FC<Props> = ({
   // Track if play button should have focus (when showing controls via up/down D-pad)
   const [focusPlayButton, setFocusPlayButton] = useState(false);
 
+  // Set when the user manually presses Skip Credits. Once set, the next-episode
+  // countdown is allowed to appear but will NOT auto-fire — the user must select
+  // it. Prevents a (possibly wrong) credit end timestamp from landing in the end
+  // zone and auto-advancing to the next episode. Resets on unmount.
+  const [suppressAutoNextEpisode, setSuppressAutoNextEpisode] = useState(false);
+
   // State for progress bar focus and focus guide refs
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
   const [playButtonRef, setPlayButtonRef] = useState<View | null>(null);
@@ -1084,10 +1090,21 @@ export const Controls: FC<Props> = ({
 
   goToNextItemRef.current = goToNextItem;
 
+  // Wrap skipCredit so a manual press also arms the auto-advance suppression
+  // (see suppressAutoNextEpisode). The underlying seek is unchanged.
+  const handleSkipCredit = useCallback(() => {
+    setSuppressAutoNextEpisode(true);
+    skipCredit();
+  }, [skipCredit]);
+
   const handleAutoPlayFinish = useCallback(() => {
     if (exitingRef.current) return;
+    // If the user manually skipped credits, don't auto-advance — let the
+    // countdown sit so they can select it. Guards against wrong credit end
+    // timestamps landing in the end zone and skipping the episode's tail.
+    if (suppressAutoNextEpisode) return;
     goToNextItem({ isAutoPlay: true });
-  }, [goToNextItem]);
+  }, [goToNextItem, suppressAutoNextEpisode]);
 
   const topOverlayFocusTarget = skipSegmentRef ?? nextEpisodeRef;
 
@@ -1147,7 +1164,7 @@ export const Controls: FC<Props> = ({
           (hasContentAfterCredits || !nextItem) &&
           !isCountdownActive
         }
-        onPress={skipCredit}
+        onPress={handleSkipCredit}
         type='credits'
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}

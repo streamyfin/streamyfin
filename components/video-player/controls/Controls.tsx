@@ -112,6 +112,12 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+  // Set when the user manually presses Skip Credits. Once set, the next-episode
+  // countdown is allowed to appear but will NOT auto-fire — the user must tap
+  // it. This prevents a (possibly wrong) credit end timestamp from landing in
+  // the end zone and auto-advancing to the next episode. Resets on unmount
+  // (navigation to the next episode or away).
+  const [suppressAutoNextEpisode, setSuppressAutoNextEpisode] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -366,6 +372,13 @@ export const Controls: FC<Props> = ({
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
       settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
 
+  // Wrap skipCredit so a manual press also arms the auto-advance suppression
+  // (see suppressAutoNextEpisode). The underlying seek is unchanged.
+  const handleSkipCredit = useCallback(() => {
+    setSuppressAutoNextEpisode(true);
+    skipCredit();
+  }, [skipCredit]);
+
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
       if (!item || !settings) {
@@ -475,8 +488,12 @@ export const Controls: FC<Props> = ({
 
   // Add a memoized handler for autoplay next episode
   const handleNextEpisodeAutoPlay = useCallback(() => {
+    // If the user manually skipped credits, don't auto-advance — let the
+    // countdown sit so they can tap it. Guards against wrong credit end
+    // timestamps landing in the end zone and skipping the episode's tail.
+    if (suppressAutoNextEpisode) return;
     goToNextItem({ isAutoPlay: true });
-  }, [goToNextItem]);
+  }, [goToNextItem, suppressAutoNextEpisode]);
 
   // Add a memoized handler for manual next episode
   const handleNextEpisodeManual = useCallback(() => {
@@ -627,7 +644,7 @@ export const Controls: FC<Props> = ({
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
             skipIntro={skipIntro}
-            skipCredit={skipCredit}
+            skipCredit={handleSkipCredit}
             controlsVisible={showControls}
           />
         </>
