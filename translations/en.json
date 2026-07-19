@@ -12,6 +12,9 @@
     "login_button": "Log in",
     "quick_connect": "Quick Connect",
     "enter_code_to_login": "Enter code {{code}} to log in",
+    "quick_connect_instructions": "Enter this code on a signed-in device — you'll be logged in automatically.",
+    "tap_code_to_copy": "Tap the code to copy it",
+    "code_copied": "Code copied",
     "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
     "got_it": "Got it",
     "connection_failed": "Connection failed",
@@ -33,6 +36,7 @@
     "connect_button": "Connect",
     "previous_servers": "Previous servers",
     "clear_button": "Clear all",
+    "server_url": "Server URL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Search for local servers",
     "searching": "Searching...",
@@ -195,7 +199,8 @@
         "quick_connect_authorized": "Quick Connect authorized",
         "error": "Error",
         "invalid_code": "Invalid code",
-        "authorize": "Authorize"
+        "authorize": "Authorize",
+        "paste_code": "Paste code"
       },
       "media_controls": {
         "media_controls_title": "Media controls",
