@@ -15,7 +15,7 @@ build:
     # EXPO_TV=1 comes from the profile env, so prebuild targets Android TV.
     - run:
         name: Prebuild (Android TV, bun)
-        command: bunx expo prebuild --platform android --no-install
+        command: bun x expo prebuild --platform android --no-install
 
     - eas/configure_android_version
     - eas/inject_android_credentials
