@@ -40,7 +40,7 @@ export const getPlaybackUrl = async (
 
   const queryParams = new URLSearchParams({
     deviceId: api.deviceInfo?.id || "",
-    api_key: api.accessToken || "",
+    ApiKey: api.accessToken || "",
     Tag: ETag || "",
     MediaSourceId: Id || "",
   });

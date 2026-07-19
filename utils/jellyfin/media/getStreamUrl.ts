@@ -73,7 +73,7 @@ const getPlaybackUrl = (
     subtitleStreamIndex: params.subtitleStreamIndex?.toString() || "",
     audioStreamIndex: params.audioStreamIndex?.toString() || "",
     deviceId: params.deviceId || api.deviceInfo.id,
-    api_key: api.accessToken,
+    ApiKey: api.accessToken,
     startTimeTicks: params.startTimeTicks?.toString() || "0",
     maxStreamingBitrate: params.maxStreamingBitrate?.toString() || "",
     userId: params.userId,

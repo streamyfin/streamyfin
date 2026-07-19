@@ -50,7 +50,7 @@ export const getDownloadUrl = async ({
   if (maxBitrate.key === "Max" && !streamDetails?.mediaSource?.TranscodingUrl) {
     console.log("Downloading item directly");
     return {
-      url: `${api.basePath}/Items/${mediaSource.Id}/Download?api_key=${api.accessToken}`,
+      url: `${api.basePath}/Items/${mediaSource.Id}/Download?ApiKey=${api.accessToken}`,
       mediaSource: streamDetails?.mediaSource ?? null,
     };
   }

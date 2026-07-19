@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -5,11 +6,13 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { getQuickConnectApi } from "@jellyfin/sdk/lib/utils/api";
+import { requireOptionalNativeModule } from "expo-modules-core";
 import { useAtom } from "jotai";
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, View, type ViewProps } from "react-native";
+import { Pressable } from "react-native-gesture-handler";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { Button } from "../Button";
@@ -58,7 +61,7 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
           successHapticFeedback();
           Alert.alert(
             t("home.settings.quick_connect.success"),
-            t("home.settings.quick_connect.quick_connect_autorized"),
+            t("home.settings.quick_connect.quick_connect_authorized"),
           );
           setQuickConnectCode(undefined);
           bottomSheetModalRef?.current?.close();
@@ -78,6 +81,15 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
       }
     }
   }, [api, user, quickConnectCode]);
+
+  const pasteCode = useCallback(async () => {
+    // Builds without the expo-clipboard native module: probe first (no-op).
+    if (!requireOptionalNativeModule("ExpoClipboard")) return;
+    const Clipboard = await import("expo-clipboard");
+    const text = await Clipboard.getStringAsync();
+    const digits = (text || "").replace(/\D/g, "").slice(0, 6);
+    if (digits) setQuickConnectCode(digits);
+  }, []);
 
   if (isTv) return null;
 
@@ -130,6 +142,15 @@ export const QuickConnect: React.FC<Props> = ({ ...props }) => {
                   style={{ paddingHorizontal: 16 }}
                   autoFocus
                 />
+                <Pressable
+                  onPress={pasteCode}
+                  className='flex-row items-center justify-center self-center'
+                >
+                  <Feather name='clipboard' size={15} color='#a3a3a3' />
+                  <Text className='text-neutral-400 ml-2'>
+                    {t("home.settings.quick_connect.paste_code")}
+                  </Text>
+                </Pressable>
               </View>
             </View>
             <Button

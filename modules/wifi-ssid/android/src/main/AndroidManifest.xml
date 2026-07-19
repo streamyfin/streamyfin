@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Reading the connected Wi-Fi SSID requires ACCESS_WIFI_STATE, and (since
+       Android 8) ACCESS_FINE_LOCATION granted at runtime. Location is requested
+       at runtime by the app via expo-location; the manifest declares the
+       Wi-Fi/network permissions this module needs directly. -->
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+</manifest>

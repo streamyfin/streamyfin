@@ -3,8 +3,9 @@ import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Switch, View } from "react-native";
+import { Linking, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
@@ -132,7 +133,7 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.safe_area_in_controls")}
           disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.safeAreaInControlsEnabled}
             disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
             onValueChange={(value) =>
@@ -150,7 +151,7 @@ export const OtherSettings: React.FC = () => {
             )
           }
         >
-          <Switch
+          <SettingSwitch
             value={settings.showCustomMenuLinks}
             disabled={pluginSettings?.showCustomMenuLinks?.locked}
             onValueChange={(value) =>
@@ -188,7 +189,7 @@ export const OtherSettings: React.FC = () => {
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.disableHapticFeedback}
             disabled={pluginSettings?.disableHapticFeedback?.locked}
             onValueChange={(disableHapticFeedback) =>
