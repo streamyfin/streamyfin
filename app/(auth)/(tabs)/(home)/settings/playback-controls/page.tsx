@@ -17,13 +17,14 @@ export default function PlaybackControlsPage() {
       contentContainerStyle={{
         paddingLeft: insets.left,
         paddingRight: insets.right,
+        paddingBottom: insets.bottom,
       }}
     >
       <View
         className='p-4 flex flex-col'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
-        <View className='mb-4'>
+        <View>
           <MediaProvider>
             <MediaToggles className='mb-4' />
             <GestureControls className='mb-4' />

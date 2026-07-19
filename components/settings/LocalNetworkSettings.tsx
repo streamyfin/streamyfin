@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Switch, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { useWifiSSID } from "@/hooks/useWifiSSID";
 import { useServerUrl } from "@/providers/ServerUrlProvider";
 import { storage } from "@/utils/mmkv";
@@ -147,7 +148,10 @@ export function LocalNetworkSettings(): React.ReactElement | null {
           title={t("home.settings.network.auto_switch_enabled")}
           subtitle={t("home.settings.network.auto_switch_description")}
         >
-          <Switch value={config.enabled} onValueChange={handleToggleEnabled} />
+          <SettingSwitch
+            value={config.enabled}
+            onValueChange={handleToggleEnabled}
+          />
         </ListItem>
       </ListGroup>
 

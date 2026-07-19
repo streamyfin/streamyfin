@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { PropsWithChildren, ReactNode } from "react";
-import { TouchableOpacity, View, type ViewProps } from "react-native";
+import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
 import { Text } from "../common/Text";
 
 interface Props extends ViewProps {
@@ -34,12 +34,17 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
 }) => {
   const effectiveSubtitle = disabledByAdmin ? "Disabled by admin" : subtitle;
   const isDisabled = disabled || disabledByAdmin;
+  // Keep the row floor uniform; Android trims padding slightly (its native
+  // controls sit taller). Switch height is capped via SettingSwitch so toggle
+  // rows match non-toggle rows.
+  const rowSizing =
+    Platform.OS === "android" ? "min-h-[42px] py-1.5" : "min-h-[42px] py-2";
   if (onPress)
     return (
       <TouchableOpacity
         disabled={isDisabled}
         onPress={onPress}
-        className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${isDisabled ? "opacity-50" : ""}`}
+        className={`flex flex-row items-center justify-between bg-neutral-900 ${rowSizing} pr-4 pl-4 ${isDisabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         <ListItemContent
@@ -58,7 +63,7 @@ export const ListItem: React.FC<PropsWithChildren<Props>> = ({
     );
   return (
     <View
-      className={`flex flex-row items-center justify-between bg-neutral-900 min-h-[42px] py-2 pr-4 pl-4 ${isDisabled ? "opacity-50" : ""}`}
+      className={`flex flex-row items-center justify-between bg-neutral-900 ${rowSizing} pr-4 pl-4 ${isDisabled ? "opacity-50" : ""}`}
       {...viewProps}
     >
       <ListItemContent

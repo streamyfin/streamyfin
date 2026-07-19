@@ -4,13 +4,13 @@ import { useTranslation } from "react-i18next";
 import {
   Linking,
   ScrollView,
-  Switch,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -134,7 +134,7 @@ export default function StreamystatsPage() {
         paddingRight: insets.right,
       }}
     >
-      <View className='px-4'>
+      <View className='px-4 pt-4'>
         <ListGroup className='flex-1'>
           <ListItem
             title={t("home.settings.plugins.streamystats.url")}
@@ -173,7 +173,7 @@ export default function StreamystatsPage() {
             title={t("home.settings.plugins.streamystats.enable_search")}
             disabledByAdmin={pluginSettings?.searchEngine?.locked === true}
           >
-            <Switch
+            <SettingSwitch
               value={useForSearch}
               disabled={!isStreamystatsEnabled}
               onValueChange={setUseForSearch}
@@ -187,7 +187,7 @@ export default function StreamystatsPage() {
               pluginSettings?.streamyStatsMovieRecommendations?.locked === true
             }
           >
-            <Switch
+            <SettingSwitch
               value={movieRecs}
               onValueChange={setMovieRecs}
               disabled={!isStreamystatsEnabled}
@@ -201,7 +201,7 @@ export default function StreamystatsPage() {
               pluginSettings?.streamyStatsSeriesRecommendations?.locked === true
             }
           >
-            <Switch
+            <SettingSwitch
               value={seriesRecs}
               onValueChange={setSeriesRecs}
               disabled={!isStreamystatsEnabled}
@@ -215,7 +215,7 @@ export default function StreamystatsPage() {
               pluginSettings?.streamyStatsPromotedWatchlists?.locked === true
             }
           >
-            <Switch
+            <SettingSwitch
               value={promotedWatchlists}
               onValueChange={setPromotedWatchlists}
               disabled={!isStreamystatsEnabled}
@@ -225,7 +225,7 @@ export default function StreamystatsPage() {
             title={t("home.settings.plugins.streamystats.hide_watchlists_tab")}
             disabledByAdmin={pluginSettings?.hideWatchlistsTab?.locked === true}
           >
-            <Switch
+            <SettingSwitch
               value={hideWatchlistsTab}
               onValueChange={setHideWatchlistsTab}
               disabled={!isStreamystatsEnabled}
