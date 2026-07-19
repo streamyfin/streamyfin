@@ -173,11 +173,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           ) : null}
         </View>
         <View className='flex flex-row items-center space-x-2 shrink-0'>
-          {/* Smart Skip Credits behavior (drives Next Episode timing):
-              - "Skip Credits" button itself is rendered in SkipSegmentOverlay
-                (independent of controls visibility).
-              - "Next Episode" shows when credits extend to video end AND a next
-                episode exists. */}
           {settings.autoPlayNextEpisode !== false &&
             (settings.maxAutoPlayEpisodeCount.value === -1 ||
               settings.autoPlayEpisodeCount <
