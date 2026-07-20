@@ -24,10 +24,13 @@ const withTVXcodeEnv: ConfigPlugin = (config) => {
       const iosPath = path.join(config.modRequest.projectRoot, "ios");
       const xcodeEnvLocalPath = path.join(iosPath, ".xcode.env.local");
 
-      // Read existing content or start fresh
+      // Read existing content or start fresh — no exists-check first, so a
+      // concurrent create/delete can't race between check and read
       let content = "";
-      if (fs.existsSync(xcodeEnvLocalPath)) {
+      try {
         content = fs.readFileSync(xcodeEnvLocalPath, "utf-8");
+      } catch {
+        // File doesn't exist yet
       }
 
       let modified = false;

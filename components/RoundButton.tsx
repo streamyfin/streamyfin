@@ -96,9 +96,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     return (
       <Pressable
         onPress={handlePress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center ${
-          fillColor ? fillColorClass : "bg-transparent"
-        }`}
+        className={`rounded-full ${buttonSize} flex items-center justify-center bg-transparent`}
         {...(viewProps as any)}
       >
         {icon ? (
