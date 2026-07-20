@@ -38,23 +38,31 @@ function getTVDiscoveryImage(
   // fulfill (which would render a broken/blank poster).
   const posterParams = "?fillWidth=400" + "&fillHeight=600" + "&quality=90";
 
-  // 1. Item's own poster (episode, movie, series, ...)
-  const primaryTag = item.ImageTags?.Primary;
-  if (item.Id && primaryTag) {
-    return {
-      url:
-        `${baseUrl}/Items/${item.Id}/Images/Primary${posterParams}` +
-        `&tag=${encodeURIComponent(primaryTag)}`,
-    };
+  const posterUrl = (id: string, tag: string) =>
+    `${baseUrl}/Items/${id}/Images/Primary${posterParams}` +
+    `&tag=${encodeURIComponent(tag)}`;
+
+  // For episodes, prefer the season -> show poster over the episode's own
+  // primary: episode primary images are usually landscape stills that crop
+  // badly in poster shape, and since most episodes have one the season/show
+  // poster would otherwise never get used.
+  if (item.Type === "Episode") {
+    // Season poster — for an episode the immediate parent is the season, so
+    // ParentPrimaryImageTag is the season's primary tag.
+    if (item.SeasonId && item.ParentPrimaryImageTag) {
+      return { url: posterUrl(item.SeasonId, item.ParentPrimaryImageTag) };
+    }
+
+    // Show poster
+    if (item.SeriesId && item.SeriesPrimaryImageTag) {
+      return { url: posterUrl(item.SeriesId, item.SeriesPrimaryImageTag) };
+    }
   }
 
-  // 2. Episode fallback -> parent series poster (only when we know it exists)
-  if (item.SeriesId && item.SeriesPrimaryImageTag) {
-    return {
-      url:
-        `${baseUrl}/Items/${item.SeriesId}/Images/Primary${posterParams}` +
-        `&tag=${encodeURIComponent(item.SeriesPrimaryImageTag)}`,
-    };
+  // Item's own poster (movies, series, or an episode with no season/show art)
+  const primaryTag = item.ImageTags?.Primary;
+  if (item.Id && primaryTag) {
+    return { url: posterUrl(item.Id, primaryTag) };
   }
 
   return undefined;
