@@ -2,7 +2,7 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
@@ -32,6 +32,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
 import { useSettings } from "@/utils/atoms/settings";
+import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { getParentBackdropImageUrl } from "@/utils/jellyfin/image/getParentBackdropImageUrl";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -79,6 +80,7 @@ export const PlayButton: React.FC<Props> = ({
   const widthProgress = useSharedValue(0);
   const colorChangeProgress = useSharedValue(0);
   const { settings, updateSettings } = useSettings();
+  const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
   const lightHapticFeedback = useHaptic("light");
 
   const goToPlayer = useCallback(
@@ -86,9 +88,11 @@ export const PlayButton: React.FC<Props> = ({
       if (settings.maxAutoPlayEpisodeCount.value !== -1) {
         updateSettings({ autoPlayEpisodeCount: 0 });
       }
+      // Starting a normal play cancels any active shuffle queue.
+      clearShuffleQueue(null);
       router.push(`/player/direct-player?${q}`);
     },
-    [router, isOffline],
+    [router, isOffline, clearShuffleQueue],
   );
 
   const handleNormalPlayFlow = useCallback(async () => {
