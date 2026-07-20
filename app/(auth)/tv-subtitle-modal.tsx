@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -646,10 +647,23 @@ export default function TVSubtitleModal() {
 
   const handleTrackSelect = useCallback(
     (option: { setTrack?: () => void }) => {
+      if (modalState?.deferApplyUntilDismissed) {
+        // Player: setTrack can navigate (replacePlayer for a burn-in switch
+        // while transcoding); a router.replace fired while this modal is the
+        // active route targets the MODAL and is swallowed. Close FIRST, apply
+        // after dismissal.
+        handleClose();
+        InteractionManager.runAfterInteractions(() => option.setTrack?.());
+        return;
+      }
+      // Detail page: setTrack only updates state. Run it BEFORE closing so the
+      // re-render happens while the modal is up; deferring it until after
+      // dismissal re-renders the detail page after focus returns and yanks TV
+      // focus, leaving navigation stuck.
       option.setTrack?.();
       handleClose();
     },
-    [handleClose],
+    [handleClose, modalState?.deferApplyUntilDismissed],
   );
 
   const handleDownload = useCallback(

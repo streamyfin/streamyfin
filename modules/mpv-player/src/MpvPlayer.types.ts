@@ -141,6 +141,14 @@ export type SubtitleTrack = {
   id: number;
   title?: string;
   lang?: string;
+  /** Subtitle codec (mpv `codec`), e.g. "subrip", "ass", "hdmv_pgs_subtitle". */
+  codec?: string;
+  /** True if loaded from a separate file via `sub-add` (mpv `external`). */
+  external?: boolean;
+  /** For external tracks: the exact URL/path it was loaded from (mpv `external-filename`). */
+  externalFilename?: string;
+  /** FFmpeg stream index (mpv `ff-index`); not guaranteed for non-lavf demuxers. */
+  ffIndex?: number;
   selected?: boolean;
 };
 

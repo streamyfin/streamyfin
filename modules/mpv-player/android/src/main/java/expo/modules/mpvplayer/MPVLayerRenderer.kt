@@ -591,16 +591,29 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             
             val trackId = mpv?.getPropertyInt("track-list/$i/id") ?: continue
             val track = mutableMapOf<String, Any>("id" to trackId)
-            
+
             mpv?.getPropertyString("track-list/$i/title")?.let { track["title"] = it }
             mpv?.getPropertyString("track-list/$i/lang")?.let { track["lang"] = it }
-            
+            mpv?.getPropertyString("track-list/$i/codec")?.let { track["codec"] = it }
+
+            // Identity fields used to map a Jellyfin subtitle to the real track
+            // (instead of fragile positional counting). `external` + `external-filename`
+            // uniquely identify a sub-added sidecar. `ff-index` is exposed for
+            // diagnostics / potential future exact-index matching; the current
+            // resolver matches embedded tracks by language/title, not ff-index.
+            val external = mpv?.getPropertyBoolean("track-list/$i/external") ?: false
+            track["external"] = external
+            mpv?.getPropertyString("track-list/$i/external-filename")?.let {
+                track["externalFilename"] = it
+            }
+            mpv?.getPropertyInt("track-list/$i/ff-index")?.let { track["ffIndex"] = it }
+
             val selected = mpv?.getPropertyBoolean("track-list/$i/selected") ?: false
             track["selected"] = selected
-            
+
             tracks.add(track)
         }
-        
+
         return tracks
     }
     
@@ -903,6 +916,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                 // episode without a manual re-selection.
                 initialAudioId?.let { if (it > 0) setAudioTrack(it) }
                 initialSubtitleId?.let { setSubtitleTrack(it) } ?: disableSubtitles()
+
+                // The disable above can race a JS-side identity selection that
+                // landed before FILE_LOADED (JS no longer passes an initial sid).
+                // Re-emit tracksReady so the idempotent JS re-apply always runs
+                // after it — for embedded-only files this is the only
+                // post-FILE_LOADED fire.
+                mainHandler.post { delegate?.onTracksReady() }
 
                 if (!isReadyToSeek) {
                     isReadyToSeek = true
