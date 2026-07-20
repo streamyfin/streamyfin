@@ -25,12 +25,16 @@ const withTVXcodeEnv: ConfigPlugin = (config) => {
       const xcodeEnvLocalPath = path.join(iosPath, ".xcode.env.local");
 
       // Read existing content or start fresh — no exists-check first, so a
-      // concurrent create/delete can't race between check and read
+      // concurrent create/delete can't race between check and read. Only a
+      // missing file means "start fresh"; any other read error must not let
+      // the plugin silently rebuild the file from scratch.
       let content = "";
       try {
         content = fs.readFileSync(xcodeEnvLocalPath, "utf-8");
-      } catch {
-        // File doesn't exist yet
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          throw error;
+        }
       }
 
       let modified = false;
