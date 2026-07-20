@@ -472,24 +472,48 @@ export default function DirectPlayerPage() {
     }
   };
 
+  // PlaySessionId of the last "stopped" report, to dedupe the double teardown.
+  const reportedStopSessionIdRef = useRef<string | null>(null);
+
   const reportPlaybackStopped = useCallback(async () => {
     if (!item?.Id || !stream?.sessionId || offline || !api) return;
-
+    // Leaving the player reports "stopped" twice: once from the beforeRemove
+    // listener (via stop()) and once from the unmount cleanup backstop. Dedupe
+    // per PlaySessionId — not a plain boolean, since the component survives
+    // in-place item switches and the next session must report again.
+    const sessionId = stream.sessionId;
+    if (reportedStopSessionIdRef.current === sessionId) return;
+    reportedStopSessionIdRef.current = sessionId;
     const currentTimeInTicks = msToTicks(progress.get());
-    await getPlaystateApi(api).reportPlaybackStopped({
-      playbackStopInfo: {
-        ItemId: item.Id,
-        MediaSourceId: mediaSourceId,
-        PositionTicks: currentTimeInTicks,
-        PlaySessionId: stream.sessionId,
-        // Release the server-side live stream (and its tuner slot) on stop.
-        // Jellyfin only closes a live stream opened via autoOpenLiveStream when
-        // the stop report carries its LiveStreamId; without it the stream leaks
-        // and Live TV eventually fails for everyone with "M3U simultaneous
-        // stream limit has been reached". Undefined for non-live items (no-op).
-        LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
-      },
-    });
+    try {
+      await getPlaystateApi(api).reportPlaybackStopped({
+        playbackStopInfo: {
+          ItemId: item.Id,
+          MediaSourceId: mediaSourceId,
+          PositionTicks: currentTimeInTicks,
+          PlaySessionId: sessionId,
+          // Release the server-side live stream (and its tuner slot) on stop.
+          // Jellyfin only closes a live stream opened via autoOpenLiveStream when
+          // the stop report carries its LiveStreamId; without it the stream leaks
+          // and Live TV eventually fails for everyone with "M3U simultaneous
+          // stream limit has been reached". Undefined for non-live items (no-op).
+          LiveStreamId: stream.mediaSource?.LiveStreamId ?? undefined,
+        },
+      });
+    } catch (error) {
+      // Un-mark the session so a later teardown path can retry: e.g. a failed
+      // report from a WebSocket remote-stop (player still mounted) must not
+      // suppress the report when the user then navigates away. Callers are
+      // fire-and-forget, so swallow instead of rethrowing unhandled.
+      if (reportedStopSessionIdRef.current === sessionId) {
+        reportedStopSessionIdRef.current = null;
+      }
+      writeToLog(
+        "ERROR",
+        "reportPlaybackStopped failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }, [api, item, mediaSourceId, stream, progress, offline]);
 
   const stop = useCallback(() => {
@@ -518,13 +542,36 @@ export default function DirectPlayerPage() {
     deactivateKeepAwake();
   }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
 
+  // Keep refs to the latest stop / stopped-report so the effects below don't
+  // need these churning callbacks in their dependency arrays. Reporting
+  // "stopped" from an effect cleanup that re-runs during playback (e.g. when
+  // the 30s router.setParams position write mutates navigation state) caused a
+  // spurious PlaybackStopped every URL_UPDATE_INTERVAL.
+  const stopRef = useRef(stop);
+  const reportPlaybackStoppedRef = useRef(reportPlaybackStopped);
+
   useEffect(() => {
-    const beforeRemoveListener = navigation.addListener("beforeRemove", stop);
+    stopRef.current = stop;
+    reportPlaybackStoppedRef.current = reportPlaybackStopped;
+  }, [stop, reportPlaybackStopped]);
+
+  // Report playback stopped only on a real source switch or unmount.
+  useEffect(() => {
     return () => {
-      reportPlaybackStopped();
+      reportPlaybackStoppedRef.current();
+    };
+  }, [item?.Id, stream?.sessionId, mediaSourceId]);
+
+  // Stop on navigation-away. Re-subscribing when the navigation object identity
+  // changes (e.g. after a setParams) no longer reports anything on its own.
+  useEffect(() => {
+    const beforeRemoveListener = navigation.addListener("beforeRemove", () =>
+      stopRef.current(),
+    );
+    return () => {
       beforeRemoveListener();
     };
-  }, [navigation, stop, reportPlaybackStopped]);
+  }, [navigation]);
 
   const currentPlayStateInfo = useCallback(():
     | PlaybackProgressInfo
