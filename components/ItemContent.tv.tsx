@@ -41,7 +41,10 @@ import {
   TVTechnicalDetails,
   TVWatchlistButton,
 } from "@/components/tv";
-import type { Track } from "@/components/video-player/controls/types";
+import {
+  LOCAL_SUBTITLE_INDEX_START,
+  type Track,
+} from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -57,6 +60,7 @@ import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -233,12 +237,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return streams ?? [];
     }, [selectedOptions?.mediaSource]);
 
-    // Get available subtitle tracks (raw MediaStream[] for label lookup)
+    // Get available subtitle tracks (raw MediaStream[] for label lookup),
+    // ordered like jellyfin-web (embedded first, externals last, forced/default up).
     const subtitleStreams = useMemo(() => {
       const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
         (s) => s.Type === "Subtitle",
       );
-      return streams ?? [];
+      return streams ? [...streams].sort(compareTracksForMenu) : [];
     }, [selectedOptions?.mediaSource]);
 
     // Store handleSubtitleChange in a ref for stable callback reference
@@ -248,9 +253,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // State to trigger refresh of local subtitles list
     const [localSubtitlesRefreshKey, setLocalSubtitlesRefreshKey] = useState(0);
-
-    // Starting index for local (client-downloaded) subtitles
-    const LOCAL_SUBTITLE_INDEX_START = -100;
 
     // Convert MediaStream[] to Track[] for the modal (with setTrack callbacks)
     // Also includes locally downloaded subtitles from OpenSubtitles
@@ -412,11 +414,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             )
           : freshItem.MediaSources?.[0];
 
-        // Get subtitle streams from the fresh data
-        const streams =
-          mediaSource?.MediaStreams?.filter(
+        // Get subtitle streams from the fresh data, ordered like jellyfin-web
+        // (embedded first, externals last) — same as the initial list.
+        const streams = [
+          ...(mediaSource?.MediaStreams?.filter(
             (s: MediaStream) => s.Type === "Subtitle",
-          ) ?? [];
+          ) ?? []),
+        ].sort(compareTracksForMenu);
 
         // Convert to Track[] with setTrack callbacks
         const tracks: Track[] = streams.map((stream) => ({

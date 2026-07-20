@@ -173,7 +173,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const protocol = api.basePath.includes("https") ? "wss" : "ws";
     const url = `${protocol}://${api.basePath
       .replace("https://", "")
-      .replace("http://", "")}/socket?api_key=${
+      .replace("http://", "")}/socket?ApiKey=${
       api.accessToken
     }&deviceId=${deviceId}`;
 

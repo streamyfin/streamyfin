@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useAtom } from "jotai";
 import { useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import Animated, {
   Easing,
@@ -36,6 +37,7 @@ export const PlayButton: React.FC<Props> = ({
   colors,
   ...props
 }: Props) => {
+  const { t } = useTranslation();
   const [globalColorAtom] = useAtom(itemThemeColorAtom);
 
   // Use colors prop if provided, otherwise fallback to global atom
@@ -168,8 +170,8 @@ export const PlayButton: React.FC<Props> = ({
 
   return (
     <TouchableOpacity
-      accessibilityLabel='Play button'
-      accessibilityHint='Tap to play the media'
+      accessibilityLabel={t("accessibility.play_button")}
+      accessibilityHint={t("accessibility.play_hint")}
       onPress={onPress}
       className={"relative"}
       {...props}

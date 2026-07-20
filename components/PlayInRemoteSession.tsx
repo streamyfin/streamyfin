@@ -6,6 +6,7 @@ import {
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { useAtomValue } from "jotai";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FlatList,
   Modal,
@@ -31,6 +32,7 @@ export const PlayInRemoteSessionButton: React.FC<Props> = ({
   const [modalVisible, setModalVisible] = useState(false);
   const api = useAtomValue(apiAtom);
   const { sessions, isLoading } = useAllSessions({} as useSessionsProps);
+  const { t } = useTranslation();
   const handlePlayInSession = async (sessionId: string) => {
     if (!api || !item.Id) return;
 
@@ -65,7 +67,9 @@ export const PlayInRemoteSessionButton: React.FC<Props> = ({
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Session</Text>
+              <Text style={styles.modalTitle}>
+                {t("home.sessions.select_session")}
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name='close' size={24} color='white' />
               </TouchableOpacity>
@@ -78,7 +82,7 @@ export const PlayInRemoteSessionButton: React.FC<Props> = ({
                 </View>
               ) : !sessions || sessions.length === 0 ? (
                 <Text style={styles.noSessionsText}>
-                  No active sessions found
+                  {t("home.sessions.no_active_sessions")}
                 </Text>
               ) : (
                 <FlatList
@@ -98,7 +102,7 @@ export const PlayInRemoteSessionButton: React.FC<Props> = ({
                         </Text>
                         {session.NowPlayingItem && (
                           <Text style={styles.nowPlaying} numberOfLines={1}>
-                            Now playing:{" "}
+                            {t("home.sessions.now_playing")}{" "}
                             {session.NowPlayingItem.SeriesName
                               ? `${session.NowPlayingItem.SeriesName} :`
                               : ""}

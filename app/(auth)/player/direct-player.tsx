@@ -27,6 +27,10 @@ import { Controls as TVControls } from "@/components/video-player/controls/Contr
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import {
+  LOCAL_SUBTITLE_INDEX_START,
+  toServerSubtitleIndex,
+} from "@/components/video-player/controls/types";
+import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
@@ -50,15 +54,16 @@ import { DownloadedItem } from "@/providers/Downloads/types";
 import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
-
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
+  applyMpvSubtitleSelection,
+  getExternalSubtitleUrl,
   getMpvAudioId,
-  getMpvSubtitleId,
+  isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
@@ -657,32 +662,20 @@ export default function DirectPlayerPage() {
     const mediaSource = stream.mediaSource;
     const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
 
-    // Get external subtitle URLs
-    // - Online: prepend API base path to server URLs
-    // - Offline: use local file paths (stored in DeliveryUrl during download)
-    let externalSubs: string[] | undefined;
-    if (!offline && api?.basePath) {
-      externalSubs = mediaSource?.MediaStreams?.filter(
-        (s) =>
-          s.Type === "Subtitle" &&
-          s.DeliveryMethod === "External" &&
-          s.DeliveryUrl,
-      ).map((s) => `${api.basePath}${s.DeliveryUrl}`);
-    } else if (offline) {
-      externalSubs = mediaSource?.MediaStreams?.filter(
-        (s) =>
-          s.Type === "Subtitle" &&
-          s.DeliveryMethod === "External" &&
-          s.DeliveryUrl,
-      ).map((s) => s.DeliveryUrl!);
-    }
+    // Get external subtitle URLs — getExternalSubtitleUrl is the shared source
+    // of truth with identity matching (online: basePath + DeliveryUrl unless
+    // IsExternalUrl; offline: local file path stored in DeliveryUrl).
+    const externalSubs = mediaSource?.MediaStreams?.filter(
+      (s) => s.Type === "Subtitle" && s.DeliveryMethod === "External",
+    )
+      .map((s) =>
+        getExternalSubtitleUrl(s, { offline, basePath: api?.basePath }),
+      )
+      .filter((u): u is string => !!u);
 
-    // Calculate track IDs for initial selection
-    const initialSubtitleId = getMpvSubtitleId(
-      mediaSource,
-      subtitleIndex,
-      isTranscoding,
-    );
+    // Audio maps positionally (audio tracks aren't reordered or hidden like
+    // subtitles). The subtitle selection is applied later, once MPV's real track
+    // list is known — see applySubtitleSelection / onTracksReady.
     const initialAudioId = getMpvAudioId(
       mediaSource,
       audioIndex,
@@ -700,7 +693,6 @@ export default function DirectPlayerPage() {
       url: stream.url,
       startPosition: startPos,
       autoplay: true,
-      initialSubtitleId,
       initialAudioId,
       // Pass cache/buffer settings from user preferences
       cacheConfig: {
@@ -748,7 +740,6 @@ export default function DirectPlayerPage() {
     playbackPositionFromUrl,
     api?.basePath,
     api?.accessToken,
-    subtitleIndex,
     audioIndex,
     offline,
     settings.mpvCacheEnabled,
@@ -938,7 +929,9 @@ export default function DirectPlayerPage() {
         const queryParams = new URLSearchParams({
           itemId: item?.Id ?? "",
           audioIndex: String(index),
-          subtitleIndex: String(currentSubtitleIndex),
+          // A local (client-downloaded) sub only exists in the dying mpv
+          // instance — the server must be asked for "none" (-1) instead.
+          subtitleIndex: String(toServerSubtitleIndex(currentSubtitleIndex)),
           mediaSourceId: stream?.mediaSource?.Id ?? "",
           bitrateValue: bitrateValue?.toString() ?? "",
           playbackPosition: msToTicks(progress.get()).toString(),
@@ -974,30 +967,103 @@ export default function DirectPlayerPage() {
   );
 
   // TV subtitle track change handler
+  /**
+   * Resolve a Jellyfin subtitle index against MPV's *real* track list and apply
+   * it. Identity-based (external by filename, embedded by language/title) so it
+   * stays correct across external/embedded reordering and server-hidden embedded
+   * subs — unlike positional mapping. Reused for initial selection (onTracksReady,
+   * fired again after each external sub-add) and runtime changes.
+   */
+  const applySubtitleSelection = useCallback(
+    async (jellyfinSubtitleIndex: number) => {
+      const subtitleStreams = stream?.mediaSource?.MediaStreams?.filter(
+        (s) => s.Type === "Subtitle",
+      );
+      return applyMpvSubtitleSelection(videoRef.current, {
+        subtitleStreams,
+        jellyfinSubtitleIndex,
+        getExpectedExternalUrl: (s) =>
+          getExternalSubtitleUrl(s, { offline, basePath: api?.basePath }),
+      });
+    },
+    [stream?.mediaSource, offline, api?.basePath],
+  );
+
+  // Re-negotiate the stream with new track params (server re-processes it,
+  // e.g. to burn an image sub in or out). Same-item mirror of VideoContext's
+  // replacePlayer, resuming at the live position.
+  const replaceWithTrackSelection = useCallback(
+    (params: { subtitleIndex?: string; audioIndex?: string }) => {
+      const queryParams = new URLSearchParams({
+        itemId: item?.Id ?? "",
+        audioIndex: params.audioIndex ?? String(currentAudioIndex ?? ""),
+        subtitleIndex:
+          params.subtitleIndex ??
+          String(toServerSubtitleIndex(currentSubtitleIndex)),
+        mediaSourceId: stream?.mediaSource?.Id ?? "",
+        bitrateValue: bitrateValue?.toString() ?? "",
+        playbackPosition: msToTicks(progress.get()).toString(),
+      }).toString();
+      // Destroy the current mpv instance before re-navigating, same rationale as
+      // goToNextItem: Expo Router briefly holds two players during the
+      // transition and two decoders/surfaces OOM-kill low-RAM devices.
+      videoRef.current?.destroy().catch(() => {});
+      router.replace(`player/direct-player?${queryParams}` as any);
+    },
+    [
+      item?.Id,
+      currentAudioIndex,
+      currentSubtitleIndex,
+      stream?.mediaSource?.Id,
+      bitrateValue,
+      router,
+      progress,
+    ],
+  );
+
+  // TV/mobile subtitle track change handler
   const handleSubtitleIndexChange = useCallback(
     async (index: number) => {
-      setCurrentSubtitleIndex(index);
+      // Local (client-downloaded) subs are loaded via addSubtitleFile, not
+      // resolvable against server streams — just track the live index.
+      if (index <= LOCAL_SUBTITLE_INDEX_START) {
+        setCurrentSubtitleIndex(index);
+        return;
+      }
 
-      // Check if we're transcoding
+      const subs = stream?.mediaSource?.MediaStreams?.filter(
+        (s) => s.Type === "Subtitle",
+      );
       const isTranscoding = Boolean(stream?.mediaSource?.TranscodingUrl);
+      const target = subs?.find((s) => s.Index === index);
+      const current = subs?.find((s) => s.Index === currentSubtitleIndex);
+      // Burned-in subs are pixels, not tracks: switching TO one and switching
+      // AWAY from an active one both need a server re-process (same guard as
+      // VideoContext's needsReplace on the mobile menu path).
+      const needsReplace =
+        isTranscoding &&
+        ((target && isImageBasedSubtitle(target)) ||
+          (current && isImageBasedSubtitle(current)));
+      if (needsReplace) {
+        replaceWithTrackSelection({ subtitleIndex: String(index) });
+        return;
+      }
 
-      if (index === -1) {
-        // Disable subtitles
-        await videoRef.current?.disableSubtitles?.();
-      } else {
-        // Convert Jellyfin index to MPV track ID
-        const mpvTrackId = getMpvSubtitleId(
-          stream?.mediaSource,
-          index,
-          isTranscoding,
-        );
-
-        if (mpvTrackId !== undefined && mpvTrackId !== -1) {
-          await videoRef.current?.setSubtitleTrack?.(mpvTrackId);
-        }
+      setCurrentSubtitleIndex(index);
+      const result = await applySubtitleSelection(index);
+      // Safety net: a menu-listed sub the player can't select (server-burned
+      // Encode, sidecar never sub-added) needs the server to re-process the
+      // stream with it.
+      if (result.kind === "notFound" || result.kind === "burnedIn") {
+        replaceWithTrackSelection({ subtitleIndex: String(index) });
       }
     },
-    [stream?.mediaSource],
+    [
+      applySubtitleSelection,
+      replaceWithTrackSelection,
+      stream?.mediaSource,
+      currentSubtitleIndex,
+    ],
   );
 
   // Technical info toggle handler
@@ -1116,6 +1182,10 @@ export default function DirectPlayerPage() {
         previousItem.UserData?.PlaybackPositionTicks?.toString() ?? "",
     }).toString();
 
+    // Free the current mpv instance before navigating, matching goToNextItem —
+    // otherwise two decoders/surfaces overlap during the transition and can
+    // OOM-kill low-RAM devices.
+    videoRef.current?.destroy().catch(() => {});
     router.replace(`player/direct-player?${queryParams}` as any);
   }, [
     previousItem,
@@ -1128,9 +1198,24 @@ export default function DirectPlayerPage() {
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
-  const addSubtitleFile = useCallback(async (path: string) => {
-    await videoRef.current?.addSubtitleFile?.(path, true);
-  }, []);
+  const addSubtitleFile = useCallback(
+    async (path: string) => {
+      // Set the live index to the new local sub's REAL index BEFORE the add.
+      // Local subs are keyed LOCAL_SUBTITLE_INDEX_START - position, so use the
+      // downloaded path's position (not a blanket sentinel, which would collide
+      // with the first local sub at -100 and mis-record the selection). Any
+      // local index resolves to notFound on the onTracksReady re-apply, so it
+      // still doesn't clobber the freshly selected track; carry-over now keeps
+      // the correct local sub.
+      const locals = itemId ? getSubtitlesForItem(itemId) : [];
+      const pos = locals.findIndex((s) => s.filePath === path);
+      setCurrentSubtitleIndex(
+        LOCAL_SUBTITLE_INDEX_START - (pos >= 0 ? pos : 0),
+      );
+      await videoRef.current?.addSubtitleFile?.(path, true);
+    },
+    [itemId],
+  );
 
   // TV: Refresh subtitle tracks after server-side subtitle download
   // Re-fetches the media source to pick up newly downloaded subtitles
@@ -1362,6 +1447,10 @@ export default function DirectPlayerPage() {
                 }}
                 onTracksReady={() => {
                   setTracksReady(true);
+                  // Fired after embedded tracks enumerate and again after each
+                  // external sub-add; re-resolve so the final fire (full track
+                  // list) selects the right track by identity.
+                  void applySubtitleSelection(currentSubtitleIndex);
                 }}
               />
               {!hasPlaybackStarted && (

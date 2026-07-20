@@ -28,7 +28,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@bottom-tabs/react-navigation": "1.2.0",
+    "@bottom-tabs/react-navigation": "1.4.0",
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~56.0.15",
     "@expo/react-native-action-sheet": "^4.1.1",
@@ -54,6 +54,7 @@
     "expo-brightness": "~56.0.5",
     "expo-build-properties": "~56.0.18",
     "expo-camera": "~56.0.8",
+    "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.18",
     "expo-crypto": "~56.0.4",
     "expo-dev-client": "~56.0.20",
@@ -61,6 +62,7 @@
     "expo-font": "~56.0.6",
     "expo-haptics": "~56.0.3",
     "expo-image": "~56.0.11",
+    "expo-key-event": "^1.9.0",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.14",
     "expo-localization": "~56.0.6",
@@ -85,7 +87,7 @@
     "react-i18next": "17.0.8",
     "react-native": "npm:react-native-tvos@0.85.3-0",
     "react-native-awesome-slider": "^2.9.0",
-    "react-native-bottom-tabs": "1.2.0",
+    "react-native-bottom-tabs": "1.4.0",
     "react-native-circular-progress": "^1.4.1",
     "react-native-collapsible": "^1.6.2",
     "react-native-country-flag": "^2.0.2",

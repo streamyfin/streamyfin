@@ -23,9 +23,11 @@ export const ListGroup: React.FC<PropsWithChildren<Props>> = ({
 
   return (
     <View {...props}>
-      <Text className='ml-4 mb-1 uppercase text-[#8E8D91] text-xs'>
-        {title}
-      </Text>
+      {title ? (
+        <Text className='ml-4 mb-1 uppercase text-[#8E8D91] text-xs'>
+          {title}
+        </Text>
+      ) : null}
       <View
         style={[]}
         className='flex flex-col rounded-xl overflow-hidden pl-0 bg-neutral-900'

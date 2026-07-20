@@ -12,6 +12,9 @@
     "login_button": "Log in",
     "quick_connect": "Quick Connect",
     "enter_code_to_login": "Enter code {{code}} to log in",
+    "quick_connect_instructions": "Enter this code on a signed-in device — you'll be logged in automatically.",
+    "tap_code_to_copy": "Tap the code to copy it",
+    "code_copied": "Code copied",
     "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
     "got_it": "Got it",
     "connection_failed": "Connection failed",
@@ -33,6 +36,7 @@
     "connect_button": "Connect",
     "previous_servers": "Previous servers",
     "clear_button": "Clear all",
+    "server_url": "Server URL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Search for local servers",
     "searching": "Searching...",
@@ -56,6 +60,7 @@
   "save_account": {
     "title": "Save account",
     "save_for_later": "Save this account",
+    "not_saved": "Account was not saved",
     "security_option": "Security option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -118,6 +123,7 @@
     },
     "settings": {
       "settings_title": "Settings",
+      "disabled_by_admin": "Disabled by admin",
       "log_out_button": "Log out",
       "switch_user": {
         "title": "Switch user",
@@ -178,7 +184,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to Wi-Fi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect the Wi-Fi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect the Wi-Fi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID hidden",
+        "location_off_description": "Connected to Wi-Fi, but the network name is hidden. Enable device Location services and grant the app location permission to detect it.",
+        "open_location_settings": "Open Location settings"
       },
       "user_info": {
         "user_info_title": "User info",
@@ -195,7 +204,8 @@
         "quick_connect_authorized": "Quick Connect authorized",
         "error": "Error",
         "invalid_code": "Invalid code",
-        "authorize": "Authorize"
+        "authorize": "Authorize",
+        "paste_code": "Paste code"
       },
       "media_controls": {
         "media_controls_title": "Media controls",
@@ -274,6 +284,10 @@
         "mpv_subtitle_margin_y": "Vertical margin",
         "mpv_subtitle_align_x": "Horizontal align",
         "mpv_subtitle_align_y": "Vertical align",
+        "mpv_settings_title": "MPV Subtitle Settings",
+        "mpv_settings_description": "Advanced subtitle customization for MPV player",
+        "opaque_background": "Opaque Background",
+        "background_opacity": "Background Opacity",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -375,6 +389,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Couldn't refresh settings from server",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh settings from server"
@@ -415,7 +430,9 @@
         "click_for_more_info": "Click for more info",
         "level": "Level",
         "no_logs_available": "No logs available",
-        "delete_all_logs": "Delete all logs"
+        "delete_all_logs": "Delete all logs",
+        "copy": "Copy",
+        "copied": "Copied to clipboard"
       },
       "languages": {
         "title": "Languages",
@@ -442,10 +459,13 @@
     },
     "sessions": {
       "title": "Sessions",
-      "no_active_sessions": "No active sessions"
+      "no_active_sessions": "No active sessions",
+      "select_session": "Select Session",
+      "now_playing": "Now playing:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "Transcoding",
       "series": "Series",
       "movies": "Movies",
       "other_media": "Other media",
@@ -501,6 +521,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
+    "open_menu": "Open Menu",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -618,7 +640,31 @@
   },
   "player": {
     "live": "LIVE",
+    "menu": {
+      "quality": "Quality",
+      "subtitles": "Subtitles",
+      "subtitle_scale": "Subtitle Scale",
+      "audio": "Audio",
+      "speed": "Speed",
+      "playback_options": "Playback Options",
+      "show_technical_info": "Show Technical Info",
+      "hide_technical_info": "Hide Technical Info"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Audio:",
+      "subtitle": "Subtitle:",
+      "bitrate": "Bitrate:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Dropped: {{count}} frames",
+      "loading": "Loading..."
+    },
     "mpv_player_title": "MPV player",
+    "aspect_ratio": "Aspect Ratio",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Hash Match",
+    "still_watching": "Are you still watching?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
@@ -718,6 +764,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "Next",
     "previous": "Previous",
     "coming_soon": "Coming soon",
@@ -789,7 +836,7 @@
     "request_selected": "Request selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",
       "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server url",
       "issue_submitted": "Issue submitted!",
@@ -802,6 +849,16 @@
       "failed_to_decline_request": "Failed to decline request"
     }
   },
+  "accessibility": {
+    "play_button": "Play button",
+    "play_hint": "Tap to play the media",
+    "toggle_orientation": "Toggle screen orientation",
+    "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
+  },
+  "not_found": {
+    "title": "This screen doesn't exist.",
+    "go_home": "Go to home screen!"
+  },
   "tabs": {
     "home": "Home",
     "search": "Search",
@@ -812,6 +869,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "No track playing",
+    "queue_empty": "Queue is empty",
+    "playing_from_queue": "Playing from queue",
+    "up_next": "Up next",
+    "now_playing": "Now Playing",
+    "missing_library_id": "Missing music library id.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
