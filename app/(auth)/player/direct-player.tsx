@@ -1040,7 +1040,11 @@ export default function DirectPlayerPage() {
   // e.g. to burn an image sub in or out). Same-item mirror of VideoContext's
   // replacePlayer, resuming at the live position.
   const replaceWithTrackSelection = useCallback(
-    (params: { subtitleIndex?: string; audioIndex?: string }) => {
+    (params: {
+      subtitleIndex?: string;
+      audioIndex?: string;
+      bitrateValue?: string;
+    }) => {
       const queryParams = new URLSearchParams({
         itemId: item?.Id ?? "",
         audioIndex: params.audioIndex ?? String(currentAudioIndex ?? ""),
@@ -1048,7 +1052,7 @@ export default function DirectPlayerPage() {
           params.subtitleIndex ??
           String(toServerSubtitleIndex(currentSubtitleIndex)),
         mediaSourceId: stream?.mediaSource?.Id ?? "",
-        bitrateValue: bitrateValue?.toString() ?? "",
+        bitrateValue: params.bitrateValue ?? bitrateValue?.toString() ?? "",
         playbackPosition: msToTicks(progress.get()).toString(),
       }).toString();
       // Destroy the current mpv instance before re-navigating, same rationale as
@@ -1066,6 +1070,16 @@ export default function DirectPlayerPage() {
       router,
       progress,
     ],
+  );
+
+  // TV quality (max bitrate) change handler. A bitrate change always requires
+  // re-negotiating the stream with the server, so it goes through the same
+  // player-replace path as track changes while transcoding.
+  const handleBitrateChange = useCallback(
+    (bitrate: number | undefined) => {
+      replaceWithTrackSelection({ bitrateValue: bitrate?.toString() ?? "" });
+    },
+    [replaceWithTrackSelection],
   );
 
   // TV/mobile subtitle track change handler
@@ -1539,6 +1553,7 @@ export default function DirectPlayerPage() {
                   subtitleIndex={currentSubtitleIndex}
                   onAudioIndexChange={handleAudioIndexChange}
                   onSubtitleIndexChange={handleSubtitleIndexChange}
+                  onBitrateChange={handleBitrateChange}
                   previousItem={previousItem}
                   nextItem={nextItem}
                   goToPreviousItem={goToPreviousItem}
