@@ -1,11 +1,11 @@
-import uuid from "react-native-uuid";
+import * as Crypto from "expo-crypto";
 import { storage } from "./mmkv";
 
 export const getOrSetDeviceId = () => {
   let deviceId = storage.getString("deviceId");
 
   if (!deviceId) {
-    deviceId = uuid.v4() as string;
+    deviceId = Crypto.randomUUID();
     storage.set("deviceId", deviceId);
   }
 

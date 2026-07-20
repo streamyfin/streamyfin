@@ -4,6 +4,7 @@ import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
+import * as Crypto from "expo-crypto";
 import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
@@ -21,7 +22,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { AppState, Platform } from "react-native";
 import { getDeviceNameSync } from "react-native-device-info";
-import uuid from "react-native-uuid";
 import { toast } from "sonner-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
@@ -877,7 +877,7 @@ export function getOrSetDeviceId(): string {
   let deviceId = storage.getString("deviceId");
 
   if (!deviceId) {
-    deviceId = uuid.v4() as string;
+    deviceId = Crypto.randomUUID();
     storage.set("deviceId", deviceId);
   }
 
