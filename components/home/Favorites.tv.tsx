@@ -16,6 +16,7 @@ import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrol
 import { Colors } from "@/constants/Colors";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { scaleSize } from "@/utils/scaleSize";
 
 const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
@@ -172,9 +173,9 @@ export const Favorites = ({
           >
             <Image
               style={{
-                width: 64,
-                height: 64,
-                marginBottom: 16,
+                width: scaleSize(64),
+                height: scaleSize(64),
+                marginBottom: scaleSize(16),
                 tintColor: Colors.primary,
               }}
               contentFit='contain'
