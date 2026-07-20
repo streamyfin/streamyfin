@@ -113,7 +113,7 @@
     "react-native-text-ticker": "^1.15.0",
     "react-native-track-player": "github:lovegaoshi/react-native-track-player#APM",
     "react-native-udp": "^4.1.7",
-    "react-native-url-polyfill": "^2.0.0",
+    "react-native-url-polyfill": "4.0.0",
     "react-native-uuid": "^2.0.3",
     "react-native-volume-manager": "^2.0.8",
     "react-native-web": "^0.21.0",
