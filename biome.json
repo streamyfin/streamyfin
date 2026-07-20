@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
   "files": {
     "includes": [
       "**/*",
@@ -11,7 +11,9 @@
       "!expo-env.d.ts",
       "!modules/**/android/build",
       "!.expo",
-      "!docs/jellyfin-openapi-stable.json"
+      "!docs/jellyfin-openapi-stable.json",
+      "!**/*.svg",
+      "!graphify-out"
     ]
   },
   "linter": {
@@ -26,7 +28,7 @@
       "complexity": {
         "noForEach": "off"
       },
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "useExhaustiveDependencies": "off"
       },
