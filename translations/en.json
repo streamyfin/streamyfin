@@ -639,6 +639,7 @@
       "audio": "Audio:",
       "subtitle": "Subtitle:",
       "bitrate": "Bitrate:",
+      "source_bitrate": "File:",
       "buffer_seconds": "Buffer: {{seconds}}s",
       "vo": "VO:",
       "dropped_frames": "Dropped: {{count}} frames",

@@ -1,4 +1,7 @@
-import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client";
+import type {
+  BaseItemDto,
+  MediaSourceInfo,
+} from "@jellyfin/sdk/lib/generated-client";
 import {
   type FC,
   memo,
@@ -30,9 +33,37 @@ interface TechnicalInfoOverlayProps {
   playMethod?: PlayMethod;
   transcodeReasons?: string[];
   mediaSource?: MediaSourceInfo | null;
+  item?: BaseItemDto | null;
   currentSubtitleIndex?: number;
   currentAudioIndex?: number;
 }
+
+/**
+ * Resolve the nominal bitrate of the source file (bits/sec).
+ *
+ * The streamed PlaybackInfo mediaSource doesn't always carry per-stream
+ * BitRate, so fall back to the original library item, which is probed and
+ * reliably populated. Preference order: video-stream bitrate first (matches the
+ * live measured value the overlay shows), then the whole-container bitrate.
+ */
+const getSourceBitrate = (
+  mediaSource?: MediaSourceInfo | null,
+  item?: BaseItemDto | null,
+): number | undefined => {
+  const videoBitrateOf = (source?: MediaSourceInfo | null) =>
+    source?.MediaStreams?.find((s) => s.Type === "Video")?.BitRate ?? undefined;
+
+  const itemSource =
+    item?.MediaSources?.find((s) => s.Id === mediaSource?.Id) ??
+    item?.MediaSources?.[0];
+
+  return (
+    videoBitrateOf(mediaSource) ??
+    videoBitrateOf(itemSource) ??
+    (mediaSource?.Bitrate || undefined) ??
+    (itemSource?.Bitrate || undefined)
+  );
+};
 
 const formatBitrate = (bitsPerSecond: number): string => {
   const mbps = bitsPerSecond / 1_000_000;
@@ -181,6 +212,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
     playMethod,
     transcodeReasons,
     mediaSource,
+    item,
     currentSubtitleIndex,
     currentAudioIndex,
   }) => {
@@ -222,8 +254,11 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
         audioCodecFromSource: audioStream?.Codec,
         subtitleCodec: subtitleStream?.Codec,
         subtitleTitle: subtitleStream?.DisplayTitle,
+        // Nominal bitrate of the source file. Unlike info.videoBitrate this does
+        // not fluctuate and reflects the original file even while transcoding.
+        sourceBitrate: getSourceBitrate(mediaSource, item),
       };
-    }, [mediaSource, currentAudioIndex, currentSubtitleIndex]);
+    }, [mediaSource, item, currentAudioIndex, currentSubtitleIndex]);
 
     // Animate visibility based on visible prop only (stays visible regardless of controls)
     useEffect(() => {
@@ -342,6 +377,12 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
                   : "N/A"}
             </Text>
           )}
+          {streamInfo?.sourceBitrate ? (
+            <Text style={textStyle}>
+              {t("player.technical_info.source_bitrate")}{" "}
+              {formatBitrate(streamInfo.sourceBitrate)}
+            </Text>
+          ) : null}
           {info?.cacheSeconds !== undefined && (
             <Text style={textStyle}>
               {t("player.technical_info.buffer_seconds", {
