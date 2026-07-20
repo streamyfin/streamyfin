@@ -104,7 +104,7 @@
     "react-native-nitro-modules": "0.33.1",
     "react-native-pager-view": "8.0.1",
     "react-native-qrcode-svg": "^6.3.21",
-    "react-native-reanimated": "4.3.1",
+    "react-native-reanimated": "4.5.2",
     "react-native-reanimated-carousel": "4.0.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
