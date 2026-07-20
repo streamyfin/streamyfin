@@ -4,7 +4,6 @@ import type { UserDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getUserApi } from "@jellyfin/sdk/lib/utils/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
-import * as Crypto from "expo-crypto";
 import { useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { atom, useAtom } from "jotai";
@@ -27,6 +26,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useSettings } from "@/utils/atoms/settings";
+import { getOrSetDeviceId } from "@/utils/device";
 import { writeErrorLog, writeInfoLog } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 import {
@@ -871,15 +871,4 @@ export function getUserFromStorage(): UserDto | null {
 
 export function getServerUrlFromStorage(): string | null {
   return storage.getString("serverUrl") || null;
-}
-
-export function getOrSetDeviceId(): string {
-  let deviceId = storage.getString("deviceId");
-
-  if (!deviceId) {
-    deviceId = Crypto.randomUUID();
-    storage.set("deviceId", deviceId);
-  }
-
-  return deviceId;
 }

@@ -2,13 +2,13 @@ import * as Crypto from "expo-crypto";
 import { storage } from "./mmkv";
 
 export const getOrSetDeviceId = () => {
-  let deviceId = storage.getString("deviceId");
-
-  if (!deviceId) {
-    deviceId = Crypto.randomUUID();
-    storage.set("deviceId", deviceId);
+  const existing = storage.getString("deviceId");
+  if (existing) {
+    return existing;
   }
 
+  const deviceId = Crypto.randomUUID();
+  storage.set("deviceId", deviceId);
   return deviceId;
 };
 
