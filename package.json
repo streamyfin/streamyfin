@@ -45,6 +45,7 @@
     "@tanstack/react-query": "5.100.14",
     "@tanstack/react-query-persist-client": "^5.100.14",
     "axios": "^1.7.9",
+    "eventemitter3": "^5.0.4",
     "expo": "~56.0.11",
     "expo-application": "~56.0.3",
     "expo-asset": "~56.0.17",
