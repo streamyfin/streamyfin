@@ -29,6 +29,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import {
   TVControlButton,
@@ -81,6 +82,7 @@ interface Props {
   subtitleIndex?: number;
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
+  onBitrateChange?: (bitrate: number | undefined) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
@@ -207,6 +209,7 @@ export const Controls: FC<Props> = ({
   subtitleIndex,
   onAudioIndexChange,
   onSubtitleIndexChange,
+  onBitrateChange,
   previousItem,
   nextItem: nextItemProp,
   goToPreviousItem,
@@ -255,7 +258,7 @@ export const Controls: FC<Props> = ({
   const { subtitleTracks: videoContextSubtitleTracks } = useVideoContext();
 
   // Track which button should have preferred focus when controls show
-  type LastModalType = "audio" | "subtitle" | "techInfo" | null;
+  type LastModalType = "audio" | "subtitle" | "quality" | "techInfo" | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
 
   // Track if play button should have focus (when showing controls via up/down D-pad)
@@ -302,6 +305,24 @@ export const Controls: FC<Props> = ({
       onAudioIndexChange?.(index);
     },
     [onAudioIndexChange],
+  );
+
+  // Quality options mirror the mobile menu: value is the max bitrate as a
+  // string, "" meaning Max (no limit) — same encoding as the bitrateValue
+  // route param, so selection matching is a plain string compare.
+  const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
+    return BITRATES.map((bitrate) => ({
+      label: bitrate.key,
+      value: bitrate.value?.toString() ?? "",
+      selected: (bitrateValue ?? "") === (bitrate.value?.toString() ?? ""),
+    }));
+  }, [bitrateValue]);
+
+  const handleBitrateChange = useCallback(
+    (value: string) => {
+      onBitrateChange?.(value ? Number.parseInt(value, 10) : undefined);
+    },
+    [onBitrateChange],
   );
 
   const _handleSubtitleChange = useCallback(
@@ -573,6 +594,19 @@ export const Controls: FC<Props> = ({
     });
     controlsInteractionRef.current();
   }, [showOptions, t, audioOptions, handleAudioChange]);
+
+  const handleOpenQualitySheet = useCallback(() => {
+    setLastOpenedModal("quality");
+    showOptions({
+      title: t("item_card.quality"),
+      options: bitrateOptions,
+      onSelect: handleBitrateChange,
+      // Changing quality replaces the player route (stream re-negotiation);
+      // apply it after the modal is dismissed so it isn't swallowed.
+      deferApplyUntilDismissed: true,
+    });
+    controlsInteractionRef.current();
+  }, [showOptions, t, bitrateOptions, handleBitrateChange]);
 
   const handleLocalSubtitleDownloaded = useCallback(
     (path: string) => {
@@ -1370,6 +1404,17 @@ export const Controls: FC<Props> = ({
             />
 
             <View style={styles.controlButtonsSpacer} />
+
+            {onBitrateChange && !offline && !isLiveTV && (
+              <TVControlButton
+                icon='speedometer'
+                onPress={handleOpenQualitySheet}
+                hasTVPreferredFocus={
+                  !isCountdownActive && lastOpenedModal === "quality"
+                }
+                size={24}
+              />
+            )}
 
             {audioOptions.length > 0 && (
               <TVControlButton
