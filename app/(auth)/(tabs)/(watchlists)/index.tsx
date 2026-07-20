@@ -14,9 +14,10 @@ import { StreamystatsWatchlists } from "@/components/watchlists/StreamystatsWatc
 import useRouter from "@/hooks/useAppRouter";
 import { useStreamystatsEnabled } from "@/hooks/useWatchlists";
 import { useSettings } from "@/utils/atoms/settings";
+import { scaleSize } from "@/utils/scaleSize";
 
-const TV_TOP_PADDING = 100;
-const TV_HORIZONTAL_PADDING = 60;
+const TV_TOP_PADDING = scaleSize(100);
+const TV_HORIZONTAL_PADDING = scaleSize(60);
 
 type WatchlistSource = "streamystats" | "kefin";
 
