@@ -2,6 +2,7 @@ import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models"
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { tc } from "@/utils/textTools";
 import { Text } from "./common/Text";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
@@ -22,7 +23,9 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   const [open, setOpen] = useState(false);
 
   const subtitleStreams = useMemo(() => {
-    return source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
+    const subs = source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
+    // Order like jellyfin-web (embedded first, externals last, forced/default up).
+    return subs ? [...subs].sort(compareTracksForMenu) : subs;
   }, [source]);
 
   const selectedSubtitleSteam = useMemo(

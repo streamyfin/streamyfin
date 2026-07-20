@@ -26,7 +26,7 @@ build:
     # skips JS + pod install; we install pods explicitly below with bun deps.
     - run:
         name: Prebuild (iOS/tvOS, bun)
-        command: bunx expo prebuild --platform ios --no-install
+        command: bun x expo prebuild --platform ios --no-install
 
     - run:
         name: Install CocoaPods
