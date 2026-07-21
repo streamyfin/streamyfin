@@ -598,11 +598,6 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipCreditButton={showSkipCreditButton}
-              hasContentAfterCredits={hasContentAfterCredits}
-              nextItem={nextItem}
-              handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
-              handleNextEpisodeManual={handleNextEpisodeManual}
               handleControlsInteraction={handleControlsInteraction}
               min={min}
               max={max}
@@ -619,15 +614,19 @@ export const Controls: FC<Props> = ({
               time={isSliding || showRemoteBubble ? time : remoteTime}
             />
           </Animated.View>
-          {/* Skip Intro / Skip Credits float independently of the controls so
-              they're visible (and tappable) without summoning the controls. */}
+          {/* Skip Intro / Skip Credits / Next Episode float independently of
+              the controls so they're visible (and tappable) without summoning
+              the controls. */}
           <SkipSegmentOverlay
             showSkipButton={showSkipButton}
             showSkipCreditButton={showSkipCreditButton}
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
+            remainingTime={remainingTime}
             skipIntro={skipIntro}
             skipCredit={skipCredit}
+            onNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
+            onNextEpisodeManual={handleNextEpisodeManual}
             controlsVisible={showControls}
           />
         </>

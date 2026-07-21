@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 
 interface Props {
@@ -16,8 +17,11 @@ interface Props {
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
   willShowNextEpisode: boolean;
+  remainingTime: number;
   skipIntro: () => void;
   skipCredit: () => void;
+  onNextEpisodeAutoPlay: () => void;
+  onNextEpisodeManual: () => void;
   controlsVisible: boolean;
 }
 
@@ -62,8 +66,11 @@ export const SkipSegmentOverlay: FC<Props> = ({
   showSkipCreditButton,
   hasContentAfterCredits,
   willShowNextEpisode,
+  remainingTime,
   skipIntro,
   skipCredit,
+  onNextEpisodeAutoPlay,
+  onNextEpisodeManual,
   controlsVisible,
 }) => {
   const insets = useControlsSafeAreaInsets();
@@ -71,7 +78,11 @@ export const SkipSegmentOverlay: FC<Props> = ({
 
   const showCredit =
     showSkipCreditButton && (hasContentAfterCredits || !willShowNextEpisode);
-  const visible = showSkipButton || showCredit;
+  const showNextEpisode =
+    willShowNextEpisode &&
+    ((showSkipCreditButton && !hasContentAfterCredits) ||
+      remainingTime < 10000);
+  const visible = showSkipButton || showCredit || showNextEpisode;
 
   // Drive each SkipButton with a lagged flag so it stays visible while the
   // opacity fade-out plays, instead of disappearing the instant its segment
@@ -112,6 +123,11 @@ export const SkipSegmentOverlay: FC<Props> = ({
         showButton={renderCredit}
         onPress={skipCredit}
         buttonText={t("player.skip_credits")}
+      />
+      <NextEpisodeCountDownButton
+        show={showNextEpisode}
+        onFinish={onNextEpisodeAutoPlay}
+        onPress={onNextEpisodeManual}
       />
     </Animated.View>
   );
