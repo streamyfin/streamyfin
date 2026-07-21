@@ -193,7 +193,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Pressable
               onPress={() => setChapterListVisible(true)}
               hitSlop={10}
-              className='justify-center ml-4'
+              className='justify-center ml-4 mt-9'
               accessibilityRole='button'
               accessibilityLabel={t("chapters.open")}
             >
