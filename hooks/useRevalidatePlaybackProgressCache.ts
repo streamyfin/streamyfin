@@ -34,14 +34,18 @@ export function useInvalidatePlaybackProgressCache() {
     const downloadedFiles = getDownloadedItems();
     // Sync playback state for downloaded items
     if (downloadedFiles) {
-      // We sync the playback state for the downloaded items
-      const syncResults = await Promise.all(
+      // We sync the playback state for the downloaded items. allSettled: one
+      // item failing to sync must not reject the whole batch (the callers
+      // fire-and-forget this promise).
+      const syncResults = await Promise.allSettled(
         downloadedFiles.map((downloadedItem) =>
           syncPlaybackState(downloadedItem.item.Id!),
         ),
       );
       // We invalidate the queries again in case we have updated a server's playback progress.
-      const shouldInvalidate = syncResults.some((result) => result);
+      const shouldInvalidate = syncResults.some(
+        (result) => result.status === "fulfilled" && result.value,
+      );
 
       console.log("shouldInvalidate", shouldInvalidate);
       if (shouldInvalidate) {

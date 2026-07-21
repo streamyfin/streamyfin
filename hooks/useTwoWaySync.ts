@@ -1,4 +1,5 @@
 import { getItemsApi, getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import { AxiosError } from "axios";
 import { useAtomValue } from "jotai";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "../providers/JellyfinProvider";
@@ -29,9 +30,22 @@ export const useTwoWaySync = () => {
     const localItem = getDownloadedItemById(itemId);
     if (!localItem) return false;
 
-    const remoteItem = (
-      await getUserLibraryApi(api).getItem({ itemId, userId: user.Id })
-    ).data;
+    let remoteItem: (typeof localItem)["item"];
+    try {
+      remoteItem = (
+        await getUserLibraryApi(api).getItem({ itemId, userId: user.Id })
+      ).data;
+    } catch (error) {
+      // A 404 means the item was deleted server-side while still downloaded
+      // locally — there is nothing to sync, not an error worth surfacing.
+      if (!(error instanceof AxiosError && error.response?.status === 404)) {
+        console.error(
+          "Failed to fetch remote item during syncPlaybackState:",
+          error,
+        );
+      }
+      return false;
+    }
     if (!remoteItem) return false;
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
