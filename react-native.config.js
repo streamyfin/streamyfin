@@ -32,10 +32,6 @@ const dependencies = {
   "expo-brightness": disableForTV("expo-brightness"),
   "expo-sensors": disableForTV("expo-sensors"),
   "expo-screen-orientation": disableForTV("expo-screen-orientation"),
-  "react-native-ios-context-menu": disableForTV(
-    "react-native-ios-context-menu",
-  ),
-  "react-native-ios-utilities": disableForTV("react-native-ios-utilities"),
   "react-native-pager-view": disableForTV("react-native-pager-view"),
   "react-native-track-player": disableForTV("react-native-track-player"),
   "expo-location": disableForTV("expo-location"),
