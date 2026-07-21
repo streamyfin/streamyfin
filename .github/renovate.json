@@ -14,7 +14,7 @@
     ":automergeBranch",
     ":automergeRequireAllStatusChecks"
   ],
-  "addLabels": ["dependencies"],
+  "addLabels": ["📦 dependencies"],
   "rebaseWhen": "conflicted",
   "ignorePaths": ["**/node_modules/**"],
   "ignoreUnstable": true,
@@ -56,7 +56,7 @@
   },
   "vulnerabilityAlerts": {
     "enabled": true,
-    "addLabels": ["security", "vulnerability"],
+    "addLabels": ["🚨 security"],
     "assigneesFromCodeOwners": true,
     "commitMessageSuffix": " [SECURITY]"
   },

@@ -42,7 +42,7 @@ const BODY = process.env.ISSUE_BODY || "";
 const THRESHOLD = numEnv("DUP_THRESHOLD", 0.3);
 const MAX = numEnv("DUP_MAX", 5);
 const DRY = !!process.env.DRY_RUN;
-const LABEL = "possible duplicate";
+const LABEL = "🔁 duplicate";
 const MARKER = "<!-- duplicate-detector -->";
 
 // Generic stop words only — keep domain/feature/platform words (android, downloads,
