@@ -113,6 +113,7 @@
   },
   "patchedDependencies": {
     "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
+    "@expo/ui@57.0.7": "patches/@expo%2Fui@57.0.7.patch",
   },
   "overrides": {
     "uuid": "11.1.1",
