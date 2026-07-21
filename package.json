@@ -129,7 +129,7 @@
     "@biomejs/biome": "2.5.4",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
-    "@types/jest": "29.5.14",
+    "@types/jest": "30.0.0",
     "@types/lodash": "4.17.24",
     "@types/node": "^24",
     "@types/react": "~19.2.10",
