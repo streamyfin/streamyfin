@@ -42,7 +42,7 @@ export const getPlaybackUrl = async (
     deviceId: api.deviceInfo?.id || "",
     ApiKey: api.accessToken || "",
     Tag: ETag || "",
-    MediaSourceId: Id || "",
+    MediaSourceId: Id,
   });
 
   return `/Videos/${Id}/stream?${queryParams}`;

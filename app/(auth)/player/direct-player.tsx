@@ -34,6 +34,7 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import { VideoPlayerView } from "@/components/video-player/VideoPlayerView";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -45,7 +46,6 @@ import {
   type MpvOnErrorEventPayload,
   type MpvOnPlaybackStateChangePayload,
   type MpvOnProgressEventPayload,
-  MpvPlayerView,
   type MpvPlayerViewRef,
   type MpvVideoSource,
 } from "@/modules";
@@ -55,7 +55,7 @@ import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
-import { useSettings } from "@/utils/atoms/settings";
+import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -401,7 +401,13 @@ export default function DirectPlayerPage() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: generateDeviceProfile(),
+            // Match the device profile to the player that will render the
+            // stream so the server picks a codec/container the player can
+            // actually decode.
+            deviceProfile: generateDeviceProfile({
+              player: getActivePlayerType(settings),
+              audioMode: settings.audioTranscodeMode,
+            }),
           });
           if (!res) return null;
           const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
@@ -1489,7 +1495,7 @@ export default function DirectPlayerPage() {
                 justifyContent: "center",
               }}
             >
-              <MpvPlayerView
+              <VideoPlayerView
                 ref={videoRef}
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}

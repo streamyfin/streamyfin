@@ -125,6 +125,14 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     private var currentUrl: String? = null
     private var currentHeaders: Map<String, String>? = null
     private var pendingExternalSubtitles: List<String> = emptyList()
+    // Persistent record of the external subtitle URLs attached to the
+    // current item. pendingExternalSubtitles above is a one-shot staging
+    // list: load() fills it and the FILE_LOADED handler drains it via
+    // sub-add, so it is always empty by the time a resume-recovery reload
+    // runs. This copy survives that drain so recoverVideoOutput() can hand
+    // the same sidecar URLs back to load() and the tracks re-attach after
+    // the decoder reset.
+    private var activeExternalSubtitles: List<String> = emptyList()
     private var initialSubtitleId: Int? = null
     private var initialAudioId: Int? = null
     
@@ -142,6 +150,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
      */
     private var voDriver: String = "gpu-next"
 
+    /**
+     * True on Android TV form-factor devices. Drives both the hwdec selection
+     * in [start] and the TV-only resume-recovery gating in [MpvPlayerView].
+     * Computed once from the system UI mode.
+     */
+    val isTv: Boolean = isTvDevice()
+
     fun start(voDriver: String = "gpu-next") {
         if (isRunning) return
 
@@ -151,13 +166,6 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             val mpv = MPVLib.create(context)
             this.mpv = mpv
             mpv.addObserver(this)
-
-            // Resolved once — TV gets the memory-pressure customizations
-            // (SCUDO_OPTIONS, hwdec/profile, demuxer-seekable-cache, larger
-            // audio-buffer) that would be counterproductive on higher-RAM
-            // mobile devices. Demuxer cache sizes are NOT included here —
-            // those come from user settings via load().
-            val isTV = isTvDevice()
 
             // mpv config directory — used by the config-dir option below and
             // as XDG_CONFIG_HOME for fontconfig.
@@ -212,7 +220,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             //  - Real phone: `mediacodec-copy` (broadest compatibility).
             when {
                 isEmulator() -> mpv?.setOptionString("hwdec", "no")
-                isTV -> {
+                isTv -> {
                     mpv?.setOptionString("hwdec", "mediacodec")
                     mpv?.setOptionString("profile", "fast")
                     // Don't retain already-played content for backward
@@ -270,6 +278,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         currentUrl = null
         currentHeaders = null
         pendingExternalSubtitles = emptyList()
+        activeExternalSubtitles = emptyList()
         initialSubtitleId = null
         initialAudioId = null
         cachedPosition = 0.0
@@ -377,18 +386,67 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
 
     /**
-     * Force mpv to render a frame to the current surface.
-     * Steps forward one frame then seeks back to the original position.
-     * Used after PiP entry to work around mpv stopping pixel output.
+     * Restore video after a system-initiated surface loss (Android TV
+     * screensaver / app background while paused). Triggered from the host
+     * activity's onResume via [MpvPlayerView.runResumeRecovery].
+     *
+     * On TV, `hwdec=mediacodec` (zero-copy) binds MediaCodec directly to the
+     * display surface. When the screensaver invalidates that surface, the
+     * decoder is left bound to dead buffers and mpv auto-disables the video
+     * track (vid=no). Re-attaching the surface + cycling hwdec + re-selecting
+     * vid + seeking rebuilds the pipeline but leaves the video chain at EOF
+     * ("video=eof" in playback-restart) — the recreated MediaCodec produces no
+     * frames. Only a fresh `loadfile` deterministically recreates the decoder
+     * against the live surface, so we reload at the cached position.
+     *
+     * This is the Android counterpart to iOS's `performDecoderReset()`, which
+     * can get away with a `hwdec` cycle because VideoToolbox reinitializes
+     * cleanly; zero-copy MediaCodec bound to a lost surface does not.
      */
-    fun forceRedraw() {
-        if (!isRunning) return
-        val pos = cachedPosition
-        Log.i(TAG, "[PiP] forceRedraw — stepping frame then seeking to $pos")
-        mpv?.command(arrayOf("frame-step"))
-        if (pos > 0) {
-            mpv?.command(arrayOf("seek", pos.toString(), "absolute"))
+    fun recoverVideoOutput(surface: Surface?) {
+        if (!isRunning) {
+            Log.w(TAG, "[Recover] recoverVideoOutput — renderer not running, skipping")
+            return
         }
+        val url = currentUrl ?: run {
+            Log.w(TAG, "[Recover] recoverVideoOutput — no URL loaded, skipping")
+            return
+        }
+
+        Log.i(
+            TAG,
+            "[Recover] reload recovery — pos=$cachedPosition, aid=${getCurrentAudioTrack()}, sid=${getCurrentSubtitleTrack()}"
+        )
+
+        // Re-attach the surface first (covers the case where the surface
+        // survived and surfaceCreated never fired). The reload below fully
+        // rebuilds the pipeline anyway, but this keeps the VO target current
+        // while the load is in flight.
+        surface?.takeIf { it.isValid }?.let { mpv?.attachSurface(it) }
+
+        // Preserve the user's current audio/subtitle selection across the
+        // reload — pass them INTO load() (not via the field: load() overwrites
+        // the initial IDs from its parameters). They're re-applied when
+        // FILE_LOADED fires. (0 / "no" means "off", which setSubtitleTrack /
+        // setAudioTrack handle correctly.)
+        val savedAid = getCurrentAudioTrack()
+        val savedSid = getCurrentSubtitleTrack()
+
+        // Full reload at the paused position. With keep-open=always +
+        // cache-pause-initial=yes, mpv seeks to the position and holds on the
+        // first decoded frame, so the paused frame reappears.
+        load(
+            url = url,
+            headers = currentHeaders,
+            startPosition = cachedPosition,
+            initialAudioId = savedAid,
+            initialSubtitleId = savedSid,
+            externalSubtitles = activeExternalSubtitles
+        )
+
+        // Hold the paused state explicitly — we only get here while paused,
+        // and load() doesn't touch the pause property.
+        pause()
     }
     
     fun load(
@@ -406,6 +464,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         currentUrl = url
         currentHeaders = headers
         pendingExternalSubtitles = externalSubtitles ?: emptyList()
+        activeExternalSubtitles = pendingExternalSubtitles
         this.initialSubtitleId = initialSubtitleId
         this.initialAudioId = initialAudioId
 
@@ -578,6 +637,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun addSubtitleFile(url: String, select: Boolean = true) {
         val flag = if (select) "select" else "cached"
         mpv?.command(arrayOf("sub-add", url, flag))
+        // Track runtime side-loads too, so they survive a resume-recovery
+        // reload just like external subs passed to load().
+        if (url.isNotEmpty() && url !in activeExternalSubtitles) {
+            activeExternalSubtitles = activeExternalSubtitles + url
+        }
     }
     
     // MARK: - Subtitle Positioning
