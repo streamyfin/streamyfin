@@ -182,14 +182,31 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            // isPlaying is false during STATE_BUFFERING even when the user
+            // hasn't paused, so derive isPaused from playWhenReady (the intent
+            // flag, which mirrors MPV's `pause` property) rather than from
+            // isPlaying — otherwise every rebuffer reports "paused".
             onPlaybackStateChange(mapOf(
                 "isPlaying" to isPlaying,
-                "isPaused" to !isPlaying
+                "isPaused" to (player?.playWhenReady == false)
             ))
         }
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // Authoritative source for pause intent: fires on pause/resume
+            // even while buffering, where onIsPlayingChanged does not (isPlaying
+            // stays false through a buffer stall). Mirrors MPV reporting the
+            // `pause` property.
+            onPlaybackStateChange(mapOf("isPaused" to !playWhenReady))
+        }
+
         override fun onPlayerErrorChanged(error: androidx.media3.common.PlaybackException?) {
-            val message = error?.message ?: "Unknown playback error"
+            // Fires with null when a previous error is cleared (e.g. a new
+            // prepare() from addSubtitleFile or a retry) — not an actual
+            // error. Sending "Unknown playback error" in that window would
+            // report a failure to JS while playback is recovering.
+            if (error == null) return
+            val message = error.message ?: "Unknown playback error"
             Log.e(TAG, "Player error: $message", error)
             onError(mapOf("error" to message))
         }
@@ -336,7 +353,11 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         }
 
         val builder = DefaultLoadControl.Builder()
-            .setTargetBufferBytes(if (!cacheEnabled) 0 else ((config.demuxerMaxBytes ?: 150) * 1024 * 1024))
+            // C.LENGTH_UNSET lets ExoPlayer auto-derive the byte target from the
+            // selected tracks. A literal 0 makes targetBufferSizeReached true on
+            // the first allocation (prioritizeTimeOverSizeThresholds is false),
+            // so loading halts with <500ms buffered and playback starves.
+            .setTargetBufferBytes(if (!cacheEnabled) C.LENGTH_UNSET else ((config.demuxerMaxBytes ?: 150) * 1024 * 1024))
             .setBufferDurationsMs(
                 /* minBufferMs = */ defaultMinBufferMs,
                 /* maxBufferMs = */ targetBufferMs,
@@ -479,7 +500,12 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     fun isPaused(): Boolean {
-        return player?.isPlaying == false
+        // Mirror MPV's intent-based `pause` property: playWhenReady is the
+        // "should be playing" flag and is unaffected by buffering, unlike
+        // isPlaying which is false during STATE_BUFFERING. Using isPlaying here
+        // reported paused during every rebuffer even though the user hadn't
+        // paused.
+        return player?.playWhenReady == false
     }
 
     fun getCurrentPosition(): Double {
@@ -581,7 +607,11 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSubtitleTrack(trackId: Int) {
         val p = player ?: return
         val entry = subtitleTrackList.firstOrNull { it.id == trackId } ?: return
-        val matchedGroup = p.currentTracks.groups[entry.trackGroupIndex].mediaTrackGroup
+        // entry.trackGroupIndex is from the last onTracksChanged snapshot;
+        // a MediaItem rebuild (e.g. addSubtitleFile) can shift/shrink the
+        // groups array before the next onTracksChanged refreshes it, so guard
+        // against an out-of-bounds index rather than crashing.
+        val matchedGroup = p.currentTracks.groups.getOrNull(entry.trackGroupIndex)?.mediaTrackGroup ?: return
 
         // setOverrideForType replaces any existing override of the same
         // track type — exactly what we want for single-track subtitle pickers.
@@ -784,7 +814,11 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setAudioTrack(trackId: Int) {
         val p = player ?: return
         val entry = audioTrackList.firstOrNull { it.id == trackId } ?: return
-        val matchedGroup = p.currentTracks.groups[entry.trackGroupIndex].mediaTrackGroup
+        // entry.trackGroupIndex is from the last onTracksChanged snapshot;
+        // a MediaItem rebuild (e.g. addSubtitleFile) can shift/shrink the
+        // groups array before the next onTracksChanged refreshes it, so guard
+        // against an out-of-bounds index rather than crashing.
+        val matchedGroup = p.currentTracks.groups.getOrNull(entry.trackGroupIndex)?.mediaTrackGroup ?: return
 
         val params = p.trackSelectionParameters.buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)

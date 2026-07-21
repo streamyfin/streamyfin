@@ -216,6 +216,19 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
           AudioCodec: "aac,mp3,ac3",
           MaxAudioChannels: maxChannelsForMode(audioMode),
         },
+        // Audio fallback for standalone audio items that can't direct play.
+        // Mirrors the MPV profile. MP3 over HTTP is well within Media3's
+        // bundled-extractor support; without a Type: Audio transcode target
+        // the server has nothing to fall back to for audio outside the
+        // DirectPlay audio list.
+        {
+          Type: MediaTypes.Audio,
+          Context: "Streaming",
+          Protocol: "http",
+          Container: "mp3",
+          AudioCodec: "mp3",
+          MaxAudioChannels: "2",
+        },
       ],
       // Text-only subtitles for direct play. PGS delivered as Encode
       // (burn-in) because Media3's PGS support is inconsistent.
