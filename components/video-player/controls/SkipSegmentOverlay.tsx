@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native";
 import Animated, {
   Easing,
@@ -66,6 +67,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
   controlsVisible,
 }) => {
   const insets = useControlsSafeAreaInsets();
+  const { t } = useTranslation();
 
   const showCredit =
     showSkipCreditButton && (hasContentAfterCredits || !willShowNextEpisode);
@@ -104,12 +106,12 @@ export const SkipSegmentOverlay: FC<Props> = ({
       <SkipButton
         showButton={renderSkip}
         onPress={skipIntro}
-        buttonText='Skip Intro'
+        buttonText={t("player.skip_intro")}
       />
       <SkipButton
         showButton={renderCredit}
         onPress={skipCredit}
-        buttonText='Skip Credits'
+        buttonText={t("player.skip_credits")}
       />
     </Animated.View>
   );
