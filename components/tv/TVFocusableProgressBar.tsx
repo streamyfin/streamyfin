@@ -32,6 +32,11 @@ export interface TVFocusableProgressBarProps {
   disabled?: boolean;
   /** Whether this component should receive initial focus */
   hasTVPreferredFocus?: boolean;
+  /**
+   * Whether the bar can receive TV focus. Defaults to true. Set to false
+   * while the controls are hidden so focus can't strand on the invisible bar.
+   */
+  focusable?: boolean;
   /** Optional style overrides */
   style?: ViewStyle;
 }
@@ -50,6 +55,7 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
       refSetter,
       disabled = false,
       hasTVPreferredFocus = false,
+      focusable = true,
       style,
     }) => {
       const { focused, handleFocus, handleBlur, animatedStyle } =
@@ -74,8 +80,8 @@ export const TVFocusableProgressBar: React.FC<TVFocusableProgressBarProps> =
           onFocus={handleFocus}
           onBlur={handleBlur}
           disabled={disabled}
-          focusable={!disabled}
-          hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+          focusable={focusable && !disabled}
+          hasTVPreferredFocus={hasTVPreferredFocus && !disabled && focusable}
           style={[styles.pressableContainer, style]}
         >
           <Animated.View

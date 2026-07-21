@@ -29,6 +29,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import {
   TVControlButton,
@@ -81,6 +82,7 @@ interface Props {
   subtitleIndex?: number;
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
+  onBitrateChange?: (bitrate: number | undefined) => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
@@ -207,6 +209,7 @@ export const Controls: FC<Props> = ({
   subtitleIndex,
   onAudioIndexChange,
   onSubtitleIndexChange,
+  onBitrateChange,
   previousItem,
   nextItem: nextItemProp,
   goToPreviousItem,
@@ -255,7 +258,7 @@ export const Controls: FC<Props> = ({
   const { subtitleTracks: videoContextSubtitleTracks } = useVideoContext();
 
   // Track which button should have preferred focus when controls show
-  type LastModalType = "audio" | "subtitle" | "techInfo" | null;
+  type LastModalType = "audio" | "subtitle" | "quality" | "techInfo" | null;
   const [lastOpenedModal, setLastOpenedModal] = useState<LastModalType>(null);
 
   // Track if play button should have focus (when showing controls via up/down D-pad)
@@ -264,8 +267,15 @@ export const Controls: FC<Props> = ({
   // Set when the user manually presses Skip Credits. Once set, the next-episode
   // countdown is allowed to appear but will NOT auto-fire — the user must select
   // it. Prevents a (possibly wrong) credit end timestamp from landing in the end
-  // zone and auto-advancing to the next episode. Resets on unmount.
+  // zone and auto-advancing to the next episode. Scoped to the current episode
+  // via the effect below so the flag never leaks across episodes.
   const [suppressAutoNextEpisode, setSuppressAutoNextEpisode] = useState(false);
+
+  // Reset the suppression flag when the episode changes, so a single credit
+  // skip never disables autoplay for subsequent episodes.
+  useEffect(() => {
+    setSuppressAutoNextEpisode(false);
+  }, [item?.Id]);
 
   // State for progress bar focus and focus guide refs
   const [isProgressBarFocused, setIsProgressBarFocused] = useState(false);
@@ -308,6 +318,24 @@ export const Controls: FC<Props> = ({
       onAudioIndexChange?.(index);
     },
     [onAudioIndexChange],
+  );
+
+  // Quality options mirror the mobile menu: value is the max bitrate as a
+  // string, "" meaning Max (no limit) — same encoding as the bitrateValue
+  // route param, so selection matching is a plain string compare.
+  const bitrateOptions: TVOptionItem<string>[] = useMemo(() => {
+    return BITRATES.map((bitrate) => ({
+      label: bitrate.key,
+      value: bitrate.value?.toString() ?? "",
+      selected: (bitrateValue ?? "") === (bitrate.value?.toString() ?? ""),
+    }));
+  }, [bitrateValue]);
+
+  const handleBitrateChange = useCallback(
+    (value: string) => {
+      onBitrateChange?.(value ? Number.parseInt(value, 10) : undefined);
+    },
+    [onBitrateChange],
   );
 
   const _handleSubtitleChange = useCallback(
@@ -579,6 +607,19 @@ export const Controls: FC<Props> = ({
     });
     controlsInteractionRef.current();
   }, [showOptions, t, audioOptions, handleAudioChange]);
+
+  const handleOpenQualitySheet = useCallback(() => {
+    setLastOpenedModal("quality");
+    showOptions({
+      title: t("item_card.quality"),
+      options: bitrateOptions,
+      onSelect: handleBitrateChange,
+      // Changing quality replaces the player route (stream re-negotiation);
+      // apply it after the modal is dismissed so it isn't swallowed.
+      deferApplyUntilDismissed: true,
+    });
+    controlsInteractionRef.current();
+  }, [showOptions, t, bitrateOptions, handleBitrateChange]);
 
   const handleLocalSubtitleDownloaded = useCallback(
     (path: string) => {
@@ -966,20 +1007,85 @@ export const Controls: FC<Props> = ({
   const hideControls = useCallback(() => {
     setShowControls(false);
     setFocusPlayButton(false);
+    // Reset so the next re-show focuses the play button. lastOpenedModal only
+    // exists to restore focus to the audio/subtitle/techInfo button right
+    // after returning from that sheet; once the controls have hidden, that
+    // moment has passed. Without this reset, the show-side focus effect below
+    // (gated on lastOpenedModal === null) would never fire again after a
+    // sheet was opened once, leaving focus stranded on the invisible overlay.
+    setLastOpenedModal(null);
   }, [setShowControls]);
 
   // When controls hide (and no skip/countdown overlay is visible), move focus
   // to the invisible overlay so hidden buttons can't receive select events.
+  // The control buttons are also made non-focusable while hidden (focusable=
+  // {showControls}), so the native focus engine can't strand focus on an
+  // invisible button — this just parks focus on a valid target.
+  // NOTE: must be requestTVFocus(), not focus() — on react-native-tvos,
+  // View.focus() is a silent no-op unless the enableImperativeFocus feature
+  // flag is set (it only dispatches for TextInputs by default).
+  // A single call races the fade-out/native focus engine and occasionally
+  // no-ops, so retry across a few frames until it takes.
   useEffect(() => {
     if (!showControls && !isSkipOrCountdownVisible) {
-      // Small delay to let the controls fade-out animation start and
-      // the focus engine settle before stealing focus
-      const t = setTimeout(() => {
-        focusOverlayRef.current?.focus();
-      }, 100);
-      return () => clearTimeout(t);
+      let raf = 0;
+      let attempts = 0;
+      const tryFocus = () => {
+        focusOverlayRef.current?.requestTVFocus();
+        attempts += 1;
+        // ~5 frames of retries; harmless since nothing else is focusable
+        // while the controls are hidden.
+        if (attempts < 5) {
+          raf = requestAnimationFrame(tryFocus);
+        }
+      };
+      const t = setTimeout(tryFocus, 50);
+      return () => {
+        clearTimeout(t);
+        if (raf) cancelAnimationFrame(raf);
+      };
     }
   }, [showControls, isSkipOrCountdownVisible]);
+
+  // When controls are (re)shown with the intent to focus the play button,
+  // explicitly move focus to it. `hasTVPreferredFocus` is only reliably
+  // honored on mount, and these buttons never unmount (they just toggle
+  // focusable), so toggling the prop true→false doesn't re-grab focus — the
+  // native engine otherwise leaves focus stranded on the invisible overlay.
+  // Mirror the hide-side steal (requestTVFocus, see note above) with the
+  // same frame-retry to beat the race.
+  useEffect(() => {
+    if (
+      showControls &&
+      focusPlayButton &&
+      !isCountdownActive &&
+      lastOpenedModal === null &&
+      !isSkipOrCountdownVisible &&
+      playButtonRef
+    ) {
+      let raf = 0;
+      let attempts = 0;
+      const tryFocus = () => {
+        playButtonRef.requestTVFocus();
+        attempts += 1;
+        if (attempts < 5) {
+          raf = requestAnimationFrame(tryFocus);
+        }
+      };
+      const t = setTimeout(tryFocus, 50);
+      return () => {
+        clearTimeout(t);
+        if (raf) cancelAnimationFrame(raf);
+      };
+    }
+  }, [
+    showControls,
+    focusPlayButton,
+    isCountdownActive,
+    lastOpenedModal,
+    isSkipOrCountdownVisible,
+    playButtonRef,
+  ]);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -1351,6 +1457,7 @@ export const Controls: FC<Props> = ({
               onPress={handlePreviousItem}
               disabled={!previousItem}
               size={28}
+              focusable={showControls}
             />
             {hasChapters && (
               <TVControlButton
@@ -1358,6 +1465,7 @@ export const Controls: FC<Props> = ({
                 onPress={goToPreviousChapter}
                 disabled={!hasPreviousChapter}
                 size={24}
+                focusable={showControls}
               />
             )}
             <TVControlButton
@@ -1365,6 +1473,7 @@ export const Controls: FC<Props> = ({
               onPress={handlePlayPauseButton}
               size={36}
               refSetter={setPlayButtonRef}
+              focusable={showControls}
               hasTVPreferredFocus={
                 !isCountdownActive &&
                 focusPlayButton &&
@@ -1377,6 +1486,7 @@ export const Controls: FC<Props> = ({
                 onPress={goToNextChapter}
                 disabled={!hasNextChapter}
                 size={24}
+                focusable={showControls}
               />
             )}
             <TVControlButton
@@ -1384,14 +1494,27 @@ export const Controls: FC<Props> = ({
               onPress={handleNextItemButton}
               disabled={!nextItem}
               size={28}
+              focusable={showControls}
             />
 
             <View style={styles.controlButtonsSpacer} />
+
+            {onBitrateChange && !offline && !isLiveTV && (
+              <TVControlButton
+                icon='speedometer'
+                onPress={handleOpenQualitySheet}
+                hasTVPreferredFocus={
+                  !isCountdownActive && lastOpenedModal === "quality"
+                }
+                size={24}
+              />
+            )}
 
             {audioOptions.length > 0 && (
               <TVControlButton
                 icon='volume-high'
                 onPress={handleOpenAudioSheet}
+                focusable={showControls}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "audio"
                 }
@@ -1402,6 +1525,7 @@ export const Controls: FC<Props> = ({
             <TVControlButton
               icon='text'
               onPress={handleOpenSubtitleSheet}
+              focusable={showControls}
               hasTVPreferredFocus={
                 !isCountdownActive && lastOpenedModal === "subtitle"
               }
@@ -1412,6 +1536,7 @@ export const Controls: FC<Props> = ({
               <TVControlButton
                 icon='code-slash'
                 onPress={handleToggleTechnicalInfo}
+                focusable={showControls}
                 hasTVPreferredFocus={
                   !isCountdownActive && lastOpenedModal === "techInfo"
                 }
@@ -1458,6 +1583,7 @@ export const Controls: FC<Props> = ({
               onFocus={() => setIsProgressBarFocused(true)}
               onBlur={() => setIsProgressBarFocused(false)}
               refSetter={setProgressBarRef}
+              focusable={showControls}
               hasTVPreferredFocus={false}
             />
           </TVFocusGuideView>

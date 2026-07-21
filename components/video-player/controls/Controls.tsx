@@ -115,9 +115,18 @@ export const Controls: FC<Props> = ({
   // Set when the user manually presses Skip Credits. Once set, the next-episode
   // countdown is allowed to appear but will NOT auto-fire — the user must tap
   // it. This prevents a (possibly wrong) credit end timestamp from landing in
-  // the end zone and auto-advancing to the next episode. Resets on unmount
-  // (navigation to the next episode or away).
+  // the end zone and auto-advancing to the next episode. Scoped to the current
+  // episode via the effect below — we can't rely on unmount because mobile
+  // next-episode navigation uses router.setParams, which keeps this mounted.
   const [suppressAutoNextEpisode, setSuppressAutoNextEpisode] = useState(false);
+
+  // Reset the suppression flag when the episode changes. Next-episode
+  // navigation uses router.setParams (no unmount), so without this the flag
+  // would leak forward and disable autoplay for every subsequent episode in the
+  // binge session after a single credit skip.
+  useEffect(() => {
+    setSuppressAutoNextEpisode(false);
+  }, [item?.Id]);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -378,7 +387,6 @@ export const Controls: FC<Props> = ({
     setSuppressAutoNextEpisode(true);
     skipCredit();
   }, [skipCredit]);
-
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
       if (!item || !settings) {
