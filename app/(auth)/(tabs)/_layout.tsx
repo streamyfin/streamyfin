@@ -151,7 +151,7 @@ export default function TabLayout() {
         tabBarStyle={{
           backgroundColor: "#121212",
         }}
-        tabBarActiveTintColor={Colors.primary}
+        tabBarActiveTintColor={Platform.isTV ? "#FFFFFF" : Colors.primary}
         activeIndicatorColor={"#392c3b"}
         scrollEdgeAppearance='default'
       >

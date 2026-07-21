@@ -631,6 +631,9 @@
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Shuffle",
+    "entire_series": "Entire Series",
+    "episode_count": "{{count}} episodes",
     "menu": {
       "quality": "Quality",
       "subtitles": "Subtitles",

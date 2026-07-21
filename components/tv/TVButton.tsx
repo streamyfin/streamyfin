@@ -28,10 +28,8 @@ const getButtonStyles = (
           ? "rgba(255, 255, 255, 0.25)"
           : "rgba(255, 255, 255, 0.1)",
         shadowColor: "#fff",
-        borderWidth: 1,
-        borderColor: focused
-          ? "rgba(255, 255, 255, 0.4)"
-          : "rgba(255, 255, 255, 0.15)",
+        borderWidth: 0,
+        borderColor: "transparent",
       };
     case "secondary":
       return {
@@ -39,14 +37,16 @@ const getButtonStyles = (
           ? "rgba(255, 255, 255, 0.3)"
           : "rgba(255, 255, 255, 0.15)",
         shadowColor: "#fff",
-        borderWidth: 2,
-        borderColor: focused ? "#fff" : "rgba(255, 255, 255, 0.2)",
+        borderWidth: 0,
+        borderColor: "transparent",
       };
     default:
+      // Solid, fully opaque fill — no border (the fill defines the shape).
+      // Focus feedback comes from the scale + shadow, not the background.
       return {
-        backgroundColor: focused ? "#ffffff" : "rgba(255, 255, 255, 0.9)",
+        backgroundColor: focused ? "#ffffff" : "rgba(235, 235, 235, 1)",
         shadowColor: "#fff",
-        borderWidth: 1,
+        borderWidth: 0,
         borderColor: "transparent",
       };
   }

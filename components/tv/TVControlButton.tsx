@@ -20,6 +20,12 @@ export interface TVControlButtonProps {
   delayLongPress?: number;
   /** Callback ref setter for focus guide destination pattern */
   refSetter?: (ref: View | null) => void;
+  /**
+   * Whether this button can receive TV focus. Defaults to true.
+   * Set to false while the controls are hidden so the native TV focus
+   * engine can't strand focus on an invisible (opacity 0) button.
+   */
+  focusable?: boolean;
 }
 
 export const TVControlButton: FC<TVControlButtonProps> = ({
@@ -32,6 +38,7 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
   size = 32,
   delayLongPress = 300,
   refSetter,
+  focusable = true,
 }) => {
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.15, duration: 120 });
@@ -46,8 +53,8 @@ export const TVControlButton: FC<TVControlButtonProps> = ({
       onFocus={handleFocus}
       onBlur={handleBlur}
       disabled={disabled}
-      focusable={!disabled}
-      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
+      focusable={focusable && !disabled}
+      hasTVPreferredFocus={hasTVPreferredFocus && !disabled && focusable}
     >
       <RNAnimated.View
         style={[
