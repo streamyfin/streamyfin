@@ -215,13 +215,10 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
       );
 
       return {
-        container: mediaSource.Container,
         videoRange: videoStream?.VideoRangeType,
         bitDepth: videoStream?.BitDepth,
         audioChannels: audioStream?.Channels,
-        audioCodecFromSource: audioStream?.Codec,
         subtitleCodec: subtitleStream?.Codec,
-        subtitleTitle: subtitleStream?.DisplayTitle,
       };
     }, [mediaSource, currentAudioIndex, currentSubtitleIndex]);
 
@@ -307,9 +304,14 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
             <Text style={textStyle}>
               {info.videoWidth}x{info.videoHeight}
               {streamInfo?.bitDepth ? ` ${streamInfo.bitDepth}bit` : ""}
-              {formatVideoRange(streamInfo?.videoRange)
-                ? ` ${formatVideoRange(streamInfo?.videoRange)}`
-                : ""}
+              {/* Prefer the player-reported HDR format (authoritative —
+                  what's actually being decoded) over Jellyfin metadata. */}
+              {info?.hdrFormat
+                ? ` ${info.hdrFormat}`
+                : (() => {
+                    const videoRange = formatVideoRange(streamInfo?.videoRange);
+                    return videoRange ? ` ${videoRange}` : "";
+                  })()}
             </Text>
           )}
           {info?.videoCodec && (
@@ -321,8 +323,17 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
           {info?.audioCodec && (
             <Text style={textStyle}>
               {t("player.technical_info.audio")} {formatCodec(info.audioCodec)}
-              {streamInfo?.audioChannels
-                ? ` ${formatAudioChannels(streamInfo.audioChannels)}`
+              {/* Prefer player-reported channel count; fall back to
+                  Jellyfin metadata for MPV which doesn't populate it. */}
+              {(() => {
+                const audioChannels =
+                  info.audioChannels ?? streamInfo?.audioChannels;
+                return audioChannels
+                  ? ` ${formatAudioChannels(audioChannels)}`
+                  : "";
+              })()}
+              {info.audioSampleRate
+                ? ` @ ${(info.audioSampleRate / 1000).toFixed(1)}kHz`
                 : ""}
             </Text>
           )}
@@ -342,6 +353,17 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
                   : "N/A"}
             </Text>
           )}
+          {(info?.colorSpace || info?.colorRange || info?.colorTransfer) && (
+            <Text style={textStyle}>
+              Color:{" "}
+              {[info.colorSpace, info.colorRange, info.colorTransfer]
+                .filter(Boolean)
+                .join(" / ")}
+            </Text>
+          )}
+          {info?.videoCodecs && (
+            <Text style={textStyle}>Codec tag: {info.videoCodecs}</Text>
+          )}
           {info?.cacheSeconds !== undefined && (
             <Text style={textStyle}>
               {t("player.technical_info.buffer_seconds", {
@@ -359,6 +381,12 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
             <Text style={textStyle}>
               {t("player.technical_info.vo")} {info.voDriver}
               {info.hwdec ? ` / ${info.hwdec}` : ""}
+            </Text>
+          )}
+          {info?.decoderName && (
+            <Text style={textStyle}>
+              Decoder: {info.decoderName}
+              {info.decoderType ? ` (${info.decoderType})` : ""}
             </Text>
           )}
           {info?.estimatedVfFps !== undefined && (

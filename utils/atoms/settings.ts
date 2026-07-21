@@ -171,10 +171,51 @@ export type HomeSectionLatestResolver = {
   includeItemTypes?: Array<BaseItemKind>;
 };
 
-// Video player enum - currently only MPV is supported
+// Video player enum. MPV is the universal default; ExoPlayer is an
+// opt-in alternative on Android TV, selectable via settings.videoPlayer.
 export enum VideoPlayer {
   MPV = 0,
+  ExoPlayer = 1,
 }
+
+/**
+ * Whether ExoPlayer's native module is available on the current platform.
+ * ExoPlayer only ships for Android TV; on any other platform a persisted
+ * `videoPlayer: ExoPlayer` preference (e.g. MMKV roaming) must fall back
+ * to MPV rather than crash on requireNativeView().
+ */
+export const isExoPlayerSupported =
+  Platform.OS === "android" && Platform.isTV === true;
+
+/**
+ * Resolve the actually-active video player for the current settings.
+ * MPV is the default on every platform; users can opt into ExoPlayer on
+ * Android TV via settings.videoPlayer. The Android-TV capability gate is
+ * folded in here so callers (VideoPlayerView, direct-player's device
+ * profile, PlaySettingsProvider) can never advertise ExoPlayer on a
+ * platform where MPV is actually rendering — that mismatch would let
+ * Jellyfin pick a stream for the wrong renderer.
+ */
+export const getActiveVideoPlayer = (
+  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+): VideoPlayer => {
+  if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
+    return VideoPlayer.ExoPlayer;
+  }
+  return VideoPlayer.MPV;
+};
+
+/**
+ * Same selection as getActiveVideoPlayer but returns the lowercase
+ * player-type identifier that `generateDeviceProfile` expects.
+ */
+export const getActivePlayerType = (
+  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+): "mpv" | "exoplayer" => {
+  return getActiveVideoPlayer(settings) === VideoPlayer.ExoPlayer
+    ? "exoplayer"
+    : "mpv";
+};
 
 // TV Typography scale presets
 export enum TVTypographyScale {
@@ -218,6 +259,8 @@ export type Settings = {
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
   searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
+  /** Video player backend. Defaults to MPV when unset (see getActiveVideoPlayer). */
+  videoPlayer?: VideoPlayer;
   marlinServerUrl?: string;
   streamyStatsServerUrl?: string;
   streamyStatsMovieRecommendations?: boolean;
@@ -318,6 +361,8 @@ export const defaultValues: Settings = {
   mediaListCollectionIds: [],
   preferedLanguage: undefined,
   searchEngine: "Jellyfin",
+  // videoPlayer intentionally undefined — resolved at runtime via
+  // getActiveVideoPlayer() so existing installs are unaffected.
   marlinServerUrl: "",
   streamyStatsServerUrl: "",
   streamyStatsMovieRecommendations: false,
