@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
@@ -18,6 +18,7 @@ import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
 import { itemThemeColorAtom } from "@/utils/atoms/primaryColor";
+import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { runtimeTicksToMinutes } from "@/utils/time";
 import type { Button } from "./Button";
 import type { SelectedOptions } from "./ItemContent";
@@ -44,6 +45,7 @@ export const PlayButton: React.FC<Props> = ({
   const effectiveColors = colors || globalColorAtom;
 
   const router = useRouter();
+  const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
 
   const startWidth = useSharedValue(0);
   const targetWidth = useSharedValue(0);
@@ -64,6 +66,9 @@ export const PlayButton: React.FC<Props> = ({
     if (!item) return;
 
     lightHapticFeedback();
+
+    // Starting a normal play cancels any active shuffle queue.
+    clearShuffleQueue(null);
 
     const queryParams = new URLSearchParams({
       itemId: item.Id!,
