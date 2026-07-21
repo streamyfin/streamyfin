@@ -41,7 +41,7 @@ export const formatTimeString = (
   t: number | null | undefined,
   unit: "s" | "ms" | "tick" = "ms",
 ): string => {
-  if (t === null || t === undefined) return "0:00";
+  if (t === null || t === undefined || !Number.isFinite(t)) return "0:00";
 
   let seconds: number;
   switch (unit) {

@@ -44,8 +44,10 @@ export interface TVNextEpisodeCountdownProps {
   playButtonRef?: RNView | null;
 }
 
-// Position constants
-const BOTTOM_WITH_CONTROLS = scaleSize(300);
+// Position constants — kept in sync with TVSkipSegmentCard (the two are
+// mutually exclusive). See TVSkipSegmentCard for the BOTTOM_WITH_CONTROLS
+// rationale (220 sits just above the controls bar; 300 floated too high).
+const BOTTOM_WITH_CONTROLS = scaleSize(220);
 const BOTTOM_WITHOUT_CONTROLS = scaleSize(120);
 
 export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
