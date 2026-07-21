@@ -18,11 +18,7 @@ import { DownloadProvider } from "@/providers/DownloadProvider";
 import { GlobalModalProvider } from "@/providers/GlobalModalProvider";
 import { InactivityProvider } from "@/providers/InactivityProvider";
 import { IntroSheetProvider } from "@/providers/IntroSheetProvider";
-import {
-  apiAtom,
-  getOrSetDeviceId,
-  JellyfinProvider,
-} from "@/providers/JellyfinProvider";
+import { apiAtom, JellyfinProvider } from "@/providers/JellyfinProvider";
 import { MusicPlayerProvider } from "@/providers/MusicPlayerProvider";
 import { NetworkStatusProvider } from "@/providers/NetworkStatusProvider";
 import { PlaySettingsProvider } from "@/providers/PlaySettingsProvider";
@@ -35,6 +31,7 @@ import {
   BACKGROUND_FETCH_TASK_SESSIONS,
   registerBackgroundFetchAsyncSessions,
 } from "@/utils/background-tasks";
+import { getOrSetDeviceId } from "@/utils/device";
 import {
   LogProvider,
   writeErrorLog,

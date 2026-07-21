@@ -7,7 +7,7 @@ import type React from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { Platform } from "react-native";
 import type { Bitrate } from "@/components/BitrateSelector";
-import { settingsAtom } from "@/utils/atoms/settings";
+import { getActivePlayerType, settingsAtom } from "@/utils/atoms/settings";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import { generateDeviceProfile } from "../utils/profiles/native";
 import { apiAtom, userAtom } from "./JellyfinProvider";
@@ -78,10 +78,11 @@ export const PlaySettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       try {
-        // Generate device profile for MPV player
+        // Match the device profile to the actually-active player so the
+        // server picks codecs/containers the player can decode.
         const native = generateDeviceProfile({
           platform: Platform.OS as "ios" | "android",
-          player: "mpv",
+          player: getActivePlayerType(settings),
           audioMode: settings.audioTranscodeMode,
         });
         const data = await getStreamUrl({
