@@ -13,6 +13,7 @@ interface Props extends ViewProps {
   fillColor?: "primary";
   color?: "white" | "purple";
   hapticFeedback?: boolean;
+  disabled?: boolean;
 }
 
 export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
@@ -24,6 +25,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   fillColor,
   color = "white",
   hapticFeedback = true,
+  disabled = false,
   ...viewProps
 }) => {
   const buttonSize = size === "large" ? "h-10 w-10" : "h-9 w-9";
@@ -31,6 +33,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   const lightHapticFeedback = useHaptic("light");
 
   const handlePress = () => {
+    if (disabled) return;
     if (hapticFeedback) {
       lightHapticFeedback();
     }
@@ -41,7 +44,8 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     return (
       <Pressable
         onPress={handlePress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        disabled={disabled}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass} ${disabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         {icon ? (
@@ -60,7 +64,8 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     return (
       <Pressable
         onPress={handlePress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        disabled={disabled}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass} ${disabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         {icon ? (
@@ -78,7 +83,8 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     return (
       <Pressable
         onPress={handlePress}
-        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        disabled={disabled}
+        className={`rounded-full ${buttonSize} flex items-center justify-center ${fillColorClass} ${disabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         {icon ? (
@@ -96,9 +102,10 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     return (
       <Pressable
         onPress={handlePress}
+        disabled={disabled}
         className={`rounded-full ${buttonSize} flex items-center justify-center ${
           fillColor ? fillColorClass : "bg-transparent"
-        }`}
+        } ${disabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         {icon ? (
@@ -113,10 +120,14 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     );
 
   return (
-    <Pressable onPress={handlePress} {...(viewProps as any)}>
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      {...(viewProps as any)}
+    >
       <BlurView
         intensity={90}
-        className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass}`}
+        className={`rounded-full overflow-hidden ${buttonSize} flex items-center justify-center ${fillColorClass} ${disabled ? "opacity-50" : ""}`}
         {...(viewProps as any)}
       >
         {icon ? (

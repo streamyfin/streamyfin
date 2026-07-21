@@ -33,6 +33,13 @@ interface Props extends ViewProps {
   onPressSeeAll?: () => void;
   enabled?: boolean;
   onLoaded?: () => void;
+  /**
+   * Reports emptiness whenever the query settles (incl. cache hits):
+   * `null` while loading (unknown), otherwise whether the list is empty.
+   * Lets a parent derive an aggregate empty-state reactively instead of via a
+   * queryFn side effect, which React Query skips when it serves cache.
+   */
+  onEmptyStateChange?: (isEmpty: boolean | null) => void;
 }
 
 export const InfiniteScrollingCollectionList: React.FC<Props> = ({
@@ -46,6 +53,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   onPressSeeAll,
   enabled = true,
   onLoaded,
+  onEmptyStateChange,
   ...props
 }) => {
   const effectivePageSize = Math.max(1, pageSize);
@@ -53,6 +61,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   const {
     data,
     isLoading,
+    isError,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -104,6 +113,17 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
     return deduped;
   }, [data]);
+
+  // Report emptiness on every settle (incl. cache hits). Errors report null
+  // (unknown) so a failed fetch never reads as "no content". Callback held in
+  // a ref so an inline parent callback doesn't retrigger the effect each render.
+  const onEmptyStateChangeRef = useRef(onEmptyStateChange);
+  onEmptyStateChangeRef.current = onEmptyStateChange;
+  useEffect(() => {
+    onEmptyStateChangeRef.current?.(
+      isLoading || isError ? null : allItems.length === 0,
+    );
+  }, [isLoading, isError, allItems.length]);
 
   const snapOffsets = useMemo(() => {
     const itemWidth = orientation === "horizontal" ? 184 : 120; // w-44 (176px) + mr-2 (8px) or w-28 (112px) + mr-2 (8px)

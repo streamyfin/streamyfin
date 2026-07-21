@@ -50,7 +50,7 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
@@ -894,6 +894,15 @@ export default function SettingsTV() {
             label={t("home.settings.appearance.theme_music")}
             value={settings.tvThemeMusicEnabled}
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
+          />
+
+          {/* Plugins Section */}
+          <TVSectionHeader title={t("home.settings.plugins.plugins_title")} />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.kefinTweaks.watchlist_enabler")}
+            value={settings.useKefinTweaks}
+            onToggle={(value) => updateSettings({ useKefinTweaks: value })}
+            disabled={pluginSettings?.useKefinTweaks?.locked === true}
           />
 
           {/* Storage Section */}

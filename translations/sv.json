@@ -862,6 +862,16 @@
       "date_created": "Datum skapad"
     }
   },
+  "kefintweaksWatchlist": {
+    "seeAllSeries": "Bevakade serier",
+    "seeAllMovies": "Bevakade filmer",
+    "seeAllEpisodes": "Bevakade avsnitt",
+    "seeAllVideos": "Bevakade videor",
+    "seeAllBoxsets": "Bevakade boxset",
+    "seeAllPlaylists": "Bevakade spellistor",
+    "noDataTitle": "Inga bevakade objekt än",
+    "noData": "Lägg till objekt i din bevakningslista för att se dem här."
+  },
   "watchlists": {
     "title": "Bevakningslistor",
     "my_watchlists": "Mina bevakningslistor",
@@ -905,7 +915,9 @@
     "remove_item_message": "Ta bort \"{{name}}\" från denna bevakningslista?",
     "loading": "Laddar bevakningslistor...",
     "no_compatible_watchlists": "Inga kompatibla bevakningslistor",
-    "create_one_first": "Skapa en bevakningslista som accepterar denna innehållstyp"
+    "create_one_first": "Skapa en bevakningslista som accepterar denna innehållstyp",
+    "source_streamystats": "Streamystats",
+    "source_kefintweaks": "Kefintweaks"
   },
   "playback_speed": {
     "title": "Uppspelningshastighet",

@@ -39,6 +39,7 @@ import {
   TVRefreshButton,
   TVSeriesNavigation,
   TVTechnicalDetails,
+  TVWatchlistButton,
 } from "@/components/tv";
 import {
   LOCAL_SUBTITLE_INDEX_START,
@@ -763,6 +764,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                   </Text>
                 </TVButton>
                 <TVFavoriteButton item={item} />
+                {settings.useKefinTweaks && <TVWatchlistButton item={item} />}
                 <TVPlayedButton item={item} />
                 <TVRefreshButton itemId={item.Id} />
               </View>

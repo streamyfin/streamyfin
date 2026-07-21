@@ -6,7 +6,7 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 import { useSegments } from "expo-router";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -43,6 +43,13 @@ interface Props extends ViewProps {
   isFirstSection?: boolean;
   onItemFocus?: (item: BaseItemDto) => void;
   parentId?: string;
+  /**
+   * Reports emptiness whenever the query settles (incl. cache hits):
+   * `null` while loading (unknown), otherwise whether the list is empty.
+   * Lets a parent derive an aggregate empty-state reactively instead of via a
+   * queryFn side effect, which React Query skips when it serves cache.
+   */
+  onEmptyStateChange?: (isEmpty: boolean | null) => void;
 }
 
 type Typography = ReturnType<typeof useScaledTVTypography>;
@@ -124,6 +131,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   isFirstSection = false,
   onItemFocus,
   parentId,
+  onEmptyStateChange,
   ...props
 }) => {
   const typography = useScaledTVTypography();
@@ -146,24 +154,30 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
     [onItemFocus],
   );
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: queryKey,
-      queryFn: ({ pageParam = 0, ...context }) =>
-        queryFn({ ...context, queryKey, pageParam }),
-      getNextPageParam: (lastPage, allPages) => {
-        if (lastPage.length < effectivePageSize) {
-          return undefined;
-        }
-        return allPages.reduce((acc, page) => acc + page.length, 0);
-      },
-      initialPageParam: 0,
-      staleTime: 60 * 1000,
-      refetchInterval: 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      enabled,
-    });
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKey,
+    queryFn: ({ pageParam = 0, ...context }) =>
+      queryFn({ ...context, queryKey, pageParam }),
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < effectivePageSize) {
+        return undefined;
+      }
+      return allPages.reduce((acc, page) => acc + page.length, 0);
+    },
+    initialPageParam: 0,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    enabled,
+  });
 
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -183,6 +197,17 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
 
     return deduped;
   }, [data]);
+
+  // Report emptiness on every settle (incl. cache hits). Errors report null
+  // (unknown) so a failed fetch never reads as "no content". Callback held in
+  // a ref so an inline parent callback doesn't retrigger the effect each render.
+  const onEmptyStateChangeRef = useRef(onEmptyStateChange);
+  onEmptyStateChangeRef.current = onEmptyStateChange;
+  useEffect(() => {
+    onEmptyStateChangeRef.current?.(
+      isLoading || isError ? null : allItems.length === 0,
+    );
+  }, [isLoading, isError, allItems.length]);
 
   const itemWidth =
     orientation === "horizontal" ? posterSizes.episode : posterSizes.poster;

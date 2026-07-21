@@ -13,7 +13,7 @@ export default function FavoritesPage() {
     setLoading(true);
     await invalidateCache();
     setLoading(false);
-  }, []);
+  }, [invalidateCache]);
   const insets = useSafeAreaInsets();
 
   if (Platform.isTV) {

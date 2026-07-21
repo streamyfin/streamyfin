@@ -1,19 +1,15 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
 import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
-import useRouter from "@/hooks/useAppRouter";
-import { useStreamystatsEnabled } from "@/hooks/useWatchlists";
 
 export default function WatchlistsLayout() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const streamystatsEnabled = useStreamystatsEnabled();
 
   return (
     <Stack>
+      {/* The create ("+") button is set from the index screen based on the
+          active source (Streamystats vs KefinTweaks); see index.tsx. */}
       <Stack.Screen
         name='index'
         options={{
@@ -22,18 +18,6 @@ export default function WatchlistsLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerRight: streamystatsEnabled
-            ? () => (
-                <Pressable
-                  onPress={() =>
-                    router.push("/(auth)/(tabs)/(watchlists)/create")
-                  }
-                  className='p-1.5'
-                >
-                  <Ionicons name='add' size={24} color='white' />
-                </Pressable>
-              )
-            : undefined,
         }}
       />
       <Stack.Screen

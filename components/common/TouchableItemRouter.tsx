@@ -11,8 +11,10 @@ import {
 import useRouter from "@/hooks/useAppRouter";
 import { useFavorite } from "@/hooks/useFavorite";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { useWatchlist } from "@/hooks/useWatchlist";
 import { useDownload } from "@/providers/DownloadProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import { useSettings } from "@/utils/atoms/settings";
 
 interface Props extends TouchableOpacityProps {
   item: BaseItemDto;
@@ -155,6 +157,8 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
   const { showActionSheetWithOptions } = useActionSheet();
   const markAsPlayedStatus = useMarkAsPlayed([item]);
   const { isFavorite, toggleFavorite } = useFavorite(item);
+  const { isWatchlisted, toggleWatchlist } = useWatchlist(item);
+  const { settings } = useSettings();
   const router = useRouter();
   const isOffline = useOfflineMode();
   const { deleteFile } = useDownload();
@@ -183,36 +187,66 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     )
       return;
 
-    const options: string[] = [
-      t("common.mark_as_played"),
-      t("common.mark_as_not_played"),
-      isFavorite
-        ? t("music.track_options.remove_from_favorites")
-        : t("music.track_options.add_to_favorites"),
-      ...(isOffline ? [t("home.downloads.delete_download")] : []),
-      t("common.cancel"),
+    // Build options as { label, action } so dynamic entries (watchlist,
+    // offline delete) don't break index-based handling.
+    const actions: {
+      label: string;
+      action: () => void;
+      destructive?: boolean;
+    }[] = [
+      {
+        label: t("common.mark_as_played"),
+        action: () => {
+          markAsPlayedStatus(true);
+        },
+      },
+      {
+        label: t("common.mark_as_not_played"),
+        action: () => {
+          markAsPlayedStatus(false);
+        },
+      },
+      {
+        label: isFavorite
+          ? t("music.track_options.remove_from_favorites")
+          : t("music.track_options.add_to_favorites"),
+        action: toggleFavorite,
+      },
     ];
+
+    if (settings?.useKefinTweaks) {
+      actions.push({
+        label: isWatchlisted
+          ? t("watchlists.remove_from_watchlist")
+          : t("watchlists.add_to_watchlist"),
+        action: toggleWatchlist,
+      });
+    }
+
+    if (isOffline && item.Id) {
+      const id = item.Id;
+      actions.push({
+        label: t("home.downloads.delete_download"),
+        action: () => deleteFile(id),
+        destructive: true,
+      });
+    }
+
+    const options = [...actions.map((a) => a.label), t("common.cancel")];
     const cancelButtonIndex = options.length - 1;
-    const destructiveButtonIndex = isOffline
-      ? cancelButtonIndex - 1
-      : undefined;
+    const destructiveButtonIndex = actions.findIndex((a) => a.destructive);
 
     showActionSheetWithOptions(
       {
         options,
         cancelButtonIndex,
-        destructiveButtonIndex,
+        destructiveButtonIndex:
+          destructiveButtonIndex === -1 ? undefined : destructiveButtonIndex,
       },
-      async (selectedIndex) => {
-        if (selectedIndex === 0) {
-          await markAsPlayedStatus(true);
-        } else if (selectedIndex === 1) {
-          await markAsPlayedStatus(false);
-        } else if (selectedIndex === 2) {
-          toggleFavorite();
-        } else if (isOffline && selectedIndex === 3 && item.Id) {
-          deleteFile(item.Id);
-        }
+      (selectedIndex) => {
+        if (selectedIndex === undefined || selectedIndex >= actions.length)
+          return;
+        actions[selectedIndex].action();
       },
     );
   }, [
@@ -220,6 +254,9 @@ export const TouchableItemRouter: React.FC<PropsWithChildren<Props>> = ({
     isFavorite,
     markAsPlayedStatus,
     toggleFavorite,
+    isWatchlisted,
+    toggleWatchlist,
+    settings?.useKefinTweaks,
     isOffline,
     deleteFile,
     item.Id,
