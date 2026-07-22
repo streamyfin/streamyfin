@@ -44,7 +44,7 @@ jobs:
               swap-storage: false
 
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -146,7 +146,7 @@ jobs:
               swap-storage: false
 
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -235,7 +235,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -308,7 +308,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -346,7 +346,7 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
-        run: bun run ios:unsigned-build ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+        run: bun run ios:unsigned-build
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -376,7 +376,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -447,7 +447,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -485,7 +485,7 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 1
-        run: bun run ios:unsigned-build:tv ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+        run: bun run ios:unsigned-build:tv
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV

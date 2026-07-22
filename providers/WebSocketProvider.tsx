@@ -13,8 +13,9 @@ import {
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
-import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { getOrSetDeviceId } from "@/utils/device";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
