@@ -13,15 +13,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  Pressable,
-  ScrollView,
-  TVFocusGuideView,
-  View,
-} from "react-native";
+import { Dimensions, ScrollView, TVFocusGuideView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
@@ -29,15 +21,19 @@ import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { seasonIndexAtom } from "@/components/series/SeasonPicker";
 import { TVEpisodeList } from "@/components/series/TVEpisodeList";
 import { TVSeriesHeader } from "@/components/series/TVSeriesHeader";
+import { TVButton } from "@/components/tv/TVButton";
 import { TVFavoriteButton } from "@/components/tv/TVFavoriteButton";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useShuffleQueue } from "@/hooks/useShuffleQueue";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSeriesSeasonModal } from "@/hooks/useTVSeriesSeasonModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
+import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { tvSeriesSeasonModalAtom } from "@/utils/atoms/tvSeriesSeasonModal";
 import {
   buildOfflineSeasons,
@@ -57,160 +53,6 @@ interface TVSeriesPageProps {
   isLoading?: boolean;
 }
 
-// Focusable button component for TV
-const TVFocusableButton: React.FC<{
-  onPress: () => void;
-  children: React.ReactNode;
-  hasTVPreferredFocus?: boolean;
-  disabled?: boolean;
-  variant?: "primary" | "secondary";
-  refSetter?: (ref: View | null) => void;
-}> = ({
-  onPress,
-  children,
-  hasTVPreferredFocus,
-  disabled = false,
-  variant = "primary",
-  refSetter,
-}) => {
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  const isPrimary = variant === "primary";
-
-  return (
-    <Pressable
-      ref={refSetter}
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      hasTVPreferredFocus={hasTVPreferredFocus && !disabled}
-      disabled={disabled}
-      focusable={!disabled}
-    >
-      <Animated.View
-        style={[
-          {
-            transform: [{ scale }],
-            shadowColor: isPrimary ? "#fff" : "#a855f7",
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: focused ? 0.6 : 0,
-            shadowRadius: focused ? 20 : 0,
-          },
-        ]}
-      >
-        <View
-          style={{
-            backgroundColor: focused
-              ? isPrimary
-                ? "#ffffff"
-                : "#7c3aed"
-              : isPrimary
-                ? "rgba(255, 255, 255, 0.9)"
-                : "rgba(124, 58, 237, 0.8)",
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: 32,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            minWidth: 180,
-          }}
-        >
-          {children}
-        </View>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
-// Season selector button
-const TVSeasonButton: React.FC<{
-  seasonName: string;
-  onPress: () => void;
-  disabled?: boolean;
-}> = ({ seasonName, onPress, disabled = false }) => {
-  const typography = useScaledTVTypography();
-  const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const animateTo = (v: number) =>
-    Animated.timing(scale, {
-      toValue: v,
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-        animateTo(1.05);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        animateTo(1);
-      }}
-      disabled={disabled}
-      focusable={!disabled}
-    >
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          shadowColor: "#fff",
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.6 : 0,
-          shadowRadius: focused ? 20 : 0,
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: focused ? "#fff" : "rgba(255,255,255,0.1)",
-            borderRadius: 12,
-            paddingVertical: 18,
-            paddingHorizontal: 32,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.callout,
-              color: focused ? "#000" : "#FFFFFF",
-              fontWeight: "bold",
-            }}
-          >
-            {seasonName}
-          </Text>
-          <Ionicons
-            name='chevron-down'
-            size={28}
-            color={focused ? "#000" : "#FFFFFF"}
-          />
-        </View>
-      </Animated.View>
-    </Pressable>
-  );
-};
-
 export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   item,
   allEpisodes = [],
@@ -228,6 +70,8 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
   const { getDownloadedItems, downloadedItems } = useDownload();
   const { showSeasonModal } = useTVSeriesSeasonModal();
   const { showItemActions } = useTVItemActionModal();
+  const { startShuffle } = useShuffleQueue();
+  const { showOptions } = useTVOptionModal();
   const seasonModalState = useAtomValue(tvSeriesSeasonModalAtom);
   const isSeasonModalVisible = seasonModalState !== null;
 
@@ -393,6 +237,60 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
     }
   }, [nextUnwatchedEpisode, from, router]);
 
+  // Handle shuffle: let the user pick the pool (current season vs the whole
+  // series) via an option sheet, then build a randomized queue and start
+  // playing the first entry. usePlaybackManager then walks the shuffled order.
+  const handleShuffle = useCallback(() => {
+    if (!item.Id || allEpisodes.length === 0) return;
+
+    // A single-season series has no "season vs series" distinction — shuffle
+    // the whole thing without prompting.
+    if (seasons.length <= 1) {
+      startShuffle(item.Id, allEpisodes, { isOffline });
+      return;
+    }
+
+    const options: TVOptionItem<"season" | "series">[] = [];
+    if (episodesForSeason.length > 0) {
+      options.push({
+        label: selectedSeasonName,
+        sublabel: t("player.episode_count", {
+          count: episodesForSeason.length,
+        }),
+        value: "season",
+        selected: false,
+      });
+    }
+    options.push({
+      label: t("player.entire_series"),
+      sublabel: t("player.episode_count", { count: allEpisodes.length }),
+      value: "series",
+      selected: false,
+    });
+
+    showOptions({
+      title: t("player.shuffle"),
+      options,
+      // onSelect navigates to the player, so run it after the sheet dismisses.
+      deferApplyUntilDismissed: true,
+      onSelect: (value: "season" | "series") => {
+        if (!item.Id) return;
+        const pool = value === "season" ? episodesForSeason : allEpisodes;
+        startShuffle(item.Id, pool, { isOffline });
+      },
+    });
+  }, [
+    item.Id,
+    allEpisodes,
+    episodesForSeason,
+    seasons.length,
+    selectedSeasonName,
+    isOffline,
+    startShuffle,
+    showOptions,
+    t,
+  ]);
+
   // Handle season selection
   const handleSeasonSelect = useCallback(
     (seasonIdx: number) => {
@@ -523,7 +421,7 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 marginTop: 32,
               }}
             >
-              <TVFocusableButton
+              <TVButton
                 onPress={handlePlayNextEpisode}
                 hasTVPreferredFocus={!isSeasonModalVisible}
                 disabled={isSeasonModalVisible}
@@ -545,14 +443,50 @@ export const TVSeriesPage: React.FC<TVSeriesPageProps> = ({
                 >
                   {playButtonText}
                 </Text>
-              </TVFocusableButton>
+              </TVButton>
 
               {seasons.length > 1 && (
-                <TVSeasonButton
-                  seasonName={selectedSeasonName}
+                <TVButton
                   onPress={handleOpenSeasonModal}
                   disabled={isSeasonModalVisible}
-                />
+                  variant='glass'
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.callout,
+                      fontWeight: "bold",
+                      color: "#FFFFFF",
+                      marginRight: 10,
+                    }}
+                  >
+                    {selectedSeasonName}
+                  </Text>
+                  <Ionicons name='chevron-down' size={28} color='#FFFFFF' />
+                </TVButton>
+              )}
+
+              {allEpisodes.length > 1 && (
+                <TVButton
+                  onPress={handleShuffle}
+                  disabled={isSeasonModalVisible}
+                  variant='primary'
+                >
+                  <Ionicons
+                    name='shuffle'
+                    size={28}
+                    color='#000000'
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: typography.callout,
+                      fontWeight: "bold",
+                      color: "#000000",
+                    }}
+                  >
+                    {t("player.shuffle")}
+                  </Text>
+                </TVButton>
               )}
 
               <TVFavoriteButton item={item} disabled={isSeasonModalVisible} />

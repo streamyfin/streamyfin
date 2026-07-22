@@ -82,8 +82,6 @@ export const useFilterOptions = () => {
         { key: FilterByOption.IsFavorite, value: "Is Favorite" },
         { key: FilterByOption.IsResumable, value: "Is Resumable" },
       ];
-  console.log("filterOptions");
-  console.log(filterOptions);
   return filterOptions;
 };
 

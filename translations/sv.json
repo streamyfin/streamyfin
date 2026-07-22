@@ -613,6 +613,9 @@
       "dropped_frames": "Tappade: {{count}} bildrutor",
       "loading": "Läser in..."
     },
+    "shuffle": "Blanda",
+    "entire_series": "Hela serien",
+    "episode_count": "{{count}} avsnitt",
     "mpv_player_title": "MPV Player",
     "error": "Fel",
     "failed_to_get_stream_url": "Kunde inte hämta stream-URL",

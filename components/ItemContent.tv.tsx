@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { File } from "expo-file-system";
 import { Image } from "expo-image";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -56,6 +56,7 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
+import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
@@ -162,9 +163,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       defaultMediaSource,
     ]);
 
+    const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
+
     const navigateToPlayer = useCallback(
       (playbackPosition: string) => {
         if (!item || !selectedOptions) return;
+
+        // Starting a normal play cancels any active shuffle queue so a stale
+        // queue can't hijack the next-episode order.
+        clearShuffleQueue(null);
 
         const queryParams = new URLSearchParams({
           itemId: item.Id!,
@@ -178,7 +185,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
         router.push(`/player/direct-player?${queryParams.toString()}`);
       },
-      [item, selectedOptions, isOffline, router],
+      [item, selectedOptions, isOffline, router, clearShuffleQueue],
     );
 
     const handlePlay = () => {

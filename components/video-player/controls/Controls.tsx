@@ -39,6 +39,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SkipSegmentOverlay } from "./SkipSegmentOverlay";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
@@ -355,6 +356,16 @@ export const Controls: FC<Props> = ({
       maxMs,
     );
 
+  // Whether the "Next Episode" countdown will actually be rendered. The Skip
+  // Credits button yields to it only when this is true; if autoplay is
+  // disabled or its episode limit is reached, Skip Credits must stay available
+  // (mirrors the NextEpisodeCountDownButton mount gate in BottomControls).
+  const willShowNextEpisode =
+    !!nextItem &&
+    settings.autoPlayNextEpisode !== false &&
+    (settings.maxAutoPlayEpisodeCount.value === -1 ||
+      settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
       if (!item || !settings) {
@@ -588,11 +599,8 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
               hasContentAfterCredits={hasContentAfterCredits}
-              skipIntro={skipIntro}
-              skipCredit={skipCredit}
               nextItem={nextItem}
               handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
               handleNextEpisodeManual={handleNextEpisodeManual}
@@ -612,6 +620,17 @@ export const Controls: FC<Props> = ({
               time={isSliding || showRemoteBubble ? time : remoteTime}
             />
           </Animated.View>
+          {/* Skip Intro / Skip Credits float independently of the controls so
+              they're visible (and tappable) without summoning the controls. */}
+          <SkipSegmentOverlay
+            showSkipButton={showSkipButton}
+            showSkipCreditButton={showSkipCreditButton}
+            hasContentAfterCredits={hasContentAfterCredits}
+            willShowNextEpisode={willShowNextEpisode}
+            skipIntro={skipIntro}
+            skipCredit={skipCredit}
+            controlsVisible={showControls}
+          />
         </>
       )}
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (

@@ -44,7 +44,7 @@ jobs:
               swap-storage: false
 
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -61,14 +61,14 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+            uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
             with:
               distribution: temurin
               java-version: "17"
 
       - parallel:
           - name: 💾 Cache Bun dependencies
-            uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
             with:
               path: ~/.bun/install/cache
               key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -76,7 +76,7 @@ jobs:
                 ${{ runner.os }}-${{ runner.arch }}-bun-
 
           - name: 💾 Cache Gradle global
-            uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
             with:
               path: |
                 ~/.gradle/caches/modules-2
@@ -94,7 +94,7 @@ jobs:
         run: bun run prebuild
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/.gradle
           key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -146,7 +146,7 @@ jobs:
               swap-storage: false
 
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -163,14 +163,14 @@ jobs:
             # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
             # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
             # fail). Pin Temurin 17 for a deterministic Android build.
-            uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+            uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
             with:
               distribution: temurin
               java-version: "17"
 
       - parallel:
           - name: 💾 Cache Bun dependencies
-            uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
             with:
               path: ~/.bun/install/cache
               key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -178,7 +178,7 @@ jobs:
                 ${{ runner.os }}-${{ runner.arch }}-bun-
 
           - name: 💾 Cache Gradle global
-            uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
             with:
               path: |
                 ~/.gradle/caches/modules-2
@@ -196,7 +196,7 @@ jobs:
         run: bun run prebuild:tv
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/.gradle
           key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -235,7 +235,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -262,7 +262,7 @@ jobs:
               eas-cache: true
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -308,7 +308,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -328,7 +328,7 @@ jobs:
               xcode-version: "26.6"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -346,7 +346,7 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
-        run: bun run ios:unsigned-build ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+        run: bun run ios:unsigned-build
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -376,7 +376,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -403,7 +403,7 @@ jobs:
               eas-cache: true
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -447,7 +447,7 @@ jobs:
     steps:
       - parallel:
           - name: 📥 Checkout code
-            uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             with:
               ref: ${{ github.event.pull_request.head.sha || github.sha }}
               fetch-depth: 0
@@ -467,7 +467,7 @@ jobs:
               xcode-version: "26.6"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -485,7 +485,7 @@ jobs:
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 1
-        run: bun run ios:unsigned-build:tv ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+        run: bun run ios:unsigned-build:tv
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
