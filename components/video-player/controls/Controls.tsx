@@ -5,7 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -26,6 +26,7 @@ import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { chapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
@@ -360,6 +361,13 @@ export const Controls: FC<Props> = ({
   // Credits button yields to it only when this is true; if autoplay is
   // disabled or its episode limit is reached, Skip Credits must stay available
   // (mirrors the NextEpisodeCountDownButton mount gate in BottomControls).
+  // Mirrors the bookmark-icon mount gate in BottomControls (>1 real markers)
+  // so the skip overlay only shifts left when the icon is actually shown.
+  const hasChapterMarkers = useMemo(
+    () => chapterMarkers(item.Chapters, maxMs).length > 1,
+    [item.Chapters, maxMs],
+  );
+
   const willShowNextEpisode =
     !!nextItem &&
     settings.autoPlayNextEpisode !== false &&
@@ -630,6 +638,7 @@ export const Controls: FC<Props> = ({
             skipIntro={skipIntro}
             skipCredit={skipCredit}
             controlsVisible={showControls}
+            hasChapters={hasChapterMarkers}
           />
         </>
       )}

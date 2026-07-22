@@ -19,6 +19,7 @@ interface Props {
   skipIntro: () => void;
   skipCredit: () => void;
   controlsVisible: boolean;
+  hasChapters?: boolean;
 }
 
 // Offsets are relative to the safe-area insets so they hold in both portrait
@@ -30,9 +31,12 @@ interface Props {
 //          of the chapters icon), while staying below the vertical volume
 //          slider which sits at the vertical middle of the screen.
 const HIDDEN_BOTTOM = 24;
-const HIDDEN_RIGHT = 12;
+const HIDDEN_RIGHT = 24;
 const VISIBLE_BOTTOM = 65;
 const VISIBLE_RIGHT = 42;
+// Extra left shift while the controls show the chapters icon in the bottom
+// right corner, so the buttons never crowd it.
+const CHAPTERS_CLEARANCE = 10;
 const ANIM_DURATION = 250;
 
 // Keeps `value` true for `duration` ms after it turns false. SkipButton hides
@@ -65,6 +69,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
   skipIntro,
   skipCredit,
   controlsVisible,
+  hasChapters,
 }) => {
   const insets = useControlsSafeAreaInsets();
   const { t } = useTranslation();
@@ -96,7 +101,11 @@ export const SkipSegmentOverlay: FC<Props> = ({
   // sweeps through an overlap zone while the controls toggle.
   const bottom =
     insets.bottom + (controlsVisible ? VISIBLE_BOTTOM : HIDDEN_BOTTOM);
-  const right = insets.right + (controlsVisible ? VISIBLE_RIGHT : HIDDEN_RIGHT);
+  const right =
+    insets.right +
+    (controlsVisible
+      ? VISIBLE_RIGHT + (hasChapters ? CHAPTERS_CLEARANCE : 0)
+      : HIDDEN_RIGHT);
 
   return (
     <Animated.View
