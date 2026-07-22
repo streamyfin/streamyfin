@@ -42,6 +42,16 @@ export function useInvalidatePlaybackProgressCache() {
           syncPlaybackState(downloadedItem.item.Id!),
         ),
       );
+      // syncPlaybackState handles its own errors and resolves to a boolean;
+      // a rejection here is an unexpected bug worth surfacing.
+      for (const result of syncResults) {
+        if (result.status === "rejected") {
+          console.error(
+            "Unexpected syncPlaybackState rejection:",
+            result.reason,
+          );
+        }
+      }
       // We invalidate the queries again in case we have updated a server's playback progress.
       const shouldInvalidate = syncResults.some(
         (result) => result.status === "fulfilled" && result.value,

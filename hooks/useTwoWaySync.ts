@@ -30,22 +30,26 @@ export const useTwoWaySync = () => {
     const localItem = getDownloadedItemById(itemId);
     if (!localItem) return false;
 
-    let remoteItem: (typeof localItem)["item"];
-    try {
-      remoteItem = (
-        await getUserLibraryApi(api).getItem({ itemId, userId: user.Id })
-      ).data;
-    } catch (error) {
-      // A 404 means the item was deleted server-side while still downloaded
-      // locally — there is nothing to sync, not an error worth surfacing.
-      if (!(error instanceof AxiosError && error.response?.status === 404)) {
-        console.error(
-          "Failed to fetch remote item during syncPlaybackState:",
-          error,
-        );
+    const fetchRemoteItem = async (): Promise<
+      (typeof localItem)["item"] | undefined
+    > => {
+      try {
+        return (
+          await getUserLibraryApi(api).getItem({ itemId, userId: user.Id })
+        ).data;
+      } catch (error) {
+        // A 404 means the item was deleted server-side while still downloaded
+        // locally, there is nothing to sync and no error worth surfacing.
+        if (!(error instanceof AxiosError && error.response?.status === 404)) {
+          console.error(
+            "Failed to fetch remote item during syncPlaybackState:",
+            error,
+          );
+        }
+        return undefined;
       }
-      return false;
-    }
+    };
+    const remoteItem = await fetchRemoteItem();
     if (!remoteItem) return false;
 
     const localLastPlayed = localItem.item.UserData?.LastPlayedDate
@@ -90,6 +94,9 @@ export const useTwoWaySync = () => {
           "Failed to update item user data during syncPlaybackState:",
           error,
         );
+        // The write never reached the server, so the caller must not treat
+        // this as a successful update.
+        return false;
       }
       return true;
     }
