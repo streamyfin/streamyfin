@@ -12,9 +12,7 @@ import { ChapterList } from "@/components/chapters/ChapterList";
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
-import { useSettings } from "@/utils/atoms/settings";
 import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
-import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
@@ -33,11 +31,6 @@ interface BottomControlsProps {
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  showSkipCreditButton: boolean;
-  hasContentAfterCredits: boolean;
-  nextItem?: BaseItemDto | null;
-  handleNextEpisodeAutoPlay: () => void;
-  handleNextEpisodeManual: () => void;
   handleControlsInteraction: () => void;
 
   // Slider props
@@ -82,11 +75,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showRemoteBubble,
   currentTime,
   remainingTime,
-  showSkipCreditButton,
-  hasContentAfterCredits,
-  nextItem,
-  handleNextEpisodeAutoPlay,
-  handleNextEpisodeManual,
   handleControlsInteraction,
   min,
   max,
@@ -102,7 +90,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickplayInfo,
   time,
 }) => {
-  const { settings } = useSettings();
   const { t } = useTranslation();
   const insets = useControlsSafeAreaInsets();
   const [chapterListVisible, setChapterListVisible] = useState(false);
@@ -173,22 +160,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
           ) : null}
         </View>
         <View className='flex flex-row items-end space-x-2 shrink-0 pr-2 pb-1'>
-          {settings.autoPlayNextEpisode !== false &&
-            (settings.maxAutoPlayEpisodeCount.value === -1 ||
-              settings.autoPlayEpisodeCount <
-                settings.maxAutoPlayEpisodeCount.value) && (
-              <NextEpisodeCountDownButton
-                show={
-                  !nextItem
-                    ? false
-                    : // Show during credits if no content after, OR near end of video
-                      (showSkipCreditButton && !hasContentAfterCredits) ||
-                      remainingTime < 10000
-                }
-                onFinish={handleNextEpisodeAutoPlay}
-                onPress={handleNextEpisodeManual}
-              />
-            )}
           {hasChapters && (
             <Pressable
               onPress={() => setChapterListVisible(true)}

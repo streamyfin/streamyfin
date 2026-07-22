@@ -357,10 +357,6 @@ export const Controls: FC<Props> = ({
       maxMs,
     );
 
-  // Whether the "Next Episode" countdown will actually be rendered. The Skip
-  // Credits button yields to it only when this is true; if autoplay is
-  // disabled or its episode limit is reached, Skip Credits must stay available
-  // (mirrors the NextEpisodeCountDownButton mount gate in BottomControls).
   // Mirrors the bookmark-icon mount gate in BottomControls (>1 real markers)
   // so the skip overlay only shifts left when the icon is actually shown.
   const hasChapterMarkers = useMemo(
@@ -368,11 +364,20 @@ export const Controls: FC<Props> = ({
     [item.Chapters, maxMs],
   );
 
+  // Whether the "Next Episode" countdown can be rendered at all. The Skip
+  // Credits button yields to it only when this is true; if autoplay is
+  // disabled or its episode limit is reached, Skip Credits must stay available.
   const willShowNextEpisode =
     !!nextItem &&
     settings.autoPlayNextEpisode !== false &&
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
       settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+
+  // Show during credits when nothing plays after them, or in the last seconds.
+  const showNextEpisode =
+    willShowNextEpisode &&
+    ((showSkipCreditButton && !hasContentAfterCredits) ||
+      remainingTime < 10000);
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -607,11 +612,6 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipCreditButton={showSkipCreditButton}
-              hasContentAfterCredits={hasContentAfterCredits}
-              nextItem={nextItem}
-              handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
-              handleNextEpisodeManual={handleNextEpisodeManual}
               handleControlsInteraction={handleControlsInteraction}
               min={min}
               max={max}
@@ -635,8 +635,11 @@ export const Controls: FC<Props> = ({
             showSkipCreditButton={showSkipCreditButton}
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
+            showNextEpisode={showNextEpisode}
             skipIntro={skipIntro}
             skipCredit={skipCredit}
+            onNextEpisodeFinish={handleNextEpisodeAutoPlay}
+            onNextEpisodePress={handleNextEpisodeManual}
             controlsVisible={showControls}
             hasChapters={hasChapterMarkers}
           />

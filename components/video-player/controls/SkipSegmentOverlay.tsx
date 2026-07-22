@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 
 interface Props {
@@ -16,8 +17,11 @@ interface Props {
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
   willShowNextEpisode: boolean;
+  showNextEpisode: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
+  onNextEpisodeFinish: () => void;
+  onNextEpisodePress: () => void;
   controlsVisible: boolean;
   hasChapters?: boolean;
 }
@@ -66,8 +70,11 @@ export const SkipSegmentOverlay: FC<Props> = ({
   showSkipCreditButton,
   hasContentAfterCredits,
   willShowNextEpisode,
+  showNextEpisode,
   skipIntro,
   skipCredit,
+  onNextEpisodeFinish,
+  onNextEpisodePress,
   controlsVisible,
   hasChapters,
 }) => {
@@ -76,7 +83,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
 
   const showCredit =
     showSkipCreditButton && (hasContentAfterCredits || !willShowNextEpisode);
-  const visible = showSkipButton || showCredit;
+  const visible = showSkipButton || showCredit || showNextEpisode;
 
   // Drive each SkipButton with a lagged flag so it stays visible while the
   // opacity fade-out plays, instead of disappearing the instant its segment
@@ -121,6 +128,13 @@ export const SkipSegmentOverlay: FC<Props> = ({
         showButton={renderCredit}
         onPress={skipCredit}
         buttonText={t("player.skip_credits")}
+      />
+      {/* Lives here (not in BottomControls) so it shares the skip buttons'
+          exact position and can never overlap them. */}
+      <NextEpisodeCountDownButton
+        show={showNextEpisode}
+        onFinish={onNextEpisodeFinish}
+        onPress={onNextEpisodePress}
       />
     </Animated.View>
   );
