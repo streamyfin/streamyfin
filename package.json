@@ -130,7 +130,7 @@
     "cross-env": "10.1.0",
     "expo-doctor": "1.20.1",
     "husky": "9.1.7",
-    "lint-staged": "17.1.0",
+    "lint-staged": "17.1.1",
     "tsx": "4.23.1",
     "typescript": "6.0.3"
   },
