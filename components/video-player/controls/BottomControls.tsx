@@ -102,7 +102,10 @@ export const BottomControls: FC<BottomControlsProps> = ({
     () => chapterMarkers(chapters, durationMs),
     [chapters, durationMs],
   );
-  const hasChapters = hasChapterMarkers(chapters, durationMs);
+  const hasChapters = useMemo(
+    () => hasChapterMarkers(chapters, durationMs),
+    [chapters, durationMs],
+  );
 
   // Current chapter name for the always-visible header label (live playback).
   const currentChapterName = useMemo(
