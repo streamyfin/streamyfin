@@ -369,7 +369,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             AppStoreUrl:
               "https://apps.apple.com/us/app/streamyfin/id6593660679",
             IconUrl:
-              "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
+              "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
             PlayableMediaTypes: ["Audio", "Video"],
             SupportedCommands: ["Play"],
             SupportsMediaControl: true,

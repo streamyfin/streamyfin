@@ -602,6 +602,17 @@
   },
   "player": {
     "live": "LIVE",
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Ljud:",
+      "subtitle": "Undertext:",
+      "bitrate": "Bithastighet:",
+      "source_bitrate": "Fil:",
+      "buffer_seconds": "Buffert: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Tappade: {{count}} bildrutor",
+      "loading": "Läser in..."
+    },
     "shuffle": "Blanda",
     "entire_series": "Hela serien",
     "episode_count": "{{count}} avsnitt",
