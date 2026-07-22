@@ -1,6 +1,5 @@
 # Dependencies and Package Managers
 node_modules/
-bun.lock
 bun.lockb
 package-lock.json
 
@@ -13,18 +12,12 @@ web-build/
 # Platform-specific Build Directories
 /ios
 /android
-/iostv
-/iosmobile
-/androidmobile
-/androidtv
 
 # Gradle caches (top-level + per-module native projects)
 **/.gradle/
 
-# Module-specific Builds
-modules/mpv-player/android/build
-modules/player/android
-modules/hls-downloader/android/build
+# Native module build outputs (any module)
+modules/*/android/build/
 
 # Generated Applications
 Streamyfin.app
@@ -69,10 +62,6 @@ certs/
 
 # Version and Backup Files
 /version-backup-*
-/modules/sf-player/android/build
-/modules/music-controls/android/build
-modules/background-downloader/android/build/*
-/modules/mpv-player/android/build
 
 # ios:unsigned-build Artifacts
 build/

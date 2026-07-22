@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, View } from "react-native";
-import { Switch } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -136,7 +136,7 @@ export default function MusicSettingsPage() {
             title={t("home.settings.music.prefer_downloaded")}
             disabled={pluginSettings?.preferLocalAudio?.locked}
           >
-            <Switch
+            <SettingSwitch
               value={settings.preferLocalAudio}
               disabled={pluginSettings?.preferLocalAudio?.locked}
               onValueChange={(value) =>
@@ -159,7 +159,7 @@ export default function MusicSettingsPage() {
               title={t("home.settings.music.lookahead_enabled")}
               disabled={pluginSettings?.audioLookaheadEnabled?.locked}
             >
-              <Switch
+              <SettingSwitch
                 value={settings.audioLookaheadEnabled}
                 disabled={pluginSettings?.audioLookaheadEnabled?.locked}
                 onValueChange={(value) =>
@@ -233,7 +233,7 @@ export default function MusicSettingsPage() {
                 })}
               />
             </ListGroup>
-            <ListGroup>
+            <ListGroup className='mt-4'>
               <ListItem
                 textColor='red'
                 onPress={onDeleteDownloadedSongsClicked}

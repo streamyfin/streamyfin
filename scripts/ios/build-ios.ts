@@ -302,7 +302,7 @@ function parseArgs(argv: string[]): BuildOptions {
         if (!configArg) {
           throw new Error("--configuration requires an argument");
         }
-        options.configuration = (configArg as "Debug" | "Release") || "Debug";
+        options.configuration = configArg as "Debug" | "Release";
         break;
       }
       case "--device":
@@ -997,10 +997,6 @@ async function waitForSimulatorBoot(
       }
     } catch {
       // Simulator not found or not booted yet, continue polling
-      if (pollIntervalMs > 1000) {
-        // Only log if we've been waiting a while to avoid spam
-        // console.warn("Simulator polling failed, retrying...");
-      }
     }
 
     // Wait before next poll

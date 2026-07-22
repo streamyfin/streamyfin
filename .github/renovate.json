@@ -24,15 +24,25 @@
   "commitMessagePrefix": "chore(deps):",
   "osvVulnerabilityAlerts": true,
   "configMigration": true,
-  "separateMinorPatch": true,
+  "separateMinorPatch": false,
+  "prConcurrentLimit": 8,
+  "prHourlyLimit": 4,
   "customManagers": [
     {
       "customType": "regex",
       "managerFilePatterns": ["/\\.ya?ml$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+xcode-version:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+[A-Za-z0-9._-]+:\\s*[\"']?(?<currentValue>[^\"'\\s]+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}loose{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the Bun version pinned in eas.json build profiles (strict JSON can't hold inline annotations)",
+      "managerFilePatterns": ["/(^|/)eas\\.json$/"],
+      "matchStrings": ["\"bun\"\\s*:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "bun"
     }
   ],
   "customDatasources": {
@@ -44,22 +54,94 @@
       ]
     }
   },
-  "lockFileMaintenance": {
-    "vulnerabilityAlerts": {
-      "enabled": true,
-      "addLabels": ["security", "vulnerability"],
-      "assigneesFromCodeOwners": true,
-      "commitMessageSuffix": " [SECURITY]"
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "addLabels": ["security", "vulnerability"],
+    "assigneesFromCodeOwners": true,
+    "commitMessageSuffix": " [SECURITY]"
+  },
+  "packageRules": [
+    {
+      "description": "Expo SDK coherence: expo, react, react-native (the react-native-tvos fork and its config plugin included) and Expo-managed modules are pinned by the Expo SDK and must move together (via `expo install --fix`), so do not raise individual update PRs — group them and require manual approval from the Dependency Dashboard",
+      "matchPackageNames": [
+        "expo",
+        "react",
+        "react-dom",
+        "react-native",
+        "react-native-tvos",
+        "react-native-web",
+        "expo-*",
+        "@expo/*",
+        "@react-native-tvos/*"
+      ],
+      "groupName": "Expo SDK",
+      "dependencyDashboardApproval": true
     },
-    "packageRules": [
-      {
-        "description": "Group minor and patch GitHub Action updates into a single PR",
-        "matchManagers": ["github-actions"],
-        "groupName": "CI dependencies",
-        "groupSlug": "ci-deps",
-        "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
-        "automerge": true
-      }
-    ]
-  }
+    {
+      "description": "react-native-reanimated and react-native-worklets follow a strict compatibility matrix (see reanimated docs) — bumping one without the other breaks every native build, so they always move in a single PR",
+      "matchPackageNames": ["react-native-reanimated", "react-native-worklets"],
+      "groupName": "reanimated + worklets"
+    },
+    {
+      "description": "react-native-mmkv >=4.2.0 hard-requires react-native-nitro-modules >=0.35.0 — bumping one without the other breaks the build, so they always move in a single PR",
+      "matchPackageNames": ["react-native-mmkv", "react-native-nitro-modules"],
+      "groupName": "mmkv + nitro-modules"
+    },
+    {
+      "description": "Major updates of native modules routinely break builds or need real migration work (e.g. gesture-handler v3 hook API) — hold them for manual approval from the Dependency Dashboard instead of leaving broken PRs open",
+      "matchUpdateTypes": ["major"],
+      "matchPackageNames": [
+        "react-native-gesture-handler",
+        "react-native-screens",
+        "react-native-safe-area-context",
+        "react-native-pager-view",
+        "react-native-svg",
+        "react-native-edge-to-edge",
+        "react-native-mmkv",
+        "react-native-nitro-modules",
+        "react-native-reanimated",
+        "react-native-worklets",
+        "react-native-udp",
+        "react-native-volume-manager",
+        "react-native-track-player",
+        "react-native-google-cast",
+        "react-native-bottom-tabs",
+        "react-native-device-info",
+        "@bottom-tabs/react-navigation",
+        "@gorhom/bottom-sheet",
+        "@shopify/flash-list",
+        "@react-native-community/netinfo",
+        "@react-navigation/*",
+        "sonner-native"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "nativewind 2.x / tailwindcss 3.x are frozen on purpose — v4 requires a full styling refactor and is explicitly out of scope (see issue #1831)",
+      "matchPackageNames": ["nativewind", "tailwindcss"],
+      "enabled": false
+    },
+    {
+      "description": "Low-risk dev tooling and type packages: automerge non-major updates once all status checks are green",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Group minor and patch GitHub Action updates into a single PR",
+      "matchManagers": ["github-actions"],
+      "groupName": "CI dependencies",
+      "groupSlug": "ci-deps",
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "automerge": true
+    },
+    {
+      "description": "androidx and other Google-hosted Maven packages resolve from Google's Maven repository (not Maven Central)",
+      "matchDatasources": ["maven"],
+      "registryUrls": [
+        "https://dl.google.com/dl/android/maven2/",
+        "https://repo.maven.apache.org/maven2/"
+      ]
+    }
+  ]
 }

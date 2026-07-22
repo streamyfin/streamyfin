@@ -77,7 +77,6 @@ export default function IndexLayout() {
           headerLeft: () => (
             <Pressable
               onPress={() => _router.back()}
-              className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />
@@ -162,7 +161,6 @@ export default function IndexLayout() {
           headerLeft: () => (
             <Pressable
               onPress={() => _router.back()}
-              className='pl-0.5'
               style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
             >
               <Feather name='chevron-left' size={28} color='white' />

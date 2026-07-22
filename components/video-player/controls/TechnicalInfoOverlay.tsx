@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -184,6 +185,7 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
     currentAudioIndex,
   }) => {
     const typography = useScaledTVTypography();
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const safeInsets = useControlsSafeAreaInsets();
     const [info, setInfo] = useState<TechnicalInfo | null>(null);
@@ -213,13 +215,10 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
       );
 
       return {
-        container: mediaSource.Container,
         videoRange: videoStream?.VideoRangeType,
         bitDepth: videoStream?.BitDepth,
         audioChannels: audioStream?.Channels,
-        audioCodecFromSource: audioStream?.Codec,
         subtitleCodec: subtitleStream?.Codec,
-        subtitleTitle: subtitleStream?.DisplayTitle,
       };
     }, [mediaSource, currentAudioIndex, currentSubtitleIndex]);
 
@@ -305,33 +304,48 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
             <Text style={textStyle}>
               {info.videoWidth}x{info.videoHeight}
               {streamInfo?.bitDepth ? ` ${streamInfo.bitDepth}bit` : ""}
-              {formatVideoRange(streamInfo?.videoRange)
-                ? ` ${formatVideoRange(streamInfo?.videoRange)}`
-                : ""}
+              {/* Prefer the player-reported HDR format (authoritative —
+                  what's actually being decoded) over Jellyfin metadata. */}
+              {info?.hdrFormat
+                ? ` ${info.hdrFormat}`
+                : (() => {
+                    const videoRange = formatVideoRange(streamInfo?.videoRange);
+                    return videoRange ? ` ${videoRange}` : "";
+                  })()}
             </Text>
           )}
           {info?.videoCodec && (
             <Text style={textStyle}>
-              Video: {formatCodec(info.videoCodec)}
+              {t("player.technical_info.video")} {formatCodec(info.videoCodec)}
               {info.fps ? ` @ ${formatFps(info.fps)} fps` : ""}
             </Text>
           )}
           {info?.audioCodec && (
             <Text style={textStyle}>
-              Audio: {formatCodec(info.audioCodec)}
-              {streamInfo?.audioChannels
-                ? ` ${formatAudioChannels(streamInfo.audioChannels)}`
+              {t("player.technical_info.audio")} {formatCodec(info.audioCodec)}
+              {/* Prefer player-reported channel count; fall back to
+                  Jellyfin metadata for MPV which doesn't populate it. */}
+              {(() => {
+                const audioChannels =
+                  info.audioChannels ?? streamInfo?.audioChannels;
+                return audioChannels
+                  ? ` ${formatAudioChannels(audioChannels)}`
+                  : "";
+              })()}
+              {info.audioSampleRate
+                ? ` @ ${(info.audioSampleRate / 1000).toFixed(1)}kHz`
                 : ""}
             </Text>
           )}
           {streamInfo?.subtitleCodec && (
             <Text style={textStyle}>
-              Subtitle: {formatCodec(streamInfo.subtitleCodec)}
+              {t("player.technical_info.subtitle")}{" "}
+              {formatCodec(streamInfo.subtitleCodec)}
             </Text>
           )}
           {(info?.videoBitrate || info?.audioBitrate) && (
             <Text style={textStyle}>
-              Bitrate:{" "}
+              {t("player.technical_info.bitrate")}{" "}
               {info.videoBitrate
                 ? formatBitrate(info.videoBitrate)
                 : info.audioBitrate
@@ -339,23 +353,58 @@ export const TechnicalInfoOverlay: FC<TechnicalInfoOverlayProps> = memo(
                   : "N/A"}
             </Text>
           )}
+          {(info?.colorSpace || info?.colorRange || info?.colorTransfer) && (
+            <Text style={textStyle}>
+              Color:{" "}
+              {[info.colorSpace, info.colorRange, info.colorTransfer]
+                .filter(Boolean)
+                .join(" / ")}
+            </Text>
+          )}
+          {info?.videoCodecs && (
+            <Text style={textStyle}>Codec tag: {info.videoCodecs}</Text>
+          )}
           {info?.cacheSeconds !== undefined && (
             <Text style={textStyle}>
-              Buffer: {info.cacheSeconds.toFixed(1)}s
+              {t("player.technical_info.buffer_seconds", {
+                seconds: info.cacheSeconds.toFixed(1),
+              })}
+              {info?.demuxerMaxBytes !== undefined
+                ? ` (cap ${info.demuxerMaxBytes}MB` +
+                  `${info.demuxerMaxBackBytes !== undefined ? ` / ${info.demuxerMaxBackBytes}MB back` : ""}` +
+                  `${info?.cacheSecsLimit !== undefined && info.cacheSecsLimit < 3600 ? ` · ${info.cacheSecsLimit.toFixed(0)}s` : ""}` +
+                  ")"
+                : ""}
             </Text>
           )}
           {info?.voDriver && (
             <Text style={textStyle}>
-              VO: {info.voDriver}
+              {t("player.technical_info.vo")} {info.voDriver}
               {info.hwdec ? ` / ${info.hwdec}` : ""}
+            </Text>
+          )}
+          {info?.decoderName && (
+            <Text style={textStyle}>
+              Decoder: {info.decoderName}
+              {info.decoderType ? ` (${info.decoderType})` : ""}
+            </Text>
+          )}
+          {info?.estimatedVfFps !== undefined && (
+            <Text style={textStyle}>
+              Output FPS: {info.estimatedVfFps.toFixed(2)}
+              {info?.fps ? ` (container ${formatFps(info.fps)})` : ""}
             </Text>
           )}
           {info?.droppedFrames !== undefined && info.droppedFrames > 0 && (
             <Text style={[textStyle, styles.warningText]}>
-              Dropped: {info.droppedFrames} frames
+              {t("player.technical_info.dropped_frames", {
+                count: info.droppedFrames,
+              })}
             </Text>
           )}
-          {!info && !playMethod && <Text style={textStyle}>Loading...</Text>}
+          {!info && !playMethod && (
+            <Text style={textStyle}>{t("player.technical_info.loading")}</Text>
+          )}
         </View>
       </Animated.View>
     );

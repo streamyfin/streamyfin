@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
@@ -88,6 +89,8 @@ export const TVSearchTabBadges: React.FC<TVSearchTabBadgesProps> = ({
   showDiscover,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
+
   if (!showDiscover) {
     return null;
   }
@@ -101,13 +104,13 @@ export const TVSearchTabBadges: React.FC<TVSearchTabBadgesProps> = ({
       }}
     >
       <TVSearchTabBadge
-        label='Library'
+        label={t("search.library")}
         isSelected={searchType === "Library"}
         onPress={() => setSearchType("Library")}
         disabled={disabled}
       />
       <TVSearchTabBadge
-        label='Discover'
+        label={t("search.discover")}
         isSelected={searchType === "Discover"}
         onPress={() => setSearchType("Discover")}
         disabled={disabled}

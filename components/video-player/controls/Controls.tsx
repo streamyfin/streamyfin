@@ -3,9 +3,10 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
+import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
 import { type FC, useCallback, useEffect, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
   type SharedValue,
@@ -36,6 +37,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SkipSegmentOverlay } from "./SkipSegmentOverlay";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
 import { PlaybackSpeedScope } from "./utils/playback-speed-settings";
@@ -201,6 +203,22 @@ export const Controls: FC<Props> = ({
     play,
   });
 
+  useKeyEventListener((e) => {
+    if (episodeView || showAudioSlider) return;
+    if (e?.eventType !== "press") return;
+    const key = e.key;
+
+    if (key === " " || key === "Spacebar" || key === "Space") {
+      togglePlay();
+    } else if (!Platform.isTV && key === "ArrowLeft") {
+      // Exclude TV platforms to prevent conflicts with the remote control,
+      // which uses the same arrow keys for directional UI navigation.
+      handleSkipBackward();
+    } else if (!Platform.isTV && key === "ArrowRight") {
+      handleSkipForward();
+    }
+  });
+
   // Time management hook
   const { currentTime, remainingTime } = useVideoTime({
     progress,
@@ -356,6 +374,16 @@ export const Controls: FC<Props> = ({
     bitrateValue: bitrateValue ? Number.parseInt(bitrateValue, 10) : undefined,
   });
 
+  // Whether the "Next Episode" countdown will actually be rendered. The Skip
+  // Credits button yields to it only when this is true; if autoplay is
+  // disabled or its episode limit is reached, Skip Credits must stay available
+  // (mirrors the NextEpisodeCountDownButton mount gate in BottomControls).
+  const willShowNextEpisode =
+    !!nextItem &&
+    settings.autoPlayNextEpisode !== false &&
+    (settings.maxAutoPlayEpisodeCount.value === -1 ||
+      settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+
   const hideControls = useCallback(() => {
     setShowControls(false);
     setShowAudioSlider(false);
@@ -463,11 +491,8 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipButton={showSkipButton}
               showSkipCreditButton={showSkipCreditButton}
               hasContentAfterCredits={hasContentAfterCredits}
-              skipIntro={skipIntro}
-              skipCredit={skipCredit}
               nextItem={nextItem}
               handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
               handleNextEpisodeManual={handleNextEpisodeManual}
@@ -487,6 +512,17 @@ export const Controls: FC<Props> = ({
               time={isSliding || showRemoteBubble ? time : remoteTime}
             />
           </Animated.View>
+          {/* Skip Intro / Skip Credits float independently of the controls so
+              they're visible (and tappable) without summoning the controls. */}
+          <SkipSegmentOverlay
+            showSkipButton={showSkipButton}
+            showSkipCreditButton={showSkipCreditButton}
+            hasContentAfterCredits={hasContentAfterCredits}
+            willShowNextEpisode={willShowNextEpisode}
+            skipIntro={skipIntro}
+            skipCredit={skipCredit}
+            controlsVisible={showControls}
+          />
         </>
       )}
       {settings.maxAutoPlayEpisodeCount.value !== -1 && (

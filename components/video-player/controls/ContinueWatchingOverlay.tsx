@@ -25,7 +25,7 @@ const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
       }
     >
       <Text className='text-2xl font-bold text-white py-4 '>
-        Are you still watching ?
+        {t("player.still_watching")}
       </Text>
       <Button onPress={onContinue} color={"purple"} className='my-4 w-2/3'>
         {t("player.continue_watching")}

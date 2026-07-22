@@ -14,6 +14,7 @@ interface ShowSubtitleModalParams {
   onServerSubtitleDownloaded?: () => void;
   onLocalSubtitleDownloaded?: (path: string) => void;
   refreshSubtitleTracks?: () => Promise<Track[]>;
+  deferApplyUntilDismissed?: boolean;
 }
 
 export const useTVSubtitleModal = () => {
@@ -30,6 +31,7 @@ export const useTVSubtitleModal = () => {
         onServerSubtitleDownloaded: params.onServerSubtitleDownloaded,
         onLocalSubtitleDownloaded: params.onLocalSubtitleDownloaded,
         refreshSubtitleTracks: params.refreshSubtitleTracks,
+        deferApplyUntilDismissed: params.deferApplyUntilDismissed,
       });
       router.push("/(auth)/tv-subtitle-modal");
     },

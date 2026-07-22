@@ -53,5 +53,5 @@ android {
 
 dependencies {
   // libmpv from Maven Central
-  implementation 'dev.jdtech.mpv:libmpv:0.5.1'
+  implementation 'dev.jdtech.mpv:libmpv:1.0.0'
 }

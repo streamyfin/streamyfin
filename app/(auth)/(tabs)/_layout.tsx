@@ -3,16 +3,24 @@ import {
   type NativeBottomTabNavigationEventMap,
   type NativeBottomTabNavigationOptions,
 } from "@bottom-tabs/react-navigation";
-import { withLayoutContext } from "expo-router";
+import { Stack, useSegments, withLayoutContext } from "expo-router";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "expo-router/react-navigation";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
+import type { TVNavBarTab } from "@/components/tv/TVNavBar";
+import { TVNavBar } from "@/components/tv/TVNavBar";
 import { Colors } from "@/constants/Colors";
-import { useTVHomeBackHandler } from "@/hooks/useTVBackHandler";
+import useRouter from "@/hooks/useAppRouter";
+import {
+  isTabRoute,
+  useTVHomeBackHandler,
+  useTVTabRootBackHandler,
+} from "@/hooks/useTVBackHandler";
 import { useSettings } from "@/utils/atoms/settings";
 import { eventBus } from "@/utils/eventBus";
 
@@ -33,12 +41,107 @@ export const NativeTabs = withLayoutContext<
   NativeBottomTabNavigationEventMap
 >(Navigator);
 
+const IS_ANDROID_TV = Platform.isTV && Platform.OS === "android";
+
+function TVTabLayout() {
+  const { settings } = useSettings();
+  const { t } = useTranslation();
+  const segments = useSegments();
+  const router = useRouter();
+
+  const currentTab = segments.find(isTabRoute);
+  const lastSegment: string = segments[segments.length - 1] ?? "";
+  const atTabRoot = isTabRoute(lastSegment) || lastSegment === "index";
+
+  const tabs: TVNavBarTab[] = useMemo(
+    () =>
+      [
+        { key: "(home)", label: t("tabs.home") },
+        { key: "(search)", label: t("tabs.search") },
+        { key: "(favorites)", label: t("tabs.favorites") },
+        !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
+          ? null
+          : { key: "(watchlists)", label: t("watchlists.title") },
+        { key: "(libraries)", label: t("tabs.library") },
+        !settings?.showCustomMenuLinks
+          ? null
+          : { key: "(custom-links)", label: t("tabs.custom_links") },
+        { key: "(settings)", label: t("tabs.settings") },
+      ].filter((tab): tab is TVNavBarTab => tab !== null),
+    [
+      settings?.streamyStatsServerUrl,
+      settings?.hideWatchlistsTab,
+      settings?.showCustomMenuLinks,
+      t,
+    ],
+  );
+
+  const activeTabKey = currentTab ?? "(home)";
+
+  const visibleKeys = useMemo(
+    () => new Set(tabs.map((tab) => tab.key)),
+    [tabs],
+  );
+
+  const handleTabChange = useCallback(
+    (key: string) => {
+      if (key === currentTab) return;
+
+      if (key === "(home)") eventBus.emit("scrollToTop");
+      if (key === "(search)") eventBus.emit("searchTabPressed");
+
+      router.replace(`/(auth)/(tabs)/${key}`);
+    },
+    [currentTab, router],
+  );
+
+  const navigateHome = useCallback(() => {
+    router.replace("/(auth)/(tabs)/(home)");
+  }, [router]);
+  useTVTabRootBackHandler(navigateHome, atTabRoot, currentTab);
+
+  // If current tab is no longer visible (setting changed), navigate to home
+  useEffect(() => {
+    if (!visibleKeys.has(activeTabKey) && activeTabKey !== "(home)") {
+      router.replace("/(auth)/(tabs)/(home)");
+    }
+  }, [visibleKeys, activeTabKey, router]);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <SystemBars hidden={false} style='light' />
+      <Stack
+        screenOptions={{ headerShown: false, animation: "none" }}
+        initialRouteName='(home)'
+      >
+        <Stack.Screen name='index' redirect />
+      </Stack>
+      <TVNavBar
+        tabs={tabs}
+        activeTabKey={activeTabKey}
+        onTabChange={handleTabChange}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+        }}
+      />
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
 
-  // Handle TV back button - prevent app exit when at root
+  // Must be called before any conditional return (rules of hooks)
   useTVHomeBackHandler();
+
+  if (IS_ANDROID_TV) {
+    return <TVTabLayout />;
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -48,7 +151,7 @@ export default function TabLayout() {
         tabBarStyle={{
           backgroundColor: "#121212",
         }}
-        tabBarActiveTintColor={Colors.primary}
+        tabBarActiveTintColor={Platform.isTV ? "#FFFFFF" : Colors.primary}
         activeIndicatorColor={"#392c3b"}
         scrollEdgeAppearance='default'
       >
@@ -102,8 +205,8 @@ export default function TabLayout() {
               !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
-                : (_e) => ({ sfSymbol: "list.bullet.rectangle" }),
+                ? (_e) => require("@/assets/icons/list.star.png")
+                : (_e) => ({ sfSymbol: "list.star" }),
           }}
         />
         <NativeTabs.Screen
@@ -112,7 +215,7 @@ export default function TabLayout() {
             title: t("tabs.library"),
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/server.rack.png")
+                ? (_e) => require("@/assets/icons/rectangle.stack.fill.png")
                 : (_e) => ({ sfSymbol: "rectangle.stack.fill" }),
           }}
         />
@@ -123,8 +226,8 @@ export default function TabLayout() {
             tabBarItemHidden: !settings?.showCustomMenuLinks,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/list.png")
-                : (_e) => ({ sfSymbol: "list.dash.fill" }),
+                ? (_e) => require("@/assets/icons/link.png")
+                : (_e) => ({ sfSymbol: "link" }),
           }}
         />
         <NativeTabs.Screen
@@ -134,7 +237,7 @@ export default function TabLayout() {
             tabBarItemHidden: !Platform.isTV,
             tabBarIcon:
               Platform.OS === "android"
-                ? (_e) => require("@/assets/icons/gear.png") //Should maybe use other libraries to have it uniform
+                ? (_e) => require("@/assets/icons/gearshape.fill.png")
                 : (_e) => ({ sfSymbol: "gearshape.fill" }),
           }}
         />
