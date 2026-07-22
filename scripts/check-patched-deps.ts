@@ -7,40 +7,40 @@
  */
 import { readFileSync } from "node:fs";
 
-const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
+const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
   patchedDependencies?: Record<string, string>;
 };
-const lock = readFileSync("bun.lock", "utf8");
+const lockfile = readFileSync("bun.lock", "utf8");
 
-const patched = pkg.patchedDependencies ?? {};
+const patchedDependencies = packageJson.patchedDependencies ?? {};
 const errors: string[] = [];
 
-for (const key of Object.keys(patched)) {
+for (const key of Object.keys(patchedDependencies)) {
   // Split on the LAST "@" so scoped names ("@expo/ui@57.0.7") parse correctly.
-  const at = key.lastIndexOf("@");
-  if (at <= 0) {
+  const separatorIndex = key.lastIndexOf("@");
+  if (separatorIndex <= 0) {
     errors.push(
       `"${key}": version-less patchedDependencies keys are silently ignored by bun — use "name@version".`,
     );
     continue;
   }
-  const name = key.slice(0, at);
-  const version = key.slice(at + 1);
+  const name = key.slice(0, separatorIndex);
+  const version = key.slice(separatorIndex + 1);
 
   const escaped = `${name}@`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const resolved = [
+  const resolvedVersions = [
     ...new Set(
-      [...lock.matchAll(new RegExp(`"${escaped}(\\d[^"]*)"`, "g"))].map(
-        (m) => m[1],
+      [...lockfile.matchAll(new RegExp(`"${escaped}(\\d[^"]*)"`, "g"))].map(
+        (match) => match[1],
       ),
     ),
   ];
 
-  if (!resolved.includes(version)) {
+  if (!resolvedVersions.includes(version)) {
     errors.push(
-      `"${key}": bun.lock resolves ${name} to ${resolved.join(", ") || "<not found>"} — ` +
+      `"${key}": bun.lock resolves ${name} to ${resolvedVersions.join(", ") || "<not found>"} — ` +
         `the patch will be SILENTLY SKIPPED. Re-generate it: ` +
-        `\`bun patch ${name}\`, re-apply ${patched[key]}, then \`bun patch --commit 'node_modules/${name}'\`, ` +
+        `\`bun patch ${name}\`, re-apply ${patchedDependencies[key]}, then \`bun patch --commit 'node_modules/${name}'\`, ` +
         `and update the patchedDependencies key.`,
     );
   }
@@ -48,12 +48,12 @@ for (const key of Object.keys(patched)) {
 
 if (errors.length > 0) {
   console.error("🚨 patchedDependencies drift detected:\n");
-  for (const e of errors) {
-    console.error(`  - ${e}`);
+  for (const error of errors) {
+    console.error(`  - ${error}`);
   }
   process.exit(1);
 }
 
 console.log(
-  `✅ patchedDependencies keys match resolved versions (${Object.keys(patched).length} patch(es) checked)`,
+  `✅ patchedDependencies keys match resolved versions (${Object.keys(patchedDependencies).length} patch(es) checked)`,
 );
