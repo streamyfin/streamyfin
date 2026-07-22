@@ -172,7 +172,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
             </Text>
           ) : null}
         </View>
-        <View className='flex flex-row items-center space-x-2 shrink-0'>
+        <View className='flex flex-row items-end space-x-2 shrink-0 pr-2 pb-1'>
           {settings.autoPlayNextEpisode !== false &&
             (settings.maxAutoPlayEpisodeCount.value === -1 ||
               settings.autoPlayEpisodeCount <
@@ -193,7 +193,8 @@ export const BottomControls: FC<BottomControlsProps> = ({
             <Pressable
               onPress={() => setChapterListVisible(true)}
               hitSlop={10}
-              className='justify-center ml-4 mt-9'
+              // mb centers the bare 24px icon on the taller skip/next buttons
+              className='justify-center ml-4 mb-1'
               accessibilityRole='button'
               accessibilityLabel={t("chapters.open")}
             >
