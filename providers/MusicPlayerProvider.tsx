@@ -238,6 +238,16 @@ const loadQueueFromStorage = (): {
   return null;
 };
 
+const clearPersistedQueue = () => {
+  try {
+    storage.remove(STORAGE_KEYS.QUEUE);
+    storage.remove(STORAGE_KEYS.QUEUE_INDEX);
+    storage.remove(STORAGE_KEYS.CURRENT_PROGRESS);
+  } catch {
+    // Silently fail
+  }
+};
+
 const loadRepeatMode = (): RepeatMode => {
   try {
     const mode = storage.getString(STORAGE_KEYS.REPEAT_MODE);
@@ -462,6 +472,18 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     const saved = loadQueueFromStorage();
     if (saved && saved.queue.length > 0) {
       const currentTrack = saved.queue[saved.queueIndex];
+
+      // A queue persisted from another server must not resurface here — its
+      // item ids and stream URLs are meaningless on this one.
+      if (
+        currentTrack?.ServerId &&
+        user.ServerId &&
+        currentTrack.ServerId !== user.ServerId
+      ) {
+        clearPersistedQueue();
+        return;
+      }
+
       const savedProgress = loadProgress();
 
       setState((prev) => ({
@@ -477,7 +499,28 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         isPlaying: false, // Don't auto-play on restore
       }));
     }
-  }, [api, user?.Id]);
+  }, [api, user?.Id, user?.ServerId]);
+
+  // Stop playback and drop the queue when the session moves to another
+  // server/user or logs out — the previous server's tracks must not keep
+  // playing (or resurface in the mini player) on the new session. No playback
+  // report is sent: the old session is already gone.
+  const sessionKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = user?.Id ? `${user.ServerId}:${user.Id}` : null;
+    const prev = sessionKeyRef.current;
+    sessionKeyRef.current = key;
+    if (prev === null || prev === key) return;
+
+    clearPersistedQueue();
+    TrackPlayer?.reset().catch(() => {});
+    setState((prevState) => ({
+      ...defaultState,
+      // Repeat/shuffle are user preferences, not server state — keep them.
+      repeatMode: prevState.repeatMode,
+      shuffleEnabled: prevState.shuffleEnabled,
+    }));
+  }, [user?.Id, user?.ServerId]);
 
   // Save queue whenever it changes
   useEffect(() => {
@@ -1132,14 +1175,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
     await TrackPlayer.reset();
 
-    // Clear storage
-    try {
-      storage.remove(STORAGE_KEYS.QUEUE);
-      storage.remove(STORAGE_KEYS.QUEUE_INDEX);
-      storage.remove(STORAGE_KEYS.CURRENT_PROGRESS);
-    } catch {
-      // Silently fail
-    }
+    clearPersistedQueue();
 
     setState({
       currentTrack: null,
