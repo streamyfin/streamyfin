@@ -10,13 +10,45 @@ import { readFileSync } from "node:fs";
 const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
   patchedDependencies?: Record<string, string>;
 };
-const lockfile = readFileSync("bun.lock", "utf8");
+
+const parseLockfile = (): { packages?: Record<string, unknown> } => {
+  // bun.lock is JSONC whose only extension over strict JSON is trailing
+  // commas — strip them and parse. Failing loudly here is intentional: a
+  // guard that cannot read the lockfile must not pass.
+  const lockfileText = readFileSync("bun.lock", "utf8");
+  try {
+    return JSON.parse(lockfileText.replace(/,(\s*[}\]])/g, "$1"));
+  } catch (error) {
+    console.error(
+      "🚨 Failed to parse bun.lock — has its format changed?",
+      error,
+    );
+    process.exit(1);
+  }
+};
+
+// Collect versions from the package-resolution tuples ("name@version" as the
+// first tuple element) rather than text-searching the whole lockfile: bun.lock
+// also echoes package.json's patchedDependencies block, so a plain text scan
+// would match a stale key against its own copy and hide the drift.
+const resolvedVersions = new Map<string, Set<string>>();
+for (const entry of Object.values(parseLockfile().packages ?? {})) {
+  const resolution = Array.isArray(entry) ? entry[0] : undefined;
+  if (typeof resolution !== "string") continue;
+  // Split on the LAST "@" so scoped names ("@expo/ui@57.0.7") parse correctly.
+  const separatorIndex = resolution.lastIndexOf("@");
+  if (separatorIndex <= 0) continue;
+  const name = resolution.slice(0, separatorIndex);
+  const version = resolution.slice(separatorIndex + 1);
+  const versions = resolvedVersions.get(name) ?? new Set<string>();
+  versions.add(version);
+  resolvedVersions.set(name, versions);
+}
 
 const patchedDependencies = packageJson.patchedDependencies ?? {};
 const errors: string[] = [];
 
 for (const key of Object.keys(patchedDependencies)) {
-  // Split on the LAST "@" so scoped names ("@expo/ui@57.0.7") parse correctly.
   const separatorIndex = key.lastIndexOf("@");
   if (separatorIndex <= 0) {
     errors.push(
@@ -27,18 +59,10 @@ for (const key of Object.keys(patchedDependencies)) {
   const name = key.slice(0, separatorIndex);
   const version = key.slice(separatorIndex + 1);
 
-  const escaped = `${name}@`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const resolvedVersions = [
-    ...new Set(
-      [...lockfile.matchAll(new RegExp(`"${escaped}(\\d[^"]*)"`, "g"))].map(
-        (match) => match[1],
-      ),
-    ),
-  ];
-
-  if (!resolvedVersions.includes(version)) {
+  const versions = [...(resolvedVersions.get(name) ?? [])];
+  if (!versions.includes(version)) {
     errors.push(
-      `"${key}": bun.lock resolves ${name} to ${resolvedVersions.join(", ") || "<not found>"} — ` +
+      `"${key}": bun.lock resolves ${name} to ${versions.join(", ") || "<not found>"} — ` +
         `the patch will be SILENTLY SKIPPED. Re-generate it: ` +
         `\`bun patch ${name}\`, re-apply ${patchedDependencies[key]}, then \`bun patch --commit 'node_modules/${name}'\`, ` +
         `and update the patchedDependencies key.`,
