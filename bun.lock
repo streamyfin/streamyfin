@@ -9,7 +9,7 @@
         "@douglowder/expo-av-route-picker-view": "^0.0.5",
         "@expo/metro-runtime": "~57.0.6",
         "@expo/react-native-action-sheet": "^4.1.1",
-        "@expo/ui": "~57.0.7",
+        "@expo/ui": "57.0.7",
         "@expo/vector-icons": "^15.1.1",
         "@gorhom/bottom-sheet": "5.2.14",
         "@jellyfin/sdk": "^0.13.0",
