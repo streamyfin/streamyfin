@@ -1,8 +1,8 @@
 /**
  * Guard for `patchedDependencies`: bun only applies a patch when its key
  * (`name@version`) matches the exact resolved version in bun.lock. When the
- * dependency is later bumped, bun silently skips the patch — the fix vanishes
- * with no error. A version-less key (`"name": ...`) is silently ignored too.
+ * dependency is later bumped, bun silently skips the patch and the fix
+ * vanishes with no error. A version-less key (`"name": ...`) is ignored too.
  * This check turns both silent failures into a loud CI error.
  */
 import { readFileSync } from "node:fs";
@@ -11,16 +11,21 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
   patchedDependencies?: Record<string, string>;
 };
 
+// This script runs under bun (CI pins >= 1.3.6, where Bun.JSONC landed).
+// Declared locally because the project tsconfig loads node types, not bun's.
+declare const Bun: { JSONC: { parse: (text: string) => unknown } };
+
 const parseLockfile = (): { packages?: Record<string, unknown> } => {
-  // bun.lock is JSONC whose only extension over strict JSON is trailing
-  // commas — strip them and parse. Failing loudly here is intentional: a
-  // guard that cannot read the lockfile must not pass.
-  const lockfileText = readFileSync("bun.lock", "utf8");
+  // bun.lock is JSONC (trailing commas, comments allowed); Bun.JSONC is the
+  // same parser bun itself reads the lockfile with. Failing loudly here is
+  // intentional: a guard that cannot read the lockfile must not pass.
   try {
-    return JSON.parse(lockfileText.replace(/,(\s*[}\]])/g, "$1"));
+    return Bun.JSONC.parse(readFileSync("bun.lock", "utf8")) as {
+      packages?: Record<string, unknown>;
+    };
   } catch (error) {
     console.error(
-      "🚨 Failed to parse bun.lock — has its format changed?",
+      "🚨 Failed to parse bun.lock - has its format changed?",
       error,
     );
     process.exit(1);
@@ -52,7 +57,7 @@ for (const key of Object.keys(patchedDependencies)) {
   const separatorIndex = key.lastIndexOf("@");
   if (separatorIndex <= 0) {
     errors.push(
-      `"${key}": version-less patchedDependencies keys are silently ignored by bun — use "name@version".`,
+      `"${key}": version-less patchedDependencies keys are silently ignored by bun, use "name@version".`,
     );
     continue;
   }
@@ -62,8 +67,8 @@ for (const key of Object.keys(patchedDependencies)) {
   const versions = [...(resolvedVersions.get(name) ?? [])];
   if (!versions.includes(version)) {
     errors.push(
-      `"${key}": bun.lock resolves ${name} to ${versions.join(", ") || "<not found>"} — ` +
-        `the patch will be SILENTLY SKIPPED. Re-generate it: ` +
+      `"${key}": bun.lock resolves ${name} to ${versions.join(", ") || "<not found>"}, ` +
+        `so the patch will be silently skipped. Re-generate it: ` +
         `\`bun patch ${name}\`, re-apply ${patchedDependencies[key]}, then \`bun patch --commit 'node_modules/${name}'\`, ` +
         `and update the patchedDependencies key.`,
     );
