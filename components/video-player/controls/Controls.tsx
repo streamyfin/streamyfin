@@ -26,7 +26,7 @@ import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
-import { chapterMarkers } from "@/utils/chapters";
+import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
@@ -357,10 +357,10 @@ export const Controls: FC<Props> = ({
       maxMs,
     );
 
-  // Mirrors the bookmark-icon mount gate in BottomControls (>1 real markers)
-  // so the skip overlay only shifts left when the icon is actually shown.
-  const hasChapterMarkers = useMemo(
-    () => chapterMarkers(item.Chapters, maxMs).length > 1,
+  // Same gate as the bookmark icon in BottomControls, so the skip overlay
+  // only shifts left when the icon is actually shown.
+  const showsChapterIcon = useMemo(
+    () => hasChapterMarkers(item.Chapters, maxMs),
     [item.Chapters, maxMs],
   );
 
@@ -466,9 +466,10 @@ export const Controls: FC<Props> = ({
         return;
       }
 
+      // Same boundary as the countdown's willShowNextEpisode gate — the
+      // countdown must never complete without actually navigating.
       if (
-        settings.autoPlayEpisodeCount + 1 <
-        settings.maxAutoPlayEpisodeCount.value
+        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
       ) {
         goToItemCommon(nextItem);
       }
@@ -641,7 +642,7 @@ export const Controls: FC<Props> = ({
             onNextEpisodeFinish={handleNextEpisodeAutoPlay}
             onNextEpisodePress={handleNextEpisodeManual}
             controlsVisible={showControls}
-            hasChapters={hasChapterMarkers}
+            hasChapters={showsChapterIcon}
           />
         </>
       )}

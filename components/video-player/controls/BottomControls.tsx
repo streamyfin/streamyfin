@@ -12,7 +12,11 @@ import { ChapterList } from "@/components/chapters/ChapterList";
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
-import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
+import {
+  chapterMarkers,
+  chapterNameAt,
+  hasChapterMarkers,
+} from "@/utils/chapters";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
@@ -94,12 +98,11 @@ export const BottomControls: FC<BottomControlsProps> = ({
   const insets = useControlsSafeAreaInsets();
   const [chapterListVisible, setChapterListVisible] = useState(false);
 
-  // Only expose chapter UI when there are at least two real markers.
   const chapterMarkerList = useMemo(
     () => chapterMarkers(chapters, durationMs),
     [chapters, durationMs],
   );
-  const hasChapters = chapterMarkerList.length > 1;
+  const hasChapters = hasChapterMarkers(chapters, durationMs);
 
   // Current chapter name for the always-visible header label (live playback).
   const currentChapterName = useMemo(
