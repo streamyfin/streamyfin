@@ -84,8 +84,8 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
       onPress={handlePress}
     >
       <Animated.View style={animatedStyle} />
-      <View className='px-3 py-3'>
-        <Text numberOfLines={1} className='text-center font-bold'>
+      <View className='px-3 py-2'>
+        <Text numberOfLines={1} className='text-center text-sm font-bold'>
           {t("player.next_episode")}
         </Text>
       </View>
