@@ -5,7 +5,9 @@ export type ResolveFailureReason =
   | "empty"
   | "invalid"
   | "wrong-service"
-  | "unreachable";
+  | "unreachable"
+  /** The resolution was superseded or aborted; discard the result. */
+  | "cancelled";
 
 export type ResolveResult =
   | { ok: true; url: string; meta?: Record<string, unknown> }
@@ -44,16 +46,21 @@ export async function resolveServerUrl(
   const candidates = getServerUrlCandidates(input);
   if (candidates.length === 0) return { ok: false, reason: "invalid" };
 
-  const outcomes = await Promise.all(
-    candidates.map((url) => runProbe(url, probe, timeoutMs, signal)),
+  // Launch every probe in parallel but await them in preference order
+  // (https first): as soon as a preferred candidate validates, adopt it
+  // without waiting for lower-priority probes still in flight (a blackholed
+  // http fallback would otherwise add its full timeout to a successful
+  // https resolution).
+  const probes = candidates.map((url) =>
+    runProbe(url, probe, timeoutMs, signal),
   );
-
-  // Prefer the first candidate (https-first) that validated.
-  for (let i = 0; i < candidates.length; i++) {
-    const outcome = outcomes[i];
+  const outcomes: ServerProbeOutcome[] = [];
+  for (let i = 0; i < probes.length; i++) {
+    const outcome = await probes[i];
     if (outcome.status === "ok") {
       return { ok: true, url: candidates[i], meta: outcome.meta };
     }
+    outcomes.push(outcome);
   }
 
   // Nothing validated: report the most useful failure.

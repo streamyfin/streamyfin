@@ -41,14 +41,19 @@ export function useServerUrlResolver(
         signal: controller.signal,
       });
 
-      // Ignore results from a resolution that was superseded/cancelled.
-      if (!controller.signal.aborted) {
-        setState(
-          result.ok
-            ? { status: "ok", resolvedUrl: result.url, meta: result.meta }
-            : { status: "error", reason: result.reason },
-        );
+      // Superseded/cancelled resolution: a candidate may have validated
+      // before the abort landed, so the raw result can still be `ok`.
+      // Report "cancelled" instead so no caller adopts a stale URL over
+      // newer input, and leave the state to the newer resolution.
+      if (controller.signal.aborted) {
+        return { ok: false, reason: "cancelled" };
       }
+
+      setState(
+        result.ok
+          ? { status: "ok", resolvedUrl: result.url, meta: result.meta }
+          : { status: "error", reason: result.reason },
+      );
       return result;
     },
     [probe, options],

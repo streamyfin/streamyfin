@@ -64,8 +64,18 @@ export default function StreamystatsPage() {
     : url;
   const isStreamystatsEnabled = !!effectiveUrl;
 
-  const onSave = useCallback(() => {
-    const cleanUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+  const onSave = useCallback(async () => {
+    // Persist the canonical resolved URL when the server answers; keep the
+    // raw input as fallback so the URL can be saved while the host is down.
+    const raw = url.trim();
+    let cleanUrl = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+    if (raw && !isUrlLocked) {
+      const result = await urlResolver.resolve(raw);
+      if (result.ok) {
+        cleanUrl = result.url;
+        setUrl(result.url);
+      }
+    }
     updateSettings({
       streamyStatsServerUrl: cleanUrl,
       searchEngine: useForSearch ? "Streamystats" : "Jellyfin",
@@ -79,6 +89,8 @@ export default function StreamystatsPage() {
     toast.success(t("home.settings.plugins.streamystats.toasts.saved"));
   }, [
     url,
+    isUrlLocked,
+    urlResolver.resolve,
     useForSearch,
     movieRecs,
     seriesRecs,
@@ -153,7 +165,11 @@ export default function StreamystatsPage() {
               returnKeyType='done'
               autoCapitalize='none'
               textContentType='URL'
-              onChangeText={setUrl}
+              onChangeText={(text) => {
+                setUrl(text);
+                // Editing invalidates the previous resolution status.
+                urlResolver.reset();
+              }}
               onBlur={() => {
                 const candidate = url.trim();
                 if (candidate) {

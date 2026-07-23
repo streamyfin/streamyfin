@@ -106,12 +106,18 @@ export function LocalNetworkSettings(): React.ReactElement | null {
 
   const remoteUrl = storage.getString("serverUrl");
   const [config, setConfig] = useState<LocalNetworkConfig>(DEFAULT_CONFIG);
+  // Draft of the URL being typed: persisting every keystroke would run
+  // refreshUrlState on half-typed values; the field commits on blur instead.
+  const [localUrlDraft, setLocalUrlDraft] = useState<string>(
+    DEFAULT_CONFIG.localUrl,
+  );
 
   useEffect(() => {
     if (remoteUrl) {
       const existingConfig = getServerLocalConfig(remoteUrl);
       if (existingConfig) {
         setConfig(existingConfig);
+        setLocalUrlDraft(existingConfig.localUrl);
       }
     }
   }, [remoteUrl]);
@@ -141,7 +147,7 @@ export function LocalNetworkSettings(): React.ReactElement | null {
     [config, permissionStatus, requestPermission, saveConfig, t],
   );
 
-  const handleLocalUrlChange = useCallback(
+  const handleLocalUrlCommit = useCallback(
     (localUrl: string) => {
       saveConfig({ ...config, localUrl });
     },
@@ -206,9 +212,9 @@ export function LocalNetworkSettings(): React.ReactElement | null {
           >
             <View className=''>
               <ServerUrlField
-                value={config.localUrl}
-                onChangeText={handleLocalUrlChange}
-                onResolved={(url) => saveConfig({ ...config, localUrl: url })}
+                value={localUrlDraft}
+                onChangeText={setLocalUrlDraft}
+                onCommit={handleLocalUrlCommit}
                 probe={jellyfinProbe}
                 placeholder={t("home.settings.network.local_url_placeholder")}
               />

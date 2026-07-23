@@ -41,7 +41,7 @@ export function ServerUrlStatusText({
   const message =
     state.reason === "wrong-service"
       ? t("server_url.wrong_service")
-      : state.reason === "invalid"
+      : state.reason === "invalid" || state.reason === "empty"
         ? t("server_url.invalid_url")
         : t("server_url.unreachable");
 

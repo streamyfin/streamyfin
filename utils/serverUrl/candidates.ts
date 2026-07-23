@@ -8,14 +8,17 @@
  * it adds no Jellyfin-specific ports, so it suits Jellyseerr/Streamystats/etc.
  */
 
-// scheme? host (port)? (path/query/hash)?
-const URL_RE = /^(?:(https?):\/\/)?([^/:\s?#]+)(?::(\d+))?([/?#].*)?$/i;
+// scheme? host (port)? path? -- query/fragment are matched but discarded:
+// they are meaningless in a server base URL and would corrupt the endpoint
+// paths the probes append.
+const URL_RE =
+  /^(?:(https?):\/\/)?([^/:\s?#]+)(?::(\d+))?(\/[^?#]*)?(?:[?#].*)?$/i;
 
 export interface ParsedServerInput {
   scheme?: "http" | "https";
   host: string;
   port?: string;
-  /** Normalized path+query+hash, without a trailing slash; "" when none. */
+  /** Normalized pathname, without a trailing slash; "" when none. */
   path: string;
 }
 
@@ -53,7 +56,9 @@ function buildUrl(
 /**
  * Ordered, de-duplicated candidate URLs for the given input.
  *
- * - Explicit scheme AND port → trusted as-is (single candidate).
+ * - Explicit scheme → trusted as-is (single candidate): never upgrade a typed
+ *   `http://` to https (anything answering on 443 would hijack the choice) nor
+ *   silently downgrade a typed `https://` to plain http.
  * - Otherwise https is tried before http (prefer secure), keeping any port/path.
  *
  * @returns [] when the input can't be parsed.
@@ -64,10 +69,9 @@ export function getServerUrlCandidates(input: string): string[] {
 
   const { scheme, host, port, path } = parsed;
 
-  // Fully specified: don't second-guess the user.
-  if (scheme && port) return [buildUrl(scheme, host, port, path)];
+  // The user chose a scheme: don't second-guess it.
+  if (scheme) return [buildUrl(scheme, host, port, path)];
 
-  // Secure-first; the typed scheme (if any) is still covered by this set.
   const candidates = (["https", "http"] as const).map((s) =>
     buildUrl(s, host, port, path),
   );

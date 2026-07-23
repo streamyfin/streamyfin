@@ -36,10 +36,19 @@ export default function MarlinSearchPage() {
   // the raw plugin value misses a user-configured Streamystats.
   const hasStreamystats = !!settings?.streamyStatsServerUrl;
 
-  const onSave = (val: string) => {
-    updateSettings({
-      marlinServerUrl: !val.endsWith("/") ? val : val.slice(0, -1),
-    });
+  const onSave = async (val: string) => {
+    // Persist the canonical resolved URL when the server answers; keep the
+    // raw input as fallback so the URL can be saved while the host is down.
+    const raw = val.trim();
+    let toPersist = !raw.endsWith("/") ? raw : raw.slice(0, -1);
+    if (raw) {
+      const result = await urlResolver.resolve(raw);
+      if (result.ok) {
+        toPersist = result.url;
+        setValue(result.url);
+      }
+    }
+    updateSettings({ marlinServerUrl: toPersist });
     toast.success(t("home.settings.plugins.marlin_search.toasts.saved"));
   };
 
@@ -115,7 +124,11 @@ export default function MarlinSearchPage() {
               returnKeyType='done'
               autoCapitalize='none'
               textContentType='URL'
-              onChangeText={(text) => setValue(text)}
+              onChangeText={(text) => {
+                setValue(text);
+                // Editing invalidates the previous resolution status.
+                urlResolver.reset();
+              }}
               onBlur={() => {
                 const candidate = value.trim();
                 if (candidate) {

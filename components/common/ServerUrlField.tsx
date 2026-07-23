@@ -15,6 +15,13 @@ interface ServerUrlFieldProps {
   probe: ServerProbe;
   /** Called with the canonical URL once a candidate validates. */
   onResolved?: (url: string, meta?: Record<string, unknown>) => void;
+  /**
+   * Called after every blur/submit resolution attempt with the URL to
+   * persist: the canonical URL when resolution succeeded, the raw trimmed
+   * input otherwise (so a URL can still be saved while its server is
+   * unreachable). Not called for superseded (cancelled) attempts.
+   */
+  onCommit?: (url: string, resolved: boolean) => void;
   label?: string;
   hint?: string;
   placeholder?: string;
@@ -33,6 +40,7 @@ export function ServerUrlField({
   onChangeText,
   probe,
   onResolved,
+  onCommit,
   label,
   hint,
   placeholder,
@@ -47,19 +55,30 @@ export function ServerUrlField({
     if (!input) {
       resolver.reset();
       lastResolvedInput.current = null;
+      onCommit?.("", false); // clearing the field is a commit too
       return;
     }
     lastResolvedInput.current = input;
     const result = await resolver.resolve(input);
     if (result.ok) {
+      // Remember the canonical URL so the blur following its adoption
+      // below doesn't trigger a redundant re-resolve.
+      lastResolvedInput.current = result.url;
       onChangeText(result.url); // adopt the canonical URL into the field
       onResolved?.(result.url, result.meta);
+      onCommit?.(result.url, true);
+      return;
     }
-  }, [value, resolver, onChangeText, onResolved]);
+    if (result.reason === "cancelled") return; // superseded by newer input
+    // Allow the next blur on the same input to retry (transient failures);
+    // guard against a newer attempt having already claimed the ref.
+    if (lastResolvedInput.current === input) lastResolvedInput.current = null;
+    onCommit?.(input, false);
+  }, [value, resolver, onChangeText, onResolved, onCommit]);
 
   const handleBlur = useCallback(() => {
     const input = value.trim();
-    if (input && input !== lastResolvedInput.current) runResolve();
+    if (!input || input !== lastResolvedInput.current) runResolve();
   }, [value, runResolve]);
 
   const handleChange = useCallback(

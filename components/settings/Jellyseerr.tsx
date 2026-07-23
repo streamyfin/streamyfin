@@ -44,13 +44,17 @@ export const JellyseerrSettings = () => {
       if (!user?.Name)
         throw new Error("Missing required information for login");
 
-      // When the URL is admin-pinned, target that server directly; otherwise
-      // prefer the already-resolved URL, else resolve the raw input now
-      // (covers tapping Login before the field's on-blur resolve settled).
-      let finalUrl = urlLocked
-        ? (settings?.jellyseerrServerUrl ?? "")
-        : resolvedUrl || settings?.jellyseerrServerUrl || "";
-      if (!urlLocked && !finalUrl && jellyseerrServerUrl) {
+      // When the URL is admin-pinned, target that server directly. Otherwise
+      // trust resolvedUrl only while it matches the field (the field adopts
+      // the canonical URL after a successful resolve); any other input is
+      // resolved fresh here, so tapping Login right after editing can never
+      // silently target the previous server.
+      let finalUrl = "";
+      if (urlLocked) {
+        finalUrl = settings?.jellyseerrServerUrl ?? "";
+      } else if (resolvedUrl && resolvedUrl === jellyseerrServerUrl) {
+        finalUrl = resolvedUrl;
+      } else if (jellyseerrServerUrl) {
         const resolved = await resolveServerUrl(
           jellyseerrServerUrl,
           jellyseerrProbe,
@@ -151,7 +155,11 @@ export const JellyseerrSettings = () => {
                       ? (settings?.jellyseerrServerUrl ?? "")
                       : jellyseerrServerUrl
                   }
-                  onChangeText={setjellyseerrServerUrl}
+                  onChangeText={(url) => {
+                    setjellyseerrServerUrl(url);
+                    // Editing invalidates the previous resolution.
+                    setResolvedUrl(undefined);
+                  }}
                   onResolved={(url) => setResolvedUrl(url)}
                   probe={jellyseerrProbe}
                   label={t("home.settings.plugins.jellyseerr.server_url")}
