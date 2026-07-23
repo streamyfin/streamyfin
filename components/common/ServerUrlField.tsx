@@ -82,6 +82,8 @@ export function ServerUrlField({
       resolver.reset();
       lastResolvedInput.current = null;
       lastAttemptInput.current = null;
+      // Whitespace-only input commits as empty; clear the field display too.
+      if (value !== "") onChangeText("");
       onCommit?.("", false); // clearing the field is a commit too
       return;
     }
