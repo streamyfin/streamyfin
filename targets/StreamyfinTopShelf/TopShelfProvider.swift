@@ -65,7 +65,7 @@ final class TopShelfProvider: TVTopShelfContentProvider {
 
     let item = TVTopShelfSectionedItem(identifier: cacheItem.id)
     item.title = cacheItem.title
-    item.imageShape = .hdtv
+    item.imageShape = .poster
     item.displayAction = TVTopShelfAction(url: route)
 
     if let playRoute = cacheItem.playRoute, let playURL = URL(string: playRoute) {

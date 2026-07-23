@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
+import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
 import SkipButton from "./SkipButton";
 
 interface Props {
@@ -16,9 +17,13 @@ interface Props {
   showSkipCreditButton: boolean;
   hasContentAfterCredits: boolean;
   willShowNextEpisode: boolean;
+  showNextEpisode: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
+  onNextEpisodeFinish: () => void;
+  onNextEpisodePress: () => void;
   controlsVisible: boolean;
+  hasChapters?: boolean;
 }
 
 // Offsets are relative to the safe-area insets so they hold in both portrait
@@ -30,9 +35,12 @@ interface Props {
 //          of the chapters icon), while staying below the vertical volume
 //          slider which sits at the vertical middle of the screen.
 const HIDDEN_BOTTOM = 24;
-const HIDDEN_RIGHT = 12;
+const HIDDEN_RIGHT = 24;
 const VISIBLE_BOTTOM = 65;
 const VISIBLE_RIGHT = 42;
+// Extra left shift while the controls show the chapters icon in the bottom
+// right corner, so the buttons never crowd it.
+const CHAPTERS_CLEARANCE = 10;
 const ANIM_DURATION = 250;
 
 // Keeps `value` true for `duration` ms after it turns false. SkipButton hides
@@ -62,16 +70,20 @@ export const SkipSegmentOverlay: FC<Props> = ({
   showSkipCreditButton,
   hasContentAfterCredits,
   willShowNextEpisode,
+  showNextEpisode,
   skipIntro,
   skipCredit,
+  onNextEpisodeFinish,
+  onNextEpisodePress,
   controlsVisible,
+  hasChapters,
 }) => {
   const insets = useControlsSafeAreaInsets();
   const { t } = useTranslation();
 
   const showCredit =
     showSkipCreditButton && (hasContentAfterCredits || !willShowNextEpisode);
-  const visible = showSkipButton || showCredit;
+  const visible = showSkipButton || showCredit || showNextEpisode;
 
   // Drive each SkipButton with a lagged flag so it stays visible while the
   // opacity fade-out plays, instead of disappearing the instant its segment
@@ -96,7 +108,11 @@ export const SkipSegmentOverlay: FC<Props> = ({
   // sweeps through an overlap zone while the controls toggle.
   const bottom =
     insets.bottom + (controlsVisible ? VISIBLE_BOTTOM : HIDDEN_BOTTOM);
-  const right = insets.right + (controlsVisible ? VISIBLE_RIGHT : HIDDEN_RIGHT);
+  const right =
+    insets.right +
+    (controlsVisible
+      ? VISIBLE_RIGHT + (hasChapters ? CHAPTERS_CLEARANCE : 0)
+      : HIDDEN_RIGHT);
 
   return (
     <Animated.View
@@ -112,6 +128,13 @@ export const SkipSegmentOverlay: FC<Props> = ({
         showButton={renderCredit}
         onPress={skipCredit}
         buttonText={t("player.skip_credits")}
+      />
+      {/* Lives here (not in BottomControls) so it shares the skip buttons'
+          exact position and can never overlap them. */}
+      <NextEpisodeCountDownButton
+        show={showNextEpisode}
+        onFinish={onNextEpisodeFinish}
+        onPress={onNextEpisodePress}
       />
     </Animated.View>
   );

@@ -12,9 +12,11 @@ import { ChapterList } from "@/components/chapters/ChapterList";
 import { ChapterTicks } from "@/components/chapters/ChapterTicks";
 import { Text } from "@/components/common/Text";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
-import { useSettings } from "@/utils/atoms/settings";
-import { chapterMarkers, chapterNameAt } from "@/utils/chapters";
-import NextEpisodeCountDownButton from "./NextEpisodeCountDownButton";
+import {
+  chapterMarkers,
+  chapterNameAt,
+  hasChapterMarkers,
+} from "@/utils/chapters";
 import { TimeDisplay } from "./TimeDisplay";
 import { TrickplayBubble } from "./TrickplayBubble";
 
@@ -33,11 +35,6 @@ interface BottomControlsProps {
   showRemoteBubble: boolean;
   currentTime: number;
   remainingTime: number;
-  showSkipCreditButton: boolean;
-  hasContentAfterCredits: boolean;
-  nextItem?: BaseItemDto | null;
-  handleNextEpisodeAutoPlay: () => void;
-  handleNextEpisodeManual: () => void;
   handleControlsInteraction: () => void;
 
   // Slider props
@@ -82,11 +79,6 @@ export const BottomControls: FC<BottomControlsProps> = ({
   showRemoteBubble,
   currentTime,
   remainingTime,
-  showSkipCreditButton,
-  hasContentAfterCredits,
-  nextItem,
-  handleNextEpisodeAutoPlay,
-  handleNextEpisodeManual,
   handleControlsInteraction,
   min,
   max,
@@ -102,17 +94,18 @@ export const BottomControls: FC<BottomControlsProps> = ({
   trickplayInfo,
   time,
 }) => {
-  const { settings } = useSettings();
   const { t } = useTranslation();
   const insets = useControlsSafeAreaInsets();
   const [chapterListVisible, setChapterListVisible] = useState(false);
 
-  // Only expose chapter UI when there are at least two real markers.
   const chapterMarkerList = useMemo(
     () => chapterMarkers(chapters, durationMs),
     [chapters, durationMs],
   );
-  const hasChapters = chapterMarkerList.length > 1;
+  const hasChapters = useMemo(
+    () => hasChapterMarkers(chapters, durationMs),
+    [chapters, durationMs],
+  );
 
   // Current chapter name for the always-visible header label (live playback).
   const currentChapterName = useMemo(
@@ -172,28 +165,13 @@ export const BottomControls: FC<BottomControlsProps> = ({
             </Text>
           ) : null}
         </View>
-        <View className='flex flex-row items-center space-x-2 shrink-0'>
-          {settings.autoPlayNextEpisode !== false &&
-            (settings.maxAutoPlayEpisodeCount.value === -1 ||
-              settings.autoPlayEpisodeCount <
-                settings.maxAutoPlayEpisodeCount.value) && (
-              <NextEpisodeCountDownButton
-                show={
-                  !nextItem
-                    ? false
-                    : // Show during credits if no content after, OR near end of video
-                      (showSkipCreditButton && !hasContentAfterCredits) ||
-                      remainingTime < 10000
-                }
-                onFinish={handleNextEpisodeAutoPlay}
-                onPress={handleNextEpisodeManual}
-              />
-            )}
+        <View className='flex flex-row items-end space-x-2 shrink-0 pr-2 pb-1'>
           {hasChapters && (
             <Pressable
               onPress={() => setChapterListVisible(true)}
               hitSlop={10}
-              className='justify-center ml-4'
+              // mb centers the bare 24px icon on the taller skip/next buttons
+              className='justify-center ml-4 mb-1'
               accessibilityRole='button'
               accessibilityLabel={t("chapters.open")}
             >
