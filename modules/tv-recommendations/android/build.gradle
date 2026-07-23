@@ -36,7 +36,6 @@ android {
 dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
   implementation "androidx.tvprovider:tvprovider:1.1.0"
-  implementation "androidx.core:core-ktx:1.13.1"
 }
 
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
