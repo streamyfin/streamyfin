@@ -1,0 +1,65 @@
+diff --git a/ios/Menu/MenuView.swift b/ios/Menu/MenuView.swift
+index a4a35701d41f6e6ace7e00eff7079b4785e1f66f..fbfb929773af8e7623ed075cfad37dc1fb723c8b 100644
+--- a/ios/Menu/MenuView.swift
++++ b/ios/Menu/MenuView.swift
+@@ -15,28 +15,41 @@ internal struct MenuView: ExpoSwiftUI.View {
+     }
+   }
+ 
++  @available(iOS 14.0, tvOS 17.0, *)
++  @ViewBuilder
++  private func menuContent() -> some View {
++    let labelContent = props.children?.slot("label")
++
++    if props.hasPrimaryAction {
++      // With primaryAction, tap triggers callback and long-press shows menu
++      if let systemImage = props.systemImage, let label = props.label {
++        Menu(LocalizedStringKey(label), systemImage: systemImage) { Children() } primaryAction: { props.onPrimaryAction() }
++      } else if let labelContent {
++        Menu { ChildrenWithoutLabel() } label: { labelContent } primaryAction: { props.onPrimaryAction() }
++      } else if let label = props.label {
++        Menu(LocalizedStringKey(label)) { Children() } primaryAction: { props.onPrimaryAction() }
++      }
++    } else {
++      // Without primaryAction, tap shows menu
++      if let systemImage = props.systemImage, let label = props.label {
++        Menu(label, systemImage: systemImage) { Children() }
++      } else if let labelContent {
++        Menu { ChildrenWithoutLabel() } label: { labelContent }
++      } else if let label = props.label {
++        Menu(label) { Children() }
++      }
++    }
++  }
++
+   var body: some View {
+     if #available(iOS 14.0, tvOS 17.0, *) {
+-      let labelContent = props.children?.slot("label")
+-
+-      if props.hasPrimaryAction {
+-        // With primaryAction, tap triggers callback and long-press shows menu
+-        if let systemImage = props.systemImage, let label = props.label {
+-          Menu(LocalizedStringKey(label), systemImage: systemImage) { Children() } primaryAction: { props.onPrimaryAction() }
+-        } else if let labelContent {
+-          Menu { ChildrenWithoutLabel() } label: { labelContent } primaryAction: { props.onPrimaryAction() }
+-        } else if let label = props.label {
+-          Menu(LocalizedStringKey(label)) { Children() } primaryAction: { props.onPrimaryAction() }
+-        }
++      if #available(iOS 16.0, tvOS 17.0, *) {
++        // Keep items in the order they were provided: without this, UIMenu
++        // reorders entries by proximity to the anchor, so a menu that opens
++        // upward shows the list reversed (selection menus end up backwards).
++        menuContent().menuOrder(.fixed)
+       } else {
+-        // Without primaryAction, tap shows menu
+-        if let systemImage = props.systemImage, let label = props.label {
+-          Menu(label, systemImage: systemImage) { Children() }
+-        } else if let labelContent {
+-          Menu { ChildrenWithoutLabel() } label: { labelContent }
+-        } else if let label = props.label {
+-          Menu(label) { Children() }
+-        }
++        menuContent()
+       }
+     }
+   }
