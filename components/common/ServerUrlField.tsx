@@ -16,10 +16,11 @@ interface ServerUrlFieldProps {
   /** Called with the canonical URL once a candidate validates. */
   onResolved?: (url: string, meta?: Record<string, unknown>) => void;
   /**
-   * Called after every blur/submit resolution attempt with the URL to
-   * persist: the canonical URL when resolution succeeded, the raw trimmed
-   * input otherwise (so a URL can still be saved while its server is
-   * unreachable). Not called for superseded (cancelled) attempts.
+   * Called after a blur/submit resolution attempt with the URL to persist:
+   * the canonical URL when resolution succeeded, the raw trimmed input when
+   * the server merely didn't answer (so a URL can still be saved while its
+   * server is unreachable, e.g. a LAN address configured from elsewhere).
+   * Not called for unparseable input nor superseded (cancelled) attempts.
    */
   onCommit?: (url: string, resolved: boolean) => void;
   label?: string;
@@ -73,7 +74,9 @@ export function ServerUrlField({
     // Allow the next blur on the same input to retry (transient failures);
     // guard against a newer attempt having already claimed the ref.
     if (lastResolvedInput.current === input) lastResolvedInput.current = null;
-    onCommit?.(input, false);
+    // Unreachable input is still worth persisting (the server may simply be
+    // unreachable from here right now); unparseable input is not.
+    if (result.reason !== "invalid") onCommit?.(input, false);
   }, [value, resolver, onChangeText, onResolved, onCommit]);
 
   const handleBlur = useCallback(() => {

@@ -42,6 +42,7 @@ export async function resolveServerUrl(
   const { timeoutMs = 5000, signal } = options;
 
   if (!input.trim()) return { ok: false, reason: "empty" };
+  if (signal?.aborted) return { ok: false, reason: "cancelled" };
 
   const candidates = getServerUrlCandidates(input);
   if (candidates.length === 0) return { ok: false, reason: "invalid" };
@@ -62,6 +63,10 @@ export async function resolveServerUrl(
     }
     outcomes.push(outcome);
   }
+
+  // An abort mid-flight surfaces as unreachable probes; report it for what
+  // it is so callers discard the attempt instead of showing an error.
+  if (signal?.aborted) return { ok: false, reason: "cancelled" };
 
   // Nothing validated: report the most useful failure.
   for (const reason of FAILURE_PRIORITY) {

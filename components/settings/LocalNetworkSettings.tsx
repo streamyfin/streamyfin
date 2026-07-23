@@ -118,6 +118,11 @@ export function LocalNetworkSettings(): React.ReactElement | null {
       if (existingConfig) {
         setConfig(existingConfig);
         setLocalUrlDraft(existingConfig.localUrl);
+      } else {
+        // Server without a saved LAN config: reset instead of leaking the
+        // previously selected server's values into it.
+        setConfig(DEFAULT_CONFIG);
+        setLocalUrlDraft(DEFAULT_CONFIG.localUrl);
       }
     }
   }, [remoteUrl]);
