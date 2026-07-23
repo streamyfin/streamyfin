@@ -3,7 +3,6 @@ import type {
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
@@ -89,19 +88,14 @@ export default function SearchPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const searchDebouncer = useAsyncDebouncer(
-    async (query: string) => {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
       // Cancel previous in-flight requests
       abortControllerRef.current?.abort();
       abortControllerRef.current = new AbortController();
-      setDebouncedSearch(query);
-      return query;
-    },
-    { wait: 200 },
-  );
-
-  useEffect(() => {
-    searchDebouncer.maybeExecute(search);
+      setDebouncedSearch(search);
+    }, 200);
+    return () => clearTimeout(timeout);
   }, [search]);
 
   const [api] = useAtom(apiAtom);
