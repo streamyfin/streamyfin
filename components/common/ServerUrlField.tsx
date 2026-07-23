@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { View } from "react-native";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import type { ResolveOptions } from "@/utils/serverUrl/resolve";
@@ -55,7 +55,11 @@ export function ServerUrlField({
   // from a same-input retry (whose error status must keep showing).
   const lastAttemptInput = useRef<string | null>(null);
   const latestValue = useRef(value);
-  latestValue.current = value;
+  // Synced after commit instead of during render: a discarded concurrent
+  // render must not leak its value into the stale-resolution guard.
+  useLayoutEffect(() => {
+    latestValue.current = value;
+  }, [value]);
 
   // The owning screen can replace `value` without going through handleChange
   // (e.g. LocalNetworkSettings loading another server's config). A previous
