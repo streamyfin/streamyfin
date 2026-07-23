@@ -988,6 +988,28 @@
       "all": "All media (default)"
     }
   },
+  "syncplay": {
+    "title": "SyncPlay",
+    "my_group": "My Group",
+    "join_group": "Join Group",
+    "leave_group": "Leave Group",
+    "create_new_group": "Create New Group",
+    "available_groups": "Available Groups",
+    "members": "members",
+    "failed_to_start": "Failed to start SyncPlay group playback",
+    "resume_playback": "Resume playback",
+    "toasts": {
+      "MessageSyncPlayGroupJoined": "Joined group",
+      "MessageSyncPlayGroupLeft": "Left group",
+      "MessageSyncPlayUserJoined": "{{user}} joined the group",
+      "MessageSyncPlayUserLeft": "{{user}} left the group",
+      "MessageSyncPlayCreateGroupDenied": "Permission denied to create a group",
+      "MessageSyncPlayJoinGroupDenied": "Permission denied to join group",
+      "MessageSyncPlayLibraryAccessDenied": "Access to the content has been denied",
+      "MessageSyncPlayGroupDoesNotExist": "Failed to join group because it does not exist",
+      "MessageSyncPlayErrorMedia": "SyncPlay error during media playback"
+    }
+  },
   "companion_login": {
     "title": "Pair with TV",
     "align_qr": "Align the QR code within the frame",

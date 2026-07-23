@@ -79,6 +79,15 @@ interface WebSocketContextType {
   ) => () => void;
   sendMessage: (message: any) => void;
   clearLastMessage: () => void;
+  /**
+   * Acquire a keep-alive token. While at least one token is held the
+   * WebSocket will NOT be closed on AppState background/inactive. Used
+   * by the video player while in Picture-in-Picture so SyncPlay (and
+   * any other server-pushed events) keep flowing. Returns a release
+   * function — call it (or rely on the React effect cleanup) when the
+   * keep-alive is no longer needed.
+   */
+  acquireKeepAlive: () => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextType | null>(null);
@@ -106,6 +115,22 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+
+  // Ref-counted keep-alive: while > 0 we skip the AppState→background
+  // close so the socket survives PiP / brief OS suspensions. iOS keeps
+  // the audio session (and therefore networking) alive while PiP is
+  // active, so the WS can continue to receive SyncPlay commands.
+  const keepAliveCountRef = useRef(0);
+
+  const acquireKeepAlive = useCallback((): (() => void) => {
+    keepAliveCountRef.current += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      keepAliveCountRef.current = Math.max(0, keepAliveCountRef.current - 1);
+    };
+  }, []);
 
   // Pub/sub registry: messageType -> set of handlers. Stored in a ref so
   // subscribing/dispatching never triggers a re-render.
@@ -387,9 +412,20 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
   useEffect(() => {
     const handleAppStateChange = (state: AppStateStatus) => {
       if (state === "background" || state === "inactive") {
+        if (keepAliveCountRef.current > 0) {
+          console.log(
+            `App backgrounded but WS keep-alive held (${keepAliveCountRef.current}); leaving socket open`,
+          );
+          return;
+        }
         console.log("App moving to background, closing WebSocket...");
         ws?.close();
       } else if (state === "active") {
+        // Only reconnect if we actually lost the socket (we may have
+        // skipped the close above because of a keep-alive token).
+        if (ws?.readyState === WebSocket.OPEN) {
+          return;
+        }
         console.log("App coming to foreground, reconnecting WebSocket...");
         connectWebSocket();
       }
@@ -426,6 +462,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         subscribe,
         sendMessage,
         clearLastMessage,
+        acquireKeepAlive,
       }}
     >
       {children}

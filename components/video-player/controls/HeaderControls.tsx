@@ -25,7 +25,7 @@ interface HeaderControlsProps {
   startPictureInPicture?: () => Promise<void>;
   switchOnEpisodeMode: () => void;
   goToPreviousItem: () => void;
-  goToNextItem: (options: { isAutoPlay?: boolean }) => void;
+  goToNextItem: () => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   aspectRatio?: AspectRatio;
@@ -174,7 +174,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
         )}
         {nextItem && (
           <TouchableOpacity
-            onPress={() => goToNextItem({ isAutoPlay: false })}
+            onPress={() => goToNextItem()}
             className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
           >
             <Ionicons

@@ -58,6 +58,13 @@ class MpvPlayerModule : Module() {
                 // No-op on Android - media session integration would require MediaSessionCompat
             }
 
+            // When true, PiP play/pause/skip controls emit JS events
+            // instead of driving MPV directly, so the host app can route
+            // through SyncPlay (server -> group broadcast -> all clients).
+            Prop("syncPlayDelegated") { view: MpvPlayerView, delegated: Boolean ->
+                view.syncPlayDelegated = delegated
+            }
+
             // Async function to play video
             AsyncFunction("play") { view: MpvPlayerView ->
                 view.play()
@@ -215,7 +222,7 @@ class MpvPlayerModule : Module() {
             }
 
             // Defines events that the view can send to JavaScript
-            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange")
+            Events("onLoad", "onPlaybackStateChange", "onProgress", "onError", "onTracksReady", "onPictureInPictureChange", "onPipPlayRequest", "onPipPauseRequest", "onPipSkipRequest")
         }
     }
 }

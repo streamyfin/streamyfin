@@ -7,14 +7,12 @@ import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
 
 export interface ContinueWatchingOverlayProps {
-  goToNextItem: (options: {
-    isAutoPlay: boolean;
-    resetWatchCount: boolean;
-  }) => void;
+  /** Invoked when the user confirms they want to keep watching. */
+  onContinue: () => void;
 }
 
 const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
-  goToNextItem,
+  onContinue,
 }) => {
   const { settings } = useSettings();
   const router = useRouter();
@@ -29,13 +27,7 @@ const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
       <Text className='text-2xl font-bold text-white py-4 '>
         {t("player.still_watching")}
       </Text>
-      <Button
-        onPress={() => {
-          goToNextItem({ isAutoPlay: false, resetWatchCount: true });
-        }}
-        color={"purple"}
-        className='my-4 w-2/3'
-      >
+      <Button onPress={onContinue} color={"purple"} className='my-4 w-2/3'>
         {t("player.continue_watching")}
       </Button>
 

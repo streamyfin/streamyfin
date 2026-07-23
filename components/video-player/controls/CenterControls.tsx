@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
+import { SyncPlayActionIcon } from "@/components/syncplay/SyncPlayActionIcon";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import { useSettings } from "@/utils/atoms/settings";
 import AudioSlider from "./AudioSlider";
@@ -121,15 +122,20 @@ export const CenterControls: FC<CenterControlsProps> = ({
 
       <View style={Platform.isTV ? { flex: 1, alignItems: "center" } : {}}>
         <TouchableOpacity onPress={togglePlay}>
-          {!isBuffering ? (
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={ICON_SIZES.CENTER}
-              color='white'
-            />
-          ) : (
-            <Loader size={"large"} />
-          )}
+          <SyncPlayActionIcon
+            size={ICON_SIZES.CENTER}
+            fallback={
+              !isBuffering ? (
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={ICON_SIZES.CENTER}
+                  color='white'
+                />
+              ) : (
+                <Loader size={"large"} />
+              )
+            }
+          />
         </TouchableOpacity>
       </View>
 
