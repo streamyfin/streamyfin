@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { View } from "react-native";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import type { ResolveOptions } from "@/utils/serverUrl/resolve";
@@ -50,21 +50,50 @@ export function ServerUrlField({
 }: ServerUrlFieldProps) {
   const resolver = useServerUrlResolver(probe, resolveOptions);
   const lastResolvedInput = useRef<string | null>(null);
+  // Input of the most recent attempt; unlike lastResolvedInput it survives a
+  // failure, so the effect below can tell an external value replacement apart
+  // from a same-input retry (whose error status must keep showing).
+  const lastAttemptInput = useRef<string | null>(null);
+  const latestValue = useRef(value);
+  latestValue.current = value;
+
+  // The owning screen can replace `value` without going through handleChange
+  // (e.g. LocalNetworkSettings loading another server's config). A previous
+  // result or in-flight resolution then belongs to the old value: drop the
+  // status and abort so nothing stale is adopted or committed.
+  useEffect(() => {
+    if (
+      resolver.status !== "idle" &&
+      value.trim() !== lastAttemptInput.current
+    ) {
+      resolver.reset();
+      lastResolvedInput.current = null;
+      lastAttemptInput.current = null;
+    }
+  }, [value, resolver]);
 
   const runResolve = useCallback(async () => {
     const input = value.trim();
     if (!input) {
       resolver.reset();
       lastResolvedInput.current = null;
+      lastAttemptInput.current = null;
       onCommit?.("", false); // clearing the field is a commit too
       return;
     }
     lastResolvedInput.current = input;
+    lastAttemptInput.current = input;
     const result = await resolver.resolve(input);
+    // Superseded by an external value replacement while in flight: the
+    // resolver was aborted by the effect above, but a candidate that had
+    // already validated could still surface here. Never adopt it.
+    if (latestValue.current.trim() !== input) return;
     if (result.ok) {
       // Remember the canonical URL so the blur following its adoption
-      // below doesn't trigger a redundant re-resolve.
+      // below doesn't trigger a redundant re-resolve, and so the external
+      // replacement effect doesn't mistake the adoption for one.
       lastResolvedInput.current = result.url;
+      lastAttemptInput.current = result.url;
       onChangeText(result.url); // adopt the canonical URL into the field
       onResolved?.(result.url, result.meta);
       onCommit?.(result.url, true);
@@ -90,6 +119,7 @@ export function ServerUrlField({
       // Editing invalidates a previous result; drop the stale status.
       if (resolver.status !== "idle") resolver.reset();
       lastResolvedInput.current = null;
+      lastAttemptInput.current = null;
     },
     [onChangeText, resolver],
   );

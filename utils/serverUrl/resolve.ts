@@ -58,6 +58,9 @@ export async function resolveServerUrl(
   const outcomes: ServerProbeOutcome[] = [];
   for (let i = 0; i < probes.length; i++) {
     const outcome = await probes[i];
+    // An abort that lands while a probe is completing must win over its
+    // result: a cancelled resolution never reports success.
+    if (signal?.aborted) return { ok: false, reason: "cancelled" };
     if (outcome.status === "ok") {
       return { ok: true, url: candidates[i], meta: outcome.meta };
     }
