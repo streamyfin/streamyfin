@@ -88,6 +88,7 @@ export default function DirectPlayerPage() {
   );
   const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -463,18 +464,8 @@ export default function DirectPlayerPage() {
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
-      const progressInfo = currentPlayStateInfo();
-      if (progressInfo) {
-        playbackManager.reportPlaybackProgress(progressInfo);
-      }
     } else {
       videoRef.current?.play();
-      const progressInfo = currentPlayStateInfo();
-      if (!offline && api) {
-        await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
-        });
-      }
     }
   };
 
@@ -611,6 +602,17 @@ export default function DirectPlayerPage() {
     isPlaying,
     isMuted,
   ]);
+
+  // Report after the state commits. Reporting inside the play/pause handlers
+  // sent the pre-transition value, since setIsPlaying only applies next render.
+  // Deliberately excludes playbackManager: usePlaybackManager returns a new
+  // object every render, which would fire this on every render.
+  useEffect(() => {
+    if (!item?.Id || !hasPlaybackStarted) return;
+    playbackManager.reportPlaybackProgress(
+      currentPlayStateInfo() as PlaybackProgressInfo,
+    );
+  }, [currentPlayStateInfo, item?.Id, hasPlaybackStarted]);
 
   const lastUrlUpdateTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
@@ -892,11 +894,6 @@ export default function DirectPlayerPage() {
         setHasPlaybackStarted(true);
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
-        if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
-        }
         await activateKeepAwakeAsync();
         return;
       }
@@ -905,11 +902,6 @@ export default function DirectPlayerPage() {
         setIsPlaying(false);
         // Resume inactivity timer when paused (TV only)
         resumeInactivityTimer();
-        if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
-        }
         await deactivateKeepAwake();
         return;
       }
