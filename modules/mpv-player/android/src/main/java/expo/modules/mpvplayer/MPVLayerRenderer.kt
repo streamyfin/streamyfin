@@ -247,7 +247,32 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             mpv?.setOptionString("sub-use-margins", "no")
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
-            
+
+            // Network resilience for remote playback (DirectPlay/DirectStream/
+            // Transcode all go through mpv's ffmpeg-based "http"/"https" stream
+            // backend). Without this, a TCP connection that dies mid-stream —
+            // an idle-timeout on a reverse proxy in front of Jellyfin, a
+            // cellular handover, Wi-Fi/cellular switch, a brief server hiccup —
+            // makes the demuxer's read() fail and mpv just stops advancing:
+            // playback silently stalls with no error and no automatic
+            // recovery. A seek reopens the stream at a new offset (new
+            // connection) so it "fixes" it, and stop+restart obviously gets a
+            // fresh connection too — which is exactly the user-reported
+            // symptom ("stream stops after a while, only seeking or
+            // restarting helps"). Mirrors the iOS renderer — see the full
+            // rationale in MPVLayerRenderer.swift's matching comment.
+            //
+            // reconnect_at_eof is intentionally NOT set: Jellyfin never
+            // serves an open-ended growing resource here, and enabling it
+            // was verified (see modules/mpv-player/NETWORK_RESILIENCE.md)
+            // to make ffmpeg retry for several seconds past a perfectly
+            // normal end-of-stream before giving up.
+            mpv?.setOptionString("network-timeout", "10")
+            mpv?.setOptionString(
+                "stream-lavf-o",
+                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5"
+            )
+
             // Important: Start with force-window=no, will be set to yes when surface is attached
             mpv?.setOptionString("force-window", "no")
             mpv?.setOptionString("keep-open", "always")
