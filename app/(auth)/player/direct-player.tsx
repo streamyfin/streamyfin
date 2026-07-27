@@ -186,7 +186,10 @@ export default function DirectPlayerPage() {
   }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   // Pinned on mount: the initial seek must not follow the position the player
-  // writes back into the URL every 30s.
+  // writes back into the URL every 30s. Zero here is not a missed resume:
+  // PlayButton always passes playbackPosition, and when it is absent the
+  // resume still happens through the stream offset and MPV's startPosition,
+  // which read startTicks after the item has loaded.
   const initialPlaybackTicksRef = useRef<number>(startTicks);
 
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
