@@ -80,11 +80,20 @@ final class PiPController: NSObject {
         pipController = AVPictureInPictureController(contentSource: contentSource)
         pipController?.delegate = self
         pipController?.requiresLinearPlayback = false
+    }
+
+    /// Enable/disable auto-PiP ("swipe up while playing").
+    ///
+    /// Armed per loaded video rather than once at init: leaving it enabled on an
+    /// outgoing player stopped the *next* video from entering PiP, and the view
+    /// is reused across videos so init doesn't run again. Set in `loadVideo()`,
+    /// cleared in `destroy()`.
+    func setAutoStartEnabled(_ enabled: Bool) {
         #if !os(tvOS)
-        pipController?.canStartPictureInPictureAutomaticallyFromInline = true
+        pipController?.canStartPictureInPictureAutomaticallyFromInline = enabled
         #endif
     }
-    
+
     func startPictureInPicture() {
         guard let pipController = pipController,
               pipController.isPictureInPicturePossible else {
