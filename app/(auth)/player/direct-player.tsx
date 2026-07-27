@@ -172,22 +172,22 @@ export default function DirectPlayerPage() {
   const [item, setItem] = useState<BaseItemDto | null>(null);
   const initialSeekDoneRef = useRef(false);
 
-  const initialPlaybackTicksRef = useRef<number>(
-    playbackPositionFromUrl
-      ? Number.parseInt(playbackPositionFromUrl, 10)
-      : (item?.UserData?.PlaybackPositionTicks ?? 0),
-  );
-
   /** Position MPV is told to start from: the URL param wins, since it is
    * rewritten during playback, otherwise the item's stored resume position.
-   * The route is deep-linkable, so a param that isn't a positive number falls
-   * back instead of reaching getStreamUrl and MPV as NaN. */
+   * The route is deep-linkable, so the param is parsed whole rather than by
+   * prefix: parseInt would turn "1200invalid" into a position instead of
+   * falling back, and NaN would reach getStreamUrl and MPV. */
   const startTicks = useMemo(() => {
-    const fromUrl = Number.parseInt(playbackPositionFromUrl ?? "", 10);
-    return Number.isFinite(fromUrl) && fromUrl >= 0
+    const raw = playbackPositionFromUrl?.trim();
+    const fromUrl = raw ? Number(raw) : Number.NaN;
+    return Number.isInteger(fromUrl) && fromUrl >= 0
       ? fromUrl
       : (item?.UserData?.PlaybackPositionTicks ?? 0);
   }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
+
+  // Pinned on mount: the initial seek must not follow the position the player
+  // writes back into the URL every 30s.
+  const initialPlaybackTicksRef = useRef<number>(startTicks);
 
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
