@@ -386,7 +386,7 @@ export const Controls: FC<Props> = ({
 
   const showNextEpisode =
     showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
-  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
+  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime && isPlaying;
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
