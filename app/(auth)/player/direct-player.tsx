@@ -88,6 +88,15 @@ export default function DirectPlayerPage() {
   );
   const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Mirror of isPlaying that is already correct when a report is built.
+  // setIsPlaying only applies on the next render, so an MPV progress tick that
+  // was already in flight when the user paused would carry the pre-transition
+  // value, and MPV stops ticking while paused, so nothing would correct it.
+  const isPlayingRef = useRef(false);
+  const setPlaying = useCallback((playing: boolean) => {
+    isPlayingRef.current = playing;
+    setIsPlaying(playing);
+  }, []);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -168,6 +177,17 @@ export default function DirectPlayerPage() {
       ? Number.parseInt(playbackPositionFromUrl, 10)
       : (item?.UserData?.PlaybackPositionTicks ?? 0),
   );
+
+  /** Position MPV is told to start from: the URL param wins, since it is
+   * rewritten during playback, otherwise the item's stored resume position. */
+  const startTicks = useMemo(
+    () =>
+      playbackPositionFromUrl
+        ? Number.parseInt(playbackPositionFromUrl, 10)
+        : (item?.UserData?.PlaybackPositionTicks ?? 0),
+    [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks],
+  );
+
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
   );
@@ -393,11 +413,6 @@ export default function DirectPlayerPage() {
             return null;
           }
 
-          // Calculate start ticks directly from item to avoid stale closure
-          const startTicks = playbackPositionFromUrl
-            ? Number.parseInt(playbackPositionFromUrl, 10)
-            : (item?.UserData?.PlaybackPositionTicks ?? 0);
-
           const res = await getStreamUrl({
             api,
             item,
@@ -457,17 +472,40 @@ export default function DirectPlayerPage() {
       const progressInfo = currentPlayStateInfo();
       if (progressInfo) {
         await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
+          playbackStartInfo: {
+            ...progressInfo,
+            // This runs once the stream resolves, before MPV has produced a
+            // frame: the live state still says paused at 0:00. The source is
+            // built with autoplay, so describe the session that is starting
+            // instead, or the dashboard shows "paused at 0:00" until the first
+            // progress tick.
+            IsPaused: false,
+            PositionTicks: startTicks,
+          },
         });
       }
     };
-    reportPlaybackStart();
+    // Fire-and-forget, so swallow instead of leaving an unhandled rejection
+    // whenever the server is unreachable at the moment playback starts.
+    reportPlaybackStart().catch((error) => {
+      writeToLog(
+        "ERROR",
+        "reportPlaybackStart failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+    // startTicks is read, not depended on: it is rewritten into the URL every
+    // 30s during playback, and re-running this would report a new playback
+    // start each time.
   }, [stream, api, offline]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
-    setIsPlaying(!isPlaying);
-    if (isPlaying) {
+    // Read the ref so two taps inside one render cycle don't both see the same
+    // stale state and cancel each other out.
+    const wasPlaying = isPlayingRef.current;
+    setPlaying(!wasPlaying);
+    if (wasPlaying) {
       await videoRef.current?.pause();
     } else {
       videoRef.current?.play();
@@ -589,7 +627,10 @@ export default function DirectPlayerPage() {
       SubtitleStreamIndex: currentSubtitleIndex,
       MediaSourceId: mediaSourceId,
       PositionTicks: msToTicks(progress.get()),
-      IsPaused: !isPlaying,
+      // Read through the ref, not the isPlaying state: this is called from
+      // handlers that may have been created before the last transition, and a
+      // report must describe the state at the moment it is built.
+      IsPaused: !isPlayingRef.current,
       PlayMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
       PlaySessionId: stream.sessionId,
       IsMuted: isMuted,
@@ -604,14 +645,12 @@ export default function DirectPlayerPage() {
     currentSubtitleIndex,
     mediaSourceId,
     progress,
-    isPlaying,
     isMuted,
   ]);
 
-  // Report after the state commits. Reporting inside the play/pause handlers
-  // sent the pre-transition value, since setIsPlaying only applies next render.
-  // Deliberately excludes playbackManager: usePlaybackManager returns a new
-  // object every render, which would fire this on every render.
+  // Report after the state commits. Deliberately excludes playbackManager:
+  // usePlaybackManager returns a new object every render, which would fire this
+  // on every render.
   useEffect(() => {
     if (!item?.Id || !stream || !hasPlaybackStarted) return;
     // currentPlayStateInfo() returns undefined without a stream, and
@@ -620,7 +659,10 @@ export default function DirectPlayerPage() {
     const progressInfo = currentPlayStateInfo();
     if (!progressInfo) return;
     void playbackManager.reportPlaybackProgress(progressInfo);
-  }, [currentPlayStateInfo, item?.Id, stream, hasPlaybackStarted]);
+    // isPlaying is what makes a transition land here: currentPlayStateInfo now
+    // reads the play state through a ref, so its identity no longer changes
+    // when the user pauses or resumes.
+  }, [currentPlayStateInfo, isPlaying, item?.Id, stream, hasPlaybackStarted]);
 
   const lastUrlUpdateTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
@@ -676,16 +718,22 @@ export default function DirectPlayerPage() {
 
       if (!item?.Id) return;
 
-      playbackManager.reportPlaybackProgress(
-        currentPlayStateInfo() as PlaybackProgressInfo,
-      );
+      // An in-place episode switch clears the stream while MPV can still emit
+      // one last tick. currentPlayStateInfo() is undefined without a stream and
+      // reportPlaybackProgress dereferences its argument straight away, so the
+      // old cast turned that tick into a crash.
+      const progressInfo = currentPlayStateInfo();
+      if (!progressInfo) return;
+      playbackManager.reportPlaybackProgress(progressInfo);
     },
     [
+      // Depend on the builder itself rather than re-listing what it reads: it
+      // also covers the mute state, which this list used to miss.
+      currentPlayStateInfo,
       item?.Id,
       currentAudioIndex,
       currentSubtitleIndex,
       mediaSourceId,
-      isPlaying,
       stream,
       isSeeking,
       isPlaybackStopped,
@@ -745,10 +793,6 @@ export default function DirectPlayerPage() {
       isTranscoding,
     );
 
-    // Calculate start position directly here to avoid timing issues
-    const startTicks = playbackPositionFromUrl
-      ? Number.parseInt(playbackPositionFromUrl, 10)
-      : (item?.UserData?.PlaybackPositionTicks ?? 0);
     const startPos = ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
@@ -799,8 +843,7 @@ export default function DirectPlayerPage() {
     stream?.url,
     stream?.mediaSource,
     stream?.requiredHttpHeaders,
-    item?.UserData?.PlaybackPositionTicks,
-    playbackPositionFromUrl,
+    startTicks,
     api?.basePath,
     api?.accessToken,
     audioIndex,
@@ -897,7 +940,7 @@ export default function DirectPlayerPage() {
       const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
 
       if (playing) {
-        setIsPlaying(true);
+        setPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
         // Pause inactivity timer during playback (TV only)
@@ -907,7 +950,7 @@ export default function DirectPlayerPage() {
       }
 
       if (isPaused) {
-        setIsPlaying(false);
+        setPlaying(false);
         // Resume inactivity timer when paused (TV only)
         resumeInactivityTimer();
         await deactivateKeepAwake();
@@ -918,13 +961,7 @@ export default function DirectPlayerPage() {
         setIsBuffering(isLoading);
       }
     },
-    [
-      playbackManager,
-      item?.Id,
-      progress,
-      pauseInactivityTimer,
-      resumeInactivityTimer,
-    ],
+    [setPlaying, pauseInactivityTimer, resumeInactivityTimer],
   );
 
   const _onPictureInPictureChange = useCallback(
