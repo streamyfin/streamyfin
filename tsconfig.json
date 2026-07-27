@@ -42,16 +42,8 @@
     "babel.config.js",
     "metro.config.js",
     "utils/jellyseerr/**/*",
-    // bun:test files aren't otherwise reachable from the compiler's root
-    // set (nothing imports a *.test.ts), so the project's two existing
-    // suites (utils/chapters.test.ts, utils/jellyfin/subtitleUtils.test.ts)
-    // were never actually typechecked — they just happen to live outside
-    // the "include" globs above. modules/**/* IS included though, so a
-    // *.test.ts placed there (see modules/mpv-player/networkResilience.test.ts)
-    // gets pulled in and fails on `bun:test`, which has no type
-    // declarations in this project (no bun-types dependency). Exclude test
-    // files everywhere for consistent behavior instead of adding a new
-    // dependency just for type declarations bun itself doesn't need to run them.
+    // bun:test has no type declarations in this project; exclude test
+    // files from typecheck everywhere (modules/**/* is otherwise included).
     "**/*.test.ts",
     "**/*.test.tsx"
   ]

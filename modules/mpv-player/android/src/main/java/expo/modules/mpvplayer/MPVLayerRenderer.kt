@@ -248,25 +248,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
 
-            // Network resilience for remote playback (DirectPlay/DirectStream/
-            // Transcode all go through mpv's ffmpeg-based "http"/"https" stream
-            // backend). Without this, a TCP connection that dies mid-stream —
-            // an idle-timeout on a reverse proxy in front of Jellyfin, a
-            // cellular handover, Wi-Fi/cellular switch, a brief server hiccup —
-            // makes the demuxer's read() fail and mpv just stops advancing:
-            // playback silently stalls with no error and no automatic
-            // recovery. A seek reopens the stream at a new offset (new
-            // connection) so it "fixes" it, and stop+restart obviously gets a
-            // fresh connection too — which is exactly the user-reported
-            // symptom ("stream stops after a while, only seeking or
-            // restarting helps"). Mirrors the iOS renderer — see the full
-            // rationale in MPVLayerRenderer.swift's matching comment.
-            //
-            // reconnect_at_eof is intentionally NOT set: Jellyfin never
-            // serves an open-ended growing resource here, and enabling it
-            // was verified (see modules/mpv-player/NETWORK_RESILIENCE.md)
-            // to make ffmpeg retry for several seconds past a perfectly
-            // normal end-of-stream before giving up.
+            // Reconnect mpv's ffmpeg http/https backend on dropped connections
+            // (proxy idle-timeout, cellular handover, etc) instead of silently
+            // stalling playback. reconnect_at_eof stays off — see
+            // NETWORK_RESILIENCE.md for the full rationale and verification.
             mpv?.setOptionString("network-timeout", "10")
             mpv?.setOptionString(
                 "stream-lavf-o",

@@ -227,29 +227,10 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
 
-        // Network resilience for remote playback (DirectPlay/DirectStream/
-        // Transcode all go through mpv's ffmpeg-based "http"/"https" stream
-        // backend). Without this, a TCP connection that dies mid-stream —
-        // an idle-timeout on a reverse proxy in front of Jellyfin, a
-        // cellular handover, Wi-Fi/cellular switch, a brief server hiccup —
-        // makes the demuxer's read() fail and mpv just stops advancing:
-        // playback silently stalls with no error and no automatic
-        // recovery. A seek reopens the stream at a new offset (new
-        // connection) so it "fixes" it, and stop+restart obviously gets a
-        // fresh connection too — which is exactly the user-reported
-        // symptom ("stream stops after a while, only seeking or
-        // restarting helps").
-        //
-        // reconnect / reconnect_streamed / reconnect_on_network_error make
-        // ffmpeg's http protocol transparently reopen the connection (with
-        // a Range request resuming from the last received byte) instead of
-        // surfacing a fatal error. reconnect_at_eof is intentionally NOT
-        // set: Jellyfin never serves an open-ended growing resource here
-        // (DirectPlay/DirectStream is one bounded Content-Length file,
-        // each HLS segment is its own bounded request) — enabling it was
-        // verified to make ffmpeg retry for several seconds past a
-        // perfectly normal end-of-stream before giving up, which would
-        // delay the natural end of every single stream.
+        // Reconnect mpv's ffmpeg http/https backend on dropped connections
+        // (proxy idle-timeout, cellular handover, etc) instead of silently
+        // stalling playback. reconnect_at_eof stays off — see
+        // NETWORK_RESILIENCE.md for the full rationale and verification.
         checkError(mpv_set_option_string(handle, "network-timeout", "10"))
         checkError(mpv_set_option_string(
             handle,
