@@ -152,6 +152,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         if (item.ParentThumbItemId && item.ParentThumbImageTag) {
           return `${api.basePath}/Items/${item.ParentThumbItemId}/Images/Thumb?fillHeight=700&quality=80&tag=${item.ParentThumbImageTag}`;
         }
+        if (item.ParentBackdropItemId && item.ParentBackdropImageTags?.length) {
+          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=700&quality=80&tag=${item.ParentBackdropImageTags[0]}`;
+        }
         // Fall back to episode's own primary image
         if (item.ImageTags?.Primary) {
           return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=600&quality=80&tag=${item.ImageTags.Primary}`;
