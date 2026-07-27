@@ -32,7 +32,7 @@ stop/restart obviously gets a new connection too.
 Set two options once, in `start()`, so they apply to every load (direct
 play, direct stream, and every transcode/HLS segment fetch):
 
-```
+```ini
 network-timeout=10
 stream-lavf-o=reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5
 ```

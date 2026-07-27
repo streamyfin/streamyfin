@@ -66,12 +66,14 @@ describe.each([
 
       expect(opts.reconnect).toBe("1");
       expect(opts.reconnect_streamed).toBe("1");
+      expect(opts.reconnect_on_network_error).toBe("1");
       expect(opts.reconnect_delay_max).toBeDefined();
       expect(Number(opts.reconnect_delay_max)).toBeGreaterThan(0);
       expect(Number(opts.reconnect_delay_max)).toBeLessThanOrEqual(30);
 
-      // See NETWORK_RESILIENCE.md: verified harmful, must stay unset.
-      expect(opts.reconnect_at_eof).not.toBe("1");
+      // See NETWORK_RESILIENCE.md: verified harmful, must stay unset —
+      // absent or explicit "0" only, not just "anything but 1".
+      expect(opts.reconnect_at_eof ?? "0").toBe("0");
     });
 
     test("the reconnect options are applied at mpv start-up, not per-load", () => {
