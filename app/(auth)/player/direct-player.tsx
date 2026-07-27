@@ -287,9 +287,15 @@ export default function DirectPlayerPage() {
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
       setStream(null);
+      // Scope the started flag and the position to the item being played. The
+      // component is reused across an in-place item switch, and both are read
+      // by the progress report below: left as-is, the new item is reported at
+      // the previous one's position before its own playback has even started.
+      setHasPlaybackStarted(false);
+      progress.set(0);
       fetchItemData();
     }
-  }, [itemId, offline, api, user?.Id]);
+  }, [itemId, offline, api, user?.Id, progress]);
 
   // Lock orientation based on user settings
   useEffect(() => {
@@ -465,18 +471,8 @@ export default function DirectPlayerPage() {
     setIsPlaying(!isPlaying);
     if (isPlaying) {
       await videoRef.current?.pause();
-      const progressInfo = currentPlayStateInfo();
-      if (progressInfo) {
-        playbackManager.reportPlaybackProgress(progressInfo);
-      }
     } else {
       videoRef.current?.play();
-      const progressInfo = currentPlayStateInfo();
-      if (!offline && api) {
-        await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
-        });
-      }
     }
   };
 
@@ -615,6 +611,20 @@ export default function DirectPlayerPage() {
     isPlaying,
     isMuted,
   ]);
+
+  // Report after the state commits. Reporting inside the play/pause handlers
+  // sent the pre-transition value, since setIsPlaying only applies next render.
+  // Deliberately excludes playbackManager: usePlaybackManager returns a new
+  // object every render, which would fire this on every render.
+  useEffect(() => {
+    if (!item?.Id || !stream || !hasPlaybackStarted) return;
+    // currentPlayStateInfo() returns undefined without a stream, and
+    // reportPlaybackProgress dereferences its argument immediately. Read it
+    // instead of casting so a gap between the item and its stream can't reject.
+    const progressInfo = currentPlayStateInfo();
+    if (!progressInfo) return;
+    void playbackManager.reportPlaybackProgress(progressInfo);
+  }, [currentPlayStateInfo, item?.Id, stream, hasPlaybackStarted]);
 
   const lastUrlUpdateTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
@@ -896,11 +906,6 @@ export default function DirectPlayerPage() {
         setHasPlaybackStarted(true);
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
-        if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
-        }
         await activateKeepAwakeAsync();
         return;
       }
@@ -909,11 +914,6 @@ export default function DirectPlayerPage() {
         setIsPlaying(false);
         // Resume inactivity timer when paused (TV only)
         resumeInactivityTimer();
-        if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
-        }
         await deactivateKeepAwake();
         return;
       }
