@@ -480,8 +480,9 @@ export default function DirectPlayerPage() {
     }
   };
 
-  // PlaySessionId of the last "stopped" report, to dedupe the double teardown.
-  const reportedStopSessionIdRef = useRef<string | null>(null);
+  // Key of the last "stopped" report, to dedupe the double teardown. The
+  // PlaySessionId when there is one, the item id otherwise (see stopKey below).
+  const reportedStopKeyRef = useRef<string | null>(null);
 
   const reportPlaybackStopped = useCallback(async () => {
     if (!item?.Id || !stream || !api || !isConnected) return;
@@ -491,8 +492,8 @@ export default function DirectPlayerPage() {
     // item switches and the next session must report again. Downloaded items
     // have no PlaySessionId, so fall back to the item id.
     const stopKey = stream.sessionId || item.Id;
-    if (reportedStopSessionIdRef.current === stopKey) return;
-    reportedStopSessionIdRef.current = stopKey;
+    if (reportedStopKeyRef.current === stopKey) return;
+    reportedStopKeyRef.current = stopKey;
     const currentTimeInTicks = msToTicks(progress.get());
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
@@ -514,8 +515,8 @@ export default function DirectPlayerPage() {
       // report from a WebSocket remote-stop (player still mounted) must not
       // suppress the report when the user then navigates away. Callers are
       // fire-and-forget, so swallow instead of rethrowing unhandled.
-      if (reportedStopSessionIdRef.current === stopKey) {
-        reportedStopSessionIdRef.current = null;
+      if (reportedStopKeyRef.current === stopKey) {
+        reportedStopKeyRef.current = null;
       }
       writeToLog(
         "ERROR",
