@@ -21,18 +21,24 @@ interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;
   onPress?: () => void;
   show: boolean;
+  // When false, the button is shown as a plain tap target with no fill
+  // animation and never auto-advances — used when the trigger that revealed
+  // it (e.g. credits-segment metadata) isn't reliable enough to act on
+  // without the user confirming.
+  autoAdvance?: boolean;
 }
 
 const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
   onFinish,
   onPress,
   show,
+  autoAdvance = true,
   ...props
 }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (show) {
+    if (show && autoAdvance) {
       progress.value = 0;
       progress.value = withTiming(
         1,
@@ -52,7 +58,10 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
         cancelAnimation(progress);
       };
     }
-  }, [show, onFinish]);
+    // Not auto-advancing (or not shown): keep the fill empty, no timer.
+    cancelAnimation(progress);
+    progress.value = 0;
+  }, [show, autoAdvance, onFinish]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

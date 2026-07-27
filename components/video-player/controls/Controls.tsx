@@ -373,11 +373,20 @@ export const Controls: FC<Props> = ({
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
       settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
 
-  // Show during credits when nothing plays after them, or in the last seconds.
+  // Credits segment metadata (hasContentAfterCredits) can be wrong, so this
+  // path only swaps Skip Credits for a manually-tappable Next Episode button
+  // — it must never auto-advance on its own.
+  const showNextEpisodeFromCredits =
+    willShowNextEpisode && showSkipCreditButton && !hasContentAfterCredits;
+
+  // Driven by actual playback position vs. duration, independent of segment
+  // metadata, so it's safe to auto-advance from this trigger.
+  const showNextEpisodeFromRemainingTime =
+    willShowNextEpisode && remainingTime < 10000;
+
   const showNextEpisode =
-    willShowNextEpisode &&
-    ((showSkipCreditButton && !hasContentAfterCredits) ||
-      remainingTime < 10000);
+    showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
+  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -637,6 +646,7 @@ export const Controls: FC<Props> = ({
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
             showNextEpisode={showNextEpisode}
+            autoAdvanceNextEpisode={autoAdvanceNextEpisode}
             skipIntro={skipIntro}
             skipCredit={skipCredit}
             onNextEpisodeFinish={handleNextEpisodeAutoPlay}

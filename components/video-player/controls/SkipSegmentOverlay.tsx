@@ -18,6 +18,7 @@ interface Props {
   hasContentAfterCredits: boolean;
   willShowNextEpisode: boolean;
   showNextEpisode: boolean;
+  autoAdvanceNextEpisode: boolean;
   skipIntro: () => void;
   skipCredit: () => void;
   onNextEpisodeFinish: () => void;
@@ -71,6 +72,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
   hasContentAfterCredits,
   willShowNextEpisode,
   showNextEpisode,
+  autoAdvanceNextEpisode,
   skipIntro,
   skipCredit,
   onNextEpisodeFinish,
@@ -133,6 +135,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
           exact position and can never overlap them. */}
       <NextEpisodeCountDownButton
         show={showNextEpisode}
+        autoAdvance={autoAdvanceNextEpisode}
         onFinish={onNextEpisodeFinish}
         onPress={onNextEpisodePress}
       />
