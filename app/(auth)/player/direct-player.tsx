@@ -88,7 +88,6 @@ export default function DirectPlayerPage() {
   );
   const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -286,9 +285,15 @@ export default function DirectPlayerPage() {
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
       setStream(null);
+      // Scope the started flag and the position to the item being played. The
+      // component is reused across an in-place item switch, and both are read
+      // by the progress report below: left as-is, the new item is reported at
+      // the previous one's position before its own playback has even started.
+      setHasPlaybackStarted(false);
+      progress.set(0);
       fetchItemData();
     }
-  }, [itemId, offline, api, user?.Id]);
+  }, [itemId, offline, api, user?.Id, progress]);
 
   // Lock orientation based on user settings
   useEffect(() => {
@@ -608,11 +613,14 @@ export default function DirectPlayerPage() {
   // Deliberately excludes playbackManager: usePlaybackManager returns a new
   // object every render, which would fire this on every render.
   useEffect(() => {
-    if (!item?.Id || !hasPlaybackStarted) return;
-    playbackManager.reportPlaybackProgress(
-      currentPlayStateInfo() as PlaybackProgressInfo,
-    );
-  }, [currentPlayStateInfo, item?.Id, hasPlaybackStarted]);
+    if (!item?.Id || !stream || !hasPlaybackStarted) return;
+    // currentPlayStateInfo() returns undefined without a stream, and
+    // reportPlaybackProgress dereferences its argument immediately. Read it
+    // instead of casting so a gap between the item and its stream can't reject.
+    const progressInfo = currentPlayStateInfo();
+    if (!progressInfo) return;
+    void playbackManager.reportPlaybackProgress(progressInfo);
+  }, [currentPlayStateInfo, item?.Id, stream, hasPlaybackStarted]);
 
   const lastUrlUpdateTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
