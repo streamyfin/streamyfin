@@ -441,10 +441,20 @@ export const Controls: FC<Props> = ({
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
       settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
 
-  // Show during credits when nothing plays after them, or in the last seconds.
+  // Credits segment metadata (hasContentAfterCredits) can be wrong, so this
+  // path only swaps Skip Credits for a manually-tappable Next Episode button
+  // — it must never auto-advance on its own.
+  const showNextEpisodeFromCredits =
+    willShowNextEpisode && showSkipOutroButton && !hasContentAfterCredits;
+
+  // Driven by actual playback position vs. duration, independent of segment
+  // metadata, so it's safe to auto-advance from this trigger.
+  const showNextEpisodeFromRemainingTime =
+    willShowNextEpisode && remainingTime < 10000;
+
   const showNextEpisode =
-    willShowNextEpisode &&
-    ((showSkipOutroButton && !hasContentAfterCredits) || remainingTime < 10000);
+    showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
+  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
   // Autoplay would run at EOF but the episode cap stops it: ask "Still
   // watching?" there instead, with playback paused — mirroring the native
@@ -756,6 +766,7 @@ export const Controls: FC<Props> = ({
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
             showNextEpisode={showNextEpisode}
+            autoAdvanceNextEpisode={autoAdvanceNextEpisode}
             skipIntro={onSkipSegment}
             skipCredit={onSkipOutro}
             onNextEpisodeFinish={handleNextEpisodeAutoPlay}
