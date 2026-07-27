@@ -39,6 +39,9 @@ interface BottomControlsProps {
   handleNextEpisodeAutoPlay: () => void;
   handleNextEpisodeManual: () => void;
   handleControlsInteraction: () => void;
+  // When true the Next Episode button is static (no countdown, no auto-advance).
+  // Set after a manual Skip Credits so the user must tap to advance.
+  suppressAutoNextEpisode?: boolean;
 
   // Slider props
   min: SharedValue<number>;
@@ -88,6 +91,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
   handleNextEpisodeAutoPlay,
   handleNextEpisodeManual,
   handleControlsInteraction,
+  suppressAutoNextEpisode,
   min,
   max,
   effectiveProgress,
@@ -187,6 +191,7 @@ export const BottomControls: FC<BottomControlsProps> = ({
                 }
                 onFinish={handleNextEpisodeAutoPlay}
                 onPress={handleNextEpisodeManual}
+                manual={suppressAutoNextEpisode}
               />
             )}
           {hasChapters && (

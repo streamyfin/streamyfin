@@ -21,18 +21,24 @@ interface NextEpisodeCountDownButtonProps extends TouchableOpacityProps {
   onFinish?: () => void;
   onPress?: () => void;
   show: boolean;
+  // When true the button renders statically: no countdown animation and
+  // onFinish is never invoked. Used after a manual Skip Credits so the user
+  // must tap to advance instead of being auto-skipped to the next episode.
+  manual?: boolean;
 }
 
 const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
   onFinish,
   onPress,
   show,
+  manual = false,
   ...props
 }) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (show) {
+    // In manual mode the button never counts down and never auto-advances.
+    if (show && !manual) {
       progress.value = 0;
       progress.value = withTiming(
         1,
@@ -52,7 +58,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
         cancelAnimation(progress);
       };
     }
-  }, [show, onFinish]);
+  }, [show, onFinish, manual]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -83,7 +89,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
       {...props}
       onPress={handlePress}
     >
-      <Animated.View style={animatedStyle} />
+      {!manual && <Animated.View style={animatedStyle} />}
       <View className='px-3 py-3'>
         <Text numberOfLines={1} className='text-center font-bold'>
           {t("player.next_episode")}

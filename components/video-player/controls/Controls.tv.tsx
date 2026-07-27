@@ -1292,6 +1292,7 @@ export const Controls: FC<Props> = ({
           isPlaying={isPlaying && !isExiting}
           onFinish={handleAutoPlayFinish}
           onPlayNext={handleNextItemButton}
+          manual={suppressAutoNextEpisode}
           controlsVisible={showControls}
           refSetter={setNextEpisodeRef}
           hasTVPreferredFocus={!showControls}

@@ -629,6 +629,7 @@ export const Controls: FC<Props> = ({
               handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
               handleNextEpisodeManual={handleNextEpisodeManual}
               handleControlsInteraction={handleControlsInteraction}
+              suppressAutoNextEpisode={suppressAutoNextEpisode}
               min={min}
               max={max}
               effectiveProgress={effectiveProgress}

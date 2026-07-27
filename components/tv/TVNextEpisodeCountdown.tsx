@@ -34,6 +34,12 @@ export interface TVNextEpisodeCountdownProps {
   onFinish: () => void;
   /** Called when user presses the card to skip to next episode */
   onPlayNext?: () => void;
+  /**
+   * When true the card renders statically: no countdown animation and onFinish
+   * is never invoked. Used after a manual Skip Credits so the user must select
+   * the card to advance instead of being auto-skipped to the next episode.
+   */
+  manual?: boolean;
   /** Whether controls are visible - affects card position */
   controlsVisible?: boolean;
   /** Callback ref setter for focus guide destination pattern */
@@ -55,6 +61,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
   isPlaying,
   onFinish,
   onPlayNext,
+  manual = false,
   controlsVisible = false,
   refSetter,
   hasTVPreferredFocus = true,
@@ -116,6 +123,11 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
       progress.value = 0;
     }
 
+    // In manual mode the card never counts down and never auto-advances.
+    if (manual) {
+      return;
+    }
+
     if (!isPlaying) {
       cancelAnimation(progress);
       return;
@@ -140,7 +152,7 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
       cancelled.value = true;
       cancelAnimation(progress);
     };
-  }, [show, isPlaying, progress, cancelled]);
+  }, [show, isPlaying, manual, progress, cancelled]);
 
   const progressStyle = useAnimatedStyle(() => ({
     width: `${progress.value * 100}%`,
@@ -186,9 +198,13 @@ export const TVNextEpisodeCountdown: FC<TVNextEpisodeCountdownProps> = ({
                   {nextItem.Name}
                 </Text>
 
-                <View style={styles.progressContainer}>
-                  <Animated.View style={[styles.progressBar, progressStyle]} />
-                </View>
+                {!manual && (
+                  <View style={styles.progressContainer}>
+                    <Animated.View
+                      style={[styles.progressBar, progressStyle]}
+                    />
+                  </View>
+                )}
               </View>
             </View>
           </BlurView>
