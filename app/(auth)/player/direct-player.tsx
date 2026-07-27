@@ -179,14 +179,15 @@ export default function DirectPlayerPage() {
   );
 
   /** Position MPV is told to start from: the URL param wins, since it is
-   * rewritten during playback, otherwise the item's stored resume position. */
-  const startTicks = useMemo(
-    () =>
-      playbackPositionFromUrl
-        ? Number.parseInt(playbackPositionFromUrl, 10)
-        : (item?.UserData?.PlaybackPositionTicks ?? 0),
-    [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks],
-  );
+   * rewritten during playback, otherwise the item's stored resume position.
+   * The route is deep-linkable, so a param that isn't a positive number falls
+   * back instead of reaching getStreamUrl and MPV as NaN. */
+  const startTicks = useMemo(() => {
+    const fromUrl = Number.parseInt(playbackPositionFromUrl ?? "", 10);
+    return Number.isFinite(fromUrl) && fromUrl >= 0
+      ? fromUrl
+      : (item?.UserData?.PlaybackPositionTicks ?? 0);
+  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
 
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
