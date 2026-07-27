@@ -454,7 +454,7 @@ export const Controls: FC<Props> = ({
 
   const showNextEpisode =
     showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
-  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
+  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime && isPlaying;
 
   // Autoplay would run at EOF but the episode cap stops it: ask "Still
   // watching?" there instead, with playback paused — mirroring the native
