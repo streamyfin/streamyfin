@@ -689,6 +689,12 @@ export default function DirectPlayerPage() {
     async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
       if (isSeeking.get() || isPlaybackStopped) return;
 
+      // An in-place episode switch clears the stream and resets the position
+      // while MPV can still emit one last tick for the previous episode.
+      // Bail before touching shared state: writing that position into the URL
+      // would make it the next episode's start position.
+      if (!item?.Id || item.Id !== itemId || !stream) return;
+
       const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
       const currentTime = position * 1000;
@@ -720,12 +726,6 @@ export default function DirectPlayerPage() {
         lastUrlUpdateTime.value = now;
       }
 
-      if (!item?.Id) return;
-
-      // An in-place episode switch clears the stream while MPV can still emit
-      // one last tick. currentPlayStateInfo() is undefined without a stream and
-      // reportPlaybackProgress dereferences its argument straight away, so the
-      // old cast turned that tick into a crash.
       const progressInfo = currentPlayStateInfo();
       if (!progressInfo) return;
       playbackManager.reportPlaybackProgress(progressInfo);
@@ -735,6 +735,7 @@ export default function DirectPlayerPage() {
       // also covers the mute state, which this list used to miss.
       currentPlayStateInfo,
       item?.Id,
+      itemId,
       currentAudioIndex,
       currentSubtitleIndex,
       mediaSourceId,
