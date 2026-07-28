@@ -17,7 +17,10 @@ interface UseVideoTimeProps {
  */
 export function useVideoTime({ progress, max, isSeeking }: UseVideoTimeProps) {
   const [currentTime, setCurrentTime] = useState(0);
-  const [remainingTime, setRemainingTime] = useState(Number.POSITIVE_INFINITY);
+  // Start at 0 (not Infinity) so the controls' first paint — before the first
+  // progress/max update — shows "0:00" instead of formatting Infinity into
+  // "Infinityh NaNm NaNs" and an Invalid Date for "ends at".
+  const [remainingTime, setRemainingTime] = useState(0);
 
   const lastCurrentTimeRef = useRef(0);
   const lastRemainingTimeRef = useRef(0);

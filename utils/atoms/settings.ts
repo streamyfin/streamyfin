@@ -171,10 +171,51 @@ export type HomeSectionLatestResolver = {
   includeItemTypes?: Array<BaseItemKind>;
 };
 
-// Video player enum - currently only MPV is supported
+// Video player enum. MPV is the universal default; ExoPlayer is an
+// opt-in alternative on Android TV, selectable via settings.videoPlayer.
 export enum VideoPlayer {
   MPV = 0,
+  ExoPlayer = 1,
 }
+
+/**
+ * Whether ExoPlayer's native module is available on the current platform.
+ * ExoPlayer only ships for Android TV; on any other platform a persisted
+ * `videoPlayer: ExoPlayer` preference (e.g. MMKV roaming) must fall back
+ * to MPV rather than crash on requireNativeView().
+ */
+export const isExoPlayerSupported =
+  Platform.OS === "android" && Platform.isTV === true;
+
+/**
+ * Resolve the actually-active video player for the current settings.
+ * MPV is the default on every platform; users can opt into ExoPlayer on
+ * Android TV via settings.videoPlayer. The Android-TV capability gate is
+ * folded in here so callers (VideoPlayerView, direct-player's device
+ * profile, PlaySettingsProvider) can never advertise ExoPlayer on a
+ * platform where MPV is actually rendering — that mismatch would let
+ * Jellyfin pick a stream for the wrong renderer.
+ */
+export const getActiveVideoPlayer = (
+  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+): VideoPlayer => {
+  if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
+    return VideoPlayer.ExoPlayer;
+  }
+  return VideoPlayer.MPV;
+};
+
+/**
+ * Same selection as getActiveVideoPlayer but returns the lowercase
+ * player-type identifier that `generateDeviceProfile` expects.
+ */
+export const getActivePlayerType = (
+  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+): "mpv" | "exoplayer" => {
+  return getActiveVideoPlayer(settings) === VideoPlayer.ExoPlayer
+    ? "exoplayer"
+    : "mpv";
+};
 
 // TV Typography scale presets
 export enum TVTypographyScale {
@@ -218,6 +259,8 @@ export type Settings = {
   mediaListCollectionIds?: string[];
   preferedLanguage?: string;
   searchEngine: "Marlin" | "Jellyfin" | "Streamystats";
+  /** Video player backend. Defaults to MPV when unset (see getActiveVideoPlayer). */
+  videoPlayer?: VideoPlayer;
   marlinServerUrl?: string;
   streamyStatsServerUrl?: string;
   streamyStatsMovieRecommendations?: boolean;
@@ -274,6 +317,9 @@ export type Settings = {
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
   mergeNextUpAndContinueWatching: boolean;
+  // Use the episode's own image (instead of the series thumb) for the
+  // "Next Up" and "Continue Watching" home rows.
+  useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
@@ -315,6 +361,8 @@ export const defaultValues: Settings = {
   mediaListCollectionIds: [],
   preferedLanguage: undefined,
   searchEngine: "Jellyfin",
+  // videoPlayer intentionally undefined — resolved at runtime via
+  // getActiveVideoPlayer() so existing installs are unaffected.
   marlinServerUrl: "",
   streamyStatsServerUrl: "",
   streamyStatsMovieRecommendations: false,
@@ -382,6 +430,7 @@ export const defaultValues: Settings = {
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
+  useEpisodeImagesForNextUp: false,
   // TV-specific settings
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
@@ -449,11 +498,6 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
 const hasMeaningfulSettingValue = (value: unknown) =>
   value !== undefined && value !== null && value !== "";
 
-const getEffectiveSettingValue = <K extends keyof Settings>(
-  settings: Partial<Settings> | null | undefined,
-  settingsKey: K,
-) => settings?.[settingsKey] ?? defaultValues[settingsKey];
-
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -510,7 +554,17 @@ export const useSettings = () => {
     if (!_settings) {
       return;
     }
-    const hasChanges = Object.entries(update).some(
+    // Admin-locked settings are enforced at write time too: a control that
+    // isn't disabled in the UI must not persist a value the admin pinned.
+    // The read memo already overrides locked keys, but without this guard the
+    // write would silently land in user storage and resurface once unlocked.
+    const sanitizedUpdate = Object.fromEntries(
+      Object.entries(update).filter(
+        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
+      ),
+    ) as Partial<Settings>;
+
+    const hasChanges = Object.entries(sanitizedUpdate).some(
       ([key, value]) => _settings[key as keyof Settings] !== value,
     );
 
@@ -519,7 +573,7 @@ export const useSettings = () => {
       const newSettings = {
         ...defaultValues,
         ..._settings,
-        ...update,
+        ...sanitizedUpdate,
       } as Settings;
       setSettings(newSettings);
       saveSettings(newSettings);
@@ -542,13 +596,24 @@ export const useSettings = () => {
         // Normalize object-typed settings from plugin (plain primitive → { key, value })
         value = normalizePluginValue(settingsKey, value);
 
-        const effectiveValue = getEffectiveSettingValue(_settings, settingsKey);
+        // When unlocked, keep the user's value only if they explicitly diverged
+        // from the app default. Otherwise the plugin value is the admin's
+        // default and must win over the hardcoded app default — e.g. a toggle
+        // that was always locked then unlocked should reflect the plugin
+        // default, not the app's `false`. Object-typed settings compare by
+        // reference, so their behaviour is unchanged.
+        const userValue = _settings?.[settingsKey];
+        const userDiverged =
+          hasMeaningfulSettingValue(userValue) &&
+          userValue !== defaultValues[settingsKey];
 
         (acc as any)[settingsKey] = locked
           ? value
-          : hasMeaningfulSettingValue(effectiveValue)
-            ? effectiveValue
-            : value;
+          : userDiverged
+            ? userValue
+            : hasMeaningfulSettingValue(value)
+              ? value
+              : defaultValues[settingsKey];
       }
       return acc;
     }, {});

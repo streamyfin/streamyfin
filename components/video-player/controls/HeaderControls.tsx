@@ -4,6 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { type FC, useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
@@ -57,6 +58,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
 }) => {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useControlsSafeAreaInsets();
   const lightHapticFeedback = useHaptic("light");
@@ -127,8 +129,8 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             onPress={toggleOrientation}
             disabled={isTogglingOrientation}
             className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
-            accessibilityLabel='Toggle screen orientation'
-            accessibilityHint='Toggles the screen orientation between portrait and landscape'
+            accessibilityLabel={t("accessibility.toggle_orientation")}
+            accessibilityHint={t("accessibility.toggle_orientation_hint")}
           >
             <MaterialIcons
               name='screen-rotation'

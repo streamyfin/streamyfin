@@ -18,10 +18,10 @@ build:
         command: bun install --frozen-lockfile
 
     # android/ is gitignored, so generate native code fresh. --no-install
-    # because deps are already installed above; bunx keeps it on bun.
+    # because deps are already installed above; bun x keeps it on bun.
     - run:
         name: Prebuild (Android, bun)
-        command: bunx expo prebuild --platform android --no-install
+        command: bun x expo prebuild --platform android --no-install
 
     # Applies the EAS-resolved remote versionCode/versionName (autoIncrement
     # in eas.json) into the freshly prebuilt android/ project.

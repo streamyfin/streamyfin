@@ -568,9 +568,6 @@ const Page = () => {
                 values={selectedGenres}
                 title={t("library.filters.genres")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -595,7 +592,6 @@ const Page = () => {
                 values={selectedYears}
                 title={t("library.filters.years")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) => item.includes(search)}
               />
             ),
           },
@@ -620,9 +616,6 @@ const Page = () => {
                 values={selectedTags}
                 title={t("library.filters.tags")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -639,9 +632,6 @@ const Page = () => {
                 title={t("library.filters.sort_by")}
                 renderItemLabel={(item) =>
                   sortOptions.find((i) => i.key === item)?.value || ""
-                }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
                 }
               />
             ),
@@ -660,9 +650,6 @@ const Page = () => {
                 renderItemLabel={(item) =>
                   sortOrderOptions.find((i) => i.key === item)?.value || ""
                 }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -679,9 +666,6 @@ const Page = () => {
                 title={t("library.filters.filter_by")}
                 renderItemLabel={(item) =>
                   generalFilters.find((i) => i.key === item)?.value || ""
-                }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
                 }
               />
             ),

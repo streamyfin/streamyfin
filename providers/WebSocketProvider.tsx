@@ -13,8 +13,9 @@ import {
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
-import { apiAtom, getOrSetDeviceId } from "@/providers/JellyfinProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { useNetworkStatus } from "@/providers/NetworkStatusProvider";
+import { getOrSetDeviceId } from "@/utils/device";
 
 // Query keys that depend on the set of library items and should be refreshed
 // when the server reports that the library changed (items added/removed/updated).
@@ -173,7 +174,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const protocol = api.basePath.includes("https") ? "wss" : "ws";
     const url = `${protocol}://${api.basePath
       .replace("https://", "")
-      .replace("http://", "")}/socket?api_key=${
+      .replace("http://", "")}/socket?ApiKey=${
       api.accessToken
     }&deviceId=${deviceId}`;
 
@@ -368,7 +369,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             AppStoreUrl:
               "https://apps.apple.com/us/app/streamyfin/id6593660679",
             IconUrl:
-              "https://raw.githubusercontent.com/retardgerman/streamyfinweb/refs/heads/main/public/assets/images/icon_new_withoutBackground.png",
+              "https://raw.githubusercontent.com/streamyfin/streamyfin/refs/heads/develop/assets/images/streamyfin-client-badge.png",
             PlayableMediaTypes: ["Audio", "Video"],
             SupportedCommands: ["Play"],
             SupportsMediaControl: true,

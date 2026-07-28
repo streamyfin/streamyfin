@@ -13,7 +13,7 @@ build:
 
     - run:
         name: Prebuild (Android, bun)
-        command: bunx expo prebuild --platform android --no-install
+        command: bun x expo prebuild --platform android --no-install
 
     - eas/configure_android_version
     - eas/inject_android_credentials

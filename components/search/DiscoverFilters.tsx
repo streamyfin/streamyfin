@@ -118,7 +118,6 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         renderItemLabel={(item) =>
           t(`home.settings.plugins.jellyseerr.order_by.${item}`)
         }
-        disableSearch={true}
       />
       <FilterButton
         id={orderFilterId}
@@ -128,7 +127,6 @@ export const DiscoverFilters: React.FC<DiscoverFiltersProps> = ({
         values={[jellyseerrSortOrder]}
         title={t("library.filters.sort_order")}
         renderItemLabel={(item) => t(`library.filters.${item}`)}
-        disableSearch={true}
       />
     </View>
   );

@@ -3,7 +3,6 @@ import type {
   BaseItemKind,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
-import { useAsyncDebouncer } from "@tanstack/react-pacer";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
@@ -87,21 +86,10 @@ export default function SearchPage() {
   const [search, setSearch] = useState<string>("");
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  const searchDebouncer = useAsyncDebouncer(
-    async (query: string) => {
-      // Cancel previous in-flight requests
-      abortControllerRef.current?.abort();
-      abortControllerRef.current = new AbortController();
-      setDebouncedSearch(query);
-      return query;
-    },
-    { wait: 200 },
-  );
 
   useEffect(() => {
-    searchDebouncer.maybeExecute(search);
+    const timeout = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(timeout);
   }, [search]);
 
   const [api] = useAtom(apiAtom);
@@ -331,55 +319,55 @@ export default function SearchPage() {
 
   const { data: movies, isFetching: l1 } = useQuery({
     queryKey: ["search", "movies", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       searchFn({
         query: debouncedSearch,
         types: ["Movie"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: series, isFetching: l2 } = useQuery({
     queryKey: ["search", "series", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       searchFn({
         query: debouncedSearch,
         types: ["Series"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: episodes, isFetching: l3 } = useQuery({
     queryKey: ["search", "episodes", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       searchFn({
         query: debouncedSearch,
         types: ["Episode"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: collections, isFetching: l7 } = useQuery({
     queryKey: ["search", "collections", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       searchFn({
         query: debouncedSearch,
         types: ["BoxSet"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: actors, isFetching: l8 } = useQuery({
     queryKey: ["search", "actors", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       searchFn({
         query: debouncedSearch,
         types: ["Person"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
@@ -387,44 +375,44 @@ export default function SearchPage() {
   // Music search queries - always use Jellyfin since Streamystats doesn't support music
   const { data: artists, isFetching: l9 } = useQuery({
     queryKey: ["search", "artists", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["MusicArtist"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: albums, isFetching: l10 } = useQuery({
     queryKey: ["search", "albums", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["MusicAlbum"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: songs, isFetching: l11 } = useQuery({
     queryKey: ["search", "songs", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["Audio"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });
 
   const { data: playlists, isFetching: l12 } = useQuery({
     queryKey: ["search", "playlists", debouncedSearch],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       jellyfinSearchFn({
         query: debouncedSearch,
         types: ["Playlist"],
-        signal: abortControllerRef.current?.signal,
+        signal,
       }),
     enabled: searchType === "Library" && debouncedSearch.length > 0,
   });

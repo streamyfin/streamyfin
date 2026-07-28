@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { File } from "expo-file-system";
 import { Image } from "expo-image";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -40,7 +40,10 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
-import type { Track } from "@/components/video-player/controls/types";
+import {
+  LOCAL_SUBTITLE_INDEX_START,
+  type Track,
+} from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -53,9 +56,11 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
+import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
+import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -158,9 +163,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       defaultMediaSource,
     ]);
 
+    const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
+
     const navigateToPlayer = useCallback(
       (playbackPosition: string) => {
         if (!item || !selectedOptions) return;
+
+        // Starting a normal play cancels any active shuffle queue so a stale
+        // queue can't hijack the next-episode order.
+        clearShuffleQueue(null);
 
         const queryParams = new URLSearchParams({
           itemId: item.Id!,
@@ -174,7 +185,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
         router.push(`/player/direct-player?${queryParams.toString()}`);
       },
-      [item, selectedOptions, isOffline, router],
+      [item, selectedOptions, isOffline, router, clearShuffleQueue],
     );
 
     const handlePlay = () => {
@@ -232,12 +243,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       return streams ?? [];
     }, [selectedOptions?.mediaSource]);
 
-    // Get available subtitle tracks (raw MediaStream[] for label lookup)
+    // Get available subtitle tracks (raw MediaStream[] for label lookup),
+    // ordered like jellyfin-web (embedded first, externals last, forced/default up).
     const subtitleStreams = useMemo(() => {
       const streams = selectedOptions?.mediaSource?.MediaStreams?.filter(
         (s) => s.Type === "Subtitle",
       );
-      return streams ?? [];
+      return streams ? [...streams].sort(compareTracksForMenu) : [];
     }, [selectedOptions?.mediaSource]);
 
     // Store handleSubtitleChange in a ref for stable callback reference
@@ -247,9 +259,6 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // State to trigger refresh of local subtitles list
     const [localSubtitlesRefreshKey, setLocalSubtitlesRefreshKey] = useState(0);
-
-    // Starting index for local (client-downloaded) subtitles
-    const LOCAL_SUBTITLE_INDEX_START = -100;
 
     // Convert MediaStream[] to Track[] for the modal (with setTrack callbacks)
     // Also includes locally downloaded subtitles from OpenSubtitles
@@ -411,11 +420,13 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             )
           : freshItem.MediaSources?.[0];
 
-        // Get subtitle streams from the fresh data
-        const streams =
-          mediaSource?.MediaStreams?.filter(
+        // Get subtitle streams from the fresh data, ordered like jellyfin-web
+        // (embedded first, externals last) — same as the initial list.
+        const streams = [
+          ...(mediaSource?.MediaStreams?.filter(
             (s: MediaStream) => s.Type === "Subtitle",
-          ) ?? [];
+          ) ?? []),
+        ].sort(compareTracksForMenu);
 
         // Convert to Track[] with setTrack callbacks
         const tracks: Track[] = streams.map((stream) => ({

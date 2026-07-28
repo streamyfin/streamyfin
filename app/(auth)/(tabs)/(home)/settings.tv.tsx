@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 import { useAtom } from "jotai";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
@@ -33,13 +33,16 @@ import {
 } from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
+  getActiveVideoPlayer,
   InactivityTimeout,
   type MpvCacheMode,
   type MpvVoDriver,
   TVTypographyScale,
   useSettings,
+  VideoPlayer,
 } from "@/utils/atoms/settings";
 import { storage } from "@/utils/mmkv";
+import { scaleSize } from "@/utils/scaleSize";
 import {
   getPreviousServers,
   type SavedServer,
@@ -262,6 +265,25 @@ export default function SettingsTV() {
   const currentVoDriver = settings.mpvVoDriver ?? "gpu-next";
   const currentLanguage = settings.preferedLanguage;
 
+  // Video player selection. MPV is the default; ExoPlayer is only offered
+  // as an opt-in alternative on Android TV. The selector is hidden on
+  // other platforms.
+  const isAndroidTv = Platform.OS === "android" && Platform.isTV;
+  const currentVideoPlayer = getActiveVideoPlayer(settings);
+  const isMpv = currentVideoPlayer !== VideoPlayer.ExoPlayer;
+
+  // Shared style for the ExoPlayer / MPV limitation notes shown under the
+  // selector when the respective player is active. All pixel values scaled
+  // so the layout holds on 4K TVs (see utils/scaleSize.ts).
+  const playerNoteStyle = {
+    color: "#9CA3AF",
+    fontSize: typography.callout - 2,
+    marginTop: scaleSize(4),
+    marginBottom: scaleSize(12),
+    marginLeft: scaleSize(8),
+    marginRight: scaleSize(8),
+  } as const;
+
   // Audio transcoding options
   const audioTranscodeModeOptions: TVOptionItem<AudioTranscodeMode>[] = useMemo(
     () => [
@@ -324,32 +346,44 @@ export default function SettingsTV() {
   // MPV alignment options
   const alignXOptions: TVOptionItem<string>[] = useMemo(
     () => [
-      { label: "Left", value: "left", selected: currentAlignX === "left" },
       {
-        label: "Center",
+        label: t("home.settings.subtitles.align.left"),
+        value: "left",
+        selected: currentAlignX === "left",
+      },
+      {
+        label: t("home.settings.subtitles.align.center"),
         value: "center",
         selected: currentAlignX === "center",
       },
-      { label: "Right", value: "right", selected: currentAlignX === "right" },
+      {
+        label: t("home.settings.subtitles.align.right"),
+        value: "right",
+        selected: currentAlignX === "right",
+      },
     ],
-    [currentAlignX],
+    [currentAlignX, t],
   );
 
   const alignYOptions: TVOptionItem<string>[] = useMemo(
     () => [
-      { label: "Top", value: "top", selected: currentAlignY === "top" },
       {
-        label: "Center",
+        label: t("home.settings.subtitles.align.top"),
+        value: "top",
+        selected: currentAlignY === "top",
+      },
+      {
+        label: t("home.settings.subtitles.align.center"),
         value: "center",
         selected: currentAlignY === "center",
       },
       {
-        label: "Bottom",
+        label: t("home.settings.subtitles.align.bottom"),
         value: "bottom",
         selected: currentAlignY === "bottom",
       },
     ],
-    [currentAlignY],
+    [currentAlignY, t],
   );
 
   // Cache mode options
@@ -389,6 +423,23 @@ export default function SettingsTV() {
       },
     ],
     [t, currentVoDriver],
+  );
+
+  // Video player backend options (Android TV only)
+  const videoPlayerOptions: TVOptionItem<VideoPlayer>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.video_player.exoplayer"),
+        value: VideoPlayer.ExoPlayer,
+        selected: currentVideoPlayer === VideoPlayer.ExoPlayer,
+      },
+      {
+        label: t("home.settings.video_player.mpv"),
+        value: VideoPlayer.MPV,
+        selected: currentVideoPlayer === VideoPlayer.MPV,
+      },
+    ],
+    [t, currentVideoPlayer],
   );
 
   // Typography scale options
@@ -499,13 +550,13 @@ export default function SettingsTV() {
 
   const alignXLabel = useMemo(() => {
     const option = alignXOptions.find((o) => o.selected);
-    return option?.label || "Center";
-  }, [alignXOptions]);
+    return option?.label || t("home.settings.subtitles.align.center");
+  }, [alignXOptions, t]);
 
   const alignYLabel = useMemo(() => {
     const option = alignYOptions.find((o) => o.selected);
-    return option?.label || "Bottom";
-  }, [alignYOptions]);
+    return option?.label || t("home.settings.subtitles.align.bottom");
+  }, [alignYOptions, t]);
 
   const typographyScaleLabel = useMemo(() => {
     const option = typographyScaleOptions.find((o) => o.selected);
@@ -521,6 +572,11 @@ export default function SettingsTV() {
     const option = voDriverOptions.find((o) => o.selected);
     return option?.label || t("home.settings.vo_driver.gpu_next");
   }, [voDriverOptions, t]);
+
+  const videoPlayerLabel = useMemo(() => {
+    const option = videoPlayerOptions.find((o) => o.selected);
+    return option?.label || "MPV";
+  }, [videoPlayerOptions]);
 
   const languageLabel = useMemo(() => {
     if (!currentLanguage) return t("home.settings.languages.system");
@@ -586,6 +642,34 @@ export default function SettingsTV() {
 
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
+
+          {/* Video Player selector — Android TV only */}
+          {isAndroidTv && (
+            <>
+              <TVSettingsOptionButton
+                label={t("home.settings.video_player.title")}
+                value={videoPlayerLabel}
+                onPress={() =>
+                  showOptions({
+                    title: t("home.settings.video_player.title"),
+                    options: videoPlayerOptions,
+                    onSelect: (value) => updateSettings({ videoPlayer: value }),
+                  })
+                }
+              />
+              {!isMpv && (
+                <Text style={playerNoteStyle}>
+                  {t("home.settings.video_player.exoplayer_note")}
+                </Text>
+              )}
+              {isMpv && (
+                <Text style={playerNoteStyle}>
+                  {t("home.settings.video_player.mpv_note")}
+                </Text>
+              )}
+            </>
+          )}
+
           <TVSettingsOptionButton
             label={t("home.settings.audio.transcode_mode.title")}
             value={audioTranscodeLabel}
@@ -645,7 +729,7 @@ export default function SettingsTV() {
             formatValue={(v) => `${v.toFixed(1)}x`}
           />
           <TVSettingsStepper
-            label='Vertical Margin'
+            label={t("home.settings.subtitles.mpv_subtitle_margin_y")}
             value={settings.mpvSubtitleMarginY ?? 0}
             onDecrease={() => {
               const newValue = Math.max(
@@ -662,26 +746,29 @@ export default function SettingsTV() {
               updateSettings({ mpvSubtitleMarginY: newValue });
             }}
           />
+          {isMpv && (
+            <TVSettingsOptionButton
+              label={t("home.settings.subtitles.mpv_subtitle_align_x")}
+              value={alignXLabel}
+              // ExoPlayer follows authored cue alignment; hide on ExoPlayer.
+              onPress={() =>
+                showOptions({
+                  title: t("home.settings.subtitles.mpv_subtitle_align_x"),
+                  options: alignXOptions,
+                  onSelect: (value) =>
+                    updateSettings({
+                      mpvSubtitleAlignX: value as "left" | "center" | "right",
+                    }),
+                })
+              }
+            />
+          )}
           <TVSettingsOptionButton
-            label='Horizontal Alignment'
-            value={alignXLabel}
-            onPress={() =>
-              showOptions({
-                title: "Horizontal Alignment",
-                options: alignXOptions,
-                onSelect: (value) =>
-                  updateSettings({
-                    mpvSubtitleAlignX: value as "left" | "center" | "right",
-                  }),
-              })
-            }
-          />
-          <TVSettingsOptionButton
-            label='Vertical Alignment'
+            label={t("home.settings.subtitles.mpv_subtitle_align_y")}
             value={alignYLabel}
             onPress={() =>
               showOptions({
-                title: "Vertical Alignment",
+                title: t("home.settings.subtitles.mpv_subtitle_align_y"),
                 options: alignYOptions,
                 onSelect: (value) =>
                   updateSettings({
@@ -748,19 +835,24 @@ export default function SettingsTV() {
             }
           />
 
-          {/* Video Output Section */}
-          <TVSectionHeader title={t("home.settings.vo_driver.title")} />
-          <TVSettingsOptionButton
-            label={t("home.settings.vo_driver.vo_mode")}
-            value={voDriverLabel}
-            onPress={() =>
-              showOptions({
-                title: t("home.settings.vo_driver.vo_mode"),
-                options: voDriverOptions,
-                onSelect: (value) => updateSettings({ mpvVoDriver: value }),
-              })
-            }
-          />
+          {/* Video Output Section — MPV only (gpu-next/gpu is a libmpv concept) */}
+          {isMpv && (
+            <>
+              <TVSectionHeader title={t("home.settings.vo_driver.title")} />
+              <TVSettingsOptionButton
+                label={t("home.settings.vo_driver.vo_mode")}
+                value={voDriverLabel}
+                onPress={() =>
+                  showOptions({
+                    title: t("home.settings.vo_driver.vo_mode"),
+                    options: voDriverOptions,
+                    onSelect: (value) => updateSettings({ mpvVoDriver: value }),
+                  })
+                }
+              />
+            </>
+          )}
+
           <TVSettingsStepper
             label={t("home.settings.buffer.buffer_duration")}
             value={settings.mpvCacheSeconds ?? 10}
@@ -852,6 +944,13 @@ export default function SettingsTV() {
             value={settings.mergeNextUpAndContinueWatching}
             onToggle={(value) =>
               updateSettings({ mergeNextUpAndContinueWatching: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.use_episode_images_next_up")}
+            value={settings.useEpisodeImagesForNextUp}
+            onToggle={(value) =>
+              updateSettings({ useEpisodeImagesForNextUp: value })
             }
           />
           <TVSettingsToggle
