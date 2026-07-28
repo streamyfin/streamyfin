@@ -70,6 +70,30 @@ import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
+type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
+
+/**
+ * How the session is actually being played. Shared by the reports sent to the
+ * server and the technical info overlay, so the dashboard and the app never
+ * disagree about the same playback.
+ */
+function getPlayMethod(
+  source: { url?: string | null; mediaSource?: MediaSourceInfo | null },
+  offline: boolean,
+): PlayMethod {
+  // A downloaded item plays from a local file, with no server in the path.
+  if (offline) return "DirectPlay";
+  const url = source.url ?? "";
+  if (url.includes("m3u8") || source.mediaSource?.TranscodingUrl) {
+    return "Transcode";
+  }
+  // Served through the stream endpoint rather than as the original file.
+  if (url.includes("/Videos/") && url.includes("/stream")) {
+    return "DirectStream";
+  }
+  return "DirectPlay";
+}
+
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
@@ -666,14 +690,6 @@ export default function DirectPlayerPage() {
     | undefined => {
     if (!stream || !item?.Id) return;
 
-    // A downloaded item plays from a local file: it is neither streamed nor
-    // transcoded, so report DirectPlay rather than mislabelling the session.
-    const playMethod: PlaybackProgressInfo["PlayMethod"] = offline
-      ? "DirectPlay"
-      : stream.url.includes("m3u8")
-        ? "Transcode"
-        : "DirectStream";
-
     return {
       ItemId: item.Id,
       // Report the live selection so server-side session/resume state reflects
@@ -687,7 +703,7 @@ export default function DirectPlayerPage() {
       // handlers that may have been created before the last transition, and a
       // report must describe the state at the moment it is built.
       IsPaused: !isPlayingRef.current,
-      PlayMethod: playMethod,
+      PlayMethod: getPlayMethod(stream, offline),
       PlaySessionId: stream.sessionId,
       IsMuted: isMuted,
       CanSeek: true,
@@ -1260,25 +1276,10 @@ export default function DirectPlayerPage() {
   }, []);
 
   // Determine play method based on stream URL and media source
-  const playMethod = useMemo<
-    "DirectPlay" | "DirectStream" | "Transcode" | undefined
-  >(() => {
+  const playMethod = useMemo<PlayMethod | undefined>(() => {
     if (!stream?.url) return undefined;
-
-    // Check if transcoding (m3u8 playlist or TranscodingUrl present)
-    if (stream.url.includes("m3u8") || stream.mediaSource?.TranscodingUrl) {
-      return "Transcode";
-    }
-
-    // Check if direct play (no container remuxing needed)
-    // Direct play means the file is being served as-is
-    if (stream.url.includes("/Videos/") && stream.url.includes("/stream")) {
-      return "DirectStream";
-    }
-
-    // Default to direct play if we're not transcoding
-    return "DirectPlay";
-  }, [stream?.url, stream?.mediaSource?.TranscodingUrl]);
+    return getPlayMethod(stream, offline);
+  }, [stream, offline]);
 
   // Extract transcode reasons from the TranscodingUrl
   const transcodeReasons = useMemo<string[]>(() => {
