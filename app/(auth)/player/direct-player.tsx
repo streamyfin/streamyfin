@@ -604,11 +604,15 @@ export default function DirectPlayerPage() {
   }, [stop, reportPlaybackStopped]);
 
   // Report playback stopped only on a real source switch or unmount.
+  // itemId (the route param) is listed alongside the loaded item so the report
+  // runs in the same commit as an in-place switch, before the effect that
+  // resets the shared position for the incoming item: keyed on item.Id alone,
+  // the report could land a commit later and carry a position of zero.
   useEffect(() => {
     return () => {
       reportPlaybackStoppedRef.current();
     };
-  }, [item?.Id, stream?.sessionId, mediaSourceId]);
+  }, [itemId, item?.Id, stream?.sessionId, mediaSourceId]);
 
   // Stop on navigation-away. Re-subscribing when the navigation object identity
   // changes (e.g. after a setParams) no longer reports anything on its own.
