@@ -376,6 +376,15 @@ export default function DirectPlayerPage() {
     isConnectedRef.current = isConnected;
   }, [isConnected]);
 
+  // The item the player is on as of the last commit. The MPV view holds the
+  // callbacks it was last rendered with, and on an in-place switch those close
+  // over the outgoing item for both the loaded item and the route param, so
+  // they agree with each other and pass a comparison between the two.
+  const currentItemIdRef = useRef(itemId);
+  useEffect(() => {
+    currentItemIdRef.current = itemId;
+  }, [itemId]);
+
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
       if (!liveStreamId || !apiRef.current || offline) return;
@@ -659,9 +668,11 @@ export default function DirectPlayerPage() {
 
     // A downloaded item plays from a local file: it is neither streamed nor
     // transcoded, so report DirectPlay rather than mislabelling the session.
-    let playMethod: PlaybackProgressInfo["PlayMethod"] = "DirectStream";
-    if (offline) playMethod = "DirectPlay";
-    else if (stream.url.includes("m3u8")) playMethod = "Transcode";
+    const playMethod: PlaybackProgressInfo["PlayMethod"] = offline
+      ? "DirectPlay"
+      : stream.url.includes("m3u8")
+        ? "Transcode"
+        : "DirectStream";
 
     return {
       ItemId: item.Id,
@@ -743,8 +754,11 @@ export default function DirectPlayerPage() {
       // An in-place episode switch clears the stream and resets the position
       // while MPV can still emit one last tick for the previous episode.
       // Bail before touching shared state: writing that position into the URL
-      // would make it the next episode's start position.
+      // would make it the next episode's start position, and reporting it
+      // after the switch already reported "stopped" would put the outgoing
+      // episode back in the server session.
       if (!item?.Id || item.Id !== itemId || !stream) return;
+      if (item.Id !== currentItemIdRef.current) return;
 
       const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
