@@ -239,6 +239,16 @@ export default function DirectPlayerPage() {
   const { nextItem, previousItem } = playbackManager;
   const { isConnected } = useNetworkStatus();
 
+  // usePlaybackManager returns a new object on every render, so the reporters
+  // below cannot list it as a dependency without being rebuilt constantly.
+  // Mirror the progress reporter instead: it closes over connectivity and the
+  // api, and a handler captured while either was different would keep
+  // reporting through the stale one for the rest of playback.
+  const reportProgressRef = useRef(playbackManager.reportPlaybackProgress);
+  useEffect(() => {
+    reportProgressRef.current = playbackManager.reportPlaybackProgress;
+  });
+
   // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
   const audioIndex = useMemo(() => {
     if (audioIndexFromUrl !== undefined) {
@@ -734,7 +744,7 @@ export default function DirectPlayerPage() {
     // instead of casting so a gap between the item and its stream can't reject.
     const progressInfo = currentPlayStateInfo();
     if (!progressInfo) return;
-    void playbackManager.reportPlaybackProgress(progressInfo);
+    void reportProgressRef.current(progressInfo);
     // isPlaying is what makes a transition land here: currentPlayStateInfo now
     // reads the play state through a ref, so its identity no longer changes
     // when the user pauses or resumes.
@@ -819,7 +829,7 @@ export default function DirectPlayerPage() {
 
       const progressInfo = currentPlayStateInfo();
       if (!progressInfo) return;
-      playbackManager.reportPlaybackProgress(progressInfo);
+      void reportProgressRef.current(progressInfo);
     },
     [
       // Depend on the builder itself rather than re-listing what it reads: it
