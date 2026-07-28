@@ -37,6 +37,7 @@ import {
 import { VideoPlayerView } from "@/components/video-player/VideoPlayerView";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
@@ -203,6 +204,7 @@ export default function DirectPlayerPage() {
   // Playback manager for progress reporting and adjacent items
   const playbackManager = usePlaybackManager({ item, isOffline: offline });
   const { nextItem, previousItem } = playbackManager;
+  const { isConnected } = useNetworkStatus();
 
   // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
   const audioIndex = useMemo(() => {
@@ -516,18 +518,20 @@ export default function DirectPlayerPage() {
     }
   };
 
-  // PlaySessionId of the last "stopped" report, to dedupe the double teardown.
-  const reportedStopSessionIdRef = useRef<string | null>(null);
+  // Key of the last "stopped" report, to dedupe the double teardown. The
+  // PlaySessionId when there is one, the item id otherwise (see stopKey below).
+  const reportedStopKeyRef = useRef<string | null>(null);
 
   const reportPlaybackStopped = useCallback(async () => {
-    if (!item?.Id || !stream?.sessionId || offline || !api) return;
+    if (!item?.Id || !stream || !api || !isConnected) return;
     // Leaving the player reports "stopped" twice: once from the beforeRemove
     // listener (via stop()) and once from the unmount cleanup backstop. Dedupe
-    // per PlaySessionId — not a plain boolean, since the component survives
-    // in-place item switches and the next session must report again.
-    const sessionId = stream.sessionId;
-    if (reportedStopSessionIdRef.current === sessionId) return;
-    reportedStopSessionIdRef.current = sessionId;
+    // per session — not a plain boolean, since the component survives in-place
+    // item switches and the next session must report again. Downloaded items
+    // have no PlaySessionId, so fall back to the item id.
+    const stopKey = stream.sessionId || item.Id;
+    if (reportedStopKeyRef.current === stopKey) return;
+    reportedStopKeyRef.current = stopKey;
     const currentTimeInTicks = msToTicks(progress.get());
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
@@ -535,7 +539,7 @@ export default function DirectPlayerPage() {
           ItemId: item.Id,
           MediaSourceId: mediaSourceId,
           PositionTicks: currentTimeInTicks,
-          PlaySessionId: sessionId,
+          PlaySessionId: stream.sessionId || undefined,
           // Release the server-side live stream (and its tuner slot) on stop.
           // Jellyfin only closes a live stream opened via autoOpenLiveStream when
           // the stop report carries its LiveStreamId; without it the stream leaks
@@ -549,8 +553,8 @@ export default function DirectPlayerPage() {
       // report from a WebSocket remote-stop (player still mounted) must not
       // suppress the report when the user then navigates away. Callers are
       // fire-and-forget, so swallow instead of rethrowing unhandled.
-      if (reportedStopSessionIdRef.current === sessionId) {
-        reportedStopSessionIdRef.current = null;
+      if (reportedStopKeyRef.current === stopKey) {
+        reportedStopKeyRef.current = null;
       }
       writeToLog(
         "ERROR",
@@ -558,7 +562,7 @@ export default function DirectPlayerPage() {
         error instanceof Error ? error.message : String(error),
       );
     }
-  }, [api, item, mediaSourceId, stream, progress, offline]);
+  }, [api, item, mediaSourceId, stream, progress, isConnected]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
