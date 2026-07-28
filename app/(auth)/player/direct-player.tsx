@@ -695,8 +695,14 @@ export default function DirectPlayerPage() {
   }, [currentPlayStateInfo, isPlaying, item?.Id, stream, hasPlaybackStarted]);
 
   const lastUrlUpdateTime = useSharedValue(0);
+  const lastProgressReportTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
   const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
+  // Heartbeat cadence for the periodic progress report. MPV ticks once a
+  // second, but the server only needs the position often enough for Now
+  // Playing and resume: state changes (pause, resume, track, mute) are
+  // reported on their own by the effect above, and a seek reports immediately.
+  const PROGRESS_REPORT_INTERVAL = 10000;
 
   // Track when seeking ends to update URL immediately
   useAnimatedReaction(
@@ -751,6 +757,16 @@ export default function DirectPlayerPage() {
         });
         lastUrlUpdateTime.value = now;
       }
+
+      // Reporting every tick meant one request per second per player, and for
+      // a downloaded item the whole downloads database was serialized and
+      // written to storage on each one (plus two query invalidations). Report
+      // right after a seek, since the position jumped, otherwise heartbeat.
+      const shouldReportProgress =
+        shouldUpdateUrl ||
+        now - lastProgressReportTime.get() >= PROGRESS_REPORT_INTERVAL;
+      if (!shouldReportProgress) return;
+      lastProgressReportTime.value = now;
 
       const progressInfo = currentPlayStateInfo();
       if (!progressInfo) return;
