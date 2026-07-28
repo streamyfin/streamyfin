@@ -82,6 +82,15 @@ export default function DirectPlayerPage() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
+  // Mirror of isPlaybackStopped that is already set when a report is built.
+  // The MPV view keeps the onProgress it was last rendered with, so a tick
+  // already in flight when the user leaves would still report progress after
+  // the "stopped" report and bring the session back on the server.
+  const isPlaybackStoppedRef = useRef(false);
+  const markPlaybackStopped = useCallback(() => {
+    isPlaybackStoppedRef.current = true;
+    setIsPlaybackStopped(true);
+  }, []);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
@@ -570,7 +579,7 @@ export default function DirectPlayerPage() {
       playbackPosition: msToTicks(progress.get()).toString(),
     });
     reportPlaybackStopped();
-    setIsPlaybackStopped(true);
+    markPlaybackStopped();
     // Synchronously destroy the mpv instance + decoder + surface buffers
     // BEFORE the screen unmounts. Otherwise the next screen (or the next
     // episode's player) mounts while the old 4K decoder is still alive,
@@ -588,7 +597,13 @@ export default function DirectPlayerPage() {
     // and only released on the "paused" event; without this, navigating
     // away mid-play leaves FLAG_KEEP_SCREEN_ON set on the window.
     deactivateKeepAwake();
-  }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
+  }, [
+    videoRef,
+    reportPlaybackStopped,
+    markPlaybackStopped,
+    progress,
+    resumeInactivityTimer,
+  ]);
 
   // Keep refs to the latest stop / stopped-report so the effects below don't
   // need these churning callbacks in their dependency arrays. Reporting
@@ -665,6 +680,9 @@ export default function DirectPlayerPage() {
   // on every render.
   useEffect(() => {
     if (!item?.Id || !stream || !hasPlaybackStarted) return;
+    // Destroying the player emits a last paused event, which lands here: read
+    // the ref so the transition report doesn't follow the "stopped" report.
+    if (isPlaybackStoppedRef.current) return;
     // currentPlayStateInfo() returns undefined without a stream, and
     // reportPlaybackProgress dereferences its argument immediately. Read it
     // instead of casting so a gap between the item and its stream can't reject.
@@ -695,7 +713,7 @@ export default function DirectPlayerPage() {
   /** Progress handler for MPV - position in seconds */
   const onProgress = useCallback(
     async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
-      if (isSeeking.get() || isPlaybackStopped) return;
+      if (isSeeking.get() || isPlaybackStoppedRef.current) return;
 
       // An in-place episode switch clears the stream and resets the position
       // while MPV can still emit one last tick for the previous episode.
@@ -749,7 +767,6 @@ export default function DirectPlayerPage() {
       mediaSourceId,
       stream,
       isSeeking,
-      isPlaybackStopped,
       isBuffering,
     ],
   );
