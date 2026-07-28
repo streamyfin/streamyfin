@@ -368,6 +368,14 @@ export default function DirectPlayerPage() {
     apiRef.current = api;
   }, [api]);
 
+  // Read connectivity without making it a dependency of the start report: a
+  // network flap mid-playback would otherwise fire a second PlaybackStart and
+  // move the server session back to the position playback began at.
+  const isConnectedRef = useRef(isConnected);
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
       if (!liveStreamId || !apiRef.current || offline) return;
@@ -482,7 +490,11 @@ export default function DirectPlayerPage() {
   ]);
 
   useEffect(() => {
-    if (!stream || !api || offline) return;
+    // Gate on connectivity rather than on the offline flag: a downloaded item
+    // played with the server reachable still reports progress and, since the
+    // stop report is connectivity-based too, would otherwise close a session
+    // it never opened, which the server's playback history then discards.
+    if (!stream || !api || !isConnectedRef.current) return;
     const reportPlaybackStart = async () => {
       const progressInfo = currentPlayStateInfo();
       if (progressInfo) {
@@ -512,7 +524,7 @@ export default function DirectPlayerPage() {
     // startTicks is read, not depended on: it is rewritten into the URL every
     // 30s during playback, and re-running this would report a new playback
     // start each time.
-  }, [stream, api, offline]);
+  }, [stream, api]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
@@ -645,6 +657,12 @@ export default function DirectPlayerPage() {
     | undefined => {
     if (!stream || !item?.Id) return;
 
+    // A downloaded item plays from a local file: it is neither streamed nor
+    // transcoded, so report DirectPlay rather than mislabelling the session.
+    let playMethod: PlaybackProgressInfo["PlayMethod"] = "DirectStream";
+    if (offline) playMethod = "DirectPlay";
+    else if (stream.url.includes("m3u8")) playMethod = "Transcode";
+
     return {
       ItemId: item.Id,
       // Report the live selection so server-side session/resume state reflects
@@ -658,7 +676,7 @@ export default function DirectPlayerPage() {
       // handlers that may have been created before the last transition, and a
       // report must describe the state at the moment it is built.
       IsPaused: !isPlayingRef.current,
-      PlayMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+      PlayMethod: playMethod,
       PlaySessionId: stream.sessionId,
       IsMuted: isMuted,
       CanSeek: true,
@@ -673,6 +691,7 @@ export default function DirectPlayerPage() {
     mediaSourceId,
     progress,
     isMuted,
+    offline,
   ]);
 
   // Report after the state commits. Deliberately excludes playbackManager:
