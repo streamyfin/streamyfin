@@ -37,6 +37,8 @@ export interface TVPosterCardProps {
   showProgress?: boolean;
   /** Show watched indicator - default: true */
   showWatchedIndicator?: boolean;
+  /** Show the show name - default: false */
+  displayShowName?: boolean;
 
   // Focus props
   hasTVPreferredFocus?: boolean;
@@ -96,6 +98,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
   showText = true,
   showProgress = true,
   showWatchedIndicator = true,
+  displayShowName = false,
   hasTVPreferredFocus = false,
   disabled = false,
   focusableWhenDisabled = false,
@@ -236,6 +239,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       const duration = item.RunTimeTicks
         ? runtimeTicksToMinutes(item.RunTimeTicks)
         : null;
+      const textColor = displayShowName ? "#9CA3AF" : "#FFFFFF";
 
       return (
         <View
@@ -249,7 +253,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             <Text
               style={{
                 fontSize: typography.callout,
-                color: "#FFFFFF",
+                color: textColor,
                 fontWeight: "500",
               }}
             >
@@ -258,11 +262,18 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
           )}
           {duration && (
             <>
-              <Text style={{ color: "#FFFFFF", fontSize: typography.callout }}>
+              <Text style={{ fontSize: typography.callout, color: textColor }}>
                 •
               </Text>
-              <Text style={{ fontSize: typography.callout, color: "#FFFFFF" }}>
-                {duration}
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: typography.callout,
+                  color: textColor,
+                  flexShrink: 1,
+                }}
+              >
+                {displayShowName ? item.Name : duration}
               </Text>
             </>
           )}
@@ -491,7 +502,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
     if (item.Type === "Episode") {
       return (
         <Text
-          numberOfLines={2}
+          numberOfLines={displayShowName ? 1 : 2}
           style={{
             fontSize: typography.callout,
             color: "#FFFFFF",
@@ -499,7 +510,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             fontWeight: "500",
           }}
         >
-          {item.Name}
+          {displayShowName ? item.SeriesName : item.Name}
         </Text>
       );
     }
@@ -593,7 +604,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         <View
           style={{ marginTop: scaleSize(12), paddingHorizontal: scaleSize(4) }}
         >
-          {item.Type === "Episode" ? (
+          {item.Type === "Episode" && !displayShowName ? (
             <>
               {renderSubtitle()}
               {renderTitle()}
