@@ -338,7 +338,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer downloaded songs",
         "caching_title": "Caching",
-        "caching_description": "Cache upcoming songs so playback doesn't stall between tracks.",
+        "caching_description": "Store upcoming queue songs ahead of time. The oldest ones are removed once the size limit is reached.",
         "lookahead_enabled": "Enable look-ahead caching",
         "lookahead_count": "Songs to pre-cache",
         "max_cache_size": "Max cache size"
@@ -414,7 +414,7 @@
         "delete_all_downloaded_files_confirm": "Delete all downloaded files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music cache",
-        "music_cache_description": "Cached songs kept on this device. Clearing them frees up space.",
+        "music_cache_description": "Songs cached automatically during playback. Clearing them frees up space without touching your downloaded songs.",
         "clear_music_cache": "Clear music cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
