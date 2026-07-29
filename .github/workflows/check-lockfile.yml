@@ -47,3 +47,6 @@ jobs:
           echo "➡️ Checking for discrepancies between bun.lock and package.json..."
           bun install --frozen-lockfile --dry-run --ignore-scripts
           echo "✅ Lockfile is consistent with package.json!"
+
+      - name: 🩹 Verify patched dependencies still apply
+        run: bun scripts/check-patched-deps.ts
