@@ -163,6 +163,27 @@ describe("downloadSubtitles", () => {
     );
   });
 
+  test("downloads an IsExternalUrl subtitle from its absolute url without prefixing basePath", async () => {
+    const mediaSource: MediaSourceInfo = {
+      MediaStreams: [
+        {
+          Type: "Subtitle",
+          DeliveryMethod: "External",
+          DeliveryUrl: "https://subs.example.org/opensubtitles/9/Stream.srt",
+          IsExternalUrl: true,
+          Index: 9,
+          Codec: "srt",
+        },
+      ],
+    };
+
+    await downloadSubtitles(mediaSource, trickplayItem, api);
+
+    expect(downloads.map((download) => download.url)).toEqual([
+      "https://subs.example.org/opensubtitles/9/Stream.srt",
+    ]);
+  });
+
   test("downloads subtitles one at a time (concurrent extraction corrupts Jellyfin's output)", async () => {
     const mediaSource: MediaSourceInfo = {
       MediaStreams: [0, 1, 2].map((index) => ({

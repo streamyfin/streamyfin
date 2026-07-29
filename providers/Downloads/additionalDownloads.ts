@@ -6,6 +6,7 @@ import type {
 import { Directory, File, Paths } from "expo-file-system";
 import { getItemImage } from "@/utils/getItemImage";
 import { getAuthHeaders } from "@/utils/jellyfin/jellyfin";
+import { getExternalSubtitleUrl } from "@/utils/jellyfin/subtitleUtils";
 import { fetchAndParseSegments } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
 import type { MediaTimeSegment, TrickPlayData } from "./types";
@@ -93,9 +94,12 @@ export async function downloadSubtitles(
   // Sequential on purpose: concurrent subtitle requests make Jellyfin's
   // first-time extraction race with itself and serve corrupted files
   for (const subtitle of externalSubtitles) {
-    if (!subtitle.DeliveryUrl) continue;
+    const url = getExternalSubtitleUrl(subtitle, {
+      offline: false,
+      basePath: api.basePath,
+    });
+    if (!url) continue;
 
-    const url = (api.basePath || "") + subtitle.DeliveryUrl;
     const extension = subtitle.Codec || "srt";
     const destination = new File(
       Paths.document,
