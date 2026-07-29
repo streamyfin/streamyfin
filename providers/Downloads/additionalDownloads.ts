@@ -36,7 +36,7 @@ export async function downloadTrickplayImages(
   const downloadPromises: Promise<void>[] = [];
 
   for (let index = 0; index < trickplayInfo.totalImageSheets; index++) {
-    const url = generateTrickplayUrl(item, index);
+    const url = generateTrickplayUrl(item, index, api);
     if (!url) continue;
 
     const destination = new File(trickplayDir, `${index}.jpg`);

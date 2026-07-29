@@ -1,18 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
-import type { Api } from "@jellyfin/sdk";
+import { describe, expect, test } from "bun:test";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
-import { atom } from "jotai";
-
-// JellyfinProvider drags in the React Native / Expo runtime; only its
-// `apiAtom` export is needed here.
-mock.module("@/providers/JellyfinProvider", () => ({
-  apiAtom: atom<Api | null>(null),
-}));
-
-const { apiAtom } = await import("@/providers/JellyfinProvider");
-const { store } = await import("@/utils/store");
-const { makeApi } = await import("@/test-utils/jellyfinApi");
-const { generateTrickplayUrl } = await import("./trickplay");
+import { makeApi } from "@/test-utils/jellyfinApi";
+import { generateTrickplayUrl } from "./trickplay";
 
 const item: BaseItemDto = {
   Id: "item-1",
@@ -32,9 +21,7 @@ const item: BaseItemDto = {
 
 describe("generateTrickplayUrl", () => {
   test("URL points at the trickplay sheet and embeds no credentials", () => {
-    store.set(apiAtom, makeApi());
-
-    const url = generateTrickplayUrl(item, 2);
+    const url = generateTrickplayUrl(item, 2, makeApi());
 
     expect(url).toBe(
       "https://jellyfin.example.com/Videos/item-1/Trickplay/320/2.jpg",

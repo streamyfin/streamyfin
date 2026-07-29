@@ -1,6 +1,5 @@
+import type { Api } from "@jellyfin/sdk";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { apiAtom } from "@/providers/JellyfinProvider";
-import { store } from "@/utils/store";
 import { ticksToMs } from "@/utils/time";
 
 export interface TrickplayInfo {
@@ -57,8 +56,11 @@ export const getTrickplayInfo = (item: BaseItemDto): TrickplayInfo | null => {
 };
 
 /** Generates a trickplay URL based on the item, resolution, and sheet index. */
-export const generateTrickplayUrl = (item: BaseItemDto, sheetIndex: number) => {
-  const api = store.get(apiAtom);
+export const generateTrickplayUrl = (
+  item: BaseItemDto,
+  sheetIndex: number,
+  api: Api | null,
+) => {
   const resolution = getTrickplayInfo(item)?.resolution;
   if (!resolution || !api) return null;
   return `${api.basePath}/Videos/${item.Id}/Trickplay/${resolution}/${sheetIndex}.jpg`;

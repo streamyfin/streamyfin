@@ -37,7 +37,7 @@ export const useTrickplay = (item: BaseItemDto) => {
       if (isOffline && downloadedItem?.trickPlayData?.path) {
         return `${downloadedItem.trickPlayData.path}${sheetIndex}.jpg`;
       }
-      return generateTrickplayUrl(item, sheetIndex);
+      return generateTrickplayUrl(item, sheetIndex, store.get(apiAtom));
     },
     [trickplayInfo, isOffline, getDownloadedItemById],
   );

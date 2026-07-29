@@ -115,6 +115,19 @@ describe("downloadTrickplayImages", () => {
       })),
     );
   });
+
+  test("builds sheet URLs from the passed api, not the global store", async () => {
+    store.set(apiAtom, null);
+
+    await downloadTrickplayImages(trickplayItem, api);
+
+    expect(downloads.map((download) => download.url)).toEqual([
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/0.jpg",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/1.jpg",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/2.jpg",
+      "https://jellyfin.example.com/Videos/item-1/Trickplay/320/3.jpg",
+    ]);
+  });
 });
 
 describe("downloadSubtitles", () => {
