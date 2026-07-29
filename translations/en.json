@@ -12,7 +12,7 @@
     "login_button": "Log in",
     "quick_connect": "Quick Connect",
     "enter_code_to_login": "Enter code {{code}} to log in",
-    "quick_connect_instructions": "Enter this code on a signed-in device — you'll be logged in automatically.",
+    "quick_connect_instructions": "Enter this code on a signed-in device. You'll be logged in automatically.",
     "tap_code_to_copy": "Tap the code to copy it",
     "code_copied": "Code copied",
     "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
@@ -110,13 +110,13 @@
       "welcome_to_streamyfin": "Welcome to Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "A free and open-source client for Jellyfin.",
       "features_title": "Features",
-      "features_description": "Streamyfin has a bunch of features and integrates with a wide array of software, which you can find in the settings menu. These include:",
+      "features_description": "Streamyfin has a bunch of features and works with other software. You'll find them in the settings menu:",
       "jellyseerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download movies and series to watch offline.",
       "chromecast_feature_description": "Cast movies and series to your Chromecast devices.",
       "centralised_settings_plugin_title": "Centralised Settings plugin",
-      "centralised_settings_plugin_description": "Configure settings from a centralised location on your Jellyfin server. All client settings for all users will be synced automatically.",
+      "centralised_settings_plugin_description": "Configure settings centrally on your Jellyfin server. Every user's client settings sync automatically.",
       "done_button": "Done",
       "go_to_settings_button": "Go to Settings",
       "read_more": "Read more"
@@ -214,11 +214,11 @@
         "seconds_unit": "s"
       },
       "video_player": {
-        "title": "Video Player",
+        "title": "Video player",
         "exoplayer": "ExoPlayer",
         "mpv": "MPV",
         "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
-        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display — HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
+        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
       },
       "buffer": {
         "title": "Buffer settings",
@@ -291,10 +291,10 @@
         "mpv_subtitle_margin_y": "Vertical margin",
         "mpv_subtitle_align_x": "Horizontal align",
         "mpv_subtitle_align_y": "Vertical align",
-        "mpv_settings_title": "MPV Subtitle Settings",
+        "mpv_settings_title": "MPV subtitle settings",
         "mpv_settings_description": "Advanced subtitle customization for MPV player",
-        "opaque_background": "Opaque Background",
-        "background_opacity": "Background Opacity",
+        "opaque_background": "Opaque background",
+        "background_opacity": "Background opacity",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -338,7 +338,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer downloaded songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming songs for smoother playback.",
+        "caching_description": "Cache upcoming songs so playback doesn't stall between tracks.",
         "lookahead_enabled": "Enable look-ahead caching",
         "lookahead_count": "Songs to pre-cache",
         "max_cache_size": "Max cache size"
@@ -411,10 +411,10 @@
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} used",
         "delete_all_downloaded_files": "Delete all downloaded files",
-        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm": "Delete all downloaded files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Cached songs kept on this device. Clearing them frees up space.",
         "clear_music_cache": "Clear music cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -467,7 +467,7 @@
     "sessions": {
       "title": "Sessions",
       "no_active_sessions": "No active sessions",
-      "select_session": "Select Session",
+      "select_session": "Select session",
       "now_playing": "Now playing:"
     },
     "downloads": {
@@ -504,7 +504,7 @@
         "could_not_delete_download": "Could not delete download",
         "download_completed": "Download completed",
         "download_failed": "Download failed",
-        "download_failed_for_item": "Download failed for {{item}} - {{error}}",
+        "download_failed_for_item": "Download failed for {{item}}: {{error}}",
         "download_completed_for_item": "Download completed for {{item}}",
         "download_started_for_item": "Download started for {{item}}",
         "failed_to_start_download": "Failed to start download",
@@ -529,7 +529,7 @@
     "track": "Track",
     "cancel": "Cancel",
     "stop": "Stop",
-    "open_menu": "Open Menu",
+    "open_menu": "Open menu",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -539,7 +539,7 @@
     "login": "Login",
     "episodes": "Episodes",
     "movies": "Movies",
-    "loading": "Loading…",
+    "loading": "Loading...",
     "seeAll": "See all"
   },
   "search": {
@@ -624,7 +624,7 @@
     "boxsets": "Box sets",
     "playlists": "Playlists",
     "noDataTitle": "No favorites yet",
-    "noData": "Mark items as favorites to see them appear here for quick access."
+    "noData": "Items you mark as favorites show up here."
   },
   "custom_links": {
     "no_links": "No links"
@@ -632,17 +632,17 @@
   "player": {
     "live": "LIVE",
     "shuffle": "Shuffle",
-    "entire_series": "Entire Series",
+    "entire_series": "Entire series",
     "episode_count": "{{count}} episodes",
     "menu": {
       "quality": "Quality",
       "subtitles": "Subtitles",
-      "subtitle_scale": "Subtitle Scale",
+      "subtitle_scale": "Subtitle scale",
       "audio": "Audio",
       "speed": "Speed",
-      "playback_options": "Playback Options",
-      "show_technical_info": "Show Technical Info",
-      "hide_technical_info": "Hide Technical Info"
+      "playback_options": "Playback options",
+      "show_technical_info": "Show technical info",
+      "hide_technical_info": "Hide technical info"
     },
     "technical_info": {
       "video": "Video:",
@@ -656,9 +656,9 @@
       "loading": "Loading..."
     },
     "mpv_player_title": "MPV player",
-    "aspect_ratio": "Aspect Ratio",
+    "aspect_ratio": "Aspect ratio",
     "aspect_ratio_original": "Original",
-    "hash_match": "Hash Match",
+    "hash_match": "Hash match",
     "still_watching": "Are you still watching?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
@@ -858,7 +858,7 @@
     "home": "Home",
     "search": "Search",
     "library": "Library",
-    "custom_links": "Custom Links",
+    "custom_links": "Custom links",
     "favorites": "Favorites",
     "settings": "Settings"
   },
@@ -868,7 +868,7 @@
     "queue_empty": "Queue is empty",
     "playing_from_queue": "Playing from queue",
     "up_next": "Up next",
-    "now_playing": "Now Playing",
+    "now_playing": "Now playing",
     "missing_library_id": "Missing music library id.",
     "tabs": {
       "suggestions": "Suggestions",
@@ -953,7 +953,7 @@
     "allowed_type_label": "Content type",
     "sort_order_label": "Default sort order",
     "empty_title": "No watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Create a watchlist to group the things you want to watch",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats not configured",
