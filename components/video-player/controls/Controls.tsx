@@ -382,7 +382,8 @@ export const Controls: FC<Props> = ({
   // Driven by actual playback position vs. duration, independent of segment
   // metadata, so it's safe to auto-advance from this trigger.
   const showNextEpisodeFromRemainingTime =
-    willShowNextEpisode && remainingTime < 10000;
+    willShowNextEpisode &&
+    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
 
   const showNextEpisode =
     showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
