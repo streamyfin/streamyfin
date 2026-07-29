@@ -22,7 +22,6 @@ import { TVJellyseerrSearchResults } from "./TVJellyseerrSearchResults";
 import { TVSearchSection } from "./TVSearchSection";
 import { TVSearchTabBadges } from "./TVSearchTabBadges";
 
-const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
 // Height of the native search bar itself. The tvOS grid keyboard presents as
 // its own overlay when the field is focused, so we only reserve the bar height
@@ -163,6 +162,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   discoverSliders,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -251,7 +251,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         ) : (
           <View
             style={{
-              marginHorizontal: HORIZONTAL_PADDING,
+              marginHorizontal: sizes.padding.horizontal,
               marginBottom: 24,
             }}
           >
@@ -280,12 +280,15 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         showsVerticalScrollIndicator={false}
         keyboardDismissMode='on-drag'
         contentContainerStyle={{
+          // Top padding so the focus-scale/shadow on the first row (filter
+          // badges) isn't clipped against the ScrollView's top edge.
+          paddingTop: 16,
           paddingBottom: insets.bottom + 60,
         }}
       >
         {/* Search Type Tab Badges */}
         {showDiscover && (
-          <View style={{ marginHorizontal: HORIZONTAL_PADDING }}>
+          <View style={{ marginHorizontal: sizes.padding.horizontal }}>
             <TVSearchTabBadges
               searchType={searchType}
               setSearchType={setSearchType}

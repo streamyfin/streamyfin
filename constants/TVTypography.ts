@@ -24,7 +24,7 @@ export const TVTypography = {
   heading: 32,
 
   /** Overview, actor names, card titles, metadata */
-  body: 40,
+  body: 32,
 
   /** Secondary text, labels, subtitles */
   callout: 26,
@@ -53,6 +53,20 @@ export type ScaledTVTypography = {
   heading: number;
   body: number;
   callout: number;
+};
+
+/**
+ * Returns the user's text-scale factor relative to the Default scale (1.0 at
+ * Default, >1 for Large/ExtraLarge, <1 for Small). Use it to scale containers
+ * (e.g. option-card width/height) in step with the scaled font so larger text
+ * settings don't overflow fixed boxes.
+ */
+export const useTVRelativeScale = (): number => {
+  const { settings } = useSettings();
+  const scale =
+    scaleMultipliers[settings.tvTypographyScale] ??
+    scaleMultipliers[TVTypographyScale.Default];
+  return scale / scaleMultipliers[TVTypographyScale.Default];
 };
 
 /**

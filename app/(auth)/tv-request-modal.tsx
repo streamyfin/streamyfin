@@ -15,11 +15,12 @@ import {
 import { Text } from "@/components/common/Text";
 import { TVRequestOptionRow } from "@/components/jellyseerr/tv/TVRequestOptionRow";
 import { TVToggleOptionRow } from "@/components/jellyseerr/tv/TVToggleOptionRow";
-import { TVButton, TVOptionSelector } from "@/components/tv";
+import { TVButton } from "@/components/tv";
 import type { TVOptionItem } from "@/components/tv/TVOptionSelector";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
+import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { tvRequestModalAtom } from "@/utils/atoms/tvRequestModal";
 import type {
   QualityProfile,
@@ -35,6 +36,7 @@ export default function TVRequestModalPage() {
   const modalState = useAtomValue(tvRequestModalAtom);
   const { t } = useTranslation();
   const { jellyseerrApi, jellyseerrUser, requestMedia } = useJellyseerr();
+  const { showOptions } = useTVOptionModal();
 
   const [isReady, setIsReady] = useState(false);
   const [requestOverrides, setRequestOverrides] = useState<MediaRequestBody>({
@@ -42,10 +44,6 @@ export default function TVRequestModalPage() {
     mediaType: modalState?.mediaType,
     userId: jellyseerrUser?.id,
   });
-
-  const [activeSelector, setActiveSelector] = useState<
-    "profile" | "folder" | "user" | null
-  >(null);
 
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(200)).current;
@@ -242,17 +240,14 @@ export default function TVRequestModalPage() {
   // Handlers
   const handleProfileChange = useCallback((profileId: number) => {
     setRequestOverrides((prev) => ({ ...prev, profileId }));
-    setActiveSelector(null);
   }, []);
 
   const handleFolderChange = useCallback((rootFolder: string) => {
     setRequestOverrides((prev) => ({ ...prev, rootFolder }));
-    setActiveSelector(null);
   }, []);
 
   const handleUserChange = useCallback((userId: number) => {
     setRequestOverrides((prev) => ({ ...prev, userId }));
-    setActiveSelector(null);
   }, []);
 
   const handleTagToggle = useCallback(
@@ -353,18 +348,37 @@ export default function TVRequestModalPage() {
                   <TVRequestOptionRow
                     label={t("jellyseerr.quality_profile")}
                     value={selectedProfileName}
-                    onPress={() => setActiveSelector("profile")}
+                    onPress={() =>
+                      showOptions({
+                        title: t("jellyseerr.quality_profile"),
+                        options: qualityProfileOptions,
+                        onSelect: handleProfileChange,
+                      })
+                    }
                     hasTVPreferredFocus
                   />
                   <TVRequestOptionRow
                     label={t("jellyseerr.root_folder")}
                     value={selectedFolderName}
-                    onPress={() => setActiveSelector("folder")}
+                    onPress={() =>
+                      showOptions({
+                        title: t("jellyseerr.root_folder"),
+                        options: rootFolderOptions,
+                        onSelect: handleFolderChange,
+                        cardWidth: 280,
+                      })
+                    }
                   />
                   <TVRequestOptionRow
                     label={t("jellyseerr.request_as")}
                     value={selectedUserName}
-                    onPress={() => setActiveSelector("user")}
+                    onPress={() =>
+                      showOptions({
+                        title: t("jellyseerr.request_as"),
+                        options: userOptions,
+                        onSelect: handleUserChange,
+                      })
+                    }
                   />
 
                   {tagItems.length > 0 && (
@@ -409,33 +423,6 @@ export default function TVRequestModalPage() {
           </TVFocusGuideView>
         </BlurView>
       </Animated.View>
-
-      {/* Sub-selectors */}
-      <TVOptionSelector
-        visible={activeSelector === "profile"}
-        title={t("jellyseerr.quality_profile")}
-        options={qualityProfileOptions}
-        onSelect={handleProfileChange}
-        onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
-      />
-      <TVOptionSelector
-        visible={activeSelector === "folder"}
-        title={t("jellyseerr.root_folder")}
-        options={rootFolderOptions}
-        onSelect={handleFolderChange}
-        onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
-        cardWidth={280}
-      />
-      <TVOptionSelector
-        visible={activeSelector === "user"}
-        title={t("jellyseerr.request_as")}
-        options={userOptions}
-        onSelect={handleUserChange}
-        onClose={() => setActiveSelector(null)}
-        cancelLabel={t("jellyseerr.cancel")}
-      />
     </Animated.View>
   );
 }

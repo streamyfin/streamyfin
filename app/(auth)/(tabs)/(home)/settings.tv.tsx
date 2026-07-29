@@ -1,12 +1,13 @@
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { toast } from "sonner-native";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
@@ -21,6 +22,7 @@ import {
   TVSettingsToggle,
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
 import { APP_LANGUAGES } from "@/i18n";
@@ -53,7 +55,7 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
@@ -62,6 +64,58 @@ export default function SettingsTV() {
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
   const queryClient = useQueryClient();
+  const { jellyseerrApi, setJellyseerrUser, clearAllJellyseerData } =
+    useJellyseerr();
+
+  // Jellyseerr connection state
+  const [jellyseerrServerUrl, setJellyseerrServerUrl] = useState(
+    settings.jellyseerrServerUrl || "",
+  );
+  const [jellyseerrPassword, setJellyseerrPassword] = useState("");
+
+  // Settings load storage + plugin overrides after mount, and a plugin can lock
+  // the URL at runtime. Keep the local field in sync with the effective value
+  // so it never shows stale/empty text or overwrites a locked URL on blur.
+  useEffect(() => {
+    setJellyseerrServerUrl(settings.jellyseerrServerUrl || "");
+  }, [settings.jellyseerrServerUrl]);
+
+  const isJellyseerrLocked =
+    pluginSettings?.jellyseerrServerUrl?.locked === true;
+  const isJellyseerrConnected = !!jellyseerrApi;
+
+  const handleJellyseerrUrlBlur = useCallback(() => {
+    const url = jellyseerrServerUrl.trim();
+    updateSettings({ jellyseerrServerUrl: url || undefined });
+  }, [jellyseerrServerUrl, updateSettings]);
+
+  const jellyseerrLoginMutation = useMutation({
+    mutationFn: async () => {
+      const url = jellyseerrServerUrl.trim();
+      if (!url) throw new Error("Missing server url");
+      if (!user?.Name) throw new Error("Missing user info");
+      const tempApi = new JellyseerrApi(url);
+      const testResult = await tempApi.test();
+      if (!testResult.isValid) throw new Error("Invalid server url");
+      return tempApi.login(user.Name, jellyseerrPassword);
+    },
+    onSuccess: (loggedInUser) => {
+      setJellyseerrUser(loggedInUser);
+      updateSettings({ jellyseerrServerUrl: jellyseerrServerUrl.trim() });
+    },
+    onError: () => {
+      toast.error(t("jellyseerr.failed_to_login"));
+    },
+    onSettled: () => {
+      setJellyseerrPassword("");
+    },
+  });
+
+  const handleDisconnectJellyseerr = useCallback(() => {
+    clearAllJellyseerData();
+    setJellyseerrServerUrl("");
+    setJellyseerrPassword("");
+  }, [clearAllJellyseerData]);
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -975,6 +1029,72 @@ export default function SettingsTV() {
             value={settings.tvThemeMusicEnabled}
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
           />
+
+          {/* seerr Section */}
+          <TVSectionHeader title='seerr' />
+          <Text
+            style={{
+              color: "#9CA3AF",
+              fontSize: typography.callout - 2,
+              marginBottom: 16,
+              marginLeft: 8,
+            }}
+          >
+            {t("home.settings.plugins.jellyseerr.server_url_hint")}
+          </Text>
+          <TVSettingsTextInput
+            label={t("home.settings.plugins.jellyseerr.server_url")}
+            value={jellyseerrServerUrl}
+            placeholder={t(
+              "home.settings.plugins.jellyseerr.server_url_placeholder",
+            )}
+            onChangeText={setJellyseerrServerUrl}
+            onBlur={handleJellyseerrUrlBlur}
+            disabled={isJellyseerrLocked || jellyseerrLoginMutation.isPending}
+          />
+          {!isJellyseerrConnected && !isJellyseerrLocked && (
+            <>
+              <TVSettingsTextInput
+                label={t("home.settings.plugins.jellyseerr.password")}
+                value={jellyseerrPassword}
+                placeholder={t(
+                  "home.settings.plugins.jellyseerr.password_placeholder",
+                  { username: user?.Name },
+                )}
+                onChangeText={setJellyseerrPassword}
+                secureTextEntry
+                disabled={jellyseerrLoginMutation.isPending}
+              />
+              <TVSettingsOptionButton
+                label={
+                  jellyseerrLoginMutation.isPending
+                    ? t("common.connecting")
+                    : t("common.connect")
+                }
+                value=''
+                onPress={() => jellyseerrLoginMutation.mutate()}
+                disabled={jellyseerrLoginMutation.isPending}
+              />
+            </>
+          )}
+          <TVSettingsRow
+            label={
+              isJellyseerrConnected
+                ? t("common.connected")
+                : t("common.not_connected")
+            }
+            value=''
+            showChevron={false}
+          />
+          {isJellyseerrConnected && !isJellyseerrLocked && (
+            <TVSettingsOptionButton
+              label={t(
+                "home.settings.plugins.jellyseerr.reset_jellyseerr_config_button",
+              )}
+              value=''
+              onPress={handleDisconnectJellyseerr}
+            />
+          )}
 
           {/* Storage Section */}
           <TVSectionHeader title={t("home.settings.storage.storage_title")} />

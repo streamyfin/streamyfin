@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Animated, FlatList, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useTVFocusAnimation } from "@/components/tv/hooks/useTVFocusAnimation";
+import { useScaledTVSizes } from "@/constants/TVSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import {
@@ -166,6 +167,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
   isFirstSlide = false,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const { t } = useTranslation();
   const { jellyseerrApi, isJellyseerrMovieOrTvResult } = useJellyseerr();
 
@@ -238,7 +240,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
           fontWeight: "bold",
           color: "#FFFFFF",
           marginBottom: 16,
-          marginLeft: SCALE_PADDING,
+          marginLeft: sizes.padding.horizontal,
         }}
       >
         {slideTitle}
@@ -249,7 +251,7 @@ export const TVDiscoverSlide: React.FC<TVDiscoverSlideProps> = ({
         keyExtractor={(item) => item.id.toString()}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: SCALE_PADDING,
+          paddingHorizontal: sizes.padding.horizontal,
           paddingVertical: SCALE_PADDING,
           gap: 20,
         }}

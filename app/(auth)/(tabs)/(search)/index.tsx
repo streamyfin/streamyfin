@@ -6,7 +6,12 @@ import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
+import {
+  useIsFocused,
+  useLocalSearchParams,
+  useNavigation,
+  useSegments,
+} from "expo-router";
 import { useAtom } from "jotai";
 import { orderBy, uniqBy } from "lodash";
 import {
@@ -19,7 +24,13 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
 import { Text } from "@/components/common/Text";
@@ -40,7 +51,10 @@ import { SearchItemWrapper } from "@/components/search/SearchItemWrapper";
 import { SearchTabButtons } from "@/components/search/SearchTabButtons";
 import { TVSearchPage } from "@/components/search/TVSearchPage";
 import useRouter from "@/hooks/useAppRouter";
-import { useJellyseerr } from "@/hooks/useJellyseerr";
+import {
+  useJellyseerr,
+  validateJellyseerrSession,
+} from "@/hooks/useJellyseerr";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -94,8 +108,60 @@ export default function SearchPage() {
 
   const [api] = useAtom(apiAtom);
 
+  const isFocused = useIsFocused();
   const { settings } = useSettings();
-  const { jellyseerrApi } = useJellyseerr();
+  const { jellyseerrApi, clearAllJellyseerData } = useJellyseerr();
+
+  // Prompt the user to connect when a Jellyseerr server is configured but no
+  // session exists yet (once per focus, and only while the tab is focused).
+  const jellyseerrAlertedRef = useRef(false);
+  useEffect(() => {
+    // Reset when the tab loses focus so the prompt can show again next time
+    // (e.g. after the user disconnects and returns).
+    if (!isFocused) {
+      jellyseerrAlertedRef.current = false;
+      return;
+    }
+    if (!settings?.jellyseerrServerUrl || jellyseerrApi) return;
+    if (jellyseerrAlertedRef.current) return;
+    jellyseerrAlertedRef.current = true;
+    Alert.alert(
+      t("jellyseerr.connect_to_jellyseerr"),
+      t("jellyseerr.connect_in_settings"),
+    );
+  }, [isFocused, settings?.jellyseerrServerUrl, jellyseerrApi, t]);
+
+  // Validate the Jellyseerr session when switching to Discover; if the session
+  // has expired, clear the stale "connected" state and prompt to reconnect.
+  useEffect(() => {
+    if (
+      !isFocused ||
+      searchType !== "Discover" ||
+      !jellyseerrApi ||
+      !settings?.jellyseerrServerUrl
+    )
+      return;
+    let cancelled = false;
+    validateJellyseerrSession(settings.jellyseerrServerUrl).then((status) => {
+      if (cancelled || status.valid || status.reason !== "expired") return;
+      clearAllJellyseerData();
+      Alert.alert(
+        t("jellyseerr.session_expired"),
+        t("jellyseerr.session_expired_connect_again"),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isFocused,
+    searchType,
+    jellyseerrApi,
+    settings?.jellyseerrServerUrl,
+    clearAllJellyseerData,
+    t,
+  ]);
+
   const [jellyseerrOrderBy, setJellyseerrOrderBy] =
     useState<JellyseerrSearchSort>(
       JellyseerrSearchSort[

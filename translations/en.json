@@ -540,7 +540,11 @@
     "episodes": "Episodes",
     "movies": "Movies",
     "loading": "Loading…",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "connect": "Connect",
+    "connecting": "Connecting…",
+    "connected": "Connected",
+    "not_connected": "Not connected"
   },
   "search": {
     "search": "Search...",
@@ -795,6 +799,10 @@
     "request_button": "Request",
     "are_you_sure_you_want_to_request_all_seasons": "Are you sure you want to request all seasons?",
     "failed_to_login": "Failed to log in",
+    "connect_to_jellyseerr": "Connect to Jellyseerr",
+    "connect_in_settings": "Jellyseerr is available. Connect in Settings to enable request features.",
+    "session_expired": "Session expired",
+    "session_expired_connect_again": "Your Jellyseerr session has expired. Please reconnect in Settings.",
     "cast": "Cast",
     "details": "Details",
     "status": "Status",
