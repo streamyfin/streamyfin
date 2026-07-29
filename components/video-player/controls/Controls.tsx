@@ -382,11 +382,15 @@ export const Controls: FC<Props> = ({
   // Driven by actual playback position vs. duration, independent of segment
   // metadata, so it's safe to auto-advance from this trigger.
   const showNextEpisodeFromRemainingTime =
-    willShowNextEpisode && remainingTime < 10000;
+    willShowNextEpisode &&
+    remainingTime < CONTROLS_CONSTANTS.NEXT_EPISODE_COUNTDOWN_MS;
 
   const showNextEpisode =
     showNextEpisodeFromCredits || showNextEpisodeFromRemainingTime;
-  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime && isPlaying;
+  // Whether reaching the end of the item may advance on its own. Pausing is
+  // not a reason to take that away: the countdown follows the remaining time,
+  // which stops moving while playback does.
+  const autoAdvanceNextEpisode = showNextEpisodeFromRemainingTime;
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -647,6 +651,9 @@ export const Controls: FC<Props> = ({
             willShowNextEpisode={willShowNextEpisode}
             showNextEpisode={showNextEpisode}
             autoAdvanceNextEpisode={autoAdvanceNextEpisode}
+            remainingTime={remainingTime}
+            isPlaying={isPlaying}
+            itemId={item.Id}
             skipIntro={skipIntro}
             skipCredit={skipCredit}
             onNextEpisodeFinish={handleNextEpisodeAutoPlay}

@@ -1,5 +1,8 @@
 export const CONTROLS_CONSTANTS = {
   TIMEOUT: 4000,
+  // Media time left when the next episode button appears. The countdown fill
+  // spans the same window, so both must move together.
+  NEXT_EPISODE_COUNTDOWN_MS: 10000,
   SCRUB_INTERVAL_MS: 30 * 1000, // 30 seconds in ms
   SCRUB_INTERVAL_TICKS: 10 * 10000000, // 10 seconds in ticks
   TILE_WIDTH: 150,
