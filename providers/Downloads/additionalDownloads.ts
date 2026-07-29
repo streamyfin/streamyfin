@@ -112,10 +112,10 @@ export async function downloadSubtitles(
       continue;
     }
 
+    const headers = subtitle.IsExternalUrl ? undefined : getAuthHeaders(api);
+
     try {
-      await File.downloadFileAsync(url, destination, {
-        headers: getAuthHeaders(api),
-      });
+      await File.downloadFileAsync(url, destination, { headers });
       subtitle.DeliveryUrl = destination.uri;
     } catch (error) {
       console.error(

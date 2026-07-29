@@ -163,7 +163,7 @@ describe("downloadSubtitles", () => {
     );
   });
 
-  test("downloads an IsExternalUrl subtitle from its absolute url without prefixing basePath", async () => {
+  test("downloads an IsExternalUrl subtitle from its absolute url with no Jellyfin credentials", async () => {
     const mediaSource: MediaSourceInfo = {
       MediaStreams: [
         {
@@ -179,8 +179,12 @@ describe("downloadSubtitles", () => {
 
     await downloadSubtitles(mediaSource, trickplayItem, api);
 
-    expect(downloads.map((download) => download.url)).toEqual([
-      "https://subs.example.org/opensubtitles/9/Stream.srt",
+    expect(downloads).toEqual([
+      {
+        url: "https://subs.example.org/opensubtitles/9/Stream.srt",
+        destination: "file:///documents/some_movie__subtitle_9.srt",
+        options: { headers: undefined },
+      },
     ]);
   });
 
