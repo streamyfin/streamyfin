@@ -25,6 +25,11 @@ interface Props {
   willShowNextEpisode: boolean;
   showNextEpisode: boolean;
   autoAdvanceNextEpisode: boolean;
+  /** Media time left in the current item, in milliseconds. */
+  remainingTime: number;
+  isPlaying: boolean;
+  /** Id of the item being played, to scope the countdown to it. */
+  itemId?: string | null;
   skipIntro: () => void;
   skipCredit: () => void;
   onNextEpisodeFinish: () => void;
@@ -81,6 +86,9 @@ export const SkipSegmentOverlay: FC<Props> = ({
   willShowNextEpisode,
   showNextEpisode,
   autoAdvanceNextEpisode,
+  remainingTime,
+  isPlaying,
+  itemId,
   skipIntro,
   skipCredit,
   onNextEpisodeFinish,
@@ -144,6 +152,9 @@ export const SkipSegmentOverlay: FC<Props> = ({
       <NextEpisodeCountDownButton
         show={showNextEpisode}
         autoAdvance={autoAdvanceNextEpisode}
+        remainingMs={remainingTime}
+        isPlaying={isPlaying}
+        itemId={itemId}
         onFinish={onNextEpisodeFinish}
         onPress={onNextEpisodePress}
       />
