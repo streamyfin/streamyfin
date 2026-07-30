@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef } from "react";
-import { Dimensions, StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -27,13 +27,14 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-// Cards are inset from the screen edges so neighboring slides peek in via
-// the parallax carousel mode.
-const HERO_CARD_WIDTH = SCREEN_WIDTH - 32;
-// 16:9 backdrop plus room for the logo/title + overview overlay.
-const HERO_HEIGHT = Math.round(HERO_CARD_WIDTH * (9 / 16)) + 100;
+// Card width is capped so wide screens (iPad, Android tablets, phones in
+// landscape) get a centered card with breathing room instead of one
+// stretched edge-to-edge into a banner. Below this width the cap has no
+// effect and behavior matches the original edge-to-edge phone layout.
+const MAX_CARD_WIDTH = 720;
+const CARD_SIDE_GUTTER = 16;
+// How much of the neighboring card should peek in past its own gutter.
+const NEIGHBOR_PEEK = 20;
 
 const getYear = (item: BaseItemDto): string | null => {
   if (item.ProductionYear) return item.ProductionYear.toString();
@@ -55,14 +56,33 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   const ref = useRef<ICarouselInstance>(null);
   const progress = useSharedValue(0);
   const { settings } = useSettings();
+  const { width: windowWidth } = useWindowDimensions();
   const autoPlayIntervalMs =
     (settings?.heroCarouselRotationSeconds ?? 6) * 1000;
 
   const cappedItems = useMemo(() => items.slice(0, 8), [items]);
 
+  // Everything below is derived purely from the current window width, so it
+  // adapts live to rotation and iPad multitasking (Split View, Stage
+  // Manager) with no phone/tablet branching.
+  const cardWidth = useMemo(
+    () => Math.min(windowWidth - CARD_SIDE_GUTTER * 2, MAX_CARD_WIDTH),
+    [windowWidth],
+  );
+  // 16:9 backdrop plus room for the logo/title + overview overlay.
+  const heroHeight = useMemo(
+    () => Math.round(cardWidth * (9 / 16)) + 100,
+    [cardWidth],
+  );
+  // Half the leftover width once the card is centered - equals
+  // CARD_SIDE_GUTTER until the cap above kicks in, then grows from there.
+  const sideGutter = (windowWidth - cardWidth) / 2;
+
   const renderItem = useCallback(
-    ({ item }: { item: BaseItemDto }) => <HeroSlide item={item} />,
-    [],
+    ({ item }: { item: BaseItemDto }) => (
+      <HeroSlide item={item} cardWidth={cardWidth} heroHeight={heroHeight} />
+    ),
+    [cardWidth, heroHeight],
   );
 
   const onPressPagination = useCallback(
@@ -86,13 +106,13 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
         loop={cappedItems.length > 1}
         snapEnabled
         vertical={false}
-        width={SCREEN_WIDTH}
-        height={HERO_HEIGHT}
+        width={windowWidth}
+        height={heroHeight}
         data={cappedItems}
         mode='parallax'
         modeConfig={{
           parallaxScrollingScale: 0.96,
-          parallaxScrollingOffset: 36,
+          parallaxScrollingOffset: sideGutter + NEIGHBOR_PEEK,
         }}
         onProgressChange={progress}
         renderItem={renderItem}
@@ -118,190 +138,201 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   );
 };
 
-const HeroSlide: React.FC<{ item: BaseItemDto }> = React.memo(({ item }) => {
-  const api = useAtomValue(apiAtom);
-  const router = useRouter();
-  const lightHapticFeedback = useHaptic("light");
-  const opacity = useSharedValue(1);
+interface HeroSlideProps {
+  item: BaseItemDto;
+  cardWidth: number;
+  heroHeight: number;
+}
 
-  const backdropUrl = useMemo(
-    () =>
-      getBackdropUrl({
-        api,
-        item,
-        quality: 80,
-        width: Math.floor(HERO_CARD_WIDTH * 2),
-      }),
-    [api, item],
-  );
+const HeroSlide: React.FC<HeroSlideProps> = React.memo(
+  ({ item, cardWidth, heroHeight }) => {
+    const api = useAtomValue(apiAtom);
+    const router = useRouter();
+    const lightHapticFeedback = useHaptic("light");
+    const opacity = useSharedValue(1);
 
-  const logoUrl = useMemo(
-    () => getLogoImageUrlById({ api, item, height: 56 }),
-    [api, item],
-  );
+    const backdropUrl = useMemo(
+      () =>
+        getBackdropUrl({
+          api,
+          item,
+          quality: 80,
+          width: Math.floor(cardWidth * 2),
+        }),
+      [api, item, cardWidth],
+    );
 
-  const displayTitle =
-    item.Type === "Episode"
-      ? item.SeriesName || item.Name || ""
-      : item.Name || "";
+    const logoUrl = useMemo(
+      () => getLogoImageUrlById({ api, item, height: 56 }),
+      [api, item],
+    );
 
-  const episodeSubtitle =
-    item.Type === "Episode"
-      ? `S${item.ParentIndexNumber} E${item.IndexNumber} · ${item.Name}`
+    const displayTitle =
+      item.Type === "Episode"
+        ? item.SeriesName || item.Name || ""
+        : item.Name || "";
+
+    const episodeSubtitle =
+      item.Type === "Episode"
+        ? `S${item.ParentIndexNumber} E${item.IndexNumber} · ${item.Name}`
+        : null;
+
+    const year = useMemo(() => getYear(item), [item]);
+    const duration = item.RunTimeTicks
+      ? runtimeTicksToMinutes(item.RunTimeTicks)
       : null;
+    const communityRating =
+      typeof item.CommunityRating === "number"
+        ? `★ ${item.CommunityRating.toFixed(1)}`
+        : null;
+    const genres = useMemo(
+      () => (item.Genres || []).slice(0, 3),
+      [item.Genres],
+    );
 
-  const year = useMemo(() => getYear(item), [item]);
-  const duration = item.RunTimeTicks
-    ? runtimeTicksToMinutes(item.RunTimeTicks)
-    : null;
-  const communityRating =
-    typeof item.CommunityRating === "number"
-      ? `★ ${item.CommunityRating.toFixed(1)}`
-      : null;
-  const genres = useMemo(() => (item.Genres || []).slice(0, 3), [item.Genres]);
+    const handlePress = useCallback(() => {
+      lightHapticFeedback();
+      // This component only ever mounts on the Home screen, so "(home)" is
+      // always the correct `from` segment - matches TVHeroCarousel's usage.
+      router.push(getItemNavigation(item, "(home)") as any);
+    }, [item, router, lightHapticFeedback]);
 
-  const handlePress = useCallback(() => {
-    lightHapticFeedback();
-    // This component only ever mounts on the Home screen, so "(home)" is
-    // always the correct `from` segment - matches TVHeroCarousel's usage.
-    router.push(getItemNavigation(item, "(home)") as any);
-  }, [item, router, lightHapticFeedback]);
+    const tap = Gesture.Tap()
+      .maxDuration(2000)
+      .shouldCancelWhenOutside(true)
+      .onBegin(() => {
+        opacity.value = withTiming(0.8, { duration: 100 });
+      })
+      .onEnd(() => {
+        runOnJS(handlePress)();
+      })
+      .onFinalize(() => {
+        opacity.value = withTiming(1, { duration: 100 });
+      });
 
-  const tap = Gesture.Tap()
-    .maxDuration(2000)
-    .shouldCancelWhenOutside(true)
-    .onBegin(() => {
-      opacity.value = withTiming(0.8, { duration: 100 });
-    })
-    .onEnd(() => {
-      runOnJS(handlePress)();
-    })
-    .onFinalize(() => {
-      opacity.value = withTiming(1, { duration: 100 });
-    });
-
-  return (
-    <View style={{ paddingHorizontal: 16 }}>
-      <GestureDetector gesture={tap}>
-        <Animated.View
-          style={{
-            width: HERO_CARD_WIDTH,
-            height: HERO_HEIGHT,
-            borderRadius: 18,
-            overflow: "hidden",
-            borderWidth: 1,
-            borderColor: "#262626",
-            backgroundColor: "#0f0f10",
-            opacity,
-          }}
-        >
-          {backdropUrl && (
-            <Image
-              source={{ uri: backdropUrl }}
-              style={StyleSheet.absoluteFill}
-              contentFit='cover'
-            />
-          )}
-          <View
+    return (
+      <View style={{ alignItems: "center" }}>
+        <GestureDetector gesture={tap}>
+          <Animated.View
             style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0,0,0,0.35)",
+              width: cardWidth,
+              height: heroHeight,
+              borderRadius: 18,
+              overflow: "hidden",
+              borderWidth: 1,
+              borderColor: "#262626",
+              backgroundColor: "#0f0f10",
+              opacity,
             }}
-          />
-          <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.92)"]}
-            locations={[0.4, 1]}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: "65%",
-            }}
-          />
-          <View
-            style={{ position: "absolute", left: 16, right: 16, bottom: 16 }}
           >
-            {logoUrl ? (
+            {backdropUrl && (
               <Image
-                source={{ uri: logoUrl }}
-                style={{
-                  height: 56,
-                  width: HERO_CARD_WIDTH * 0.6,
-                  marginBottom: 8,
-                }}
-                contentFit='contain'
-                contentPosition='left'
+                source={{ uri: backdropUrl }}
+                style={StyleSheet.absoluteFill}
+                contentFit='cover'
               />
-            ) : (
-              <Text
-                style={{
-                  color: "#FFFFFF",
-                  fontWeight: "bold",
-                  fontSize: 26,
-                  marginBottom: 8,
-                }}
-                numberOfLines={1}
-              >
-                {displayTitle}
-              </Text>
             )}
-            {episodeSubtitle && (
-              <Text
-                style={{ color: "rgba(255,255,255,0.9)", marginBottom: 4 }}
-                numberOfLines={1}
-              >
-                {episodeSubtitle}
-              </Text>
-            )}
-            {(communityRating || year || duration) && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: 8,
-                  marginBottom: 4,
-                }}
-              >
-                {communityRating && (
-                  <Text
-                    style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                  >
-                    {communityRating}
-                  </Text>
-                )}
-                {year && (
-                  <Text
-                    style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                  >
-                    {year}
-                  </Text>
-                )}
-                {duration && (
-                  <Text
-                    style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                  >
-                    {duration}
-                  </Text>
-                )}
-              </View>
-            )}
-            {item.Overview && (
-              <Text
-                style={{ color: "rgba(255,255,255,0.8)" }}
-                numberOfLines={2}
-              >
-                {item.Overview}
-              </Text>
-            )}
-            {genres.length > 0 && <GenreTags genres={genres} />}
-          </View>
-          <ProgressBar item={item} />
-        </Animated.View>
-      </GestureDetector>
-    </View>
-  );
-});
+            <View
+              style={{
+                position: "absolute",
+                width: "100%",
+                height: "100%",
+                backgroundColor: "rgba(0,0,0,0.35)",
+              }}
+            />
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.92)"]}
+              locations={[0.4, 1]}
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: "65%",
+              }}
+            />
+            <View
+              style={{ position: "absolute", left: 16, right: 16, bottom: 16 }}
+            >
+              {logoUrl ? (
+                <Image
+                  source={{ uri: logoUrl }}
+                  style={{
+                    height: 56,
+                    width: cardWidth * 0.6,
+                    marginBottom: 8,
+                  }}
+                  contentFit='contain'
+                  contentPosition='left'
+                />
+              ) : (
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: "bold",
+                    fontSize: 26,
+                    marginBottom: 8,
+                  }}
+                  numberOfLines={1}
+                >
+                  {displayTitle}
+                </Text>
+              )}
+              {episodeSubtitle && (
+                <Text
+                  style={{ color: "rgba(255,255,255,0.9)", marginBottom: 4 }}
+                  numberOfLines={1}
+                >
+                  {episodeSubtitle}
+                </Text>
+              )}
+              {(communityRating || year || duration) && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    marginBottom: 4,
+                  }}
+                >
+                  {communityRating && (
+                    <Text
+                      style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
+                    >
+                      {communityRating}
+                    </Text>
+                  )}
+                  {year && (
+                    <Text
+                      style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
+                    >
+                      {year}
+                    </Text>
+                  )}
+                  {duration && (
+                    <Text
+                      style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
+                    >
+                      {duration}
+                    </Text>
+                  )}
+                </View>
+              )}
+              {item.Overview && (
+                <Text
+                  style={{ color: "rgba(255,255,255,0.8)" }}
+                  numberOfLines={2}
+                >
+                  {item.Overview}
+                </Text>
+              )}
+              {genres.length > 0 && <GenreTags genres={genres} />}
+            </View>
+            <ProgressBar item={item} />
+          </Animated.View>
+        </GestureDetector>
+      </View>
+    );
+  },
+);
