@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
+import { PromotedHeroCarousel } from "@/components/home/PromotedHeroCarousel";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
 import { StreamystatsRecommendations } from "@/components/home/StreamystatsRecommendations";
 import { Loader } from "@/components/Loader";
@@ -200,6 +201,56 @@ const HomeMobile = () => {
     () => data?.filter((l) => !settings?.hiddenLibraries?.includes(l.Id!)),
     [data, settings?.hiddenLibraries],
   );
+
+  // Fetch hero items (Continue Watching + Next Up combined)
+  const { data: heroItems } = useQuery({
+    queryKey: ["home", "heroCarousel", user?.Id],
+    queryFn: async () => {
+      if (!api || !user?.Id) return [];
+
+      const [resumeResponse, nextUpResponse] = await Promise.all([
+        getItemsApi(api).getResumeItems({
+          userId: user.Id,
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          includeItemTypes: ["Movie", "Series", "Episode"],
+          fields: ["Overview", "Genres"],
+          startIndex: 0,
+          limit: 10,
+        }),
+        getTvShowsApi(api).getNextUp({
+          userId: user.Id,
+          startIndex: 0,
+          limit: 10,
+          fields: ["Overview", "Genres"],
+          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          enableResumable: false,
+        }),
+      ]);
+
+      const resumeItems = resumeResponse.data.Items || [];
+      const nextUpItems = nextUpResponse.data.Items || [];
+
+      const combined = [...resumeItems, ...nextUpItems];
+      const sorted = combined.sort((a, b) => {
+        const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
+        const dateB = b.UserData?.LastPlayedDate || b.DateCreated || "";
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+
+      const seen = new Set<string>();
+      const deduped: BaseItemDto[] = [];
+      for (const item of sorted) {
+        if (!item.Id || seen.has(item.Id)) continue;
+        seen.add(item.Id);
+        deduped.push(item);
+      }
+
+      return deduped.slice(0, 15);
+    },
+    enabled: !!api && !!user?.Id && settings.showLargeHomeCarousel,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
 
   const collections = useMemo(() => {
     const allow = ["movies", "tvshows"];
@@ -505,6 +556,11 @@ const HomeMobile = () => {
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
+  const showHero = useMemo(
+    () => !!heroItems && heroItems.length > 0 && settings.showLargeHomeCarousel,
+    [heroItems, settings.showLargeHomeCarousel],
+  );
+
   // Get all high priority section keys and check if all have loaded
   const highPrioritySectionKeys = useMemo(() => {
     return sections
@@ -619,6 +675,7 @@ const HomeMobile = () => {
         className='flex flex-col space-y-4'
         style={{ paddingTop: Platform.OS === "android" ? 10 : 0 }}
       >
+        {showHero && heroItems && <PromotedHeroCarousel items={heroItems} />}
         {sections.map((section, index) => {
           // Render Streamystats sections after Recently Added sections
           // For default sections: place after Recently Added, before Suggested Movies (if present)

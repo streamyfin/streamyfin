@@ -83,6 +83,14 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        <ListItem title={t("home.settings.other.show_large_home_carousel")}>
+          <SettingSwitch
+            value={settings.showLargeHomeCarousel}
+            onValueChange={(value) =>
+              updateSettings({ showLargeHomeCarousel: value })
+            }
+          />
+        </ListItem>
         <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")

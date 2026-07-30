@@ -320,6 +320,9 @@ export type Settings = {
   // Use the episode's own image (instead of the series thumb) for the
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
+  // Phone-only: auto-rotating hero carousel at the top of the Home screen
+  // (Continue Watching + Next Up). Mirrors showTVHeroCarousel's intent for TV.
+  showLargeHomeCarousel: boolean;
   // TV-specific settings
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
@@ -431,6 +434,7 @@ export const defaultValues: Settings = {
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
   useEpisodeImagesForNextUp: false,
+  showLargeHomeCarousel: false,
   // TV-specific settings
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
