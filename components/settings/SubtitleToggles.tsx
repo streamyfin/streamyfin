@@ -165,9 +165,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         <ListItem
           title={t("home.settings.subtitles.auto_on_mute")}
           subtitle={t("home.settings.subtitles.auto_on_mute_hint")}
+          disabled={pluginSettings?.autoSubtitlesOnMute?.locked}
         >
           <SettingSwitch
             value={settings.autoSubtitlesOnMute}
+            disabled={pluginSettings?.autoSubtitlesOnMute?.locked}
             onValueChange={(value) =>
               updateSettings({ autoSubtitlesOnMute: value })
             }
@@ -180,9 +182,11 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             subtitle={t(
               "home.settings.subtitles.auto_on_mute_allow_restart_hint",
             )}
+            disabled={pluginSettings?.autoSubtitlesOnMuteAllowRestart?.locked}
           >
             <SettingSwitch
               value={settings.autoSubtitlesOnMuteAllowRestart}
+              disabled={pluginSettings?.autoSubtitlesOnMuteAllowRestart?.locked}
               onValueChange={(value) =>
                 updateSettings({ autoSubtitlesOnMuteAllowRestart: value })
               }

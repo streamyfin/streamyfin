@@ -53,7 +53,7 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
@@ -708,12 +708,14 @@ export default function SettingsTV() {
           <TVSettingsToggle
             label={t("home.settings.subtitles.auto_on_mute")}
             value={settings.autoSubtitlesOnMute}
+            disabled={pluginSettings?.autoSubtitlesOnMute?.locked}
             onToggle={(value) => updateSettings({ autoSubtitlesOnMute: value })}
           />
           {settings.autoSubtitlesOnMute && (
             <TVSettingsToggle
               label={t("home.settings.subtitles.auto_on_mute_allow_restart")}
               value={settings.autoSubtitlesOnMuteAllowRestart}
+              disabled={pluginSettings?.autoSubtitlesOnMuteAllowRestart?.locked}
               onToggle={(value) =>
                 updateSettings({ autoSubtitlesOnMuteAllowRestart: value })
               }

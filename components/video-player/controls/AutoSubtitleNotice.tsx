@@ -1,8 +1,10 @@
+import { BlurView } from "expo-blur";
 import type { FC } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 
 export type AutoSubtitleNoticeKind = "enabled" | "restart-required" | "none";
 
@@ -26,6 +28,7 @@ export const AutoSubtitleNotice: FC<{
   onDismiss: () => void;
 }> = ({ notice, onDismiss }) => {
   const { t } = useTranslation();
+  const typography = useScaledTVTypography();
 
   useEffect(() => {
     if (!notice) return;
@@ -35,6 +38,18 @@ export const AutoSubtitleNotice: FC<{
 
   if (!notice) return null;
 
+  const label = (
+    <Text
+      style={{
+        color: "white",
+        fontSize: Platform.isTV ? typography.callout : 14,
+        textAlign: "center",
+      }}
+    >
+      {t(MESSAGE_KEY[notice])}
+    </Text>
+  );
+
   return (
     <View
       pointerEvents='none'
@@ -43,21 +58,29 @@ export const AutoSubtitleNotice: FC<{
         alignSelf: "center",
         bottom: Platform.isTV ? 160 : 120,
         maxWidth: "80%",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
         borderRadius: 12,
-        backgroundColor: "rgba(0,0,0,0.75)",
+        overflow: "hidden",
       }}
     >
-      <Text
-        style={{
-          color: "white",
-          fontSize: Platform.isTV ? 20 : 14,
-          textAlign: "center",
-        }}
-      >
-        {t(MESSAGE_KEY[notice])}
-      </Text>
+      {Platform.isTV ? (
+        <BlurView
+          intensity={80}
+          tint='dark'
+          style={{ paddingHorizontal: 24, paddingVertical: 14 }}
+        >
+          {label}
+        </BlurView>
+      ) : (
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            backgroundColor: "rgba(0,0,0,0.75)",
+          }}
+        >
+          {label}
+        </View>
+      )}
     </View>
   );
 };

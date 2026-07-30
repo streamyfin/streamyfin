@@ -19,6 +19,12 @@ public class SystemVolumeModule: Module {
   private var foregroundObserver: NSObjectProtocol?
   private var lastEmitted = Double.nan
 
+  // OnDestroy is not guaranteed on every teardown path, and a block-based
+  // NotificationCenter observer is never removed automatically.
+  deinit {
+    stopObserving()
+  }
+
   public func definition() -> ModuleDefinition {
     Name("SystemVolume")
 

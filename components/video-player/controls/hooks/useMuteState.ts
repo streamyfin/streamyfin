@@ -86,7 +86,12 @@ export const useMuteState = ({
   const setPlayerMuted = useCallback(
     (muted: boolean) => {
       setPlayerMutedState(muted);
-      void playerRef.current?.setMute?.(muted);
+      // The native call can reject when the player is not ready yet; the flag
+      // is retained natively and re-applied on creation, so the JS state stays
+      // authoritative either way.
+      playerRef.current?.setMute?.(muted)?.catch((error) => {
+        console.warn("[useMuteState] setMute failed:", error);
+      });
     },
     [playerRef],
   );

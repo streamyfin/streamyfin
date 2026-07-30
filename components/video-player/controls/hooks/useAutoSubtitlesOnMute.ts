@@ -46,7 +46,12 @@ export const useAutoSubtitlesOnMute = (
   // Read inputs through a ref so the debounced effect never restarts on a
   // stream or callback identity change, only on a real mute transition.
   const latest = useRef(params);
-  latest.current = params;
+  // Assigned after commit, not during render: an abandoned render must not
+  // leave the debounced effect acting on inputs that never became state.
+  // Declared before the debounce effect so it always commits first.
+  useEffect(() => {
+    latest.current = params;
+  });
 
   const { itemId, enabled, tracksReady, isPipMode, isMuted } = params;
 
