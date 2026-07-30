@@ -617,3 +617,66 @@ export const getMpvAudioId = (
   const position = allAudio.findIndex((a) => a.Index === jellyfinAudioIndex);
   return position >= 0 ? position + 1 : undefined;
 };
+
+/**
+ * True when switching to this subtitle forces the server to re-process the
+ * stream, which cuts playback and reseeks.
+ *
+ * Mirrors the two guards the player already applies, so callers that want to
+ * avoid an interruption can filter on the same rule: the burned-in check in
+ * {@link applyMpvSubtitleSelection}, and the transcode + image-based check in
+ * `direct-player`'s `handleSubtitleIndexChange`. Note that during direct play an
+ * image-based track is a real player track and needs no restart at all.
+ */
+export const requiresStreamRestart = (
+  sub: MediaStream,
+  opts: { isTranscoding: boolean },
+): boolean =>
+  isBurnedInSubtitle(sub) || (opts.isTranscoding && isImageBasedSubtitle(sub));
+
+export type AutoSubtitlePick =
+  | { index: number; reason: null }
+  | { index: null; reason: "restart-required" | "none" };
+
+/**
+ * Choose the subtitle to switch on automatically when audio is muted.
+ *
+ * Preference order: the language the user asked for, then the language of the
+ * audio actually playing (so the text matches what would be heard), then any
+ * non-forced track, then a forced one. Forced tracks come last on purpose —
+ * they only cover foreign-language inserts, which is useless with no sound.
+ *
+ * Pure and player-agnostic so the Chromecast backend can reuse it unchanged.
+ */
+export const pickAutoSubtitleTrack = (params: {
+  subtitleStreams: MediaStream[];
+  preferredLanguage?: string | null;
+  audioLanguage?: string | null;
+  isTranscoding: boolean;
+  allowStreamRestart: boolean;
+}): AutoSubtitlePick => {
+  const candidates = params.subtitleStreams.filter(
+    (s) => s.Type === "Subtitle" && typeof s.Index === "number",
+  );
+  if (candidates.length === 0) return { index: null, reason: "none" };
+
+  const pool = params.allowStreamRestart
+    ? candidates
+    : candidates.filter(
+        (s) =>
+          !requiresStreamRestart(s, { isTranscoding: params.isTranscoding }),
+      );
+  if (pool.length === 0) return { index: null, reason: "restart-required" };
+
+  const ordered = [...pool].sort(compareTracksForMenu);
+  const byLanguage = (lang: string | null | undefined) =>
+    ordered.find((s) => !s.IsForced && langEq(s.Language, lang));
+
+  const picked =
+    byLanguage(params.preferredLanguage) ??
+    byLanguage(params.audioLanguage) ??
+    ordered.find((s) => !s.IsForced) ??
+    ordered[0];
+
+  return { index: picked.Index as number, reason: null };
+};
