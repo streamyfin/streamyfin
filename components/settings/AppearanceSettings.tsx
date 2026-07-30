@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Linking } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
+import { Stepper } from "@/components/inputs/Stepper";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
 import { useSettings } from "@/utils/atoms/settings";
@@ -91,6 +92,22 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        {settings.showLargeHomeCarousel && (
+          <ListItem
+            title={t("home.settings.other.hero_carousel_rotation_interval")}
+          >
+            <Stepper
+              value={settings.heroCarouselRotationSeconds}
+              step={1}
+              min={2}
+              max={20}
+              appendValue='s'
+              onUpdate={(value) =>
+                updateSettings({ heroCarouselRotationSeconds: value })
+              }
+            />
+          </ListItem>
+        )}
         <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")

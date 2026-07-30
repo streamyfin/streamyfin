@@ -323,6 +323,8 @@ export type Settings = {
   // Phone-only: auto-rotating hero carousel at the top of the Home screen
   // (Continue Watching + Next Up). Mirrors showTVHeroCarousel's intent for TV.
   showLargeHomeCarousel: boolean;
+  // Phone-only: seconds between auto-rotations of the hero carousel above.
+  heroCarouselRotationSeconds: number;
   // TV-specific settings
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
@@ -435,6 +437,7 @@ export const defaultValues: Settings = {
   mergeNextUpAndContinueWatching: false,
   useEpisodeImagesForNextUp: false,
   showLargeHomeCarousel: false,
+  heroCarouselRotationSeconds: 6,
   // TV-specific settings
   showHomeBackdrop: true,
   showTVHeroCarousel: true,

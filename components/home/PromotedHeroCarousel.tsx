@@ -22,14 +22,13 @@ import { GenreTags } from "@/components/GenreTags";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { useSettings } from "@/utils/atoms/settings";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Dwell time per slide - long enough to read title + overview before rotating.
-const HERO_AUTOPLAY_INTERVAL_MS = 6000;
 // Cards are inset from the screen edges so neighboring slides peek in via
 // the parallax carousel mode.
 const HERO_CARD_WIDTH = SCREEN_WIDTH - 32;
@@ -55,6 +54,9 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   const isFocused = useIsFocused();
   const ref = useRef<ICarouselInstance>(null);
   const progress = useSharedValue(0);
+  const { settings } = useSettings();
+  const autoPlayIntervalMs =
+    (settings?.heroCarouselRotationSeconds ?? 6) * 1000;
 
   const cappedItems = useMemo(() => items.slice(0, 8), [items]);
 
@@ -80,7 +82,7 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
       <Carousel
         ref={ref}
         autoPlay={isFocused && cappedItems.length > 1}
-        autoPlayInterval={HERO_AUTOPLAY_INTERVAL_MS}
+        autoPlayInterval={autoPlayIntervalMs}
         loop={cappedItems.length > 1}
         snapEnabled
         vertical={false}
