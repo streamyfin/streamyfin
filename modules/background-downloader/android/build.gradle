@@ -16,5 +16,11 @@ android {
 }
 
 dependencies {
-  implementation "com.squareup.okhttp3:okhttp:5.4.0"
+  // Must stay on 4.x: React Native 0.86 declares okhttp 4.9.2 in
+  // gradle/libs.versions.toml and exposes it with api(), so it sits on the app
+  // classpath. Gradle resolves the highest version across the classpath, so a
+  // 5.x here silently upgrades React Native's own okhttp and breaks the classes
+  // it was compiled against (JavaNetCookieJar moved in 5), throwing
+  // NoClassDefFoundError on the first request that carries cookies.
+  implementation "com.squareup.okhttp3:okhttp:4.12.0"
 }
