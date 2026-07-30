@@ -35,17 +35,17 @@ const IOS_INITIAL_READ_RECHECK_MS = 1000;
  */
 export const useMuteState = ({
   playerRef,
-  enabled,
 }: {
   playerRef: MutableRefObject<MpvPlayerViewRef | null>;
-  enabled: boolean;
 }) => {
   const [systemMuted, setSystemMuted] = useState(false);
   const [playerMuted, setPlayerMutedState] = useState(false);
   const recheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Observed for as long as the player is mounted, regardless of the automatic
+  // subtitle setting: this state is also what the session report sends to
+  // Jellyfin as `IsMuted`, which must stay accurate either way.
   useEffect(() => {
-    if (!enabled) return;
     // A fixed-volume device never reports a change, so following it would pin
     // the state to whatever the first read happened to return.
     if (!isSystemVolumeAvailable() || isSystemVolumeFixed()) return;
@@ -81,7 +81,7 @@ export const useMuteState = ({
       }
       subscription.remove();
     };
-  }, [enabled]);
+  }, []);
 
   const setPlayerMuted = useCallback(
     (muted: boolean) => {

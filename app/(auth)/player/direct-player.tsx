@@ -151,10 +151,7 @@ export default function DirectPlayerPage() {
 
   // Device output volume plus the player's own mute, combined. Reported to the
   // server and consumed by the automatic subtitle feature below.
-  const { isMuted, toggleMute } = useMuteState({
-    playerRef: videoRef,
-    enabled: settings.autoSubtitlesOnMute,
-  });
+  const { isMuted, toggleMute } = useMuteState({ playerRef: videoRef });
 
   const progress = useSharedValue(0);
   const isSeeking = useSharedValue(false);
