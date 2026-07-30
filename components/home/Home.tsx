@@ -35,6 +35,7 @@ import { Loader } from "@/components/Loader";
 import { MediaListSection } from "@/components/medialists/MediaListSection";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
+import { useHeroItems } from "@/hooks/useHeroItems";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
@@ -202,55 +203,8 @@ const HomeMobile = () => {
     [data, settings?.hiddenLibraries],
   );
 
-  // Fetch hero items (Continue Watching + Next Up combined)
-  const { data: heroItems } = useQuery({
-    queryKey: ["home", "heroCarousel", user?.Id],
-    queryFn: async () => {
-      if (!api || !user?.Id) return [];
-
-      const [resumeResponse, nextUpResponse] = await Promise.all([
-        getItemsApi(api).getResumeItems({
-          userId: user.Id,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-          includeItemTypes: ["Movie", "Series", "Episode"],
-          fields: ["Overview", "Genres"],
-          startIndex: 0,
-          limit: 10,
-        }),
-        getTvShowsApi(api).getNextUp({
-          userId: user.Id,
-          startIndex: 0,
-          limit: 10,
-          fields: ["Overview", "Genres"],
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
-          enableResumable: false,
-        }),
-      ]);
-
-      const resumeItems = resumeResponse.data.Items || [];
-      const nextUpItems = nextUpResponse.data.Items || [];
-
-      const combined = [...resumeItems, ...nextUpItems];
-      const sorted = combined.sort((a, b) => {
-        const dateA = a.UserData?.LastPlayedDate || a.DateCreated || "";
-        const dateB = b.UserData?.LastPlayedDate || b.DateCreated || "";
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      });
-
-      const seen = new Set<string>();
-      const deduped: BaseItemDto[] = [];
-      for (const item of sorted) {
-        if (!item.Id || seen.has(item.Id)) continue;
-        seen.add(item.Id);
-        deduped.push(item);
-      }
-
-      return deduped.slice(0, 15);
-    },
-    enabled: !!api && !!user?.Id && settings.showLargeHomeCarousel,
-    staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
-  });
+  // Hero items (Continue Watching + Next Up combined), shared with Home.tv.tsx
+  const { data: heroItems } = useHeroItems(settings.showLargeHomeCarousel);
 
   const collections = useMemo(() => {
     const allow = ["movies", "tvshows"];
