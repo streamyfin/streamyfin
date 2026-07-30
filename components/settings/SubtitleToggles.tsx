@@ -163,6 +163,34 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
+          title={t("home.settings.subtitles.auto_on_mute")}
+          subtitle={t("home.settings.subtitles.auto_on_mute_hint")}
+        >
+          <SettingSwitch
+            value={settings.autoSubtitlesOnMute}
+            onValueChange={(value) =>
+              updateSettings({ autoSubtitlesOnMute: value })
+            }
+          />
+        </ListItem>
+
+        {settings.autoSubtitlesOnMute && (
+          <ListItem
+            title={t("home.settings.subtitles.auto_on_mute_allow_restart")}
+            subtitle={t(
+              "home.settings.subtitles.auto_on_mute_allow_restart_hint",
+            )}
+          >
+            <SettingSwitch
+              value={settings.autoSubtitlesOnMuteAllowRestart}
+              onValueChange={(value) =>
+                updateSettings({ autoSubtitlesOnMuteAllowRestart: value })
+              }
+            />
+          </ListItem>
+        )}
+
+        <ListItem
           title={t("home.settings.subtitles.subtitle_size")}
           disabled={pluginSettings?.subtitleSize?.locked}
         >

@@ -705,6 +705,20 @@ export default function SettingsTV() {
               updateSettings({ rememberSubtitleSelections: value })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.subtitles.auto_on_mute")}
+            value={settings.autoSubtitlesOnMute}
+            onToggle={(value) => updateSettings({ autoSubtitlesOnMute: value })}
+          />
+          {settings.autoSubtitlesOnMute && (
+            <TVSettingsToggle
+              label={t("home.settings.subtitles.auto_on_mute_allow_restart")}
+              value={settings.autoSubtitlesOnMuteAllowRestart}
+              onToggle={(value) =>
+                updateSettings({ autoSubtitlesOnMuteAllowRestart: value })
+              }
+            />
+          )}
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
             value={settings.mpvSubtitleScale ?? 1.0}
