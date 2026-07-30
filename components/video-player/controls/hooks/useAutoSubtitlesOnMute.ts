@@ -105,8 +105,12 @@ export const useAutoSubtitlesOnMute = (
 
     return () => clearTimeout(timer);
     // `currentSubtitleIndex` is a dependency so a manual change while muted is
-    // seen as a user override; everything else is read from `latest`.
-  }, [active, isMuted, params.currentSubtitleIndex]);
+    // seen as a user override, and `itemId` because an episode change while the
+    // sound stays off moves none of the other inputs (`tracksReady` is never
+    // reset), which would otherwise skip the adoption of a carried-over track.
+    // Everything else is read from `latest` inside the timeout, by which point
+    // the new item's state has settled.
+  }, [active, isMuted, itemId, params.currentSubtitleIndex]);
 
   const clearNotice = useCallback(() => setNotice(null), []);
 

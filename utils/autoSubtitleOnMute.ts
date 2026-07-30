@@ -57,6 +57,88 @@ export const carryAutoSubtitleState = (
     isMuted && state.appliedIndex !== null && !state.released,
 });
 
+type Resolution = { action: AutoSubtitleAction; state: AutoSubtitleState };
+
+const nothing = (state: AutoSubtitleState): Resolution => ({
+  action: { kind: "none" },
+  state,
+});
+
+/** The mute state did not change since the last evaluation. */
+const resolveSteady = (
+  state: AutoSubtitleState,
+  isMuted: boolean,
+  currentSubtitleIndex: number,
+): Resolution => {
+  // The user overrode our choice without the mute state changing: hands off
+  // until the next item, so we never fight them over the track list.
+  if (
+    state.appliedIndex !== null &&
+    currentSubtitleIndex !== state.appliedIndex
+  ) {
+    return nothing({ ...INITIAL_AUTO_SUBTITLE_STATE, released: true });
+  }
+
+  // The sound came back on a new item before the carried-over track was ever
+  // adopted, so no mute transition will happen to undo it. Undo it here: it was
+  // ours, the user never chose it.
+  if (!isMuted && state.ownsCarriedSubtitle) {
+    return {
+      action:
+        currentSubtitleIndex === SUBTITLES_OFF
+          ? { kind: "none" }
+          : { kind: "revert" },
+      state: INITIAL_AUTO_SUBTITLE_STATE,
+    };
+  }
+
+  return nothing(state);
+};
+
+/** The sound was just cut. */
+const resolveOnMute = (
+  state: AutoSubtitleState,
+  currentSubtitleIndex: number,
+  pick: () => AutoSubtitlePick,
+): Resolution => {
+  if (currentSubtitleIndex !== SUBTITLES_OFF) {
+    // A track we applied on the previous item was carried over: adopt it so the
+    // sound coming back still turns it off. Nothing to apply, it already shows.
+    return state.ownsCarriedSubtitle
+      ? nothing({
+          appliedIndex: currentSubtitleIndex,
+          released: false,
+          ownsCarriedSubtitle: false,
+        })
+      : nothing(state);
+  }
+
+  const picked = pick();
+  if (picked.index === null) {
+    return { action: { kind: "notice", reason: picked.reason }, state };
+  }
+  return {
+    action: { kind: "apply", index: picked.index },
+    state: {
+      appliedIndex: picked.index,
+      released: false,
+      ownsCarriedSubtitle: false,
+    },
+  };
+};
+
+/** The sound just came back: only undo what we did, and only if it still shows. */
+const resolveOnUnmute = (
+  state: AutoSubtitleState,
+  currentSubtitleIndex: number,
+): Resolution => ({
+  action:
+    state.appliedIndex !== null && currentSubtitleIndex === state.appliedIndex
+      ? { kind: "revert" }
+      : { kind: "none" },
+  state: INITIAL_AUTO_SUBTITLE_STATE,
+});
+
 /**
  * Decide what the player should do given a mute transition.
  *
@@ -69,67 +151,14 @@ export const resolveAutoSubtitleAction = (params: {
   wasMuted: boolean;
   currentSubtitleIndex: number;
   pick: () => AutoSubtitlePick;
-}): { action: AutoSubtitleAction; state: AutoSubtitleState } => {
+}): Resolution => {
   const { state, isMuted, wasMuted, currentSubtitleIndex, pick } = params;
 
-  if (state.released) return { action: { kind: "none" }, state };
-
+  if (state.released) return nothing(state);
   if (isMuted === wasMuted) {
-    // The user overrode our choice without the mute state changing: hands off
-    // until the next item, so we never fight them over the track list.
-    if (
-      state.appliedIndex !== null &&
-      currentSubtitleIndex !== state.appliedIndex
-    ) {
-      return {
-        action: { kind: "none" },
-        state: { ...INITIAL_AUTO_SUBTITLE_STATE, released: true },
-      };
-    }
-    // The sound came back before the new item was ready to be judged, so the
-    // carried-over track is no longer ours to undo.
-    if (!isMuted && state.ownsCarriedSubtitle) {
-      return { action: { kind: "none" }, state: INITIAL_AUTO_SUBTITLE_STATE };
-    }
-    return { action: { kind: "none" }, state };
+    return resolveSteady(state, isMuted, currentSubtitleIndex);
   }
-
-  if (isMuted) {
-    if (currentSubtitleIndex !== SUBTITLES_OFF) {
-      // A track we applied on the previous item was carried over: adopt it so
-      // the sound coming back still turns it off. Nothing to apply, it already
-      // shows.
-      if (state.ownsCarriedSubtitle) {
-        return {
-          action: { kind: "none" },
-          state: {
-            appliedIndex: currentSubtitleIndex,
-            released: false,
-            ownsCarriedSubtitle: false,
-          },
-        };
-      }
-      return { action: { kind: "none" }, state };
-    }
-    const picked = pick();
-    if (picked.index === null) {
-      return { action: { kind: "notice", reason: picked.reason }, state };
-    }
-    return {
-      action: { kind: "apply", index: picked.index },
-      state: {
-        appliedIndex: picked.index,
-        released: false,
-        ownsCarriedSubtitle: false,
-      },
-    };
-  }
-
-  // Unmuting: only undo what we did, and only while it is still the active track.
-  const shouldRevert =
-    state.appliedIndex !== null && currentSubtitleIndex === state.appliedIndex;
-  return {
-    action: shouldRevert ? { kind: "revert" } : { kind: "none" },
-    state: INITIAL_AUTO_SUBTITLE_STATE,
-  };
+  return isMuted
+    ? resolveOnMute(state, currentSubtitleIndex, pick)
+    : resolveOnUnmute(state, currentSubtitleIndex);
 };

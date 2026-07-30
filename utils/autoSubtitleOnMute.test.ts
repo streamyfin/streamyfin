@@ -304,7 +304,7 @@ describe("carryAutoSubtitleState — subtitle carried to the next item", () => {
     expect(result.state).toEqual(INITIAL_AUTO_SUBTITLE_STATE);
   });
 
-  test("drops the carry-over when the sound returns before the new item is judged", () => {
+  test("undoes the carried-over track when the sound returns before adoption", () => {
     const carried = carryAutoSubtitleState(
       { ...INITIAL_AUTO_SUBTITLE_STATE, appliedIndex: 5 },
       muted,
@@ -314,6 +314,21 @@ describe("carryAutoSubtitleState — subtitle carried to the next item", () => {
       isMuted: false,
       wasMuted: false,
       currentSubtitleIndex: 5,
+    });
+    expect(result.action).toEqual({ kind: "revert" });
+    expect(result.state).toEqual(INITIAL_AUTO_SUBTITLE_STATE);
+  });
+
+  test("has nothing to undo when the new item started with no subtitle", () => {
+    const carried = carryAutoSubtitleState(
+      { ...INITIAL_AUTO_SUBTITLE_STATE, appliedIndex: 5 },
+      muted,
+    );
+    const result = run({
+      state: carried,
+      isMuted: false,
+      wasMuted: false,
+      currentSubtitleIndex: SUBTITLES_OFF,
     });
     expect(result.action).toEqual({ kind: "none" });
     expect(result.state).toEqual(INITIAL_AUTO_SUBTITLE_STATE);
