@@ -274,7 +274,7 @@
         "auto_on_mute": "Subtitles when muted",
         "auto_on_mute_hint": "Turn subtitles on automatically while the sound is off, and turn them back off when it returns.",
         "auto_on_mute_allow_restart": "Allow restarting playback",
-        "auto_on_mute_allow_restart_hint": "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback.",
+        "auto_on_mute_allow_restart_hint": "Some subtitle formats cannot be turned on without the server re-processing the stream, which briefly interrupts playback. Turning this on lets it happen automatically when the sound is muted.",
         "subtitle_size": "Subtitle size",
         "none": "None",
         "language": "Language",
@@ -635,6 +635,9 @@
   },
   "player": {
     "live": "LIVE",
+    "auto_subtitles_enabled": "Subtitles on while muted",
+    "auto_subtitles_restart_required": "These subtitles need playback to restart. Enable it in Settings, Audio and subtitles.",
+    "auto_subtitles_none": "No subtitles available for this item",
     "shuffle": "Shuffle",
     "entire_series": "Entire Series",
     "episode_count": "{{count}} episodes",
