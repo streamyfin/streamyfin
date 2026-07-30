@@ -1272,13 +1272,29 @@ export default function DirectPlayerPage() {
     [stream?.mediaSource],
   );
 
-  const currentAudioLanguage = useMemo(
-    () =>
-      stream?.mediaSource?.MediaStreams?.find(
-        (s) => s.Type === "Audio" && s.Index === currentAudioIndex,
-      )?.Language,
-    [stream?.mediaSource, currentAudioIndex],
-  );
+  // Language of the audio actually playing. `currentAudioIndex` is undefined
+  // until an explicit selection is made, so fall back to whatever the media
+  // source declares as its default — otherwise the automatic subtitle picker
+  // would never see the spoken language and could choose the wrong one.
+  const currentAudioLanguage = useMemo(() => {
+    const audioStreams =
+      stream?.mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ??
+      [];
+    if (audioStreams.length === 0) return undefined;
+
+    const selected =
+      currentAudioIndex !== undefined
+        ? audioStreams.find((s) => s.Index === currentAudioIndex)
+        : undefined;
+    if (selected) return selected.Language;
+
+    const defaultIndex = stream?.mediaSource?.DefaultAudioStreamIndex;
+    return (
+      audioStreams.find((s) => s.Index === defaultIndex)?.Language ??
+      audioStreams.find((s) => s.IsDefault)?.Language ??
+      audioStreams[0]?.Language
+    );
+  }, [stream?.mediaSource, currentAudioIndex]);
 
   const { notice: autoSubtitleNotice, clearNotice: clearAutoSubtitleNotice } =
     useAutoSubtitlesOnMute({
