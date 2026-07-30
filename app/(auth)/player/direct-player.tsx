@@ -34,8 +34,10 @@ import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
+import { VideoPlayerView } from "@/components/video-player/VideoPlayerView";
 import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
 import usePlaybackSpeed from "@/hooks/usePlaybackSpeed";
@@ -45,7 +47,6 @@ import {
   type MpvOnErrorEventPayload,
   type MpvOnPlaybackStateChangePayload,
   type MpvOnProgressEventPayload,
-  MpvPlayerView,
   type MpvPlayerViewRef,
   type MpvVideoSource,
 } from "@/modules";
@@ -55,7 +56,7 @@ import { useInactivity } from "@/providers/InactivityProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
-import { useSettings } from "@/utils/atoms/settings";
+import { getActivePlayerType, useSettings } from "@/utils/atoms/settings";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
@@ -69,6 +70,30 @@ import { writeToLog } from "@/utils/log";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
+type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
+
+/**
+ * How the session is actually being played. Shared by the reports sent to the
+ * server and the technical info overlay, so the dashboard and the app never
+ * disagree about the same playback.
+ */
+function getPlayMethod(
+  source: { url?: string | null; mediaSource?: MediaSourceInfo | null },
+  offline: boolean,
+): PlayMethod {
+  // A downloaded item plays from a local file, with no server in the path.
+  if (offline) return "DirectPlay";
+  const url = source.url ?? "";
+  if (url.includes("m3u8") || source.mediaSource?.TranscodingUrl) {
+    return "Transcode";
+  }
+  // Served through the stream endpoint rather than as the original file.
+  if (url.includes("/Videos/") && url.includes("/stream")) {
+    return "DirectStream";
+  }
+  return "DirectPlay";
+}
+
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
   const user = useAtomValue(userAtom);
@@ -81,6 +106,15 @@ export default function DirectPlayerPage() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const [isPlaybackStopped, setIsPlaybackStopped] = useState(false);
+  // Mirror of isPlaybackStopped that is already set when a report is built.
+  // The MPV view keeps the onProgress it was last rendered with, so a tick
+  // already in flight when the user leaves would still report progress after
+  // the "stopped" report and bring the session back on the server.
+  const isPlaybackStoppedRef = useRef(false);
+  const markPlaybackStopped = useCallback(() => {
+    isPlaybackStoppedRef.current = true;
+    setIsPlaybackStopped(true);
+  }, []);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
@@ -88,6 +122,15 @@ export default function DirectPlayerPage() {
   );
   const [isZoomedToFill, setIsZoomedToFill] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Mirror of isPlaying that is already correct when a report is built.
+  // setIsPlaying only applies on the next render, so an MPV progress tick that
+  // was already in flight when the user paused would carry the pre-transition
+  // value, and MPV stops ticking while paused, so nothing would correct it.
+  const isPlayingRef = useRef(false);
+  const setPlaying = useCallback((playing: boolean) => {
+    isPlayingRef.current = playing;
+    setIsPlaying(playing);
+  }, []);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -163,11 +206,26 @@ export default function DirectPlayerPage() {
   const [item, setItem] = useState<BaseItemDto | null>(null);
   const initialSeekDoneRef = useRef(false);
 
-  const initialPlaybackTicksRef = useRef<number>(
-    playbackPositionFromUrl
-      ? Number.parseInt(playbackPositionFromUrl, 10)
-      : (item?.UserData?.PlaybackPositionTicks ?? 0),
-  );
+  /** Position MPV is told to start from: the URL param wins, since it is
+   * rewritten during playback, otherwise the item's stored resume position.
+   * The route is deep-linkable, so the param is parsed whole rather than by
+   * prefix: parseInt would turn "1200invalid" into a position instead of
+   * falling back, and NaN would reach getStreamUrl and MPV. */
+  const startTicks = useMemo(() => {
+    const raw = playbackPositionFromUrl?.trim();
+    const fromUrl = raw ? Number(raw) : Number.NaN;
+    return Number.isInteger(fromUrl) && fromUrl >= 0
+      ? fromUrl
+      : (item?.UserData?.PlaybackPositionTicks ?? 0);
+  }, [playbackPositionFromUrl, item?.UserData?.PlaybackPositionTicks]);
+
+  // Pinned on mount: the initial seek must not follow the position the player
+  // writes back into the URL every 30s. Zero here is not a missed resume:
+  // PlayButton always passes playbackPosition, and when it is absent the
+  // resume still happens through the stream offset and MPV's startPosition,
+  // which read startTicks after the item has loaded.
+  const initialPlaybackTicksRef = useRef<number>(startTicks);
+
   const [downloadedItem, setDownloadedItem] = useState<DownloadedItem | null>(
     null,
   );
@@ -179,6 +237,17 @@ export default function DirectPlayerPage() {
   // Playback manager for progress reporting and adjacent items
   const playbackManager = usePlaybackManager({ item, isOffline: offline });
   const { nextItem, previousItem } = playbackManager;
+  const { isConnected } = useNetworkStatus();
+
+  // usePlaybackManager returns a new object on every render, so the reporters
+  // below cannot list it as a dependency without being rebuilt constantly.
+  // Mirror the progress reporter instead: it closes over connectivity and the
+  // api, and a handler captured while either was different would keep
+  // reporting through the stale one for the rest of playback.
+  const reportProgressRef = useRef(playbackManager.reportPlaybackProgress);
+  useEffect(() => {
+    reportProgressRef.current = playbackManager.reportPlaybackProgress;
+  });
 
   // Resolve audio index: use URL param if provided, otherwise use stored index for offline playback
   const audioIndex = useMemo(() => {
@@ -285,9 +354,15 @@ export default function DirectPlayerPage() {
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
       setStream(null);
+      // Scope the started flag and the position to the item being played. The
+      // component is reused across an in-place item switch, and both are read
+      // by the progress report below: left as-is, the new item is reported at
+      // the previous one's position before its own playback has even started.
+      setHasPlaybackStarted(false);
+      progress.set(0);
       fetchItemData();
     }
-  }, [itemId, offline, api, user?.Id]);
+  }, [itemId, offline, api, user?.Id, progress]);
 
   // Lock orientation based on user settings
   useEffect(() => {
@@ -326,6 +401,23 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     apiRef.current = api;
   }, [api]);
+
+  // Read connectivity without making it a dependency of the start report: a
+  // network flap mid-playback would otherwise fire a second PlaybackStart and
+  // move the server session back to the position playback began at.
+  const isConnectedRef = useRef(isConnected);
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  // The item the player is on as of the last commit. The MPV view holds the
+  // callbacks it was last rendered with, and on an in-place switch those close
+  // over the outgoing item for both the loaded item and the route param, so
+  // they agree with each other and pass a comparison between the two.
+  const currentItemIdRef = useRef(itemId);
+  useEffect(() => {
+    currentItemIdRef.current = itemId;
+  }, [itemId]);
 
   const releaseLiveStream = useCallback(
     (liveStreamId: string | null) => {
@@ -387,11 +479,6 @@ export default function DirectPlayerPage() {
             return null;
           }
 
-          // Calculate start ticks directly from item to avoid stale closure
-          const startTicks = playbackPositionFromUrl
-            ? Number.parseInt(playbackPositionFromUrl, 10)
-            : (item?.UserData?.PlaybackPositionTicks ?? 0);
-
           const res = await getStreamUrl({
             api,
             item,
@@ -401,7 +488,13 @@ export default function DirectPlayerPage() {
             maxStreamingBitrate: bitrateValue,
             mediaSourceId: mediaSourceId,
             subtitleStreamIndex: subtitleIndex,
-            deviceProfile: generateDeviceProfile(),
+            // Match the device profile to the player that will render the
+            // stream so the server picks a codec/container the player can
+            // actually decode.
+            deviceProfile: generateDeviceProfile({
+              player: getActivePlayerType(settings),
+              audioMode: settings.audioTranscodeMode,
+            }),
           });
           if (!res) return null;
           const { mediaSource, sessionId, url, requiredHttpHeaders } = res;
@@ -440,50 +533,69 @@ export default function DirectPlayerPage() {
   ]);
 
   useEffect(() => {
-    if (!stream || !api || offline) return;
+    // Gate on connectivity rather than on the offline flag: a downloaded item
+    // played with the server reachable still reports progress and, since the
+    // stop report is connectivity-based too, would otherwise close a session
+    // it never opened, which the server's playback history then discards.
+    if (!stream || !api || !isConnectedRef.current) return;
     const reportPlaybackStart = async () => {
       const progressInfo = currentPlayStateInfo();
       if (progressInfo) {
         await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
+          playbackStartInfo: {
+            ...progressInfo,
+            // This runs once the stream resolves, before MPV has produced a
+            // frame: the live state still says paused at 0:00. The source is
+            // built with autoplay, so describe the session that is starting
+            // instead, or the dashboard shows "paused at 0:00" until the first
+            // progress tick.
+            IsPaused: false,
+            PositionTicks: startTicks,
+          },
         });
       }
     };
-    reportPlaybackStart();
-  }, [stream, api, offline]);
+    // Fire-and-forget, so swallow instead of leaving an unhandled rejection
+    // whenever the server is unreachable at the moment playback starts.
+    reportPlaybackStart().catch((error) => {
+      writeToLog(
+        "ERROR",
+        "reportPlaybackStart failed",
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+    // startTicks is read, not depended on: it is rewritten into the URL every
+    // 30s during playback, and re-running this would report a new playback
+    // start each time.
+  }, [stream, api]);
 
   const togglePlay = async () => {
     lightHapticFeedback();
-    setIsPlaying(!isPlaying);
-    if (isPlaying) {
+    // Read the ref so two taps inside one render cycle don't both see the same
+    // stale state and cancel each other out.
+    const wasPlaying = isPlayingRef.current;
+    setPlaying(!wasPlaying);
+    if (wasPlaying) {
       await videoRef.current?.pause();
-      const progressInfo = currentPlayStateInfo();
-      if (progressInfo) {
-        playbackManager.reportPlaybackProgress(progressInfo);
-      }
     } else {
       videoRef.current?.play();
-      const progressInfo = currentPlayStateInfo();
-      if (!offline && api) {
-        await getPlaystateApi(api).reportPlaybackStart({
-          playbackStartInfo: progressInfo,
-        });
-      }
     }
   };
 
-  // PlaySessionId of the last "stopped" report, to dedupe the double teardown.
-  const reportedStopSessionIdRef = useRef<string | null>(null);
+  // Key of the last "stopped" report, to dedupe the double teardown. The
+  // PlaySessionId when there is one, the item id otherwise (see stopKey below).
+  const reportedStopKeyRef = useRef<string | null>(null);
 
   const reportPlaybackStopped = useCallback(async () => {
-    if (!item?.Id || !stream?.sessionId || offline || !api) return;
+    if (!item?.Id || !stream || !api || !isConnected) return;
     // Leaving the player reports "stopped" twice: once from the beforeRemove
     // listener (via stop()) and once from the unmount cleanup backstop. Dedupe
-    // per PlaySessionId — not a plain boolean, since the component survives
-    // in-place item switches and the next session must report again.
-    const sessionId = stream.sessionId;
-    if (reportedStopSessionIdRef.current === sessionId) return;
-    reportedStopSessionIdRef.current = sessionId;
+    // per session — not a plain boolean, since the component survives in-place
+    // item switches and the next session must report again. Downloaded items
+    // have no PlaySessionId, so fall back to the item id.
+    const stopKey = stream.sessionId || item.Id;
+    if (reportedStopKeyRef.current === stopKey) return;
+    reportedStopKeyRef.current = stopKey;
     const currentTimeInTicks = msToTicks(progress.get());
     try {
       await getPlaystateApi(api).reportPlaybackStopped({
@@ -491,7 +603,7 @@ export default function DirectPlayerPage() {
           ItemId: item.Id,
           MediaSourceId: mediaSourceId,
           PositionTicks: currentTimeInTicks,
-          PlaySessionId: sessionId,
+          PlaySessionId: stream.sessionId || undefined,
           // Release the server-side live stream (and its tuner slot) on stop.
           // Jellyfin only closes a live stream opened via autoOpenLiveStream when
           // the stop report carries its LiveStreamId; without it the stream leaks
@@ -505,8 +617,8 @@ export default function DirectPlayerPage() {
       // report from a WebSocket remote-stop (player still mounted) must not
       // suppress the report when the user then navigates away. Callers are
       // fire-and-forget, so swallow instead of rethrowing unhandled.
-      if (reportedStopSessionIdRef.current === sessionId) {
-        reportedStopSessionIdRef.current = null;
+      if (reportedStopKeyRef.current === stopKey) {
+        reportedStopKeyRef.current = null;
       }
       writeToLog(
         "ERROR",
@@ -514,7 +626,7 @@ export default function DirectPlayerPage() {
         error instanceof Error ? error.message : String(error),
       );
     }
-  }, [api, item, mediaSourceId, stream, progress, offline]);
+  }, [api, item, mediaSourceId, stream, progress, isConnected]);
 
   const stop = useCallback(() => {
     // Update URL with final playback position before stopping
@@ -522,7 +634,7 @@ export default function DirectPlayerPage() {
       playbackPosition: msToTicks(progress.get()).toString(),
     });
     reportPlaybackStopped();
-    setIsPlaybackStopped(true);
+    markPlaybackStopped();
     // Synchronously destroy the mpv instance + decoder + surface buffers
     // BEFORE the screen unmounts. Otherwise the next screen (or the next
     // episode's player) mounts while the old 4K decoder is still alive,
@@ -540,7 +652,13 @@ export default function DirectPlayerPage() {
     // and only released on the "paused" event; without this, navigating
     // away mid-play leaves FLAG_KEEP_SCREEN_ON set on the window.
     deactivateKeepAwake();
-  }, [videoRef, reportPlaybackStopped, progress, resumeInactivityTimer]);
+  }, [
+    videoRef,
+    reportPlaybackStopped,
+    markPlaybackStopped,
+    progress,
+    resumeInactivityTimer,
+  ]);
 
   // Keep refs to the latest stop / stopped-report so the effects below don't
   // need these churning callbacks in their dependency arrays. Reporting
@@ -556,11 +674,15 @@ export default function DirectPlayerPage() {
   }, [stop, reportPlaybackStopped]);
 
   // Report playback stopped only on a real source switch or unmount.
+  // itemId (the route param) is listed alongside the loaded item so the report
+  // runs in the same commit as an in-place switch, before the effect that
+  // resets the shared position for the incoming item: keyed on item.Id alone,
+  // the report could land a commit later and carry a position of zero.
   useEffect(() => {
     return () => {
       reportPlaybackStoppedRef.current();
     };
-  }, [item?.Id, stream?.sessionId, mediaSourceId]);
+  }, [itemId, item?.Id, stream?.sessionId, mediaSourceId]);
 
   // Stop on navigation-away. Re-subscribing when the navigation object identity
   // changes (e.g. after a setParams) no longer reports anything on its own.
@@ -587,8 +709,11 @@ export default function DirectPlayerPage() {
       SubtitleStreamIndex: currentSubtitleIndex,
       MediaSourceId: mediaSourceId,
       PositionTicks: msToTicks(progress.get()),
-      IsPaused: !isPlaying,
-      PlayMethod: stream?.url.includes("m3u8") ? "Transcode" : "DirectStream",
+      // Read through the ref, not the isPlaying state: this is called from
+      // handlers that may have been created before the last transition, and a
+      // report must describe the state at the moment it is built.
+      IsPaused: !isPlayingRef.current,
+      PlayMethod: getPlayMethod(stream, offline),
       PlaySessionId: stream.sessionId,
       IsMuted: isMuted,
       CanSeek: true,
@@ -602,13 +727,38 @@ export default function DirectPlayerPage() {
     currentSubtitleIndex,
     mediaSourceId,
     progress,
-    isPlaying,
     isMuted,
+    offline,
   ]);
 
+  // Report after the state commits. Deliberately excludes playbackManager:
+  // usePlaybackManager returns a new object every render, which would fire this
+  // on every render.
+  useEffect(() => {
+    if (!item?.Id || !stream || !hasPlaybackStarted) return;
+    // Destroying the player emits a last paused event, which lands here: read
+    // the ref so the transition report doesn't follow the "stopped" report.
+    if (isPlaybackStoppedRef.current) return;
+    // currentPlayStateInfo() returns undefined without a stream, and
+    // reportPlaybackProgress dereferences its argument immediately. Read it
+    // instead of casting so a gap between the item and its stream can't reject.
+    const progressInfo = currentPlayStateInfo();
+    if (!progressInfo) return;
+    void reportProgressRef.current(progressInfo);
+    // isPlaying is what makes a transition land here: currentPlayStateInfo now
+    // reads the play state through a ref, so its identity no longer changes
+    // when the user pauses or resumes.
+  }, [currentPlayStateInfo, isPlaying, item?.Id, stream, hasPlaybackStarted]);
+
   const lastUrlUpdateTime = useSharedValue(0);
+  const lastProgressReportTime = useSharedValue(0);
   const wasJustSeeking = useSharedValue(false);
   const URL_UPDATE_INTERVAL = 30000; // Update URL every 30 seconds instead of every second
+  // Heartbeat cadence for the periodic progress report. MPV ticks once a
+  // second, but the server only needs the position often enough for Now
+  // Playing and resume: state changes (pause, resume, track, mute) are
+  // reported on their own by the effect above, and a seek reports immediately.
+  const PROGRESS_REPORT_INTERVAL = 10000;
 
   // Track when seeking ends to update URL immediately
   useAnimatedReaction(
@@ -625,7 +775,16 @@ export default function DirectPlayerPage() {
   /** Progress handler for MPV - position in seconds */
   const onProgress = useCallback(
     async (data: { nativeEvent: MpvOnProgressEventPayload }) => {
-      if (isSeeking.get() || isPlaybackStopped) return;
+      if (isSeeking.get() || isPlaybackStoppedRef.current) return;
+
+      // An in-place episode switch clears the stream and resets the position
+      // while MPV can still emit one last tick for the previous episode.
+      // Bail before touching shared state: writing that position into the URL
+      // would make it the next episode's start position, and reporting it
+      // after the switch already reported "stopped" would put the outgoing
+      // episode back in the server session.
+      if (!item?.Id || item.Id !== itemId || !stream) return;
+      if (item.Id !== currentItemIdRef.current) return;
 
       const { position, cacheSeconds } = data.nativeEvent;
       // MPV reports position in seconds, convert to ms
@@ -658,21 +817,31 @@ export default function DirectPlayerPage() {
         lastUrlUpdateTime.value = now;
       }
 
-      if (!item?.Id) return;
+      // Reporting every tick meant one request per second per player, and for
+      // a downloaded item the whole downloads database was serialized and
+      // written to storage on each one (plus two query invalidations). Report
+      // right after a seek, since the position jumped, otherwise heartbeat.
+      const shouldReportProgress =
+        shouldUpdateUrl ||
+        now - lastProgressReportTime.get() >= PROGRESS_REPORT_INTERVAL;
+      if (!shouldReportProgress) return;
+      lastProgressReportTime.value = now;
 
-      playbackManager.reportPlaybackProgress(
-        currentPlayStateInfo() as PlaybackProgressInfo,
-      );
+      const progressInfo = currentPlayStateInfo();
+      if (!progressInfo) return;
+      void reportProgressRef.current(progressInfo);
     },
     [
+      // Depend on the builder itself rather than re-listing what it reads: it
+      // also covers the mute state, which this list used to miss.
+      currentPlayStateInfo,
       item?.Id,
+      itemId,
       currentAudioIndex,
       currentSubtitleIndex,
       mediaSourceId,
-      isPlaying,
       stream,
       isSeeking,
-      isPlaybackStopped,
       isBuffering,
     ],
   );
@@ -729,10 +898,6 @@ export default function DirectPlayerPage() {
       isTranscoding,
     );
 
-    // Calculate start position directly here to avoid timing issues
-    const startTicks = playbackPositionFromUrl
-      ? Number.parseInt(playbackPositionFromUrl, 10)
-      : (item?.UserData?.PlaybackPositionTicks ?? 0);
     const startPos = ticksToSeconds(startTicks);
 
     // Build source config - headers only needed for online streaming
@@ -783,8 +948,7 @@ export default function DirectPlayerPage() {
     stream?.url,
     stream?.mediaSource,
     stream?.requiredHttpHeaders,
-    item?.UserData?.PlaybackPositionTicks,
-    playbackPositionFromUrl,
+    startTicks,
     api?.basePath,
     api?.accessToken,
     audioIndex,
@@ -881,29 +1045,19 @@ export default function DirectPlayerPage() {
       const { isPaused, isPlaying: playing, isLoading } = e.nativeEvent;
 
       if (playing) {
-        setIsPlaying(true);
+        setPlaying(true);
         setIsBuffering(false);
         setHasPlaybackStarted(true);
         // Pause inactivity timer during playback (TV only)
         pauseInactivityTimer();
-        if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
-        }
         await activateKeepAwakeAsync();
         return;
       }
 
       if (isPaused) {
-        setIsPlaying(false);
+        setPlaying(false);
         // Resume inactivity timer when paused (TV only)
         resumeInactivityTimer();
-        if (item?.Id) {
-          playbackManager.reportPlaybackProgress(
-            currentPlayStateInfo() as PlaybackProgressInfo,
-          );
-        }
         await deactivateKeepAwake();
         return;
       }
@@ -912,13 +1066,7 @@ export default function DirectPlayerPage() {
         setIsBuffering(isLoading);
       }
     },
-    [
-      playbackManager,
-      item?.Id,
-      progress,
-      pauseInactivityTimer,
-      resumeInactivityTimer,
-    ],
+    [setPlaying, pauseInactivityTimer, resumeInactivityTimer],
   );
 
   const _onPictureInPictureChange = useCallback(
@@ -1138,25 +1286,10 @@ export default function DirectPlayerPage() {
   }, []);
 
   // Determine play method based on stream URL and media source
-  const playMethod = useMemo<
-    "DirectPlay" | "DirectStream" | "Transcode" | undefined
-  >(() => {
+  const playMethod = useMemo<PlayMethod | undefined>(() => {
     if (!stream?.url) return undefined;
-
-    // Check if transcoding (m3u8 playlist or TranscodingUrl present)
-    if (stream.url.includes("m3u8") || stream.mediaSource?.TranscodingUrl) {
-      return "Transcode";
-    }
-
-    // Check if direct play (no container remuxing needed)
-    // Direct play means the file is being served as-is
-    if (stream.url.includes("/Videos/") && stream.url.includes("/stream")) {
-      return "DirectStream";
-    }
-
-    // Default to direct play if we're not transcoding
-    return "DirectPlay";
-  }, [stream?.url, stream?.mediaSource?.TranscodingUrl]);
+    return getPlayMethod(stream, offline);
+  }, [stream, offline]);
 
   // Extract transcode reasons from the TranscodingUrl
   const transcodeReasons = useMemo<string[]>(() => {
@@ -1489,7 +1622,7 @@ export default function DirectPlayerPage() {
                 justifyContent: "center",
               }}
             >
-              <MpvPlayerView
+              <VideoPlayerView
                 ref={videoRef}
                 source={videoSource}
                 style={{ width: "100%", height: "100%" }}

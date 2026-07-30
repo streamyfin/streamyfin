@@ -1229,6 +1229,7 @@ export const Controls: FC<Props> = ({
           playMethod={playMethod}
           transcodeReasons={transcodeReasons}
           mediaSource={mediaSource}
+          item={item}
           currentAudioIndex={audioIndex}
           currentSubtitleIndex={subtitleIndex}
         />
@@ -1237,7 +1238,16 @@ export const Controls: FC<Props> = ({
       {/* Skip intro card */}
       <TVSkipSegmentCard
         show={showSkipButton && !isCountdownActive}
-        onPress={skipIntro}
+        onPress={() => {
+          // After the seek lands, showSkipButton flips false and this card
+          // unmounts. With controls visible the focus-stealing overlay is
+          // disabled, so without an explicit handoff the focus engine is
+          // stranded. Prime the play button to receive focus on the next
+          // render — when controls are hidden the focus overlay takes over
+          // naturally and this is a harmless no-op.
+          if (showControls) setFocusPlayButton(true);
+          skipIntro();
+        }}
         type='intro'
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
@@ -1252,7 +1262,11 @@ export const Controls: FC<Props> = ({
           (hasContentAfterCredits || !nextItem) &&
           !isCountdownActive
         }
-        onPress={skipCredit}
+        onPress={() => {
+          // See the intro card above for the focus-handoff rationale.
+          if (showControls) setFocusPlayButton(true);
+          skipCredit();
+        }}
         type='credits'
         controlsVisible={showControls}
         refSetter={setSkipSegmentRef}
