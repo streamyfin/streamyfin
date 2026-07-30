@@ -39,9 +39,6 @@ final class MPVLayerRenderer {
     
     private var mpv: OpaquePointer?
 
-    /// Retained across mpv re-creation; see setMute.
-    private var isMuted = false
-    
     private var currentPreset: PlayerPreset?
     private var currentURL: URL?
     private var currentHeaders: [String: String]?
@@ -51,6 +48,7 @@ final class MPVLayerRenderer {
     
     private var _isRunning = false
     private var _isStopping = false
+    private var _isMuted = false
 
     private var isRunning: Bool {
         get { stateQueue.sync { _isRunning } }
@@ -60,6 +58,15 @@ final class MPVLayerRenderer {
     private var isStopping: Bool {
         get { stateQueue.sync { _isStopping } }
         set { stateQueue.sync(flags: .barrier) { _isStopping = newValue } }  // Must be sync for stop() to work
+    }
+
+    /// Retained across mpv re-creation; see setMute. Sync setter like
+    /// isStopping: start() reads it on the render queue right after setMute
+    /// writes it from the JS thread, so an async barrier could hand the fresh
+    /// handle a stale value and leave playback audible.
+    private var isMuted: Bool {
+        get { stateQueue.sync { _isMuted } }
+        set { stateQueue.sync(flags: .barrier) { _isMuted = newValue } }
     }
     
     // KVO observation for display layer status
