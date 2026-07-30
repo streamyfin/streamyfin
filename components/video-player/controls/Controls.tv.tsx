@@ -1493,19 +1493,22 @@ export const Controls: FC<Props> = ({
               focusable={showControls}
             />
 
-            <View style={styles.controlButtonsSpacer} />
-
-            {/* On TV the device volume is owned by the display or the AV
-                receiver over CEC, so the app cannot see it. This mutes the
-                player itself, which is also what drives automatic subtitles. */}
+            {/* Grouped with the transport controls rather than the track
+                selectors: it acts on playback, and the audio-track button on
+                the right already uses a speaker icon. On TV the device volume
+                belongs to the display or the AV receiver over CEC, so the app
+                cannot see it — this mutes the player itself, which is also
+                what drives the automatic subtitles. */}
             {onToggleMute && (
               <TVControlButton
                 icon={isMuted ? "volume-off" : "volume-medium"}
                 onPress={onToggleMute}
+                size={28}
                 focusable={showControls}
-                size={24}
               />
             )}
+
+            <View style={styles.controlButtonsSpacer} />
 
             {onBitrateChange && !offline && !isLiveTV && (
               <TVControlButton
