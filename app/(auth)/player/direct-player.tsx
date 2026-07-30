@@ -1716,6 +1716,8 @@ export default function DirectPlayerPage() {
                   onAudioIndexChange={handleAudioIndexChange}
                   onSubtitleIndexChange={handleSubtitleIndexChange}
                   onBitrateChange={handleBitrateChange}
+                  isMuted={isMuted}
+                  onToggleMute={toggleMute}
                   previousItem={previousItem}
                   nextItem={nextItem}
                   goToPreviousItem={goToPreviousItem}

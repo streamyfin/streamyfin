@@ -83,6 +83,10 @@ interface Props {
   onAudioIndexChange?: (index: number) => void;
   onSubtitleIndexChange?: (index: number) => void;
   onBitrateChange?: (bitrate: number | undefined) => void;
+  /** Combined device-volume and player mute state. */
+  isMuted?: boolean;
+  /** Toggles the player's own mute; omit to hide the control. */
+  onToggleMute?: () => void;
   previousItem?: BaseItemDto | null;
   nextItem?: BaseItemDto | null;
   goToPreviousItem?: () => void;
@@ -210,6 +214,8 @@ export const Controls: FC<Props> = ({
   onAudioIndexChange,
   onSubtitleIndexChange,
   onBitrateChange,
+  isMuted,
+  onToggleMute,
   previousItem,
   nextItem: nextItemProp,
   goToPreviousItem,
@@ -1488,6 +1494,18 @@ export const Controls: FC<Props> = ({
             />
 
             <View style={styles.controlButtonsSpacer} />
+
+            {/* On TV the device volume is owned by the display or the AV
+                receiver over CEC, so the app cannot see it. This mutes the
+                player itself, which is also what drives automatic subtitles. */}
+            {onToggleMute && (
+              <TVControlButton
+                icon={isMuted ? "volume-off" : "volume-medium"}
+                onPress={onToggleMute}
+                focusable={showControls}
+                size={24}
+              />
+            )}
 
             {onBitrateChange && !offline && !isLiveTV && (
               <TVControlButton
