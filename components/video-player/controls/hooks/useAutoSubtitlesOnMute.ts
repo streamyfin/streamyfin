@@ -2,6 +2,7 @@ import type { MediaStream } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AutoSubtitleState,
+  carryAutoSubtitleState,
   INITIAL_AUTO_SUBTITLE_STATE,
   resolveAutoSubtitleAction,
 } from "@/utils/autoSubtitleOnMute";
@@ -55,9 +56,15 @@ export const useAutoSubtitlesOnMute = (
 
   const { itemId, enabled, tracksReady, isPipMode, isMuted } = params;
 
-  // A new item is a fresh session: forget what we applied and any user override.
+  // A new item is a fresh session. Ownership of the active subtitle is the one
+  // thing carried over: the app hands the previous selection to the next
+  // episode, so a track we applied can arrive already active and would
+  // otherwise never be turned back off. Keyed on itemId alone: the mute state
+  // is read through the ref, at that instant, on purpose.
   useEffect(() => {
-    stateRef.current = INITIAL_AUTO_SUBTITLE_STATE;
+    stateRef.current = carryAutoSubtitleState(stateRef.current, {
+      isMuted: latest.current.isMuted,
+    });
     wasMutedRef.current = false;
   }, [itemId]);
 

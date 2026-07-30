@@ -16,6 +16,18 @@ export type AutoSubtitleState = {
    * then stays out of the way until the next item starts.
    */
   released: boolean;
+  /**
+   * The previous item ended with a subtitle this feature had switched on, and
+   * the sound was still muted when it ended.
+   *
+   * The app carries the subtitle selection over to the next episode
+   * (`rememberSubtitleSelections`, mirroring jellyfin-web's `autoSetNextTracks`),
+   * so the new item can start with that track already active. Without this
+   * flag the feature would see a subtitle it did not apply, keep its hands off,
+   * and never turn it back off when the sound returns — leaving subtitles on
+   * for good.
+   */
+  ownsCarriedSubtitle: boolean;
 };
 
 export type AutoSubtitleAction =
@@ -27,7 +39,23 @@ export type AutoSubtitleAction =
 export const INITIAL_AUTO_SUBTITLE_STATE: AutoSubtitleState = {
   appliedIndex: null,
   released: false,
+  ownsCarriedSubtitle: false,
 };
+
+/**
+ * State to start the next item with. Ownership of the active subtitle is
+ * carried over only when this feature applied it and the sound is still muted,
+ * so an adopted track is still ours to undo once the sound returns.
+ */
+export const carryAutoSubtitleState = (
+  state: AutoSubtitleState,
+  { isMuted }: { isMuted: boolean },
+): AutoSubtitleState => ({
+  appliedIndex: null,
+  released: false,
+  ownsCarriedSubtitle:
+    isMuted && state.appliedIndex !== null && !state.released,
+});
 
 /**
  * Decide what the player should do given a mute transition.
@@ -55,14 +83,32 @@ export const resolveAutoSubtitleAction = (params: {
     ) {
       return {
         action: { kind: "none" },
-        state: { appliedIndex: null, released: true },
+        state: { ...INITIAL_AUTO_SUBTITLE_STATE, released: true },
       };
+    }
+    // The sound came back before the new item was ready to be judged, so the
+    // carried-over track is no longer ours to undo.
+    if (!isMuted && state.ownsCarriedSubtitle) {
+      return { action: { kind: "none" }, state: INITIAL_AUTO_SUBTITLE_STATE };
     }
     return { action: { kind: "none" }, state };
   }
 
   if (isMuted) {
     if (currentSubtitleIndex !== SUBTITLES_OFF) {
+      // A track we applied on the previous item was carried over: adopt it so
+      // the sound coming back still turns it off. Nothing to apply, it already
+      // shows.
+      if (state.ownsCarriedSubtitle) {
+        return {
+          action: { kind: "none" },
+          state: {
+            appliedIndex: currentSubtitleIndex,
+            released: false,
+            ownsCarriedSubtitle: false,
+          },
+        };
+      }
       return { action: { kind: "none" }, state };
     }
     const picked = pick();
@@ -71,7 +117,11 @@ export const resolveAutoSubtitleAction = (params: {
     }
     return {
       action: { kind: "apply", index: picked.index },
-      state: { appliedIndex: picked.index, released: false },
+      state: {
+        appliedIndex: picked.index,
+        released: false,
+        ownsCarriedSubtitle: false,
+      },
     };
   }
 
