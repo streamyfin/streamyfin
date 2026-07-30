@@ -24,7 +24,7 @@ export const useHeroItems = (enabled = true) => {
       const [resumeResponse, nextUpResponse] = await Promise.all([
         getItemsApi(api).getResumeItems({
           userId: user.Id,
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
           includeItemTypes: ["Movie", "Series", "Episode"],
           fields: ["Overview", "Genres"],
           startIndex: 0,
@@ -35,7 +35,7 @@ export const useHeroItems = (enabled = true) => {
           startIndex: 0,
           limit: 10,
           fields: ["Overview", "Genres"],
-          enableImageTypes: ["Primary", "Backdrop", "Thumb"],
+          enableImageTypes: ["Primary", "Backdrop", "Thumb", "Logo"],
           enableResumable: false,
         }),
       ]);
