@@ -36,6 +36,32 @@ const CARD_SIDE_GUTTER = 16;
 // How much of the neighboring card should peek in past its own gutter.
 const NEIGHBOR_PEEK = 20;
 
+// Past this width the card switches from a phone-style poster (backdrop with
+// text overlaid at the bottom) to a wide banner (text panel + image side by
+// side, à la the tvOS/iPadOS App Store hero) - the overlay reads cramped
+// once there's this much extra horizontal room to use instead.
+const WIDE_LAYOUT_BREAKPOINT = 700;
+const WIDE_MAX_CARD_WIDTH = 1100;
+const WIDE_LEFT_PANEL_RATIO = 0.4;
+// Fraction of the card's width (past the panel edge) the image takes to
+// fully fade in from the panel's solid color.
+const WIDE_GRADIENT_BLEND_RATIO = 0.2;
+const CARD_BACKGROUND = "#0f0f10";
+const CARD_BACKGROUND_RGB = "15, 15, 16"; // matches CARD_BACKGROUND
+const CARD_BORDER = "#262626";
+
+// Alpha doesn't fade linearly to the eye - a plain two-stop fade reads as if
+// it's already halfway transparent right after the panel edge. Holding
+// closer to opaque through the first half of the blend and only dropping
+// off sharply near the end reads as a smooth, gradual fade instead.
+const WIDE_GRADIENT_EASE: { t: number; alpha: number }[] = [
+  { t: 0, alpha: 1 },
+  { t: 0.25, alpha: 0.85 },
+  { t: 0.5, alpha: 0.55 },
+  { t: 0.75, alpha: 0.25 },
+  { t: 1, alpha: 0 },
+];
+
 const getYear = (item: BaseItemDto): string | null => {
   if (item.ProductionYear) return item.ProductionYear.toString();
   if (!item.PremiereDate) return null;
@@ -65,24 +91,38 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   // Everything below is derived purely from the current window width, so it
   // adapts live to rotation and iPad multitasking (Split View, Stage
   // Manager) with no phone/tablet branching.
+  const isWide = windowWidth >= WIDE_LAYOUT_BREAKPOINT;
   const cardWidth = useMemo(
-    () => Math.min(windowWidth - CARD_SIDE_GUTTER * 2, MAX_CARD_WIDTH),
-    [windowWidth],
+    () =>
+      Math.min(
+        windowWidth - CARD_SIDE_GUTTER * 2,
+        isWide ? WIDE_MAX_CARD_WIDTH : MAX_CARD_WIDTH,
+      ),
+    [windowWidth, isWide],
   );
-  // 16:9 backdrop plus room for the logo/title + overview overlay.
-  const heroHeight = useMemo(
-    () => Math.round(cardWidth * (9 / 16)) + 100,
-    [cardWidth],
-  );
+  const heroHeight = useMemo(() => {
+    // Wide layout is a side-by-side banner - a fixed-ish height that scales
+    // gently with width, clamped so it can't get too short or too tall.
+    if (isWide)
+      return Math.min(360, Math.max(240, Math.round(cardWidth / 2.6)));
+    // Narrow layout is a poster: 16:9 backdrop plus room for the logo/title
+    // + overview overlaid at the bottom.
+    return Math.round(cardWidth * (9 / 16)) + 100;
+  }, [cardWidth, isWide]);
   // Half the leftover width once the card is centered - equals
   // CARD_SIDE_GUTTER until the cap above kicks in, then grows from there.
   const sideGutter = (windowWidth - cardWidth) / 2;
 
   const renderItem = useCallback(
     ({ item }: { item: BaseItemDto }) => (
-      <HeroSlide item={item} cardWidth={cardWidth} heroHeight={heroHeight} />
+      <HeroSlide
+        item={item}
+        cardWidth={cardWidth}
+        heroHeight={heroHeight}
+        isWide={isWide}
+      />
     ),
-    [cardWidth, heroHeight],
+    [cardWidth, heroHeight, isWide],
   );
 
   const onPressPagination = useCallback(
@@ -138,18 +178,126 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   );
 };
 
+interface HeroSlideInfoProps {
+  logoUrl: string | null;
+  logoWidth: number;
+  logoHeight: number;
+  titleFontSize: number;
+  displayTitle: string;
+  episodeSubtitle: string | null;
+  communityRating: string | null;
+  year: string | null;
+  duration: string | null;
+  overview?: string | null;
+  overviewLines: number;
+  genres: string[];
+  showGenres: boolean;
+}
+
+// Shared between both layouts below - only how it's positioned/sized
+// (overlay vs. side panel) differs, not the metadata it shows.
+const HeroSlideInfo: React.FC<HeroSlideInfoProps> = ({
+  logoUrl,
+  logoWidth,
+  logoHeight,
+  titleFontSize,
+  displayTitle,
+  episodeSubtitle,
+  communityRating,
+  year,
+  duration,
+  overview,
+  overviewLines,
+  genres,
+  showGenres,
+}) => (
+  <>
+    {logoUrl ? (
+      <Image
+        source={{ uri: logoUrl }}
+        style={{ height: logoHeight, width: logoWidth, marginBottom: 8 }}
+        contentFit='contain'
+        contentPosition='left'
+      />
+    ) : (
+      <Text
+        style={{
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          fontSize: titleFontSize,
+          marginBottom: 8,
+        }}
+        numberOfLines={1}
+      >
+        {displayTitle}
+      </Text>
+    )}
+    {episodeSubtitle && (
+      <Text
+        style={{ color: "rgba(255,255,255,0.9)", marginBottom: 4 }}
+        numberOfLines={1}
+      >
+        {episodeSubtitle}
+      </Text>
+    )}
+    {(communityRating || year || duration) && (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 4,
+        }}
+      >
+        {communityRating && (
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+            {communityRating}
+          </Text>
+        )}
+        {year && (
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+            {year}
+          </Text>
+        )}
+        {duration && (
+          <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+            {duration}
+          </Text>
+        )}
+      </View>
+    )}
+    {overview && (
+      <Text
+        style={{ color: "rgba(255,255,255,0.8)" }}
+        numberOfLines={overviewLines}
+      >
+        {overview}
+      </Text>
+    )}
+    {showGenres && genres.length > 0 && <GenreTags genres={genres} />}
+  </>
+);
+
 interface HeroSlideProps {
   item: BaseItemDto;
   cardWidth: number;
   heroHeight: number;
+  isWide: boolean;
 }
 
 const HeroSlide: React.FC<HeroSlideProps> = React.memo(
-  ({ item, cardWidth, heroHeight }) => {
+  ({ item, cardWidth, heroHeight, isWide }) => {
     const api = useAtomValue(apiAtom);
     const router = useRouter();
     const lightHapticFeedback = useHaptic("light");
-    const opacity = useSharedValue(1);
+    // A scrim overlay rather than dimming the card's own opacity: the wide
+    // layout's left panel is a solid near-black background, so fading its
+    // opacity toward transparent is barely visible there while the image
+    // side visibly dims - making the press feedback look like it only
+    // applies to one half. An overlay painted on top of everything dims
+    // both halves by the same visible amount.
+    const pressOverlayOpacity = useSharedValue(0);
 
     const backdropUrl = useMemo(
       () =>
@@ -163,8 +311,8 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
     );
 
     const logoUrl = useMemo(
-      () => getLogoImageUrlById({ api, item, height: 56 }),
-      [api, item],
+      () => getLogoImageUrlById({ api, item, height: isWide ? 72 : 56 }),
+      [api, item, isWide],
     );
 
     const displayTitle =
@@ -201,14 +349,33 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
       .maxDuration(2000)
       .shouldCancelWhenOutside(true)
       .onBegin(() => {
-        opacity.value = withTiming(0.8, { duration: 100 });
+        pressOverlayOpacity.value = withTiming(0.2, { duration: 100 });
       })
       .onEnd(() => {
         runOnJS(handlePress)();
       })
       .onFinalize(() => {
-        opacity.value = withTiming(1, { duration: 100 });
+        pressOverlayOpacity.value = withTiming(0, { duration: 100 });
       });
+
+    const leftPanelWidth = Math.round(cardWidth * WIDE_LEFT_PANEL_RATIO);
+    const panelFraction = leftPanelWidth / cardWidth;
+    // Explicit leading stop at the panel's solid color rather than relying
+    // on the gradient to clamp before its first location - that clamping
+    // isn't guaranteed across platforms, which is what left the transition
+    // uneven. Everything from there on eases per WIDE_GRADIENT_EASE.
+    const gradientColors = [
+      CARD_BACKGROUND,
+      ...WIDE_GRADIENT_EASE.map(
+        ({ alpha }) => `rgba(${CARD_BACKGROUND_RGB}, ${alpha})`,
+      ),
+    ];
+    const gradientLocations = [
+      0,
+      ...WIDE_GRADIENT_EASE.map(({ t }) =>
+        Math.min(1, panelFraction + t * WIDE_GRADIENT_BLEND_RATIO),
+      ),
+    ];
 
     return (
       <View style={{ alignItems: "center" }}>
@@ -220,115 +387,124 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
               borderRadius: 18,
               overflow: "hidden",
               borderWidth: 1,
-              borderColor: "#262626",
-              backgroundColor: "#0f0f10",
-              opacity,
+              borderColor: CARD_BORDER,
+              backgroundColor: CARD_BACKGROUND,
             }}
           >
-            {backdropUrl && (
-              <Image
-                source={{ uri: backdropUrl }}
-                style={StyleSheet.absoluteFill}
-                contentFit='cover'
-              />
-            )}
-            <View
-              style={{
-                position: "absolute",
-                width: "100%",
-                height: "100%",
-                backgroundColor: "rgba(0,0,0,0.35)",
-              }}
-            />
-            <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.92)"]}
-              locations={[0.4, 1]}
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: "65%",
-              }}
-            />
-            <View
-              style={{ position: "absolute", left: 16, right: 16, bottom: 16 }}
-            >
-              {logoUrl ? (
-                <Image
-                  source={{ uri: logoUrl }}
-                  style={{
-                    height: 56,
-                    width: cardWidth * 0.6,
-                    marginBottom: 8,
-                  }}
-                  contentFit='contain'
-                  contentPosition='left'
+            {isWide ? (
+              <>
+                {/* The image spans the full card behind everything, and the
+                    text panel is an opaque layer positioned on top of its
+                    left portion - rather than two flex siblings meeting at a
+                    computed edge, which left a hairline gap where the two
+                    independently-rounded widths didn't quite meet. Painting
+                    one fully over the other means there's no seam to line up
+                    in the first place. */}
+                {backdropUrl && (
+                  <Image
+                    source={{ uri: backdropUrl }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit='cover'
+                  />
+                )}
+                <LinearGradient
+                  colors={gradientColors as [string, string, ...string[]]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  locations={gradientLocations as [number, number, ...number[]]}
+                  style={StyleSheet.absoluteFill}
                 />
-              ) : (
-                <Text
+                <View
+                  pointerEvents='none'
                   style={{
-                    color: "#FFFFFF",
-                    fontWeight: "bold",
-                    fontSize: 26,
-                    marginBottom: 8,
+                    position: "absolute",
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    width: leftPanelWidth,
+                    backgroundColor: CARD_BACKGROUND,
+                    padding: 28,
+                    justifyContent: "center",
                   }}
-                  numberOfLines={1}
                 >
-                  {displayTitle}
-                </Text>
-              )}
-              {episodeSubtitle && (
-                <Text
-                  style={{ color: "rgba(255,255,255,0.9)", marginBottom: 4 }}
-                  numberOfLines={1}
-                >
-                  {episodeSubtitle}
-                </Text>
-              )}
-              {(communityRating || year || duration) && (
+                  <HeroSlideInfo
+                    logoUrl={logoUrl}
+                    logoWidth={leftPanelWidth * 0.85}
+                    logoHeight={64}
+                    titleFontSize={30}
+                    displayTitle={displayTitle}
+                    episodeSubtitle={episodeSubtitle}
+                    communityRating={communityRating}
+                    year={year}
+                    duration={duration}
+                    overview={item.Overview}
+                    overviewLines={3}
+                    genres={genres}
+                    showGenres
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                {backdropUrl && (
+                  <Image
+                    source={{ uri: backdropUrl }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit='cover'
+                  />
+                )}
                 <View
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    marginBottom: 4,
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: "rgba(0,0,0,0.35)",
+                  }}
+                />
+                <LinearGradient
+                  colors={["transparent", "rgba(0,0,0,0.92)"]}
+                  locations={[0.4, 1]}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: "65%",
+                  }}
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
                   }}
                 >
-                  {communityRating && (
-                    <Text
-                      style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                    >
-                      {communityRating}
-                    </Text>
-                  )}
-                  {year && (
-                    <Text
-                      style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                    >
-                      {year}
-                    </Text>
-                  )}
-                  {duration && (
-                    <Text
-                      style={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                    >
-                      {duration}
-                    </Text>
-                  )}
+                  <HeroSlideInfo
+                    logoUrl={logoUrl}
+                    logoWidth={cardWidth * 0.6}
+                    logoHeight={56}
+                    titleFontSize={26}
+                    displayTitle={displayTitle}
+                    episodeSubtitle={episodeSubtitle}
+                    communityRating={communityRating}
+                    year={year}
+                    duration={duration}
+                    overview={item.Overview}
+                    overviewLines={2}
+                    genres={genres}
+                    showGenres={false}
+                  />
                 </View>
-              )}
-              {item.Overview && (
-                <Text
-                  style={{ color: "rgba(255,255,255,0.8)" }}
-                  numberOfLines={2}
-                >
-                  {item.Overview}
-                </Text>
-              )}
-              {genres.length > 0 && <GenreTags genres={genres} />}
-            </View>
+              </>
+            )}
+            <Animated.View
+              pointerEvents='none'
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: "#000000", opacity: pressOverlayOpacity },
+              ]}
+            />
             <ProgressBar item={item} />
           </Animated.View>
         </GestureDetector>
