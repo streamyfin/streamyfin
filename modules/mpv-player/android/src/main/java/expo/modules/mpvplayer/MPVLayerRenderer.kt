@@ -85,6 +85,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     // reclaim resources. Only one player is alive at a time in this app.
     private var mpv: MPVLib? = null
 
+    /** Retained across mpv re-creation; see setMute. */
+    private var isMuted = false
+
     // Cached state
     private var cachedPosition: Double = 0.0
     private var cachedDuration: Double = 0.0
@@ -254,9 +257,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
 
             mpv.initialize()
 
+            // Re-apply the retained mute flag: a fresh instance always starts
+            // audible, which would contradict the state JS still holds.
+            if (isMuted) mpv.setPropertyBoolean("mute", true)
+
             // Observe properties
             observeProperties()
-            
+
             isRunning = true
             Log.i(TAG, "MPV renderer started")
         } catch (e: Exception) {
@@ -574,8 +581,15 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         mpv?.setPropertyDouble("speed", speed)
     }
 
-    /** Mute the player itself; the device output volume is left untouched. */
+    /**
+     * Mute the player itself; the device output volume is left untouched.
+     *
+     * The flag is retained so it survives mpv re-creation (next episode,
+     * bitrate change, track re-negotiation). Without it the new instance would
+     * come back audible while JS still believes playback is muted.
+     */
     fun setMute(muted: Boolean) {
+        isMuted = muted
         mpv?.setPropertyBoolean("mute", muted)
     }
     

@@ -38,6 +38,9 @@ final class MPVLayerRenderer {
     private static let queueKey = DispatchSpecificKey<Bool>()
     
     private var mpv: OpaquePointer?
+
+    /// Retained across mpv re-creation; see setMute.
+    private var isMuted = false
     
     private var currentPreset: PlayerPreset?
     private var currentURL: URL?
@@ -233,6 +236,12 @@ final class MPVLayerRenderer {
             throw RendererError.mpvInitialization(initStatus)
         }
 
+        // Re-apply the retained mute flag: a fresh instance always starts
+        // audible, which would contradict the state JS still holds.
+        if isMuted {
+            setProperty(name: "mute", value: "yes")
+        }
+
         // Observe properties
         observeProperties()
 
@@ -401,7 +410,12 @@ final class MPVLayerRenderer {
     }
     
     /// Mute the player itself; the device output volume is left untouched.
+    ///
+    /// The flag is retained so it survives mpv re-creation (next episode,
+    /// bitrate change, track re-negotiation). Without it the new instance would
+    /// come back audible while JS still believes playback is muted.
     func setMute(_ muted: Bool) {
+        isMuted = muted
         setProperty(name: "mute", value: muted ? "yes" : "no")
     }
 
