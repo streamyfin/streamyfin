@@ -357,6 +357,10 @@ class MpvPlayerView: ExpoView {
 		renderer?.setSpeed(speed)
 	}
 
+	func setMute(muted: Bool) {
+		renderer?.setMute(muted)
+	}
+
 	func getSpeed() -> Double {
 		return renderer?.getSpeed() ?? 1.0
 	}

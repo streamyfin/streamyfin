@@ -370,6 +370,11 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         renderer?.setSpeed(speed)
     }
 
+    /** Mute the player itself; the device volume is left untouched. */
+    fun setMute(muted: Boolean) {
+        renderer?.setMute(muted)
+    }
+
     fun getSpeed(): Double {
         return renderer?.getSpeed() ?: 1.0
     }

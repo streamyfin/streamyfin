@@ -101,6 +101,11 @@ export interface MpvPlayerViewRef {
   seekBy: (offset: number) => Promise<void>;
   setSpeed: (speed: number) => Promise<void>;
   getSpeed: () => Promise<number>;
+  /**
+   * Mute the player itself, leaving the device volume untouched. The boolean
+   * state is owned by the caller: there is deliberately no getter.
+   */
+  setMute: (muted: boolean) => Promise<void>;
   isPaused: () => Promise<boolean>;
   getCurrentPosition: () => Promise<number>;
   getDuration: () => Promise<number>;

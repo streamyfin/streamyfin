@@ -400,6 +400,11 @@ final class MPVLayerRenderer {
         }
     }
     
+    /// Mute the player itself; the device output volume is left untouched.
+    func setMute(_ muted: Bool) {
+        setProperty(name: "mute", value: muted ? "yes" : "no")
+    }
+
     private func clearProperty(name: String) {
         guard let handle = mpv else { return }
         let status = mpv_set_property(handle, name, MPV_FORMAT_NONE, nil)

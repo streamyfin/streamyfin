@@ -573,6 +573,11 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         _playbackSpeed = speed
         mpv?.setPropertyDouble("speed", speed)
     }
+
+    /** Mute the player itself; the device output volume is left untouched. */
+    fun setMute(muted: Boolean) {
+        mpv?.setPropertyBoolean("mute", muted)
+    }
     
     fun getSpeed(): Double {
         return mpv?.getPropertyDouble("speed") ?: _playbackSpeed

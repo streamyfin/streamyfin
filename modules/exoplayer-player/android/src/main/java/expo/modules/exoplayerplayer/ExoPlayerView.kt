@@ -495,6 +495,11 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         player?.playbackParameters = PlaybackParameters(speed.toFloat())
     }
 
+    /** Mute the player itself; the device volume is left untouched. */
+    fun setMute(muted: Boolean) {
+        player?.volume = if (muted) 0f else 1f
+    }
+
     fun getSpeed(): Float {
         return player?.playbackParameters?.speed ?: 1f
     }
