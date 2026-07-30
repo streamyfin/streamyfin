@@ -1,0 +1,11 @@
+{
+  "name": "system-volume",
+  "version": "1.0.0",
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["SystemVolumeModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.systemvolume.SystemVolumeModule"]
+  }
+}
