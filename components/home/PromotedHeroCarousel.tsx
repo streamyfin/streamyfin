@@ -31,11 +31,6 @@ import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { runtimeTicksToMinutes } from "@/utils/time";
 
-// Card width is capped so wide screens (iPad, Android tablets, phones in
-// landscape) get a centered card with breathing room instead of one
-// stretched edge-to-edge into a banner. Below this width the cap has no
-// effect and behavior matches the original edge-to-edge phone layout.
-const MAX_CARD_WIDTH = 720;
 const CARD_SIDE_GUTTER = 16;
 // How much of the neighboring card should peek in past its own gutter.
 const NEIGHBOR_PEEK = 20;
@@ -45,7 +40,6 @@ const NEIGHBOR_PEEK = 20;
 // side, à la the tvOS/iPadOS App Store hero) - the overlay reads cramped
 // once there's this much extra horizontal room to use instead.
 const WIDE_LAYOUT_BREAKPOINT = 700;
-const WIDE_MAX_CARD_WIDTH = 1100;
 const WIDE_LEFT_PANEL_RATIO = 0.4;
 // Fraction of the card's width (past the panel edge) the image takes to
 // fully fade in from the panel's solid color.
@@ -104,12 +98,8 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   // Manager) with no phone/tablet branching.
   const isWide = windowWidth >= WIDE_LAYOUT_BREAKPOINT;
   const cardWidth = useMemo(
-    () =>
-      Math.min(
-        windowWidth - CARD_SIDE_GUTTER * 2,
-        isWide ? WIDE_MAX_CARD_WIDTH : MAX_CARD_WIDTH,
-      ),
-    [windowWidth, isWide],
+    () => windowWidth - CARD_SIDE_GUTTER * 2,
+    [windowWidth],
   );
   const heroHeight = useMemo(() => {
     // Wide layout is a side-by-side banner - a fixed-ish height that scales
@@ -120,9 +110,7 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
     // + overview overlaid at the bottom.
     return Math.round(cardWidth * (9 / 16)) + 100;
   }, [cardWidth, isWide]);
-  // Half the leftover width once the card is centered - equals
-  // CARD_SIDE_GUTTER until the cap above kicks in, then grows from there.
-  const sideGutter = (windowWidth - cardWidth) / 2;
+  const sideGutter = CARD_SIDE_GUTTER;
 
   const renderItem = useCallback(
     ({ item }: { item: BaseItemDto }) => (
