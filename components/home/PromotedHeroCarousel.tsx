@@ -5,7 +5,11 @@ import { useIsFocused } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  type PanGesture,
+} from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   useSharedValue,
@@ -142,6 +146,16 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
     [progress],
   );
 
+  // Without this, the carousel's underlying pan gesture has no directional
+  // restriction and will claim any drag - including a vertical scroll
+  // attempt - before the parent ScrollView ever sees it. Restricting it to
+  // horizontal movement lets a vertical drag fail fast here and fall
+  // through to the ScrollView, while a horizontal drag still activates the
+  // slide swipe normally.
+  const configurePanGesture = useCallback((gesture: PanGesture) => {
+    gesture.activeOffsetX([-10, 10]).failOffsetY([-10, 10]);
+  }, []);
+
   const heroTooTall = heroHeight > windowHeight * MAX_HERO_HEIGHT_RATIO;
 
   if (cappedItems.length === 0 || heroTooTall) return null;
@@ -158,6 +172,7 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
         width={windowWidth}
         height={heroHeight}
         data={cappedItems}
+        onConfigurePanGesture={configurePanGesture}
         mode='parallax'
         modeConfig={{
           parallaxScrollingScale: 0.96,
@@ -357,6 +372,13 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
     const tap = Gesture.Tap()
       .maxDuration(2000)
       .shouldCancelWhenOutside(true)
+      // No default distance limit exists on a tap gesture - without one, it
+      // only fails once the touch leaves the card's bounds, which a
+      // vertical scroll attempt often never does (it just moves up/down
+      // within the same card). That let this gesture sit active for the
+      // whole press, blocking the ScrollView above it from ever seeing the
+      // touch. Failing fast on any real drag hands it off immediately.
+      .maxDistance(10)
       .onBegin(() => {
         pressOverlayOpacity.value = withTiming(0.2, { duration: 100 });
       })
