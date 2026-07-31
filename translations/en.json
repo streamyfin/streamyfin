@@ -322,7 +322,7 @@
         "safe_area_in_controls": "Safe area in controls",
         "show_custom_menu_links": "Show custom menu links",
         "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
-        "show_large_home_carousel": "Show large home carousel (beta)",
+        "show_large_home_carousel": "Show home carousel",
         "hero_carousel_rotation_interval": "Hero carousel rotation interval",
         "hide_libraries": "Hide libraries",
         "select_libraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
