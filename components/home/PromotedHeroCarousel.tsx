@@ -50,6 +50,13 @@ const CARD_BACKGROUND = "#0f0f10";
 const CARD_BACKGROUND_RGB = "15, 15, 16"; // matches CARD_BACKGROUND
 const CARD_BORDER = "#262626";
 
+// Short/landscape windows (rotated phones, iPad Split View or Stage Manager)
+// can make the poster layout's height rival or exceed the window itself.
+// Past this fraction of the window's height the hero stops reading as a
+// "hero" and just becomes an obstacle, so it hides itself rather than
+// shrinking into something illegibly small.
+const MAX_HERO_HEIGHT_RATIO = 0.8;
+
 // Alpha doesn't fade linearly to the eye - a plain two-stop fade reads as if
 // it's already halfway transparent right after the panel edge. Holding
 // closer to opaque through the first half of the blend and only dropping
@@ -82,7 +89,7 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
   const ref = useRef<ICarouselInstance>(null);
   const progress = useSharedValue(0);
   const { settings } = useSettings();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const autoPlayIntervalMs =
     (settings?.heroCarouselRotationSeconds ?? 6) * 1000;
 
@@ -135,7 +142,9 @@ export const PromotedHeroCarousel: React.FC<PromotedHeroCarouselProps> = ({
     [progress],
   );
 
-  if (cappedItems.length === 0) return null;
+  const heroTooTall = heroHeight > windowHeight * MAX_HERO_HEIGHT_RATIO;
+
+  if (cappedItems.length === 0 || heroTooTall) return null;
 
   return (
     <View>
