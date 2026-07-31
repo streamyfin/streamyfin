@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "נדרש שם משתמש",
     "error_title": "שגיאה",
@@ -12,6 +19,9 @@
     "login_button": "התחבר",
     "quick_connect": "התחברות מהירה",
     "enter_code_to_login": "הקלד קוד {{code}} כדי להתחבר",
+    "quick_connect_instructions": "הקלד את הקוד הזה במכשיר שכבר מחובר. תתחבר אוטומטית.",
+    "tap_code_to_copy": "הקש על הקוד להעתקה",
+    "code_copied": "הקוד הועתק",
     "failed_to_initiate_quick_connect": "קרתה שגיאה בהתחלת התחברות מהירה",
     "got_it": "קיבלתי",
     "connection_failed": "ההתחברות נכשלה",
@@ -33,6 +43,7 @@
     "connect_button": "התחבר",
     "previous_servers": "שרתים קודמים",
     "clear_button": "Clear all",
+    "server_url": "כתובת השרת",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "חפש אחר שרתים ברשת המקומית",
     "searching": "מחפש...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "החשבון לא נשמר",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "ברוך הבא ל-Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "קליינט חינמי ובקוד פתוח לשרתי Jellyfin.",
       "features_title": "תכונות",
-      "features_description": "ל-Streamyfin יש הרבה תכונות והוא מכיל חיבור עם מגוון רחב של תוכנות שתוכלו למצוא בתפריט ההגדרות, והם כוללים:",
+      "features_description": "ל-Streamyfin יש הרבה תכונות והוא עובד עם תוכנות נוספות. תוכל למצוא אותן בתפריט ההגדרות:",
       "jellyseerr_feature_description": "התחברות עם שרת Seerr כך שניתן לבקש סרטים ישירות מתוך האפליקציה.",
       "downloads_feature_title": "הורדות",
       "downloads_feature_description": "הורדת סרטים וסדרות לצפייה במצב לא-מקוון. השתמשו בדרך ברירת המחדל או התקינו את הגרסה האופטימלית של השרת כדי להוריד ברקע.",
       "chromecast_feature_description": "הקרן סרטים וסדרות למכשרי הChromecast שברשותך.",
       "centralised_settings_plugin_title": "תוסף הגדרות מרוכז",
-      "centralised_settings_plugin_description": "הגדר אפשרויות שונות ממקום מרוכז בשרת ה-Jellyfin שלך. כל הגדרות הקליינט לכל המשתמשים יסונכרנו באופן אוטומטי.",
+      "centralised_settings_plugin_description": "הגדר את ההגדרות באופן מרוכז בשרת ה-Jellyfin שלך. הגדרות הקליינט של כל משתמש מסונכרנות אוטומטית.",
       "done_button": "בוצע",
       "go_to_settings_button": "עבור להגדרות",
       "read_more": "קרא עוד"
     },
     "settings": {
       "settings_title": "הגדרות",
+      "disabled_by_admin": "מושבת על ידי מנהל השרת",
       "log_out_button": "התנתק",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "ה-SSID מוסתר",
+        "location_off_description": "מחובר לרשת ה-Wi-Fi, אך שם הרשת מוסתר. הפעל את שירותי המיקום במכשיר ותן לאפליקציה הרשאת מיקום כדי לזהות אותו.",
+        "open_location_settings": "פתח הגדרות מיקום"
       },
       "user_info": {
         "user_info_title": "פרטי משתמש",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "חיבור מהיר אושר",
         "error": "שגיאה",
         "invalid_code": "קוד שגוי",
-        "authorize": "אשר"
+        "authorize": "אשר",
+        "paste_code": "הדבק קוד"
       },
       "media_controls": {
         "media_controls_title": "פקדי מדיה",
         "forward_skip_length": "אורך הזזה קדימה",
         "rewind_length": "אורך הזזה אחורה",
         "seconds_unit": "שנ'"
+      },
+      "video_player": {
+        "title": "נגן וידאו",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer אינו תומך בעיצוב כתוביות מתקדם מסוג ASS/SSA או ביישור כתוביות אופקי. עבור ל-MPV אם אתה זקוק לכך.",
+        "mpv_note": "MPV בטלוויזיה אינו מעביר כרגע נתוני מטא של HDR למסך, ולכן תוכן HDR10/HDR10+ מומר (tone-mapped) ל-SDR. עבור ל-ExoPlayer לפלט HDR."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "הגדרות כתוביות MPV",
+        "mpv_settings_description": "התאמה אישית מתקדמת של כתוביות עבור נגן MPV",
+        "opaque_background": "רקע אטום",
+        "background_opacity": "אטימות הרקע",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "שומר מראש את השירים הבאים בתור. השירים הישנים ביותר מוסרים כאשר מגיעים למגבלת הנפח.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "לא ניתן היה לרענן הגדרות מהשרת",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "שירים נשמרים במטמון באופן אוטומטי במהלך ההשמעה. ניקוי המטמון משחרר מקום מבלי לפגוע בשירים שהורדת.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -415,7 +444,9 @@
         "click_for_more_info": "לחץ למידע נוסף",
         "level": "רמה",
         "no_logs_available": "אין לוגים זמינים",
-        "delete_all_logs": "מחק את כל הלוגים"
+        "delete_all_logs": "מחק את כל הלוגים",
+        "copy": "העתק",
+        "copied": "הועתק ללוח"
       },
       "languages": {
         "title": "שפות",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "חיבורים",
-      "no_active_sessions": "אין חיבורים פעילים"
+      "no_active_sessions": "אין חיבורים פעילים",
+      "select_session": "בחירת חיבור",
+      "now_playing": "מתנגן כעת:"
     },
     "downloads": {
       "downloads_title": "הורדות",
+      "transcoding": "המרת קידוד",
       "series": "סדרות",
       "movies": "סרטים",
       "other_media": "תוכן אחר",
@@ -501,6 +535,8 @@
     "none": "ללא",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "עצור",
+    "open_menu": "פתח תפריט",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -595,14 +631,42 @@
     "boxsets": "אוספים",
     "playlists": "רשימות השמעה",
     "noDataTitle": "אין מועדפים עדיין",
-    "noData": "סמן פריטים כמעודפים כדי שהם יופיעו כאן לגישה מהירה."
+    "noData": "פריטים שתסמן כמועדפים יופיעו כאן."
   },
   "custom_links": {
     "no_links": "אין קישורים"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "ערבוב",
+    "entire_series": "כל הסדרה",
+    "episode_count": "{{count}} פרקים",
+    "menu": {
+      "quality": "איכות",
+      "subtitles": "כתוביות",
+      "subtitle_scale": "גודל כתוביות",
+      "audio": "שמע",
+      "speed": "מהירות",
+      "playback_options": "אפשרויות הפעלה",
+      "show_technical_info": "הצג מידע טכני",
+      "hide_technical_info": "הסתר מידע טכני"
+    },
+    "technical_info": {
+      "video": "וידאו:",
+      "audio": "שמע:",
+      "subtitle": "כתובית:",
+      "bitrate": "קצב סיביות:",
+      "source_bitrate": "קובץ:",
+      "buffer_seconds": "באפר: {{seconds}}שנ'",
+      "vo": "VO:",
+      "dropped_frames": "הושמטו: {{count}} פריימים",
+      "loading": "טוען..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "יחס גובה-רוחב",
+    "aspect_ratio_original": "מקורי",
+    "hash_match": "התאמת Hash",
+    "still_watching": "האם אתה עדיין צופה?",
     "error": "שגיאה",
     "failed_to_get_stream_url": "נכשל בהשגת קישור הזרם",
     "an_error_occurred_while_playing_the_video": "קרתה תקלה במהלך הניגון של הקובץ. בדוק את הלוגים בהגדרות.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "טלוויזיה בשידור חי",
     "next": "הבא",
     "previous": "הקודם",
     "coming_soon": "בקרוב",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "שרת ה-Seerr לא תואם את הגרסה המינימלית הנרדת! אנא עדכן לפחות לגרסה 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "שרת ה-Seerr לא תואם את הגרסה המינימלית הנרדת! אנא עדכן לפחות לגרסה 2.0.0",
       "jellyseerr_test_failed": "בדיקת ה-Seerr נכשלה. אנא נסה שוב.",
       "failed_to_test_jellyseerr_server_url": "נכשל בניסיון לבדוק את קישור ה-Seerr",
       "issue_submitted": "התקלה נשלחה!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "כפתור הפעלה",
+    "play_hint": "הקש כדי להפעיל את המדיה",
+    "toggle_orientation": "החלף כיוון מסך",
+    "toggle_orientation_hint": "מחליף את כיוון המסך בין לאורך לאופקי"
+  },
+  "not_found": {
+    "title": "מסך זה אינו קיים.",
+    "go_home": "עבור למסך הבית!"
+  },
   "tabs": {
     "home": "בית",
     "search": "חיפוש",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "מוזיקה",
+    "no_track_playing": "אין רצועה מתנגנת",
+    "queue_empty": "התור ריק",
+    "playing_from_queue": "מתנגן מהתור",
+    "up_next": "הבא בתור",
+    "now_playing": "מתנגן כעת",
+    "missing_library_id": "מזהה ספריית המוזיקה חסר.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "אלבומים",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "צור רשימת מעקב כדי לקבץ את מה שתרצה לצפות בו",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",
