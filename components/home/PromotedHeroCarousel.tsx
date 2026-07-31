@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useIsFocused } from "expo-router";
 import { useAtomValue } from "jotai";
 import React, { useCallback, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
   Gesture,
@@ -303,6 +304,7 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
     const api = useAtomValue(apiAtom);
     const router = useAppRouter();
     const lightHapticFeedback = useHaptic("light");
+    const { t } = useTranslation();
     // A scrim overlay rather than dimming the card's own opacity: the wide
     // layout's left panel is a solid near-black background, so fading its
     // opacity toward transparent is barely visible there while the image
@@ -402,8 +404,10 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
           <Animated.View
             accessible
             accessibilityRole='button'
-            accessibilityLabel={`Open ${displayTitle}`}
-            accessibilityHint='Opens item details'
+            accessibilityLabel={t("home.open_item", {
+              title: displayTitle,
+            })}
+            accessibilityHint={t("home.open_item_hint")}
             accessibilityActions={[{ name: "activate" }]}
             onAccessibilityAction={({ nativeEvent }) => {
               if (nativeEvent.actionName === "activate") handlePress();
