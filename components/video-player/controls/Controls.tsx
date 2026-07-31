@@ -5,7 +5,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -26,6 +26,7 @@ import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
@@ -356,15 +357,27 @@ export const Controls: FC<Props> = ({
       maxMs,
     );
 
-  // Whether the "Next Episode" countdown will actually be rendered. The Skip
+  // Same gate as the bookmark icon in BottomControls, so the skip overlay
+  // only shifts left when the icon is actually shown.
+  const showsChapterIcon = useMemo(
+    () => hasChapterMarkers(item.Chapters, maxMs),
+    [item.Chapters, maxMs],
+  );
+
+  // Whether the "Next Episode" countdown can be rendered at all. The Skip
   // Credits button yields to it only when this is true; if autoplay is
-  // disabled or its episode limit is reached, Skip Credits must stay available
-  // (mirrors the NextEpisodeCountDownButton mount gate in BottomControls).
+  // disabled or its episode limit is reached, Skip Credits must stay available.
   const willShowNextEpisode =
     !!nextItem &&
     settings.autoPlayNextEpisode !== false &&
     (settings.maxAutoPlayEpisodeCount.value === -1 ||
       settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value);
+
+  // Show during credits when nothing plays after them, or in the last seconds.
+  const showNextEpisode =
+    willShowNextEpisode &&
+    ((showSkipCreditButton && !hasContentAfterCredits) ||
+      remainingTime < 10000);
 
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
@@ -453,9 +466,10 @@ export const Controls: FC<Props> = ({
         return;
       }
 
+      // Same boundary as the countdown's willShowNextEpisode gate — the
+      // countdown must never complete without actually navigating.
       if (
-        settings.autoPlayEpisodeCount + 1 <
-        settings.maxAutoPlayEpisodeCount.value
+        settings.autoPlayEpisodeCount < settings.maxAutoPlayEpisodeCount.value
       ) {
         goToItemCommon(nextItem);
       }
@@ -539,6 +553,7 @@ export const Controls: FC<Props> = ({
               playMethod={playMethod}
               transcodeReasons={transcodeReasons}
               mediaSource={mediaSource}
+              item={item}
             />
           )}
           <Animated.View
@@ -598,11 +613,6 @@ export const Controls: FC<Props> = ({
               showRemoteBubble={showRemoteBubble}
               currentTime={currentTime}
               remainingTime={remainingTime}
-              showSkipCreditButton={showSkipCreditButton}
-              hasContentAfterCredits={hasContentAfterCredits}
-              nextItem={nextItem}
-              handleNextEpisodeAutoPlay={handleNextEpisodeAutoPlay}
-              handleNextEpisodeManual={handleNextEpisodeManual}
               handleControlsInteraction={handleControlsInteraction}
               min={min}
               max={max}
@@ -626,9 +636,13 @@ export const Controls: FC<Props> = ({
             showSkipCreditButton={showSkipCreditButton}
             hasContentAfterCredits={hasContentAfterCredits}
             willShowNextEpisode={willShowNextEpisode}
+            showNextEpisode={showNextEpisode}
             skipIntro={skipIntro}
             skipCredit={skipCredit}
+            onNextEpisodeFinish={handleNextEpisodeAutoPlay}
+            onNextEpisodePress={handleNextEpisodeManual}
             controlsVisible={showControls}
+            hasChapters={showsChapterIcon}
           />
         </>
       )}

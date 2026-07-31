@@ -60,6 +60,9 @@ const PROGRESS_LINE_WIDTH = 60;
 /** Maximum buffer size for xcodebuild output (100MB) */
 const MAX_BUILD_BUFFER = 100 * 1024 * 1024;
 
+/** Lines of captured xcodebuild stdout replayed when a non-verbose build fails */
+const FAILURE_LOG_TAIL_LINES = 200;
+
 /** Default build timeout in milliseconds (30 minutes) */
 const DEFAULT_BUILD_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -447,8 +450,8 @@ Production Build Options:
 
 Output Options:
   --verbose                        Stream full xcodebuild output to console.
-                                   When disabled, only errors are shown on failure.
-                                   Note: CI uses --verbose for PRs to aid debugging.
+                                   When disabled, the last ${FAILURE_LOG_TAIL_LINES} lines of
+                                   xcodebuild output are replayed on failure.
   --help, -h                       Show this help message
 
 Environment Variables:
@@ -909,6 +912,26 @@ async function runXcodeBuild(
       }
     });
 
+    // In non-verbose mode nothing was streamed, so replay enough of the
+    // captured output to make a CI failure debuggable without re-running
+    // in verbose mode. xcodebuild reports compile errors on stdout, so the
+    // stderr buffer alone is not sufficient.
+    const dumpFailureLogs = () => {
+      if (verbose) return;
+      const tail = output
+        .split("\n")
+        .slice(-FAILURE_LOG_TAIL_LINES)
+        .join("\n")
+        .trim();
+      if (tail) {
+        log.info(`Last ${FAILURE_LOG_TAIL_LINES} lines of xcodebuild output:`);
+        console.error(tail);
+      }
+      if (errorOutput) {
+        console.error(errorOutput);
+      }
+    };
+
     buildProcess.on("close", (code: number | null) => {
       if (!verbose) {
         process.stdout.write("\n");
@@ -917,15 +940,11 @@ async function runXcodeBuild(
         resolve(output);
       } else if (code === null) {
         log.error("xcodebuild process terminated abnormally (no exit code)");
-        if (errorOutput && !verbose) {
-          console.error(errorOutput);
-        }
+        dumpFailureLogs();
         reject(new Error("Build process exited without code"));
       } else {
         log.error(`xcodebuild exited with code ${code}`);
-        if (errorOutput && !verbose) {
-          console.error(errorOutput);
-        }
+        dumpFailureLogs();
         reject(new Error(`Build failed with code ${code}`));
       }
     });

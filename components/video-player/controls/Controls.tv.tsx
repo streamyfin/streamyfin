@@ -103,13 +103,14 @@ const TV_SEEKBAR_HEIGHT = 14;
 const TV_AUTO_HIDE_TIMEOUT = 5000;
 
 // Trickplay bubble positioning constants
-const TV_TRICKPLAY_SCALE = 2;
+const TV_TRICKPLAY_SCALE = 1.8;
 const TV_TRICKPLAY_BUBBLE_BASE_WIDTH = CONTROLS_CONSTANTS.TILE_WIDTH * 1.5;
 const TV_TRICKPLAY_BUBBLE_WIDTH =
   TV_TRICKPLAY_BUBBLE_BASE_WIDTH * TV_TRICKPLAY_SCALE;
 const TV_TRICKPLAY_INTERNAL_OFFSET = 62 * TV_TRICKPLAY_SCALE;
 const TV_TRICKPLAY_CENTERING_OFFSET = 98 * TV_TRICKPLAY_SCALE;
-const TV_TRICKPLAY_RIGHT_PADDING = 150;
+const TV_TRICKPLAY_LEFT_PADDING = 40;
+const TV_TRICKPLAY_RIGHT_PADDING = 110;
 const TV_TRICKPLAY_FADE_DURATION = 200;
 
 interface TVTrickplayBubbleProps {
@@ -154,7 +155,7 @@ const TVTrickplayBubblePositioned: FC<TVTrickplayBubbleProps> = ({
     });
   }, [visible, opacity]);
 
-  const minX = TV_TRICKPLAY_INTERNAL_OFFSET;
+  const minX = TV_TRICKPLAY_INTERNAL_OFFSET + TV_TRICKPLAY_LEFT_PADDING;
   const maxX =
     progressBarWidth -
     TV_TRICKPLAY_BUBBLE_WIDTH +
@@ -1229,6 +1230,7 @@ export const Controls: FC<Props> = ({
           playMethod={playMethod}
           transcodeReasons={transcodeReasons}
           mediaSource={mediaSource}
+          item={item}
           currentAudioIndex={audioIndex}
           currentSubtitleIndex={subtitleIndex}
         />
@@ -1659,7 +1661,7 @@ const styles = StyleSheet.create({
   },
   trickplayBubbleContainer: {
     position: "absolute",
-    bottom: 190,
+    bottom: 250,
     left: 0,
     right: 0,
     zIndex: 20,
