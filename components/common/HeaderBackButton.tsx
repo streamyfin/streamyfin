@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { BlurView, type BlurViewProps } from "expo-blur";
-import { Platform } from "react-native";
+import { Keyboard, Platform } from "react-native";
 import { Pressable, type PressableProps } from "react-native-gesture-handler";
 import useRouter from "@/hooks/useAppRouter";
 
@@ -16,10 +16,17 @@ export const HeaderBackButton: React.FC<Props> = ({
 }) => {
   const router = useRouter();
 
+  // Dismiss the keyboard before navigating — otherwise it lingers over the
+  // previous screen (e.g. leaving the Jellyseerr login while typing).
+  const handleBack = () => {
+    Keyboard.dismiss();
+    router.back();
+  };
+
   if (Platform.OS === "ios") {
     return (
       <Pressable
-        onPress={() => router.back()}
+        onPress={handleBack}
         className='flex items-center justify-center w-9 h-9'
         {...pressableProps}
       >
@@ -30,7 +37,7 @@ export const HeaderBackButton: React.FC<Props> = ({
 
   if (background === "transparent" && Platform.OS !== "android")
     return (
-      <Pressable onPress={() => router.back()} {...pressableProps}>
+      <Pressable onPress={handleBack} {...pressableProps}>
         <BlurView
           {...props}
           intensity={100}
@@ -48,7 +55,7 @@ export const HeaderBackButton: React.FC<Props> = ({
 
   return (
     <Pressable
-      onPress={() => router.back()}
+      onPress={handleBack}
       // Match the Settings page back button: chevron flush to the edge with a
       // 16px gap before the title (the old `p-2` pushed both arrow and title
       // too far right). drop-shadow keeps it readable over images. hitSlop
