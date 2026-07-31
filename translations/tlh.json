@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "tlhIngan DaneH",
     "error_title": "ghIq",
@@ -12,6 +19,9 @@
     "login_button": "yI'el!",
     "quick_connect": "parmaq ngoQ",
     "enter_code_to_login": "yI'elDI' De' {{code}} yIlaD",
+    "quick_connect_instructions": "Enter this code on a signed-in device. You'll be logged in automatically.",
+    "tap_code_to_copy": "Tap the code to copy it",
+    "code_copied": "Code copied",
     "failed_to_initiate_quick_connect": "parmaq ngoQ yIchu'laHbe'",
     "got_it": "jIyaj",
     "connection_failed": "ngoQlaHbe'",
@@ -33,6 +43,7 @@
     "connect_button": "yIngoq!",
     "previous_servers": "namen Ho'Do' veS",
     "clear_button": "yIQaw'",
+    "server_url": "Ho'Do' veS URL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "val Ho'Do' veS yISam",
     "searching": "Sam...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "Account was not saved",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -118,6 +130,7 @@
     },
     "settings": {
       "settings_title": "men",
+      "disabled_by_admin": "Disabled by admin",
       "log_out_button": "yIQo'",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID QIj",
+        "location_off_description": "Connected to Wi-Fi, but the network name is hidden. Enable device Location services and grant the app location permission to detect it.",
+        "open_location_settings": "Open Location settings"
       },
       "user_info": {
         "user_info_title": "tlhIngan De'",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "parmaq ngoQ je'laH",
         "error": "ghIq",
         "invalid_code": "De' law'be'",
-        "authorize": "yIje'"
+        "authorize": "yIje'",
+        "paste_code": "Paste code"
       },
       "media_controls": {
         "media_controls_title": "tlhol SeHlaw",
         "forward_skip_length": "Du'Hom vum",
         "rewind_length": "bavHom vum",
         "seconds_unit": "tera' rep"
+      },
+      "video_player": {
+        "title": "Video player",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
+        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "MPV De' chu' men",
+        "mpv_settings_description": "Advanced subtitle customization for MPV player",
+        "opaque_background": "Opaque background",
+        "background_opacity": "Background opacity",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Couldn't refresh settings from server",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -415,7 +444,9 @@
         "click_for_more_info": "latlh De' yIchIch",
         "level": "quv",
         "no_logs_available": "De' qon pagh",
-        "delete_all_logs": "Hoch De' qon yIQaw'"
+        "delete_all_logs": "Hoch De' qon yIQaw'",
+        "copy": "Copy",
+        "copied": "Copied to clipboard"
       },
       "languages": {
         "title": "Holmey",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "tlholrap",
-      "no_active_sessions": "tlholrap pagh chu'"
+      "no_active_sessions": "tlholrap pagh chu'",
+      "select_session": "tlholrap yIwIv",
+      "now_playing": "DaH tlhol:"
     },
     "downloads": {
       "downloads_title": "Qaw' Doch",
+      "transcoding": "Transcoding",
       "series": "TV Hem",
       "movies": "DIS",
       "other_media": "Other media",
@@ -501,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "yImev",
+    "open_menu": "Open menu",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -602,7 +638,35 @@
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Shuffle",
+    "entire_series": "Hem Hoch",
+    "episode_count": "{{count}} HemHom",
+    "menu": {
+      "quality": "luj",
+      "subtitles": "De' chu'",
+      "subtitle_scale": "De' chu' qIt",
+      "audio": "QoQ",
+      "speed": "Speed",
+      "playback_options": "Playback options",
+      "show_technical_info": "Show technical info",
+      "hide_technical_info": "Hide technical info"
+    },
+    "technical_info": {
+      "video": "mu'tlhegh:",
+      "audio": "QoQ:",
+      "subtitle": "De' chu':",
+      "bitrate": "Bitrate:",
+      "source_bitrate": "File:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Dropped: {{count}} frames",
+      "loading": "Loading..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Aspect ratio",
+    "aspect_ratio_original": "wa'DIch",
+    "hash_match": "Hash match",
+    "still_watching": "Are you still watching?",
     "error": "ghIq",
     "failed_to_get_stream_url": "tlhol ret URL tu'laHbe'",
     "an_error_occurred_while_playing_the_video": "mu'tlhegh tlholDI' ghIq. menDaq De' qon mej.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "wej",
     "previous": "namen",
     "coming_soon": "wej lup",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Jellyseerr Ho'Do' veS wej law'be'! 2.0.0 yIchu'!",
+      "jellyseerr_does_not_meet_requirements": "Jellyseerr Ho'Do' veS wej law'be'! 2.0.0 yIchu'!",
       "jellyseerr_test_failed": "Jellyseerr nejlaHbe'. yIHaDqa'.",
       "failed_to_test_jellyseerr_server_url": "Jellyseerr Ho'Do' veS URL nejlaHbe'",
       "issue_submitted": "ghIq nejqa'!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "Play button",
+    "play_hint": "Tap to play the media",
+    "toggle_orientation": "pegh yIchoH",
+    "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
+  },
+  "not_found": {
+    "title": "This screen doesn't exist.",
+    "go_home": "juH yIghoS!"
+  },
   "tabs": {
     "home": "juH",
     "search": "Sam",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "bom tlhol pagh",
+    "queue_empty": "Queue is empty",
+    "playing_from_queue": "Playing from queue",
+    "up_next": "wej",
+    "now_playing": "DaH tlhol",
+    "missing_library_id": "Missing music library id.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
