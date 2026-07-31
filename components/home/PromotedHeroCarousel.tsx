@@ -23,7 +23,7 @@ import { ProgressBar } from "@/components/common/ProgressBar";
 import { Text } from "@/components/common/Text";
 import { getItemNavigation } from "@/components/common/TouchableItemRouter";
 import { GenreTags } from "@/components/GenreTags";
-import useRouter from "@/hooks/useAppRouter";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -313,7 +313,7 @@ interface HeroSlideProps {
 const HeroSlide: React.FC<HeroSlideProps> = React.memo(
   ({ item, cardWidth, heroHeight, isWide }) => {
     const api = useAtomValue(apiAtom);
-    const router = useRouter();
+    const router = useAppRouter();
     const lightHapticFeedback = useHaptic("light");
     // A scrim overlay rather than dimming the card's own opacity: the wide
     // layout's left panel is a solid near-black background, so fading its
@@ -412,6 +412,14 @@ const HeroSlide: React.FC<HeroSlideProps> = React.memo(
       <View style={{ alignItems: "center" }}>
         <GestureDetector gesture={tap}>
           <Animated.View
+            accessible
+            accessibilityRole='button'
+            accessibilityLabel={`Open ${displayTitle}`}
+            accessibilityHint='Opens item details'
+            accessibilityActions={[{ name: "activate" }]}
+            onAccessibilityAction={({ nativeEvent }) => {
+              if (nativeEvent.actionName === "activate") handlePress();
+            }}
             style={{
               width: cardWidth,
               height: heroHeight,
