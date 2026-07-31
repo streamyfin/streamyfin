@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Nom d'utilisateur requis",
     "error_title": "Erreur",
@@ -12,6 +19,9 @@
     "login_button": "Se connecter",
     "quick_connect": "Connexion rapide",
     "enter_code_to_login": "Entrez le code {{code}} pour vous connecter",
+    "quick_connect_instructions": "Saisissez ce code sur un appareil déjà connecté. Vous serez connecté automatiquement.",
+    "tap_code_to_copy": "Appuyez sur le code pour le copier",
+    "code_copied": "Code copié",
     "failed_to_initiate_quick_connect": "Échec de l'initialisation de Connexion rapide",
     "got_it": "D'accord",
     "connection_failed": "La connexion a échoué",
@@ -33,6 +43,7 @@
     "connect_button": "Connexion",
     "previous_servers": "Serveurs précédents",
     "clear_button": "Effacer",
+    "server_url": "URL du serveur",
     "swipe_to_remove": "Glisser pour supprimer",
     "search_for_local_servers": "Rechercher des serveurs locaux",
     "searching": "Recherche...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Enregistrer le compte",
     "save_for_later": "Enregistrer ce compte",
+    "not_saved": "Le compte n'a pas été enregistré",
     "security_option": "Options de sécurité",
     "no_protection": "Aucune protection",
     "no_protection_desc": "Connexion rapide sans authentification",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Bienvenue sur Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Un client gratuit et open-source pour Jellyfin.",
       "features_title": "Fonctionnalités",
-      "features_description": "Streamyfin offre de nombreuses fonctionnalités et s'intègre à de nombreux logiciels disponibles dans le menu des paramètres, notamment :",
+      "features_description": "Streamyfin propose de nombreuses fonctionnalités et fonctionne avec d'autres logiciels. Vous les trouverez dans le menu des paramètres :",
       "jellyseerr_feature_description": "Connectez-vous à votre instance Seerr et demandez des films directement dans l'application.",
       "downloads_feature_title": "Téléchargements",
       "downloads_feature_description": "Téléchargez des films et des séries pour les regarder hors ligne. Utilisez la méthode par défaut ou installez le serveur d'optimisation pour télécharger les fichiers en arrière-plan.",
       "chromecast_feature_description": "Diffusez des films et des séries sur vos appareils Chromecast.",
       "centralised_settings_plugin_title": "Plugin de paramètres centralisés",
-      "centralised_settings_plugin_description": "Configuration des paramètres d'un emplacement centralisé sur votre serveur Jellyfin. Tous les paramètres clients pour tous les utilisateurs seront synchronisés automatiquement.",
+      "centralised_settings_plugin_description": "Configurez les paramètres de façon centralisée sur votre serveur Jellyfin. Les paramètres client de chaque utilisateur se synchronisent automatiquement.",
       "done_button": "Terminé",
       "go_to_settings_button": "Allez dans les paramètres",
       "read_more": "En savoir plus"
     },
     "settings": {
       "settings_title": "Paramètres",
+      "disabled_by_admin": "Désactivé par l'administrateur",
       "log_out_button": "Déconnexion",
       "switch_user": {
         "title": "Changer d'utilisateur",
@@ -137,11 +150,11 @@
       "appearance": {
         "title": "Apparence",
         "merge_next_up_continue_watching": "Fusionner « Continuer à regarder » et « À suivre »",
-        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
-        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
-        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
+        "merge_next_up_continue_watching_hint": "Regroupe « Continuer à regarder » et « À suivre » dans une seule rangée sur l'accueil.",
+        "use_episode_images_next_up": "Utiliser les images d'épisode pour « À suivre » et « Continuer à regarder »",
+        "use_episode_images_next_up_hint": "Affiche la vignette propre à chaque épisode dans les rangées « À suivre » et « Continuer à regarder », au lieu de l'image de la série.",
         "hide_remote_session_button": "Masquer le bouton de session distante",
-        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
+        "hide_remote_session_button_hint": "Masque le bouton des sessions distantes dans l'en-tête de l'accueil.",
         "show_home_backdrop": "Arrière-plan d'accueil dynamique",
         "show_hero_carousel": "Carrousel principal",
         "show_series_poster_on_episode": "Afficher l'affiche de la série sur les épisodes",
@@ -178,7 +191,10 @@
         "network_already_added": "Réseau déjà ajouté",
         "no_wifi_connected": "Non connecté au Wi-Fi",
         "permission_denied": "Autorisation d'accès à la localisation refusée",
-        "permission_denied_explanation": "Une autorisation de localisation est requise pour détecter le réseau Wi-Fi afin de basculer automatiquement. Veuillez l'activer dans les paramètres."
+        "permission_denied_explanation": "Une autorisation de localisation est requise pour détecter le réseau Wi-Fi afin de basculer automatiquement. Veuillez l'activer dans les paramètres.",
+        "ssid_hidden": "SSID masqué",
+        "location_off_description": "Connecté au Wi-Fi, mais le nom du réseau est masqué. Activez la localisation de l'appareil et autorisez l'application à y accéder pour le détecter.",
+        "open_location_settings": "Ouvrir les paramètres de localisation"
       },
       "user_info": {
         "user_info_title": "Informations utilisateur",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "Connexion rapide autorisée",
         "error": "Erreur",
         "invalid_code": "Code invalide",
-        "authorize": "Autoriser"
+        "authorize": "Autoriser",
+        "paste_code": "Coller le code"
       },
       "media_controls": {
         "media_controls_title": "Contrôles média",
         "forward_skip_length": "Durée de saut en avant",
         "rewind_length": "Durée de retour en arrière",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Lecteur vidéo",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer ne gère pas le style avancé des sous-titres ASS/SSA ni leur alignement horizontal. Passez à MPV si vous en avez besoin.",
+        "mpv_note": "Sur TV, MPV ne transmet pas encore les métadonnées HDR à l'écran : le contenu HDR10/HDR10+ est donc converti en SDR par tone mapping. Passez à ExoPlayer pour une sortie HDR."
       },
       "buffer": {
         "title": "Paramètres du tampon",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Marge verticale",
         "mpv_subtitle_align_x": "Alignement horizontal",
         "mpv_subtitle_align_y": "Alignement vertical",
+        "mpv_settings_title": "Paramètres des sous-titres MPV",
+        "mpv_settings_description": "Personnalisation avancée des sous-titres pour le lecteur MPV",
+        "opaque_background": "Fond opaque",
+        "background_opacity": "Opacité du fond",
         "align": {
           "left": "Gauche",
           "center": "Centre",
@@ -300,7 +328,7 @@
         },
         "safe_area_in_controls": "Zone de sécurité dans les contrôles",
         "show_custom_menu_links": "Afficher les liens personnalisés",
-        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
+        "show_custom_menu_links_hint": "Affiche les liens personnalisés ajoutés par l'administrateur de votre serveur dans la configuration web.",
         "show_large_home_carousel": "Afficher le grand carrousel d’accueil (bêta)",
         "hide_libraries": "Masquer les bibliothèques",
         "select_libraries_you_want_to_hide": "Sélectionnez les bibliothèques que vous souhaitez masquer dans l'onglet Bibliothèque et les sections de la page d'accueil.",
@@ -317,7 +345,7 @@
         "playback_description": "Configurer le mode de lecture de la musique.",
         "prefer_downloaded": "Préférer les musiques téléchargées",
         "caching_title": "Mise en cache",
-        "caching_description": "Mettre automatiquement en cache les pistes à venir pour une lecture plus fluide.",
+        "caching_description": "Stocke à l'avance les chansons à venir dans la file d'attente. Les plus anciennes sont supprimées une fois la limite de taille atteinte.",
         "lookahead_enabled": "Activer la mise en cache anticipée",
         "lookahead_count": "Pistes à mettre en cache à l'avance",
         "max_cache_size": "Taille max de cache"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Enregistré",
             "refreshed": "Paramètres actualisés depuis le serveur",
+            "refresh_failed": "Impossible d'actualiser les paramètres depuis le serveur",
             "disabled": "Streamystats désactivé"
           },
           "refresh_from_server": "Rafraîchir les paramètres depuis le serveur"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Supprimer tous les fichiers téléchargés ?",
         "delete_all_downloaded_files_confirm_desc": "Êtes-vous sûr de vouloir supprimer tous les fichiers téléchargés ? Cette action est irréversible.",
         "music_cache_title": "Mise en cache de la musique",
-        "music_cache_description": "Mettez automatiquement en cache les chansons au fur et à mesure que vous écoutez pour une lecture plus fluide et une prise en charge hors ligne",
+        "music_cache_description": "Les chansons sont automatiquement mises en cache pendant la lecture. Vider le cache libère de l'espace sans toucher à vos chansons téléchargées.",
         "clear_music_cache": "Vider le cache de la musique",
         "music_cache_size": "{{size}} mis en cache",
         "music_cache_cleared": "Cache de musique effacé",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Cliquez pour plus d'informations",
         "level": "Niveau",
         "no_logs_available": "Pas de journaux disponibles",
-        "delete_all_logs": "Supprimer tous les journaux"
+        "delete_all_logs": "Supprimer tous les journaux",
+        "copy": "Copier",
+        "copied": "Copié dans le presse-papiers"
       },
       "languages": {
         "title": "Langues",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "Appareils actifs",
-      "no_active_sessions": "Aucun appareil actif"
+      "no_active_sessions": "Aucun appareil actif",
+      "select_session": "Sélectionner une session",
+      "now_playing": "Lecture en cours :"
     },
     "downloads": {
       "downloads_title": "Téléchargements",
+      "transcoding": "Transcodage",
       "series": "Séries",
       "movies": "Films",
       "other_media": "Autres médias",
@@ -501,6 +535,8 @@
     "none": "Aucun",
     "track": "Piste",
     "cancel": "Annuler",
+    "stop": "Arrêter",
+    "open_menu": "Ouvrir le menu",
     "delete": "Supprimer",
     "ok": "Ok",
     "remove": "Retirer",
@@ -595,14 +631,42 @@
     "boxsets": "Coffrets",
     "playlists": "Playlists",
     "noDataTitle": "Pas encore de favoris",
-    "noData": "Marquez des éléments comme favoris pour les voir apparaître ici pour un accès rapide."
+    "noData": "Les éléments que vous marquez comme favoris apparaissent ici."
   },
   "custom_links": {
     "no_links": "Aucun lien"
   },
   "player": {
     "live": "EN DIRECT",
+    "shuffle": "Aléatoire",
+    "entire_series": "Série entière",
+    "episode_count": "{{count}} épisodes",
+    "menu": {
+      "quality": "Qualité",
+      "subtitles": "Sous-titres",
+      "subtitle_scale": "Échelle des sous-titres",
+      "audio": "Audio",
+      "speed": "Vitesse",
+      "playback_options": "Options de lecture",
+      "show_technical_info": "Afficher les infos techniques",
+      "hide_technical_info": "Masquer les infos techniques"
+    },
+    "technical_info": {
+      "video": "Vidéo :",
+      "audio": "Audio :",
+      "subtitle": "Sous-titres :",
+      "bitrate": "Débit :",
+      "source_bitrate": "Fichier :",
+      "buffer_seconds": "Tampon : {{seconds}} s",
+      "vo": "VO :",
+      "dropped_frames": "Images perdues : {{count}}",
+      "loading": "Chargement..."
+    },
     "mpv_player_title": "Lecteur MPV",
+    "aspect_ratio": "Format d'image",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Correspondance de hash",
+    "still_watching": "Êtes-vous toujours là ?",
     "error": "Erreur",
     "failed_to_get_stream_url": "Échec de l'obtention de l'URL du flux",
     "an_error_occurred_while_playing_the_video": "Une erreur s’est produite lors de la lecture de la vidéo. Vérifiez les journaux dans les paramètres.",
@@ -702,6 +766,7 @@
     "no_data_available": "Aucune donnée disponible"
   },
   "live_tv": {
+    "title": "TV en direct",
     "next": "Suivant",
     "previous": "Précédent",
     "coming_soon": "Bientôt",
@@ -773,7 +838,7 @@
     "request_selected": "Demander la sélection",
     "n_selected": "{{count}} sélectionnés",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr ne répond pas aux exigences ! Veuillez mettre à jour au moins vers la version 2.0.0.",
+      "jellyseerr_does_not_meet_requirements": "Seerr ne répond pas aux exigences ! Veuillez mettre à jour au moins vers la version 2.0.0.",
       "jellyseerr_test_failed": "Le test Seerr a échoué. Veuillez réessayer.",
       "failed_to_test_jellyseerr_server_url": "Échec du test de l'URL du serveur Seerr",
       "issue_submitted": "Problème soumis !",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Échec du refus de la demande"
     }
   },
+  "accessibility": {
+    "play_button": "Bouton de lecture",
+    "play_hint": "Appuyez pour lancer la lecture",
+    "toggle_orientation": "Changer l'orientation de l'écran",
+    "toggle_orientation_hint": "Bascule l'orientation de l'écran entre portrait et paysage"
+  },
+  "not_found": {
+    "title": "Cet écran n'existe pas.",
+    "go_home": "Revenir à l'accueil !"
+  },
   "tabs": {
     "home": "Accueil",
     "search": "Recherche",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Musique",
+    "no_track_playing": "Aucune piste en cours de lecture",
+    "queue_empty": "La file d'attente est vide",
+    "playing_from_queue": "Lecture depuis la file d'attente",
+    "up_next": "À suivre",
+    "now_playing": "Lecture en cours",
+    "missing_library_id": "Identifiant de bibliothèque musicale manquant.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Type de contenu",
     "sort_order_label": "Ordre de tri par défaut",
     "empty_title": "Aucune liste de suivi",
-    "empty_description": "Créez votre première liste de suivi pour commencer à organiser vos médias",
+    "empty_description": "Créez une liste de suivi pour regrouper ce que vous voulez regarder",
     "empty_watchlist": "Cette liste de suivi est vide",
     "empty_watchlist_hint": "Ajouter des éléments de votre bibliothèque à cette liste de suivi",
     "not_configured_title": "Streamystats non configuré",

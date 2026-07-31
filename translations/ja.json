@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "ユーザー名は必須です",
     "error_title": "エラー",
@@ -12,6 +19,9 @@
     "login_button": "ログイン",
     "quick_connect": "クイックコネクト",
     "enter_code_to_login": "ログインするにはコード {{code}} を入力してください",
+    "quick_connect_instructions": "ログイン済みのデバイスでこのコードを入力すると、自動的にログインされます。",
+    "tap_code_to_copy": "コードをタップしてコピー",
+    "code_copied": "コードをコピーしました",
     "failed_to_initiate_quick_connect": "クイックコネクトを開始できませんでした",
     "got_it": "了解",
     "connection_failed": "接続に失敗しました",
@@ -33,6 +43,7 @@
     "connect_button": "接続",
     "previous_servers": "前のサーバー",
     "clear_button": "クリア",
+    "server_url": "サーバーURL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "ローカルサーバーを検索",
     "searching": "検索中...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "アカウントは保存されませんでした",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Streamyfinへようこそ",
       "a_free_and_open_source_client_for_jellyfin": "Jellyfinのためのフリーでオープンソースのクライアント。",
       "features_title": "特長",
-      "features_description": "Streamyfinには多くの機能があり、設定メニューで見つけることができるさまざまなソフトウェアと統合されています。これには以下が含まれます。",
+      "features_description": "Streamyfinには多くの機能があり、他のソフトウェアとも連携します。設定メニューで確認できます：",
       "jellyseerr_feature_description": "Jellyseerrインスタンスに接続し、アプリ内で直接映画をリクエストします。",
       "downloads_feature_title": "ダウンロード",
       "downloads_feature_description": "映画やテレビ番組をダウンロードしてオフラインで視聴します。デフォルトの方法を使用するか、バックグラウンドでファイルをダウンロードするために最適化されたサーバーをインストールしてください。",
       "chromecast_feature_description": "映画とテレビ番組をChromecastデバイスにキャストします。",
       "centralised_settings_plugin_title": "集中設定プラグイン",
-      "centralised_settings_plugin_description": "Jellyfinサーバーから設定を構成します。すべてのユーザーのすべてのクライアント設定は自動的に同期されます。",
+      "centralised_settings_plugin_description": "Jellyfinサーバーで設定を一元管理できます。すべてのユーザーのクライアント設定が自動的に同期されます。",
       "done_button": "完了",
       "go_to_settings_button": "設定に移動",
       "read_more": "続きを読む"
     },
     "settings": {
       "settings_title": "設定",
+      "disabled_by_admin": "管理者により無効",
       "log_out_button": "ログアウト",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID非表示",
+        "location_off_description": "Wi-Fiに接続されていますが、ネットワーク名が非表示になっています。検出するには、デバイスの位置情報サービスを有効にし、アプリに位置情報の権限を許可してください。",
+        "open_location_settings": "位置情報の設定を開く"
       },
       "user_info": {
         "user_info_title": "ユーザー情報",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "クイックコネクトが承認されました",
         "error": "エラー",
         "invalid_code": "無効なコードです",
-        "authorize": "承認"
+        "authorize": "承認",
+        "paste_code": "コードを貼り付け"
       },
       "media_controls": {
         "media_controls_title": "メディアコントロール",
         "forward_skip_length": "スキップの長さ",
         "rewind_length": "巻き戻しの長さ",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "映像プレーヤー",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayerは高度なASS/SSA字幕スタイルや字幕の横方向の配置に対応していません。これらが必要な場合はMPVに切り替えてください。",
+        "mpv_note": "TV版のMPVは現在HDRメタデータをディスプレイに渡さないため、HDR10/HDR10+コンテンツはSDRにトーンマッピングされます。HDR出力にはExoPlayerに切り替えてください。"
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "MPV字幕設定",
+        "mpv_settings_description": "MPVプレーヤー向けの高度な字幕カスタマイズ",
+        "opaque_background": "不透明な背景",
+        "background_opacity": "背景の不透明度",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "再生キューの曲を事前にキャッシュしておきます。サイズの上限に達すると、古いものから削除されます。",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "サーバーから設定を更新できませんでした",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "再生中の曲は自動的にキャッシュされます。キャッシュを削除しても、ダウンロード済みの曲には影響なく空き容量を増やせます。",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Click for more info",
         "level": "レベル",
         "no_logs_available": "ログがありません",
-        "delete_all_logs": "すべてのログを削除"
+        "delete_all_logs": "すべてのログを削除",
+        "copy": "コピー",
+        "copied": "クリップボードにコピーしました"
       },
       "languages": {
         "title": "言語",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "セッション",
-      "no_active_sessions": "アクティブなセッションはありません"
+      "no_active_sessions": "アクティブなセッションはありません",
+      "select_session": "セッションを選択",
+      "now_playing": "再生中:"
     },
     "downloads": {
       "downloads_title": "ダウンロード",
+      "transcoding": "トランスコード中",
       "series": "TVシリーズ",
       "movies": "映画",
       "other_media": "その他のメディア",
@@ -501,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "停止",
+    "open_menu": "メニューを開く",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -595,14 +631,42 @@
     "boxsets": "ボックスセット",
     "playlists": "プレイリスト",
     "noDataTitle": "お気に入りはまだありません",
-    "noData": "アイテムをお気に入りとしてマークすると、ここに表示されクイックアクセスできるようになります。"
+    "noData": "お気に入りとしてマークしたアイテムは、ここに表示されます。"
   },
   "custom_links": {
     "no_links": "リンクがありません"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "シャッフル",
+    "entire_series": "シリーズ全体",
+    "episode_count": "{{count}}話",
+    "menu": {
+      "quality": "画質",
+      "subtitles": "字幕",
+      "subtitle_scale": "字幕スケール",
+      "audio": "音声",
+      "speed": "速度",
+      "playback_options": "再生オプション",
+      "show_technical_info": "技術情報を表示",
+      "hide_technical_info": "技術情報を非表示"
+    },
+    "technical_info": {
+      "video": "映像:",
+      "audio": "音声:",
+      "subtitle": "字幕:",
+      "bitrate": "ビットレート:",
+      "source_bitrate": "ファイル:",
+      "buffer_seconds": "バッファ: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "ドロップ: {{count}}フレーム",
+      "loading": "読み込み中..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "アスペクト比",
+    "aspect_ratio_original": "オリジナル",
+    "hash_match": "ハッシュ一致",
+    "still_watching": "まだご覧になっていますか？",
     "error": "エラー",
     "failed_to_get_stream_url": "ストリームURLを取得できませんでした",
     "an_error_occurred_while_playing_the_video": "動画の再生中にエラーが発生しました。設定でログを確認してください。",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "ライブTV",
     "next": "次",
     "previous": "前",
     "coming_soon": "近日公開",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Jellyseerrサーバーは最小バージョン要件を満たしていません。少なくとも 2.0.0 に更新してください。",
+      "jellyseerr_does_not_meet_requirements": "Jellyseerrサーバーは最小バージョン要件を満たしていません。少なくとも 2.0.0 に更新してください。",
       "jellyseerr_test_failed": "Jellyseerrテストに失敗しました。もう一度お試しください。",
       "failed_to_test_jellyseerr_server_url": "JellyseerrサーバーのURLをテストに失敗しました",
       "issue_submitted": "チケットを送信しました！",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "再生ボタン",
+    "play_hint": "タップしてメディアを再生",
+    "toggle_orientation": "画面の向きを切り替え",
+    "toggle_orientation_hint": "画面の向きを縦向きと横向きの間で切り替えます"
+  },
+  "not_found": {
+    "title": "この画面は存在しません。",
+    "go_home": "ホーム画面へ移動！"
+  },
   "tabs": {
     "home": "ホーム",
     "search": "検索",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "再生中のトラックはありません",
+    "queue_empty": "キューは空です",
+    "playing_from_queue": "キューから再生中",
+    "up_next": "次に再生",
+    "now_playing": "再生中",
+    "missing_library_id": "音楽ライブラリIDがありません。",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "見たいものをまとめるウォッチリストを作成しましょう",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

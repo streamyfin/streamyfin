@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "مطلوب اسم المستخدم",
     "error_title": "خطأ",
@@ -12,6 +19,9 @@
     "login_button": "تسجيل الدخول",
     "quick_connect": "الدخول السريع",
     "enter_code_to_login": "أدخل الرمز {{code}} لتسجيل الدخول",
+    "quick_connect_instructions": "أدخل هذا الرمز على جهاز مسجّل الدخول بالفعل. سيتم تسجيل دخولك تلقائيًا.",
+    "tap_code_to_copy": "اضغط على الرمز لنسخه",
+    "code_copied": "تم نسخ الرمز",
     "failed_to_initiate_quick_connect": "فشل في بدء الدخول السريع",
     "got_it": "حسنًا",
     "connection_failed": "فشل الاتصال",
@@ -33,6 +43,7 @@
     "connect_button": "اتصل",
     "previous_servers": "الخوادم السابقة",
     "clear_button": "مسح",
+    "server_url": "رابط الخادم",
     "swipe_to_remove": "مرر للإزالة",
     "search_for_local_servers": "البحث عن الخوادم المحلية",
     "searching": "جاري البحث...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "حفظ الحساب",
     "save_for_later": "حفظ هذا الحساب",
+    "not_saved": "لم يتم حفظ الحساب",
     "security_option": "‮خيارات الأمان",
     "no_protection": "بدون حماية",
     "no_protection_desc": "تسجيل دخول سريع بدون مصادقة",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "مرحبًا بك في Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "عميل مجاني ومفتوح المصدر لـJellyfin.",
       "features_title": "المزايا",
-      "features_description": "يحتوي Streamyfin على مجموعة من المزايا ويتكامل مع مجموعة واسعة من البرامج التي يمكنك العثور عليها في قائمة الإعدادات، وتشمل:",
+      "features_description": "يحتوي Streamyfin على مجموعة من المزايا ويعمل مع برامج أخرى. ستجدها في قائمة الإعدادات:",
       "jellyseerr_feature_description": "اتصل بخادم Seerr الخاص بك واطلب الأفلام مباشرةً من التطبيق.",
       "downloads_feature_title": "التنزيلات",
       "downloads_feature_description": "نزل الأفلام والمسلسلات التلفزيونية لمشاهدتها في وضع عدم الاتصال. استخدم إما الطريقة الافتراضية أو قم بتثبيت الخادم المحسن لتنزيل الملفات في الخلفية.",
       "chromecast_feature_description": "بث الأفلام والبرامج التلفزيونية إلى أجهزة Chromecast الخاصة بك.",
       "centralised_settings_plugin_title": "إضافة الإعدادات المركزية",
-      "centralised_settings_plugin_description": "تكوين الإعدادات من موقع مركزي على خادم Jellyfin الخاص بك. ستتم مزامنة جميع إعدادات العميل لجميع المستخدمين تلقائيًا.",
+      "centralised_settings_plugin_description": "قم بتكوين الإعدادات مركزيًا على خادم Jellyfin الخاص بك. تتم مزامنة إعدادات العميل الخاصة بكل مستخدم تلقائيًا.",
       "done_button": "تم",
       "go_to_settings_button": "الذهاب إلى الإعدادات",
       "read_more": "اقرأ المزيد"
     },
     "settings": {
       "settings_title": "الإعدادات",
+      "disabled_by_admin": "معطل من قبل المسؤول",
       "log_out_button": "تسجيل الخروج",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "الشبكة مضافة مسبقاً",
         "no_wifi_connected": "غير متصل بشبكة WiFi",
         "permission_denied": "تم رفض إذن الوصول إلى الموقع",
-        "permission_denied_explanation": "يتطلب التعرف على شبكة WiFi للتبديل التلقائي الحصول على إذن الوصول إلى الموقع. يرجى تفعيله من الإعدادات."
+        "permission_denied_explanation": "يتطلب التعرف على شبكة WiFi للتبديل التلقائي الحصول على إذن الوصول إلى الموقع. يرجى تفعيله من الإعدادات.",
+        "ssid_hidden": "SSID مخفي",
+        "location_off_description": "متصل بشبكة Wi-Fi، لكن اسم الشبكة مخفي. فعّل خدمات الموقع في الجهاز وامنح التطبيق إذن الوصول إلى الموقع لاكتشافه.",
+        "open_location_settings": "فتح إعدادات الموقع"
       },
       "user_info": {
         "user_info_title": "معلومات المستخدم",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "تم تفويض الدخول السريع",
         "error": "خطأ",
         "invalid_code": "رمز غير صالح",
-        "authorize": "تفويض"
+        "authorize": "تفويض",
+        "paste_code": "لصق الرمز"
       },
       "media_controls": {
         "media_controls_title": "عناصر التحكم بالوسائط",
         "forward_skip_length": "مدة التقديم السريع",
         "rewind_length": "مدة الترجيع",
         "seconds_unit": "ث"
+      },
+      "video_player": {
+        "title": "مشغل الفيديو",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "لا يدعم ExoPlayer التنسيق المتقدم لترجمات ASS/SSA أو محاذاة الترجمة الأفقية. بدّل إلى MPV إذا كنت بحاجة إلى ذلك.",
+        "mpv_note": "لا ينقل MPV حاليًا على التلفاز بيانات HDR الوصفية إلى الشاشة، لذلك يتم تحويل محتوى HDR10/HDR10+ (tone-mapped) إلى SDR. بدّل إلى ExoPlayer للحصول على إخراج HDR."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "إعدادات ترجمة MPV",
+        "mpv_settings_description": "تخصيص متقدم للترجمة في مشغل MPV",
+        "opaque_background": "خلفية غير شفافة",
+        "background_opacity": "عتامة الخلفية",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "ضبط كيفية تشغيل الموسيقى.",
         "prefer_downloaded": "تفضيل الأغاني التي تم تنزيلها",
         "caching_title": "التخزين المؤقت",
-        "caching_description": "تخزين الأغاني التالية مؤقتاً تلقائياً لضمان تشغيل أكثر سلاسة.",
+        "caching_description": "تخزين أغاني قائمة الانتظار القادمة مسبقًا. تتم إزالة الأقدم عند الوصول إلى حد الحجم.",
         "lookahead_enabled": "تفعيل التخزين المؤقت الاستباقي",
         "lookahead_count": "عدد الأغاني المراد تخزينها مسبقاً",
         "max_cache_size": "الحد الأقصى لحجم التخزين المؤقت"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "تم الحفظ",
             "refreshed": "تم تحديث الإعدادات من الخادم",
+            "refresh_failed": "تعذر تحديث الإعدادات من الخادم",
             "disabled": "تم تعطيل Streamystats"
           },
           "refresh_from_server": "تحديث الإعدادات من الخادم"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "التخزين المؤقت للموسيقى",
-        "music_cache_description": "تخزين الأغاني تلقائياً أثناء الاستماع لضمان تشغيل أكثر سلاسة ودعم الاستماع بدون اتصال",
+        "music_cache_description": "تخزين الأغاني مؤقتًا وتلقائيًا أثناء التشغيل. يؤدي مسحها إلى تحرير مساحة دون التأثير على الأغاني التي قمت بتنزيلها.",
         "clear_music_cache": "مسح التخزين المؤقت للموسيقى",
         "music_cache_size": "تم تخزين {{size}} مؤقتاً",
         "music_cache_cleared": "تم مسح التخزين المؤقت للموسيقى",
@@ -415,7 +444,9 @@
         "click_for_more_info": "اضغط للمزيد من المعلومات",
         "level": "المستوى",
         "no_logs_available": "لا توجد سجلات متاحة",
-        "delete_all_logs": "حذف جميع السجلات"
+        "delete_all_logs": "حذف جميع السجلات",
+        "copy": "نسخ",
+        "copied": "تم النسخ إلى الحافظة"
       },
       "languages": {
         "title": "اللغات",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "الجلسات",
-      "no_active_sessions": "لا توجد جلسات نشطة"
+      "no_active_sessions": "لا توجد جلسات نشطة",
+      "select_session": "اختيار الجلسة",
+      "now_playing": "قيد التشغيل الآن:"
     },
     "downloads": {
       "downloads_title": "التنزيلات",
+      "transcoding": "إعادة الترميز",
       "series": "مسلسلات",
       "movies": "أفلام",
       "other_media": "وسائط أخرى",
@@ -501,6 +535,8 @@
     "none": "لا شيء",
     "track": "أغنية",
     "cancel": "إلغاء",
+    "stop": "إيقاف",
+    "open_menu": "فتح القائمة",
     "delete": "حذف",
     "ok": "حسناً",
     "remove": "إزالة",
@@ -595,14 +631,42 @@
     "boxsets": "مجموعات",
     "playlists": "قوائم التشغيل",
     "noDataTitle": "لا توجد مفضلات بعد",
-    "noData": "أضف العناصر إلى المفضلة لتظهر هنا للوصول السريع."
+    "noData": "العناصر التي تضيفها إلى المفضلة تظهر هنا."
   },
   "custom_links": {
     "no_links": "لا توجد روابط"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "تشغيل عشوائي",
+    "entire_series": "المسلسل بأكمله",
+    "episode_count": "{{count}} حلقات",
+    "menu": {
+      "quality": "الجودة",
+      "subtitles": "الترجمة",
+      "subtitle_scale": "حجم الترجمة",
+      "audio": "الصوت",
+      "speed": "السرعة",
+      "playback_options": "خيارات التشغيل",
+      "show_technical_info": "إظهار المعلومات التقنية",
+      "hide_technical_info": "إخفاء المعلومات التقنية"
+    },
+    "technical_info": {
+      "video": "فيديو:",
+      "audio": "الصوت:",
+      "subtitle": "الترجمة:",
+      "bitrate": "معدل البت:",
+      "source_bitrate": "الملف:",
+      "buffer_seconds": "التخزين المؤقت: {{seconds}}ث",
+      "vo": "VO:",
+      "dropped_frames": "تم إسقاط: {{count}} إطار",
+      "loading": "جار التحميل..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "نسبة العرض إلى الارتفاع",
+    "aspect_ratio_original": "الأصلية",
+    "hash_match": "تطابق Hash",
+    "still_watching": "هل ما زلت تشاهد؟",
     "error": "خطأ",
     "failed_to_get_stream_url": "فشل في الحصول على رابط البث",
     "an_error_occurred_while_playing_the_video": "حدث خطأ أثناء تشغيل الفيديو. تحقق من السجلات في الإعدادات.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "البث المباشر",
     "next": "التالي",
     "previous": "السابق",
     "coming_soon": "قريبًا",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "خادم Seerr لا يستوفي الحد الأدنى للإصدار المطلوب! يرجى التحديث إلى إصدار 2.0.0 على الأقل",
+      "jellyseerr_does_not_meet_requirements": "خادم Seerr لا يستوفي الحد الأدنى للإصدار المطلوب! يرجى التحديث إلى إصدار 2.0.0 على الأقل",
       "jellyseerr_test_failed": "فشل اختبار Seerr. يرجى المحاولة مرة أخرى.",
       "failed_to_test_jellyseerr_server_url": "فشل اختبار رابط خادم Seerr",
       "issue_submitted": "تم إرسال المشكلة!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "فشل في رفض الطلب"
     }
   },
+  "accessibility": {
+    "play_button": "زر التشغيل",
+    "play_hint": "اضغط لتشغيل الوسائط",
+    "toggle_orientation": "تبديل اتجاه الشاشة",
+    "toggle_orientation_hint": "يبدل اتجاه الشاشة بين الوضع العمودي والأفقي"
+  },
+  "not_found": {
+    "title": "هذه الشاشة غير موجودة.",
+    "go_home": "الانتقال إلى الشاشة الرئيسية!"
+  },
   "tabs": {
     "home": "الرئيسية",
     "search": "بحث",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "الموسيقى",
+    "no_track_playing": "لا توجد أغنية قيد التشغيل",
+    "queue_empty": "قائمة الانتظار فارغة",
+    "playing_from_queue": "التشغيل من قائمة الانتظار",
+    "up_next": "التالي",
+    "now_playing": "قيد التشغيل الآن",
+    "missing_library_id": "معرف مكتبة الموسيقى مفقود.",
     "tabs": {
       "suggestions": "الإقتراحات",
       "albums": "الألبومات",
@@ -879,7 +960,7 @@
     "allowed_type_label": "نوع المحتوى",
     "sort_order_label": "الترتيب الافتراضي",
     "empty_title": "لا توجد قوائم مشاهدة",
-    "empty_description": "قم بإنشاء أول قائمة مشاهدة لبدء تنظيم الوسائط الخاصة بك",
+    "empty_description": "أنشئ قائمة مشاهدة لتجميع الأشياء التي تريد مشاهدتها",
     "empty_watchlist": "قائمة المشاهدة هذه فارغة",
     "empty_watchlist_hint": "إضافة عناصر من مكتبتك إلى قائمة المشاهدة هذه",
     "not_configured_title": "لم يتم ضبط Streamystats",
