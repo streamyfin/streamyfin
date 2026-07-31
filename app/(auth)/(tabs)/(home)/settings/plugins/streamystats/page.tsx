@@ -10,12 +10,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
+import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
+import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function StreamystatsPage() {
   const { t } = useTranslation();
@@ -27,6 +30,7 @@ export default function StreamystatsPage() {
 
   // Local state for all editable fields
   const [url, setUrl] = useState<string>(settings?.streamyStatsServerUrl || "");
+  const urlResolver = useServerUrlResolver(reachabilityProbe);
   const [useForSearch, setUseForSearch] = useState<boolean>(
     settings?.searchEngine === "Streamystats",
   );
@@ -60,8 +64,18 @@ export default function StreamystatsPage() {
     : url;
   const isStreamystatsEnabled = !!effectiveUrl;
 
-  const onSave = useCallback(() => {
-    const cleanUrl = url.endsWith("/") ? url.slice(0, -1) : url;
+  const onSave = useCallback(async () => {
+    // Persist the canonical resolved URL when the server answers; keep the
+    // raw input as fallback so the URL can be saved while the host is down.
+    const raw = url.trim();
+    let cleanUrl = raw.endsWith("/") ? raw.slice(0, -1) : raw;
+    if (raw && !isUrlLocked) {
+      const result = await urlResolver.resolve(raw);
+      if (result.ok) {
+        cleanUrl = result.url;
+        setUrl(result.url);
+      }
+    }
     updateSettings({
       streamyStatsServerUrl: cleanUrl,
       searchEngine: useForSearch ? "Streamystats" : "Jellyfin",
@@ -75,6 +89,8 @@ export default function StreamystatsPage() {
     toast.success(t("home.settings.plugins.streamystats.toasts.saved"));
   }, [
     url,
+    isUrlLocked,
+    urlResolver.resolve,
     useForSearch,
     movieRecs,
     seriesRecs,
@@ -149,10 +165,25 @@ export default function StreamystatsPage() {
               returnKeyType='done'
               autoCapitalize='none'
               textContentType='URL'
-              onChangeText={setUrl}
+              onChangeText={(text) => {
+                setUrl(text);
+                // Editing invalidates the previous resolution status.
+                urlResolver.reset();
+              }}
+              onBlur={() => {
+                const candidate = url.trim();
+                if (candidate) {
+                  urlResolver.resolve(candidate).then((r) => {
+                    if (r.ok) setUrl(r.url);
+                  });
+                }
+              }}
             />
           </ListItem>
         </ListGroup>
+        <View className='px-4 mt-1'>
+          <ServerUrlStatusText state={urlResolver} />
+        </View>
 
         <Text className='px-4 text-xs text-neutral-500 mt-1'>
           {t("home.settings.plugins.streamystats.streamystats_search_hint")}{" "}

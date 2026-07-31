@@ -14,8 +14,9 @@ import {
   type LocalNetworkConfig,
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { Button } from "../Button";
-import { Input } from "../common/Input";
+import { ServerUrlField } from "../common/ServerUrlField";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -105,12 +106,23 @@ export function LocalNetworkSettings(): React.ReactElement | null {
 
   const remoteUrl = storage.getString("serverUrl");
   const [config, setConfig] = useState<LocalNetworkConfig>(DEFAULT_CONFIG);
+  // Draft of the URL being typed: persisting every keystroke would run
+  // refreshUrlState on half-typed values; the field commits on blur instead.
+  const [localUrlDraft, setLocalUrlDraft] = useState<string>(
+    DEFAULT_CONFIG.localUrl,
+  );
 
   useEffect(() => {
     if (remoteUrl) {
       const existingConfig = getServerLocalConfig(remoteUrl);
       if (existingConfig) {
         setConfig(existingConfig);
+        setLocalUrlDraft(existingConfig.localUrl);
+      } else {
+        // Server without a saved LAN config: reset instead of leaking the
+        // previously selected server's values into it.
+        setConfig(DEFAULT_CONFIG);
+        setLocalUrlDraft(DEFAULT_CONFIG.localUrl);
       }
     }
   }, [remoteUrl]);
@@ -140,7 +152,7 @@ export function LocalNetworkSettings(): React.ReactElement | null {
     [config, permissionStatus, requestPermission, saveConfig, t],
   );
 
-  const handleLocalUrlChange = useCallback(
+  const handleLocalUrlCommit = useCallback(
     (localUrl: string) => {
       saveConfig({ ...config, localUrl });
     },
@@ -204,13 +216,12 @@ export function LocalNetworkSettings(): React.ReactElement | null {
             }
           >
             <View className=''>
-              <Input
+              <ServerUrlField
+                value={localUrlDraft}
+                onChangeText={setLocalUrlDraft}
+                onCommit={handleLocalUrlCommit}
+                probe={jellyfinProbe}
                 placeholder={t("home.settings.network.local_url_placeholder")}
-                value={config.localUrl}
-                onChangeText={handleLocalUrlChange}
-                keyboardType='url'
-                autoCapitalize='none'
-                autoCorrect={false}
               />
             </View>
           </ListGroup>
