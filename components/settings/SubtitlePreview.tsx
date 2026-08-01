@@ -17,7 +17,7 @@ import {
   SUBTITLE_PREVIEW_VIDEO_HEIGHT,
   SUBTITLE_PREVIEW_VIDEO_WIDTH,
 } from "@/utils/subtitles";
-import { Text } from "../common/Text";
+import { Text } from "`@/components/common/Text`";
 
 export const SubtitlePreview = React.memo(() => {
   const { settings } = useSettings();
