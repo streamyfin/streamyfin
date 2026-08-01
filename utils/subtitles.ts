@@ -1,3 +1,6 @@
+import type { Settings } from "@/utils/atoms/settings";
+import { defaultValues } from "@/utils/atoms/settings";
+
 /**
  * Shared subtitle scaling logic.
  *
@@ -60,4 +63,26 @@ export const getEffectiveSubtitleScale = (
   // Undo the shrinkage, capped so on-screen size never exceeds ~3x the base.
   const boost = Math.min(1 / fitScale, MAX_SUBTITLE_BOOST);
   return Math.round(scaled * boost * 100) / 100;
+};
+
+const normalizedColor = (color?: string) =>
+  (color ?? defaultValues.subtitleColor).toUpperCase();
+
+export const hasCustomSubtitleStyle = (settings: Settings): boolean => {
+  const defaultSize = defaultValues.subtitleSize ?? 1;
+
+  return (
+    settings.subtitleBackground !== defaultValues.subtitleBackground ||
+    Math.abs((settings.subtitleSize ?? defaultSize) - defaultSize) > 0.001 ||
+    (settings.subtitleFont ?? defaultValues.subtitleFont) !==
+      defaultValues.subtitleFont ||
+    normalizedColor(settings.subtitleColor) !==
+      normalizedColor(defaultValues.subtitleColor) ||
+    (settings.subtitleMarginY ?? defaultValues.subtitleMarginY) !==
+      defaultValues.subtitleMarginY ||
+    (settings.subtitleAlignX ?? defaultValues.subtitleAlignX) !==
+      defaultValues.subtitleAlignX ||
+    (settings.subtitleAlignY ?? defaultValues.subtitleAlignY) !==
+      defaultValues.subtitleAlignY
+  );
 };

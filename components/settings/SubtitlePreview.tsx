@@ -12,6 +12,7 @@ import type { MpvPlayerViewRef } from "@/modules/mpv-player/src/MpvPlayer.types"
 import { useSettings } from "@/utils/atoms/settings";
 import {
   getEffectiveSubtitleScale,
+  hasCustomSubtitleStyle,
   SUBTITLE_PREVIEW_VIDEO_HEIGHT,
   SUBTITLE_PREVIEW_VIDEO_WIDTH,
 } from "@/utils/subtitles";
@@ -55,15 +56,6 @@ export const SubtitlePreview = React.memo(() => {
       .padStart(2, "0")
       .toUpperCase();
 
-    const shouldForceSubtitleStyle =
-      settings.subtitleBackground ||
-      Math.abs((settings.subtitleSize ?? 1) - 1) > 0.001 ||
-      settings.subtitleFont !== "System" ||
-      settings.subtitleColor.toUpperCase() !== "#FFFFFF" ||
-      settings.subtitleMarginY !== undefined ||
-      settings.subtitleAlignX !== undefined ||
-      settings.subtitleAlignY !== undefined;
-
     const effectiveScale = getEffectiveSubtitleScale(
       settings.subtitleSize ?? 1,
       SUBTITLE_PREVIEW_VIDEO_WIDTH,
@@ -95,7 +87,9 @@ export const SubtitlePreview = React.memo(() => {
     }
 
     commands.push(() =>
-      player.setSubtitleAssOverride(shouldForceSubtitleStyle ? "force" : "no"),
+      player.setSubtitleAssOverride(
+        hasCustomSubtitleStyle(settings) ? "force" : "no",
+      ),
     );
 
     for (const command of commands) {

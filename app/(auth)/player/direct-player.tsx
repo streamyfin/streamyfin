@@ -60,7 +60,10 @@ import {
   getMpvSubtitleId,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
-import { getEffectiveSubtitleScale } from "@/utils/subtitles";
+import {
+  getEffectiveSubtitleScale,
+  hasCustomSubtitleStyle,
+} from "@/utils/subtitles";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
@@ -1193,19 +1196,11 @@ export default function DirectPlayerPage() {
         backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
       });
 
-      const shouldForceSubtitleStyle =
-        settings.subtitleBackground ||
-        Math.abs((settings.subtitleSize ?? 1) - 1) > 0.001 ||
-        settings.subtitleFont !== "System" ||
-        settings.subtitleColor.toUpperCase() !== "#FFFFFF" ||
-        settings.subtitleMarginY !== undefined ||
-        settings.subtitleAlignX !== undefined ||
-        settings.subtitleAlignY !== undefined;
-
       // ASS subtitles define their own styles, including alignment/margins.
-      // Force overrides whenever the user has customized subtitle appearance
-      // or positioning; otherwise leave authored ASS styling untouched.
-      if (shouldForceSubtitleStyle) {
+      // Force overrides whenever the effective subtitle appearance or
+      // positioning differs from app defaults; otherwise leave authored ASS
+      // styling untouched.
+      if (hasCustomSubtitleStyle(settings)) {
         await videoRef.current?.setSubtitleAssOverride?.("force");
       } else {
         await videoRef.current?.setSubtitleAssOverride?.("no");
