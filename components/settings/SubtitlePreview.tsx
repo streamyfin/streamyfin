@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { Text } from "@/components/common/Text";
 import { MpvPlayerView } from "@/modules/mpv-player";
 import type { MpvPlayerViewRef } from "@/modules/mpv-player/src/MpvPlayer.types";
 import { useSettings } from "@/utils/atoms/settings";
@@ -17,7 +18,6 @@ import {
   SUBTITLE_PREVIEW_VIDEO_HEIGHT,
   SUBTITLE_PREVIEW_VIDEO_WIDTH,
 } from "@/utils/subtitles";
-import { Text } from "`@/components/common/Text`";
 
 export const SubtitlePreview = React.memo(() => {
   const { settings } = useSettings();
