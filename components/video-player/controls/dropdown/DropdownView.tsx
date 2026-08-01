@@ -16,19 +16,11 @@ import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
-// Subtitle scale presets (direct multiplier values)
-const SUBTITLE_SCALE_PRESETS = [
-  { label: "0.1x", value: 0.1 },
-  { label: "0.25x", value: 0.25 },
-  { label: "0.5x", value: 0.5 },
-  { label: "0.75x", value: 0.75 },
-  { label: "1.0x", value: 1.0 },
-  { label: "1.25x", value: 1.25 },
-  { label: "1.5x", value: 1.5 },
-  { label: "2.0x", value: 2.0 },
-  { label: "2.5x", value: 2.5 },
-  { label: "3.0x", value: 3.0 },
-] as const;
+// Subtitle scale options match the shared settings range (0.1 → 3.0 in 0.1 steps).
+const SUBTITLE_SCALE_PRESETS = Array.from({ length: 30 }, (_, index) => {
+  const value = Math.round((index + 1) * 10) / 100;
+  return { label: `${value.toFixed(1)}x`, value };
+});
 
 interface DropdownViewProps {
   playbackSpeed?: number;
@@ -135,7 +127,7 @@ const DropdownView = ({
           type: "radio" as const,
           label: preset.label,
           value: preset.value.toString(),
-          selected: settings.subtitleSize === preset.value,
+          selected: Math.abs(settings.subtitleSize - preset.value) < 0.001,
           onPress: () => updateSettings({ subtitleSize: preset.value }),
         })),
       });
