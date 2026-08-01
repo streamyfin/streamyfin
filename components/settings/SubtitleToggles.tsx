@@ -19,6 +19,13 @@ interface Props extends ViewProps {}
 type AlignX = "left" | "center" | "right";
 type AlignY = "top" | "center" | "bottom";
 
+const AUDIO_TRANSCODE_MODES = [
+  AudioTranscodeMode.Auto,
+  AudioTranscodeMode.ForceStereo,
+  AudioTranscodeMode.Allow51,
+  AudioTranscodeMode.AllowAll,
+] as const;
+
 export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   const isTv = Platform.isTV;
 
@@ -117,68 +124,35 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     return [{ options }];
   }, [settings?.subtitleMode, t, updateSettings]);
 
-  const audioTranscodeModeLabels: Record<AudioTranscodeMode, string> = {
-    [AudioTranscodeMode.Auto]: t("home.settings.audio.transcode_mode.auto"),
-    [AudioTranscodeMode.ForceStereo]: t(
-      "home.settings.audio.transcode_mode.stereo",
-    ),
-    [AudioTranscodeMode.Allow51]: t("home.settings.audio.transcode_mode.5_1"),
-    [AudioTranscodeMode.AllowAll]: t(
-      "home.settings.audio.transcode_mode.passthrough",
-    ),
-  };
+  const audioTranscodeModeLabels = useMemo(
+    (): Record<AudioTranscodeMode, string> => ({
+      [AudioTranscodeMode.Auto]: t("home.settings.audio.transcode_mode.auto"),
+      [AudioTranscodeMode.ForceStereo]: t(
+        "home.settings.audio.transcode_mode.stereo",
+      ),
+      [AudioTranscodeMode.Allow51]: t("home.settings.audio.transcode_mode.5_1"),
+      [AudioTranscodeMode.AllowAll]: t(
+        "home.settings.audio.transcode_mode.passthrough",
+      ),
+    }),
+    [t],
+  );
 
   const audioTranscodeModeOptions = useMemo(
     () => [
       {
-        options: [
-          {
-            type: "radio" as const,
-            label: t("home.settings.audio.transcode_mode.auto"),
-            value: AudioTranscodeMode.Auto,
-            selected:
-              settings?.audioTranscodeMode === AudioTranscodeMode.Auto ||
-              !settings?.audioTranscodeMode,
-            onPress: () =>
-              updateSettings({ audioTranscodeMode: AudioTranscodeMode.Auto }),
-          },
-          {
-            type: "radio" as const,
-            label: t("home.settings.audio.transcode_mode.stereo"),
-            value: AudioTranscodeMode.ForceStereo,
-            selected:
-              settings?.audioTranscodeMode === AudioTranscodeMode.ForceStereo,
-            onPress: () =>
-              updateSettings({
-                audioTranscodeMode: AudioTranscodeMode.ForceStereo,
-              }),
-          },
-          {
-            type: "radio" as const,
-            label: t("home.settings.audio.transcode_mode.5_1"),
-            value: AudioTranscodeMode.Allow51,
-            selected:
-              settings?.audioTranscodeMode === AudioTranscodeMode.Allow51,
-            onPress: () =>
-              updateSettings({
-                audioTranscodeMode: AudioTranscodeMode.Allow51,
-              }),
-          },
-          {
-            type: "radio" as const,
-            label: t("home.settings.audio.transcode_mode.passthrough"),
-            value: AudioTranscodeMode.AllowAll,
-            selected:
-              settings?.audioTranscodeMode === AudioTranscodeMode.AllowAll,
-            onPress: () =>
-              updateSettings({
-                audioTranscodeMode: AudioTranscodeMode.AllowAll,
-              }),
-          },
-        ],
+        options: AUDIO_TRANSCODE_MODES.map((mode) => ({
+          type: "radio" as const,
+          label: audioTranscodeModeLabels[mode],
+          value: mode,
+          selected:
+            settings?.audioTranscodeMode === mode ||
+            (mode === AudioTranscodeMode.Auto && !settings?.audioTranscodeMode),
+          onPress: () => updateSettings({ audioTranscodeMode: mode }),
+        })),
       },
     ],
-    [settings?.audioTranscodeMode, t, updateSettings],
+    [audioTranscodeModeLabels, settings?.audioTranscodeMode, updateSettings],
   );
 
   const fontOptions = useMemo(
