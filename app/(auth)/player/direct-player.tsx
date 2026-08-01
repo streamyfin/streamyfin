@@ -68,6 +68,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
 import {
+  getEffectiveSubtitleMarginY,
   getEffectiveSubtitleScale,
   hasCustomSubtitleStyle,
 } from "@/utils/subtitles";
@@ -1512,7 +1513,9 @@ export default function DirectPlayerPage() {
     const applySubtitleSettings = async () => {
       await videoRef.current?.setSubtitleScale?.(effectiveSubtitleScale);
       if (settings.subtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY?.(settings.subtitleMarginY);
+        await videoRef.current?.setSubtitleMarginY?.(
+          getEffectiveSubtitleMarginY(settings.subtitleMarginY),
+        );
       }
       if (settings.subtitleAlignX !== undefined) {
         await videoRef.current?.setSubtitleAlignX?.(settings.subtitleAlignX);

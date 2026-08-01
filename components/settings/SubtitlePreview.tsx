@@ -11,6 +11,7 @@ import { MpvPlayerView } from "@/modules/mpv-player";
 import type { MpvPlayerViewRef } from "@/modules/mpv-player/src/MpvPlayer.types";
 import { useSettings } from "@/utils/atoms/settings";
 import {
+  getEffectiveSubtitleMarginY,
   getEffectiveSubtitleScale,
   hasCustomSubtitleStyle,
   SUBTITLE_PREVIEW_VIDEO_HEIGHT,
@@ -77,7 +78,9 @@ export const SubtitlePreview = React.memo(() => {
 
     const { subtitleMarginY, subtitleAlignX, subtitleAlignY } = settings;
     if (subtitleMarginY !== undefined) {
-      commands.push(() => player.setSubtitleMarginY(subtitleMarginY));
+      commands.push(() =>
+        player.setSubtitleMarginY(getEffectiveSubtitleMarginY(subtitleMarginY)),
+      );
     }
     if (subtitleAlignX !== undefined) {
       commands.push(() => player.setSubtitleAlignX(subtitleAlignX));

@@ -1,9 +1,14 @@
-import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  type CultureDto,
+  SubtitlePlaybackMode,
+  type UserConfiguration,
+} from "@jellyfin/sdk/lib/generated-client";
+import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,6 +42,7 @@ import {
   InactivityTimeout,
   type MpvCacheMode,
   type MpvVoDriver,
+  type Settings,
   TVTypographyScale,
   useSettings,
   VideoPlayer,
@@ -53,7 +59,7 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 export default function SettingsTV() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { logout, loginWithSavedCredential, loginWithPassword } = useJellyfin();
   const [user] = useAtom(userAtom);
   const [api] = useAtom(apiAtom);
@@ -62,6 +68,84 @@ export default function SettingsTV() {
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
   const queryClient = useQueryClient();
+
+  const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
+    queryKey: ["cultures"],
+    queryFn: async () => {
+      if (!api) return [];
+      const localizationApi = getLocalizationApi(api);
+      return localizationApi.getCultures().then(({ data }) => data ?? []);
+    },
+    enabled: !!api,
+    staleTime: 43200000, // 12 hours
+  });
+
+  useEffect(() => {
+    if (!user || cultures.length === 0 || !isCulturesFetched) return;
+
+    const userSubtitlePreference =
+      user.Configuration?.SubtitleLanguagePreference;
+    const userAudioPreference = user.Configuration?.AudioLanguagePreference;
+
+    const subtitlePreference = cultures.find(
+      (culture) =>
+        culture.ThreeLetterISOLanguageName === userSubtitlePreference,
+    );
+    const audioPreference = cultures.find(
+      (culture) => culture.ThreeLetterISOLanguageName === userAudioPreference,
+    );
+
+    updateSettings({
+      defaultSubtitleLanguage: subtitlePreference,
+      defaultAudioLanguage: audioPreference,
+      subtitleMode: user.Configuration?.SubtitleMode,
+      playDefaultAudioTrack: user.Configuration?.PlayDefaultAudioTrack,
+      rememberAudioSelections: user.Configuration?.RememberAudioSelections,
+      rememberSubtitleSelections:
+        user.Configuration?.RememberSubtitleSelections,
+    });
+  }, [user, cultures, isCulturesFetched]);
+
+  const updateMediaSettings = (update: Partial<Settings>) => {
+    updateSettings(update);
+
+    if (!api || !user) return;
+
+    const updatePayload = {
+      SubtitleMode: update.subtitleMode ?? settings.subtitleMode,
+      PlayDefaultAudioTrack:
+        update.playDefaultAudioTrack ?? settings.playDefaultAudioTrack,
+      RememberAudioSelections:
+        update.rememberAudioSelections ?? settings.rememberAudioSelections,
+      RememberSubtitleSelections:
+        update.rememberSubtitleSelections ??
+        settings.rememberSubtitleSelections,
+    } as Partial<UserConfiguration>;
+
+    updatePayload.AudioLanguagePreference =
+      update.defaultAudioLanguage === null
+        ? ""
+        : update.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
+          settings.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
+          "";
+
+    updatePayload.SubtitleLanguagePreference =
+      update.defaultSubtitleLanguage === null
+        ? ""
+        : update.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
+          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
+          "";
+
+    getUserApi(api)
+      .updateUserConfiguration({
+        userConfiguration: {
+          ...user.Configuration,
+          ...updatePayload,
+        },
+      })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["authUser"] }))
+      .catch(() => {});
+  };
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -311,6 +395,45 @@ export default function SettingsTV() {
     [t, currentAudioTranscode],
   );
 
+  const languageName = (culture: CultureDto | null | undefined) =>
+    culture?.DisplayName || culture?.ThreeLetterISOLanguageName || "Unknown";
+
+  const audioLanguageOptions: TVOptionItem<CultureDto | null>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.audio.none"),
+        value: null,
+        selected: !settings.defaultAudioLanguage,
+      },
+      ...cultures.map((culture) => ({
+        label: languageName(culture),
+        value: culture,
+        selected:
+          culture.ThreeLetterISOLanguageName ===
+          settings.defaultAudioLanguage?.ThreeLetterISOLanguageName,
+      })),
+    ],
+    [cultures, settings.defaultAudioLanguage, t],
+  );
+
+  const subtitleLanguageOptions: TVOptionItem<CultureDto | null>[] = useMemo(
+    () => [
+      {
+        label: t("home.settings.subtitles.none"),
+        value: null,
+        selected: !settings.defaultSubtitleLanguage,
+      },
+      ...cultures.map((culture) => ({
+        label: languageName(culture),
+        value: culture,
+        selected:
+          culture.ThreeLetterISOLanguageName ===
+          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
+      })),
+    ],
+    [cultures, settings.defaultSubtitleLanguage, t],
+  );
+
   // Subtitle mode options
   const subtitleModeOptions: TVOptionItem<SubtitlePlaybackMode>[] = useMemo(
     () => [
@@ -341,6 +464,37 @@ export default function SettingsTV() {
       },
     ],
     [t, currentSubtitleMode],
+  );
+
+  const fontOptions: TVOptionItem<string>[] = useMemo(
+    () =>
+      [
+        { label: "System", value: "System" },
+        { label: "Sans-Serif", value: "sans-serif" },
+        { label: "Serif", value: "serif" },
+        { label: "Monospace", value: "monospace" },
+        { label: "Dyslexic", value: "opendyslexic" },
+      ].map((font) => ({
+        ...font,
+        selected: font.value === settings.subtitleFont,
+      })),
+    [settings.subtitleFont],
+  );
+
+  const subtitleColorOptions: TVOptionItem<string>[] = useMemo(
+    () =>
+      [
+        { label: "White", value: "#FFFFFF" },
+        { label: "Yellow", value: "#FFFF00" },
+        { label: "Cyan", value: "#00FFFF" },
+        { label: "Green", value: "#00FF00" },
+        { label: "Magenta", value: "#FF00FF" },
+        { label: "Red", value: "#FF0000" },
+      ].map((color) => ({
+        ...color,
+        selected: color.value === settings.subtitleColor,
+      })),
+    [settings.subtitleColor],
   );
 
   // MPV alignment options
@@ -543,10 +697,30 @@ export default function SettingsTV() {
     return option?.label || t("home.settings.audio.transcode_mode.auto");
   }, [audioTranscodeModeOptions, t]);
 
+  const audioLanguageLabel = useMemo(() => {
+    const option = audioLanguageOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.audio.none");
+  }, [audioLanguageOptions, t]);
+
+  const subtitleLanguageLabel = useMemo(() => {
+    const option = subtitleLanguageOptions.find((o) => o.selected);
+    return option?.label || t("home.settings.subtitles.none");
+  }, [subtitleLanguageOptions, t]);
+
   const subtitleModeLabel = useMemo(() => {
     const option = subtitleModeOptions.find((o) => o.selected);
     return option?.label || t("home.settings.subtitles.modes.Default");
   }, [subtitleModeOptions, t]);
+
+  const subtitleFontLabel = useMemo(() => {
+    const option = fontOptions.find((o) => o.selected);
+    return option?.label || "System";
+  }, [fontOptions]);
+
+  const subtitleColorLabel = useMemo(() => {
+    const option = subtitleColorOptions.find((o) => o.selected);
+    return option?.label || "White";
+  }, [subtitleColorOptions]);
 
   const alignXLabel = useMemo(() => {
     const option = alignXOptions.find((o) => o.selected);
@@ -671,6 +845,34 @@ export default function SettingsTV() {
           )}
 
           <TVSettingsOptionButton
+            label={t("home.settings.audio.audio_language")}
+            value={audioLanguageLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.audio.language"),
+                options: audioLanguageOptions,
+                onSelect: (value) =>
+                  updateMediaSettings({ defaultAudioLanguage: value }),
+              })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.audio.play_default_audio_track")}
+            value={settings.playDefaultAudioTrack}
+            disabled={pluginSettings?.playDefaultAudioTrack?.locked}
+            onToggle={(value) =>
+              updateMediaSettings({ playDefaultAudioTrack: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.audio.set_audio_track")}
+            value={settings.rememberAudioSelections}
+            disabled={pluginSettings?.rememberAudioSelections?.locked}
+            onToggle={(value) =>
+              updateMediaSettings({ rememberAudioSelections: value })
+            }
+          />
+          <TVSettingsOptionButton
             label={t("home.settings.audio.transcode_mode.title")}
             value={audioTranscodeLabel}
             onPress={() =>
@@ -688,26 +890,71 @@ export default function SettingsTV() {
             title={t("home.settings.subtitles.subtitle_title")}
           />
           <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_language")}
+            value={subtitleLanguageLabel}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.language"),
+                options: subtitleLanguageOptions,
+                onSelect: (value) =>
+                  updateMediaSettings({ defaultSubtitleLanguage: value }),
+              })
+            }
+          />
+          <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_mode")}
             value={subtitleModeLabel}
+            disabled={pluginSettings?.subtitleMode?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_mode"),
                 options: subtitleModeOptions,
-                onSelect: (value) => updateSettings({ subtitleMode: value }),
+                onSelect: (value) =>
+                  updateMediaSettings({ subtitleMode: value }),
               })
             }
           />
           <TVSettingsToggle
             label={t("home.settings.subtitles.set_subtitle_track")}
             value={settings.rememberSubtitleSelections}
+            disabled={pluginSettings?.rememberSubtitleSelections?.locked}
             onToggle={(value) =>
-              updateSettings({ rememberSubtitleSelections: value })
+              updateMediaSettings({ rememberSubtitleSelections: value })
+            }
+          />
+
+          {/* Subtitle Appearance Section */}
+          <TVSectionHeader
+            title={t("home.settings.subtitles.subtitle_appearance_title")}
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_font")}
+            value={subtitleFontLabel}
+            disabled={pluginSettings?.subtitleFont?.locked}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.subtitle_font"),
+                options: fontOptions,
+                onSelect: (value) => updateSettings({ subtitleFont: value }),
+              })
+            }
+          />
+          <TVSettingsOptionButton
+            label={t("home.settings.subtitles.subtitle_color")}
+            value={subtitleColorLabel}
+            disabled={pluginSettings?.subtitleColor?.locked}
+            onPress={() =>
+              showOptions({
+                title: t("home.settings.subtitles.subtitle_color"),
+                options: subtitleColorOptions,
+                onSelect: (value) => updateSettings({ subtitleColor: value }),
+              })
             }
           />
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
             value={settings.subtitleSize}
+            disabled={pluginSettings?.subtitleSize?.locked}
             onDecrease={() => {
               const newValue = Math.max(0.1, settings.subtitleSize - 0.1);
               updateSettings({
@@ -726,7 +973,10 @@ export default function SettingsTV() {
             label={t("home.settings.subtitles.subtitle_margin_y")}
             value={settings.subtitleMarginY ?? 0}
             onDecrease={() => {
-              const newValue = Math.max(0, (settings.subtitleMarginY ?? 0) - 5);
+              const newValue = Math.max(
+                -100,
+                (settings.subtitleMarginY ?? 0) - 5,
+              );
               updateSettings({ subtitleMarginY: newValue });
             }}
             onIncrease={() => {
@@ -768,6 +1018,55 @@ export default function SettingsTV() {
               })
             }
           />
+          <TVSettingsToggle
+            label={t("home.settings.subtitles.subtitle_background")}
+            value={settings.subtitleBackground}
+            disabled={pluginSettings?.subtitleBackground?.locked}
+            onToggle={(value) => updateSettings({ subtitleBackground: value })}
+          />
+          {settings.subtitleBackground && (
+            <TVSettingsStepper
+              label={t("home.settings.subtitles.subtitle_background_opacity")}
+              value={settings.subtitleBackgroundOpacity}
+              disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
+              onDecrease={() => {
+                const newValue = Math.max(
+                  0,
+                  settings.subtitleBackgroundOpacity - 5,
+                );
+                updateSettings({ subtitleBackgroundOpacity: newValue });
+              }}
+              onIncrease={() => {
+                const newValue = Math.min(
+                  100,
+                  settings.subtitleBackgroundOpacity + 5,
+                );
+                updateSettings({ subtitleBackgroundOpacity: newValue });
+              }}
+              formatValue={(v) => `${v}%`}
+            />
+          )}
+          {settings.subtitleBackground && (
+            <TVSettingsStepper
+              label={t("home.settings.subtitles.subtitle_background_padding")}
+              value={settings.subtitleBackgroundPadding}
+              disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
+              onDecrease={() => {
+                const newValue = Math.max(
+                  0,
+                  settings.subtitleBackgroundPadding - 1,
+                );
+                updateSettings({ subtitleBackgroundPadding: newValue });
+              }}
+              onIncrease={() => {
+                const newValue = Math.min(
+                  30,
+                  settings.subtitleBackgroundPadding + 1,
+                );
+                updateSettings({ subtitleBackgroundPadding: newValue });
+              }}
+            />
+          )}
 
           {/* OpenSubtitles Section */}
           <TVSectionHeader
