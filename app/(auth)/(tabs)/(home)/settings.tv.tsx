@@ -415,7 +415,9 @@ export default function SettingsTV() {
   );
 
   const languageName = (culture: CultureDto | null | undefined) =>
-    culture?.DisplayName || culture?.ThreeLetterISOLanguageName || "Unknown";
+    culture?.DisplayName ||
+    culture?.ThreeLetterISOLanguageName ||
+    t("home.settings.subtitles.unknown_language");
 
   const audioLanguageOptions: TVOptionItem<CultureDto | null>[] = useMemo(
     () => [
@@ -488,32 +490,47 @@ export default function SettingsTV() {
   const fontOptions: TVOptionItem<string>[] = useMemo(
     () =>
       [
-        { label: "System", value: "System" },
-        { label: "Sans-Serif", value: "sans-serif" },
-        { label: "Serif", value: "serif" },
-        { label: "Monospace", value: "monospace" },
-        { label: "Dyslexic", value: "opendyslexic" },
+        {
+          label: t("home.settings.subtitles.fonts.system"),
+          value: "System",
+        },
+        {
+          label: t("home.settings.subtitles.fonts.sans_serif"),
+          value: "sans-serif",
+        },
+        { label: t("home.settings.subtitles.fonts.serif"), value: "serif" },
+        {
+          label: t("home.settings.subtitles.fonts.monospace"),
+          value: "monospace",
+        },
+        {
+          label: t("home.settings.subtitles.fonts.dyslexic"),
+          value: "opendyslexic",
+        },
       ].map((font) => ({
         ...font,
         selected: font.value === settings.subtitleFont,
       })),
-    [settings.subtitleFont],
+    [settings.subtitleFont, t],
   );
 
   const subtitleColorOptions: TVOptionItem<string>[] = useMemo(
     () =>
       [
-        { label: "White", value: "#FFFFFF" },
-        { label: "Yellow", value: "#FFFF00" },
-        { label: "Cyan", value: "#00FFFF" },
-        { label: "Green", value: "#00FF00" },
-        { label: "Magenta", value: "#FF00FF" },
-        { label: "Red", value: "#FF0000" },
+        { label: t("home.settings.subtitles.colors.white"), value: "#FFFFFF" },
+        { label: t("home.settings.subtitles.colors.yellow"), value: "#FFFF00" },
+        { label: t("home.settings.subtitles.colors.cyan"), value: "#00FFFF" },
+        { label: t("home.settings.subtitles.colors.green"), value: "#00FF00" },
+        {
+          label: t("home.settings.subtitles.colors.magenta"),
+          value: "#FF00FF",
+        },
+        { label: t("home.settings.subtitles.colors.red"), value: "#FF0000" },
       ].map((color) => ({
         ...color,
         selected: color.value === settings.subtitleColor,
       })),
-    [settings.subtitleColor],
+    [settings.subtitleColor, t],
   );
 
   // MPV alignment options
@@ -733,13 +750,13 @@ export default function SettingsTV() {
 
   const subtitleFontLabel = useMemo(() => {
     const option = fontOptions.find((o) => o.selected);
-    return option?.label || "System";
-  }, [fontOptions]);
+    return option?.label || t("home.settings.subtitles.fonts.system");
+  }, [fontOptions, t]);
 
   const subtitleColorLabel = useMemo(() => {
     const option = subtitleColorOptions.find((o) => o.selected);
-    return option?.label || "White";
-  }, [subtitleColorOptions]);
+    return option?.label || t("home.settings.subtitles.colors.white");
+  }, [subtitleColorOptions, t]);
 
   const alignXLabel = useMemo(() => {
     const option = alignXOptions.find((o) => o.selected);

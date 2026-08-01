@@ -89,7 +89,8 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       },
       ...(cultures?.map((culture) => ({
         type: "radio" as const,
-        label: culture.DisplayName || "Unknown",
+        label:
+          culture.DisplayName || t("home.settings.subtitles.unknown_language"),
         value:
           culture.ThreeLetterISOLanguageName ||
           culture.DisplayName ||
@@ -180,13 +181,25 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     [settings?.audioTranscodeMode, t, updateSettings],
   );
 
-  const fontOptions = [
-    { label: "System", value: "System" },
-    { label: "Sans-Serif", value: "sans-serif" },
-    { label: "Serif", value: "serif" },
-    { label: "Monospace", value: "monospace" },
-    { label: "Dyslexic", value: "opendyslexic" },
-  ];
+  const fontOptions = useMemo(
+    () => [
+      { label: t("home.settings.subtitles.fonts.system"), value: "System" },
+      {
+        label: t("home.settings.subtitles.fonts.sans_serif"),
+        value: "sans-serif",
+      },
+      { label: t("home.settings.subtitles.fonts.serif"), value: "serif" },
+      {
+        label: t("home.settings.subtitles.fonts.monospace"),
+        value: "monospace",
+      },
+      {
+        label: t("home.settings.subtitles.fonts.dyslexic"),
+        value: "opendyslexic",
+      },
+    ],
+    [t],
+  );
 
   const fontOptionGroups = useMemo(() => {
     const options = fontOptions.map((font) => ({
@@ -203,6 +216,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
 
     return [{ options }];
   }, [
+    fontOptions,
     settings?.subtitleFont,
     pluginSettings?.subtitleFont?.locked,
     updateSettings,
@@ -230,14 +244,17 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     return [{ options }];
   }, [settings?.subtitleAlignY, t, updateSettings]);
 
-  const subtitleColors = [
-    { name: "White", hex: "#FFFFFF" },
-    { name: "Yellow", hex: "#FFFF00" },
-    { name: "Cyan", hex: "#00FFFF" },
-    { name: "Green", hex: "#00FF00" },
-    { name: "Magenta", hex: "#FF00FF" },
-    { name: "Red", hex: "#FF0000" },
-  ];
+  const subtitleColors = useMemo(
+    () => [
+      { name: t("home.settings.subtitles.colors.white"), hex: "#FFFFFF" },
+      { name: t("home.settings.subtitles.colors.yellow"), hex: "#FFFF00" },
+      { name: t("home.settings.subtitles.colors.cyan"), hex: "#00FFFF" },
+      { name: t("home.settings.subtitles.colors.green"), hex: "#00FF00" },
+      { name: t("home.settings.subtitles.colors.magenta"), hex: "#FF00FF" },
+      { name: t("home.settings.subtitles.colors.red"), hex: "#FF0000" },
+    ],
+    [t],
+  );
 
   if (isTv) return null;
   if (!settings) return null;
@@ -413,7 +430,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
                   {fontOptions.find((f) => f.value === settings?.subtitleFont)
-                    ?.label ?? "System"}
+                    ?.label ?? t("home.settings.subtitles.fonts.system")}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'
@@ -436,7 +453,10 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
                 key={color.hex}
                 disabled={pluginSettings?.subtitleColor?.locked}
                 accessibilityRole='button'
-                accessibilityLabel={`Color ${color.name}`}
+                accessibilityLabel={t(
+                  "home.settings.subtitles.color_accessibility_label",
+                  { color: color.name },
+                )}
                 accessibilityState={{
                   disabled: !!pluginSettings?.subtitleColor?.locked,
                   selected: settings.subtitleColor === color.hex,

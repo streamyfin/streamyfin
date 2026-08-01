@@ -1,5 +1,6 @@
 import { Asset } from "expo-asset";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -20,6 +21,7 @@ import {
 } from "@/utils/subtitles";
 
 export const SubtitlePreview = React.memo(() => {
+  const { t } = useTranslation();
   const { settings } = useSettings();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [assetUri, setAssetUri] = useState<string | null>(null);
@@ -121,14 +123,16 @@ export const SubtitlePreview = React.memo(() => {
   if (assetError) {
     return (
       <View style={[styles.container, styles.errorContainer]}>
-        <Text style={styles.errorText}>Failed to load preview</Text>
+        <Text style={styles.errorText}>
+          {t("home.settings.subtitles.preview_load_error")}
+        </Text>
         <TouchableOpacity
           onPress={() => {
             loadAsset();
           }}
           style={styles.retryButton}
         >
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t("retry")}</Text>
         </TouchableOpacity>
       </View>
     );

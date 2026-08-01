@@ -291,6 +291,24 @@
         "subtitle_background_padding": "Espacement de l'arrière-plan",
         "subtitle_font": "Police des sous-titres",
         "subtitle_color": "Couleur des sous-titres",
+        "unknown_language": "Inconnu",
+        "preview_load_error": "Échec du chargement de l'aperçu",
+        "color_accessibility_label": "Couleur des sous-titres : {{color}}",
+        "fonts": {
+          "system": "Système",
+          "sans_serif": "Sans serif",
+          "serif": "Serif",
+          "monospace": "Largeur fixe",
+          "dyslexic": "Dyslexique"
+        },
+        "colors": {
+          "white": "Blanc",
+          "yellow": "Jaune",
+          "cyan": "Cyan",
+          "green": "Vert",
+          "magenta": "Magenta",
+          "red": "Rouge"
+        },
         "none": "Aucune",
         "language": "Langue",
         "loading": "Chargement",

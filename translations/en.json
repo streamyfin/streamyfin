@@ -291,6 +291,24 @@
         "subtitle_background_padding": "Background padding",
         "subtitle_font": "Subtitle font",
         "subtitle_color": "Subtitle color",
+        "unknown_language": "Unknown",
+        "preview_load_error": "Failed to load preview",
+        "color_accessibility_label": "Subtitle color: {{color}}",
+        "fonts": {
+          "system": "System",
+          "sans_serif": "Sans-serif",
+          "serif": "Serif",
+          "monospace": "Monospace",
+          "dyslexic": "Dyslexic"
+        },
+        "colors": {
+          "white": "White",
+          "yellow": "Yellow",
+          "cyan": "Cyan",
+          "green": "Green",
+          "magenta": "Magenta",
+          "red": "Red"
+        },
         "none": "None",
         "language": "Language",
         "modes": {
