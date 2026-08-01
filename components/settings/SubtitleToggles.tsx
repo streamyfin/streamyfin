@@ -3,8 +3,8 @@ import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
-import { Switch } from "react-native-gesture-handler";
 import { Input } from "@/components/common/Input";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Stepper } from "@/components/inputs/Stepper";
 import { SubtitlePreview } from "@/components/settings/SubtitlePreview";
 import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
@@ -281,7 +281,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           title={t("home.settings.audio.play_default_audio_track")}
           disabled={pluginSettings?.playDefaultAudioTrack?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.playDefaultAudioTrack}
             disabled={pluginSettings?.playDefaultAudioTrack?.locked}
             onValueChange={(value) =>
@@ -294,7 +294,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           title={t("home.settings.audio.set_audio_track")}
           disabled={pluginSettings?.rememberAudioSelections?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.rememberAudioSelections}
             disabled={pluginSettings?.rememberAudioSelections?.locked}
             onValueChange={(value) =>
@@ -382,7 +382,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           title={t("home.settings.subtitles.set_subtitle_track")}
           disabled={pluginSettings?.rememberSubtitleSelections?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.rememberSubtitleSelections}
             disabled={pluginSettings?.rememberSubtitleSelections?.locked}
             onValueChange={(value) =>
@@ -533,7 +533,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           subtitle={t("home.settings.subtitles.subtitle_background_hint")}
           disabled={pluginSettings?.subtitleBackground?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.subtitleBackground}
             disabled={pluginSettings?.subtitleBackground?.locked}
             onValueChange={(value) =>

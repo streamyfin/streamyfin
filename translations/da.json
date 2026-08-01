@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Brugernavn er påkrævet",
     "error_title": "Fejl",
@@ -12,18 +19,21 @@
     "login_button": "Log ind",
     "quick_connect": "Hurtigforbindelse",
     "enter_code_to_login": "Indtast koden {{code}} for at logge ind",
+    "quick_connect_instructions": "Indtast denne kode på en enhed, der allerede er logget ind. Du bliver logget ind automatisk.",
+    "tap_code_to_copy": "Tryk på koden for at kopiere den",
+    "code_copied": "Kode kopieret",
     "failed_to_initiate_quick_connect": "Kunne ikke starte hurtigforbindelse",
     "got_it": "Forstået",
     "connection_failed": "Forbindelsen mislykkedes",
     "could_not_connect_to_server": "Kunne ikke oprette forbindelse til serveren. Tjek venligst URL'en og din netværksforbindelse.",
-    "an_unexpected_error_occured": "Der opstod en uventet fejl",
+    "an_unexpected_error_occurred": "Der opstod en uventet fejl",
     "change_server": "Skift server",
     "invalid_username_or_password": "Ugyldigt brugernavn eller adgangskode",
     "user_does_not_have_permission_to_log_in": "Brugeren har ikke tilladelse til at logge ind",
     "server_is_taking_too_long_to_respond_try_again_later": "Serveren svarer for langsomt, prøv igen senere",
     "server_received_too_many_requests_try_again_later": "Serveren modtog for mange forespørgsler, prøv igen senere.",
     "there_is_a_server_error": "Der er en serverfejl",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Der opstod en uventet fejl. Har du indtastet serverens URL korrekt?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "Der opstod en uventet fejl. Har du indtastet serverens URL korrekt?",
     "too_old_server_text": "Ikke Understøttet Jellyfin Server Opdaget",
     "too_old_server_description": "Opdater venligst Jellyfin til den seneste version"
   },
@@ -33,6 +43,7 @@
     "connect_button": "Forbind",
     "previous_servers": "Tidligere servere",
     "clear_button": "Ryd",
+    "server_url": "Server-URL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Søg efter lokale servere",
     "searching": "Søger...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "Kontoen blev ikke gemt",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Velkommen til Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "En gratis og open-source klient til Jellyfin.",
       "features_title": "Funktioner",
-      "features_description": "Streamyfin har en masse funktioner og integrerer med en bred vifte af software, som du kan finde i indstillingsmenuen, disse omfatter:",
+      "features_description": "Streamyfin har en masse funktioner og fungerer med anden software. Du finder dem i indstillingsmenuen:",
       "jellyseerr_feature_description": "Forbind til din Jellyseerr instans og anmod om film direkte i appen.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download film og tv-serier til offline visning. Brug enten standardmetoden eller installer optimiseret server for at downloade filer i baggrunden.",
       "chromecast_feature_description": "Cast film og tv-serier til dine Chromecast enheder.",
       "centralised_settings_plugin_title": "Centraliseret indstillingsplugin",
-      "centralised_settings_plugin_description": "Konfigurer indstillinger fra et centraliseret sted på din Jellyfin server. Alle klientindstillinger for alle brugere synkroniseres automatisk.",
+      "centralised_settings_plugin_description": "Konfigurer indstillinger centralt på din Jellyfin server. Alle brugeres klientindstillinger synkroniseres automatisk.",
       "done_button": "Færdig",
       "go_to_settings_button": "Gå til indstillinger",
       "read_more": "Læs mere"
     },
     "settings": {
       "settings_title": "Indstillinger",
+      "disabled_by_admin": "Deaktiveret af administrator",
       "log_out_button": "Log ud",
       "switch_user": {
         "title": "Switch User",
@@ -137,7 +150,11 @@
       "appearance": {
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
+        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide Remote Session Button",
+        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic Home Backdrop",
         "show_hero_carousel": "Hero Carousel",
         "show_series_poster_on_episode": "Show Series Poster on Episodes",
@@ -174,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID skjult",
+        "location_off_description": "Forbundet til Wi-Fi, men netværksnavnet er skjult. Aktivér Placering i enhedens indstillinger, og giv appen placeringstilladelse for at finde det.",
+        "open_location_settings": "Åbn placeringsindstillinger"
       },
       "user_info": {
         "user_info_title": "Brugerinfo",
@@ -188,16 +208,24 @@
         "authorize_button": "Autoriser Hurtigforbindelse",
         "enter_the_quick_connect_code": "Indtast koden til hurtigforbindelse...",
         "success": "Succes",
-        "quick_connect_autorized": "Hurtigforbindelse autoriseret",
+        "quick_connect_authorized": "Hurtigforbindelse autoriseret",
         "error": "Fejl",
         "invalid_code": "Ugyldig kode",
-        "authorize": "Autoriser"
+        "authorize": "Autoriser",
+        "paste_code": "Indsæt kode"
       },
       "media_controls": {
         "media_controls_title": "Mediekontrol",
         "forward_skip_length": "Spol frem længde",
         "rewind_length": "Spol tilbage længde",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Videoafspiller",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer understøtter ikke avanceret ASS/SSA-undertekststil eller vandret justering af undertekster. Skift til MPV, hvis du har brug for det.",
+        "mpv_note": "MPV på TV videresender i øjeblikket ikke HDR-metadata til skærmen, så HDR10/HDR10+-indhold tonemappes til SDR. Skift til ExoPlayer for HDR-output."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -270,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "MPV-undertekstindstillinger",
+        "mpv_settings_description": "Avanceret tilpasning af undertekster til MPV-afspilleren",
+        "opaque_background": "Uigennemsigtig baggrund",
+        "background_opacity": "Baggrundsdækkeevne",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -296,9 +328,10 @@
         },
         "safe_area_in_controls": "Sikkert område i kontroller",
         "show_custom_menu_links": "Vis tilpassede menulinks",
+        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Skjul biblioteker",
-        "select_liraries_you_want_to_hide": "Vælg de biblioteker, du ønsker at skjule fra fanen Bibliotek og startside sektionerne.",
+        "select_libraries_you_want_to_hide": "Vælg de biblioteker, du ønsker at skjule fra fanen Bibliotek og startside sektionerne.",
         "disable_haptic_feedback": "Deaktiver haptisk feedback",
         "default_quality": "Standard kvalitet",
         "default_playback_speed": "Default Playback Speed",
@@ -312,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "Gem kommende sange fra køen på forhånd. De ældste fjernes, når størrelsesgrænsen nås.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -370,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Kunne ikke opdatere indstillinger fra serveren",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -384,8 +418,10 @@
         "device_usage": "Enhedsforbrug: {{availableSpace}}%",
         "size_used": "{{used}} af {{total}} brugt",
         "delete_all_downloaded_files": "Slet alle downloadede filer",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Sange gemmes automatisk i cachen under afspilning. Sletning af dem frigør plads uden at påvirke dine downloadede sange.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -408,7 +444,9 @@
         "click_for_more_info": "Klik for mere info",
         "level": "Niveau",
         "no_logs_available": "Ingen logfiler tilgængelige",
-        "delete_all_logs": "Slet alle logfiler"
+        "delete_all_logs": "Slet alle logfiler",
+        "copy": "Kopiér",
+        "copied": "Kopieret til udklipsholder"
       },
       "languages": {
         "title": "Sprog",
@@ -435,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessioner",
-      "no_active_sessions": "Ingen aktive sessioner"
+      "no_active_sessions": "Ingen aktive sessioner",
+      "select_session": "Vælg session",
+      "now_playing": "Afspiller nu:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "Transkodning",
       "series": "TV-serier",
       "movies": "Film",
       "other_media": "Andre medier",
@@ -484,7 +525,6 @@
   },
   "common": {
     "no_results": "No Results",
-    "select": "Vælg",
     "no_trailer_available": "Intet påhængskøretøj tilgængeligt",
     "video": "Video",
     "audio": "Lyd",
@@ -495,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
+    "open_menu": "Åbn menu",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -589,17 +631,45 @@
     "boxsets": "Boxsets",
     "playlists": "Playlister",
     "noDataTitle": "Ingen favoritter endnu",
-    "noData": "Markér elementer som favoritter for at få dem vist her for hurtig adgang."
+    "noData": "Elementer, du markerer som favoritter, vises her."
   },
   "custom_links": {
     "no_links": "Ingen links"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Bland",
+    "entire_series": "Hele serien",
+    "episode_count": "{{count}} episoder",
+    "menu": {
+      "quality": "Kvalitet",
+      "subtitles": "Undertekster",
+      "subtitle_scale": "Undertekstskalering",
+      "audio": "Lyd",
+      "speed": "Hastighed",
+      "playback_options": "Afspilningsmuligheder",
+      "show_technical_info": "Vis teknisk info",
+      "hide_technical_info": "Skjul teknisk info"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Lyd:",
+      "subtitle": "Undertekst:",
+      "bitrate": "Bitrate:",
+      "source_bitrate": "Fil:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Droppet: {{count}} billeder",
+      "loading": "Indlæser..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Billedformat",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Hash-match",
+    "still_watching": "Ser du stadig med?",
     "error": "Fejl",
     "failed_to_get_stream_url": "Kunne ikke hente stream URL'en",
-    "an_error_occured_while_playing_the_video": "Der opstod en fejl under afspilning af videoen. Tjek logfilerne i indstillinger.",
+    "an_error_occurred_while_playing_the_video": "Der opstod en fejl under afspilning af videoen. Tjek logfilerne i indstillinger.",
     "client_error": "Klientfejl",
     "could_not_create_stream_for_chromecast": "Kunne ikke oprette en stream til Chromecast",
     "message_from_server": "Besked fra server: {{message}}",
@@ -621,7 +691,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -697,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "Næste",
     "previous": "Forrige",
     "coming_soon": "Kommer snart",
@@ -768,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Jellyseerr serveren opfylder ikke minimumskravene! Opdater venligst til mindst 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Jellyseerr serveren opfylder ikke minimumskravene! Opdater venligst til mindst 2.0.0",
       "jellyseerr_test_failed": "Jellyseerr test mislykkedes. Prøv venligst igen.",
       "failed_to_test_jellyseerr_server_url": "Kunne ikke teste jellyseerr serverens URL",
       "issue_submitted": "Problem indsendt!",
@@ -781,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "Afspilningsknap",
+    "play_hint": "Tryk for at afspille indholdet",
+    "toggle_orientation": "Skift skærmorientering",
+    "toggle_orientation_hint": "Skifter skærmorienteringen mellem portræt og landskab"
+  },
+  "not_found": {
+    "title": "Denne skærm findes ikke.",
+    "go_home": "Gå til startskærmen!"
+  },
   "tabs": {
     "home": "Hjem",
     "search": "Søg",
@@ -791,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "Intet spor afspilles",
+    "queue_empty": "Køen er tom",
+    "playing_from_queue": "Afspiller fra kø",
+    "up_next": "Næste",
+    "now_playing": "Afspiller nu",
+    "missing_library_id": "Manglende musikbiblioteks-ID.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -874,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Opret en ønskeliste for at samle det du vil se",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

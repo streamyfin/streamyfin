@@ -242,6 +242,9 @@ class MpvPlayerView: ExpoView {
 		}
 		currentURL = config.url
 		currentLoop = config.loop
+		// Paired with the disarm in destroy(), which the reused view would
+		// otherwise never undo.
+		pipController?.setAutoStartEnabled(true)
 
 		let preset = PlayerPreset(
 			id: .sdrRec709,
@@ -303,6 +306,9 @@ class MpvPlayerView: ExpoView {
 	 * Cross-platform counterpart of MpvPlayerView.destroy() on Android.
 	 */
 	func destroy() {
+		// Release the system's single inline auto-PiP slot now; deinit is deferred
+		// and would otherwise keep it claimed, blocking PiP for the next video.
+		pipController?.setAutoStartEnabled(false)
 		renderer?.stop()
 
 		// Reset view state and re-create the mpv handle so a subsequent
@@ -576,7 +582,11 @@ extension MpvPlayerView: MPVLayerRendererDelegate {
 
 	func renderer(_: MPVLayerRenderer, didSelectAudioOutput audioOutput: String) {
 		print("[MPV] Audio output ready (\(audioOutput)), syncing Now Playing")
-		syncNowPlaying(isPlaying: !isPaused())
+		// mpv reconfigures the shared AVAudioSession when its audio unit spins up,
+		// overriding what play() set. Until ours is re-applied the system doesn't
+		// treat us as the Now Playing app and drops every info update.
+		configureAudioSession()
+		syncNowPlaying(isPlaying: intendedPlayState)
 	}
 }
 

@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Username is required",
     "error_title": "Error",
@@ -12,18 +19,21 @@
     "login_button": "Log in",
     "quick_connect": "Quick Connect",
     "enter_code_to_login": "Enter code {{code}} to log in",
+    "quick_connect_instructions": "Enter this code on a signed-in device. You'll be logged in automatically.",
+    "tap_code_to_copy": "Tap the code to copy it",
+    "code_copied": "Code copied",
     "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
     "got_it": "Got it",
     "connection_failed": "Connection failed",
     "could_not_connect_to_server": "Could not connect to the server. Please check the URL and your network connection.",
-    "an_unexpected_error_occured": "An unexpected error occurred",
+    "an_unexpected_error_occurred": "An unexpected error occurred",
     "change_server": "Change server",
     "invalid_username_or_password": "Invalid username or password",
     "user_does_not_have_permission_to_log_in": "User does not have permission to log in",
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
     "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
     "there_is_a_server_error": "There is a server error",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?",
     "too_old_server_text": "Unsupported Jellyfin server discovered",
     "too_old_server_description": "Please update Jellyfin to the latest version"
   },
@@ -33,6 +43,7 @@
     "connect_button": "Connect",
     "previous_servers": "Previous servers",
     "clear_button": "Clear all",
+    "server_url": "Server URL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Search for local servers",
     "searching": "Searching...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save account",
     "save_for_later": "Save this account",
+    "not_saved": "Account was not saved",
     "security_option": "Security option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Welcome to Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "A free and open-source client for Jellyfin.",
       "features_title": "Features",
-      "features_description": "Streamyfin has a bunch of features and integrates with a wide array of software, which you can find in the settings menu. These include:",
+      "features_description": "Streamyfin has a bunch of features and works with other software. You'll find them in the settings menu:",
       "jellyseerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download movies and series to watch offline.",
       "chromecast_feature_description": "Cast movies and series to your Chromecast devices.",
       "centralised_settings_plugin_title": "Centralised Settings plugin",
-      "centralised_settings_plugin_description": "Configure settings from a centralised location on your Jellyfin server. All client settings for all users will be synced automatically.",
+      "centralised_settings_plugin_description": "Configure settings centrally on your Jellyfin server. Every user's client settings sync automatically.",
       "done_button": "Done",
       "go_to_settings_button": "Go to Settings",
       "read_more": "Read more"
     },
     "settings": {
       "settings_title": "Settings",
+      "disabled_by_admin": "Disabled by admin",
       "log_out_button": "Log out",
       "switch_user": {
         "title": "Switch user",
@@ -137,7 +150,11 @@
       "appearance": {
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue watching & Next up",
+        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
+        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide remote session button",
+        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic home backdrop",
         "show_hero_carousel": "Hero carousel",
         "show_series_poster_on_episode": "Show series poster on episodes",
@@ -174,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to Wi-Fi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect the Wi-Fi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect the Wi-Fi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID hidden",
+        "location_off_description": "Connected to Wi-Fi, but the network name is hidden. Enable device Location services and grant the app location permission to detect it.",
+        "open_location_settings": "Open Location settings"
       },
       "user_info": {
         "user_info_title": "User info",
@@ -188,16 +208,24 @@
         "authorize_button": "Authorize Quick Connect",
         "enter_the_quick_connect_code": "Enter the Quick Connect code...",
         "success": "Success",
-        "quick_connect_autorized": "Quick Connect authorized",
+        "quick_connect_authorized": "Quick Connect authorized",
         "error": "Error",
         "invalid_code": "Invalid code",
-        "authorize": "Authorize"
+        "authorize": "Authorize",
+        "paste_code": "Paste code"
       },
       "media_controls": {
         "media_controls_title": "Media controls",
         "forward_skip_length": "Forward skip length",
         "rewind_length": "Rewind length",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Video player",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
+        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
       },
       "buffer": {
         "title": "Buffer settings",
@@ -277,6 +305,14 @@
         "opensubtitles_api_key": "API key",
         "opensubtitles_api_key_placeholder": "Enter API key...",
         "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers",
+        "mpv_subtitle_scale": "Subtitle scale",
+        "mpv_subtitle_margin_y": "Vertical margin",
+        "mpv_subtitle_align_x": "Horizontal align",
+        "mpv_subtitle_align_y": "Vertical align",
+        "mpv_settings_title": "MPV subtitle settings",
+        "mpv_settings_description": "Advanced subtitle customization for MPV player",
+        "opaque_background": "Opaque background",
+        "background_opacity": "Background opacity",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -303,9 +339,10 @@
         },
         "safe_area_in_controls": "Safe area in controls",
         "show_custom_menu_links": "Show custom menu links",
+        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
         "show_large_home_carousel": "Show large home carousel (beta)",
         "hide_libraries": "Hide libraries",
-        "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
+        "select_libraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable haptic feedback",
         "default_quality": "Default quality",
         "default_playback_speed": "Default playback speed",
@@ -319,7 +356,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer downloaded songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming songs for smoother playback.",
+        "caching_description": "Store upcoming queue songs ahead of time. The oldest ones are removed once the size limit is reached.",
         "lookahead_enabled": "Enable look-ahead caching",
         "lookahead_count": "Songs to pre-cache",
         "max_cache_size": "Max cache size"
@@ -377,6 +414,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Couldn't refresh settings from server",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh settings from server"
@@ -391,8 +429,10 @@
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} used",
         "delete_all_downloaded_files": "Delete all downloaded files",
+        "delete_all_downloaded_files_confirm": "Delete all downloaded files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Songs cached automatically during playback. Clearing them frees up space without touching your downloaded songs.",
         "clear_music_cache": "Clear music cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -415,7 +455,9 @@
         "click_for_more_info": "Click for more info",
         "level": "Level",
         "no_logs_available": "No logs available",
-        "delete_all_logs": "Delete all logs"
+        "delete_all_logs": "Delete all logs",
+        "copy": "Copy",
+        "copied": "Copied to clipboard"
       },
       "languages": {
         "title": "Languages",
@@ -442,10 +484,13 @@
     },
     "sessions": {
       "title": "Sessions",
-      "no_active_sessions": "No active sessions"
+      "no_active_sessions": "No active sessions",
+      "select_session": "Select session",
+      "now_playing": "Now playing:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "Transcoding",
       "series": "Series",
       "movies": "Movies",
       "other_media": "Other media",
@@ -477,7 +522,7 @@
         "could_not_delete_download": "Could not delete download",
         "download_completed": "Download completed",
         "download_failed": "Download failed",
-        "download_failed_for_item": "Download failed for {{item}} - {{error}}",
+        "download_failed_for_item": "Download failed for {{item}}: {{error}}",
         "download_completed_for_item": "Download completed for {{item}}",
         "download_started_for_item": "Download started for {{item}}",
         "failed_to_start_download": "Failed to start download",
@@ -491,7 +536,6 @@
   },
   "common": {
     "no_results": "No results",
-    "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Video",
     "audio": "Audio",
@@ -502,6 +546,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
+    "open_menu": "Open menu",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -511,7 +557,7 @@
     "login": "Login",
     "episodes": "Episodes",
     "movies": "Movies",
-    "loading": "Loading…",
+    "loading": "Loading...",
     "seeAll": "See all"
   },
   "search": {
@@ -596,17 +642,45 @@
     "boxsets": "Box sets",
     "playlists": "Playlists",
     "noDataTitle": "No favorites yet",
-    "noData": "Mark items as favorites to see them appear here for quick access."
+    "noData": "Items you mark as favorites show up here."
   },
   "custom_links": {
     "no_links": "No links"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Shuffle",
+    "entire_series": "Entire series",
+    "episode_count": "{{count}} episodes",
+    "menu": {
+      "quality": "Quality",
+      "subtitles": "Subtitles",
+      "subtitle_scale": "Subtitle scale",
+      "audio": "Audio",
+      "speed": "Speed",
+      "playback_options": "Playback options",
+      "show_technical_info": "Show technical info",
+      "hide_technical_info": "Hide technical info"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Audio:",
+      "subtitle": "Subtitle:",
+      "bitrate": "Bitrate:",
+      "source_bitrate": "File:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Dropped: {{count}} frames",
+      "loading": "Loading..."
+    },
     "mpv_player_title": "MPV player",
+    "aspect_ratio": "Aspect ratio",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Hash match",
+    "still_watching": "Are you still watching?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
-    "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
+    "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
     "message_from_server": "Message from server: {{message}}",
@@ -628,7 +702,6 @@
     "using_jellyfin_server": "Using Jellyfin server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -704,6 +777,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "Next",
     "previous": "Previous",
     "coming_soon": "Coming soon",
@@ -775,7 +849,7 @@
     "request_selected": "Request selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",
       "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server url",
       "issue_submitted": "Issue submitted!",
@@ -788,16 +862,32 @@
       "failed_to_decline_request": "Failed to decline request"
     }
   },
+  "accessibility": {
+    "play_button": "Play button",
+    "play_hint": "Tap to play the media",
+    "toggle_orientation": "Toggle screen orientation",
+    "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
+  },
+  "not_found": {
+    "title": "This screen doesn't exist.",
+    "go_home": "Go to home screen!"
+  },
   "tabs": {
     "home": "Home",
     "search": "Search",
     "library": "Library",
-    "custom_links": "Custom Links",
+    "custom_links": "Custom links",
     "favorites": "Favorites",
     "settings": "Settings"
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "No track playing",
+    "queue_empty": "Queue is empty",
+    "playing_from_queue": "Playing from queue",
+    "up_next": "Up next",
+    "now_playing": "Now playing",
+    "missing_library_id": "Missing music library id.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -881,7 +971,7 @@
     "allowed_type_label": "Content type",
     "sort_order_label": "Default sort order",
     "empty_title": "No watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Create a watchlist to group the things you want to watch",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats not configured",

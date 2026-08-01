@@ -349,9 +349,6 @@ const page: React.FC = () => {
                 values={selectedGenres}
                 title={t("library.filters.genres")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -376,7 +373,6 @@ const page: React.FC = () => {
                 values={selectedYears}
                 title={t("library.filters.years")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) => item.includes(search)}
               />
             ),
           },
@@ -401,9 +397,6 @@ const page: React.FC = () => {
                 values={selectedTags}
                 title={t("library.filters.tags")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -421,9 +414,6 @@ const page: React.FC = () => {
                 renderItemLabel={(item) =>
                   sortOptions.find((i) => i.key === item)?.value || ""
                 }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -440,9 +430,6 @@ const page: React.FC = () => {
                 title={t("library.filters.sort_order")}
                 renderItemLabel={(item) =>
                   sortOrderOptions.find((i) => i.key === item)?.value || ""
-                }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
                 }
               />
             ),

@@ -85,7 +85,7 @@ const optIdx = lines.findIndex(
 if (optIdx === -1)
   throw new Error(`options: not found after id: ${DROPDOWN_ID}`);
 
-const itemIndent = lines[optIdx].match(/^\s*/)[0] + "  "; // options items are nested one level deeper
+const itemIndent = `${lines[optIdx].match(/^\s*/)[0]}  `; // options items are nested one level deeper
 let end = optIdx + 1;
 const sentinels = [];
 while (end < lines.length && /^\s*-\s+/.test(lines[end])) {

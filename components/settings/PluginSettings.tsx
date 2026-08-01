@@ -20,17 +20,17 @@ export const PluginSettings = () => {
     >
       <ListItem
         onPress={() => router.push("/settings/plugins/jellyseerr/page")}
-        title={"Jellyseerr"}
-        showArrow
-      />
-      <ListItem
-        onPress={() => router.push("/settings/plugins/marlin-search/page")}
-        title='Marlin Search'
+        title='Jellyseerr'
         showArrow
       />
       <ListItem
         onPress={() => router.push("/settings/plugins/streamystats/page")}
         title='Streamystats'
+        showArrow
+      />
+      <ListItem
+        onPress={() => router.push("/settings/plugins/marlin-search/page")}
+        title='Marlin Search'
         showArrow
       />
       <ListItem

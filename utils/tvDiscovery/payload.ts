@@ -31,54 +31,38 @@ function getTVDiscoveryImage(
 ): { url: string } | undefined {
   const baseUrl = api.basePath;
 
-  // 1. Episode backdrop
-  const episodeBackdrop = item.BackdropImageTags?.[0];
-  if (item.Id && episodeBackdrop) {
-    return {
-      url:
-        `${baseUrl}/Items/${item.Id}/Images/Backdrop/0` +
-        `?fillWidth=1920` +
-        `&fillHeight=1080` +
-        `&quality=90` +
-        `&tag=${encodeURIComponent(episodeBackdrop)}`,
-    };
+  // Top Shelf items render in poster shape (portrait 2:3), so request the
+  // matching Primary poster art. Requesting backdrops here would force the
+  // extension to crop them into a poster, which looked bad. Each URL is gated
+  // on its image tag so we never hand the extension a URL the server can't
+  // fulfill (which would render a broken/blank poster).
+  const posterParams = "?fillWidth=400" + "&fillHeight=600" + "&quality=90";
+
+  const posterUrl = (id: string, tag: string) =>
+    `${baseUrl}/Items/${id}/Images/Primary${posterParams}` +
+    `&tag=${encodeURIComponent(tag)}`;
+
+  // For episodes, prefer the season -> show poster over the episode's own
+  // primary: episode primary images are usually landscape stills that crop
+  // badly in poster shape, and since most episodes have one the season/show
+  // poster would otherwise never get used.
+  if (item.Type === "Episode") {
+    // Season poster — for an episode the immediate parent is the season, so
+    // ParentPrimaryImageTag is the season's primary tag.
+    if (item.SeasonId && item.ParentPrimaryImageTag) {
+      return { url: posterUrl(item.SeasonId, item.ParentPrimaryImageTag) };
+    }
+
+    // Show poster
+    if (item.SeriesId && item.SeriesPrimaryImageTag) {
+      return { url: posterUrl(item.SeriesId, item.SeriesPrimaryImageTag) };
+    }
   }
 
-  // 2. Series backdrop
-  if (item.SeriesId) {
-    return {
-      url:
-        `${baseUrl}/Items/${item.SeriesId}/Images/Backdrop` +
-        `?fillWidth=1920` +
-        `&fillHeight=1080` +
-        `&quality=90`,
-    };
-  }
-
-  // 3. Generic item backdrop
-  const backdrop = item.BackdropImageTags?.[0];
-  if (item.Id && backdrop) {
-    return {
-      url:
-        `${baseUrl}/Items/${item.Id}/Images/Backdrop/0` +
-        `?fillWidth=1920` +
-        `&fillHeight=1080` +
-        `&quality=90` +
-        `&tag=${encodeURIComponent(backdrop)}`,
-    };
-  }
-
-  // 4. Last resort: crop poster into landscape
+  // Item's own poster (movies, series, or an episode with no season/show art)
   const primaryTag = item.ImageTags?.Primary;
   if (item.Id && primaryTag) {
-    return {
-      url:
-        `${baseUrl}/Items/${item.Id}/Images/Primary` +
-        `?fillWidth=1920` +
-        `&fillHeight=1080` +
-        `&quality=90` +
-        `&tag=${encodeURIComponent(primaryTag)}`,
-    };
+    return { url: posterUrl(item.Id, primaryTag) };
   }
 
   return undefined;

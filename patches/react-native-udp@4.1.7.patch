@@ -1,7 +1,7 @@
-diff --git a/node_modules/react-native-udp/react-native-udp.podspec b/node_modules/react-native-udp/react-native-udp.podspec
+diff --git a/react-native-udp.podspec b/react-native-udp.podspec
 index 7450cc7d0862aadfb47d796929c801a3dc423a57..fa3e42c0152ef2d87536b8c2e484f64d525e35ec 100644
---- a/node_modules/react-native-udp/react-native-udp.podspec
-+++ b/node_modules/react-native-udp/react-native-udp.podspec
+--- a/react-native-udp.podspec
++++ b/react-native-udp.podspec
 @@ -9,7 +9,8 @@ Pod::Spec.new do |s|
    s.homepage       = package_json["homepage"]
    s.license        = package_json["license"]

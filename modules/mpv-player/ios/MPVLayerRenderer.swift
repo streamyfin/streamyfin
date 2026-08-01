@@ -576,6 +576,15 @@ final class MPVLayerRenderer {
             } else {
                 disableSubtitles()
             }
+            // The disable above can race a JS-side identity selection that
+            // landed before FILE_LOADED (JS no longer passes an initial sid).
+            // Re-emit tracksReady so the idempotent JS re-apply always runs
+            // after it — for embedded-only files this is the only
+            // post-FILE_LOADED fire.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.delegate?.renderer(self, didBecomeTracksReady: true)
+            }
             if !isReadyToSeek {
                 isReadyToSeek = true
                 DispatchQueue.main.async { [weak self] in
@@ -827,8 +836,8 @@ final class MPVLayerRenderer {
                   trackType == "sub" else { continue }
             
             var trackId: Int64 = 0
-            getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId)
-            
+            guard getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId) >= 0 else { continue }
+
             var track: [String: Any] = ["id": Int(trackId)]
             
             if let title = getStringProperty(handle: handle, name: "track-list/\(i)/title") {
@@ -838,12 +847,34 @@ final class MPVLayerRenderer {
             if let lang = getStringProperty(handle: handle, name: "track-list/\(i)/lang") {
                 track["lang"] = lang
             }
-            
+
+            if let codec = getStringProperty(handle: handle, name: "track-list/\(i)/codec") {
+                track["codec"] = codec
+            }
+
+            // Identity fields used to map a Jellyfin subtitle to the real track
+            // (instead of fragile positional counting). `external` + `external-filename`
+            // uniquely identify a sub-added sidecar. `ff-index` is exposed for
+            // diagnostics / potential future exact-index matching; the current
+            // resolver matches embedded tracks by language/title, not ff-index.
+            var external: Int32 = 0
+            getProperty(handle: handle, name: "track-list/\(i)/external", format: MPV_FORMAT_FLAG, value: &external)
+            track["external"] = external != 0
+
+            if let extFilename = getStringProperty(handle: handle, name: "track-list/\(i)/external-filename") {
+                track["externalFilename"] = extFilename
+            }
+
+            var ffIndex: Int64 = 0
+            if getProperty(handle: handle, name: "track-list/\(i)/ff-index", format: MPV_FORMAT_INT64, value: &ffIndex) >= 0 {
+                track["ffIndex"] = Int(ffIndex)
+            }
+
             var selected: Int32 = 0
             getProperty(handle: handle, name: "track-list/\(i)/selected", format: MPV_FORMAT_FLAG, value: &selected)
             track["selected"] = selected != 0
-            
-            Logger.shared.log("getSubtitleTracks: found sub track id=\(trackId), title=\(track["title"] ?? "none"), lang=\(track["lang"] ?? "none")", type: "Info")
+
+            Logger.shared.log("getSubtitleTracks: found sub track id=\(trackId), title=\(track["title"] ?? "none"), lang=\(track["lang"] ?? "none"), external=\(external != 0)", type: "Info")
             tracks.append(track)
         }
         
@@ -999,8 +1030,8 @@ final class MPVLayerRenderer {
                   trackType == "audio" else { continue }
             
             var trackId: Int64 = 0
-            getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId)
-            
+            guard getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &trackId) >= 0 else { continue }
+
             var track: [String: Any] = ["id": Int(trackId)]
             
             if let title = getStringProperty(handle: handle, name: "track-list/\(i)/title") {

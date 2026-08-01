@@ -1,7 +1,11 @@
 package expo.modules.mpvplayer
 
+import android.app.Activity
+import android.app.Application
 import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Color
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -52,6 +56,12 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     companion object {
         private const val TAG = "MpvPlayerView"
+
+        // Grace window after onActivityResumed before running the resume
+        // recovery, so surfaceCreated (surface-destroyed case) has fired and
+        // the holder has a valid surface. If the surface survived the
+        // screensaver and surfaceCreated never fires, this still runs.
+        private const val RESUME_RECOVERY_DELAY_MS = 300L
     }
 
     // Event dispatchers
@@ -78,6 +88,15 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // PiP state tracking
     private val pipHandler = Handler(Looper.getMainLooper())
+
+    // Resume-recovery state: recreate the decoder when returning from the
+    // screensaver / app background while paused. See
+    // MPVLayerRenderer.recoverVideoOutput for why zero-copy hwdec=mediacodec
+    // needs this.
+    private var hostActivity: Activity? = null
+    private var lifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
+    private var lifecycleRegistered = false
+    private val recoverResumeRunnable = Runnable { runResumeRecovery() }
 
     init {
         setBackgroundColor(Color.BLACK)
@@ -147,6 +166,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         // Renderer is created lazily in loadVideo once we have the voDriver setting
         renderer = MPVLayerRenderer(context)
         renderer?.delegate = this
+
+        // Watch the host activity's lifecycle to recover the video pipeline
+        // when returning from the screensaver while paused.
+        registerLifecycleCallbacks()
     }
 
     /**
@@ -535,6 +558,107 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         onError(mapOf("error" to message))
     }
 
+    // MARK: - Resume Recovery
+
+    /**
+     * Recreate the decoder when returning from the Android TV screensaver (or
+     * app background) while paused. Triggered from the host activity's
+     * onResume; the work is in [MPVLayerRenderer.recoverVideoOutput]. The
+     * playing case is skipped — the render thread re-primes the VO on surface
+     * reattach by itself — as is PiP (it owns its surface lifecycle).
+     */
+    private fun runResumeRecovery() {
+        if (!rendererStarted) return
+        if (pipController?.isPictureInPictureActive() == true) return
+        if (intendedPlayState) return  // playing self-heals
+        val surface = surfaceView.holder.surface?.takeIf { it.isValid }
+        Log.i(TAG, "[Recover] onResume recovery — paused, surfaceValid=${surface != null}")
+        renderer?.recoverVideoOutput(surface)
+    }
+
+    private fun registerLifecycleCallbacks() {
+        if (lifecycleRegistered) return
+        // Resume-recovery is TV-only. Only TV's zero-copy hwdec=mediacodec
+        // binds MediaCodec directly to the display surface, so only TV needs
+        // decoder recreation after a system-initiated surface loss (screensaver
+        // / app background while paused). Phones (mediacodec-copy) and the
+        // emulator self-heal via the surfaceCreated → attachSurface path, so we
+        // don't even register there — no callback overhead, no spurious resets.
+        if (renderer?.isTv != true) {
+            Log.i(TAG, "[Recover] skipping lifecycle registration (isTv=${renderer?.isTv})")
+            return
+        }
+        Log.i(TAG, "[Recover] registering lifecycle recovery (TV)")
+        val app = context.applicationContext as? Application ?: run {
+            Log.w(TAG, "Cannot register lifecycle callbacks: no Application")
+            return
+        }
+        lifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityResumed(activity: Activity) {
+                val host = hostActivity ?: findActivity().also { hostActivity = it }
+                if (activity !== host) {
+                    if (host == null) {
+                        Log.i(TAG, "[Recover] onActivityResumed — host unresolved, activity=${activity.javaClass.simpleName}; skipping")
+                    }
+                    return
+                }
+                Log.i(
+                    TAG,
+                    "[Recover] onActivityResumed — host resumed, hasMedia=${currentUrl != null}, pip=${pipController?.isPictureInPictureActive()}, paused=${!intendedPlayState}"
+                )
+                // Only recover when there's loaded media, we're paused, and not
+                // in PiP. Playing self-heals; nothing loaded yet = nothing to
+                // recover.
+                if (currentUrl == null) return
+                if (pipController?.isPictureInPictureActive() == true) return
+                if (intendedPlayState) return
+                // Post past the resume/surfaceCreated race so the holder has a
+                // valid surface, then recreate the decoder against it.
+                pipHandler.removeCallbacks(recoverResumeRunnable)
+                pipHandler.postDelayed(recoverResumeRunnable, RESUME_RECOVERY_DELAY_MS)
+            }
+            override fun onActivityPaused(activity: Activity) {
+                if (activity === hostActivity) {
+                    Log.i(TAG, "[Recover] onActivityPaused — host paused")
+                }
+            }
+            override fun onActivityStopped(activity: Activity) {
+                if (activity === hostActivity) {
+                    Log.i(TAG, "[Recover] onActivityStopped — host stopped")
+                }
+            }
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {}
+        }
+        app.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+        lifecycleRegistered = true
+    }
+
+    private fun unregisterLifecycleCallbacks() {
+        pipHandler.removeCallbacks(recoverResumeRunnable)
+        if (!lifecycleRegistered) return
+        val app = context.applicationContext as? Application
+        lifecycleCallbacks?.let { app?.unregisterActivityLifecycleCallbacks(it) }
+        lifecycleCallbacks = null
+        lifecycleRegistered = false
+    }
+
+    private fun findActivity(): Activity? {
+        // Prefer Expo's currentActivity. The view's Context is a ReactContext
+        // whose base is the Application, not the Activity, so walking the
+        // context chain does not reliably reach the Activity. Mirrors
+        // PiPController.getActivity().
+        appContext.currentActivity?.let { return it }
+        var ctx: Context = context
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return null
+    }
+
     // MARK: - Cleanup
 
     /**
@@ -546,6 +670,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
      */
     fun cleanup() {
         pipHandler.removeCallbacksAndMessages(null)
+        unregisterLifecycleCallbacks()
         pipController?.stopPictureInPicture()
         renderer?.stop()
         renderer?.delegate = null

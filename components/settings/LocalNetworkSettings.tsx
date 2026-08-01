@@ -2,9 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Switch, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { toast } from "sonner-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { useWifiSSID } from "@/hooks/useWifiSSID";
+import { openLocationSettings } from "@/modules/wifi-ssid";
 import { useServerUrl } from "@/providers/ServerUrlProvider";
 import { storage } from "@/utils/mmkv";
 import {
@@ -12,8 +14,9 @@ import {
   type LocalNetworkConfig,
   updateServerLocalConfig,
 } from "@/utils/secureCredentials";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 import { Button } from "../Button";
-import { Input } from "../common/Input";
+import { ServerUrlField } from "../common/ServerUrlField";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -26,16 +29,26 @@ const DEFAULT_CONFIG: LocalNetworkConfig = {
 
 interface StatusDisplayProps {
   currentSSID: string | null;
+  connectedToWifi: boolean;
   isUsingLocalUrl: boolean;
+  locationBlocked: boolean;
+  onOpenLocationSettings: () => void;
   t: (key: string) => string;
 }
 
 function StatusDisplay({
   currentSSID,
+  connectedToWifi,
   isUsingLocalUrl,
+  locationBlocked,
+  onOpenLocationSettings,
   t,
 }: StatusDisplayProps): React.ReactElement {
-  const wifiStatus = currentSSID ?? t("home.settings.network.not_connected");
+  const wifiStatus = currentSSID
+    ? currentSSID
+    : connectedToWifi
+      ? t("home.settings.network.ssid_hidden")
+      : t("home.settings.network.not_connected");
   const urlType = isUsingLocalUrl
     ? t("home.settings.network.local")
     : t("home.settings.network.remote");
@@ -55,6 +68,23 @@ function StatusDisplay({
         </Text>
         <Text className={urlTypeColor}>{urlType}</Text>
       </View>
+
+      {locationBlocked && (
+        <View className='mt-2 pt-2 border-t border-neutral-800'>
+          <Text className='text-xs text-amber-400'>
+            {t("home.settings.network.location_off_description")}
+          </Text>
+          <TouchableOpacity
+            onPress={onOpenLocationSettings}
+            className='mt-2 self-start'
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text className='text-xs text-blue-400 font-semibold'>
+              {t("home.settings.network.open_location_settings")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -62,16 +92,37 @@ function StatusDisplay({
 export function LocalNetworkSettings(): React.ReactElement | null {
   const { t } = useTranslation();
   const { permissionStatus, requestPermission } = useWifiSSID();
-  const { isUsingLocalUrl, currentSSID, refreshUrlState } = useServerUrl();
+  const { isUsingLocalUrl, currentSSID, connectedToWifi, refreshUrlState } =
+    useServerUrl();
+
+  // Connected to Wi-Fi and have permission, but the OS won't reveal the SSID —
+  // on Android this means device Location services are off.
+  const locationBlocked =
+    permissionStatus === "granted" && connectedToWifi && !currentSSID;
+
+  const handleOpenLocationSettings = useCallback(() => {
+    openLocationSettings();
+  }, []);
 
   const remoteUrl = storage.getString("serverUrl");
   const [config, setConfig] = useState<LocalNetworkConfig>(DEFAULT_CONFIG);
+  // Draft of the URL being typed: persisting every keystroke would run
+  // refreshUrlState on half-typed values; the field commits on blur instead.
+  const [localUrlDraft, setLocalUrlDraft] = useState<string>(
+    DEFAULT_CONFIG.localUrl,
+  );
 
   useEffect(() => {
     if (remoteUrl) {
       const existingConfig = getServerLocalConfig(remoteUrl);
       if (existingConfig) {
         setConfig(existingConfig);
+        setLocalUrlDraft(existingConfig.localUrl);
+      } else {
+        // Server without a saved LAN config: reset instead of leaking the
+        // previously selected server's values into it.
+        setConfig(DEFAULT_CONFIG);
+        setLocalUrlDraft(DEFAULT_CONFIG.localUrl);
       }
     }
   }, [remoteUrl]);
@@ -101,7 +152,7 @@ export function LocalNetworkSettings(): React.ReactElement | null {
     [config, permissionStatus, requestPermission, saveConfig, t],
   );
 
-  const handleLocalUrlChange = useCallback(
+  const handleLocalUrlCommit = useCallback(
     (localUrl: string) => {
       saveConfig({ ...config, localUrl });
     },
@@ -147,7 +198,10 @@ export function LocalNetworkSettings(): React.ReactElement | null {
           title={t("home.settings.network.auto_switch_enabled")}
           subtitle={t("home.settings.network.auto_switch_description")}
         >
-          <Switch value={config.enabled} onValueChange={handleToggleEnabled} />
+          <SettingSwitch
+            value={config.enabled}
+            onValueChange={handleToggleEnabled}
+          />
         </ListItem>
       </ListGroup>
 
@@ -162,13 +216,12 @@ export function LocalNetworkSettings(): React.ReactElement | null {
             }
           >
             <View className=''>
-              <Input
+              <ServerUrlField
+                value={localUrlDraft}
+                onChangeText={setLocalUrlDraft}
+                onCommit={handleLocalUrlCommit}
+                probe={jellyfinProbe}
                 placeholder={t("home.settings.network.local_url_placeholder")}
-                value={config.localUrl}
-                onChangeText={handleLocalUrlChange}
-                keyboardType='url'
-                autoCapitalize='none'
-                autoCorrect={false}
               />
             </View>
           </ListGroup>
@@ -195,18 +248,23 @@ export function LocalNetworkSettings(): React.ReactElement | null {
             )}
           </ListGroup>
 
-          <View className='py-2'>
-            <Button
-              onPress={handleAddCurrentNetwork}
-              disabled={!currentSSID || permissionStatus !== "granted"}
-            >
-              {addNetworkButtonText}
-            </Button>
-          </View>
+          {!locationBlocked && (
+            <View className='py-2'>
+              <Button
+                onPress={handleAddCurrentNetwork}
+                disabled={!currentSSID || permissionStatus !== "granted"}
+              >
+                {addNetworkButtonText}
+              </Button>
+            </View>
+          )}
 
           <StatusDisplay
             currentSSID={currentSSID}
+            connectedToWifi={connectedToWifi}
             isUsingLocalUrl={isUsingLocalUrl}
+            locationBlocked={locationBlocked}
+            onOpenLocationSettings={handleOpenLocationSettings}
             t={t}
           />
         </View>

@@ -20,6 +20,7 @@ export const TimeDisplay: FC<TimeDisplayProps> = ({
   const { t } = useTranslation();
 
   const getFinishTime = () => {
+    if (!Number.isFinite(remainingTime)) return "—";
     const now = new Date();
     // remainingTime is in ms
     const finishTime = new Date(now.getTime() + remainingTime);
