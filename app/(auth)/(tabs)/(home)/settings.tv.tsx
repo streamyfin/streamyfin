@@ -107,32 +107,48 @@ export default function SettingsTV() {
   }, [user, cultures, isCulturesFetched]);
 
   const updateMediaSettings = (update: Partial<Settings>) => {
-    updateSettings(update);
+    const sanitizedUpdate = Object.fromEntries(
+      Object.entries(update).filter(
+        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
+      ),
+    ) as Partial<Settings>;
+
+    if (Object.keys(sanitizedUpdate).length === 0) return;
+
+    const previousValues = Object.fromEntries(
+      Object.keys(sanitizedUpdate).map((key) => [
+        key,
+        settings[key as keyof Settings],
+      ]),
+    ) as Partial<Settings>;
+
+    updateSettings(sanitizedUpdate);
 
     if (!api || !user) return;
 
     const updatePayload = {
-      SubtitleMode: update.subtitleMode ?? settings.subtitleMode,
+      SubtitleMode: sanitizedUpdate.subtitleMode ?? settings.subtitleMode,
       PlayDefaultAudioTrack:
-        update.playDefaultAudioTrack ?? settings.playDefaultAudioTrack,
+        sanitizedUpdate.playDefaultAudioTrack ?? settings.playDefaultAudioTrack,
       RememberAudioSelections:
-        update.rememberAudioSelections ?? settings.rememberAudioSelections,
+        sanitizedUpdate.rememberAudioSelections ??
+        settings.rememberAudioSelections,
       RememberSubtitleSelections:
-        update.rememberSubtitleSelections ??
+        sanitizedUpdate.rememberSubtitleSelections ??
         settings.rememberSubtitleSelections,
     } as Partial<UserConfiguration>;
 
     updatePayload.AudioLanguagePreference =
-      update.defaultAudioLanguage === null
+      sanitizedUpdate.defaultAudioLanguage === null
         ? ""
-        : update.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
+        : sanitizedUpdate.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
           settings.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
           "";
 
     updatePayload.SubtitleLanguagePreference =
-      update.defaultSubtitleLanguage === null
+      sanitizedUpdate.defaultSubtitleLanguage === null
         ? ""
-        : update.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
+        : sanitizedUpdate.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
           "";
 
@@ -144,7 +160,10 @@ export default function SettingsTV() {
         },
       })
       .then(() => queryClient.invalidateQueries({ queryKey: ["authUser"] }))
-      .catch(() => {});
+      .catch((error: unknown) => {
+        console.error("Failed to update Jellyfin media settings:", error);
+        updateSettings(previousValues);
+      });
   };
 
   // Local state for OpenSubtitles API key (only commit on blur)
