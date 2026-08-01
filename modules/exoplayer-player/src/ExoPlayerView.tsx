@@ -98,6 +98,12 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         if (style.fontSize !== undefined) {
           await nativeRef.current?.setSubtitleFontSize(style.fontSize);
         }
+        if (style.color !== undefined) {
+          await nativeRef.current?.setSubtitleColor(style.color);
+        }
+        if (style.font !== undefined) {
+          await nativeRef.current?.setSubtitleFont(style.font);
+        }
         if (style.background) {
           await nativeRef.current?.setSubtitleBackgroundColor(style.background);
           await nativeRef.current?.setSubtitleBorderStyle("background-box");

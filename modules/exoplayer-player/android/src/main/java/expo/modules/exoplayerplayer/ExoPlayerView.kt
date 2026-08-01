@@ -114,6 +114,8 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // Background color carries its own alpha (parsed from #RRGGBBAA in
     // setSubtitleBackgroundColor) so no separate enabled/opacity flags.
     private var subtitleBackgroundColor: Int = Color.argb(0, 0, 0, 0)
+    private var subtitleForegroundColor: Int = Color.WHITE
+    private var subtitleTypeface: Typeface = Typeface.SANS_SERIF
     private var subtitleBorderStyle: String = "outline-and-shadow"
 
     private var isZoomedToFill: Boolean = false
@@ -709,6 +711,21 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         applySubtitleStyle()
     }
 
+    fun setSubtitleColor(colorHex: String) {
+        subtitleForegroundColor = parseColor(colorHex, subtitleForegroundColor)
+        applySubtitleStyle()
+    }
+
+    fun setSubtitleFont(font: String) {
+        subtitleTypeface = when (font) {
+            "serif" -> Typeface.SERIF
+            "monospace" -> Typeface.MONOSPACE
+            "opendyslexic" -> loadOpenDyslexicTypeface()
+            else -> Typeface.SANS_SERIF
+        }
+        applySubtitleStyle()
+    }
+
     fun setSubtitleBackgroundColor(colorHex: String) {
         subtitleBackgroundColor = parseColor(colorHex, subtitleBackgroundColor)
         applySubtitleStyle()
@@ -717,6 +734,15 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     fun setSubtitleBorderStyle(style: String) {
         subtitleBorderStyle = style
         applySubtitleStyle()
+    }
+
+    private fun loadOpenDyslexicTypeface(): Typeface {
+        return try {
+            Typeface.createFromAsset(context.assets, "fonts/OpenDyslexic-Regular.otf")
+        } catch (error: Throwable) {
+            Log.w(TAG, "Failed to load OpenDyslexic font: ${error.message}")
+            Typeface.SANS_SERIF
+        }
     }
 
     private fun parseColor(hex: String, fallback: Int): Int {
@@ -760,7 +786,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         sv.setBottomPaddingFraction(bottomFraction.coerceIn(0.02f, 0.95f))
 
         // Edge / background style.
-        val foreground = Color.WHITE
+        val foreground = subtitleForegroundColor
         val edgeType: Int
         val backgroundColor: Int
         when (subtitleBorderStyle) {
@@ -787,7 +813,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             Color.TRANSPARENT,
             edgeType,
             Color.BLACK,
-            Typeface.SANS_SERIF
+            subtitleTypeface
         )
         sv.setApplyEmbeddedStyles(false)
         sv.setApplyEmbeddedFontSizes(false)

@@ -147,6 +147,14 @@ class ExoPlayerModule : Module() {
                 view.setSubtitleFontSize(size)
             }
 
+            AsyncFunction("setSubtitleColor") { view: ExoPlayerView, color: String ->
+                view.setSubtitleColor(color)
+            }
+
+            AsyncFunction("setSubtitleFont") { view: ExoPlayerView, font: String ->
+                view.setSubtitleFont(font)
+            }
+
             AsyncFunction("setSubtitleBorderStyle") { view: ExoPlayerView, style: String ->
                 view.setSubtitleBorderStyle(style)
             }
