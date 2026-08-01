@@ -1063,19 +1063,19 @@ export default function SettingsTV() {
           {settings.subtitleBackground && (
             <TVSettingsStepper
               label={t("home.settings.subtitles.subtitle_background_opacity")}
-              value={settings.subtitleBackgroundOpacity}
+              value={settings.subtitleBackgroundOpacity ?? 40}
               disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
               onDecrease={() => {
                 const newValue = Math.max(
                   0,
-                  settings.subtitleBackgroundOpacity - 5,
+                  (settings.subtitleBackgroundOpacity ?? 40) - 5,
                 );
                 updateSettings({ subtitleBackgroundOpacity: newValue });
               }}
               onIncrease={() => {
                 const newValue = Math.min(
                   100,
-                  settings.subtitleBackgroundOpacity + 5,
+                  (settings.subtitleBackgroundOpacity ?? 40) + 5,
                 );
                 updateSettings({ subtitleBackgroundOpacity: newValue });
               }}
@@ -1085,19 +1085,19 @@ export default function SettingsTV() {
           {settings.subtitleBackground && (
             <TVSettingsStepper
               label={t("home.settings.subtitles.subtitle_background_padding")}
-              value={settings.subtitleBackgroundPadding}
+              value={settings.subtitleBackgroundPadding ?? 12}
               disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
               onDecrease={() => {
                 const newValue = Math.max(
                   0,
-                  settings.subtitleBackgroundPadding - 1,
+                  (settings.subtitleBackgroundPadding ?? 12) - 1,
                 );
                 updateSettings({ subtitleBackgroundPadding: newValue });
               }}
               onIncrease={() => {
                 const newValue = Math.min(
                   30,
-                  settings.subtitleBackgroundPadding + 1,
+                  (settings.subtitleBackgroundPadding ?? 12) + 1,
                 );
                 updateSettings({ subtitleBackgroundPadding: newValue });
               }}
