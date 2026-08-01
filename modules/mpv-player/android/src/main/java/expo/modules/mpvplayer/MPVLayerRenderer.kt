@@ -2,7 +2,6 @@ package expo.modules.mpvplayer
 
 import android.app.UiModeManager
 import android.content.Context
-import android.content.res.AssetManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
@@ -271,21 +270,13 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
     
     /**
-     * Copies required fonts (bundled assets and system fallbacks) to the MPV config directory.
-     * This is necessary because libmpv/libass cannot access Android assets or system fonts directly.
+     * Copies bundled custom fonts to the MPV config directory.
+     * libmpv/libass can access Android system fonts directly, but still cannot
+     * read bundled React Native assets without copying them to a filesystem path.
      */
     private fun copyFontsToConfigDir(mpvDir: File) {
         val fontsDir = File(mpvDir, "fonts")
         if (!fontsDir.exists()) fontsDir.mkdirs()
-
-        val subfont = File(mpvDir, "subfont.ttf")
-        if (!subfont.exists()) {
-            try {
-                context.assets.open("subfont.ttf", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(subfont))
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to copy subfont.ttf: ${e.message}")
-            }
-        }
 
         val customFonts = arrayOf(
             "OpenDyslexic-Regular.otf",
@@ -300,23 +291,6 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
                     context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(file))
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to copy custom font $fileName: ${e.message}")
-                }
-            }
-        }
-
-        val systemFontsToCopy = mapOf(
-            "Roboto-Regular.ttf" to "Roboto-Regular.ttf",
-            "NotoSerif-Regular.ttf" to "NotoSerif-Regular.ttf",
-            "DroidSansMono.ttf" to "DroidSansMono.ttf"
-        )
-        systemFontsToCopy.forEach { (srcName, destName) ->
-            val sysFile = File("/system/fonts", srcName)
-            val destFile = File(fontsDir, destName)
-            if (sysFile.exists() && !destFile.exists()) {
-                try {
-                    sysFile.copyTo(destFile)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to copy system font $srcName: ${e.message}")
                 }
             }
         }
