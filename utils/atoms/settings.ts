@@ -284,6 +284,13 @@ export type Settings = {
   subtitleSize: number;
   safeAreaInControlsEnabled: boolean;
   jellyseerrServerUrl?: string;
+  /**
+   * Sign in to Jellyseerr automatically on launch using the Jellyfin password.
+   * Jellyseerr's /auth/jellyfin endpoint takes the password rather than the
+   * Jellyfin token, so enabling this persists that password in the platform
+   * secure store. Nothing is stored unless a Jellyseerr server is configured.
+   */
+  autoLoginJellyseerr: boolean;
   useKefinTweaks: boolean;
   hiddenLibraries?: string[];
   enableH265ForChromecast: boolean;
@@ -392,6 +399,7 @@ export const defaultValues: Settings = {
   subtitleSize: 100, // Scale value * 100, so 100 = 1.0x
   safeAreaInControlsEnabled: true,
   jellyseerrServerUrl: undefined,
+  autoLoginJellyseerr: true,
   useKefinTweaks: false,
   hiddenLibraries: [],
   enableH265ForChromecast: false,
