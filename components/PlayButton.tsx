@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { Alert, Platform, TouchableOpacity, View } from "react-native";
 import CastContext, {
   CastButton,
+  MediaHlsSegmentFormat,
+  MediaHlsVideoSegmentFormat,
   MediaStreamType,
   PlayServicesState,
   useMediaStatus,
@@ -179,8 +181,6 @@ export const PlayButton: React.FC<Props> = ({
                     subtitleStreamIndex: selectedOptions.subtitleIndex,
                   });
 
-                  console.log("URL: ", data?.url, enableH265);
-
                   if (!data?.url) {
                     console.warn("No URL returned from getStreamUrl", data);
                     Alert.alert(
@@ -199,12 +199,30 @@ export const PlayButton: React.FC<Props> = ({
                     ? item.RunTimeTicks / 10000000
                     : undefined;
 
+                  // HLS transcodes must be declared as HLS, otherwise the
+                  // receiver tries to parse the m3u8 playlist as an MP4 file
+                  // and the cast session dies immediately.
+                  const isHls = data.url.includes(".m3u8");
+                  // Jellyfin puts the HLS segment container in the URL; the
+                  // receiver needs the matching hint (HEVC only works in fMP4).
+                  const isFmp4 = data.url.includes("SegmentContainer=mp4");
+
                   client
                     .loadMedia({
                       mediaInfo: {
                         contentId: item.Id,
                         contentUrl: data?.url,
-                        contentType: "video/mp4",
+                        contentType: isHls
+                          ? "application/x-mpegURL"
+                          : "video/mp4",
+                        ...(isHls && {
+                          hlsSegmentFormat: isFmp4
+                            ? MediaHlsSegmentFormat.FMP4
+                            : MediaHlsSegmentFormat.TS,
+                          hlsVideoSegmentFormat: isFmp4
+                            ? MediaHlsVideoSegmentFormat.FMP4
+                            : MediaHlsVideoSegmentFormat.MPEG2_TS,
+                        }),
                         streamType: MediaStreamType.BUFFERED,
                         streamDuration: streamDurationSeconds,
                         metadata:
@@ -266,6 +284,9 @@ export const PlayButton: React.FC<Props> = ({
                         return;
                       }
                       CastContext.showExpandedControls();
+                    })
+                    .catch((e) => {
+                      console.error("Chromecast loadMedia failed:", e);
                     });
                 } catch (e) {
                   console.log(e);
