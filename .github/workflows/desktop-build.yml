@@ -1,0 +1,59 @@
+name: 🖥️ Build Desktop
+
+# Manual / release-only on purpose: the desktop artifacts are large and this
+# does not need to run on every pull request.
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux (AppImage + deb)
+            target: linux
+          - os: windows-latest
+            name: Windows (NSIS + portable)
+            target: win
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the web bundle
+        run: bun run build:desktop
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Package
+        working-directory: desktop
+        # Unsigned: there is no certificate in CI, and electron-builder would
+        # otherwise try to discover one and fail.
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --${{ matrix.target }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: streamyfin-desktop-${{ matrix.target }}
+          path: |
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.exe
+          if-no-files-found: error
