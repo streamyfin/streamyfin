@@ -10,6 +10,7 @@ const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 import { useAtom } from "jotai";
 import { HeaderBackButton } from "@/components/common/HeaderBackButton";
+import { JellyseerrDownloadsButton } from "@/components/jellyseerr/JellyseerrDownloadsButton";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
 
@@ -33,6 +34,7 @@ export default function IndexLayout() {
               {!Platform.isTV && (
                 <>
                   <Chromecast.Chromecast background='transparent' />
+                  <JellyseerrDownloadsButton />
                   {user?.Policy?.IsAdministrator && <SessionsButton />}
                   <SettingsButton />
                 </>
@@ -55,6 +57,17 @@ export default function IndexLayout() {
         name='sessions/index'
         options={{
           title: t("home.sessions.title"),
+          headerShown: !Platform.isTV,
+          headerBlurEffect: "none",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Stack.Screen
+        name='jellyseerr-downloads/index'
+        options={{
+          title: t("jellyseerr.downloads.title"),
           headerShown: !Platform.isTV,
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",

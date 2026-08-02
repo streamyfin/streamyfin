@@ -837,6 +837,12 @@
     "select_seasons": "Select seasons",
     "request_selected": "Request selected",
     "n_selected": "{{count}} selected",
+    "downloads": {
+      "title": "Downloads to server",
+      "empty": "Nothing downloading to the server",
+      "n_downloading": "{{count}} downloading to server",
+      "unknown_eta": "Calculating…"
+    },
     "toasts": {
       "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",

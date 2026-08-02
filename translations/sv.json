@@ -837,6 +837,12 @@
     "select_seasons": "Välj säsonger",
     "request_selected": "Begär valda",
     "n_selected": "{{count}} valda",
+    "downloads": {
+      "title": "Nedladdningar till servern",
+      "empty": "Inget laddas ner till servern",
+      "n_downloading": "{{count}} laddas ner till servern",
+      "unknown_eta": "Beräknar…"
+    },
     "toasts": {
       "jellyseerr_does_not_meet_requirements": "Seerr-servern uppfyller inte minimikrav för version! Vänligen uppdatera till minst 2.0.0",
       "jellyseerr_test_failed": "Seerr test misslyckades. Försök igen.",
