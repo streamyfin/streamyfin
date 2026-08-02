@@ -103,9 +103,12 @@ function startBundleServer() {
 
       if (!file) {
         if (looksLikeAsset) {
-          // encodeURIComponent escapes CR/LF, so a crafted path cannot forge
-          // extra log lines.
-          console.error(`[streamyfin] 404 ${encodeURIComponent(urlPath)}`);
+          // Deliberately does not include the requested path. Logging request
+          // data is a log-injection sink, and the browser's network panel
+          // already shows which URL failed — so the log only needs to say that
+          // an asset was missing (which is what caught a packaging bug where
+          // the icon fonts were absent from the build).
+          console.error("[streamyfin] 404: asset not present in the bundle");
           res.writeHead(404, { "Content-Type": "text/plain" });
           res.end("Not found");
           return;

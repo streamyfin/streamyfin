@@ -65,9 +65,10 @@ createServer((req, res) => {
     // Only routes fall through to index.html. A missing *file* must 404 —
     // handing back HTML for a .ttf turns a packaging bug into silent tofu.
     if (path.extname(url) !== "") {
-      // encodeURIComponent escapes CR/LF, so a crafted path cannot forge
-      // extra log lines.
-      console.error(`404 ${encodeURIComponent(url)}`);
+      // Deliberately does not include the requested path: logging request data
+      // is a log-injection sink, and the browser's network panel already shows
+      // which URL failed.
+      console.error("404: asset not present in the bundle");
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
       return;
