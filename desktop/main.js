@@ -18,7 +18,7 @@ const { createServer } = require("node:http");
 const {
   existsSync,
   readFileSync,
-  statSync,
+  readdirSync,
   writeFileSync,
 } = require("node:fs");
 const path = require("node:path");
@@ -59,33 +59,34 @@ const MIME = {
 };
 
 /**
- * Resolves a request path inside DIST, or null if it escapes or is not a file.
+ * Index of every servable file, built once at startup: request path -> absolute
+ * path on disk.
  *
- * `path.join` collapses `..`, but a prefix test alone still lets a sibling
- * directory through (`…/dist-web-evil` starts with `…/dist-web`). Comparing the
- * *relative* path is what actually contains it.
+ * The bundle is static, so the set of servable files is known up front. Looking
+ * a request up in this map means no filesystem path is ever *constructed* from
+ * request data — traversal is impossible by construction rather than by a guard
+ * that has to be right, and there is no tainted path expression for static
+ * analysis to flag either.
  */
-function resolveWithinDist(urlPath) {
-  const candidate = path.resolve(DIST, `.${path.posix.sep}${urlPath}`);
-  const relative = path.relative(DIST, candidate);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
+const fileIndex = new Map();
+
+function buildFileIndex(dir = DIST, prefix = "") {
+  let entries;
   try {
-    if (!existsSync(candidate) || statSync(candidate).isDirectory())
-      return null;
+    entries = readdirSync(dir, { withFileTypes: true });
   } catch {
-    return null;
+    return;
   }
-  return candidate;
+  for (const entry of entries) {
+    const abs = path.join(dir, entry.name);
+    const key = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) buildFileIndex(abs, key);
+    else fileIndex.set(key, abs);
+  }
 }
 
-/**
- * Serves the SPA. Route paths fall through to index.html so expo-router can
- * handle them, but a request that names a file (anything with an extension)
- * 404s when it is missing instead of silently receiving index.html — an HTML
- * body served as a font or script fails in ways that are near-impossible to
- * trace back to a packaging mistake.
- */
 function startBundleServer() {
+  buildFileIndex();
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       let urlPath;
@@ -98,21 +99,25 @@ function startBundleServer() {
       }
 
       const looksLikeAsset = path.extname(urlPath) !== "";
-      let file = resolveWithinDist(urlPath);
+      let file = fileIndex.get(urlPath);
 
       if (!file) {
-        // Outside the bundle directory, or missing.
         if (looksLikeAsset) {
-          // Strip CR/LF inline: a crafted URL must not be able to forge extra
-          // log lines. Kept at the call site so it is obvious (and so static
-          // analysis can see the sanitisation).
-          const safePath = urlPath.replace(/[\r\n\t]/g, " ").slice(0, 200);
-          console.error(`[streamyfin] 404 ${safePath}`);
+          // encodeURIComponent escapes CR/LF, so a crafted path cannot forge
+          // extra log lines.
+          console.error(`[streamyfin] 404 ${encodeURIComponent(urlPath)}`);
           res.writeHead(404, { "Content-Type": "text/plain" });
           res.end("Not found");
           return;
         }
-        file = path.join(DIST, "index.html");
+        // A route, not a file: hand back the SPA entry point so expo-router
+        // can resolve it client-side.
+        file = fileIndex.get("/index.html");
+        if (!file) {
+          res.writeHead(500, { "Content-Type": "text/plain" });
+          res.end("Bundle missing");
+          return;
+        }
       }
 
       try {

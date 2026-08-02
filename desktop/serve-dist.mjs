@@ -2,7 +2,7 @@
 // `expo export --platform web` with `output: "single"` produces an SPA, so any
 // unknown path has to fall through to index.html for client-side routing.
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,20 +24,30 @@ const TYPES = {
   ".woff2": "font/woff2",
 };
 
-/** Resolves inside `root`, or null. A prefix test alone would let a sibling
- *  directory through, so the containment check is on the relative path. */
-const resolveWithinRoot = (urlPath) => {
-  const candidate = path.resolve(root, `.${path.posix.sep}${urlPath}`);
-  const relative = path.relative(root, candidate);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
+/**
+ * Index of every servable file, built once: request path -> path on disk.
+ *
+ * No filesystem path is ever constructed from request data, so traversal is
+ * impossible by construction rather than by a guard that has to be right.
+ */
+const fileIndex = new Map();
+
+const buildFileIndex = (dir = root, prefix = "") => {
+  let entries;
   try {
-    if (!existsSync(candidate) || statSync(candidate).isDirectory())
-      return null;
+    entries = readdirSync(dir, { withFileTypes: true });
   } catch {
-    return null;
+    return;
   }
-  return candidate;
+  for (const entry of entries) {
+    const abs = path.join(dir, entry.name);
+    const key = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) buildFileIndex(abs, key);
+    else fileIndex.set(key, abs);
+  }
 };
+
+buildFileIndex();
 
 createServer((req, res) => {
   let url;
@@ -49,20 +59,25 @@ createServer((req, res) => {
     return;
   }
 
-  let file = resolveWithinRoot(url);
+  let file = fileIndex.get(url);
 
   if (!file) {
     // Only routes fall through to index.html. A missing *file* must 404 —
     // handing back HTML for a .ttf turns a packaging bug into silent tofu.
     if (path.extname(url) !== "") {
-      // Strip CR/LF inline so a crafted URL cannot forge extra log lines.
-      const safePath = url.replace(/[\r\n\t]/g, " ").slice(0, 200);
-      console.error(`404 ${safePath}`);
+      // encodeURIComponent escapes CR/LF, so a crafted path cannot forge
+      // extra log lines.
+      console.error(`404 ${encodeURIComponent(url)}`);
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
       return;
     }
-    file = path.join(root, "index.html");
+    file = fileIndex.get("/index.html");
+    if (!file) {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end("Bundle missing");
+      return;
+    }
   }
 
   try {
