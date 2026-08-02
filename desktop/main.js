@@ -8,6 +8,7 @@
 const {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   safeStorage,
   session,
@@ -57,6 +58,32 @@ const MIME = {
   ".webm": "video/webm",
 };
 
+/** Strips CR/LF so a crafted URL cannot forge extra log lines. */
+const sanitizeForLog = (value) =>
+  String(value)
+    .replace(/[\r\n\t]/g, " ")
+    .slice(0, 200);
+
+/**
+ * Resolves a request path inside DIST, or null if it escapes or is not a file.
+ *
+ * `path.join` collapses `..`, but a prefix test alone still lets a sibling
+ * directory through (`…/dist-web-evil` starts with `…/dist-web`). Comparing the
+ * *relative* path is what actually contains it.
+ */
+function resolveWithinDist(urlPath) {
+  const candidate = path.resolve(DIST, `.${path.posix.sep}${urlPath}`);
+  const relative = path.relative(DIST, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
+  try {
+    if (!existsSync(candidate) || statSync(candidate).isDirectory())
+      return null;
+  } catch {
+    return null;
+  }
+  return candidate;
+}
+
 /**
  * Serves the SPA. Route paths fall through to index.html so expo-router can
  * handle them, but a request that names a file (anything with an extension)
@@ -67,18 +94,22 @@ const MIME = {
 function startBundleServer() {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
-      const urlPath = decodeURIComponent((req.url ?? "/").split("?")[0]);
-      let file = path.join(DIST, urlPath);
+      let urlPath;
+      try {
+        urlPath = decodeURIComponent((req.url ?? "/").split("?")[0]);
+      } catch {
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Bad request");
+        return;
+      }
+
       const looksLikeAsset = path.extname(urlPath) !== "";
+      let file = resolveWithinDist(urlPath);
 
-      // Contain traversal: never serve outside the bundle directory.
-      const outsideRoot = !file.startsWith(DIST);
-      const missing =
-        outsideRoot || !existsSync(file) || statSync(file).isDirectory();
-
-      if (missing) {
+      if (!file) {
+        // Outside the bundle directory, or missing.
         if (looksLikeAsset) {
-          console.error(`[streamyfin] 404 ${urlPath} (looked in ${DIST})`);
+          console.error(`[streamyfin] 404 ${sanitizeForLog(urlPath)}`);
           res.writeHead(404, { "Content-Type": "text/plain" });
           res.end("Not found");
           return;
@@ -93,8 +124,11 @@ function startBundleServer() {
         });
         res.end(readFileSync(file));
       } catch (error) {
-        res.writeHead(500);
-        res.end(String(error));
+        // Never echo the exception back: it would leak paths and stack detail,
+        // and an unescaped message rendered as HTML is an XSS vector.
+        console.error("[streamyfin] failed to serve a bundle file:", error);
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Internal error");
       }
     });
 
@@ -114,17 +148,21 @@ function startBundleServer() {
         return;
       }
       const port = APP_PORTS[index];
-      server.once("error", (err) => {
+      const onError = (err) => {
         if (err.code === "EADDRINUSE") {
           console.warn(`[streamyfin] port ${port} busy, trying the next one`);
           tryPort(index + 1);
         } else {
           reject(err);
         }
+      };
+      server.once("error", onError);
+      server.listen(port, "127.0.0.1", () => {
+        // Drop the retry handler; leaving it attached means a later runtime
+        // error on the live server would be treated as a bind failure.
+        server.removeListener("error", onError);
+        resolve(`http://127.0.0.1:${port}`);
       });
-      server.listen(port, "127.0.0.1", () =>
-        resolve(`http://127.0.0.1:${port}`),
-      );
     };
     tryPort(0);
   });
@@ -142,6 +180,7 @@ function startBundleServer() {
 // With credentials, `Access-Control-Allow-Headers: *` is read literally rather
 // than as a wildcard, so the preflight response has to echo the exact list.
 const preflightRequestHeaders = new Map();
+const MAX_TRACKED_PREFLIGHTS = 100;
 
 function withRelaxedCors(details, appOrigin) {
   const headers = { ...details.responseHeaders };
@@ -244,6 +283,16 @@ const saveCookieJar = () => {
   }
 };
 
+let cookieSaveTimer = null;
+/** Coalesces writes: every authenticated response can carry Set-Cookie. */
+const scheduleCookieJarSave = () => {
+  if (cookieSaveTimer) return;
+  cookieSaveTimer = setTimeout(() => {
+    cookieSaveTimer = null;
+    saveCookieJar();
+  }, 1000);
+};
+
 function bridgeApiCookies(appOrigin) {
   loadCookieJar();
 
@@ -256,13 +305,30 @@ function bridgeApiCookies(appOrigin) {
         const host = new URL(details.url).host;
         const jar = cookieJar.get(host) ?? new Map();
         for (const entry of setCookie) {
-          const [pair] = entry.split(";");
+          const [pair, ...attrs] = entry.split(";");
           const idx = pair.indexOf("=");
-          if (idx > 0)
-            jar.set(pair.slice(0, idx).trim(), pair.slice(idx + 1).trim());
+          if (idx <= 0) continue;
+          const name = pair.slice(0, idx).trim();
+          const value = pair.slice(idx + 1).trim();
+
+          // A server clears a cookie by re-sending it already expired. Ignoring
+          // that would replay a dead session for as long as the jar lives.
+          const meta = attrs.map((a) => a.trim().toLowerCase());
+          const clearedByMaxAge = meta.some(
+            (a) => a.startsWith("max-age=") && Number(a.slice(8)) <= 0,
+          );
+          const clearedByExpires = meta.some((a) => {
+            if (!a.startsWith("expires=")) return false;
+            const when = Date.parse(a.slice(8));
+            return Number.isFinite(when) && when <= Date.now();
+          });
+
+          if (!value || clearedByMaxAge || clearedByExpires) jar.delete(name);
+          else jar.set(name, value);
         }
-        cookieJar.set(host, jar);
-        saveCookieJar();
+        if (jar.size > 0) cookieJar.set(host, jar);
+        else cookieJar.delete(host);
+        scheduleCookieJarSave();
       }
     }
     callback(withRelaxedCors(details, appOrigin));
@@ -274,7 +340,15 @@ function bridgeApiCookies(appOrigin) {
         const requested =
           details.requestHeaders["Access-Control-Request-Headers"] ??
           details.requestHeaders["access-control-request-headers"];
-        if (requested) preflightRequestHeaders.set(details.id, requested);
+        if (requested) {
+          // A preflight whose response never reaches us would otherwise sit
+          // here forever; drop the oldest entry rather than grow unbounded.
+          if (preflightRequestHeaders.size >= MAX_TRACKED_PREFLIGHTS) {
+            const oldest = preflightRequestHeaders.keys().next().value;
+            preflightRequestHeaders.delete(oldest);
+          }
+          preflightRequestHeaders.set(details.id, requested);
+        }
       }
       try {
         const jar = cookieJar.get(new URL(details.url).host);
@@ -383,12 +457,28 @@ function registerSecureStore() {
   });
 }
 
+// Bound once for the whole app run. createWindow() is called again on macOS
+// `activate`, and re-binding would pick a different port — a different origin,
+// and therefore an empty profile.
+let appOriginPromise = null;
+const getAppOrigin = () => {
+  if (!appOriginPromise) {
+    appOriginPromise = DEV_URL
+      ? Promise.resolve(DEV_URL)
+      : startBundleServer().then((origin) => {
+          // Registers the single onHeadersReceived / onBeforeSendHeaders pair:
+          // relaxed CORS and the API cookie bridge share them, because Electron
+          // keeps only the most recently registered listener per event.
+          bridgeApiCookies(new URL(origin).origin);
+          return origin;
+        });
+    if (DEV_URL) bridgeApiCookies(new URL(DEV_URL).origin);
+  }
+  return appOriginPromise;
+};
+
 async function createWindow() {
-  const appOrigin = DEV_URL ?? (await startBundleServer());
-  // Registers the single onHeadersReceived / onBeforeSendHeaders pair: relaxed
-  // CORS and the API cookie bridge share them, because Electron keeps only the
-  // most recently registered listener per webRequest event.
-  bridgeApiCookies(new URL(appOrigin).origin);
+  const appOrigin = await getAppOrigin();
 
   const win = new BrowserWindow({
     width: 1440,
@@ -413,6 +503,15 @@ async function createWindow() {
     return { action: "deny" };
   });
 
+  // The shell only ever hosts the local bundle. Anything trying to navigate the
+  // window itself to a remote origin is either a stray link or hostile; hand it
+  // to the browser instead of loading it with this window's privileges.
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url.startsWith(appOrigin)) return;
+    event.preventDefault();
+    if (/^https?:/.test(url)) void shell.openExternal(url);
+  });
+
   await win.loadURL(appOrigin);
   return win;
 }
@@ -421,12 +520,23 @@ async function createWindow() {
 // and it stops background throttling from stalling playback in a hidden window.
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 
+const launch = () =>
+  createWindow().catch((error) => {
+    // Most likely every fixed port is taken. Say so instead of exiting with a
+    // blank screen and no explanation.
+    dialog.showErrorBox(
+      "Streamyfin could not start",
+      String(error?.message ?? error),
+    );
+    app.quit();
+  });
+
 app.whenReady().then(() => {
   registerSecureStore();
-  void createWindow();
+  launch();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) launch();
   });
 });
 

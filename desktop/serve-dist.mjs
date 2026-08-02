@@ -24,15 +24,43 @@ const TYPES = {
   ".woff2": "font/woff2",
 };
 
-createServer((req, res) => {
-  const url = decodeURIComponent((req.url ?? "/").split("?")[0]);
-  let file = path.join(root, url);
+/** Resolves inside `root`, or null. A prefix test alone would let a sibling
+ *  directory through, so the containment check is on the relative path. */
+const resolveWithinRoot = (urlPath) => {
+  const candidate = path.resolve(root, `.${path.posix.sep}${urlPath}`);
+  const relative = path.relative(root, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) return null;
+  try {
+    if (!existsSync(candidate) || statSync(candidate).isDirectory())
+      return null;
+  } catch {
+    return null;
+  }
+  return candidate;
+};
 
-  if (!existsSync(file) || statSync(file).isDirectory()) {
+const safeLog = (value) =>
+  String(value)
+    .replace(/[\r\n\t]/g, " ")
+    .slice(0, 200);
+
+createServer((req, res) => {
+  let url;
+  try {
+    url = decodeURIComponent((req.url ?? "/").split("?")[0]);
+  } catch {
+    res.writeHead(400, { "Content-Type": "text/plain" });
+    res.end("Bad request");
+    return;
+  }
+
+  let file = resolveWithinRoot(url);
+
+  if (!file) {
     // Only routes fall through to index.html. A missing *file* must 404 —
     // handing back HTML for a .ttf turns a packaging bug into silent tofu.
     if (path.extname(url) !== "") {
-      console.error(`404 ${url}`);
+      console.error(`404 ${safeLog(url)}`);
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
       return;
@@ -47,9 +75,11 @@ createServer((req, res) => {
     });
     res.end(body);
   } catch (error) {
-    res.writeHead(500);
-    res.end(String(error));
+    // Never echo the exception: it leaks paths and can be rendered as HTML.
+    console.error("failed to serve file:", error);
+    res.writeHead(500, { "Content-Type": "text/plain" });
+    res.end("Internal error");
   }
-}).listen(port, () => {
+}).listen(port, "127.0.0.1", () => {
   console.log(`Streamyfin desktop bundle on http://localhost:${port}`);
 });

@@ -31,6 +31,8 @@ function restoreSession() {
   }
 }
 
+let lastMirrored = null;
+
 /** Push current state back to disk so the next launch can restore it. */
 function mirrorSession() {
   try {
@@ -39,9 +41,14 @@ function mirrorSession() {
       const key = localStorage.key(i);
       if (key) data[key] = localStorage.getItem(key);
     }
-    if (Object.keys(data).length > 0) {
-      void ipcRenderer.invoke("session-mirror:save", JSON.stringify(data));
-    }
+    if (Object.keys(data).length === 0) return;
+
+    // The renderer caches images and query state here too, so this runs often.
+    // Skip the encrypted write unless something actually changed.
+    const json = JSON.stringify(data);
+    if (json === lastMirrored) return;
+    lastMirrored = json;
+    void ipcRenderer.invoke("session-mirror:save", json);
   } catch {
     // Best-effort.
   }
