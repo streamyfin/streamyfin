@@ -2,6 +2,7 @@ package expo.modules.mpvplayer
 
 import android.app.UiModeManager
 import android.content.Context
+import android.content.res.AssetManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
