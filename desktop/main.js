@@ -294,8 +294,17 @@ const scheduleCookieJarSave = () => {
 function bridgeApiCookies(appOrigin) {
   loadCookieJar();
 
+  /** True for requests to our own bundle server. Origin, not prefix. */
+  const isAppRequest = (url) => {
+    try {
+      return new URL(url).origin === appOrigin;
+    } catch {
+      return false;
+    }
+  };
+
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    if (!details.url.startsWith(appOrigin)) {
+    if (!isAppRequest(details.url)) {
       const setCookie =
         details.responseHeaders?.["set-cookie"] ??
         details.responseHeaders?.["Set-Cookie"];
@@ -333,7 +342,7 @@ function bridgeApiCookies(appOrigin) {
   });
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    if (!details.url.startsWith(appOrigin)) {
+    if (!isAppRequest(details.url)) {
       if (details.method === "OPTIONS") {
         const requested =
           details.requestHeaders["Access-Control-Request-Headers"] ??
@@ -505,7 +514,15 @@ async function createWindow() {
   // window itself to a remote origin is either a stray link or hostile; hand it
   // to the browser instead of loading it with this window's privileges.
   win.webContents.on("will-navigate", (event, url) => {
-    if (url.startsWith(appOrigin)) return;
+    // Compare parsed origins: a prefix test would accept something like
+    // http://127.0.0.1:47821.example.com.
+    let sameOrigin = false;
+    try {
+      sameOrigin = new URL(url).origin === appOrigin;
+    } catch {
+      sameOrigin = false;
+    }
+    if (sameOrigin) return;
     event.preventDefault();
     if (/^https?:/.test(url)) void shell.openExternal(url);
   });
@@ -536,6 +553,16 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) launch();
   });
+});
+
+// The cookie write is debounced; quitting inside that window would drop the
+// most recent session cookie and force a fresh Jellyseerr login next launch.
+app.on("before-quit", () => {
+  if (cookieSaveTimer) {
+    clearTimeout(cookieSaveTimer);
+    cookieSaveTimer = null;
+    saveCookieJar();
+  }
 });
 
 app.on("window-all-closed", () => {
