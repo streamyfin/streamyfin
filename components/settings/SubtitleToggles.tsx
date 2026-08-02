@@ -70,7 +70,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         label:
           culture.DisplayName ||
           culture.ThreeLetterISOLanguageName ||
-          "Unknown",
+          t("home.settings.subtitles.unknown_language"),
         value:
           culture.ThreeLetterISOLanguageName ||
           culture.DisplayName ||
