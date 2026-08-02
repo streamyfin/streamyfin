@@ -188,8 +188,39 @@ function startBundleServer() {
 const preflightRequestHeaders = new Map();
 const MAX_TRACKED_PREFLIGHTS = 100;
 
+// webContents id of the app window. The interceptors below only act on traffic
+// from our own renderer, so nothing else sharing the default session can have
+// its CORS rewritten or its cookies replayed.
+let appWebContentsId = null;
+
+/**
+ * Fills in CORS only for servers that do not do it themselves.
+ *
+ * Jellyfin answers preflights correctly and sends Access-Control-Allow-Origin,
+ * so rewriting its headers was both unnecessary and rude — it replaced a
+ * working answer with ours on every response. Jellyseerr sends no CORS headers
+ * at all and rejects preflights with 405, which is the case this exists for.
+ *
+ * Deciding on "did the server already answer?" rather than on a list of hosts
+ * is what keeps first-run setup working: a server the user is adding for the
+ * first time is not in any list yet, but it either speaks CORS (nothing to do)
+ * or it does not (we fill in), and both paths work.
+ */
 function withRelaxedCors(details, appOrigin) {
   const headers = { ...details.responseHeaders };
+
+  const serverSentCors = Object.keys(headers).some(
+    (key) => key.toLowerCase() === "access-control-allow-origin",
+  );
+  const preflightSucceeded =
+    details.statusCode >= 200 && details.statusCode < 300;
+
+  // The server handled CORS itself — leave its response untouched.
+  if (serverSentCors && (details.method !== "OPTIONS" || preflightSucceeded)) {
+    preflightRequestHeaders.delete(details.id);
+    return { responseHeaders: headers };
+  }
+
   // Strip any existing values so we don't end up with duplicates, which
   // browsers treat as invalid.
   for (const key of Object.keys(headers)) {
@@ -312,6 +343,12 @@ function bridgeApiCookies(appOrigin) {
   };
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const fromOurRenderer =
+      appWebContentsId !== null && details.webContentsId === appWebContentsId;
+    if (!fromOurRenderer) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
     if (!isAppRequest(details.url)) {
       const setCookie =
         details.responseHeaders?.["set-cookie"] ??
@@ -350,7 +387,9 @@ function bridgeApiCookies(appOrigin) {
   });
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    if (!isAppRequest(details.url)) {
+    const fromOurRenderer =
+      appWebContentsId !== null && details.webContentsId === appWebContentsId;
+    if (fromOurRenderer && !isAppRequest(details.url)) {
       if (details.method === "OPTIONS") {
         const requested =
           details.requestHeaders["Access-Control-Request-Headers"] ??
@@ -511,6 +550,8 @@ async function createWindow() {
       sandbox: true,
     },
   });
+
+  appWebContentsId = win.webContents.id;
 
   // External links open in the user's browser, never inside the app shell.
   win.webContents.setWindowOpenHandler(({ url }) => {

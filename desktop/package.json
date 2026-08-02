@@ -8,9 +8,9 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --publish never",
-    "dist:win": "electron-builder --win --publish never",
-    "dist:linux": "electron-builder --linux --publish never"
+    "dist": "electron-builder --publish never --config electron-builder.config.js",
+    "dist:win": "electron-builder --win --publish never --config electron-builder.config.js",
+    "dist:linux": "electron-builder --linux --publish never --config electron-builder.config.js"
   },
   "devDependencies": {
     "electron": "^34.2.0",
@@ -23,5 +23,6 @@
   "homepage": "https://github.com/streamyfin/streamyfin",
   "author": {
     "name": "Streamyfin contributors"
-  }
+  },
+  "//version": "Overridden at build time from app.json via electron-builder.config.js; this value is a placeholder."
 }
