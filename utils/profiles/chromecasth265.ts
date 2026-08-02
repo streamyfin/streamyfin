@@ -17,8 +17,9 @@ export const chromecasth265: DeviceProfile = {
   ],
   ContainerProfiles: [],
   DirectPlayProfiles: [
+    // No mkv here: the Cast receiver cannot demux Matroska, only mp4/webm.
     {
-      Container: "mp4,mkv",
+      Container: "mp4",
       Type: "Video",
       VideoCodec: "hevc,h264",
       AudioCodec: "aac,mp3,opus,vorbis",
@@ -41,8 +42,11 @@ export const chromecasth265: DeviceProfile = {
     },
   ],
   TranscodingProfiles: [
+    // The Cast receiver only supports HEVC in fMP4 HLS segments (MPEG-TS
+    // segments are AVC-only), so HEVC transcodes must use the mp4 segment
+    // container.
     {
-      Container: "ts",
+      Container: "mp4",
       Type: "Video",
       VideoCodec: "hevc,h264",
       AudioCodec: "aac,mp3",
@@ -53,7 +57,7 @@ export const chromecasth265: DeviceProfile = {
       BreakOnNonKeyFrames: true,
     },
     {
-      Container: "mp4,mkv",
+      Container: "mp4",
       Type: "Video",
       VideoCodec: "hevc,h264",
       AudioCodec: "aac",
