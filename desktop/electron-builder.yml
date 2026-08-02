@@ -49,6 +49,9 @@ nsis:
   shortcutName: Streamyfin
 
 linux:
+  # .deb requires a maintainer. Deliberately the project's identity rather than
+  # any individual's address: it is embedded in every package that ships.
+  maintainer: Streamyfin contributors <noreply@users.noreply.github.com>
   # AppImage is the self-contained one: a single executable file, no install.
   target:
     - target: AppImage

@@ -19,5 +19,9 @@
   "//trustedDependencies": "bun skips lifecycle scripts unless a package is trusted; electron's postinstall is what downloads the actual binary.",
   "trustedDependencies": [
     "electron"
-  ]
+  ],
+  "homepage": "https://github.com/streamyfin/streamyfin",
+  "author": {
+    "name": "Streamyfin contributors"
+  }
 }
