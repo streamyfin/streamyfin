@@ -459,7 +459,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           disabled={pluginSettings?.subtitleSize?.locked}
         >
           <Stepper
-            value={settings.subtitleSize}
+            value={settings.subtitleSize ?? 1.0}
             disabled={pluginSettings?.subtitleSize?.locked}
             step={0.1}
             min={0.1}
@@ -542,7 +542,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
           >
             <Stepper
-              value={settings.subtitleBackgroundOpacity}
+              value={settings.subtitleBackgroundOpacity ?? 40}
               disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
               step={5}
               min={0}
@@ -561,7 +561,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
           >
             <Stepper
-              value={settings.subtitleBackgroundPadding}
+              value={settings.subtitleBackgroundPadding ?? 12}
               disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
               step={1}
               min={0}
