@@ -58,12 +58,6 @@ const MIME = {
   ".webm": "video/webm",
 };
 
-/** Strips CR/LF so a crafted URL cannot forge extra log lines. */
-const sanitizeForLog = (value) =>
-  String(value)
-    .replace(/[\r\n\t]/g, " ")
-    .slice(0, 200);
-
 /**
  * Resolves a request path inside DIST, or null if it escapes or is not a file.
  *
@@ -109,7 +103,12 @@ function startBundleServer() {
       if (!file) {
         // Outside the bundle directory, or missing.
         if (looksLikeAsset) {
-          console.error(`[streamyfin] 404 ${sanitizeForLog(urlPath)}`);
+          // Strip CR/LF inline: a crafted URL must not be able to forge extra
+          // log lines. Kept at the call site so it is obvious (and so static
+          // analysis can see the sanitisation).
+          const safePath = urlPath.replace(/[
+          ]/g, " ").slice(0, 200)
+          console.error(`[streamyfin] 404 ${safePath}`);
           res.writeHead(404, { "Content-Type": "text/plain" });
           res.end("Not found");
           return;

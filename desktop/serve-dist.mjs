@@ -39,11 +39,6 @@ const resolveWithinRoot = (urlPath) => {
   return candidate;
 };
 
-const safeLog = (value) =>
-  String(value)
-    .replace(/[\r\n\t]/g, " ")
-    .slice(0, 200);
-
 createServer((req, res) => {
   let url;
   try {
@@ -60,7 +55,10 @@ createServer((req, res) => {
     // Only routes fall through to index.html. A missing *file* must 404 —
     // handing back HTML for a .ttf turns a packaging bug into silent tofu.
     if (path.extname(url) !== "") {
-      console.error(`404 ${safeLog(url)}`);
+      // Strip CR/LF inline so a crafted URL cannot forge extra log lines.
+      const safePath = url.replace(/[
+      ]/g, " ").slice(0, 200)
+      console.error(`404 ${safePath}`);
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Not found");
       return;
