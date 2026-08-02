@@ -1,0 +1,23 @@
+{
+  "name": "streamyfin-desktop",
+  "productName": "Streamyfin",
+  "version": "0.55.0",
+  "description": "Streamyfin desktop client for Jellyfin",
+  "license": "MPL-2.0",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
+  },
+  "devDependencies": {
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "//trustedDependencies": "bun skips lifecycle scripts unless a package is trusted; electron's postinstall is what downloads the actual binary.",
+  "trustedDependencies": [
+    "electron"
+  ]
+}

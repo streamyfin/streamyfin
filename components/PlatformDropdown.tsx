@@ -7,16 +7,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
-// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
-// A static top-level import evaluates requireNativeModule('ExpoUI') at module
-// load and crashes the entire route tree on tvOS (expo-router requires every
-// route file). Load it lazily and only off-TV; TV never renders these.
-const { Button, Host, Menu } = Platform.isTV
-  ? ({} as typeof import("@expo/ui/swift-ui"))
-  : require("@expo/ui/swift-ui");
-const { disabled } = Platform.isTV
-  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
-  : require("@expo/ui/swift-ui/modifiers");
+// @expo/ui's SwiftUI native module (ExpoUI) exists only in non-TV iOS builds —
+// not on tvOS, and not on web (the desktop client). A static top-level import
+// evaluates requireNativeModule('ExpoUI') at module load and crashes the entire
+// route tree, because expo-router requires every route file. Load it lazily,
+// and only on the one platform that renders it (see the iOS branch below).
+const USES_SWIFT_UI = Platform.OS === "ios" && !Platform.isTV;
+
+const { Button, Host, Menu } = USES_SWIFT_UI
+  ? require("@expo/ui/swift-ui")
+  : ({} as typeof import("@expo/ui/swift-ui"));
+const { disabled } = USES_SWIFT_UI
+  ? require("@expo/ui/swift-ui/modifiers")
+  : ({} as typeof import("@expo/ui/swift-ui/modifiers"));
 
 // Option types
 export type RadioOption<T = any> = {
