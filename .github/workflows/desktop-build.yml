@@ -80,9 +80,15 @@ jobs:
           merge-multiple: true
 
       - name: Upload to the release
+        # The tag and repo go through the environment, never through `${{ }}`
+        # interpolation into the script body: GitHub expands those before Bash
+        # parses the line, so a tag containing $() would execute here — in a job
+        # holding contents: write.
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          TARGET_REPO: ${{ github.repository }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
+          gh release upload "$RELEASE_TAG" \
             artifacts/*.AppImage artifacts/*.deb artifacts/*.exe \
-            --repo "${{ github.repository }}" --clobber
+            --repo "$TARGET_REPO" --clobber
