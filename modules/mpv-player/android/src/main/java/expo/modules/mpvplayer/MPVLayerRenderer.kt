@@ -287,12 +287,25 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         )
         customFonts.forEach { fileName ->
             val file = File(fontsDir, fileName)
-            if (!file.exists()) {
-                try {
-                    context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).copyTo(FileOutputStream(file))
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to copy custom font $fileName: ${e.message}")
+            if (file.exists() && file.length() > 0) return@forEach
+
+            val tempFile = File(fontsDir, "$fileName.tmp")
+            try {
+                if (file.exists()) file.delete()
+                if (tempFile.exists()) tempFile.delete()
+
+                context.assets.open("fonts/$fileName", AssetManager.ACCESS_STREAMING).use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
                 }
+
+                if (!tempFile.renameTo(file)) {
+                    throw IllegalStateException("Failed to rename ${tempFile.name} to ${file.name}")
+                }
+            } catch (e: Exception) {
+                tempFile.delete()
+                Log.w(TAG, "Failed to copy custom font $fileName: ${e.message}")
             }
         }
     }
