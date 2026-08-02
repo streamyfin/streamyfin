@@ -134,6 +134,13 @@ export const flattenActiveDownloads = (
 
   for (const page of pages) {
     for (const request of page?.results ?? []) {
+      // mediaType and tmdbId are the card's lookup keys for fetching the
+      // poster and human title. Without them the row can only ever show the
+      // raw release name, so drop it rather than emit one with invalid keys.
+      const mediaType = request.media?.mediaType;
+      const tmdbId = request.media?.tmdbId;
+      if (!mediaType || tmdbId === undefined || tmdbId === null) continue;
+
       // Mirrors JellyseerrPoster: a 4k request tracks the 4k queue. Cast to the
       // wire shape here — the declared entity type does not survive JSON.
       const items = ((request.is4k
@@ -171,8 +178,8 @@ export const flattenActiveDownloads = (
           downloadId: item.downloadId,
           requestId: request.id,
           is4k: Boolean(request.is4k),
-          mediaType: request.media?.mediaType,
-          tmdbId: request.media?.tmdbId,
+          mediaType,
+          tmdbId,
           releaseTitle: item.title,
           status: item.status,
           size,
@@ -229,6 +236,9 @@ export const useJellyseerrDownloads = (): UseJellyseerrDownloadsResult => {
       return flattenActiveDownloads(pages);
     },
     enabled,
+    // Without a staleTime, every mount of the badge or the screen kicks off
+    // another full page walk on top of the poll below.
+    staleTime: ACTIVE_POLL_MS,
     // gcTime 0 keeps this out of the MMKV-persisted cache. Without it the app
     // rehydrates a day-old queue on cold start and the badge lights up with
     // downloads that finished long ago.
