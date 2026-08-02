@@ -197,26 +197,44 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   ]);
 
   const alignXOptionGroups = useMemo(() => {
+    const isLocked = pluginSettings?.subtitleAlignX?.locked === true;
     const options = (["left", "center", "right"] as AlignX[]).map((align) => ({
       type: "radio" as const,
       label: t(`home.settings.subtitles.align.${align}`),
       value: align,
       selected: align === (settings?.subtitleAlignX ?? "center"),
-      onPress: () => updateSettings({ subtitleAlignX: align }),
+      disabled: isLocked,
+      onPress: () => {
+        if (!isLocked) updateSettings({ subtitleAlignX: align });
+      },
     }));
     return [{ options }];
-  }, [settings?.subtitleAlignX, t, updateSettings]);
+  }, [
+    pluginSettings?.subtitleAlignX?.locked,
+    settings?.subtitleAlignX,
+    t,
+    updateSettings,
+  ]);
 
   const alignYOptionGroups = useMemo(() => {
+    const isLocked = pluginSettings?.subtitleAlignY?.locked === true;
     const options = (["top", "center", "bottom"] as AlignY[]).map((align) => ({
       type: "radio" as const,
       label: t(`home.settings.subtitles.align.${align}`),
       value: align,
       selected: align === (settings?.subtitleAlignY ?? "bottom"),
-      onPress: () => updateSettings({ subtitleAlignY: align }),
+      disabled: isLocked,
+      onPress: () => {
+        if (!isLocked) updateSettings({ subtitleAlignY: align });
+      },
     }));
     return [{ options }];
-  }, [settings?.subtitleAlignY, t, updateSettings]);
+  }, [
+    pluginSettings?.subtitleAlignY?.locked,
+    settings?.subtitleAlignY,
+    t,
+    updateSettings,
+  ]);
 
   const subtitleColors = useMemo(
     () => [
@@ -470,17 +488,28 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           />
         </ListItem>
 
-        <ListItem title={t("home.settings.subtitles.subtitle_margin_y")}>
+        <ListItem
+          title={t("home.settings.subtitles.subtitle_margin_y")}
+          disabled={pluginSettings?.subtitleMarginY?.locked}
+        >
           <Stepper
             value={settings.subtitleMarginY ?? 0}
+            disabled={pluginSettings?.subtitleMarginY?.locked}
             step={5}
             min={-100}
             max={100}
-            onUpdate={(value) => updateSettings({ subtitleMarginY: value })}
+            onUpdate={(value) => {
+              if (!pluginSettings?.subtitleMarginY?.locked) {
+                updateSettings({ subtitleMarginY: value });
+              }
+            }}
           />
         </ListItem>
 
-        <ListItem title={t("home.settings.subtitles.subtitle_align_x")}>
+        <ListItem
+          title={t("home.settings.subtitles.subtitle_align_x")}
+          disabled={pluginSettings?.subtitleAlignX?.locked}
+        >
           <PlatformDropdown
             groups={alignXOptionGroups}
             trigger={
@@ -501,7 +530,10 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           />
         </ListItem>
 
-        <ListItem title={t("home.settings.subtitles.subtitle_align_y")}>
+        <ListItem
+          title={t("home.settings.subtitles.subtitle_align_y")}
+          disabled={pluginSettings?.subtitleAlignY?.locked}
+        >
           <PlatformDropdown
             groups={alignYOptionGroups}
             trigger={
