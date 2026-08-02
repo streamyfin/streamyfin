@@ -106,8 +106,7 @@ function startBundleServer() {
           // Strip CR/LF inline: a crafted URL must not be able to forge extra
           // log lines. Kept at the call site so it is obvious (and so static
           // analysis can see the sanitisation).
-          const safePath = urlPath.replace(/[
-          ]/g, " ").slice(0, 200)
+          const safePath = urlPath.replace(/[\r\n\t]/g, " ").slice(0, 200);
           console.error(`[streamyfin] 404 ${safePath}`);
           res.writeHead(404, { "Content-Type": "text/plain" });
           res.end("Not found");
