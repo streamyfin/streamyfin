@@ -486,6 +486,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             startPosition = cachedPosition,
             initialAudioId = savedAid,
             initialSubtitleId = savedSid,
+            loop = currentLoop,
             externalSubtitles = activeExternalSubtitles
         )
 
