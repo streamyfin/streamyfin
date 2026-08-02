@@ -291,7 +291,7 @@
         "subtitle_background_padding": "Espacement de l'arrière-plan",
         "subtitle_font": "Police des sous-titres",
         "subtitle_color": "Couleur des sous-titres",
-        "unknown_language": "Inconnu",
+        "unknown_language": "Langue inconnue",
         "preview_load_error": "Échec du chargement de l'aperçu",
         "color_accessibility_label": "Couleur des sous-titres : {{color}}",
         "fonts": {
