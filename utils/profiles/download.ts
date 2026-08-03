@@ -36,9 +36,6 @@ export const generateDownloadProfile = (
   return {
     ...baseProfile,
     Name: "1. MPV Download",
-    // Limit bitrate for downloads (20 Mbps)
-    MaxStaticBitrate: 20_000_000,
-    MaxStreamingBitrate: 20_000_000,
     // Use download-specific subtitle profiles
     SubtitleProfiles: downloadSubtitleProfiles,
     // Update transcoding profiles with download-specific settings

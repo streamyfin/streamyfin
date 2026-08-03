@@ -11,12 +11,16 @@ mock.module("react-native", () => ({
 const { generateDownloadProfile } = await import("./download");
 
 describe("generateDownloadProfile", () => {
+  test("leaves the bitrate uncapped so Max means Max", () => {
+    const profile = generateDownloadProfile("auto");
+
+    expect(profile.MaxStreamingBitrate).toBe(999_999_999);
+    expect(profile.MaxStaticBitrate).toBe(999_999_999);
+  });
+
   test("text subtitles are delivered externally, image subtitles burned in", () => {
     const profile = generateDownloadProfile("auto");
 
-    // Text formats come as separate downloadable files (survive transcodes,
-    // keep video stream-copyable); image formats can't be loaded externally
-    // by the players nor embedded in ts, so they burn in.
     expect(profile.SubtitleProfiles).toEqual([
       ...[
         "webvtt",
@@ -51,16 +55,6 @@ describe("generateDownloadProfile", () => {
 
     const video = profile.TranscodingProfiles?.find((p) => p.Type === "Video");
 
-    // Context must stay "Streaming": the server's MediaInfoHelper hardcodes
-    // EncodingContext.Streaming for PlaybackInfo, so "Static" profiles are
-    // never matched. Protocol "http" makes the server return the progressive
-    // /videos/{id}/stream.mp4 URL directly instead of an HLS playlist; a
-    // progressive mp4 is written as fragmented MP4 by the server.
-    //
-    // The audio list keeps eac3 (proper ec-3 tag in mp4, stream-copies with
-    // Dolby Atmos metadata intact) and drops dts: ffmpeg muxes DTS into mp4
-    // under the legacy mp4a/esds dialect that only ffmpeg-family software
-    // reads reliably, so DTS sources get a deterministic transcode instead.
     expect(video).toEqual({
       Type: "Video",
       Context: "Streaming",
