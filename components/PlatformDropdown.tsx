@@ -13,6 +13,10 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
 // route tree, because expo-router requires every route file. Load it lazily,
 // and only on the one platform that renders it (see the iOS branch below).
 const USES_SWIFT_UI = Platform.OS === "ios" && !Platform.isTV;
+// Everything without a native menu falls back to the bottom sheet. Callers that
+// drive `open` themselves need it honoured here, otherwise their trigger swallows
+// the press and nothing ever opens — which is what happened on the web build.
+const USES_BOTTOM_SHEET = Platform.OS === "android" || Platform.OS === "web";
 
 const { Button, Host, Menu } = USES_SWIFT_UI
   ? require("@expo/ui/swift-ui")
@@ -218,7 +222,7 @@ const PlatformDropdownComponent = ({
 
   // Handle controlled open state for Android
   useEffect(() => {
-    if (Platform.OS === "android" && controlledOpen === true) {
+    if (USES_BOTTOM_SHEET && controlledOpen === true) {
       showModal(
         <BottomSheetContent
           title={title}
@@ -240,7 +244,7 @@ const PlatformDropdownComponent = ({
   // Watch for modal dismissal on Android (e.g., swipe down, backdrop tap)
   // and sync the controlled open state
   useEffect(() => {
-    if (Platform.OS === "android" && controlledOpen === true && !isVisible) {
+    if (USES_BOTTOM_SHEET && controlledOpen === true && !isVisible) {
       controlledOnOpenChange?.(false);
     }
   }, [isVisible, controlledOpen, controlledOnOpenChange]);
