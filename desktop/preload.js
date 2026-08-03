@@ -71,4 +71,14 @@ contextBridge.exposeInMainWorld("streamyfinDesktop", {
       ipcRenderer.invoke("secure-store:set", String(key), String(value)),
     delete: (key) => ipcRenderer.invoke("secure-store:delete", String(key)),
   },
+  fullscreen: {
+    toggle: () => ipcRenderer.invoke("fullscreen:toggle"),
+    get: () => ipcRenderer.invoke("fullscreen:get"),
+    /** Fires for the F11 accelerator too, not just our own toggle. */
+    subscribe: (listener) => {
+      const handler = (_event, isFullscreen) => listener(isFullscreen === true);
+      ipcRenderer.on("fullscreen:changed", handler);
+      return () => ipcRenderer.removeListener("fullscreen:changed", handler);
+    },
+  },
 });

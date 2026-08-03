@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
 import useRouter from "@/hooks/useAppRouter";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
+import { useFullscreen } from "@/hooks/useFullscreen";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useOrientation } from "@/hooks/useOrientation";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -64,6 +65,11 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   const lightHapticFeedback = useHaptic("light");
   const { orientation, lockOrientation } = useOrientation();
   const [isTogglingOrientation, setIsTogglingOrientation] = useState(false);
+  const {
+    isSupported: canFullscreen,
+    isFullscreen,
+    toggle: toggleFullscreen,
+  } = useFullscreen();
 
   const onClose = async () => {
     lightHapticFeedback();
@@ -179,6 +185,24 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
           >
             <Ionicons
               name='play-skip-forward'
+              size={ICON_SIZES.HEADER}
+              color='white'
+            />
+          </TouchableOpacity>
+        )}
+        {/* Desktop and web only: on native the player already fills the screen. */}
+        {canFullscreen && (
+          <TouchableOpacity
+            onPress={toggleFullscreen}
+            className='aspect-square flex flex-col rounded-xl items-center justify-center p-2'
+            accessibilityLabel={t(
+              isFullscreen
+                ? "accessibility.exit_fullscreen"
+                : "accessibility.enter_fullscreen",
+            )}
+          >
+            <MaterialIcons
+              name={isFullscreen ? "fullscreen-exit" : "fullscreen"}
               size={ICON_SIZES.HEADER}
               color='white'
             />

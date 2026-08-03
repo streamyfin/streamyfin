@@ -527,6 +527,42 @@ function registerSecureStore() {
   });
 }
 
+/**
+ * Window fullscreen, driven from the player's own controls.
+ *
+ * This goes through the window rather than the HTML Fullscreen API so that the
+ * button and the F11 accelerator end up in the same state. Fullscreening an
+ * element would leave `win.isFullScreen()` false, and the two would disagree
+ * the moment a user mixed them.
+ */
+function registerFullscreen() {
+  const windowFor = (event) => BrowserWindow.fromWebContents(event.sender);
+
+  ipcMain.handle("fullscreen:toggle", (event) => {
+    const win = windowFor(event);
+    if (!win) return false;
+    const next = !win.isFullScreen();
+    win.setFullScreen(next);
+    return next;
+  });
+
+  ipcMain.handle("fullscreen:get", (event) => {
+    const win = windowFor(event);
+    return win ? win.isFullScreen() : false;
+  });
+}
+
+/** Keep the renderer's fullscreen state in step with the window's. */
+function reportFullscreenChanges(win) {
+  const send = (isFullscreen) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send("fullscreen:changed", isFullscreen);
+    }
+  };
+  win.on("enter-full-screen", () => send(true));
+  win.on("leave-full-screen", () => send(false));
+}
+
 // Bound once for the whole app run. createWindow() is called again on macOS
 // `activate`, and re-binding would pick a different port — a different origin,
 // and therefore an empty profile.
@@ -568,6 +604,8 @@ async function createWindow() {
   });
 
   appWebContentsId = win.webContents.id;
+
+  reportFullscreenChanges(win);
 
   // External links open in the user's browser, never inside the app shell.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -613,6 +651,7 @@ const launch = () =>
 
 app.whenReady().then(() => {
   registerSecureStore();
+  registerFullscreen();
   launch();
 
   app.on("activate", () => {

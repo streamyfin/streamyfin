@@ -855,7 +855,9 @@
     "play_button": "Play button",
     "play_hint": "Tap to play the media",
     "toggle_orientation": "Toggle screen orientation",
-    "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape"
+    "toggle_orientation_hint": "Toggles the screen orientation between portrait and landscape",
+    "enter_fullscreen": "Enter fullscreen",
+    "exit_fullscreen": "Exit fullscreen"
   },
   "not_found": {
     "title": "This screen doesn't exist.",

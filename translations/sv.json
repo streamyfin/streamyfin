@@ -855,7 +855,9 @@
     "play_button": "Uppspelningsknapp",
     "play_hint": "Tryck för att spela upp media",
     "toggle_orientation": "Växla skärmorientering",
-    "toggle_orientation_hint": "Växlar skärmorienteringen mellan stående och liggande läge"
+    "toggle_orientation_hint": "Växlar skärmorienteringen mellan stående och liggande läge",
+    "enter_fullscreen": "Helskärm",
+    "exit_fullscreen": "Avsluta helskärm"
   },
   "not_found": {
     "title": "Den här skärmen finns inte.",
