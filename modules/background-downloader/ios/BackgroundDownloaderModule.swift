@@ -40,6 +40,21 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     downloadTask: URLSessionDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
+    if let response = downloadTask.response as? HTTPURLResponse,
+      !(200...299).contains(response.statusCode)
+    {
+      module?.handleError(
+        taskId: downloadTask.taskIdentifier,
+        error: NSError(
+          domain: "BackgroundDownloader",
+          code: response.statusCode,
+          userInfo: [
+            NSLocalizedDescriptionKey: "HTTP error: \(response.statusCode)"
+          ]
+        )
+      )
+      return
+    }
     module?.handleDownloadComplete(
       taskId: downloadTask.taskIdentifier,
       location: location,
