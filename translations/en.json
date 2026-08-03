@@ -851,6 +851,17 @@
       "failed_to_decline_request": "Failed to decline request"
     }
   },
+  "awards": {
+    "won_oscar": "Won {{count}} Oscar",
+    "won_oscars": "Won {{count}} Oscars",
+    "nominated_for_oscar": "Nominated for {{count}} Oscar",
+    "nominated_for_oscars": "Nominated for {{count}} Oscars",
+    "win": "{{count}} win",
+    "wins": "{{count}} wins",
+    "nomination": "{{count}} nomination",
+    "nominations": "{{count}} nominations",
+    "wins_and_nominations": "{{wins}} & {{nominations}}"
+  },
   "accessibility": {
     "play_button": "Play button",
     "play_hint": "Tap to play the media",

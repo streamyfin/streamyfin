@@ -20,6 +20,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 import { Alert, Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AwardsBadge } from "@/components/AwardsBadge";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import { ItemImage } from "@/components/common/ItemImage";
 import { Text } from "@/components/common/Text";
@@ -690,6 +691,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
                 duration={duration}
                 officialRating={item.OfficialRating}
                 communityRating={item.CommunityRating}
+                trailing={<AwardsBadge item={item} />}
               />
 
               {/* Genres */}

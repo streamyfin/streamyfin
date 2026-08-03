@@ -1,6 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { View, type ViewProps } from "react-native";
+import { AwardsBadge } from "./AwardsBadge";
 import { GenreTags } from "./GenreTags";
 import { MoviesTitleHeader } from "./movies/MoviesTitleHeader";
 import { Ratings } from "./Ratings";
@@ -44,6 +45,10 @@ export const ItemHeader: React.FC<Props> = ({ item, ...props }) => {
             <GenreTags genres={item.Genres!} />
           </View>
         )}
+        {/* Below the genres rather than in the ratings row: that row is
+            overlaid on the backdrop and packed with short numeric badges, and
+            a sentence-length award badge crowds it. */}
+        <AwardsBadge item={item} className='mt-3' />
       </View>
     </View>
   );
