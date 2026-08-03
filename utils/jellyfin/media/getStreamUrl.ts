@@ -31,8 +31,6 @@ const getPlaybackUrl = (
     maxStreamingBitrate?: number;
     userId: string;
     playSessionId?: string | null;
-    container?: string;
-    static?: string;
   },
 ): string => {
   let transcodeUrl = mediaSource?.TranscodingUrl;
@@ -65,9 +63,9 @@ const getPlaybackUrl = (
   // Fall back to direct play
   // Use the mediaSource's actual container when available (important for live TV
   // where the container may be ts/hls, not mp4)
-  const container = params.container || mediaSource?.Container || "mp4";
+  const container = mediaSource?.Container || "mp4";
   const streamParams = new URLSearchParams({
-    static: params.static || "true",
+    static: "true",
     container,
     mediaSourceId: mediaSource?.Id || "",
     subtitleStreamIndex: params.subtitleStreamIndex?.toString() || "",
@@ -90,48 +88,22 @@ const getPlaybackUrl = (
   return directPlayUrl;
 };
 
-/** Wrapper around {@link getPlaybackUrl} that applies download-specific transformations */
 const getDownloadUrl = (
   api: Api,
   itemId: string,
   mediaSource: MediaSourceInfo | undefined,
   sessionId: string | null | undefined,
-  params: {
-    subtitleStreamIndex?: number;
-    audioStreamIndex?: number;
-    deviceId?: string | null;
-    startTimeTicks?: number;
-    maxStreamingBitrate?: number;
-    userId: string;
-    playSessionId?: string | null;
-  },
 ): StreamResult => {
-  // Get the base URL with download-specific parameters
-  let url = getPlaybackUrl(api, itemId, mediaSource, {
-    ...params,
-    container: "mp4",
-    static: "false",
-  });
-
-  // If it's a direct play URL, add download-specific parameters
   if (!mediaSource?.TranscodingUrl) {
-    const urlObj = new URL(url);
-    const downloadParams = {
-      subtitleMethod: "Embed",
-      enableSubtitlesInManifest: "true",
-      allowVideoStreamCopy: "true",
-      allowAudioStreamCopy: "true",
+    return {
+      url: `${api.basePath}/Items/${mediaSource?.Id ?? itemId}/Download?ApiKey=${api.accessToken}`,
+      sessionId: sessionId || null,
+      mediaSource,
     };
-
-    Object.entries(downloadParams).forEach(([key, value]) => {
-      urlObj.searchParams.append(key, value);
-    });
-
-    url = urlObj.toString();
   }
 
   return {
-    url,
+    url: `${api.basePath}${mediaSource.TranscodingUrl}`,
     sessionId: sessionId || null,
     mediaSource,
   };
@@ -275,7 +247,6 @@ export const getDownloadStreamUrl = async ({
   audioStreamIndex = 0,
   subtitleStreamIndex = undefined,
   mediaSourceId,
-  deviceId,
   audioMode = "auto",
 }: {
   api: Api | null | undefined;
@@ -285,7 +256,6 @@ export const getDownloadStreamUrl = async ({
   audioStreamIndex?: number;
   subtitleStreamIndex?: number;
   mediaSourceId?: string | null;
-  deviceId?: string | null;
   audioMode?: AudioTranscodeModeType;
 }): Promise<{
   url: string | null;
@@ -324,13 +294,5 @@ export const getDownloadStreamUrl = async ({
   const sessionId = res.data.PlaySessionId || null;
   const mediaSource = res.data.MediaSources?.[0];
 
-  return getDownloadUrl(api, item.Id!, mediaSource, sessionId, {
-    subtitleStreamIndex,
-    audioStreamIndex,
-    deviceId,
-    startTimeTicks: 0,
-    maxStreamingBitrate,
-    userId,
-    playSessionId: sessionId || undefined,
-  });
+  return getDownloadUrl(api, item.Id!, mediaSource, sessionId);
 };

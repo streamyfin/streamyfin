@@ -126,6 +126,7 @@
     "@types/lodash": "4.17.24",
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
+    "axios-mock-adapter": "2.1.0",
     "cross-env": "10.1.0",
     "expo-doctor": "1.20.1",
     "husky": "9.1.7",
