@@ -155,8 +155,6 @@
         "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Dölj fjärrsessionsknapp",
         "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
-        "wikidata_awards": "Visa utmärkelser",
-        "wikidata_awards_hint": "Visa Oscars- och utmärkelsestatus på film- och seriesidor. Slår upp titeln direkt hos Wikidata, inte via din Jellyfin-server.",
         "show_home_backdrop": "Dynamisk hembakgrund",
         "show_hero_carousel": "Hjältekarusell",
         "show_series_poster_on_episode": "Visa serieaffisch på avsnitt",
@@ -293,8 +291,6 @@
         },
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Ange din OpenSubtitles API-nyckel för att aktivera klientbaserad undertextsökning som reserv när din Jellyfin-server inte har en undertextleverantör konfigurerad.",
-        "opensubtitles_enabled": "Sök på OpenSubtitles",
-        "opensubtitles_enabled_hint": "Låt den här enheten söka direkt hos OpenSubtitles när din Jellyfin-server saknar undertextleverantör. Stäng av för att hålla undertextsökningar på servern.",
         "opensubtitles_api_key": "API-nyckel",
         "opensubtitles_api_key_placeholder": "Ange API-nyckel...",
         "opensubtitles_get_key": "Skaffa din gratis API-nyckel på opensubtitles.com/en/consumers",
@@ -356,6 +352,10 @@
       },
       "plugins": {
         "plugins_title": "Tillägg",
+        "wikidata_awards": "Utmärkelser från Wikidata",
+        "wikidata_awards_hint": "Visa Oscars- och utmärkelsestatus på film- och seriesidor. Enheten frågar Wikidata direkt, inte din Jellyfin-server.",
+        "opensubtitles_enabled": "Sök på OpenSubtitles",
+        "opensubtitles_enabled_hint": "Låt den här enheten söka direkt hos OpenSubtitles när din Jellyfin-server saknar undertextleverantör. Om du stänger av detta sker undertextsökningar på servern och en sparad API-nyckel lämnas orörd.",
         "jellyseerr": {
           "server_url": "Serveradress",
           "server_url_hint": "Exempel: http(s)://your-host.url\n(lägg till port vid behov)",

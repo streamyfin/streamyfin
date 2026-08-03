@@ -155,8 +155,6 @@
         "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide remote session button",
         "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
-        "wikidata_awards": "Show awards",
-        "wikidata_awards_hint": "Show Oscar and award status on movie and series pages. Looks the title up on Wikidata directly, not through your Jellyfin server.",
         "show_home_backdrop": "Dynamic home backdrop",
         "show_hero_carousel": "Hero carousel",
         "show_series_poster_on_episode": "Show series poster on episodes",
@@ -293,8 +291,6 @@
         },
         "opensubtitles_title": "OpenSubtitles",
         "opensubtitles_hint": "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured.",
-        "opensubtitles_enabled": "Search OpenSubtitles",
-        "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turn off to keep subtitle searches on your server.",
         "opensubtitles_api_key": "API key",
         "opensubtitles_api_key_placeholder": "Enter API key...",
         "opensubtitles_get_key": "Get your free API key at opensubtitles.com/en/consumers",
@@ -356,6 +352,10 @@
       },
       "plugins": {
         "plugins_title": "Plugins",
+        "wikidata_awards": "Awards from Wikidata",
+        "wikidata_awards_hint": "Show Oscar and award status on movie and series pages. This device asks Wikidata directly, not your Jellyfin server.",
+        "opensubtitles_enabled": "Search OpenSubtitles",
+        "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turning this off keeps subtitle searches on your server and leaves any saved API key alone.",
         "jellyseerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
