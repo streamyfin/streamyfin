@@ -60,15 +60,20 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       onTracksReady,
       onPictureInPictureChange,
     });
-    latest.current = {
-      source,
-      onLoad,
-      onPlaybackStateChange,
-      onProgress,
-      onError,
-      onTracksReady,
-      onPictureInPictureChange,
-    };
+    // Written after commit rather than during render: a render can be thrown
+    // away or replayed, and this must only reflect renders that actually
+    // happened. Declared before the effects below so they see it updated.
+    useEffect(() => {
+      latest.current = {
+        source,
+        onLoad,
+        onPlaybackStateChange,
+        onProgress,
+        onError,
+        onTracksReady,
+        onPictureInPictureChange,
+      };
+    });
 
     // Only a genuinely different stream should tear playback down and rebuild
     // it, so the effect keys off the source's contents rather than its identity.

@@ -1098,7 +1098,17 @@ export default function DirectPlayerPage() {
     // Hide controls BEFORE entering PiP so the window captures a clean view
     _setShowControls(false);
     setIsPipMode(true);
-    return videoRef.current?.startPictureInPicture?.();
+    try {
+      return await videoRef.current?.startPictureInPicture?.();
+    } catch (error) {
+      // A refused request fires neither enter nor leave picture-in-picture, so
+      // nothing would put these back: the player would sit with its controls
+      // hidden, and on desktop out of fullscreen, with no way back.
+      setIsPipMode(false);
+      _setShowControls(true);
+      writeToLog("ERROR", "Failed to start picture-in-picture", error);
+      return undefined;
+    }
   }, []);
 
   const play = useCallback(() => {

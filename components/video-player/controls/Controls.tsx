@@ -260,6 +260,10 @@ export const Controls: FC<Props> = ({
   // so a moving cursor cannot flicker the controls in and out.
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
+    // Only listen while there is something to reveal. setShowControls fires
+    // haptic feedback on every call, so leaving this bound would buzz on every
+    // throttled tick of a moving cursor even with the controls already up.
+    if (showControls) return;
 
     let lastShown = 0;
     const reveal = () => {
@@ -271,7 +275,7 @@ export const Controls: FC<Props> = ({
 
     window.addEventListener("mousemove", reveal);
     return () => window.removeEventListener("mousemove", reveal);
-  }, [setShowControls]);
+  }, [showControls, setShowControls]);
 
   // Remote control hook
   const {
