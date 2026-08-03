@@ -72,7 +72,7 @@
         "react-native-google-cast": "^4.9.1",
         "react-native-image-colors": "2.6.0",
         "react-native-mmkv": "4.3.2",
-        "react-native-nitro-modules": "0.36.3",
+        "react-native-nitro-modules": "0.36.5",
         "react-native-pager-view": "8.0.4",
         "react-native-qrcode-svg": "^6.3.21",
         "react-native-reanimated": "4.5.3",
@@ -1536,7 +1536,7 @@
 
     "react-native-mmkv": ["react-native-mmkv@4.3.2", "", { "peerDependencies": { "react": "*", "react-native": "*", "react-native-nitro-modules": "*" } }, "sha512-49OAyfkg0/TMWiWELZN6VuVQPZPhizwL4DTmp8b7B1md3dB/s3LH3mGfC3T+lp9W0y/rqxZMEnotLFTIbOAenQ=="],
 
-    "react-native-nitro-modules": ["react-native-nitro-modules@0.36.3", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-8nVnqxN2ZJdKw8u6HnUXBStd/ERRMzvN93g+A48EhWWeYQVx4idKYRMuNGXXsPUNIWOreNKs2hky2PBfnCif/g=="],
+    "react-native-nitro-modules": ["react-native-nitro-modules@0.36.5", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-SJby84+hovD70JmQ1fq+56tw3oapJeChehUqXA4Gqjm+ktJhMAcj8LGwoAjStSOUwRaK7czbzBPB0Widj+EDoQ=="],
 
     "react-native-pager-view": ["react-native-pager-view@8.0.4", "", { "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-9ASQA/gdQv63pESFbzyODgsY07kZoBjLqBRvZ/HNYn+h29XyOX2BICuvVmhemxw/pz3hKGqGEU31DDhDArwaRg=="],
 
