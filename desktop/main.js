@@ -194,6 +194,26 @@ const MAX_TRACKED_PREFLIGHTS = 100;
 let appWebContentsId = null;
 
 /**
+ * Whether a request came from the app window.
+ *
+ * Both identifying fields are optional in the webRequest API, so a missing
+ * webContentsId must not be read as "not ours". This app runs a single window
+ * on the default session, so when neither field is present the request is
+ * treated as ours: failing closed would silently skip cookie replay and CORS
+ * relaxation — which is exactly the failure that makes a Jellyseerr login look
+ * like a rejected password — whereas failing open only restores the behaviour
+ * this session had before the narrowing.
+ */
+const isFromAppRenderer = (details) => {
+  // Nothing can have come from a window that does not exist yet.
+  if (appWebContentsId === null) return false;
+  if (typeof details.webContentsId === "number")
+    return details.webContentsId === appWebContentsId;
+  if (details.webContents) return details.webContents.id === appWebContentsId;
+  return true;
+};
+
+/**
  * Fills in CORS only for servers that do not do it themselves.
  *
  * Jellyfin answers preflights correctly and sends Access-Control-Allow-Origin,
@@ -343,9 +363,7 @@ function bridgeApiCookies(appOrigin) {
   };
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const fromOurRenderer =
-      appWebContentsId !== null && details.webContentsId === appWebContentsId;
-    if (!fromOurRenderer) {
+    if (!isFromAppRenderer(details)) {
       callback({ responseHeaders: details.responseHeaders });
       return;
     }
@@ -387,9 +405,7 @@ function bridgeApiCookies(appOrigin) {
   });
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    const fromOurRenderer =
-      appWebContentsId !== null && details.webContentsId === appWebContentsId;
-    if (fromOurRenderer && !isAppRequest(details.url)) {
+    if (isFromAppRenderer(details) && !isAppRequest(details.url)) {
       if (details.method === "OPTIONS") {
         const requested =
           details.requestHeaders["Access-Control-Request-Headers"] ??
