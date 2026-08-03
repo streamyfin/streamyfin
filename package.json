@@ -93,7 +93,7 @@
     "react-native-device-info": "^15.0.2",
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-edge-to-edge": "1.8.1",
-    "react-native-gesture-handler": "~2.32.0",
+    "react-native-gesture-handler": "~3.1.0",
     "react-native-google-cast": "^4.9.1",
     "react-native-image-colors": "2.6.0",
     "react-native-mmkv": "4.3.2",
