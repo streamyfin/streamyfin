@@ -234,7 +234,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
           api,
           item: itemForDownload,
           userId: user.Id!,
-          mediaSourceId: mediaSource!.Id,
+          mediaSourceId: mediaSource?.Id,
           audioStreamIndex: audioIndex ?? -1,
           subtitleStreamIndex: subtitleIndex ?? -1,
           maxStreamingBitrate: (selectedOptions?.bitrate || defaultBitrate)

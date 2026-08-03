@@ -55,6 +55,26 @@ describe("getDownloadStreamUrl", () => {
     return new URL(result!.url!);
   };
 
+  test("returns null when the server offers no media source", async () => {
+    const api = makeApi();
+    api.mock
+      .onPost(
+        "https://jellyfin.example.com/Items/item-1/PlaybackInfo",
+        bodyContaining({ deviceProfile: { Name: "1. MPV Download" } }),
+      )
+      .reply(200, { PlaySessionId: "session-1", MediaSources: [] });
+
+    const result = await getDownloadStreamUrl({
+      api,
+      item: { Id: "item-1", Type: "Movie" },
+      userId: "user-1",
+      audioStreamIndex: 0,
+      subtitleStreamIndex: -1,
+    });
+
+    expect(result).toBeNull();
+  });
+
   describe("the server says the player can play the original (no TranscodingUrl)", () => {
     const playerCanPlayTheOriginal = {
       PlaySessionId: "session-1",

@@ -90,13 +90,12 @@ const getPlaybackUrl = (
 
 const getDownloadUrl = (
   api: Api,
-  itemId: string,
-  mediaSource: MediaSourceInfo | undefined,
+  mediaSource: MediaSourceInfo,
   sessionId: string | null | undefined,
 ): StreamResult => {
-  if (!mediaSource?.TranscodingUrl) {
+  if (!mediaSource.TranscodingUrl) {
     return {
-      url: `${api.basePath}/Items/${mediaSource?.Id ?? itemId}/Download?ApiKey=${api.accessToken}`,
+      url: `${api.basePath}/Items/${mediaSource.Id}/Download?ApiKey=${api.accessToken}`,
       sessionId: sessionId || null,
       mediaSource,
     };
@@ -293,6 +292,10 @@ export const getDownloadStreamUrl = async ({
 
   const sessionId = res.data.PlaySessionId || null;
   const mediaSource = res.data.MediaSources?.[0];
+  if (!mediaSource) {
+    console.warn("No media source offered for download");
+    return null;
+  }
 
-  return getDownloadUrl(api, item.Id!, mediaSource, sessionId);
+  return getDownloadUrl(api, mediaSource, sessionId);
 };
