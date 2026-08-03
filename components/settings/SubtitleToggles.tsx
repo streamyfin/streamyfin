@@ -191,6 +191,17 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           </Text>
         }
       >
+        <ListItem
+          title={t("home.settings.subtitles.opensubtitles_enabled")}
+          subtitle={t("home.settings.subtitles.opensubtitles_enabled_hint")}
+        >
+          <SettingSwitch
+            value={settings?.openSubtitlesEnabled}
+            onValueChange={(value) =>
+              updateSettings({ openSubtitlesEnabled: value })
+            }
+          />
+        </ListItem>
         <View className='p-4'>
           <Text className='text-xs text-gray-400 mb-2'>
             {t("home.settings.subtitles.opensubtitles_api_key") || "API Key"}

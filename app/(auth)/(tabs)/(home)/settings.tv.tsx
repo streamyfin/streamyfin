@@ -796,6 +796,13 @@ export default function SettingsTV() {
             {t("home.settings.subtitles.opensubtitles_hint") ||
               "Enter your OpenSubtitles API key to enable client-side subtitle search as a fallback when your Jellyfin server doesn't have a subtitle provider configured."}
           </Text>
+          <TVSettingsToggle
+            label={t("home.settings.subtitles.opensubtitles_enabled")}
+            value={settings.openSubtitlesEnabled}
+            onToggle={(value) =>
+              updateSettings({ openSubtitlesEnabled: value })
+            }
+          />
           <TVSettingsTextInput
             label={
               t("home.settings.subtitles.opensubtitles_api_key") || "API Key"
@@ -974,6 +981,13 @@ export default function SettingsTV() {
             label={t("home.settings.appearance.theme_music")}
             value={settings.tvThemeMusicEnabled}
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.wikidata_awards")}
+            value={settings.wikidataAwardsEnabled}
+            onToggle={(value) =>
+              updateSettings({ wikidataAwardsEnabled: value })
+            }
           />
 
           {/* Storage Section */}

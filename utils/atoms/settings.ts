@@ -337,6 +337,10 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // Optional third-party lookups. Both call a service directly from the client
+  // rather than through Jellyfin, so each can be turned off on its own.
+  wikidataAwardsEnabled: boolean;
+  openSubtitlesEnabled: boolean;
   // OpenSubtitles API key for client-side subtitle fetching
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
@@ -448,6 +452,9 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // Optional third-party lookups
+  wikidataAwardsEnabled: true,
+  openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
 };

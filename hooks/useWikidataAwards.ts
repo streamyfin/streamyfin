@@ -1,5 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useQuery } from "@tanstack/react-query";
+import { useSettings } from "@/utils/atoms/settings";
 
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 const WIKIDATA_SPARQL = "https://query.wikidata.org/sparql";
@@ -183,15 +184,21 @@ export async function fetchWikidataAwards(
  * Award and Oscar status for an item, from Wikidata.
  *
  * Silent by design — it returns null rather than surfacing an error, because
- * this is decoration on a detail page. It stays null when Jellyfin has no IMDb
- * id for the item, when Wikidata has no matching item or records no awards for
- * it, or when a request fails.
+ * this is decoration on a detail page. It stays null when the lookup is turned
+ * off, when Jellyfin has no IMDb id for the item, when Wikidata has no matching
+ * item or records no awards for it, or when a request fails.
  */
 export function useWikidataAwards(item?: BaseItemDto | null) {
+  const { settings } = useSettings();
+
   const imdbId = item?.ProviderIds?.Imdb;
   // Awards only mean anything for a whole title, not a single episode.
   const isSupportedType = item?.Type === "Movie" || item?.Type === "Series";
-  const enabled = Boolean(imdbId && isSupportedType);
+  // This is the only thing that reaches Wikidata, so turning the setting off
+  // stops the request rather than just hiding the badge. Treated as on unless
+  // explicitly false, so an older stored settings blob keeps working.
+  const lookupEnabled = settings?.wikidataAwardsEnabled !== false;
+  const enabled = Boolean(lookupEnabled && imdbId && isSupportedType);
 
   const { data } = useQuery({
     queryKey: ["wikidata", "awards", imdbId],
@@ -210,7 +217,10 @@ export function useWikidataAwards(item?: BaseItemDto | null) {
     queryFn: () => fetchWikidataAwards(imdbId as string),
   });
 
-  return data ?? null;
+  // `enabled: false` stops the next request but still hands back anything
+  // already cached, so turning the setting off would otherwise leave the badge
+  // on screen for every title looked up beforehand.
+  return lookupEnabled ? (data ?? null) : null;
 }
 
 export default useWikidataAwards;

@@ -84,6 +84,17 @@ export const AppearanceSettings: React.FC = () => {
           />
         </ListItem>
         <ListItem
+          title={t("home.settings.appearance.wikidata_awards")}
+          subtitle={t("home.settings.appearance.wikidata_awards_hint")}
+        >
+          <SettingSwitch
+            value={settings.wikidataAwardsEnabled}
+            onValueChange={(value) =>
+              updateSettings({ wikidataAwardsEnabled: value })
+            }
+          />
+        </ListItem>
+        <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")
           }
