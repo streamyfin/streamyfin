@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Gebruikersnaam is verplicht",
     "error_title": "Fout",
@@ -12,6 +19,9 @@
     "login_button": "Aanmelden",
     "quick_connect": "Snel Verbinden",
     "enter_code_to_login": "Vul code {{code}} in om aan te melden",
+    "quick_connect_instructions": "Vul deze code in op een apparaat waarop je al bent aangemeld. Je wordt automatisch aangemeld.",
+    "tap_code_to_copy": "Tik op de code om deze te kopiëren",
+    "code_copied": "Code gekopieerd",
     "failed_to_initiate_quick_connect": "Mislukt om Snel Verbinden op te starten",
     "got_it": "Begrepen",
     "connection_failed": "Verbinding mislukt",
@@ -33,6 +43,7 @@
     "connect_button": "Verbinden",
     "previous_servers": "vorige servers",
     "clear_button": "Wissen",
+    "server_url": "Server URL",
     "swipe_to_remove": "Swipe om te verwijderen.",
     "search_for_local_servers": "Zoek naar lokale servers",
     "searching": "Zoeken...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Account opslaan",
     "save_for_later": "Dit account opslaan",
+    "not_saved": "Account is niet opgeslagen",
     "security_option": "Beveiligingsopties",
     "no_protection": "Geen beveiliging",
     "no_protection_desc": "Snelle login zonder authenticatie",
@@ -105,25 +117,26 @@
       "welcome_to_streamyfin": "Welkom bij Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Een gratis en open-source client voor Jellyfin.",
       "features_title": "Functies",
-      "features_description": "Streamyfin heeft een heleboel functies en integreert met een breed scala aan software die je kunt vinden in het instellingenmenu, onder andere:",
+      "features_description": "Streamyfin heeft een heleboel functies en werkt samen met andere software. Je vindt ze in het instellingenmenu:",
       "jellyseerr_feature_description": "Verbind met je Jellyseerr instantie en vraag films direct in de app aan.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download films en series om offline te kijken. Gebruik de standaardmethode of installeer de optimalisatieserver om bestanden op de achtergrond te downloaden.",
       "chromecast_feature_description": "Cast films en series naar je Chromecast toestellen.",
       "centralised_settings_plugin_title": "Plugin voor gecentraliseerde instellingen",
-      "centralised_settings_plugin_description": "Configureer instellingen vanaf een centrale locatie op je Jellyfin server. Alle clientinstellingen voor alle gebruikers worden automatisch gesynchroniseerd.",
+      "centralised_settings_plugin_description": "Configureer instellingen centraal op je Jellyfin server. De clientinstellingen van elke gebruiker worden automatisch gesynchroniseerd.",
       "done_button": "Gedaan",
       "go_to_settings_button": "Ga naar instellingen",
       "read_more": "Lees meer"
     },
     "settings": {
       "settings_title": "Instellingen",
+      "disabled_by_admin": "Uitgeschakeld door beheerder",
       "log_out_button": "Afmelden",
       "switch_user": {
         "title": "Switch User",
         "account": "Account",
         "switch_user": "Switch User on This Server",
-        "current": "current"
+        "current": "huidige"
       },
       "categories": {
         "title": "Categorieën"
@@ -178,7 +191,10 @@
         "network_already_added": "Netwerk reeds toegevoegd",
         "no_wifi_connected": "Niet verbonden met Wi-Fi",
         "permission_denied": "Locatie toestemming geweigerd",
-        "permission_denied_explanation": "Locatie permissie is vereist om Wifi-netwerk te kunnen detecteren voor automatisch wisselen. Schakel het in via Instellingen."
+        "permission_denied_explanation": "Locatie permissie is vereist om Wifi-netwerk te kunnen detecteren voor automatisch wisselen. Schakel het in via Instellingen.",
+        "ssid_hidden": "SSID verborgen",
+        "location_off_description": "Verbonden met Wi-Fi, maar de netwerknaam is verborgen. Schakel Locatievoorzieningen op je toestel in en geef de app toestemming voor locatie om deze te detecteren.",
+        "open_location_settings": "Locatie-instellingen openen"
       },
       "user_info": {
         "user_info_title": "Gebruiker Info",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "Snel Verbinden toegestaan",
         "error": "Fout",
         "invalid_code": "Ongeldige code",
-        "authorize": "Toestaan"
+        "authorize": "Toestaan",
+        "paste_code": "Code plakken"
       },
       "media_controls": {
         "media_controls_title": "Media Bedieningen",
         "forward_skip_length": "Duur voorwaarts overslaan",
         "rewind_length": "Duur terugspoelen",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Videospeler",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer ondersteunt geen geavanceerde ASS/SSA-ondertitelopmaak of horizontale ondertitelsuitlijning. Schakel over naar MPV als je dit nodig hebt.",
+        "mpv_note": "MPV geeft op tv momenteel geen HDR-metadata door aan het scherm, waardoor HDR10/HDR10+-inhoud wordt omgezet naar SDR. Schakel over naar ExoPlayer voor HDR-uitvoer."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "MPV-ondertitelinstellingen",
+        "mpv_settings_description": "Geavanceerde ondertitelaanpassing voor de MPV-speler",
+        "opaque_background": "Ondoorzichtige achtergrond",
+        "background_opacity": "Achtergronddekking",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "Configureer hoe muziek wordt afgespeeld.",
         "prefer_downloaded": "Voorkeur voor Gedownloade Nummers",
         "caching_title": "Cachen",
-        "caching_description": "Automatisch aankomende nummers cachen om soepeler af te spelen.",
+        "caching_description": "Sla aankomende nummers uit de wachtrij vooraf op. De oudste worden verwijderd zodra de groottelimiet is bereikt.",
         "lookahead_enabled": "Look-Ahead Caching inschakelen",
         "lookahead_count": "Nummers om te Pre-cachen",
         "max_cache_size": "Max Cache Grootte"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Opgeslagen",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Instellingen konden niet worden vernieuwd vanaf de server",
             "disabled": "Streamystats uitgeschakeld"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Nummers worden automatisch gecached tijdens het afspelen. Ze wissen maakt ruimte vrij zonder je gedownloade nummers aan te tasten.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} gecached",
         "music_cache_cleared": "Muziek cache gewist",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Klik voor meer info",
         "level": "Niveau",
         "no_logs_available": "Geen logs beschikbaar",
-        "delete_all_logs": "Alle logs verwijderen"
+        "delete_all_logs": "Alle logs verwijderen",
+        "copy": "Kopiëren",
+        "copied": "Gekopieerd naar klembord"
       },
       "languages": {
         "title": "Talen",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessies",
-      "no_active_sessions": "Geen actieve sessies"
+      "no_active_sessions": "Geen actieve sessies",
+      "select_session": "Sessie selecteren",
+      "now_playing": "Nu speelt:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "Transcoding",
       "series": "Series",
       "movies": "Films",
       "other_media": "Andere media",
@@ -501,6 +535,8 @@
     "none": "Geen",
     "track": "Spoor",
     "cancel": "Annuleren",
+    "stop": "Stop",
+    "open_menu": "Menu openen",
     "delete": "Verwijderen",
     "ok": "Oké",
     "remove": "Verwijderen",
@@ -595,14 +631,42 @@
     "boxsets": "Boxsets",
     "playlists": "Afspeellijsten",
     "noDataTitle": "Nog geen favorieten",
-    "noData": "Markeer items als favoriet om ze hier te laten verschijnen voor snelle toegang."
+    "noData": "Items die je als favoriet markeert, verschijnen hier."
   },
   "custom_links": {
     "no_links": "Geen links"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Shuffle",
+    "entire_series": "Hele serie",
+    "episode_count": "{{count}} Afleveringen",
+    "menu": {
+      "quality": "Kwaliteit",
+      "subtitles": "Ondertitels",
+      "subtitle_scale": "Ondertitelschaal",
+      "audio": "Audio",
+      "speed": "Snelheid",
+      "playback_options": "Afspeelopties",
+      "show_technical_info": "Toon technische info",
+      "hide_technical_info": "Verberg technische info"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Audio:",
+      "subtitle": "Ondertitel:",
+      "bitrate": "Bitrate:",
+      "source_bitrate": "Bestand:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Verworpen: {{count}} frames",
+      "loading": "Laden…"
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Beeldverhouding",
+    "aspect_ratio_original": "Origineel",
+    "hash_match": "Hash-treffer",
+    "still_watching": "Kijk je nog?",
     "error": "Fout",
     "failed_to_get_stream_url": "De stream-URL kon niet worden verkregen",
     "an_error_occurred_while_playing_the_video": "Er is een fout opgetreden tijdens het afspelen van de video. Controleer de logs in de instellingen.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live-tv",
     "next": "Volgende ",
     "previous": "Vorige",
     "coming_soon": "Binnenkort beschikbaar",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Jellyseerr server voldoet niet aan de minimale versievereisten! Update naar minimaal 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Jellyseerr server voldoet niet aan de minimale versievereisten! Update naar minimaal 2.0.0",
       "jellyseerr_test_failed": "Jellyseerr test mislukt. Probeer opnieuw.",
       "failed_to_test_jellyseerr_server_url": "Mislukt bij het testen van jellyseerr server url",
       "issue_submitted": "Probleem ingediend!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Aanvraag weigeren mislukt"
     }
   },
+  "accessibility": {
+    "play_button": "Afspeelknop",
+    "play_hint": "Tik om de media af te spelen",
+    "toggle_orientation": "Schermoriëntatie wisselen",
+    "toggle_orientation_hint": "Wisselt de schermoriëntatie tussen portret en landschap"
+  },
+  "not_found": {
+    "title": "Deze pagina bestaat niet.",
+    "go_home": "Ga naar het startscherm!"
+  },
   "tabs": {
     "home": "Thuis",
     "search": "Zoeken",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Muziek",
+    "no_track_playing": "Er speelt geen nummer",
+    "queue_empty": "Wachtrij is leeg",
+    "playing_from_queue": "Speelt vanuit de wachtrij",
+    "up_next": "Volgende",
+    "now_playing": "Nu speelt",
+    "missing_library_id": "Muziekbibliotheek-ID ontbreekt.",
     "tabs": {
       "suggestions": "Suggesties",
       "albums": "Albums",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Inhoudstype",
     "sort_order_label": "Standaard Sortering",
     "empty_title": "Geen Kijklijsten",
-    "empty_description": "Maak je eerste kijklijst om je media te organiseren",
+    "empty_description": "Maak een kijklijst om te verzamelen wat je wilt kijken",
     "empty_watchlist": "Deze watchlist is leeg",
     "empty_watchlist_hint": "Voeg items uit je bibliotheek toe aan deze kijklijst",
     "not_configured_title": "Streamystats niet geconfigureerd",

@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Användarnamn krävs",
     "error_title": "Fel",
@@ -12,6 +19,9 @@
     "login_button": "Logga in",
     "quick_connect": "Snabbanslutning",
     "enter_code_to_login": "Ange koden {{code}} för att logga in",
+    "quick_connect_instructions": "Ange koden på en inloggad enhet. Du loggas in automatiskt.",
+    "tap_code_to_copy": "Tryck på koden för att kopiera den",
+    "code_copied": "Koden kopierad",
     "failed_to_initiate_quick_connect": "Snabbanslutning misslyckades",
     "got_it": "Koden har mottagits",
     "connection_failed": "Anslutningen Misslyckades",
@@ -33,6 +43,7 @@
     "connect_button": "Anslut",
     "previous_servers": "Tidigare Servrar",
     "clear_button": "Rensa allt",
+    "server_url": "Serveradress",
     "swipe_to_remove": "Svep för att ta bort",
     "search_for_local_servers": "Sök Efter Lokala Servrar",
     "searching": "Söker...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Spara konto",
     "save_for_later": "Spara detta konto",
+    "not_saved": "Kontot sparades inte",
     "security_option": "Säkerhetsalternativ",
     "no_protection": "Inget skydd",
     "no_protection_desc": "Snabb inloggning utan autentisering",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Välkommen till Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "En gratis klient för Jellyfin med öppen källkod.",
       "features_title": "Funktioner",
-      "features_description": "Streamyfin har en massa funktioner och integrerar med ett brett utbud av programvara som du kan hitta i inställningsmenyn, dessa inkluderar:",
+      "features_description": "Streamyfin har en massa funktioner och fungerar med annan programvara. Du hittar dem i inställningsmenyn:",
       "jellyseerr_feature_description": "Anslut till din Seerr instans och begär filmer direkt i appen.",
       "downloads_feature_title": "Nedladdningar",
       "downloads_feature_description": "Ladda ner filmer och tv-program för att titta på offline. Använd antingen standardmetoden eller installera optimera servern för att ladda ner filer i bakgrunden.",
       "chromecast_feature_description": "Strömma filmer och tv-program till dina Chromecast-enheter.",
       "centralised_settings_plugin_title": "Plugin för centraliserade inställningar",
-      "centralised_settings_plugin_description": "Konfigurera inställningar från en centraliserad plats på din Jellyfin-server. Alla klientinställningar för användare kommer att synkroniseras automatiskt.",
+      "centralised_settings_plugin_description": "Konfigurera inställningar centralt på din Jellyfin-server. Alla användares klientinställningar synkroniseras automatiskt.",
       "done_button": "Klar",
       "go_to_settings_button": "Gå till Inställningar",
       "read_more": "Läs mer"
     },
     "settings": {
       "settings_title": "Inställningar",
+      "disabled_by_admin": "Inaktiverad av administratören",
       "log_out_button": "Logga ut",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "Nätverket har redan lagts till",
         "no_wifi_connected": "Inte ansluten till WiFi",
         "permission_denied": "Platstillstånd saknas",
-        "permission_denied_explanation": "Platsbehörighet krävs för att upptäcka WiFi-nätverk för automatisk växling. Aktivera det i Inställningar."
+        "permission_denied_explanation": "Platsbehörighet krävs för att upptäcka WiFi-nätverk för automatisk växling. Aktivera det i Inställningar.",
+        "ssid_hidden": "SSID dold",
+        "location_off_description": "Ansluten till WiFi, men nätverksnamnet är dolt. Aktivera Platstjänster på enheten och ge appen platsbehörighet för att upptäcka det.",
+        "open_location_settings": "Öppna platsinställningar"
       },
       "user_info": {
         "user_info_title": "Användarinformation",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "Snabbanslutning Godkänd",
         "error": "Fel",
         "invalid_code": "Ogiltig kod",
-        "authorize": "Autentisera"
+        "authorize": "Autentisera",
+        "paste_code": "Klistra in kod"
       },
       "media_controls": {
         "media_controls_title": "Mediakontroller",
         "forward_skip_length": "Framåthoppsintervall",
         "rewind_length": "Bakåthoppsintervall",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Videospelare",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer stöder inte avancerad ASS/SSA-undertextstil eller horisontell undertextjustering. Byt till MPV om du behöver det.",
+        "mpv_note": "MPV på TV skickar för närvarande inte HDR-metadata till skärmen, så HDR10-/HDR10+-innehåll konverteras till SDR. Byt till ExoPlayer för HDR-utdata."
       },
       "buffer": {
         "title": "Bufferinställningar",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertikal marginal",
         "mpv_subtitle_align_x": "Horisontell justering",
         "mpv_subtitle_align_y": "Vertikal justering",
+        "mpv_settings_title": "MPV-undertextinställningar",
+        "mpv_settings_description": "Avancerad anpassning av undertexter för MPV-spelaren",
+        "opaque_background": "Ogenomskinlig bakgrund",
+        "background_opacity": "Bakgrundsopacitet",
         "align": {
           "left": "Vänster",
           "center": "Mitten",
@@ -317,7 +345,7 @@
         "playback_description": "Konfigurera hur musik spelas.",
         "prefer_downloaded": "Föredrar nerladdade låtar",
         "caching_title": "Cachelagring",
-        "caching_description": "cacha automatiskt kommande spår för smidigare uppspelning.",
+        "caching_description": "Lagra kommande spår i kön i förväg. De äldsta tas bort när storleksgränsen nås.",
         "lookahead_enabled": "Aktivera Look-Ahead Caching",
         "lookahead_count": "Spår till pre-cache",
         "max_cache_size": "Max Cache Storlek"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Sparad",
             "refreshed": "Inställningar uppdaterades från servern",
+            "refresh_failed": "Det gick inte att uppdatera inställningar från servern",
             "disabled": "Streamystats inaktiverad"
           },
           "refresh_from_server": "Uppdatera inställningar från server"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Musikcache",
-        "music_cache_description": "Cacha automatiskt låtar när du lyssnar för smidigare uppspelning och offline-stöd",
+        "music_cache_description": "Låtar cachas automatiskt under uppspelning. Att rensa dem frigör utrymme utan att påverka dina nedladdade låtar.",
         "clear_music_cache": "Rensa musikcache",
         "music_cache_size": "{{size}} cachad",
         "music_cache_cleared": "Musikcache rensad",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Klicka för mer Information",
         "level": "Nivå",
         "no_logs_available": "Inga Loggar Tillgängliga",
-        "delete_all_logs": "Ta Bort Alla Loggar"
+        "delete_all_logs": "Ta Bort Alla Loggar",
+        "copy": "Kopiera",
+        "copied": "Kopierad till urklipp"
       },
       "languages": {
         "title": "Språk",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessioner",
-      "no_active_sessions": "Inga Aktiva Sessioner"
+      "no_active_sessions": "Inga Aktiva Sessioner",
+      "select_session": "Välj session",
+      "now_playing": "Spelas nu:"
     },
     "downloads": {
       "downloads_title": "Nedladdningar",
+      "transcoding": "Omkodning",
       "series": "TV-Serier",
       "movies": "Filmer",
       "other_media": "Annan media",
@@ -501,6 +535,8 @@
     "none": "Ingen",
     "track": "Spår",
     "cancel": "Avbryt",
+    "stop": "Stoppa",
+    "open_menu": "Öppna meny",
     "delete": "Ta bort",
     "ok": "OK",
     "remove": "Radera",
@@ -595,13 +631,26 @@
     "boxsets": "Box Set",
     "playlists": "Spellistor",
     "noDataTitle": "Inga favoriter än",
-    "noData": "Markera objekt som favoriter för att se dem visas här för snabb åtkomst."
+    "noData": "Objekt du markerar som favoriter visas här."
   },
   "custom_links": {
     "no_links": "Inga Länkar"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Blanda",
+    "entire_series": "Hela serien",
+    "episode_count": "{{count}} avsnitt",
+    "menu": {
+      "quality": "Kvalitet",
+      "subtitles": "Undertexter",
+      "subtitle_scale": "Undertextskala",
+      "audio": "Ljud",
+      "speed": "Hastighet",
+      "playback_options": "Uppspelningsalternativ",
+      "show_technical_info": "Visa teknisk information",
+      "hide_technical_info": "Dölj teknisk information"
+    },
     "technical_info": {
       "video": "Video:",
       "audio": "Ljud:",
@@ -613,10 +662,11 @@
       "dropped_frames": "Tappade: {{count}} bildrutor",
       "loading": "Läser in..."
     },
-    "shuffle": "Blanda",
-    "entire_series": "Hela serien",
-    "episode_count": "{{count}} avsnitt",
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Bildförhållande",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Hash-träff",
+    "still_watching": "Tittar du fortfarande?",
     "error": "Fel",
     "failed_to_get_stream_url": "Kunde inte hämta stream-URL",
     "an_error_occurred_while_playing_the_video": "Ett fel uppstod vid uppspelning av videon. Kontrollera loggarna i inställningarna.",
@@ -716,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "Nästa",
     "previous": "Föregående",
     "coming_soon": "Kommer Snart",
@@ -787,7 +838,7 @@
     "request_selected": "Begär valda",
     "n_selected": "{{count}} valda",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr-servern uppfyller inte minimikrav för version! Vänligen uppdatera till minst 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr-servern uppfyller inte minimikrav för version! Vänligen uppdatera till minst 2.0.0",
       "jellyseerr_test_failed": "Seerr test misslyckades. Försök igen.",
       "failed_to_test_jellyseerr_server_url": "Det gick inte att testa Seerr server-adressen",
       "issue_submitted": "Ärende Skickat!",
@@ -800,6 +851,16 @@
       "failed_to_decline_request": "Misslyckades med att avvisa begäran"
     }
   },
+  "accessibility": {
+    "play_button": "Uppspelningsknapp",
+    "play_hint": "Tryck för att spela upp media",
+    "toggle_orientation": "Växla skärmorientering",
+    "toggle_orientation_hint": "Växlar skärmorienteringen mellan stående och liggande läge"
+  },
+  "not_found": {
+    "title": "Den här skärmen finns inte.",
+    "go_home": "Gå till startskärmen!"
+  },
   "tabs": {
     "home": "Hem",
     "search": "Sök",
@@ -810,6 +871,12 @@
   },
   "music": {
     "title": "Musik",
+    "no_track_playing": "Inget spår spelas",
+    "queue_empty": "Kön är tom",
+    "playing_from_queue": "Spelar från kön",
+    "up_next": "Näst på tur",
+    "now_playing": "Spelas nu",
+    "missing_library_id": "Musikbiblioteks-ID saknas.",
     "tabs": {
       "suggestions": "Förslag",
       "albums": "Album",
@@ -893,7 +960,7 @@
     "allowed_type_label": "Typ av innehåll",
     "sort_order_label": "Förvald sortering",
     "empty_title": "Inga bevakningslistor",
-    "empty_description": "Skapa din första bevakningslista för att börja organisera din media",
+    "empty_description": "Skapa en bevakningslista för att samla det du vill titta på",
     "empty_watchlist": "Den här bevakningslistan är tom",
     "empty_watchlist_hint": "Lägg till objekt från ditt bibliotek till den här bevakningslistan",
     "not_configured_title": "Streamystats är inte konfigurerad",

@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Brukernavn kreves",
     "error_title": "Feil",
@@ -12,6 +19,9 @@
     "login_button": "Logg inn",
     "quick_connect": "Kjapp tilkobling",
     "enter_code_to_login": "Angi koden {{code}} for å logge inn",
+    "quick_connect_instructions": "Skriv inn denne koden på en enhet som allerede er logget inn. Du blir logget inn automatisk.",
+    "tap_code_to_copy": "Trykk på koden for å kopiere den",
+    "code_copied": "Kode kopiert",
     "failed_to_initiate_quick_connect": "Kunne ikke initiere Quick Connect",
     "got_it": "Har det",
     "connection_failed": "Tilkobling mislyktes",
@@ -33,6 +43,7 @@
     "connect_button": "Nettverk",
     "previous_servers": "Tidligere servere",
     "clear_button": "Clear all",
+    "server_url": "Server-URL",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Søk etter lokale servere",
     "searching": "Søker...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "Kontoen ble ikke lagret",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Velkommen til Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "En gratis og Open-Source klient for Jellyfin.",
       "features_title": "Funksjoner",
-      "features_description": "Streamyfin har en haug med funksjoner og integrerer med en bred liste med programvare som du kan finne i innstillingsmenyen, dette omfatter:",
+      "features_description": "Streamyfin har en haug med funksjoner og fungerer med annen programvare. Du finner dem i innstillingsmenyen:",
       "jellyseerr_feature_description": "Koble til Seerr forekomsten og be om filmer direkte i appen.",
       "downloads_feature_title": "Nedlastinger",
       "downloads_feature_description": "Last ned filmer og tv-serier for å se offline. Bruk enten standardmetoden eller installer den optimaliserer serveren for å laste ned filer i bakgrunnen.",
       "chromecast_feature_description": "Kast filmer og tv-viser til Chromecast-enhetene dine.",
       "centralised_settings_plugin_title": "Centralised Settings Plugin",
-      "centralised_settings_plugin_description": "Konfigurer innstillinger fra en sentralisert plassering på din Jellyfin-server. Alle klient innstillinger for alle brukere vil bli synkronisert automatisk.",
+      "centralised_settings_plugin_description": "Konfigurer innstillinger sentralt på din Jellyfin-server. Alle brukeres klientinnstillinger synkroniseres automatisk.",
       "done_button": "Ferdig",
       "go_to_settings_button": "Gå til innstillinger",
       "read_more": "Les mer"
     },
     "settings": {
       "settings_title": "Innstillinger",
+      "disabled_by_admin": "Deaktivert av administrator",
       "log_out_button": "Logg ut",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID skjult",
+        "location_off_description": "Tilkoblet Wi-Fi, men nettverksnavnet er skjult. Aktiver Posisjon i enhetsinnstillingene, og gi appen posisjonstillatelse for å oppdage det.",
+        "open_location_settings": "Åpne posisjonsinnstillinger"
       },
       "user_info": {
         "user_info_title": "Bruker Info",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "Hurtig tilkobling autorisert",
         "error": "Feil",
         "invalid_code": "Ugyldig kode",
-        "authorize": "Autoriser"
+        "authorize": "Autoriser",
+        "paste_code": "Lim inn kode"
       },
       "media_controls": {
         "media_controls_title": "Media kontroller",
         "forward_skip_length": "Hopp over lengde",
         "rewind_length": "Omspar lengde",
         "seconds_unit": "S"
+      },
+      "video_player": {
+        "title": "Videospiller",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer støtter ikke avansert ASS/SSA-undertekststiling eller vannrett justering av undertekster. Bytt til MPV hvis du trenger dette.",
+        "mpv_note": "MPV på TV videresender for øyeblikket ikke HDR-metadata til skjermen, så HDR10/HDR10+-innhold tonemappes til SDR. Bytt til ExoPlayer for HDR-utgang."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "MPV-undertekstinnstillinger",
+        "mpv_settings_description": "Avansert tilpasning av undertekster for MPV-spilleren",
+        "opaque_background": "Ugjennomsiktig bakgrunn",
+        "background_opacity": "Bakgrunnsdekkevne",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "Lagre kommende sanger i køen på forhånd. De eldste fjernes når størrelsesgrensen er nådd.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Kunne ikke oppdatere innstillinger fra serveren",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Sanger lagres automatisk i cache under avspilling. Sletting av dem frigjør plass uten å påvirke dine nedlastede sanger.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Klikk for mer info",
         "level": "Nivå",
         "no_logs_available": "Ingen logger tilgjengelig",
-        "delete_all_logs": "Slett alle loggene"
+        "delete_all_logs": "Slett alle loggene",
+        "copy": "Kopier",
+        "copied": "Kopiert til utklippstavle"
       },
       "languages": {
         "title": "Språk",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "Økter",
-      "no_active_sessions": "Ingen aktive økter"
+      "no_active_sessions": "Ingen aktive økter",
+      "select_session": "Velg økt",
+      "now_playing": "Spiller nå:"
     },
     "downloads": {
       "downloads_title": "Nedlastinger",
+      "transcoding": "Transkoding",
       "series": "TV-Serier",
       "movies": "Filmer",
       "other_media": "Andre medier",
@@ -494,13 +528,15 @@
     "no_trailer_available": "Ingen trailer tilgjengelig",
     "video": "Video",
     "audio": "Lyd",
-    "subtitle": "Undertittel",
+    "subtitle": "Undertekst",
     "play": "Spill",
     "mark_as_played": "Mark as Played",
     "mark_as_not_played": "Mark as not Played",
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stopp",
+    "open_menu": "Åpne meny",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -595,14 +631,42 @@
     "boxsets": "Boks sett",
     "playlists": "Spillelister",
     "noDataTitle": "Ingen favoritter ennå",
-    "noData": "Merk elementer som favoritter for rask tilgang vises her."
+    "noData": "Elementer du merker som favoritter, vises her."
   },
   "custom_links": {
     "no_links": "Ingen lenke"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Bland",
+    "entire_series": "Hele serien",
+    "episode_count": "{{count}} episoder",
+    "menu": {
+      "quality": "Kvalitet",
+      "subtitles": "Undertekster",
+      "subtitle_scale": "Undertekstskalering",
+      "audio": "Lyd",
+      "speed": "Hastighet",
+      "playback_options": "Avspillingsalternativer",
+      "show_technical_info": "Vis teknisk info",
+      "hide_technical_info": "Skjul teknisk info"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Lyd:",
+      "subtitle": "Undertekst:",
+      "bitrate": "Bitrate:",
+      "source_bitrate": "Fil:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Droppet: {{count}} bilder",
+      "loading": "Laster..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Bildeforhold",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Hash-treff",
+    "still_watching": "Ser du fortsatt?",
     "error": "Feil",
     "failed_to_get_stream_url": "Kan ikke hente nettadressen for stream",
     "an_error_occurred_while_playing_the_video": "En feil oppstod under video. Sjekk loggene i innstillingene.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Live TV",
     "next": "Neste",
     "previous": "Forrige",
     "coming_soon": "Kommer snart",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server oppfyller ikke minimumskravene til versjoner! Vennligst oppdater til minst 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server oppfyller ikke minimumskravene til versjoner! Vennligst oppdater til minst 2.0.0",
       "jellyseerr_test_failed": "Seerr-test mislyktes. Vennligst prøv på nytt.",
       "failed_to_test_jellyseerr_server_url": "Klarte ikke å teste Seerr server-URL",
       "issue_submitted": "Saker innsendt!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "Avspillingsknapp",
+    "play_hint": "Trykk for å spille av innholdet",
+    "toggle_orientation": "Bytt skjermretning",
+    "toggle_orientation_hint": "Bytter skjermretningen mellom stående og liggende."
+  },
+  "not_found": {
+    "title": "Denne skjermen finnes ikke.",
+    "go_home": "Gå til startskjermen!"
+  },
   "tabs": {
     "home": "Hjem",
     "search": "Søk",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "Ingen spor spilles",
+    "queue_empty": "Køen er tom",
+    "playing_from_queue": "Spiller fra kø",
+    "up_next": "Neste opp",
+    "now_playing": "Spiller nå",
+    "missing_library_id": "Mangler musikkbiblioteks-ID.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Opprett en ønskeliste for å samle det du vil se",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

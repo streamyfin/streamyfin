@@ -52,7 +52,14 @@ const STORAGE_KEYS = {
   REPEAT_MODE: "music_player_repeat_mode",
   SHUFFLE_ENABLED: "music_player_shuffle_enabled",
   CURRENT_PROGRESS: "music_player_progress",
+  // Which account the persisted queue belongs to, as `serverId:userId`.
+  QUEUE_OWNER: "music_player_queue_owner",
 } as const;
+
+// A queue belongs to one account: same server, other user is a different queue.
+const sessionKeyFor = (
+  user?: { Id?: string | null; ServerId?: string | null } | null,
+) => (user?.Id ? `${user.ServerId ?? ""}:${user.Id}` : null);
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -208,10 +215,15 @@ const TVMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 };
 
 // Persistence helpers
-const saveQueueToStorage = (queue: BaseItemDto[], queueIndex: number) => {
+const saveQueueToStorage = (
+  queue: BaseItemDto[],
+  queueIndex: number,
+  owner: string | null,
+) => {
   try {
     storage.set(STORAGE_KEYS.QUEUE, JSON.stringify(queue));
     storage.set(STORAGE_KEYS.QUEUE_INDEX, queueIndex.toString());
+    if (owner) storage.set(STORAGE_KEYS.QUEUE_OWNER, owner);
   } catch {
     // Silently fail
   }
@@ -236,6 +248,30 @@ const loadQueueFromStorage = (): {
     // Silently fail
   }
   return null;
+};
+
+const clearPersistedQueue = () => {
+  // Per key: one failing removal must not leave the others behind.
+  for (const key of [
+    STORAGE_KEYS.QUEUE,
+    STORAGE_KEYS.QUEUE_INDEX,
+    STORAGE_KEYS.CURRENT_PROGRESS,
+    STORAGE_KEYS.QUEUE_OWNER,
+  ]) {
+    try {
+      storage.remove(key);
+    } catch {
+      // Silently fail
+    }
+  }
+};
+
+const loadQueueOwner = (): string | null => {
+  try {
+    return storage.getString(STORAGE_KEYS.QUEUE_OWNER) ?? null;
+  } catch {
+    return null;
+  }
 };
 
 const loadRepeatMode = (): RepeatMode => {
@@ -359,6 +395,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
   const initializedRef = useRef(false);
   const playerSetupRef = useRef(false);
 
+  // Identifies the account the player currently belongs to, and lets async work
+  // notice that the session moved on while it was awaiting.
+  const sessionKey = sessionKeyFor(user);
+  const sessionKeyRef = useRef<string | null>(null);
+  const sessionGenerationRef = useRef(0);
+
   const [state, setState] = useState<MusicPlayerState>({
     currentTrack: null,
     queue: [],
@@ -462,6 +504,22 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     const saved = loadQueueFromStorage();
     if (saved && saved.queue.length > 0) {
       const currentTrack = saved.queue[saved.queueIndex];
+
+      // A queue persisted by another account must not resurface here — its item
+      // ids and stream URLs are meaningless on this one. The owner key covers
+      // both cases (other server, other user on the same server); queues written
+      // before that key existed are judged on their items' ServerId instead.
+      const owner = loadQueueOwner();
+      const foreignOwner = owner !== null && owner !== sessionKey;
+      const foreignItem = saved.queue.some(
+        (track) =>
+          track.ServerId && user.ServerId && track.ServerId !== user.ServerId,
+      );
+      if (foreignOwner || foreignItem) {
+        clearPersistedQueue();
+        return;
+      }
+
       const savedProgress = loadProgress();
 
       setState((prev) => ({
@@ -477,14 +535,45 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         isPlaying: false, // Don't auto-play on restore
       }));
     }
-  }, [api, user?.Id]);
+  }, [api, user?.Id, user?.ServerId, sessionKey]);
 
-  // Save queue whenever it changes
+  // Stop playback and drop the queue when the session moves to another
+  // server/user or logs out — the previous server's tracks must not keep
+  // playing (or resurface in the mini player) on the new session. No stopped
+  // report is sent to the old server: its api instance is already replaced by
+  // the time this runs, so that session ages out server-side instead.
   useEffect(() => {
-    if (state.queue.length > 0) {
-      saveQueueToStorage(state.queue, state.queueIndex);
-    }
-  }, [state.queue, state.queueIndex]);
+    const prev = sessionKeyRef.current;
+    sessionKeyRef.current = sessionKey;
+    if (prev === null || prev === sessionKey) return;
+
+    // Bump first and synchronously: work already in flight for the previous
+    // account checks this before touching TrackPlayer or state, so it can no
+    // longer re-add the old queue behind the reset below.
+    sessionGenerationRef.current += 1;
+    clearPersistedQueue();
+    TrackPlayer?.reset().catch(() => {});
+    setState((prevState) => ({
+      ...defaultState,
+      // Repeat/shuffle are user preferences, not server state — keep them.
+      repeatMode: prevState.repeatMode,
+      shuffleEnabled: prevState.shuffleEnabled,
+    }));
+  }, [sessionKey]);
+
+  // Save queue whenever it changes.
+  // The session teardown above clears storage and resets the state, but this
+  // effect still runs once with the queue it had before that reset lands, so it
+  // would write the previous account's queue straight back — with no owner when
+  // logging out, or under the new owner when switching account. Only persist a
+  // queue that still belongs to the signed-in session.
+  useEffect(() => {
+    if (!sessionKey || state.queue.length === 0) return;
+    const first = state.queue[0];
+    if (first?.ServerId && user?.ServerId && first.ServerId !== user.ServerId)
+      return;
+    saveQueueToStorage(state.queue, state.queueIndex, sessionKey);
+  }, [state.queue, state.queueIndex, sessionKey, user?.ServerId]);
 
   // Save progress periodically
   useEffect(() => {
@@ -635,6 +724,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     async (queue: BaseItemDto[], startIndex: number, preferLocal: boolean) => {
       if (!api || !user?.Id || !TrackPlayer) return;
 
+      // This runs for a long time, one network round trip per track. If the
+      // session switches meanwhile, every remaining track belongs to an account
+      // that is no longer signed in, so stop instead of adding them.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+
       const mediaInfoMap: Record<string, TrackMediaInfo> = {};
       const failedItemIds: string[] = []; // Track items that failed to prepare
 
@@ -645,6 +740,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (!item.Id) continue;
 
         const prepared = await prepareTrack(item, preferLocal);
+        if (isStale()) return;
         if (prepared) {
           beforeTracks.push(prepared.track);
           if (prepared.mediaInfo) {
@@ -672,6 +768,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         if (!item.Id) continue;
 
         const prepared = await prepareTrack(item, preferLocal);
+        if (isStale()) return;
         if (prepared) {
           await TrackPlayer.add(prepared.track); // Append to end
           if (prepared.mediaInfo && item.Id) {
@@ -689,7 +786,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       }
 
       // Remove failed items from queue to keep it in sync with TrackPlayer
-      if (failedItemIds.length > 0) {
+      if (failedItemIds.length > 0 && !isStale()) {
         console.log(
           `[MusicPlayer] Removing ${failedItemIds.length} unavailable tracks from queue`,
         );
@@ -721,6 +818,12 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
     async (queue: BaseItemDto[], startIndex: number) => {
       if (!api || !user?.Id || queue.length === 0 || !TrackPlayer) return;
 
+      // Preparing a track is a network round trip; a session switch during it
+      // would otherwise let this call re-add the previous account's track and
+      // report a playback start against the wrong server.
+      const generation = sessionGenerationRef.current;
+      const isStale = () => generation !== sessionGenerationRef.current;
+
       const preferLocal = settings?.preferLocalAudio ?? true;
 
       // Apply offline filtering at the start to ensure state.queue matches TrackPlayer queue
@@ -750,6 +853,7 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       try {
         // PHASE 1: Prepare and play the target track immediately
         const targetTrackResult = await prepareTrack(targetItem, preferLocal);
+        if (isStale()) return;
 
         if (!targetTrackResult) {
           setState((prev) => ({
@@ -764,6 +868,10 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         await TrackPlayer.reset();
         await TrackPlayer.add(targetTrackResult.track);
         await TrackPlayer.play();
+        if (isStale()) {
+          await TrackPlayer.reset().catch(() => {});
+          return;
+        }
 
         // Update state for immediate playback
         setState((prev) => ({
@@ -1130,15 +1238,11 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
       );
     }
 
-    await TrackPlayer.reset();
-
-    // Clear storage
     try {
-      storage.remove(STORAGE_KEYS.QUEUE);
-      storage.remove(STORAGE_KEYS.QUEUE_INDEX);
-      storage.remove(STORAGE_KEYS.CURRENT_PROGRESS);
-    } catch {
-      // Silently fail
+      await TrackPlayer.reset();
+    } finally {
+      // Even a failed reset must not leave a queue that restores on next launch.
+      clearPersistedQueue();
     }
 
     setState({
@@ -1593,6 +1697,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
         currentIdx + 1 + lookaheadCount,
       );
 
+      const generation = sessionGenerationRef.current;
+
       for (const track of tracksToCache) {
         const itemId = track.id;
         // Skip if already stored locally or currently downloading
@@ -1600,6 +1706,8 @@ const MobileMusicPlayerProvider: React.FC<MusicPlayerProviderProps> = ({
 
         // Get stream URL for this track
         const result = await getAudioStreamUrl(api, user.Id, itemId);
+        // Session switched while awaiting: caching for the old account is waste.
+        if (generation !== sessionGenerationRef.current) return;
 
         // Only cache direct streams (not transcoding - can't cache dynamic content)
         if (result?.url && !result.isTranscoding) {
