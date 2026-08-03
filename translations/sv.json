@@ -637,6 +637,7 @@
     "no_links": "Inga Länkar"
   },
   "player": {
+    "playing_in_picture_in_picture": "Spelas upp i bild-i-bild",
     "live": "LIVE",
     "shuffle": "Blanda",
     "entire_series": "Hela serien",
@@ -855,9 +856,7 @@
     "play_button": "Uppspelningsknapp",
     "play_hint": "Tryck för att spela upp media",
     "toggle_orientation": "Växla skärmorientering",
-    "toggle_orientation_hint": "Växlar skärmorienteringen mellan stående och liggande läge",
-    "enter_fullscreen": "Helskärm",
-    "exit_fullscreen": "Avsluta helskärm"
+    "toggle_orientation_hint": "Växlar skärmorienteringen mellan stående och liggande läge"
   },
   "not_found": {
     "title": "Den här skärmen finns inte.",

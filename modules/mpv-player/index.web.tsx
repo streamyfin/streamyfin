@@ -47,11 +47,43 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
     // Subtitles side-loaded via addSubtitleFile(), the only ones we can enumerate.
     const externalSubsRef = useRef<SubtitleTrack[]>([]);
 
+    // The screen passes fresh inline callbacks on every render, so nothing that
+    // touches playback may depend on their identity. Reloading the stream and
+    // seeking back to the start position on an unrelated re-render is what made
+    // pausing look like it rewound and resumed by itself.
+    const latest = useRef({
+      source,
+      onLoad,
+      onPlaybackStateChange,
+      onProgress,
+      onError,
+      onTracksReady,
+      onPictureInPictureChange,
+    });
+    latest.current = {
+      source,
+      onLoad,
+      onPlaybackStateChange,
+      onProgress,
+      onError,
+      onTracksReady,
+      onPictureInPictureChange,
+    };
+
+    // Only a genuinely different stream should tear playback down and rebuild
+    // it, so the effect keys off the source's contents rather than its identity.
+    const sourceUrl = source?.url;
+    const headersKey = JSON.stringify(source?.headers ?? {});
+    const subtitlesKey = (source?.externalSubtitles ?? []).join("|");
+    const cacheSeconds = source?.cacheConfig?.cacheSeconds;
+
     // --- source wiring -------------------------------------------------------
     useEffect(() => {
       const video = videoRef.current;
-      const url = source?.url;
+      const url = sourceUrl;
       if (!video || !url) return;
+
+      const { source, onLoad, onError, onTracksReady } = latest.current;
 
       hlsRef.current?.destroy();
       hlsRef.current = null;
@@ -83,6 +115,12 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         video.src = url;
       }
 
+      // Tracks are appended by hand, so clear the previous stream's before
+      // adding this one's rather than stacking them up.
+      for (const track of Array.from(video.querySelectorAll("track"))) {
+        track.remove();
+      }
+
       for (const subtitle of source?.externalSubtitles ?? []) {
         const track = document.createElement("track");
         track.kind = "subtitles";
@@ -107,7 +145,7 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         hlsRef.current?.destroy();
         hlsRef.current = null;
       };
-    }, [source, onLoad, onError, onTracksReady]);
+    }, [sourceUrl, headersKey, subtitlesKey, cacheSeconds]);
 
     // --- element events ------------------------------------------------------
     useEffect(() => {
@@ -115,7 +153,7 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       if (!video) return;
 
       const emitState = () =>
-        onPlaybackStateChange?.({
+        latest.current.onPlaybackStateChange?.({
           nativeEvent: {
             isPaused: video.paused,
             isPlaying: !video.paused && !video.ended,
@@ -130,7 +168,7 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
           video.buffered.length > 0
             ? video.buffered.end(video.buffered.length - 1)
             : video.currentTime;
-        onProgress?.({
+        latest.current.onProgress?.({
           nativeEvent: {
             position: video.currentTime,
             duration,
@@ -141,12 +179,21 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       };
 
       const emitError = () =>
-        onError?.({
+        latest.current.onError?.({
           nativeEvent: { error: video.error?.message ?? "Playback failed" },
         });
 
-      const emitPip = (isActive: boolean) => () =>
-        onPictureInPictureChange?.({ nativeEvent: { isActive } });
+      const emitPip = (isActive: boolean) => () => {
+        // Chromium paints its own "Playing in picture-in-picture" placeholder
+        // in the top-left corner of the video box and it cannot be restyled.
+        // Hiding the element hides that text; picture-in-picture keeps running
+        // because the element is still in the document, and the screen draws
+        // its own centred message in its place.
+        video.style.opacity = isActive ? "0" : "1";
+        latest.current.onPictureInPictureChange?.({
+          nativeEvent: { isActive },
+        });
+      };
 
       const onEnterPip = emitPip(true);
       const onLeavePip = emitPip(false);
@@ -172,7 +219,9 @@ export const MpvPlayerView = forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         video.removeEventListener("enterpictureinpicture", onEnterPip);
         video.removeEventListener("leavepictureinpicture", onLeavePip);
       };
-    }, [onPlaybackStateChange, onProgress, onError, onPictureInPictureChange]);
+      // Bound once for the element's lifetime; the handlers read the latest
+      // callbacks through the ref, so re-binding on every render is pointless.
+    }, []);
 
     useImperativeHandle(ref, (): MpvPlayerViewRef => {
       const video = () => videoRef.current;

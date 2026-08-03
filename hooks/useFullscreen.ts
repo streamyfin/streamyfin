@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
 /**
@@ -29,57 +29,79 @@ function domFullscreenAvailable() {
   );
 }
 
-/**
- * Fullscreen for the desktop and web builds.
- *
- * Prefers Electron's window fullscreen, so the player's button and the F11
- * accelerator stay in agreement, and falls back to the DOM Fullscreen API in a
- * plain browser. `isSupported` is false on native, where the player is already
- * fullscreen and the control should not appear at all.
- */
-export function useFullscreen() {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const isSupported = desktopBridge() !== null || domFullscreenAvailable();
-
-  useEffect(() => {
-    const bridge = desktopBridge();
-    if (bridge) {
-      let cancelled = false;
-      void bridge.get().then((value) => {
-        if (!cancelled) setIsFullscreen(value);
-      });
-      const unsubscribe = bridge.subscribe(setIsFullscreen);
-      return () => {
-        cancelled = true;
-        unsubscribe();
-      };
-    }
-
-    if (!domFullscreenAvailable()) return;
-    const sync = () => setIsFullscreen(document.fullscreenElement !== null);
-    sync();
-    document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
-
-  const toggle = useCallback(async () => {
-    const bridge = desktopBridge();
-    if (bridge) {
-      // The window's enter/leave events drive the state, so nothing to set here.
-      await bridge.toggle();
-      return;
-    }
-    if (!domFullscreenAvailable()) return;
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-    } catch {
-      // Chromium rejects the request outside a user gesture. Nothing to do but
-      // leave the player as it was.
-    }
-  }, []);
-
-  return { isSupported, isFullscreen, toggle };
+/** False on native, where the player already fills the screen. */
+export function isFullscreenSupported() {
+  return desktopBridge() !== null || domFullscreenAvailable();
 }
 
-export default useFullscreen;
+export async function isFullscreen(): Promise<boolean> {
+  const bridge = desktopBridge();
+  if (bridge) return bridge.get();
+  return domFullscreenAvailable() && document.fullscreenElement !== null;
+}
+
+/**
+ * Electron's window fullscreen is preferred over the DOM Fullscreen API so this
+ * agrees with the F11 accelerator, and because the DOM call is rejected outside
+ * a user gesture — which would make entering fullscreen on open impossible.
+ */
+export async function setFullscreen(next: boolean): Promise<void> {
+  const bridge = desktopBridge();
+  if (bridge) {
+    if ((await bridge.get()) !== next) await bridge.toggle();
+    return;
+  }
+  if (!domFullscreenAvailable()) return;
+  try {
+    if (next) await document.documentElement.requestFullscreen();
+    else if (document.fullscreenElement) await document.exitFullscreen();
+  } catch {
+    // In a plain browser this needs a user gesture. Nothing to do but leave the
+    // window as it was.
+  }
+}
+
+/**
+ * Hold the desktop window in fullscreen for as long as the player is open.
+ *
+ * Pass `suspended` while picture-in-picture is active: playback moves to its
+ * own floating window then, and a fullscreen window left behind it is just a
+ * black rectangle covering the screen. Fullscreen comes back when PiP ends.
+ *
+ * On the way out it only undoes what it did, so a window the user had already
+ * put in fullscreen is left that way. No-op on native.
+ */
+export function usePlayerFullscreen(suspended = false) {
+  const enteredByUs = useRef(false);
+
+  useEffect(() => {
+    if (!isFullscreenSupported()) return;
+
+    if (suspended) {
+      void setFullscreen(false);
+      return;
+    }
+
+    let cancelled = false;
+    void isFullscreen().then((wasFullscreen) => {
+      if (cancelled || wasFullscreen) return;
+      enteredByUs.current = true;
+      void setFullscreen(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [suspended]);
+
+  // Separate from the effect above so leaving PiP does not count as leaving the
+  // player: this runs only when the screen itself goes away.
+  useEffect(
+    () => () => {
+      if (enteredByUs.current) void setFullscreen(false);
+    },
+    [],
+  );
+}
+
+export default usePlayerFullscreen;

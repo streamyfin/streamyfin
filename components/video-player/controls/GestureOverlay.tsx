@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useRef, useState } from "react";
-import { Animated, Pressable } from "react-native";
+import { Animated, Platform, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
@@ -265,11 +265,16 @@ export const GestureOverlay = ({
 
   return (
     <>
-      {/* Gesture detection area */}
+      {/* Gesture detection area.
+          The touch handlers are what drive swipe-to-seek and the brightness /
+          volume drags, but a mouse never fires them, so on desktop a click
+          with the controls hidden had nothing to land on and they could not be
+          brought back. Mouse movement is handled in Controls, at the window. */}
       <Pressable
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onPress={Platform.OS === "web" ? onToggleControls : undefined}
         style={{
           position: "absolute",
           width: screenWidth,

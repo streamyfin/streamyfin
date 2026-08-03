@@ -36,6 +36,7 @@ import {
 } from "@/components/video-player/controls/utils/playback-speed-settings";
 import { VideoPlayerView } from "@/components/video-player/VideoPlayerView";
 import useRouter from "@/hooks/useAppRouter";
+import { usePlayerFullscreen } from "@/hooks/useFullscreen";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
@@ -117,6 +118,10 @@ export default function DirectPlayerPage() {
   }, []);
   const [showControls, _setShowControls] = useState(true);
   const [isPipMode, setIsPipMode] = useState(false);
+
+  // On desktop the player owns the whole window while it is open, and steps
+  // back out of fullscreen while picture-in-picture has the video.
+  usePlayerFullscreen(isPipMode);
   const [aspectRatio] = useState<"default" | "16:9" | "4:3" | "1:1" | "21:9">(
     "default",
   );
@@ -1661,6 +1666,24 @@ export default function DirectPlayerPage() {
                   }}
                 >
                   <Loader />
+                </View>
+              )}
+              {isPipMode && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                  pointerEvents='none'
+                >
+                  <Text className='text-white/70 text-base'>
+                    {t("player.playing_in_picture_in_picture")}
+                  </Text>
                 </View>
               )}
             </View>
