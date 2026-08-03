@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "사용자 이름이 필요합니다",
     "error_title": "오류",
@@ -12,6 +19,9 @@
     "login_button": "로그인",
     "quick_connect": "퀵 커넥트",
     "enter_code_to_login": "로그인 하기 위해 코드{{code}}를 입력하세요",
+    "quick_connect_instructions": "로그인한 기기에서 이 코드를 입력하세요. 자동으로 로그인됩니다.",
+    "tap_code_to_copy": "코드를 눌러 복사하세요",
+    "code_copied": "코드가 복사되었습니다",
     "failed_to_initiate_quick_connect": "Quick Connect 연결을 시작하는 데 실패했습니다",
     "got_it": "성공",
     "connection_failed": "연결 실패",
@@ -33,6 +43,7 @@
     "connect_button": "연결",
     "previous_servers": "이전 서버",
     "clear_button": "모두 지우기",
+    "server_url": "서버 URL",
     "swipe_to_remove": "스와이프해서 지우기",
     "search_for_local_servers": "로컬 서버 찾기",
     "searching": "찾는 중...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "계정 저장",
     "save_for_later": "이 계정 저장",
+    "not_saved": "계정이 저장되지 않았습니다",
     "security_option": "보안 설정",
     "no_protection": "보안 없음",
     "no_protection_desc": "인증 없이 빠른 로그인",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "스트리미핀에 오신 것을 환영합니다",
       "a_free_and_open_source_client_for_jellyfin": "젤리핀을 위한 무료 오픈소스 클라이언트입니다.",
       "features_title": "기능",
-      "features_description": "스트리미핀은 다양한 기능을 제공하며 설정 메뉴에서 확인할 수 있는 여러 소프트웨어와 통합됩니다. 이러한 소프트웨어에는 다음이 포함됩니다:",
+      "features_description": "Streamyfin은 다양한 기능을 제공하며 다른 소프트웨어와도 연동됩니다. 설정 메뉴에서 확인할 수 있습니다:",
       "jellyseerr_feature_description": "Seerr 인스턴스에 연결하여 앱에서 직접 영화를 요청할 수 있습니다.",
       "downloads_feature_title": "다운로드된 컨텐츠",
       "downloads_feature_description": "오프라인으로 보기위해 다운로드 하세요. 기본 다운로드 방식을 사용하거나, 백그라운드에서 파일을 다운로드하는 최적화 서버를 설치할 수 있습니다.",
       "chromecast_feature_description": "영화와 TV 프로그램을 Chromecast 기기로 전송하기",
       "centralised_settings_plugin_title": "중앙 설정 플러그인",
-      "centralised_settings_plugin_description": "Jellyfin 서버의 중앙 집중식 위치에서 설정을 구성합니다. 모든 사용자의 모든 클라이언트 설정이 자동으로 동기화됩니다.",
+      "centralised_settings_plugin_description": "Jellyfin 서버에서 설정을 중앙에서 관리할 수 있습니다. 모든 사용자의 클라이언트 설정이 자동으로 동기화됩니다.",
       "done_button": "확인",
       "go_to_settings_button": "설정으로 이동",
       "read_more": "자세히 보기"
     },
     "settings": {
       "settings_title": "설정",
+      "disabled_by_admin": "관리자에 의해 비활성화됨",
       "log_out_button": "로그아웃",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "네트워크 이미 추가됨",
         "no_wifi_connected": "WiFi에 연결되지 않음",
         "permission_denied": "위치 권한이 거부되었습니다",
-        "permission_denied_explanation": "자동 전환 Wi-Fi 네트워크를 감지하려면 위치 권한이 필요합니다. 설정에서 위치 권한을 활성화해 주세요."
+        "permission_denied_explanation": "자동 전환 Wi-Fi 네트워크를 감지하려면 위치 권한이 필요합니다. 설정에서 위치 권한을 활성화해 주세요.",
+        "ssid_hidden": "SSID 숨김",
+        "location_off_description": "Wi-Fi에 연결되어 있지만 네트워크 이름이 숨겨져 있습니다. 감지하려면 기기의 위치 서비스를 활성화하고 앱에 위치 권한을 부여하세요.",
+        "open_location_settings": "위치 설정 열기"
       },
       "user_info": {
         "user_info_title": "사용자 정보",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "퀵 커넥트 승인됨",
         "error": "오류",
         "invalid_code": "유효하지 않은 코드",
-        "authorize": "승인"
+        "authorize": "승인",
+        "paste_code": "코드 붙여넣기"
       },
       "media_controls": {
         "media_controls_title": "미디어 컨트롤",
         "forward_skip_length": "앞으로 건너뛸 시간",
         "rewind_length": "뒤로 되감을 시간",
         "seconds_unit": "초"
+      },
+      "video_player": {
+        "title": "비디오 플레이어",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer는 고급 ASS/SSA 자막 스타일이나 자막의 가로 정렬을 지원하지 않습니다. 필요한 경우 MPV로 전환하세요.",
+        "mpv_note": "TV용 MPV는 현재 HDR 메타데이터를 디스플레이에 전달하지 않아 HDR10/HDR10+ 콘텐츠가 SDR로 톤 매핑됩니다. HDR 출력을 사용하려면 ExoPlayer로 전환하세요."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "MPV 자막 설정",
+        "mpv_settings_description": "MPV 플레이어를 위한 고급 자막 사용자 지정",
+        "opaque_background": "불투명 배경",
+        "background_opacity": "배경 불투명도",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "재생 대기열에 있는 다음 노래를 캐시로 미리 저장해 둡니다. 용량 제한에 도달하면 가장 오래된 노래부터 삭제됩니다.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "서버에서 설정을 새로고침했습니다",
+            "refresh_failed": "서버에서 설정을 새로고침하지 못했습니다",
             "disabled": "Streamystats 비활성화됨"
           },
           "refresh_from_server": "서버에서 설정 새로고침"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "노래는 재생 중에 자동으로 캐시됩니다. 캐시를 삭제하면 다운로드한 노래에는 영향을 주지 않고 저장 공간을 확보할 수 있습니다.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "음악 캐시가 삭제되었습니다",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Click for More Info",
         "level": "Level",
         "no_logs_available": "No Logs Available",
-        "delete_all_logs": "Delete All Logs"
+        "delete_all_logs": "Delete All Logs",
+        "copy": "복사",
+        "copied": "클립보드에 복사됨"
       },
       "languages": {
         "title": "Languages",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessions",
-      "no_active_sessions": "세션 비활성화"
+      "no_active_sessions": "세션 비활성화",
+      "select_session": "세션 선택",
+      "now_playing": "재생 중:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "트랜스코딩 중",
       "series": "TV-Series",
       "movies": "Movies",
       "other_media": "Other media",
@@ -501,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "정지",
+    "open_menu": "메뉴 열기",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -595,14 +631,42 @@
     "boxsets": "Box Sets",
     "playlists": "Playlists",
     "noDataTitle": "No Favorites Yet",
-    "noData": "Mark items as favorites to see them appear here for quick access."
+    "noData": "즐겨찾기로 표시한 항목이 여기에 표시됩니다."
   },
   "custom_links": {
     "no_links": "No Links"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "셔플",
+    "entire_series": "전체 시리즈",
+    "episode_count": "{{count}}화",
+    "menu": {
+      "quality": "화질",
+      "subtitles": "자막",
+      "subtitle_scale": "자막 크기",
+      "audio": "오디오",
+      "speed": "속도",
+      "playback_options": "재생 옵션",
+      "show_technical_info": "기술 정보 표시",
+      "hide_technical_info": "기술 정보 숨기기"
+    },
+    "technical_info": {
+      "video": "비디오:",
+      "audio": "오디오:",
+      "subtitle": "자막:",
+      "bitrate": "비트레이트:",
+      "source_bitrate": "파일:",
+      "buffer_seconds": "버퍼: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "드롭: {{count}}프레임",
+      "loading": "로딩 중..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "화면 비율",
+    "aspect_ratio_original": "원본",
+    "hash_match": "해시 일치",
+    "still_watching": "아직 보고 계신가요?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "실시간 TV",
     "next": "Next",
     "previous": "Previous",
     "coming_soon": "Coming Soon",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",
       "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server url",
       "issue_submitted": "Issue Submitted!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "재생 버튼",
+    "play_hint": "탭하여 미디어 재생",
+    "toggle_orientation": "화면 방향 전환",
+    "toggle_orientation_hint": "화면 방향을 세로와 가로 사이로 전환합니다"
+  },
+  "not_found": {
+    "title": "이 화면은 존재하지 않습니다.",
+    "go_home": "홈 화면으로 이동!"
+  },
   "tabs": {
     "home": "Home",
     "search": "Search",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "재생 중인 트랙이 없습니다",
+    "queue_empty": "대기열이 비어 있습니다",
+    "playing_from_queue": "대기열에서 재생 중",
+    "up_next": "다음 재생",
+    "now_playing": "재생 중",
+    "missing_library_id": "음악 라이브러리 ID가 없습니다.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "보고 싶은 콘텐츠를 모아두는 관심 목록을 만들어 보세요",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

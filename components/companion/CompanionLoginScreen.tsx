@@ -11,10 +11,13 @@ import {
   View,
 } from "react-native";
 import { Button } from "@/components/Button";
+import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
+import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { sendCredentialsToTV } from "@/utils/pairingService";
+import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 
 type ScreenState =
   | "scanning"
@@ -49,6 +52,7 @@ export const CompanionLoginScreen: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const serverResolver = useServerUrlResolver(jellyfinProbe);
 
   // Pre-fill server URL and username from current session
   useEffect(() => {
@@ -135,9 +139,16 @@ export const CompanionLoginScreen: React.FC = () => {
     setScreenState("sending");
 
     try {
+      // Send the canonical URL when the server resolves from here; fall back
+      // to the raw input so pairing still works when it doesn't (the TV may
+      // reach the server even if this phone currently can't).
+      let urlToSend = serverUrl.trim();
+      const resolved = await serverResolver.resolve(urlToSend);
+      if (resolved.ok) urlToSend = resolved.url;
+
       await sendCredentialsToTV(
         pairingCode,
-        serverUrl.trim(),
+        urlToSend,
         username.trim(),
         password,
       );
@@ -147,7 +158,7 @@ export const CompanionLoginScreen: React.FC = () => {
       setErrorMessage(t("companion_login.error_generic"));
       setScreenState("error");
     }
-  }, [pairingCode, serverUrl, username, password, t]);
+  }, [pairingCode, serverUrl, username, password, t, serverResolver.resolve]);
 
   const handleScanAgain = useCallback(() => {
     setPairingCode("");
@@ -398,14 +409,27 @@ export const CompanionLoginScreen: React.FC = () => {
             <TextInput
               className='rounded-lg border border-neutral-700 bg-neutral-900 p-3 text-base text-white'
               value={serverUrl}
-              onChangeText={setServerUrl}
+              onChangeText={(text) => {
+                setServerUrl(text);
+                // Editing invalidates the previous resolution status.
+                serverResolver.reset();
+              }}
               placeholder={t("server.server_url_placeholder")}
               placeholderTextColor='#6B7280'
               autoCapitalize='none'
               autoCorrect={false}
               keyboardType='url'
               returnKeyType='next'
+              onBlur={() => {
+                const candidate = serverUrl.trim();
+                if (candidate) {
+                  serverResolver.resolve(candidate).then((r) => {
+                    if (r.ok) setServerUrl(r.url);
+                  });
+                }
+              }}
             />
+            <ServerUrlStatusText state={serverResolver} className='mt-2' />
           </View>
 
           <View className='mb-5'>
