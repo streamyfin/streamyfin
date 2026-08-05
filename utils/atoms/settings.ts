@@ -639,14 +639,18 @@ export const useSettings = () => {
         // app default — e.g. a toggle that was always locked then unlocked
         // should reflect the plugin default, not the app's `false`. The explicit
         // check stops that same plugin default from trapping a value at the app
-        // default forever (the user could never re-enable it). Object-typed
-        // settings compare by reference, so their behaviour is unchanged.
+        // default forever (the user could never re-enable it). Membership alone
+        // is the right signal here: by the time a key is explicit,
+        // updateSettings has persisted its value, so userValue is the user's
+        // real choice — including a deliberate clear (null / "") on a nullable
+        // or string setting, which hasMeaningfulSettingValue would wrongly
+        // reject. Object-typed settings compare by reference, so their
+        // behaviour is unchanged.
         const userValue = _settings?.[settingsKey];
         const userDiverged =
           hasMeaningfulSettingValue(userValue) &&
           userValue !== defaultValues[settingsKey];
-        const userExplicit =
-          explicitKeys.has(settingsKey) && hasMeaningfulSettingValue(userValue);
+        const userExplicit = explicitKeys.has(settingsKey);
 
         (acc as any)[settingsKey] = locked
           ? value
