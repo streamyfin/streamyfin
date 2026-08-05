@@ -495,6 +495,26 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
+const SETTINGS_EXPLICIT_KEYS = "settingsExplicitKeys";
+const loadExplicitSettingsKeys = (): Set<string> => {
+  try {
+    const raw = storage.getString(SETTINGS_EXPLICIT_KEYS);
+    return raw ? new Set<string>(JSON.parse(raw)) : new Set();
+  } catch (error) {
+    console.error("Failed to load explicit settings keys:", error);
+    return new Set();
+  }
+};
+
+// Keys the user has explicitly written via updateSettings. The read memo uses
+// this to honour a user choice that happens to equal the app default: without
+// it, an unlocked plugin (admin) default would permanently override such a
+// choice and the user could never set the value back to the app default
+// (e.g. rememberSubtitleSelections, whose app default is `true`).
+export const explicitSettingsKeysAtom = atom<Set<string>>(
+  loadExplicitSettingsKeys(),
+);
+
 const hasMeaningfulSettingValue = (value: unknown) =>
   value !== undefined && value !== null && value !== "";
 
@@ -502,6 +522,7 @@ export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
   const [pluginSettings, _setPluginSettings] = useAtom(pluginSettingsAtom);
+  const [explicitKeys, setExplicitKeys] = useAtom(explicitSettingsKeysAtom);
 
   useEffect(() => {
     if (_settings === null) {
@@ -564,6 +585,22 @@ export const useSettings = () => {
       ),
     ) as Partial<Settings>;
 
+    // Record the keys the user explicitly set. This runs even when the value
+    // is unchanged (hasChanges below may be false because the persisted value
+    // already matches) so the read memo can still tell the user's intent apart
+    // from a leaked app default — otherwise toggling back to the app default
+    // would be a no-op the user could never escape. Admin-locked keys are
+    // already excluded from sanitizedUpdate, so locked values are unaffected.
+    const updateKeys = Object.keys(sanitizedUpdate);
+    if (updateKeys.some((key) => !explicitKeys.has(key))) {
+      const nextExplicitKeys = new Set([...explicitKeys, ...updateKeys]);
+      setExplicitKeys(nextExplicitKeys);
+      storage.set(
+        SETTINGS_EXPLICIT_KEYS,
+        JSON.stringify([...nextExplicitKeys]),
+      );
+    }
+
     const hasChanges = Object.entries(sanitizedUpdate).some(
       ([key, value]) => _settings[key as keyof Settings] !== value,
     );
@@ -596,20 +633,24 @@ export const useSettings = () => {
         // Normalize object-typed settings from plugin (plain primitive → { key, value })
         value = normalizePluginValue(settingsKey, value);
 
-        // When unlocked, keep the user's value only if they explicitly diverged
-        // from the app default. Otherwise the plugin value is the admin's
-        // default and must win over the hardcoded app default — e.g. a toggle
-        // that was always locked then unlocked should reflect the plugin
-        // default, not the app's `false`. Object-typed settings compare by
-        // reference, so their behaviour is unchanged.
+        // When unlocked, keep the user's value when they either diverged from
+        // the app default OR explicitly wrote the key. The divergence check
+        // alone lets an unlocked plugin (admin) default win over the hardcoded
+        // app default — e.g. a toggle that was always locked then unlocked
+        // should reflect the plugin default, not the app's `false`. The explicit
+        // check stops that same plugin default from trapping a value at the app
+        // default forever (the user could never re-enable it). Object-typed
+        // settings compare by reference, so their behaviour is unchanged.
         const userValue = _settings?.[settingsKey];
         const userDiverged =
           hasMeaningfulSettingValue(userValue) &&
           userValue !== defaultValues[settingsKey];
+        const userExplicit =
+          explicitKeys.has(settingsKey) && hasMeaningfulSettingValue(userValue);
 
         (acc as any)[settingsKey] = locked
           ? value
-          : userDiverged
+          : userDiverged || userExplicit
             ? userValue
             : hasMeaningfulSettingValue(value)
               ? value
@@ -623,7 +664,7 @@ export const useSettings = () => {
       ..._settings,
       ...overrideSettings,
     };
-  }, [_settings, pluginSettings]);
+  }, [_settings, pluginSettings, explicitKeys]);
 
   return {
     settings,
