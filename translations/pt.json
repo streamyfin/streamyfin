@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Nome de usuário obrigatório",
     "error_title": "Erro",
@@ -12,6 +19,9 @@
     "login_button": "Iniciar sessão",
     "quick_connect": "Conexão rápida",
     "enter_code_to_login": "Digite o código {{code}} para entrar",
+    "quick_connect_instructions": "Digite este código em um dispositivo já conectado. Você será conectado automaticamente.",
+    "tap_code_to_copy": "Toque no código para copiá-lo.",
+    "code_copied": "Código copiado",
     "failed_to_initiate_quick_connect": "Falha ao iniciar uma conexão rápida",
     "got_it": "Tenho isso",
     "connection_failed": "Falha na conexão",
@@ -33,6 +43,7 @@
     "connect_button": "Conectar",
     "previous_servers": "Servidores anteriores",
     "clear_button": "Limpar tudo",
+    "server_url": "URL do servidor",
     "swipe_to_remove": "Deslize para remover",
     "search_for_local_servers": "Pesquisar Servidores Locais",
     "searching": "Buscando...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "A conta não foi salva",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Bem-vindo ao Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Um Cliente de código aberto e gratuito para o Jellyfin.",
       "features_title": "Funcionalidades",
-      "features_description": "O Streamyfin tem vários recursos e integra-se com uma grande variedade de softwares que você pode encontrar no menu de configurações, incluindo:",
+      "features_description": "Streamyfin possui vários recursos e funciona com outros programas. Você vai encontrá-los no menu de configurações:",
       "jellyseerr_feature_description": "Conecte-se à sua instância do Seerr e solicite filmes diretamente no aplicativo.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Baixe filmes e séries para ver offline. Use o método padrão ou instale o servidor otimizado para baixar arquivos em segundo plano.",
       "chromecast_feature_description": "Transmita filmes e séries para seus dispositivos Chromecast.",
       "centralised_settings_plugin_title": "Plugin de Configurações Centralizadas",
-      "centralised_settings_plugin_description": "Configure as configurações de um local centralizado no seu servidor Jellyfin. Todas as configurações do cliente para todos os usuários serão sincronizadas automaticamente.",
+      "centralised_settings_plugin_description": "Configure as configurações centralmente no seu servidor Jellyfin. As configurações de cliente de cada usuário são sincronizadas automaticamente.",
       "done_button": "Concluído",
       "go_to_settings_button": "Ir para Configurações",
       "read_more": "Ler Mais"
     },
     "settings": {
       "settings_title": "Confirgurações",
+      "disabled_by_admin": "Desativado pelo administrador",
       "log_out_button": "Encerrar Sessão",
       "switch_user": {
         "title": "Switch User",
@@ -178,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID oculto",
+        "location_off_description": "Conectado ao Wi-Fi, mas o nome da rede está oculto. Ative os serviços de localização do dispositivo e conceda ao aplicativo a permissão de localização para detectá-lo.",
+        "open_location_settings": "Abrir configurações de localização"
       },
       "user_info": {
         "user_info_title": "Informações do usuário",
@@ -195,13 +211,21 @@
         "quick_connect_authorized": "Quick Connect authorized",
         "error": "Erro",
         "invalid_code": "Código inválido",
-        "authorize": "Autorizar"
+        "authorize": "Autorizar",
+        "paste_code": "Colar código"
       },
       "media_controls": {
         "media_controls_title": "Controles de Mídia",
         "forward_skip_length": "Comprimento de Pular Avançada",
         "rewind_length": "Comprimento de Retroceder",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Player de vídeo",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "O ExoPlayer não oferece suporte a estilos avançados de legendas ASS/SSA nem ao alinhamento horizontal de legendas. Mude para o MPV se precisar desses recursos.",
+        "mpv_note": "Atualmente, o MPV na TV não transmite os metadados HDR para a tela, portanto, o conteúdo HDR10/HDR10+ é convertido para SDR. Mude para o ExoPlayer para obter saída HDR."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -274,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "Configurações de legendas do MPV",
+        "mpv_settings_description": "Personalização avançada de legendas para o player MPV",
+        "opaque_background": "Fundo opaco",
+        "background_opacity": "Opacidade do fundo",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -317,7 +345,7 @@
         "playback_description": "Configurar como a música é tocada",
         "prefer_downloaded": "Preferir músicas baixadas",
         "caching_title": "Armazenamento em Cache",
-        "caching_description": "Armazenar automaticamente as próximas faixas para uma reprodução mais suave.",
+        "caching_description": "As próximas músicas da fila são armazenadas antecipadamente. As mais antigas são removidas quando o limite de tamanho é atingido.",
         "lookahead_enabled": "Habilitar Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Tamanho máximo do cache"
@@ -375,6 +403,7 @@
           "toasts": {
             "saved": "Salvo",
             "refreshed": "Configurações atualizadas do servidor",
+            "refresh_failed": "Não foi possível atualizar as configurações a partir do servidor",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Atualizar Configurações do Servidor"
@@ -392,7 +421,7 @@
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Cache de Música",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "As músicas ficam em cache automaticamente durante a reprodução. Limpar o cache libera espaço sem afetar as músicas baixadas.",
         "clear_music_cache": "Limpar Cache de Música",
         "music_cache_size": "{{size}} em cache",
         "music_cache_cleared": "Cache de música limpo",
@@ -415,7 +444,9 @@
         "click_for_more_info": "Clique para mais informações",
         "level": "Nível",
         "no_logs_available": "Não há registros disponíveis",
-        "delete_all_logs": "Excluir todos os registros"
+        "delete_all_logs": "Excluir todos os registros",
+        "copy": "Copiar",
+        "copied": "Copiado para a área de transferência"
       },
       "languages": {
         "title": "Idiomas",
@@ -442,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessões",
-      "no_active_sessions": "Sem Sessões Ativas"
+      "no_active_sessions": "Sem Sessões Ativas",
+      "select_session": "Selecionar sessão",
+      "now_playing": "Tocando agora:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "Transcodificando",
       "series": "TV-Séries",
       "movies": "Filmes",
       "other_media": "Outras mídias",
@@ -501,6 +535,8 @@
     "none": "Nenhum",
     "track": "Faixa",
     "cancel": "Cancelar",
+    "stop": "Parar",
+    "open_menu": "Abrir menu",
     "delete": "Apagar",
     "ok": "OK",
     "remove": "Remover",
@@ -595,14 +631,42 @@
     "boxsets": "Conjuntos de caixas",
     "playlists": "Playlists",
     "noDataTitle": "Ainda não há favoritos",
-    "noData": "Marque itens como favoritos para vê-los aparecer aqui para acesso rápido."
+    "noData": "Os itens que você favorita aparecem aqui."
   },
   "custom_links": {
     "no_links": "Sem links"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Aleatório",
+    "entire_series": "Série inteira",
+    "episode_count": "{{count}} episódios",
+    "menu": {
+      "quality": "Qualidade",
+      "subtitles": "Legendas",
+      "subtitle_scale": "Escala das legendas",
+      "audio": "Áudio",
+      "speed": "Velocidade",
+      "playback_options": "Opções de reprodução",
+      "show_technical_info": "Mostrar informações técnicas",
+      "hide_technical_info": "Ocultar informações técnicas"
+    },
+    "technical_info": {
+      "video": "Vídeo:",
+      "audio": "Áudio:",
+      "subtitle": "Legenda:",
+      "bitrate": "Bitrate:",
+      "source_bitrate": "Arquivo:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Perdidos: {{count}} frames",
+      "loading": "Carregando..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Proporção",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Correspondência de hash",
+    "still_watching": "Ainda está assistindo?",
     "error": "ERRO",
     "failed_to_get_stream_url": "Falha ao obter a URL de transmissão",
     "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
@@ -702,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "TV ao vivo",
     "next": "Próximo",
     "previous": "Anterior",
     "coming_soon": "Em breve",
@@ -773,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "O servidor do Seerr não atende ao mínimo aos requisitos de versão! Por favor, atualize para pelo menos 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Servidor Jellyseerr não atingiu a versão mínima! Atualize no mínimo para a versão 2.0.0",
       "jellyseerr_test_failed": "Falha no teste do senhor. Por favor, tente novamente.",
       "failed_to_test_jellyseerr_server_url": "Falha ao testar a URL do servidor Seerr",
       "issue_submitted": "Solicitação Enviada!",
@@ -786,6 +851,16 @@
       "failed_to_decline_request": "Falha ao recusar a solicitação"
     }
   },
+  "accessibility": {
+    "play_button": "Botão de reprodução",
+    "play_hint": "Toque para reproduzir a mídia",
+    "toggle_orientation": "Alternar orientação da tela",
+    "toggle_orientation_hint": "Alterna a orientação da tela entre retrato e paisagem"
+  },
+  "not_found": {
+    "title": "Esta tela não existe.",
+    "go_home": "Ir para a tela inicial!"
+  },
   "tabs": {
     "home": "Residencial",
     "search": "Pesquisa",
@@ -796,6 +871,12 @@
   },
   "music": {
     "title": "Música",
+    "no_track_playing": "Nenhuma faixa tocando",
+    "queue_empty": "A fila está vazia",
+    "playing_from_queue": "Reproduzindo da fila",
+    "up_next": "A seguir",
+    "now_playing": "Tocando agora",
+    "missing_library_id": "ID da biblioteca de música ausente.",
     "tabs": {
       "suggestions": "Sugestões",
       "albums": "Álbuns",
@@ -808,7 +889,7 @@
     "frequently_played": "Reproduzidos com frequência",
     "top_tracks": "Músicas populares",
     "play": "Reproduzir",
-    "shuffle": "Alteatório",
+    "shuffle": "Aleatório",
     "play_top_tracks": "Reproduzir músicas populares",
     "no_suggestions": "Nenhuma sugestão disponível",
     "no_albums": "Nenhum álbum encontrado",
@@ -879,7 +960,7 @@
     "allowed_type_label": "Categoria de Conteúdo",
     "sort_order_label": "Ordenamento Padrão",
     "empty_title": "Nenhuma Lista",
-    "empty_description": "Crie sua primeira lista de observação para começar a organizar sua mídia",
+    "empty_description": "Crie uma lista de observação para juntar as coisas que você quer assistir",
     "empty_watchlist": "Esta lista de observação está vazia",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

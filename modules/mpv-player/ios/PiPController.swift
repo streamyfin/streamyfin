@@ -16,6 +16,8 @@ protocol PiPControllerDelegate: AnyObject {
 }
 
 final class PiPController: NSObject {
+    private static weak var automaticStartOwner: PiPController?
+
     private var pipController: AVPictureInPictureController?
     private weak var sampleBufferDisplayLayer: AVSampleBufferDisplayLayer?
     
@@ -80,11 +82,26 @@ final class PiPController: NSObject {
         pipController = AVPictureInPictureController(contentSource: contentSource)
         pipController?.delegate = self
         pipController?.requiresLinearPlayback = false
+    }
+
+    /// Enable/disable auto-PiP ("swipe up while playing").
+    ///
+    /// Arming transfers eligibility from the outgoing controller and also
+    /// re-arms a reused controller. This keeps source changes independent of
+    /// which UI path initiated them.
+    func setAutoStartEnabled(_ enabled: Bool) {
         #if !os(tvOS)
-        pipController?.canStartPictureInPictureAutomaticallyFromInline = true
+        guard let pipController else { return }
+        if enabled {
+            Self.automaticStartOwner?.pipController?.canStartPictureInPictureAutomaticallyFromInline = false
+            Self.automaticStartOwner = self
+        } else if Self.automaticStartOwner === self {
+            Self.automaticStartOwner = nil
+        }
+        pipController.canStartPictureInPictureAutomaticallyFromInline = enabled
         #endif
     }
-    
+
     func startPictureInPicture() {
         guard let pipController = pipController,
               pipController.isPictureInPicturePossible else {
