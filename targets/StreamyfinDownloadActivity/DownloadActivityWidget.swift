@@ -22,12 +22,12 @@ struct DownloadActivityWidget: Widget {
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
-          PosterView(fileName: context.attributes.posterFileName, size: 46)
+          PosterView(fileName: context.state.posterFileName, size: 46)
             .padding(.leading, 4)
         }
         DynamicIslandExpandedRegion(.center) {
           VStack(alignment: .leading, spacing: 2) {
-            Text(context.attributes.title)
+            Text(context.state.title)
               .font(.headline)
               .lineLimit(1)
             Text(subtitleText(for: context))
@@ -64,11 +64,11 @@ private struct LockScreenView: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 12) {
-      PosterView(fileName: context.attributes.posterFileName, size: 60)
+      PosterView(fileName: context.state.posterFileName, size: 60)
 
       VStack(alignment: .leading, spacing: 5) {
         HStack(alignment: .firstTextBaseline) {
-          Text(context.attributes.title)
+          Text(context.state.title)
             .font(.headline)
             .lineLimit(1)
           Spacer(minLength: 8)
@@ -203,7 +203,7 @@ private func percentText(for context: ActivityViewContext<DownloadActivityAttrib
 }
 
 private func subtitleText(for context: ActivityViewContext<DownloadActivityAttributes>) -> String {
-  let subtitle = context.attributes.subtitle
+  let subtitle = context.state.subtitle
   guard context.state.queuedCount > 0, context.state.state == .downloading else { return subtitle }
   let queued = "+\(context.state.queuedCount)"
   return subtitle.isEmpty ? queued : "\(subtitle) · \(queued)"

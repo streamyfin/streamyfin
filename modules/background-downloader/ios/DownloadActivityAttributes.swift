@@ -22,23 +22,38 @@ public enum DownloadActivityState: String, Codable, Hashable {
   ///
   /// ActivityKit matches activities on the *unqualified* type name, so it does not matter that the
   /// two targets compile it into different Swift modules — but the declaration must stay identical.
-  /// Anything mutable belongs in `ContentState`; everything else is fixed at `start` and stays out of
-  /// the 4 KB per-update payload budget.
+  ///
+  /// The per-download fields (title, poster, …) deliberately live in `ContentState`, not in the
+  /// static attributes: iOS only allows `Activity.request` while the app is foregrounded, and
+  /// queued downloads start from background wake-ups. The one activity is therefore created for the
+  /// first download and *rebound* to each subsequent one via `activity.update`, which has no
+  /// foreground restriction — possible only if everything episode-specific is mutable.
   @available(iOS 16.1, *)
   public struct DownloadActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
+      /// Jellyfin item id of the download currently bound to the activity; how a restored process
+      /// re-adopts its activity after a cold relaunch.
+      public var itemId: String
+      public var title: String
+      public var subtitle: String
+      /// File name inside the App Group container. The extension cannot read the app's Documents
+      /// directory, so the poster is staged into the shared container before the download starts.
+      public var posterFileName: String?
       /// Fraction of the transfer that is genuinely done, `0...1`. Frozen while iOS suspends us —
       /// the ETA countdown in the UI is what keeps moving. Never inflate this.
       public var progress: Double
       public var bytesDownloaded: Int64
-      /// `0` when the server sent no `Content-Length` (transcoding), in which case the UI falls back
-      /// to `estimatedTotalBytes` from the attributes.
+      /// `0` when the server sent no `Content-Length` (transcoding) and no estimate exists either.
       public var totalBytes: Int64
       public var speedBytesPerSec: Double
       public var queuedCount: Int
       public var state: DownloadActivityState
 
       public init(
+        itemId: String,
+        title: String,
+        subtitle: String,
+        posterFileName: String?,
         progress: Double,
         bytesDownloaded: Int64,
         totalBytes: Int64,
@@ -46,6 +61,10 @@ public enum DownloadActivityState: String, Codable, Hashable {
         queuedCount: Int,
         state: DownloadActivityState
       ) {
+        self.itemId = itemId
+        self.title = title
+        self.subtitle = subtitle
+        self.posterFileName = posterFileName
         self.progress = progress
         self.bytesDownloaded = bytesDownloaded
         self.totalBytes = totalBytes
@@ -55,31 +74,12 @@ public enum DownloadActivityState: String, Codable, Hashable {
       }
     }
 
-    public var itemId: String
-    public var title: String
-    public var subtitle: String
-    /// File name inside the App Group container. The extension cannot read the app's Documents
-    /// directory, so the poster is staged into the shared container before the activity starts.
-    public var posterFileName: String?
-    /// Used only when the server withholds `Content-Length`.
-    public var estimatedTotalBytes: Int64
     /// Localized strings, resolved in JS so translations stay single-sourced in `translations/*.json`.
-    /// Keyed by `DownloadActivityState.rawValue`, plus `"appName"`.
+    /// Keyed by `DownloadActivityState.rawValue`. Identical for every download, hence the only
+    /// field that may stay immutable.
     public var labels: [String: String]
 
-    public init(
-      itemId: String,
-      title: String,
-      subtitle: String,
-      posterFileName: String?,
-      estimatedTotalBytes: Int64,
-      labels: [String: String]
-    ) {
-      self.itemId = itemId
-      self.title = title
-      self.subtitle = subtitle
-      self.posterFileName = posterFileName
-      self.estimatedTotalBytes = estimatedTotalBytes
+    public init(labels: [String: String]) {
       self.labels = labels
     }
 

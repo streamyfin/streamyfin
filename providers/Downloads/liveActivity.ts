@@ -52,12 +52,17 @@ function getActivityText(item: BaseItemDto): {
   return { title: item.Name || "", subtitle: "" };
 }
 
+/** Posters staged longer ago than this are from a previous download session and safe to remove. */
+const POSTER_RETENTION_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Copies the item's poster into the App Group container. The widget extension runs in its own
  * process and cannot read the app's Documents directory, so the image has to be staged somewhere
  * both can reach.
  *
- * Only one download runs at a time, so the directory is cleared first and never accumulates.
+ * Only stale files are pruned — never the whole directory. When several episodes are queued, each
+ * one stages its poster at enqueue time, and the Live Activity still renders the *first* episode's
+ * poster while the rest are staged; wiping the directory here deleted it mid-display.
  * Returns `undefined` on any failure — the activity falls back to an SF Symbol.
  */
 async function stagePoster(
@@ -83,9 +88,16 @@ async function stagePoster(
     }
     for (const entry of directory.list()) {
       try {
-        entry.delete();
+        if (!(entry instanceof File)) continue;
+        const modified = entry.info().modificationTime ?? 0;
+        // modificationTime has historically been reported in seconds by some backends; treat
+        // small values as seconds so a unit change can never mass-delete fresh posters.
+        const modifiedMs = modified < 1e12 ? modified * 1000 : modified;
+        if (Date.now() - modifiedMs > POSTER_RETENTION_MS) {
+          entry.delete();
+        }
       } catch {
-        // A stale poster we cannot remove is harmless; the new one still overwrites by name.
+        // A stale poster we cannot remove is harmless; same-name posters still overwrite.
       }
     }
 
