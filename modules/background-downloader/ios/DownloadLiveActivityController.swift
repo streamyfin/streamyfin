@@ -43,6 +43,10 @@
     )
     private var trackers: [Int: Tracker] = [:]
     private var isEnabled = true
+    /// Pushed in by the module whenever its queue changes, instead of being read out of the
+    /// module's collections on every progress callback — that read was an unsynchronized
+    /// cross-thread access to state owned by another queue.
+    private var queuedCount = 0
 
     private var activitiesAvailable: Bool {
       ActivityAuthorizationInfo().areActivitiesEnabled
@@ -60,9 +64,15 @@
       }
     }
 
+    func setQueuedCount(_ count: Int) {
+      queue.async {
+        self.queuedCount = count
+      }
+    }
+
     // MARK: - Lifecycle
 
-    func start(taskId: Int, metadata: DownloadActivityMetadata, queuedCount: Int) {
+    func start(taskId: Int, metadata: DownloadActivityMetadata) {
       queue.async {
         guard self.isEnabled, self.activitiesAvailable else { return }
         guard self.trackers[taskId] == nil else { return }
@@ -84,7 +94,7 @@
           bytesDownloaded: 0,
           totalBytes: 0,
           speedBytesPerSec: 0,
-          queuedCount: queuedCount,
+          queuedCount: self.queuedCount,
           state: .downloading
         )
 
@@ -111,7 +121,7 @@
       }
     }
 
-    func update(taskId: Int, bytesWritten: Int64, totalBytes: Int64, queuedCount: Int) {
+    func update(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
       queue.async {
         guard self.isEnabled, var tracker = self.trackers[taskId] else { return }
 
@@ -150,7 +160,7 @@
           bytesDownloaded: bytesWritten,
           totalBytes: effectiveTotal,
           speedBytesPerSec: tracker.emaSpeed,
-          queuedCount: queuedCount,
+          queuedCount: self.queuedCount,
           state: .downloading
         )
 
@@ -164,7 +174,7 @@
       }
     }
 
-    func finish(taskId: Int, state finalState: DownloadActivityState, queuedCount: Int) {
+    func finish(taskId: Int, state finalState: DownloadActivityState) {
       queue.async {
         guard let tracker = self.trackers.removeValue(forKey: taskId) else { return }
 
@@ -173,7 +183,7 @@
           bytesDownloaded: tracker.lastBytes,
           totalBytes: tracker.attributes.estimatedTotalBytes,
           speedBytesPerSec: 0,
-          queuedCount: queuedCount,
+          queuedCount: self.queuedCount,
           state: finalState
         )
         // Leave the result on the Lock Screen briefly; the next queued download replaces it anyway.

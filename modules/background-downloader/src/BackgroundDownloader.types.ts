@@ -5,28 +5,38 @@ export interface DownloadProgressEvent {
   bytesWritten: number;
   totalBytes: number;
   progress: number;
+  /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
+  itemId?: string;
 }
 
 export interface DownloadCompleteEvent {
   taskId: number;
   filePath: string;
   url: string;
+  /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
+  itemId?: string;
 }
 
 export interface DownloadErrorEvent {
   taskId: number;
   error: string;
+  /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
+  itemId?: string;
 }
 
 export interface DownloadStartedEvent {
   taskId: number;
   url: string;
+  /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
+  itemId?: string;
 }
 
 export interface ActiveDownload {
   taskId: number;
   url: string;
-  state: "running" | "suspended" | "canceling" | "completed" | "unknown";
+  /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
+  itemId?: string;
+  destinationPath?: string;
 }
 
 /**

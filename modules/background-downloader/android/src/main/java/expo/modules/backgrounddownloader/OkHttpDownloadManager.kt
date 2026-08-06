@@ -8,18 +8,20 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class OkHttpDownloadManager {
   private val TAG = "OkHttpDownloadManager"
-  
+
   private val client = OkHttpClient.Builder()
     .connectTimeout(30, TimeUnit.SECONDS)
     .readTimeout(60, TimeUnit.SECONDS)
     .callTimeout(0, TimeUnit.SECONDS) // No timeout for long transcodes
     .build()
-  
-  private val activeDownloads = mutableMapOf<Int, Call>()
+
+  // Mutated from the JS thread (start/cancel) and OkHttp dispatcher threads (callbacks).
+  private val activeDownloads = ConcurrentHashMap<Int, Call>()
   
   fun startDownload(
     taskId: Int,

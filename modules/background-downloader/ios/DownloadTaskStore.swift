@@ -25,13 +25,13 @@ struct DownloadTaskInfo: Codable {
 /// `didFinishDownloadingTo`. With the task map held only in memory that lookup fails, the file is
 /// never moved out of its temporary location, and the download is silently lost. Background-session
 /// task identifiers are stable across relaunches, so they are safe to key on.
+///
+/// Not internally synchronized: `BackgroundDownloaderModule` confines every call to its state
+/// queue, which is the single place allowed to touch download state.
 final class DownloadTaskStore {
   private static let storageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.tasks"
 
   private let defaults: UserDefaults
-  private let queue = DispatchQueue(
-    label: "com.fredrikburmester.streamyfin.downloadtaskstore"
-  )
 
   init() {
     #if os(iOS)
@@ -54,28 +54,24 @@ final class DownloadTaskStore {
   private static let maxEntryAge: TimeInterval = 7 * 24 * 60 * 60
 
   func load() -> [Int: DownloadTaskInfo] {
-    queue.sync {
-      guard let data = defaults.data(forKey: Self.storageKey),
-        let decoded = try? JSONDecoder().decode([String: DownloadTaskInfo].self, from: data)
-      else {
-        return [:]
-      }
-      let cutoff = Date().addingTimeInterval(-Self.maxEntryAge)
-      return decoded.reduce(into: [Int: DownloadTaskInfo]()) { result, entry in
-        if let taskId = Int(entry.key), entry.value.createdAt > cutoff {
-          result[taskId] = entry.value
-        }
+    guard let data = defaults.data(forKey: Self.storageKey),
+      let decoded = try? JSONDecoder().decode([String: DownloadTaskInfo].self, from: data)
+    else {
+      return [:]
+    }
+    let cutoff = Date().addingTimeInterval(-Self.maxEntryAge)
+    return decoded.reduce(into: [Int: DownloadTaskInfo]()) { result, entry in
+      if let taskId = Int(entry.key), entry.value.createdAt > cutoff {
+        result[taskId] = entry.value
       }
     }
   }
 
   func save(_ tasks: [Int: DownloadTaskInfo]) {
-    queue.sync {
-      let encodable = tasks.reduce(into: [String: DownloadTaskInfo]()) { result, entry in
-        result[String(entry.key)] = entry.value
-      }
-      guard let data = try? JSONEncoder().encode(encodable) else { return }
-      defaults.set(data, forKey: Self.storageKey)
+    let encodable = tasks.reduce(into: [String: DownloadTaskInfo]()) { result, entry in
+      result[String(entry.key)] = entry.value
     }
+    guard let data = try? JSONEncoder().encode(encodable) else { return }
+    defaults.set(data, forKey: Self.storageKey)
   }
 }
