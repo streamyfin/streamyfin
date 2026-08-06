@@ -355,7 +355,11 @@ public class BackgroundDownloaderModule: Module {
   }
 
   func handleError(taskId: Int, error: Error) {
-    stateQueue.async {
+    // Synchronous for the same reason as handleDownloadComplete: when a transfer fails while the
+    // app is backgrounded, the next queued download must be created before the delegate queue
+    // drains and urlSessionDidFinishEvents lets the system re-suspend the process. An async hop
+    // here races that suspension.
+    stateQueue.sync {
       self.handleErrorLocked(taskId: taskId, error: error)
     }
   }
