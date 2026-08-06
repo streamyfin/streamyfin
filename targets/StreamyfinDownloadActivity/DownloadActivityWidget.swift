@@ -44,13 +44,13 @@ struct DownloadActivityWidget: Widget {
           ProgressBar(context: context)
         }
       } compactLeading: {
-        Image(systemName: compactSymbol(for: context.state.state))
-          .foregroundStyle(brandTint)
+        Image(systemName: leadingSymbol(for: context))
+          .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
       } compactTrailing: {
         CompactTrailing(context: context)
       } minimal: {
-        Image(systemName: compactSymbol(for: context.state.state))
-          .foregroundStyle(brandTint)
+        Image(systemName: leadingSymbol(for: context))
+          .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
       }
       .keylineTint(brandTint)
     }
@@ -107,10 +107,10 @@ private struct ProgressBar: View {
 
   var body: some View {
     // Honest, value-driven progress. It stops advancing while the app is suspended rather than
-    // guessing forward — the ETA beside it is what conveys that the transfer is still alive.
+    // guessing forward — the stale treatment is what conveys that the numbers are frozen.
     ProgressView(value: displayProgress(for: context))
       .progressViewStyle(.linear)
-      .tint(context.state.state == .failed ? .red : brandTint)
+      .tint(progressTint(for: context))
   }
 }
 
@@ -119,10 +119,17 @@ private struct PercentLabel: View {
 
   var body: some View {
     if context.state.state == .downloading {
-      Text(percentText(for: context))
-        .font(.caption.weight(.semibold))
-        .monospacedDigit()
-        .foregroundStyle(brandTint)
+      HStack(spacing: 3) {
+        if isProgressStale(context) {
+          Image(systemName: "clock.arrow.circlepath")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        Text(percentText(for: context))
+          .font(.caption.weight(.semibold))
+          .monospacedDigit()
+          .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+      }
     }
   }
 }
@@ -135,6 +142,7 @@ private struct TrailingStatus: View {
       Text(percentText(for: context))
         .font(.body.weight(.semibold))
         .monospacedDigit()
+        .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
       if context.state.queuedCount > 0 {
         Text("+\(context.state.queuedCount)")
           .font(.caption2)
@@ -150,7 +158,7 @@ private struct CompactTrailing: View {
   var body: some View {
     Text(percentText(for: context))
       .monospacedDigit()
-      .foregroundStyle(brandTint)
+      .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
   }
 }
 
@@ -189,6 +197,24 @@ private struct PosterView: View {
 
 // MARK: - Formatting
 
+/// True when the last pushed update has passed its stale date while still claiming to download —
+/// i.e. the app has been suspended and the numbers are frozen, not current. The transfer itself
+/// usually continues out-of-process; this treatment just stops a frozen 16% from looking live.
+private func isProgressStale(_ context: ActivityViewContext<DownloadActivityAttributes>) -> Bool {
+  context.isStale && context.state.state == .downloading
+}
+
+private func progressTint(for context: ActivityViewContext<DownloadActivityAttributes>) -> Color {
+  if context.state.state == .failed { return .red }
+  return isProgressStale(context) ? brandTint.opacity(0.4) : brandTint
+}
+
+private func leadingSymbol(for context: ActivityViewContext<DownloadActivityAttributes>) -> String {
+  isProgressStale(context)
+    ? "clock.arrow.circlepath"
+    : compactSymbol(for: context.state.state)
+}
+
 private func displayProgress(for context: ActivityViewContext<DownloadActivityAttributes>) -> Double
 {
   switch context.state.state {
@@ -221,7 +247,8 @@ private func transferredText(for context: ActivityViewContext<DownloadActivityAt
   } else {
     parts.append(downloaded)
   }
-  if context.state.speedBytesPerSec > 0 {
+  // A speed frozen at its pre-suspension value is a lie; drop it once the update has gone stale.
+  if !isProgressStale(context), context.state.speedBytesPerSec > 0 {
     let speed = formatter.string(fromByteCount: Int64(context.state.speedBytesPerSec))
     parts.append("\(speed)/s")
   }
