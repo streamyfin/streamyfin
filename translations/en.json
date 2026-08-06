@@ -417,6 +417,8 @@
         "app_usage": "App {{usedSpace}}%",
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} used",
+        "download_live_activity": "Live Activity",
+        "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "delete_all_downloaded_files": "Delete all downloaded files",
         "delete_all_downloaded_files_confirm": "Delete all downloaded files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
@@ -499,6 +501,12 @@
       "something_went_wrong": "Something went wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
+      "live_activity": {
+        "downloading": "Downloading",
+        "completed": "Downloaded",
+        "failed": "Download failed",
+        "queued": "Queued"
+      },
       "toasts": {
         "you_are_not_allowed_to_download_files": "You are not allowed to download files.",
         "deleted_all_movies_successfully": "Deleted all movies successfully!",

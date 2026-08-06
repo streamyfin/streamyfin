@@ -12,7 +12,7 @@ import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getOrSetDeviceId } from "@/utils/device";
-import useDownloadHelper from "@/utils/download";
+import useDownloadHelper, { estimateDownloadSize } from "@/utils/download";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -23,6 +23,7 @@ import {
   calculateTotalDownloadedSize,
   deleteAllAssociatedFiles,
 } from "../fileOperations";
+import { buildDownloadActivityMetadata } from "../liveActivity";
 import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
@@ -131,10 +132,30 @@ export function useDownloadOperations({
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
         console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
 
+        // iOS Live Activity payload. Native drives the activity from the URLSession delegate, so
+        // everything it renders — including the poster file — has to be resolved before we enqueue.
+        // Never let this block the download itself.
+        let activityMetadata: Awaited<
+          ReturnType<typeof buildDownloadActivityMetadata>
+        >;
+        try {
+          activityMetadata = await buildDownloadActivityMetadata({
+            item,
+            api,
+            t,
+            estimatedTotalBytes: maxBitrate.value
+              ? estimateDownloadSize(maxBitrate.value, item.RunTimeTicks)
+              : undefined,
+          });
+        } catch (error) {
+          console.warn("[DOWNLOAD] Live Activity metadata failed:", error);
+        }
+
         // Start the download using enqueueDownload for sequential processing
         const taskId = await BackgroundDownloader.enqueueDownload(
           downloadUrl,
           destinationPath,
+          activityMetadata,
         );
 
         // Map task ID or URL for later cancellation

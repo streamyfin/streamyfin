@@ -7,9 +7,27 @@ enum DownloadError: Error {
   case downloadFailed
 }
 
-struct DownloadTaskInfo {
-  let url: String
-  let destinationPath: String?
+/// Live Activity metadata handed down from JS at enqueue time. Entirely optional — a download
+/// without it still works, it just never surfaces on the Lock Screen. All user-visible strings are
+/// resolved in JS so translations stay single-sourced in `translations/*.json`.
+struct DownloadMetadataRecord: Record {
+  @Field var itemId: String = ""
+  @Field var title: String = ""
+  @Field var subtitle: String = ""
+  @Field var posterFileName: String?
+  @Field var estimatedTotalBytes: Double = 0
+  @Field var labels: [String: String] = [:]
+
+  func toMetadata() -> DownloadActivityMetadata {
+    DownloadActivityMetadata(
+      itemId: itemId,
+      title: title,
+      subtitle: subtitle,
+      posterFileName: posterFileName,
+      estimatedTotalBytes: Int64(max(estimatedTotalBytes, 0)),
+      labels: labels
+    )
+  }
 }
 
 // Separate delegate class to handle URLSession callbacks
@@ -73,9 +91,17 @@ public class BackgroundDownloaderModule: Module {
   private var sessionDelegate: DownloadSessionDelegate?
   fileprivate static var backgroundCompletionHandler: (() -> Void)?
   private var downloadTasks: [Int: DownloadTaskInfo] = [:]
-  private var downloadQueue: [(url: String, destinationPath: String?)] = []
+  private var downloadQueue:
+    [(url: String, destinationPath: String?, metadata: DownloadActivityMetadata?)] = []
   private var lastProgressTime: [Int: Date] = [:]
-  
+  private let taskStore = DownloadTaskStore()
+
+  /// Mirrors `downloadTasks` into the App Group so a transfer that finishes after the app is
+  /// terminated can still be resolved when iOS relaunches us.
+  private func persistTasks() {
+    taskStore.save(downloadTasks)
+  }
+
   public func definition() -> ModuleDefinition {
     Name("BackgroundDownloader")
     
@@ -87,10 +113,38 @@ public class BackgroundDownloaderModule: Module {
     )
     
     OnCreate {
+      // Restore tasks left behind by a previous process before reconnecting to the session, so a
+      // download that completed while we were dead can still be moved into place.
+      self.downloadTasks = self.taskStore.load()
       self.initializeSession()
+      self.reconcileLiveActivities()
     }
-    
-    AsyncFunction("startDownload") { (urlString: String, destinationPath: String?) -> Int in
+
+    Function("setLiveActivityEnabled") { (enabled: Bool) in
+      #if os(iOS)
+        if #available(iOS 16.2, *) {
+          DownloadLiveActivityController.shared.setEnabled(enabled)
+        }
+      #endif
+    }
+
+    /// Path of the App Group directory the widget extension can read. JS stages poster images here,
+    /// since the extension has no access to the app's Documents directory.
+    Function("getLiveActivityDirectory") { () -> String? in
+      #if os(iOS)
+        guard let directory = DownloadActivitySharedContainer.directory else { return nil }
+        try? FileManager.default.createDirectory(
+          at: directory,
+          withIntermediateDirectories: true
+        )
+        return directory.path
+      #else
+        return nil
+      #endif
+    }
+
+    AsyncFunction("startDownload") {
+      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?) -> Int in
       guard let url = URL(string: urlString) else {
         throw DownloadError.invalidURL
       }
@@ -111,26 +165,38 @@ public class BackgroundDownloaderModule: Module {
       let task = session.downloadTask(with: request)
       let taskId = task.taskIdentifier
       
+      let resolvedMetadata = metadata?.toMetadata()
       self.downloadTasks[taskId] = DownloadTaskInfo(
         url: urlString,
-        destinationPath: destinationPath
+        destinationPath: destinationPath,
+        metadata: resolvedMetadata
       )
-      
+      self.persistTasks()
+
       task.resume()
-      
+
+      self.startLiveActivity(taskId: taskId, metadata: resolvedMetadata)
+
       self.sendEvent("onDownloadStarted", [
         "taskId": taskId,
         "url": urlString
       ])
-      
+
       return taskId
     }
-    
-    AsyncFunction("enqueueDownload") { (urlString: String, destinationPath: String?) -> Int in
+
+    AsyncFunction("enqueueDownload") {
+      (urlString: String, destinationPath: String?, metadata: DownloadMetadataRecord?) -> Int in
       // Add to queue
       let wasEmpty = self.downloadQueue.isEmpty
-      self.downloadQueue.append((url: urlString, destinationPath: destinationPath))
-      
+      self.downloadQueue.append(
+        (
+          url: urlString,
+          destinationPath: destinationPath,
+          metadata: metadata?.toMetadata()
+        )
+      )
+
       // If queue was empty and no active downloads, start processing immediately
       if wasEmpty {
         return try await self.processNextInQueue()
@@ -141,27 +207,31 @@ public class BackgroundDownloaderModule: Module {
     }
     
     Function("cancelDownload") { (taskId: Int) in
+      self.cancelLiveActivity(taskId: taskId)
       self.session?.getAllTasks { tasks in
         for task in tasks where task.taskIdentifier == taskId {
           task.cancel()
           self.downloadTasks.removeValue(forKey: taskId)
+          self.persistTasks()
         }
       }
     }
-    
+
     Function("cancelQueuedDownload") { (url: String) in
       // Remove from queue by URL
       self.downloadQueue.removeAll { queuedItem in
         queuedItem.url == url
       }
     }
-    
+
     Function("cancelAllDownloads") {
+      self.cancelAllLiveActivities()
       self.session?.getAllTasks { tasks in
         for task in tasks {
           task.cancel()
         }
         self.downloadTasks.removeAll()
+        self.persistTasks()
       }
     }
     
@@ -221,7 +291,11 @@ public class BackgroundDownloaderModule: Module {
     let progress = totalBytes > 0
       ? Double(bytesWritten) / Double(totalBytes)
       : 0.0
-    
+
+    // Fed every callback, not just the throttled ones — the controller does its own rate limiting
+    // and wants the finer samples for its speed average.
+    updateLiveActivity(taskId: taskId, bytesWritten: bytesWritten, totalBytes: totalBytes)
+
     // Throttle progress updates: only send every 500ms
     let lastTime = lastProgressTime[taskId] ?? Date.distantPast
     let now = Date()
@@ -242,13 +316,14 @@ public class BackgroundDownloaderModule: Module {
   
   func handleDownloadComplete(taskId: Int, location: URL, downloadTask: URLSessionDownloadTask) {
     guard let taskInfo = downloadTasks[taskId] else {
+      finishLiveActivity(taskId: taskId, state: .failed)
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
         "error": "Download task info not found"
       ])
       return
     }
-    
+
     let fileManager = FileManager.default
     
     do {
@@ -278,16 +353,19 @@ public class BackgroundDownloaderModule: Module {
       }
       
       try fileManager.moveItem(at: location, to: destinationURL)
-      
+
+      finishLiveActivity(taskId: taskId, state: .completed)
+
       self.sendEvent("onDownloadComplete", [
         "taskId": taskId,
         "filePath": destinationURL.path,
         "url": taskInfo.url
       ])
-      
+
       downloadTasks.removeValue(forKey: taskId)
       lastProgressTime.removeValue(forKey: taskId)
-      
+      persistTasks()
+
       // Process next item in queue
       Task {
         do {
@@ -298,11 +376,17 @@ public class BackgroundDownloaderModule: Module {
       }
       
     } catch {
+      finishLiveActivity(taskId: taskId, state: .failed)
+
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
         "error": "File operation failed: \(error.localizedDescription)"
       ])
-      
+
+      downloadTasks.removeValue(forKey: taskId)
+      lastProgressTime.removeValue(forKey: taskId)
+      persistTasks()
+
       // Process next item in queue even on error
       Task {
         do {
@@ -316,19 +400,26 @@ public class BackgroundDownloaderModule: Module {
   
   func handleError(taskId: Int, error: Error) {
     let isCancelled = (error as NSError).code == NSURLErrorCancelled
-    
-    if !isCancelled {
+
+    if isCancelled {
+      // JS drives cancellation, so it has usually dismissed the activity already; this covers
+      // cancels that originate anywhere else.
+      cancelLiveActivity(taskId: taskId)
+    } else {
       print("[BackgroundDownloader] Task \(taskId) error: \(error.localizedDescription)")
-      
+
+      finishLiveActivity(taskId: taskId, state: .failed)
+
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
         "error": error.localizedDescription
       ])
     }
-    
+
     downloadTasks.removeValue(forKey: taskId)
     lastProgressTime.removeValue(forKey: taskId)
-    
+    persistTasks()
+
     // Process next item in queue (whether cancelled or errored)
     Task {
       do {
@@ -351,7 +442,7 @@ public class BackgroundDownloaderModule: Module {
     }
     
     // Get next item from queue
-    let (url, destinationPath) = downloadQueue.removeFirst()
+    let (url, destinationPath, metadata) = downloadQueue.removeFirst()
     print("[BackgroundDownloader] Starting queued download")
     
     // Start the download using existing startDownload logic
@@ -377,21 +468,93 @@ public class BackgroundDownloaderModule: Module {
     
     downloadTasks[taskId] = DownloadTaskInfo(
       url: url,
-      destinationPath: destinationPath
+      destinationPath: destinationPath,
+      metadata: metadata
     )
-    
+    persistTasks()
+
     task.resume()
-    
+
+    startLiveActivity(taskId: taskId, metadata: metadata)
+
     sendEvent("onDownloadStarted", [
       "taskId": taskId,
       "url": url
     ])
-    
+
     return taskId
   }
-  
+
   static func setBackgroundCompletionHandler(_ handler: @escaping () -> Void) {
     BackgroundDownloaderModule.backgroundCompletionHandler = handler
+  }
+
+  // MARK: - Live Activity
+
+  // Every entry point is wrapped so the rest of the module stays free of availability and platform
+  // checks. All of this compiles away on tvOS, where ActivityKit does not exist.
+
+  private func startLiveActivity(taskId: Int, metadata: DownloadActivityMetadata?) {
+    #if os(iOS)
+      guard #available(iOS 16.2, *), let metadata else { return }
+      DownloadLiveActivityController.shared.start(
+        taskId: taskId,
+        metadata: metadata,
+        queuedCount: downloadQueue.count
+      )
+    #endif
+  }
+
+  private func updateLiveActivity(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
+    #if os(iOS)
+      guard #available(iOS 16.2, *) else { return }
+      DownloadLiveActivityController.shared.update(
+        taskId: taskId,
+        bytesWritten: bytesWritten,
+        totalBytes: totalBytes,
+        queuedCount: downloadQueue.count
+      )
+    #endif
+  }
+
+  private func finishLiveActivity(taskId: Int, state: DownloadActivityState) {
+    #if os(iOS)
+      guard #available(iOS 16.2, *) else { return }
+      DownloadLiveActivityController.shared.finish(
+        taskId: taskId,
+        state: state,
+        queuedCount: downloadQueue.count
+      )
+    #endif
+  }
+
+  private func cancelLiveActivity(taskId: Int) {
+    #if os(iOS)
+      guard #available(iOS 16.2, *) else { return }
+      DownloadLiveActivityController.shared.cancel(taskId: taskId)
+    #endif
+  }
+
+  private func cancelAllLiveActivities() {
+    #if os(iOS)
+      guard #available(iOS 16.2, *) else { return }
+      DownloadLiveActivityController.shared.cancelAll()
+    #endif
+  }
+
+  /// Clears activities with no live task behind them — otherwise an app killed mid-download leaves
+  /// one stranded on the Lock Screen indefinitely.
+  private func reconcileLiveActivities() {
+    #if os(iOS)
+      guard #available(iOS 16.2, *) else { return }
+      session?.getAllTasks { tasks in
+        let active = Set(
+          tasks.filter { $0.state == .running || $0.state == .suspended }
+            .map(\.taskIdentifier)
+        )
+        DownloadLiveActivityController.shared.reconcile(activeTaskIds: active)
+      }
+    #endif
   }
 }
 
