@@ -32,11 +32,14 @@ export interface DownloadStartedEvent {
 }
 
 export interface ActiveDownload {
+  /** Native task id; `-1` for queued entries, which have no task yet. */
   taskId: number;
   url: string;
   /** Jellyfin item id, echoed from the metadata passed at enqueue time (absent without metadata). */
   itemId?: string;
   destinationPath?: string;
+  /** `running` for the transfer in flight, `queued` for entries waiting behind it. */
+  state?: "running" | "queued";
 }
 
 /**

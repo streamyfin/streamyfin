@@ -100,8 +100,7 @@ public class BackgroundDownloaderModule: Module {
   private var session: URLSession?
   private var sessionDelegate: DownloadSessionDelegate?
   private var downloadTasks: [Int: DownloadTaskInfo] = [:]
-  private var downloadQueue:
-    [(url: String, destinationPath: String?, metadata: DownloadActivityMetadata?)] = []
+  private var downloadQueue: [QueuedDownloadInfo] = []
   private var lastProgressTime: [Int: Date] = [:]
   private let taskStore = DownloadTaskStore()
 
@@ -126,8 +125,15 @@ public class BackgroundDownloaderModule: Module {
         // Restore tasks left behind by a previous process before reconnecting to the session, so a
         // download that completed while we were dead can still be moved into place.
         self.downloadTasks = self.taskStore.load()
+        self.downloadQueue = self.taskStore.loadQueue()
         self.initializeSessionLocked()
         self.reconcileLiveActivitiesLocked()
+        self.queueDidChangeLocked()
+        // Re-arm a queue that outlived its process. No-op while a restored task is still
+        // in flight; if that task is actually gone (force-quit cancels transfers), the session
+        // delivers its cancellation error shortly after reconnecting, and handleError advances
+        // the queue from there.
+        self.processNextInQueueSafelyLocked()
       }
     }
 
@@ -170,13 +176,13 @@ public class BackgroundDownloaderModule: Module {
       try self.stateQueue.sync { () throws -> Int in
         let wasEmpty = self.downloadQueue.isEmpty
         self.downloadQueue.append(
-          (
+          QueuedDownloadInfo(
             url: urlString,
             destinationPath: destinationPath,
             metadata: metadata?.toMetadata()
           )
         )
-        self.pushQueuedCountLocked()
+        self.queueDidChangeLocked()
 
         // If queue was empty and no active downloads, start processing immediately
         if wasEmpty {
@@ -208,7 +214,7 @@ public class BackgroundDownloaderModule: Module {
         self.downloadQueue.removeAll { queuedItem in
           queuedItem.url == url
         }
-        self.pushQueuedCountLocked()
+        self.queueDidChangeLocked()
       }
     }
 
@@ -218,7 +224,7 @@ public class BackgroundDownloaderModule: Module {
       // would immediately start the next queued item, resurrecting what was just cancelled.
       let session = self.stateQueue.sync { () -> URLSession? in
         self.downloadQueue.removeAll()
-        self.pushQueuedCountLocked()
+        self.queueDidChangeLocked()
         return self.session
       }
       session?.getAllTasks { tasks in
@@ -234,10 +240,29 @@ public class BackgroundDownloaderModule: Module {
 
     AsyncFunction("getActiveDownloads") { () -> [[String: Any]] in
       return try await withCheckedThrowingContinuation { continuation in
-        let (session, tasksSnapshot) = self.stateQueue.sync { (self.session, self.downloadTasks) }
+        // Running and queued are snapshotted in one stateQueue block, so an item mid-transition
+        // (dequeued and started) can never be missing from both lists.
+        let (session, tasksSnapshot, queueSnapshot) = self.stateQueue.sync {
+          (self.session, self.downloadTasks, self.downloadQueue)
+        }
+
+        let queuedDownloads = queueSnapshot.map { queued -> [String: Any] in
+          var entry: [String: Any] = [
+            "taskId": -1,
+            "url": queued.url,
+            "state": "queued"
+          ]
+          if let itemId = queued.metadata?.itemId {
+            entry["itemId"] = itemId
+          }
+          if let destinationPath = queued.destinationPath {
+            entry["destinationPath"] = destinationPath
+          }
+          return entry
+        }
 
         guard let session else {
-          continuation.resume(returning: [])
+          continuation.resume(returning: queuedDownloads)
           return
         }
 
@@ -250,7 +275,8 @@ public class BackgroundDownloaderModule: Module {
 
             var entry: [String: Any] = [
               "taskId": task.taskIdentifier,
-              "url": info.url
+              "url": info.url,
+              "state": "running"
             ]
             if let itemId = info.metadata?.itemId {
               entry["itemId"] = itemId
@@ -260,7 +286,7 @@ public class BackgroundDownloaderModule: Module {
             }
             return entry
           }
-          continuation.resume(returning: activeDownloads)
+          continuation.resume(returning: activeDownloads + queuedDownloads)
         }
       }
     }
@@ -522,19 +548,19 @@ public class BackgroundDownloaderModule: Module {
       return -1
     }
 
-    let (url, destinationPath, metadata) = downloadQueue.removeFirst()
-    pushQueuedCountLocked()
+    let next = downloadQueue.removeFirst()
+    queueDidChangeLocked()
     print("[BackgroundDownloader] Starting queued download")
 
-    guard URL(string: url) != nil else {
-      print("[BackgroundDownloader] Invalid URL in queue: \(url)")
+    guard URL(string: next.url) != nil else {
+      print("[BackgroundDownloader] Invalid URL in queue: \(next.url)")
       return try processNextInQueueLocked()
     }
 
     return try beginDownloadLocked(
-      urlString: url,
-      destinationPath: destinationPath,
-      metadata: metadata
+      urlString: next.url,
+      destinationPath: next.destinationPath,
+      metadata: next.metadata
     )
   }
 
@@ -556,10 +582,12 @@ public class BackgroundDownloaderModule: Module {
   // checks. All of this compiles away on tvOS, where ActivityKit does not exist. The controller
   // confines its own state to its own queue; calls from here never block.
 
-  /// The controller keeps its own copy of the queued count, updated whenever the queue changes.
-  /// Reading `downloadQueue.count` from the delegate callbacks instead (as `updateLiveActivity`
+  /// Called after every queue mutation: persists the queue (so it survives process death) and
+  /// pushes the count into the Live Activity controller. The controller keeps its own copy of the
+  /// count because reading `downloadQueue.count` from the delegate callbacks (as `updateLiveActivity`
   /// used to) was the hottest cross-thread access in the module.
-  private func pushQueuedCountLocked() {
+  private func queueDidChangeLocked() {
+    taskStore.saveQueue(downloadQueue)
     #if os(iOS)
       guard #available(iOS 16.2, *) else { return }
       DownloadLiveActivityController.shared.setQueuedCount(downloadQueue.count)

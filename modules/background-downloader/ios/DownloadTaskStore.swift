@@ -18,6 +18,16 @@ struct DownloadTaskInfo: Codable {
   var createdAt: Date = Date()
 }
 
+/// A download waiting behind the active one. Persisted alongside the in-flight tasks so a season
+/// queued up and then lost to a process death resumes natively on the next launch, without needing
+/// the JS runtime at all.
+struct QueuedDownloadInfo: Codable {
+  let url: String
+  let destinationPath: String?
+  var metadata: DownloadActivityMetadata?
+  var createdAt: Date = Date()
+}
+
 /// Persists in-flight task info so it survives the app being terminated mid-download.
 ///
 /// This is load-bearing, not an optimization. A background `URLSession` keeps transferring after the
@@ -30,6 +40,7 @@ struct DownloadTaskInfo: Codable {
 /// queue, which is the single place allowed to touch download state.
 final class DownloadTaskStore {
   private static let storageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.tasks"
+  private static let queueStorageKey = "com.fredrikburmester.streamyfin.backgrounddownloader.queue"
 
   private let defaults: UserDefaults
 
@@ -73,5 +84,20 @@ final class DownloadTaskStore {
     }
     guard let data = try? JSONEncoder().encode(encodable) else { return }
     defaults.set(data, forKey: Self.storageKey)
+  }
+
+  func loadQueue() -> [QueuedDownloadInfo] {
+    guard let data = defaults.data(forKey: Self.queueStorageKey),
+      let decoded = try? JSONDecoder().decode([QueuedDownloadInfo].self, from: data)
+    else {
+      return []
+    }
+    let cutoff = Date().addingTimeInterval(-Self.maxEntryAge)
+    return decoded.filter { $0.createdAt > cutoff }
+  }
+
+  func saveQueue(_ queue: [QueuedDownloadInfo]) {
+    guard let data = try? JSONEncoder().encode(queue) else { return }
+    defaults.set(data, forKey: Self.queueStorageKey)
   }
 }

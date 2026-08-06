@@ -165,18 +165,32 @@ class BackgroundDownloaderModule : Module() {
 
     AsyncFunction("getActiveDownloads") { promise: Promise ->
       try {
-        val activeDownloads = synchronized(stateLock) {
-          downloadTasks.map { (taskId, taskInfo) ->
+        // Running and queued are snapshotted under one lock, so an item mid-transition
+        // (dequeued and started) can never be missing from both lists.
+        val downloads = synchronized(stateLock) {
+          val running = downloadTasks.map { (taskId, taskInfo) ->
             val entry = mutableMapOf<String, Any>(
               "taskId" to taskId,
-              "url" to taskInfo.url
+              "url" to taskInfo.url,
+              "state" to "running"
             )
             taskInfo.itemId?.let { entry["itemId"] = it }
             taskInfo.destinationPath?.let { entry["destinationPath"] = it }
             entry
           }
+          val queued = downloadQueue.map { queuedItem ->
+            val entry = mutableMapOf<String, Any>(
+              "taskId" to -1,
+              "url" to queuedItem.url,
+              "state" to "queued"
+            )
+            queuedItem.itemId?.let { entry["itemId"] = it }
+            queuedItem.destinationPath?.let { entry["destinationPath"] = it }
+            entry
+          }
+          running + queued
         }
-        promise.resolve(activeDownloads)
+        promise.resolve(downloads)
       } catch (e: Exception) {
         promise.reject("ERROR", "Failed to get active downloads: ${e.message}", e)
       }

@@ -54,8 +54,10 @@ function jobFromRecord(
  * matched against reality:
  *
  * - task still running natively → resurrect the UI process; progress events flow again
+ * - still queued natively (iOS persists its queue and re-arms it on launch) → resurrect the UI
+ *   process as queued; native starts it when its turn comes
  * - video file exists → the download finished while JS was dead; finalize it into the database
- * - never started (`queued`) → the native in-memory queue died with the process; re-enqueue it
+ * - never started (`queued`) and native lost it (Android process death) → re-enqueue as a backstop
  * - started but no task and no file → genuinely lost (e.g. force-quit cancels background
  *   transfers); drop the record
  */
@@ -77,7 +79,7 @@ export function useDownloadReconciliation({
       } catch (error) {
         console.warn("[RECONCILE] Failed to query native downloads:", error);
       }
-      const activeByItemId = new Map(
+      const nativeByItemId = new Map(
         active
           .filter((download) => download.itemId)
           .map((download) => [download.itemId as string, download]),
@@ -86,7 +88,13 @@ export function useDownloadReconciliation({
       const restored: JobStatus[] = [];
 
       for (const record of pending) {
-        const nativeTask = activeByItemId.get(record.itemId);
+        const nativeTask = nativeByItemId.get(record.itemId);
+
+        if (nativeTask?.state === "queued") {
+          console.log(`[RECONCILE] Still queued natively: ${record.item.Name}`);
+          restored.push(jobFromRecord(record, "queued"));
+          continue;
+        }
 
         if (nativeTask) {
           console.log(`[RECONCILE] Still downloading: ${record.item.Name}`);
@@ -109,6 +117,8 @@ export function useDownloadReconciliation({
         }
 
         if (record.status === "queued") {
+          // Backstop: native lost the queued item (Android queue dies with the process; on iOS
+          // this only fires if the persisted queue failed to restore).
           console.log(`[RECONCILE] Re-enqueueing: ${record.item.Name}`);
           try {
             const destinationPath = uriToFilePath(
