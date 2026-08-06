@@ -542,18 +542,16 @@ public class BackgroundDownloaderModule: Module {
     #endif
   }
 
-  /// Clears activities with no live task behind them — otherwise an app killed mid-download leaves
-  /// one stranded on the Lock Screen indefinitely.
+  /// Reconnects Live Activities left by a previous process to their restored tasks and clears the
+  /// rest — otherwise an app killed mid-download leaves one stranded on the Lock Screen. Keyed on
+  /// the persisted task store, not `getAllTasks`, so an activity whose transfer finished while the
+  /// app was dead survives long enough for the queued completion callback to flip it.
   private func reconcileLiveActivities() {
     #if os(iOS)
       guard #available(iOS 16.2, *) else { return }
-      session?.getAllTasks { tasks in
-        let active = Set(
-          tasks.filter { $0.state == .running || $0.state == .suspended }
-            .map(\.taskIdentifier)
-        )
-        DownloadLiveActivityController.shared.reconcile(activeTaskIds: active)
-      }
+      DownloadLiveActivityController.shared.reconcile(
+        persistedTasks: downloadTasks.compactMapValues(\.metadata)
+      )
     #endif
   }
 }

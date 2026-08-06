@@ -198,19 +198,48 @@
       }
     }
 
-    /// Ends any activity with no live task behind it. Covers the app being killed mid-download and
-    /// relaunched later, which would otherwise leave an activity stuck on the Lock Screen forever.
-    func reconcile(activeTaskIds: Set<Int>) {
+    /// Re-adopts activities that survived a process restart and ends the rest.
+    ///
+    /// `trackers` lives only in memory, so after a cold relaunch every surviving activity is
+    /// unknown here — and iOS relaunches the app precisely because a background transfer is still
+    /// progressing or just finished. Ending those activities would destroy the Live Activity for
+    /// the remainder of the download and make every later `update`/`finish` a silent no-op.
+    /// Instead each activity is matched back to its restored task via the persisted metadata and
+    /// tracked again; only activities matching no known task are ended.
+    ///
+    /// Matching deliberately ignores whether the task is still present in the `URLSession`: a
+    /// task that completed while the app was dead is already absent from `getAllTasks`, yet its
+    /// `didFinishDownloadingTo` arrives moments later and must find a tracker to flip the
+    /// activity to "Downloaded" (the same race `DownloadTaskStore` documents). Adopted activities
+    /// whose task truly died are ended by the delegate's failure/cancellation callbacks.
+    func reconcile(persistedTasks: [Int: DownloadActivityMetadata]) {
       queue.async {
-        for (taskId, tracker) in self.trackers where !activeTaskIds.contains(taskId) {
-          self.trackers.removeValue(forKey: taskId)
-          self.end(activityId: tracker.activityId, state: nil, dismissalPolicy: .immediate)
-        }
-
+        var unclaimed = persistedTasks.filter { taskId, _ in self.trackers[taskId] == nil }
         let known = Set(self.trackers.values.map(\.activityId))
+
         for activity in Activity<DownloadActivityAttributes>.activities
         where !known.contains(activity.id) {
-          Task { await activity.end(nil, dismissalPolicy: .immediate) }
+          guard self.isEnabled,
+            let taskId = unclaimed.first(where: {
+              $0.value.itemId == activity.attributes.itemId
+            })?.key
+          else {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+            continue
+          }
+          unclaimed.removeValue(forKey: taskId)
+          self.trackers[taskId] = Tracker(
+            activityId: activity.id,
+            attributes: activity.attributes,
+            // Backdated so the first post-relaunch progress tick pushes immediately instead of
+            // waiting out the update throttle.
+            lastPushedAt: .distantPast,
+            lastSampleAt: Date(),
+            // Seeded from the activity's last rendered state so the first speed sample measures
+            // the delta since relaunch, not the whole download so far.
+            lastBytes: activity.content.state.bytesDownloaded,
+            emaSpeed: 0
+          )
         }
       }
     }
