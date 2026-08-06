@@ -7,7 +7,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
 } from "react";
 import { Platform } from "react-native";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -21,6 +20,7 @@ import {
 import { getDownloadedItemSize } from "./Downloads/fileOperations";
 import { useDownloadEventHandlers } from "./Downloads/hooks/useDownloadEventHandlers";
 import { useDownloadOperations } from "./Downloads/hooks/useDownloadOperations";
+import { useDownloadReconciliation } from "./Downloads/hooks/useDownloadReconciliation";
 import { setDownloadLiveActivityEnabled } from "./Downloads/liveActivity";
 import type { JobStatus } from "./Downloads/types";
 import { apiAtom } from "./JellyfinProvider";
@@ -45,9 +45,6 @@ function useDownloadProvider() {
   useEffect(() => {
     setDownloadLiveActivityEnabled(liveActivityEnabled);
   }, [liveActivityEnabled]);
-
-  // Track task ID to process ID mapping
-  const taskMapRef = useRef<Map<number | string, string>>(new Map());
 
   // Reactive downloaded items that updates when refreshKey changes
   const downloadedItems = useMemo(() => {
@@ -103,13 +100,6 @@ function useDownloadProvider() {
       // Use setTimeout to defer removal and avoid race conditions during rendering
       setTimeout(() => {
         setProcesses((prev) => prev.filter((process) => process.id !== id));
-
-        // Find and remove from task map
-        taskMapRef.current.forEach((processId, taskId) => {
-          if (processId === id) {
-            taskMapRef.current.delete(taskId);
-          }
-        });
       }, 0);
     },
     [setProcesses],
@@ -117,13 +107,18 @@ function useDownloadProvider() {
 
   // Set up download event handlers
   useDownloadEventHandlers({
-    taskMapRef,
     processes,
     updateProcess,
     removeProcess,
     onSuccess: successHapticFeedback,
     onDataChange: triggerRefresh,
-    api: api || undefined,
+  });
+
+  // Settle downloads left over from a previous app session (finished while JS was dead,
+  // still transferring natively, or queued and lost with the process).
+  useDownloadReconciliation({
+    setProcesses,
+    onDataChange: triggerRefresh,
   });
 
   // Get download operation functions
@@ -136,7 +131,6 @@ function useDownloadProvider() {
     deleteFileByType,
     appSizeUsage,
   } = useDownloadOperations({
-    taskMapRef,
     processes,
     setProcesses,
     removeProcess,
