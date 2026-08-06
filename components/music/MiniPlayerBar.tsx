@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { GlassEffectView } from "react-native-glass-effect-view";
 import Animated, {
   Easing,
   Extrapolation,
@@ -21,6 +20,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassSurface } from "@/components/common/GlassSurface";
 import { Text } from "@/components/common/Text";
 import useRouter from "@/hooks/useAppRouter";
 import { apiAtom } from "@/providers/JellyfinProvider";
@@ -244,7 +244,7 @@ export const MiniPlayerBar: React.FC = () => {
       >
         <Animated.View style={[styles.touchable, animatedBarStyle]}>
           {Platform.OS === "ios" && !Platform.isTV ? (
-            <GlassEffectView style={styles.blurContainer}>
+            <GlassSurface style={styles.blurContainer}>
               <View
                 style={{
                   flex: 1,
@@ -256,7 +256,7 @@ export const MiniPlayerBar: React.FC = () => {
               >
                 {content}
               </View>
-            </GlassEffectView>
+            </GlassSurface>
           ) : (
             <View style={styles.androidContainer}>{content}</View>
           )}
