@@ -1,5 +1,6 @@
+import { deactivateKeepAwake } from "expo-keep-awake";
 import { t } from "i18next";
-import React from "react";
+import React, { useEffect } from "react";
 import { View } from "react-native";
 import { Button } from "@/components/Button";
 import { Text } from "@/components/common/Text";
@@ -19,8 +20,16 @@ const ContinueWatchingOverlay: React.FC<ContinueWatchingOverlayProps> = ({
   const { settings } = useSettings();
   const router = useRouter();
 
-  return settings.autoPlayEpisodeCount >=
-    settings.maxAutoPlayEpisodeCount.value ? (
+  const isVisible =
+    settings.autoPlayEpisodeCount >= settings.maxAutoPlayEpisodeCount.value;
+
+  // Release the playback wake lock while the "still watching?" prompt is up so the screen can sleep normally after
+  // inactivity
+  useEffect(() => {
+    if (isVisible) deactivateKeepAwake().catch(() => {});
+  }, [isVisible]);
+
+  return isVisible ? (
     <View
       className={
         "absolute top-0 bottom-0 left-0 right-0 z-50 flex flex-col px-4 items-center justify-center bg-[#000000B3]"
