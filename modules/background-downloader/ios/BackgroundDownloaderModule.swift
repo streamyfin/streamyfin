@@ -1,5 +1,14 @@
 import ExpoModulesCore
 import Foundation
+import os
+
+/// Unified-log diagnostics for the background wake chain. `print` is invisible in release builds;
+/// these lines are readable from Console.app or `log show` on an untethered device — the only way
+/// to see whether iOS actually resumed the app for a background completion.
+let backgroundDownloaderLog = Logger(
+  subsystem: "com.fredrikburmester.streamyfin",
+  category: "BackgroundDownloader"
+)
 
 enum DownloadError: Error {
   case invalidURL
@@ -58,6 +67,9 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     downloadTask: URLSessionDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
+    backgroundDownloaderLog.info(
+      "didFinishDownloadingTo delivered for task \(downloadTask.taskIdentifier)"
+    )
     module?.handleDownloadComplete(
       taskId: downloadTask.taskIdentifier,
       location: location,
@@ -71,16 +83,25 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     didCompleteWithError error: Error?
   ) {
     if let error = error {
-      print("[BackgroundDownloader] Task \(task.taskIdentifier) error: \(error.localizedDescription)")
+      let nsError = error as NSError
+      backgroundDownloaderLog.error(
+        "Task \(task.taskIdentifier) failed: \(nsError.domain, privacy: .public) code \(nsError.code)"
+      )
       module?.handleError(taskId: task.taskIdentifier, error: error)
     }
   }
 
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+    backgroundDownloaderLog.info("All background session events delivered")
     DispatchQueue.main.async {
       if let completion = BackgroundDownloaderModule.backgroundCompletionHandler {
+        backgroundDownloaderLog.info("Calling stored background completion handler")
         completion()
         BackgroundDownloaderModule.backgroundCompletionHandler = nil
+      } else {
+        backgroundDownloaderLog.info(
+          "No background completion handler stored (foreground delivery)"
+        )
       }
     }
   }
@@ -102,6 +123,9 @@ public class BackgroundDownloaderModule: Module {
   private var downloadTasks: [Int: DownloadTaskInfo] = [:]
   private var downloadQueue: [QueuedDownloadInfo] = []
   private var lastProgressTime: [Int: Date] = [:]
+  /// Heartbeat throttle for the unified log — proves whether progress callbacks are being
+  /// delivered while backgrounded without flooding the log.
+  private var lastProgressLogTime = Date.distantPast
   private let taskStore = DownloadTaskStore()
 
   /// Mirrors `downloadTasks` into the App Group so a transfer that finishes after the app is
@@ -126,6 +150,9 @@ public class BackgroundDownloaderModule: Module {
         // download that completed while we were dead can still be moved into place.
         self.downloadTasks = self.taskStore.load()
         self.downloadQueue = self.taskStore.loadQueue()
+        backgroundDownloaderLog.info(
+          "Module created: restored \(self.downloadTasks.count) task(s), \(self.downloadQueue.count) queued"
+        )
         self.initializeSessionLocked()
         self.reconcileLiveActivitiesLocked()
         self.queueDidChangeLocked()
@@ -293,8 +320,6 @@ public class BackgroundDownloaderModule: Module {
   }
 
   private func initializeSessionLocked() {
-    print("[BackgroundDownloader] Initializing URLSession")
-
     let config = URLSessionConfiguration.background(
       withIdentifier: "com.fredrikburmester.streamyfin.backgrounddownloader"
     )
@@ -309,7 +334,7 @@ public class BackgroundDownloaderModule: Module {
       delegateQueue: nil
     )
 
-    print("[BackgroundDownloader] URLSession initialized with delegate: \(String(describing: self.sessionDelegate))")
+    backgroundDownloaderLog.info("Background URLSession initialized")
   }
 
   /// Creates the URLSession task and all bookkeeping for one download. Shared by `startDownload`
@@ -347,6 +372,10 @@ public class BackgroundDownloaderModule: Module {
     persistTasksLocked()
 
     task.resume()
+
+    backgroundDownloaderLog.info(
+      "Started download task \(taskId), \(self.downloadQueue.count) queued behind it"
+    )
 
     startLiveActivity(taskId: taskId, metadata: metadata)
 
@@ -406,6 +435,13 @@ public class BackgroundDownloaderModule: Module {
     let now = Date()
     let timeDiff = now.timeIntervalSince(lastTime)
 
+    if now.timeIntervalSince(lastProgressLogTime) >= 10 {
+      backgroundDownloaderLog.info(
+        "Progress delivering for task \(taskId): \(bytesWritten) / \(totalBytes) bytes"
+      )
+      lastProgressLogTime = now
+    }
+
     // Send if 500ms passed
     if timeDiff >= 0.5 {
       var payload: [String: Any] = [
@@ -429,6 +465,7 @@ public class BackgroundDownloaderModule: Module {
     downloadTask: URLSessionDownloadTask
   ) {
     guard let taskInfo = downloadTasks[taskId] else {
+      backgroundDownloaderLog.error("Completion for task \(taskId) but no task info was found")
       finishLiveActivity(taskId: taskId, state: .failed)
       self.sendEvent("onDownloadError", [
         "taskId": taskId,
@@ -467,6 +504,8 @@ public class BackgroundDownloaderModule: Module {
 
       try fileManager.moveItem(at: location, to: destinationURL)
 
+      backgroundDownloaderLog.info("Task \(taskId) completed; file moved into place")
+
       finishLiveActivity(taskId: taskId, state: .completed)
 
       var payload: [String: Any] = [
@@ -485,6 +524,9 @@ public class BackgroundDownloaderModule: Module {
 
       processNextInQueueSafelyLocked()
     } catch {
+      backgroundDownloaderLog.error(
+        "Task \(taskId) file operation failed: \(error.localizedDescription, privacy: .public)"
+      )
       finishLiveActivity(taskId: taskId, state: .failed)
 
       var payload: [String: Any] = [
@@ -509,12 +551,11 @@ public class BackgroundDownloaderModule: Module {
     let itemId = downloadTasks[taskId]?.metadata?.itemId
 
     if isCancelled {
+      backgroundDownloaderLog.info("Task \(taskId) cancelled")
       // JS drives cancellation, so it has usually dismissed the activity already; this covers
       // cancels that originate anywhere else.
       cancelLiveActivity(taskId: taskId)
     } else {
-      print("[BackgroundDownloader] Task \(taskId) error: \(error.localizedDescription)")
-
       finishLiveActivity(taskId: taskId, state: .failed)
 
       var payload: [String: Any] = [
@@ -550,10 +591,9 @@ public class BackgroundDownloaderModule: Module {
 
     let next = downloadQueue.removeFirst()
     queueDidChangeLocked()
-    print("[BackgroundDownloader] Starting queued download")
 
     guard URL(string: next.url) != nil else {
-      print("[BackgroundDownloader] Invalid URL in queue: \(next.url)")
+      backgroundDownloaderLog.error("Invalid URL in queue; skipping to next")
       return try processNextInQueueLocked()
     }
 
@@ -568,7 +608,9 @@ public class BackgroundDownloaderModule: Module {
     do {
       _ = try processNextInQueueLocked()
     } catch {
-      print("[BackgroundDownloader] Error processing next: \(error)")
+      backgroundDownloaderLog.error(
+        "Failed to start next queued download: \(error.localizedDescription, privacy: .public)"
+      )
     }
   }
 

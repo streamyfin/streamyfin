@@ -1,6 +1,12 @@
 #if os(iOS)
   import ActivityKit
   import Foundation
+  import os
+
+  private let liveActivityLog = Logger(
+    subsystem: "com.fredrikburmester.streamyfin",
+    category: "LiveActivity"
+  )
 
   /// Owns the download Live Activity end to end.
   ///
@@ -117,10 +123,14 @@
             state: state,
             staleDate: now.addingTimeInterval(Self.staleInterval)
           )
+          liveActivityLog.info("Rebound existing activity to task \(taskId)")
           return
         }
 
-        guard self.activitiesAvailable else { return }
+        guard self.activitiesAvailable else {
+          liveActivityLog.info("Activities unavailable; not starting one for task \(taskId)")
+          return
+        }
 
         do {
           let activity = try Activity.request(
@@ -140,11 +150,14 @@
             lastBytes: 0,
             emaSpeed: 0
           )
+          liveActivityLog.info("Requested new activity for task \(taskId)")
         } catch {
           // Most commonly ActivityKit refusing a request from the background with no existing
           // activity to rebind (e.g. the queue was armed while the Lock Screen showed nothing).
           self.tracker = nil
-          print("[LiveActivity] Failed to start: \(error.localizedDescription)")
+          liveActivityLog.error(
+            "Failed to start activity for task \(taskId): \(error.localizedDescription, privacy: .public)"
+          )
         }
       }
     }
@@ -219,12 +232,18 @@
           // More downloads are queued and the app may be backgrounded, where a replacement
           // activity could not be requested. Keep this one alive showing the result; the next
           // download's start() rebinds it moments later.
+          liveActivityLog.info(
+            "Task \(taskId) finished (\(finalState.rawValue, privacy: .public)); keeping activity for \(self.queuedCount) queued download(s)"
+          )
           self.push(
             activityId: tracker.activityId,
             state: content,
             staleDate: Date().addingTimeInterval(Self.staleInterval)
           )
         } else {
+          liveActivityLog.info(
+            "Task \(taskId) finished (\(finalState.rawValue, privacy: .public)); ending activity"
+          )
           self.tracker = nil
           // Leave the result on the Lock Screen briefly before dismissing.
           self.end(
@@ -288,7 +307,9 @@
               lastBytes: activity.content.state.bytesDownloaded,
               emaSpeed: 0
             )
+            liveActivityLog.info("Adopted surviving activity for restored task")
           } else if self.tracker?.activityId != activity.id {
+            liveActivityLog.info("Ending orphaned activity from a previous process")
             Task { await activity.end(nil, dismissalPolicy: .immediate) }
           }
         }
