@@ -123,12 +123,12 @@
             state: state,
             staleDate: now.addingTimeInterval(Self.staleInterval)
           )
-          liveActivityLog.info("Rebound existing activity to task \(taskId)")
+          liveActivityLog.notice("Rebound existing activity to task \(taskId)")
           return
         }
 
         guard self.activitiesAvailable else {
-          liveActivityLog.info("Activities unavailable; not starting one for task \(taskId)")
+          liveActivityLog.notice("Activities unavailable; not starting one for task \(taskId)")
           return
         }
 
@@ -150,7 +150,7 @@
             lastBytes: 0,
             emaSpeed: 0
           )
-          liveActivityLog.info("Requested new activity for task \(taskId)")
+          liveActivityLog.notice("Requested new activity for task \(taskId)")
         } catch {
           // Most commonly ActivityKit refusing a request from the background with no existing
           // activity to rebind (e.g. the queue was armed while the Lock Screen showed nothing).
@@ -232,7 +232,7 @@
           // More downloads are queued and the app may be backgrounded, where a replacement
           // activity could not be requested. Keep this one alive showing the result; the next
           // download's start() rebinds it moments later.
-          liveActivityLog.info(
+          liveActivityLog.notice(
             "Task \(taskId) finished (\(finalState.rawValue, privacy: .public)); keeping activity for \(self.queuedCount) queued download(s)"
           )
           self.push(
@@ -241,7 +241,7 @@
             staleDate: Date().addingTimeInterval(Self.staleInterval)
           )
         } else {
-          liveActivityLog.info(
+          liveActivityLog.notice(
             "Task \(taskId) finished (\(finalState.rawValue, privacy: .public)); ending activity"
           )
           self.tracker = nil
@@ -307,9 +307,9 @@
               lastBytes: activity.content.state.bytesDownloaded,
               emaSpeed: 0
             )
-            liveActivityLog.info("Adopted surviving activity for restored task")
+            liveActivityLog.notice("Adopted surviving activity for restored task")
           } else if self.tracker?.activityId != activity.id {
-            liveActivityLog.info("Ending orphaned activity from a previous process")
+            liveActivityLog.notice("Ending orphaned activity from a previous process")
             Task { await activity.end(nil, dismissalPolicy: .immediate) }
           }
         }

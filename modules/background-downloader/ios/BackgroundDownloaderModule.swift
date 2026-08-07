@@ -67,7 +67,7 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     downloadTask: URLSessionDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
-    backgroundDownloaderLog.info(
+    backgroundDownloaderLog.notice(
       "didFinishDownloadingTo delivered for task \(downloadTask.taskIdentifier)"
     )
     module?.handleDownloadComplete(
@@ -92,14 +92,14 @@ class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
   }
 
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-    backgroundDownloaderLog.info("All background session events delivered")
+    backgroundDownloaderLog.notice("All background session events delivered")
     DispatchQueue.main.async {
       if let completion = BackgroundDownloaderModule.backgroundCompletionHandler {
-        backgroundDownloaderLog.info("Calling stored background completion handler")
+        backgroundDownloaderLog.notice("Calling stored background completion handler")
         completion()
         BackgroundDownloaderModule.backgroundCompletionHandler = nil
       } else {
-        backgroundDownloaderLog.info(
+        backgroundDownloaderLog.notice(
           "No background completion handler stored (foreground delivery)"
         )
       }
@@ -150,7 +150,7 @@ public class BackgroundDownloaderModule: Module {
         // download that completed while we were dead can still be moved into place.
         self.downloadTasks = self.taskStore.load()
         self.downloadQueue = self.taskStore.loadQueue()
-        backgroundDownloaderLog.info(
+        backgroundDownloaderLog.notice(
           "Module created: restored \(self.downloadTasks.count) task(s), \(self.downloadQueue.count) queued"
         )
         self.initializeSessionLocked()
@@ -334,7 +334,7 @@ public class BackgroundDownloaderModule: Module {
       delegateQueue: nil
     )
 
-    backgroundDownloaderLog.info("Background URLSession initialized")
+    backgroundDownloaderLog.notice("Background URLSession initialized")
   }
 
   /// Creates the URLSession task and all bookkeeping for one download. Shared by `startDownload`
@@ -373,7 +373,7 @@ public class BackgroundDownloaderModule: Module {
 
     task.resume()
 
-    backgroundDownloaderLog.info(
+    backgroundDownloaderLog.notice(
       "Started download task \(taskId), \(self.downloadQueue.count) queued behind it"
     )
 
@@ -436,7 +436,7 @@ public class BackgroundDownloaderModule: Module {
     let timeDiff = now.timeIntervalSince(lastTime)
 
     if now.timeIntervalSince(lastProgressLogTime) >= 10 {
-      backgroundDownloaderLog.info(
+      backgroundDownloaderLog.notice(
         "Progress delivering for task \(taskId): \(bytesWritten) / \(totalBytes) bytes"
       )
       lastProgressLogTime = now
@@ -504,7 +504,7 @@ public class BackgroundDownloaderModule: Module {
 
       try fileManager.moveItem(at: location, to: destinationURL)
 
-      backgroundDownloaderLog.info("Task \(taskId) completed; file moved into place")
+      backgroundDownloaderLog.notice("Task \(taskId) completed; file moved into place")
 
       finishLiveActivity(taskId: taskId, state: .completed)
 
@@ -551,7 +551,7 @@ public class BackgroundDownloaderModule: Module {
     let itemId = downloadTasks[taskId]?.metadata?.itemId
 
     if isCancelled {
-      backgroundDownloaderLog.info("Task \(taskId) cancelled")
+      backgroundDownloaderLog.notice("Task \(taskId) cancelled")
       // JS drives cancellation, so it has usually dismissed the activity already; this covers
       // cancels that originate anywhere else.
       cancelLiveActivity(taskId: taskId)

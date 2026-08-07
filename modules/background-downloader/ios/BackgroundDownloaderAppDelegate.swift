@@ -8,7 +8,7 @@ public class BackgroundDownloaderAppDelegate: ExpoAppDelegateSubscriber {
     handleEventsForBackgroundURLSession identifier: String,
     completionHandler: @escaping () -> Void
   ) {
-    backgroundDownloaderLog.info(
+    backgroundDownloaderLog.notice(
       "handleEventsForBackgroundURLSession received for \(identifier, privacy: .public)"
     )
     if identifier == "com.fredrikburmester.streamyfin.backgrounddownloader" {
