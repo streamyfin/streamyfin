@@ -106,11 +106,22 @@ private struct ProgressBar: View {
   let context: ActivityViewContext<DownloadActivityAttributes>
 
   var body: some View {
-    // Honest, value-driven progress. It stops advancing while the app is suspended rather than
-    // guessing forward — the stale treatment is what conveys that the numbers are frozen.
-    ProgressView(value: displayProgress(for: context))
+    // The timer-driven bar is one of the two primitives iOS animates while the app is suspended —
+    // it keeps advancing toward the projected completion with no process running. Without a
+    // projection (no speed sample yet, or a terminal state) fall back to the measured bar.
+    if let interval = projectionInterval(for: context) {
+      ProgressView(timerInterval: interval, countsDown: false) {
+        EmptyView()
+      } currentValueLabel: {
+        EmptyView()
+      }
       .progressViewStyle(.linear)
       .tint(progressTint(for: context))
+    } else {
+      ProgressView(value: displayProgress(for: context))
+        .progressViewStyle(.linear)
+        .tint(progressTint(for: context))
+    }
   }
 }
 
@@ -125,10 +136,20 @@ private struct PercentLabel: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        Text(percentText(for: context))
-          .font(.caption.weight(.semibold))
-          .monospacedDigit()
-          .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+        // Self-ticking countdown to the projected completion; parks at 0:00 (dimmed via the
+        // stale treatment) if the completion wake never confirms it.
+        if let interval = projectionInterval(for: context) {
+          Text(timerInterval: interval, countsDown: true)
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .multilineTextAlignment(.trailing)
+            .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+        } else {
+          Text(percentText(for: context))
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+        }
       }
     }
   }
@@ -139,10 +160,18 @@ private struct TrailingStatus: View {
 
   var body: some View {
     VStack(alignment: .trailing, spacing: 2) {
-      Text(percentText(for: context))
-        .font(.body.weight(.semibold))
-        .monospacedDigit()
-        .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
+      if let interval = projectionInterval(for: context) {
+        Text(timerInterval: interval, countsDown: true)
+          .font(.body.weight(.semibold))
+          .monospacedDigit()
+          .multilineTextAlignment(.trailing)
+          .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
+      } else {
+        Text(percentText(for: context))
+          .font(.body.weight(.semibold))
+          .monospacedDigit()
+          .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
+      }
       if context.state.queuedCount > 0 {
         Text("+\(context.state.queuedCount)")
           .font(.caption2)
@@ -156,9 +185,18 @@ private struct CompactTrailing: View {
   let context: ActivityViewContext<DownloadActivityAttributes>
 
   var body: some View {
-    Text(percentText(for: context))
-      .monospacedDigit()
-      .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+    if let interval = projectionInterval(for: context) {
+      // Timer text is greedy about width; the compact slot needs a hard cap.
+      Text(timerInterval: interval, countsDown: true)
+        .monospacedDigit()
+        .multilineTextAlignment(.trailing)
+        .frame(maxWidth: 44)
+        .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+    } else {
+      Text(percentText(for: context))
+        .monospacedDigit()
+        .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
+    }
   }
 }
 
@@ -207,6 +245,20 @@ private func isProgressStale(_ context: ActivityViewContext<DownloadActivityAttr
 private func progressTint(for context: ActivityViewContext<DownloadActivityAttributes>) -> Color {
   if context.state.state == .failed { return .red }
   return isProgressStale(context) ? brandTint.opacity(0.4) : brandTint
+}
+
+/// Interval driving the self-advancing bar and countdown, when the last update carried a
+/// completion projection. Once the end passes, the pair parks at full / 0:00 — the stale
+/// treatment is what keeps that from looking confident.
+private func projectionInterval(
+  for context: ActivityViewContext<DownloadActivityAttributes>
+) -> ClosedRange<Date>? {
+  guard context.state.state == .downloading,
+    let start = context.state.progressBarStartDate,
+    let end = context.state.projectedEndDate,
+    end > start
+  else { return nil }
+  return start...end
 }
 
 private func leadingSymbol(for context: ActivityViewContext<DownloadActivityAttributes>) -> String {

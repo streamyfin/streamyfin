@@ -38,9 +38,15 @@
     /// Low alpha: heavily favour history over the newest sample. Download throughput is spiky, and
     /// a responsive average just renders as a number that will not sit still.
     private static let speedSmoothingAlpha = 0.15
-    /// How long a pushed update stays "current". Long enough that ordinary background wake-up gaps
-    /// do not constantly dim the activity, short enough that a dead transfer stops looking live.
+    /// How long a pushed update stays "current" when there is no completion projection yet.
     private static let staleInterval: TimeInterval = 5 * 60
+    /// Pessimistic haircut on the smoothed speed when projecting the completion time. The
+    /// projection drives a bar that advances on its own while the app is suspended, so it must
+    /// under-promise: finishing late looks like a slow network, finishing early looks like a lie.
+    private static let projectionSpeedFactor = 0.85
+    /// Grace past the projected completion before the activity is marked stale — enough for the
+    /// completion wake-up to land and flip the state for real.
+    private static let projectionStaleGrace: TimeInterval = 60
 
     /// The one live activity and the download currently bound to it.
     private struct Tracker {
@@ -196,21 +202,51 @@
         tracker.lastPushedAt = now
         self.tracker = tracker
 
+        // Project the completion time so the widget can render a bar and countdown that keep
+        // advancing while the app is suspended (the timer-interval primitives are the only ones
+        // iOS animates without the app running). Anchored so "now" equals the measured progress;
+        // every real update re-anchors, correcting the projection.
+        var progressBarStartDate: Date?
+        var projectedEndDate: Date?
+        let remainingBytes = effectiveTotal - bytesWritten
+        if tracker.emaSpeed > 0, effectiveTotal > 0, remainingBytes > 0, progress < 1 {
+          let remainingSeconds =
+            Double(remainingBytes) / (tracker.emaSpeed * Self.projectionSpeedFactor)
+          if remainingSeconds.isFinite, remainingSeconds > 0 {
+            let end = now.addingTimeInterval(remainingSeconds)
+            let anchoredProgress = min(progress, 0.99)
+            let totalSeconds = remainingSeconds / (1 - anchoredProgress)
+            progressBarStartDate = end.addingTimeInterval(-totalSeconds)
+            projectedEndDate = end
+          }
+        }
+
         let state = self.contentState(
           for: tracker.metadata,
           progress: progress,
           bytesDownloaded: bytesWritten,
           totalBytes: effectiveTotal,
           speed: tracker.emaSpeed,
-          state: .downloading
+          state: .downloading,
+          progressBarStartDate: progressBarStartDate,
+          projectedEndDate: projectedEndDate
         )
 
-        // The bar cannot advance while we are suspended, so this is what stops a transfer that died
-        // mid-flight from sitting there looking like a confident, current 62%.
+        // With a projection the content stays "current" until the promise expires (plus grace for
+        // the completion wake-up); past that, the stale treatment stops a parked bar and a 0:00
+        // countdown from looking confident. Without one, fall back to the fixed window.
+        let staleDate =
+          projectedEndDate.map {
+            max(
+              $0.addingTimeInterval(Self.projectionStaleGrace),
+              now.addingTimeInterval(2 * 60)
+            )
+          } ?? now.addingTimeInterval(Self.staleInterval)
+
         self.push(
           activityId: tracker.activityId,
           state: state,
-          staleDate: now.addingTimeInterval(Self.staleInterval)
+          staleDate: staleDate
         )
       }
     }
@@ -324,7 +360,9 @@
       bytesDownloaded: Int64,
       totalBytes: Int64,
       speed: Double,
-      state: DownloadActivityState
+      state: DownloadActivityState,
+      progressBarStartDate: Date? = nil,
+      projectedEndDate: Date? = nil
     ) -> DownloadActivityAttributes.ContentState {
       DownloadActivityAttributes.ContentState(
         itemId: metadata.itemId,
@@ -336,7 +374,9 @@
         totalBytes: totalBytes,
         speedBytesPerSec: speed,
         queuedCount: queuedCount,
-        state: state
+        state: state,
+        progressBarStartDate: progressBarStartDate,
+        projectedEndDate: projectedEndDate
       )
     }
 

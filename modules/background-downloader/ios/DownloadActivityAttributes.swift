@@ -48,6 +48,15 @@ public enum DownloadActivityState: String, Codable, Hashable {
       public var speedBytesPerSec: Double
       public var queuedCount: Int
       public var state: DownloadActivityState
+      /// Interval start for the system-rendered, self-advancing progress bar — anchored so that
+      /// "now" at push time equals the measured `progress`. `ProgressView(timerInterval:)` and
+      /// `Text(timerInterval:)` are the only primitives iOS animates while the app is suspended;
+      /// everything else freezes at the last pushed value.
+      public var progressBarStartDate: Date?
+      /// Projected completion time, derived from the smoothed speed with a pessimistic haircut so
+      /// the projection under-promises. `nil` until a speed estimate exists — the UI then falls
+      /// back to the static measured bar.
+      public var projectedEndDate: Date?
 
       public init(
         itemId: String,
@@ -59,7 +68,9 @@ public enum DownloadActivityState: String, Codable, Hashable {
         totalBytes: Int64,
         speedBytesPerSec: Double,
         queuedCount: Int,
-        state: DownloadActivityState
+        state: DownloadActivityState,
+        progressBarStartDate: Date? = nil,
+        projectedEndDate: Date? = nil
       ) {
         self.itemId = itemId
         self.title = title
@@ -71,6 +82,8 @@ public enum DownloadActivityState: String, Codable, Hashable {
         self.speedBytesPerSec = speedBytesPerSec
         self.queuedCount = queuedCount
         self.state = state
+        self.progressBarStartDate = progressBarStartDate
+        self.projectedEndDate = projectedEndDate
       }
     }
 
