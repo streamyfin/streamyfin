@@ -136,20 +136,13 @@ private struct PercentLabel: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
         }
-        // Self-ticking countdown to the projected completion; parks at 0:00 (dimmed via the
-        // stale treatment) if the completion wake never confirms it.
-        if let interval = projectionInterval(for: context) {
-          Text(timerInterval: interval, countsDown: true)
-            .font(.caption.weight(.semibold))
-            .monospacedDigit()
-            .multilineTextAlignment(.trailing)
-            .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
-        } else {
-          Text(percentText(for: context))
-            .font(.caption.weight(.semibold))
-            .monospacedDigit()
-            .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
-        }
+        // Measured percent, not a countdown — the owner's call. It freezes while the app is
+        // suspended (no self-updating percent primitive exists); the timer-driven bar beside it
+        // is what keeps advancing, and the stale treatment covers a projection that expires.
+        Text(percentText(for: context))
+          .font(.caption.weight(.semibold))
+          .monospacedDigit()
+          .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
       }
     }
   }
@@ -160,18 +153,10 @@ private struct TrailingStatus: View {
 
   var body: some View {
     VStack(alignment: .trailing, spacing: 2) {
-      if let interval = projectionInterval(for: context) {
-        Text(timerInterval: interval, countsDown: true)
-          .font(.body.weight(.semibold))
-          .monospacedDigit()
-          .multilineTextAlignment(.trailing)
-          .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
-      } else {
-        Text(percentText(for: context))
-          .font(.body.weight(.semibold))
-          .monospacedDigit()
-          .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
-      }
+      Text(percentText(for: context))
+        .font(.body.weight(.semibold))
+        .monospacedDigit()
+        .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
       if context.state.queuedCount > 0 {
         Text("+\(context.state.queuedCount)")
           .font(.caption2)
@@ -185,18 +170,9 @@ private struct CompactTrailing: View {
   let context: ActivityViewContext<DownloadActivityAttributes>
 
   var body: some View {
-    if let interval = projectionInterval(for: context) {
-      // Timer text is greedy about width; the compact slot needs a hard cap.
-      Text(timerInterval: interval, countsDown: true)
-        .monospacedDigit()
-        .multilineTextAlignment(.trailing)
-        .frame(maxWidth: 44)
-        .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
-    } else {
-      Text(percentText(for: context))
-        .monospacedDigit()
-        .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
-    }
+    Text(percentText(for: context))
+      .monospacedDigit()
+      .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
   }
 }
 
