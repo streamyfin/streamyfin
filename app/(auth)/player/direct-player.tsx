@@ -17,7 +17,13 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  PixelRatio,
+  Platform,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
@@ -358,6 +364,7 @@ export default function DirectPlayerPage() {
       setDownloadedItem(null);
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
+      setTracksReady(false);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -513,6 +520,7 @@ export default function DirectPlayerPage() {
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
+        setTracksReady(false);
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
         return result;
@@ -973,10 +981,19 @@ export default function DirectPlayerPage() {
       settings.subtitleSize ?? 1,
       videoStream?.Width,
       videoStream?.Height,
-      screenWidth,
-      screenHeight,
+      screenWidth * PixelRatio.get(),
+      screenHeight * PixelRatio.get(),
+      isZoomedToFill ? "cover" : "contain",
+      getActivePlayerType(settings),
     );
-  }, [settings.subtitleSize, stream?.mediaSource, screenWidth, screenHeight]);
+  }, [
+    settings.subtitleSize,
+    stream?.mediaSource,
+    screenWidth,
+    screenHeight,
+    isZoomedToFill,
+    settings.videoPlayer,
+  ]);
 
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
@@ -1444,6 +1461,7 @@ export default function DirectPlayerPage() {
     if (!isMounted) return [];
 
     if (newStream) {
+      setTracksReady(false);
       setStream(newStream);
       return (
         newStream.mediaSource?.MediaStreams?.filter(
@@ -1510,18 +1528,25 @@ export default function DirectPlayerPage() {
   useEffect(() => {
     if (!tracksReady || !videoRef.current) return;
 
+    let cancelled = false;
+
     const applySubtitleSettings = async () => {
       await videoRef.current?.setSubtitleScale?.(effectiveSubtitleScale);
+      if (cancelled) return;
+
       if (settings.subtitleMarginY !== undefined) {
         await videoRef.current?.setSubtitleMarginY?.(
           getEffectiveSubtitleMarginY(settings.subtitleMarginY),
         );
+        if (cancelled) return;
       }
       if (settings.subtitleAlignX !== undefined) {
         await videoRef.current?.setSubtitleAlignX?.(settings.subtitleAlignX);
+        if (cancelled) return;
       }
       if (settings.subtitleAlignY !== undefined) {
         await videoRef.current?.setSubtitleAlignY?.(settings.subtitleAlignY);
+        if (cancelled) return;
       }
       const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
       const opacity = Math.min(
@@ -1537,8 +1562,9 @@ export default function DirectPlayerPage() {
         color: settings.subtitleColor,
         font: settings.subtitleFont,
         background: settings.subtitleBackground ? `#${alpha}000000` : "",
-        backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
+        backgroundPadding: settings.subtitleBackgroundPadding ?? 8,
       });
+      if (cancelled) return;
 
       // ASS subtitles define their own styles, including alignment/margins.
       // Force overrides whenever the effective subtitle appearance or
@@ -1551,7 +1577,15 @@ export default function DirectPlayerPage() {
       }
     };
 
-    applySubtitleSettings();
+    void applySubtitleSettings().catch((error: unknown) => {
+      if (!cancelled) {
+        console.error("Failed to apply subtitle settings:", error);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [tracksReady, settings, effectiveSubtitleScale]);
 
   // Apply initial playback speed when video loads

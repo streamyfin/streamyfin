@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,6 +68,16 @@ export default function SettingsTV() {
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
   const queryClient = useQueryClient();
+  const settingsRef = useRef(settings);
+  const mediaUpdateQueueRef = useRef<Promise<void>>(Promise.resolve());
+  settingsRef.current = settings;
+
+  const stripLocked = (update: Partial<Settings>) =>
+    Object.fromEntries(
+      Object.entries(update).filter(
+        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
+      ),
+    ) as Partial<Settings>;
 
   const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
     queryKey: ["cultures"],
@@ -95,7 +105,7 @@ export default function SettingsTV() {
       (culture) => culture.ThreeLetterISOLanguageName === userAudioPreference,
     );
 
-    updateSettings({
+    const syncedSettings = stripLocked({
       defaultSubtitleLanguage: subtitlePreference,
       defaultAudioLanguage: audioPreference,
       subtitleMode: user.Configuration?.SubtitleMode,
@@ -104,66 +114,74 @@ export default function SettingsTV() {
       rememberSubtitleSelections:
         user.Configuration?.RememberSubtitleSelections,
     });
-  }, [user, cultures, isCulturesFetched]);
+
+    if (Object.keys(syncedSettings).length > 0) {
+      settingsRef.current = { ...settingsRef.current, ...syncedSettings };
+      updateSettings(syncedSettings);
+    }
+  }, [user, cultures, isCulturesFetched, pluginSettings]);
 
   const updateMediaSettings = (update: Partial<Settings>) => {
-    const sanitizedUpdate = Object.fromEntries(
-      Object.entries(update).filter(
-        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
-      ),
-    ) as Partial<Settings>;
+    const sanitizedUpdate = stripLocked(update);
 
     if (Object.keys(sanitizedUpdate).length === 0) return;
 
     const previousValues = Object.fromEntries(
       Object.keys(sanitizedUpdate).map((key) => [
         key,
-        settings[key as keyof Settings],
+        settingsRef.current[key as keyof Settings],
       ]),
     ) as Partial<Settings>;
 
+    settingsRef.current = { ...settingsRef.current, ...sanitizedUpdate };
     updateSettings(sanitizedUpdate);
 
     if (!api || !user) return;
 
-    const updatePayload = {
-      SubtitleMode: sanitizedUpdate.subtitleMode ?? settings.subtitleMode,
-      PlayDefaultAudioTrack:
-        sanitizedUpdate.playDefaultAudioTrack ?? settings.playDefaultAudioTrack,
-      RememberAudioSelections:
-        sanitizedUpdate.rememberAudioSelections ??
-        settings.rememberAudioSelections,
-      RememberSubtitleSelections:
-        sanitizedUpdate.rememberSubtitleSelections ??
-        settings.rememberSubtitleSelections,
-    } as Partial<UserConfiguration>;
+    const pendingUpdate = mediaUpdateQueueRef.current.then(async () => {
+      const currentSettings = settingsRef.current;
+      const updatePayload = {
+        SubtitleMode: currentSettings.subtitleMode,
+        PlayDefaultAudioTrack: currentSettings.playDefaultAudioTrack,
+        RememberAudioSelections: currentSettings.rememberAudioSelections,
+        RememberSubtitleSelections: currentSettings.rememberSubtitleSelections,
+        AudioLanguagePreference:
+          currentSettings.defaultAudioLanguage?.ThreeLetterISOLanguageName ??
+          "",
+        SubtitleLanguagePreference:
+          currentSettings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ??
+          "",
+      } as Partial<UserConfiguration>;
 
-    updatePayload.AudioLanguagePreference =
-      sanitizedUpdate.defaultAudioLanguage === null
-        ? ""
-        : sanitizedUpdate.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
-          settings.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
-          "";
-
-    updatePayload.SubtitleLanguagePreference =
-      sanitizedUpdate.defaultSubtitleLanguage === null
-        ? ""
-        : sanitizedUpdate.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
-          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
-          "";
-
-    getUserApi(api)
-      .updateUserConfiguration({
+      await getUserApi(api).updateUserConfiguration({
         userConfiguration: {
           ...user.Configuration,
           ...updatePayload,
         },
-      })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["authUser"] }))
-      .catch((error: unknown) => {
-        console.error("Failed to update Jellyfin media settings:", error);
-        updateSettings(previousValues);
       });
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+    });
+
+    mediaUpdateQueueRef.current = pendingUpdate.catch((error: unknown) => {
+      console.error("Failed to update Jellyfin media settings:", error);
+
+      const rollback = Object.fromEntries(
+        Object.keys(sanitizedUpdate).flatMap((key) => {
+          const settingsKey = key as keyof Settings;
+          return Object.is(
+            settingsRef.current[settingsKey],
+            sanitizedUpdate[settingsKey],
+          )
+            ? [[key, previousValues[settingsKey]]]
+            : [];
+        }),
+      ) as Partial<Settings>;
+
+      if (Object.keys(rollback).length > 0) {
+        settingsRef.current = { ...settingsRef.current, ...rollback };
+        updateSettings(rollback);
+      }
+    });
   };
 
   // Local state for OpenSubtitles API key (only commit on blur)
@@ -419,41 +437,45 @@ export default function SettingsTV() {
     culture?.ThreeLetterISOLanguageName ||
     t("home.settings.subtitles.unknown_language");
 
-  const audioLanguageOptions: TVOptionItem<CultureDto | null>[] = useMemo(
-    () => [
-      {
-        label: t("home.settings.audio.none"),
-        value: null,
-        selected: !settings.defaultAudioLanguage,
-      },
-      ...cultures.map((culture) => ({
-        label: languageName(culture),
-        value: culture,
-        selected:
-          culture.ThreeLetterISOLanguageName ===
-          settings.defaultAudioLanguage?.ThreeLetterISOLanguageName,
-      })),
-    ],
-    [cultures, settings.defaultAudioLanguage, t],
-  );
+  const audioLanguageOptions: TVOptionItem<CultureDto | null>[] =
+    useMemo(() => {
+      const selectedLanguage =
+        settings.defaultAudioLanguage?.ThreeLetterISOLanguageName;
+      return [
+        {
+          label: t("home.settings.audio.none"),
+          value: null,
+          selected: !settings.defaultAudioLanguage,
+        },
+        ...cultures.map((culture) => ({
+          label: languageName(culture),
+          value: culture,
+          selected:
+            selectedLanguage !== undefined &&
+            culture.ThreeLetterISOLanguageName === selectedLanguage,
+        })),
+      ];
+    }, [cultures, settings.defaultAudioLanguage, t]);
 
-  const subtitleLanguageOptions: TVOptionItem<CultureDto | null>[] = useMemo(
-    () => [
-      {
-        label: t("home.settings.subtitles.none"),
-        value: null,
-        selected: !settings.defaultSubtitleLanguage,
-      },
-      ...cultures.map((culture) => ({
-        label: languageName(culture),
-        value: culture,
-        selected:
-          culture.ThreeLetterISOLanguageName ===
-          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
-      })),
-    ],
-    [cultures, settings.defaultSubtitleLanguage, t],
-  );
+  const subtitleLanguageOptions: TVOptionItem<CultureDto | null>[] =
+    useMemo(() => {
+      const selectedLanguage =
+        settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName;
+      return [
+        {
+          label: t("home.settings.subtitles.none"),
+          value: null,
+          selected: !settings.defaultSubtitleLanguage,
+        },
+        ...cultures.map((culture) => ({
+          label: languageName(culture),
+          value: culture,
+          selected:
+            selectedLanguage !== undefined &&
+            culture.ThreeLetterISOLanguageName === selectedLanguage,
+        })),
+      ];
+    }, [cultures, settings.defaultSubtitleLanguage, t]);
 
   // Subtitle mode options
   const subtitleModeOptions: TVOptionItem<SubtitlePlaybackMode>[] = useMemo(
@@ -883,6 +905,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.audio.audio_language")}
             value={audioLanguageLabel}
+            disabled={pluginSettings?.defaultAudioLanguage?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.audio.language"),
@@ -928,6 +951,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_language")}
             value={subtitleLanguageLabel}
+            disabled={pluginSettings?.defaultSubtitleLanguage?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.language"),
@@ -1008,6 +1032,7 @@ export default function SettingsTV() {
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_margin_y")}
             value={settings.subtitleMarginY ?? 0}
+            disabled={pluginSettings?.subtitleMarginY?.locked}
             onDecrease={() => {
               const newValue = Math.max(
                 -100,
@@ -1027,6 +1052,7 @@ export default function SettingsTV() {
             <TVSettingsOptionButton
               label={t("home.settings.subtitles.subtitle_align_x")}
               value={alignXLabel}
+              disabled={pluginSettings?.subtitleAlignX?.locked}
               // ExoPlayer follows authored cue alignment; hide on ExoPlayer.
               onPress={() =>
                 showOptions({
@@ -1043,6 +1069,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_align_y")}
             value={alignYLabel}
+            disabled={pluginSettings?.subtitleAlignY?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_align_y"),
@@ -1082,22 +1109,22 @@ export default function SettingsTV() {
               formatValue={(v) => `${v}%`}
             />
           )}
-          {settings.subtitleBackground && (
+          {settings.subtitleBackground && isMpv && (
             <TVSettingsStepper
               label={t("home.settings.subtitles.subtitle_background_padding")}
-              value={settings.subtitleBackgroundPadding ?? 12}
+              value={settings.subtitleBackgroundPadding ?? 8}
               disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
               onDecrease={() => {
                 const newValue = Math.max(
                   0,
-                  (settings.subtitleBackgroundPadding ?? 12) - 1,
+                  (settings.subtitleBackgroundPadding ?? 8) - 1,
                 );
                 updateSettings({ subtitleBackgroundPadding: newValue });
               }}
               onIncrease={() => {
                 const newValue = Math.min(
                   30,
-                  (settings.subtitleBackgroundPadding ?? 12) + 1,
+                  (settings.subtitleBackgroundPadding ?? 8) + 1,
                 );
                 updateSettings({ subtitleBackgroundPadding: newValue });
               }}

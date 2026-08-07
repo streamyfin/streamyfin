@@ -18,6 +18,7 @@ import { storage } from "../mmkv";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
+const EXPLICIT_PLUGIN_SETTING_OVERRIDES = "EXPLICIT_PLUGIN_SETTING_OVERRIDES";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -399,7 +400,7 @@ export const defaultValues: Settings = {
   subtitleSize: 1.0,
   subtitleBackground: false,
   subtitleBackgroundOpacity: 40,
-  subtitleBackgroundPadding: 12,
+  subtitleBackgroundPadding: 8,
   subtitleFont: "System",
   subtitleColor: "#FFFFFF",
   subtitleMarginY: 25,
@@ -587,6 +588,18 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
 const hasMeaningfulSettingValue = (value: unknown) =>
   value !== undefined && value !== null && value !== "";
 
+const loadExplicitPluginSettingOverrides = (): Set<keyof Settings> => {
+  try {
+    const value = storage.getString(EXPLICIT_PLUGIN_SETTING_OVERRIDES);
+    return new Set(value ? JSON.parse(value) : []);
+  } catch (error) {
+    console.error("Failed to load explicit plugin setting overrides:", error);
+    return new Set();
+  }
+};
+
+const explicitPluginSettingOverrides = loadExplicitPluginSettingOverrides();
+
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
   const [_settings, setSettings] = useAtom(settingsAtom);
@@ -640,9 +653,6 @@ export const useSettings = () => {
   }, [api, _settings]);
 
   const updateSettings = (update: Partial<Settings>) => {
-    if (!_settings) {
-      return;
-    }
     // Admin-locked settings are enforced at write time too: a control that
     // isn't disabled in the UI must not persist a value the admin pinned.
     // The read memo already overrides locked keys, but without this guard the
@@ -653,20 +663,42 @@ export const useSettings = () => {
       ),
     ) as Partial<Settings>;
 
-    const hasChanges = Object.entries(sanitizedUpdate).some(
-      ([key, value]) => _settings[key as keyof Settings] !== value,
-    );
+    if (Object.keys(sanitizedUpdate).length === 0) return;
 
-    if (hasChanges) {
-      // Merge default settings, current settings, and updates to ensure all required properties exist
+    let overridesChanged = false;
+    for (const key of Object.keys(sanitizedUpdate) as Array<keyof Settings>) {
+      if (
+        pluginSettings?.[key] !== undefined &&
+        pluginSettings[key]?.locked !== true &&
+        !explicitPluginSettingOverrides.has(key)
+      ) {
+        explicitPluginSettingOverrides.add(key);
+        overridesChanged = true;
+      }
+    }
+    if (overridesChanged) {
+      storage.set(
+        EXPLICIT_PLUGIN_SETTING_OVERRIDES,
+        JSON.stringify([...explicitPluginSettingOverrides]),
+      );
+    }
+
+    setSettings((currentSettings) => {
+      if (!currentSettings) return currentSettings;
+
+      const hasChanges = Object.entries(sanitizedUpdate).some(
+        ([key, value]) => currentSettings[key as keyof Settings] !== value,
+      );
+      if (!hasChanges) return currentSettings;
+
       const newSettings = {
         ...defaultValues,
-        ..._settings,
+        ...currentSettings,
         ...sanitizedUpdate,
       } as Settings;
-      setSettings(newSettings);
       saveSettings(newSettings);
-    }
+      return newSettings;
+    });
   };
 
   // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
@@ -685,16 +717,15 @@ export const useSettings = () => {
         // Normalize object-typed settings from plugin (plain primitive → { key, value })
         value = normalizePluginValue(settingsKey, value);
 
-        // When unlocked, keep the user's value only if they explicitly diverged
-        // from the app default. Otherwise the plugin value is the admin's
-        // default and must win over the hardcoded app default — e.g. a toggle
-        // that was always locked then unlocked should reflect the plugin
-        // default, not the app's `false`. Object-typed settings compare by
-        // reference, so their behaviour is unchanged.
+        // When unlocked, keep a value that diverges from the app default or
+        // that the user explicitly selected. Tracking explicit selections is
+        // necessary because choosing the app default (for example subtitle
+        // scale 1.0) must not immediately snap back to the plugin default.
         const userValue = _settings?.[settingsKey];
         const userDiverged =
           hasMeaningfulSettingValue(userValue) &&
-          userValue !== defaultValues[settingsKey];
+          (userValue !== defaultValues[settingsKey] ||
+            explicitPluginSettingOverrides.has(settingsKey));
 
         (acc as any)[settingsKey] = locked
           ? value

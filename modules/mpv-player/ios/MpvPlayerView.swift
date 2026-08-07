@@ -94,6 +94,7 @@ class MpvPlayerView: ExpoView {
 		addSubview(videoContainer)
 
 		displayLayer.frame = bounds
+		displayLayer.contentsScale = contentScaleFactor
 		displayLayer.videoGravity = .resizeAspect
 		#if !os(tvOS)
 		if #available(iOS 17.0, *) {
@@ -140,6 +141,7 @@ class MpvPlayerView: ExpoView {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		displayLayer.frame = videoContainer.bounds
+		displayLayer.contentsScale = contentScaleFactor
 		displayLayer.isHidden = false
 		displayLayer.opacity = 1.0
 		CATransaction.commit()

@@ -5,7 +5,8 @@ public class MpvPlayerModule: Module {
     if let intValue = value as? Int {
       return intValue
     } else if let doubleValue = value as? Double {
-      return Int(doubleValue)
+      guard doubleValue.isFinite else { return nil }
+      return Int(exactly: doubleValue)
     }
     return nil
   }

@@ -15,6 +15,8 @@ import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.text.Cue
+import androidx.media3.common.text.CueGroup
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
@@ -114,6 +116,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     // Background color carries its own alpha (parsed from #RRGGBBAA in
     // setSubtitleBackgroundColor) so no separate enabled/opacity flags.
     private var subtitleBackgroundColor: Int = Color.argb(0, 0, 0, 0)
+    private var currentSubtitleCues: List<Cue> = emptyList()
     private var subtitleForegroundColor: Int = Color.WHITE
     private var subtitleTypeface: Typeface = Typeface.SANS_SERIF
     private var subtitleBorderStyle: String = "outline-and-shadow"
@@ -155,6 +158,13 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     }
 
     private val playerListener = object : Player.Listener {
+        override fun onCues(cueGroup: CueGroup) {
+            currentSubtitleCues = cueGroup.cues
+            // PlayerView also receives this callback. Post our styled cues so
+            // they are applied after PlayerView forwards the unmodified cues.
+            subtitleView?.post { applySubtitleCues() }
+        }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
                 Player.STATE_BUFFERING -> {
@@ -417,6 +427,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             val subtitleConfigs = subs.mapNotNull { subUrl ->
                 val mime = mimeTypeForSubtitleUrl(subUrl) ?: return@mapNotNull null
                 MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl))
+                    .setId(subUrl)
                     .setMimeType(mime)
                     .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                     .build()
@@ -526,6 +537,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val trackGroupIndex: Int,
         val trackIndex: Int,
         val format: Format,
+        val externalFilename: String? = null,
     )
 
     private fun rebuildTrackMaps(tracks: Tracks?) {
@@ -547,7 +559,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                     format = format
                 )
                 when (rendererType) {
-                    C.TRACK_TYPE_TEXT -> subtitles.add(entry)
+                    C.TRACK_TYPE_TEXT -> subtitles.add(
+                        entry.copy(
+                            externalFilename = sideLoadedSubs
+                                .firstOrNull { it.id == format.id }
+                                ?.uri
+                                ?.toString(),
+                        ),
+                    )
                     C.TRACK_TYPE_AUDIO -> audios.add(entry)
                     else -> { /* video / metadata ignored */ }
                 }
@@ -598,11 +617,15 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun getSubtitleTracks(): List<Map<String, Any>> {
         return subtitleTrackList.map { entry ->
-            mapOf(
-                "id" to entry.id,
-                "title" to (entry.format.label ?: ""),
-                "lang" to (entry.format.language ?: "")
-            )
+            buildMap {
+                put("id", entry.id)
+                put("title", entry.format.label ?: "")
+                put("lang", entry.format.language ?: "")
+                entry.externalFilename?.let {
+                    put("external", true)
+                    put("externalFilename", it)
+                }
+            }
         }
     }
 
@@ -641,6 +664,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val mime = mimeTypeForSubtitleUrl(url) ?: return
         val currentMediaItem = p.currentMediaItem ?: return
         val newSubConfig = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
+            .setId(url)
             .setMimeType(mime)
             .setSelectionFlags(if (select) C.SELECTION_FLAG_DEFAULT else 0)
             .build()
@@ -703,6 +727,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     fun setSubtitleAlignY(alignment: String) {
         subtitleAlignY = alignment
+        if (alignment != "bottom") {
+            subtitleBottomFraction = null
+        }
         applySubtitleStyle()
     }
 
@@ -739,7 +766,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private fun loadOpenDyslexicTypeface(): Typeface {
         return try {
             Typeface.createFromAsset(context.assets, "fonts/OpenDyslexic-Regular.otf")
-        } catch (error: Throwable) {
+        } catch (error: Exception) {
             Log.w(TAG, "Failed to load OpenDyslexic font: ${error.message}")
             Typeface.SANS_SERIF
         }
@@ -759,7 +786,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 hex.startsWith("#") && hex.length == 7 -> Color.parseColor(hex)
                 else -> fallback
             }
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             fallback
         }
     }
@@ -792,10 +819,9 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         when (subtitleBorderStyle) {
             "background-box" -> {
                 edgeType = CaptionStyleCompat.EDGE_TYPE_NONE
-                // subtitleBackgroundColor already carries its own alpha
-                // (parsed from #RRGGBBAA by setSubtitleBackgroundColor).
-                // Alpha 0 → transparent, matching user intent.
-                backgroundColor = subtitleBackgroundColor
+                // The padded span draws the background. Leaving CaptionStyle's
+                // background transparent avoids a second box tight to glyphs.
+                backgroundColor = Color.TRANSPARENT
             }
             else -> {
                 // "outline-and-shadow"
@@ -815,9 +841,37 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             Color.BLACK,
             subtitleTypeface
         )
-        sv.setApplyEmbeddedStyles(false)
+        // applySubtitleCues converts authored text spans to plain text before
+        // setting the app-controlled cue window color. Embedded styles must
+        // remain enabled or Media3 also strips that window color.
+        sv.setApplyEmbeddedStyles(true)
         sv.setApplyEmbeddedFontSizes(false)
         sv.setStyle(style)
+        applySubtitleCues()
+    }
+
+    private fun applySubtitleCues() {
+        val sv = subtitleView ?: return
+        val useBackground =
+            subtitleBorderStyle == "background-box" && Color.alpha(subtitleBackgroundColor) > 0
+
+        val windowColor = if (useBackground) {
+            subtitleBackgroundColor
+        } else {
+            Color.TRANSPARENT
+        }
+        val styledCues = currentSubtitleCues.map { cue ->
+            val cueText = cue.text ?: return@map cue
+            // Media3's cue window is one box around the complete multiline cue.
+            // Unlike per-line spans, translucent padding cannot overlap and
+            // compound its opacity between adjacent lines.
+            cue.buildUpon()
+                .setWindowColor(windowColor)
+                .setText(cueText.toString())
+                .build()
+        }
+
+        sv.setCues(styledCues)
     }
 
     // MARK: - Audio Track Controls

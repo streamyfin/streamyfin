@@ -11,6 +11,11 @@ import type {
 const NativeView: React.ComponentType<MpvPlayerViewProps & { ref?: any }> =
   requireNativeView("ExoPlayer");
 
+const mpvColorToRgba = (color: string) =>
+  color.startsWith("#") && color.length === 9
+    ? `#${color.slice(3)}${color.slice(1, 3)}`
+    : color;
+
 /**
  * ExoPlayer view wrapper. Exposes the same `MpvPlayerViewRef` interface as
  * `MpvPlayerView` so callers can swap between the two players without
@@ -65,7 +70,7 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
         return await nativeRef.current?.isPictureInPictureActive();
       },
       getSubtitleTracks: async () => {
-        return await nativeRef.current?.getSubtitleTracks();
+        return (await nativeRef.current?.getSubtitleTracks()) ?? [];
       },
       setSubtitleTrack: async (trackId: number) => {
         await nativeRef.current?.setSubtitleTrack(trackId);
@@ -105,7 +110,9 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
           await nativeRef.current?.setSubtitleFont(style.font);
         }
         if (style.background) {
-          await nativeRef.current?.setSubtitleBackgroundColor(style.background);
+          await nativeRef.current?.setSubtitleBackgroundColor(
+            mpvColorToRgba(style.background),
+          );
           await nativeRef.current?.setSubtitleBorderStyle("background-box");
         } else if (style.background !== undefined) {
           await nativeRef.current?.setSubtitleBorderStyle("outline-and-shadow");

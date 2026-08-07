@@ -1,5 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import {
+  type CultureDto,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View, type ViewProps } from "react-native";
@@ -56,61 +59,61 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     [SubtitlePlaybackMode.None]: "home.settings.subtitles.modes.None",
   };
 
-  const audioLanguageOptionGroups = useMemo(() => {
-    const options = [
+  const buildLanguageOptions = (
+    noneLabel: string,
+    selectedCulture: CultureDto | null | undefined,
+    locked: boolean,
+    labelFor: (culture: CultureDto) => string,
+    select: (culture: CultureDto | null) => void,
+  ) => {
+    const selectedLanguage = selectedCulture?.ThreeLetterISOLanguageName;
+    return [
       {
-        type: "radio" as const,
-        label: t("home.settings.audio.none"),
-        value: "none",
-        selected: !settings?.defaultAudioLanguage,
-        onPress: () => updateSettings({ defaultAudioLanguage: null }),
+        options: [
+          {
+            type: "radio" as const,
+            label: noneLabel,
+            value: "none",
+            selected: !selectedCulture,
+            disabled: locked,
+            onPress: () => select(null),
+          },
+          ...(cultures?.map((culture) => ({
+            type: "radio" as const,
+            label: labelFor(culture),
+            value:
+              culture.ThreeLetterISOLanguageName ||
+              culture.DisplayName ||
+              "unknown",
+            selected:
+              selectedLanguage !== undefined &&
+              culture.ThreeLetterISOLanguageName === selectedLanguage,
+            disabled: locked,
+            onPress: () => select(culture),
+          })) || []),
+        ],
       },
-      ...(cultures?.map((culture) => ({
-        type: "radio" as const,
-        label:
-          culture.DisplayName ||
-          culture.ThreeLetterISOLanguageName ||
-          t("home.settings.subtitles.unknown_language"),
-        value:
-          culture.ThreeLetterISOLanguageName ||
-          culture.DisplayName ||
-          "unknown",
-        selected:
-          culture.ThreeLetterISOLanguageName ===
-          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName,
-        onPress: () => updateSettings({ defaultAudioLanguage: culture }),
-      })) || []),
     ];
+  };
 
-    return [{ options }];
-  }, [cultures, settings?.defaultAudioLanguage, t, updateSettings]);
-
-  const subtitleLanguageOptionGroups = useMemo(() => {
-    const options = [
-      {
-        type: "radio" as const,
-        label: t("home.settings.subtitles.none"),
-        value: "none",
-        selected: !settings?.defaultSubtitleLanguage,
-        onPress: () => updateSettings({ defaultSubtitleLanguage: null }),
-      },
-      ...(cultures?.map((culture) => ({
-        type: "radio" as const,
-        label:
-          culture.DisplayName || t("home.settings.subtitles.unknown_language"),
-        value:
-          culture.ThreeLetterISOLanguageName ||
-          culture.DisplayName ||
-          "unknown",
-        selected:
-          culture.ThreeLetterISOLanguageName ===
-          settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName,
-        onPress: () => updateSettings({ defaultSubtitleLanguage: culture }),
-      })) || []),
-    ];
-
-    return [{ options }];
-  }, [cultures, settings?.defaultSubtitleLanguage, t, updateSettings]);
+  const unknownLanguage = t("home.settings.subtitles.unknown_language");
+  const audioLanguageOptionGroups = buildLanguageOptions(
+    t("home.settings.audio.none"),
+    settings?.defaultAudioLanguage,
+    pluginSettings?.defaultAudioLanguage?.locked === true,
+    (culture) =>
+      culture.DisplayName ||
+      culture.ThreeLetterISOLanguageName ||
+      unknownLanguage,
+    (culture) => updateSettings({ defaultAudioLanguage: culture }),
+  );
+  const subtitleLanguageOptionGroups = buildLanguageOptions(
+    t("home.settings.subtitles.none"),
+    settings?.defaultSubtitleLanguage,
+    pluginSettings?.defaultSubtitleLanguage?.locked === true,
+    (culture) => culture.DisplayName || unknownLanguage,
+    (culture) => updateSettings({ defaultSubtitleLanguage: culture }),
+  );
 
   const subtitleModeOptionGroups = useMemo(() => {
     const options = subtitleModes.map((mode) => ({
@@ -204,9 +207,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       value: align,
       selected: align === (settings?.subtitleAlignX ?? "center"),
       disabled: isLocked,
-      onPress: () => {
-        if (!isLocked) updateSettings({ subtitleAlignX: align });
-      },
+      onPress: () => updateSettings({ subtitleAlignX: align }),
     }));
     return [{ options }];
   }, [
@@ -224,9 +225,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       value: align,
       selected: align === (settings?.subtitleAlignY ?? "bottom"),
       disabled: isLocked,
-      onPress: () => {
-        if (!isLocked) updateSettings({ subtitleAlignY: align });
-      },
+      onPress: () => updateSettings({ subtitleAlignY: align }),
     }));
     return [{ options }];
   }, [
@@ -266,7 +265,10 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           {t("home.settings.audio.audio_title")}
         </Text>
 
-        <ListItem title={t("home.settings.audio.audio_language")}>
+        <ListItem
+          title={t("home.settings.audio.audio_language")}
+          disabled={pluginSettings?.defaultAudioLanguage?.locked}
+        >
           <PlatformDropdown
             groups={audioLanguageOptionGroups}
             trigger={
@@ -342,7 +344,10 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           {t("home.settings.subtitles.subtitle_title")}
         </Text>
 
-        <ListItem title={t("home.settings.subtitles.subtitle_language")}>
+        <ListItem
+          title={t("home.settings.subtitles.subtitle_language")}
+          disabled={pluginSettings?.defaultSubtitleLanguage?.locked}
+        >
           <PlatformDropdown
             groups={subtitleLanguageOptionGroups}
             trigger={
@@ -593,7 +598,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
           >
             <Stepper
-              value={settings.subtitleBackgroundPadding ?? 12}
+              value={settings.subtitleBackgroundPadding ?? 8}
               disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
               step={1}
               min={0}

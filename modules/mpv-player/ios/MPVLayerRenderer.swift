@@ -434,12 +434,14 @@ final class MPVLayerRenderer {
     
     func reloadCurrentItem() {
         guard let url = currentURL, let preset = currentPreset else { return }
+        let activeSubtitleId = getCurrentSubtitleTrack()
+        let activeAudioId = getCurrentAudioTrack()
         load(
             url: url,
             with: preset,
             headers: currentHeaders,
-            initialSubtitleId: initialSubtitleId,
-            initialAudioId: initialAudioId,
+            initialSubtitleId: activeSubtitleId > 0 ? activeSubtitleId : nil,
+            initialAudioId: activeAudioId > 0 ? activeAudioId : nil,
             loop: currentLoop
         )
     }
@@ -945,11 +947,11 @@ final class MPVLayerRenderer {
             let size = isDyslexic ? Int(fontSizeDouble) + 20 : Int(fontSizeDouble)
             setProperty(name: "sub-font-size", value: String(size))
         }
-        
+
         if let color = config["color"] as? String {
             setProperty(name: "sub-color", value: color)
         }
-        
+
         if let font = config["font"] as? String {
             if font == "System" {
                 setProperty(name: "sub-font", value: "")
@@ -970,7 +972,7 @@ final class MPVLayerRenderer {
                 setProperty(name: "sub-font", value: mappedFont)
             }
         }
-        
+
         if let background = config["background"] as? String {
             if background.isEmpty {
                 setProperty(name: "sub-border-style", value: "outline-and-shadow")

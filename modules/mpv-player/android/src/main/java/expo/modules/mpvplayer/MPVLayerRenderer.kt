@@ -249,7 +249,9 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             
             // Subtitle settings
             mpv?.setOptionString("sub-scale-with-window", "no")
-            mpv?.setOptionString("sub-use-margins", "no")
+            // Keep bottom-aligned subtitles relative to the full player surface,
+            // including letterbox bars, matching tvOS placement.
+            mpv?.setOptionString("sub-use-margins", "yes")
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
             

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  PixelRatio,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
@@ -68,8 +69,8 @@ export const SubtitlePreview = React.memo(() => {
       settings.subtitleSize ?? 1,
       SUBTITLE_PREVIEW_VIDEO_WIDTH,
       SUBTITLE_PREVIEW_VIDEO_HEIGHT,
-      screenWidth,
-      screenHeight,
+      screenWidth * PixelRatio.get(),
+      screenHeight * PixelRatio.get(),
     );
 
     const commands: Array<() => Promise<void>> = [
@@ -79,7 +80,7 @@ export const SubtitlePreview = React.memo(() => {
           color: settings.subtitleColor,
           font: settings.subtitleFont,
           background: settings.subtitleBackground ? `#${alpha}000000` : "",
-          backgroundPadding: settings.subtitleBackgroundPadding ?? 12,
+          backgroundPadding: settings.subtitleBackgroundPadding ?? 8,
         }),
     ];
 
