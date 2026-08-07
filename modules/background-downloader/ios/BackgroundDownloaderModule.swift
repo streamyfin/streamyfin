@@ -261,6 +261,7 @@ public class BackgroundDownloaderModule: Module {
         self.stateQueue.async {
           self.downloadTasks.removeAll()
           self.persistTasksLocked()
+          self.finishContinuedProcessingIfIdleLocked()
         }
       }
     }
@@ -378,6 +379,7 @@ public class BackgroundDownloaderModule: Module {
     )
 
     startLiveActivity(taskId: taskId, metadata: metadata)
+    startContinuedProcessingLocked(metadata: metadata)
 
     var payload: [String: Any] = [
       "taskId": taskId,
@@ -429,6 +431,11 @@ public class BackgroundDownloaderModule: Module {
     // Fed every callback, not just the throttled ones — the controller does its own rate limiting
     // and wants the finer samples for its speed average.
     updateLiveActivity(taskId: taskId, bytesWritten: bytesWritten, totalBytes: totalBytes)
+    updateContinuedProcessingLocked(
+      taskId: taskId,
+      bytesWritten: bytesWritten,
+      totalBytes: totalBytes
+    )
 
     // Throttle progress updates: only send every 500ms
     let lastTime = lastProgressTime[taskId] ?? Date.distantPast
@@ -612,6 +619,8 @@ public class BackgroundDownloaderModule: Module {
         "Failed to start next queued download: \(error.localizedDescription, privacy: .public)"
       )
     }
+    // Reached after every completion/error/cancel; ends the keeper when the session drained.
+    finishContinuedProcessingIfIdleLocked()
   }
 
   static func setBackgroundCompletionHandler(_ handler: @escaping () -> Void) {
@@ -672,6 +681,48 @@ public class BackgroundDownloaderModule: Module {
     #if os(iOS)
       guard #available(iOS 16.2, *) else { return }
       DownloadLiveActivityController.shared.cancelAll()
+    #endif
+  }
+
+  // MARK: - Continued processing (iOS 26+)
+
+  // Keeps the process executing while downloads run, so progress keeps reporting after the user
+  // backgrounds the app and the Live Activity shows measured percent instead of a projection.
+  // Wrapped like the Live Activity helpers; a no-op before iOS 26 or on older build toolchains.
+
+  private func startContinuedProcessingLocked(metadata: DownloadActivityMetadata?) {
+    #if os(iOS) && swift(>=6.2)
+      guard #available(iOS 26.0, *) else { return }
+      DownloadContinuedProcessingKeeper.shared.ensureRunning(
+        title: metadata?.title ?? "Streamyfin",
+        subtitle: metadata?.subtitle ?? ""
+      )
+    #endif
+  }
+
+  private func updateContinuedProcessingLocked(
+    taskId: Int,
+    bytesWritten: Int64,
+    totalBytes: Int64
+  ) {
+    #if os(iOS) && swift(>=6.2)
+      guard #available(iOS 26.0, *) else { return }
+      let effectiveTotal =
+        totalBytes > 0
+        ? totalBytes
+        : downloadTasks[taskId]?.metadata?.estimatedTotalBytes ?? 0
+      DownloadContinuedProcessingKeeper.shared.updateProgress(
+        completedBytes: bytesWritten,
+        totalBytes: effectiveTotal
+      )
+    #endif
+  }
+
+  private func finishContinuedProcessingIfIdleLocked() {
+    #if os(iOS) && swift(>=6.2)
+      guard #available(iOS 26.0, *) else { return }
+      guard downloadTasks.isEmpty, downloadQueue.isEmpty else { return }
+      DownloadContinuedProcessingKeeper.shared.finish()
     #endif
   }
 

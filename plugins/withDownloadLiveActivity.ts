@@ -121,6 +121,29 @@ const withDownloadLiveActivity: ConfigPlugin = (config) => {
 
   config = withInfoPlist(config, (config) => {
     config.modResults[APP_GROUP_INFO_PLIST_KEY] = appGroupIdentifier;
+
+    // iOS 26 continued processing task: keeps the app executing while a user-started download
+    // runs, so the Live Activity can show measured progress instead of a projection. The
+    // identifier must be declared here and prefixed with the bundle id.
+    const taskIdentifier = `${bundleIdentifier}.downloads`;
+    const permitted = Array.isArray(
+      config.modResults.BGTaskSchedulerPermittedIdentifiers,
+    )
+      ? (config.modResults.BGTaskSchedulerPermittedIdentifiers as string[])
+      : [];
+    if (!permitted.includes(taskIdentifier)) {
+      permitted.push(taskIdentifier);
+    }
+    config.modResults.BGTaskSchedulerPermittedIdentifiers = permitted;
+
+    const backgroundModes = Array.isArray(config.modResults.UIBackgroundModes)
+      ? (config.modResults.UIBackgroundModes as string[])
+      : [];
+    if (!backgroundModes.includes("processing")) {
+      backgroundModes.push("processing");
+    }
+    config.modResults.UIBackgroundModes = backgroundModes;
+
     return config;
   });
 
