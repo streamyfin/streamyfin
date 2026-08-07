@@ -4,11 +4,14 @@ package expo.modules.exoplayerplayer
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.TextureView
 import android.view.ViewGroup
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -21,6 +24,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -122,6 +126,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     private var subtitleBorderStyle: String = "outline-and-shadow"
 
     private var isZoomedToFill: Boolean = false
+    private var currentVideoAspectRatio: Float? = null
 
     // Captured by analyticsListener; surfaced via getTechnicalInfo().
     // Reset on destroy() and (for decoder names) on track changes.
@@ -163,6 +168,14 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // PlayerView also receives this callback. Post our styled cues so
             // they are applied after PlayerView forwards the unmodified cues.
             subtitleView?.post { applySubtitleCues() }
+        }
+
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            if (videoSize.width <= 0 || videoSize.height <= 0) return
+
+            currentVideoAspectRatio =
+                videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+            playerView.post { updateVideoSurfaceLayout() }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -270,20 +283,24 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     init {
         setBackgroundColor(Color.BLACK)
 
-        playerView = PlayerView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            // SurfaceView-backed for parity with MPV (direct surface to
-            // SurfaceFlinger). PlayerView defaults to a SurfaceView, so no
-            // explicit setSurfaceType() call is needed; the int constants
-            // backing it are @IntDef private in Media3.
-            setUseController(false)
-            setResizeMode(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT)
-        }
+        // A SurfaceView can be forced to the React Native host bounds by the
+        // platform compositor, bypassing PlayerView's AspectRatioFrameLayout.
+        // TextureView stays in PlayerView's hierarchy, so FIT/ZOOM transforms
+        // preserve the video's actual aspect ratio.
+        playerView = LayoutInflater.from(context).inflate(
+            R.layout.exoplayer_player_view,
+            this,
+            false,
+        ) as PlayerView
+        playerView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        )
         subtitleView = playerView.subtitleView
         addView(playerView)
+        playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateVideoSurfaceLayout()
+        }
     }
 
     // MARK: - Video Loading
@@ -324,6 +341,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         exo.addListener(playerListener)
         exo.addAnalyticsListener(analyticsListener)
         exo.repeatMode = Player.REPEAT_MODE_OFF
+        exo.videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         player = exo
         playerView.player = exo
 
@@ -355,7 +373,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             val seconds = config.cacheSeconds?.coerceIn(5, 120) ?: 10
             seconds * 1000
         }
-
+        val minBufferMs = minOf(defaultMinBufferMs, targetBufferMs)
         val backBufferMs = if (!cacheEnabled) {
             0
         } else {
@@ -371,7 +389,7 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             // so loading halts with <500ms buffered and playback starves.
             .setTargetBufferBytes(if (!cacheEnabled) C.LENGTH_UNSET else ((config.demuxerMaxBytes ?: 150) * 1024 * 1024))
             .setBufferDurationsMs(
-                /* minBufferMs = */ defaultMinBufferMs,
+                /* minBufferMs = */ minBufferMs,
                 /* maxBufferMs = */ targetBufferMs,
                 /* bufferForPlaybackMs = */ defaultBufferForPlaybackMs,
                 /* bufferForPlaybackAfterRebufferMs = */ defaultBufferForPlaybackAfterRebufferMs
@@ -912,14 +930,49 @@ class ExoPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // MARK: - Video Scaling
 
+    private fun updateVideoSurfaceLayout() {
+        val aspectRatio = currentVideoAspectRatio ?: return
+        val surface = playerView.videoSurfaceView as? TextureView ?: return
+        val viewWidth = playerView.width
+        val viewHeight = playerView.height
+        if (viewWidth <= 0 || viewHeight <= 0 || !aspectRatio.isFinite()) return
+
+        val viewAspectRatio = viewWidth.toFloat() / viewHeight
+        val scaleX: Float
+        val scaleY: Float
+
+        if (isZoomedToFill) {
+            if (aspectRatio > viewAspectRatio) {
+                scaleX = aspectRatio / viewAspectRatio
+                scaleY = 1f
+            } else {
+                scaleX = 1f
+                scaleY = viewAspectRatio / aspectRatio
+            }
+        } else if (aspectRatio > viewAspectRatio) {
+            scaleX = 1f
+            scaleY = viewAspectRatio / aspectRatio
+        } else {
+            scaleX = aspectRatio / viewAspectRatio
+            scaleY = 1f
+        }
+
+        surface.setTransform(
+            Matrix().apply {
+                setScale(
+                    scaleX,
+                    scaleY,
+                    viewWidth / 2f,
+                    viewHeight / 2f,
+                )
+            },
+        )
+        surface.invalidate()
+    }
+
     fun setZoomedToFill(zoomed: Boolean) {
         isZoomedToFill = zoomed
-        val resizeMode = if (zoomed) {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-        } else {
-            androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-        }
-        playerView.resizeMode = resizeMode
+        updateVideoSurfaceLayout()
     }
 
     fun isZoomedToFill(): Boolean = isZoomedToFill
