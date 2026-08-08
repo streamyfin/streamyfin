@@ -1,0 +1,241 @@
+#if os(iOS)
+import SwiftUI
+
+/// Root overlay for the presented native player. Flat dark look modeled on
+/// the iOS system player: white SF Symbols, gradient scrims, monospaced-digit
+/// time labels. Subtitles are burned into the video frames by mpv
+/// (avfoundation-composite-osd), so this overlay never has to dodge them.
+struct PlayerControlsRootView: View {
+	@ObservedObject var viewModel: PlayerViewModel
+
+	var body: some View {
+		GeometryReader { geometry in
+			// Portrait phones can't fit the full top-bar button row — late
+			// data pushes (episode list) add buttons after load, so the bar
+			// must adapt by width, not by content.
+			content(isCompactWidth: geometry.size.width < 500)
+		}
+	}
+
+	private func content(isCompactWidth: Bool) -> some View {
+		ZStack {
+			// Tap-to-toggle catcher behind everything interactive.
+			Color.clear
+				.contentShape(Rectangle())
+				.onTapGesture { viewModel.toggleControls() }
+
+			if viewModel.controlsVisible {
+				scrims
+				controls(compact: isCompactWidth)
+					.transition(.opacity)
+				// Centered in the ZStack (true screen center) rather than in
+				// the bar VStack — the bottom bar is taller than the top bar,
+				// so centering between them would sit visibly high. The
+				// horizontal padding reserves the edge-slider gutters (20pt
+				// inset + 34pt pill + 8pt gap) so the row's ViewThatFits
+				// tiers fit BETWEEN the sliders instead of underneath them.
+				PlayerCenterControls(viewModel: viewModel)
+					.padding(
+						.horizontal,
+						viewModel.showVolumeSlider || viewModel.showBrightnessSlider ? 62 : 24
+					)
+					.transition(.opacity)
+			}
+
+			if viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == nil {
+				ProgressView()
+					.controlSize(.large)
+					.tint(.white)
+			}
+
+			// Edge sliders: brightness left, volume right. The volume pill
+			// additionally appears alone on hardware volume presses while the
+			// chrome is hidden (the system volume HUD is suppressed).
+			HStack {
+				if viewModel.controlsVisible && viewModel.showBrightnessSlider {
+					BrightnessSliderView(
+						viewModel: viewModel,
+						controller: viewModel.brightnessController
+					)
+					.transition(.opacity)
+				}
+				Spacer()
+				if viewModel.showVolumeSlider
+					&& (viewModel.controlsVisible || viewModel.volumeSliderRevealed) {
+					VolumeSliderView(
+						viewModel: viewModel,
+						controller: viewModel.volumeController
+					)
+					.transition(.opacity)
+				}
+			}
+			.padding(.horizontal, 20)
+
+			// Skip pill / countdown card live outside controlsVisible so they
+			// stay actionable while the chrome is hidden.
+			VStack {
+				Spacer()
+				HStack {
+					Spacer()
+					if let countdown = viewModel.countdownRemaining, let next = viewModel.nextEpisode {
+						NextEpisodeCountdownView(viewModel: viewModel, next: next, remaining: countdown)
+					} else if let segment = viewModel.activeSegment {
+						SkipSegmentButton(viewModel: viewModel, segment: segment)
+					}
+				}
+			}
+			.padding(.trailing, 24)
+			// Clears the bottom bar, which grew a chapter label + ends-at line.
+			.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
+
+			if viewModel.showTechnicalInfo {
+				VStack {
+					HStack {
+						TechnicalInfoOverlay(viewModel: viewModel)
+						Spacer()
+					}
+					Spacer()
+				}
+				.padding(.top, 56)
+				.padding(.leading, 24)
+			}
+
+			if let message = viewModel.errorMessage {
+				errorOverlay(message: message)
+			}
+		}
+		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
+		.sheet(isPresented: $viewModel.showEpisodeList) {
+			EpisodeListView(viewModel: viewModel)
+		}
+	}
+
+	private var scrims: some View {
+		VStack(spacing: 0) {
+			LinearGradient(
+				colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
+				startPoint: .top, endPoint: .bottom
+			)
+			.frame(height: 140)
+			Spacer()
+			LinearGradient(
+				colors: [Color.black.opacity(0), Color.black.opacity(0.6)],
+				startPoint: .top, endPoint: .bottom
+			)
+			.frame(height: 160)
+		}
+		.ignoresSafeArea()
+		.allowsHitTesting(false)
+	}
+
+	private func controls(compact: Bool) -> some View {
+		VStack(spacing: 0) {
+			PlayerTopBar(viewModel: viewModel, compact: compact)
+			Spacer()
+			PlayerBottomBar(viewModel: viewModel)
+		}
+		.padding(.horizontal, 24)
+		.padding(.vertical, 8)
+	}
+
+	private func errorOverlay(message: String) -> some View {
+		VStack(spacing: 16) {
+			Image(systemName: "exclamationmark.triangle.fill")
+				.font(.system(size: 40))
+				.foregroundStyle(.yellow)
+			Text(viewModel.str("playbackError", "Playback error"))
+				.font(.headline)
+				.foregroundStyle(.white)
+			Text(message)
+				.font(.footnote)
+				.foregroundStyle(.white.opacity(0.8))
+				.multilineTextAlignment(.center)
+				.lineLimit(4)
+			Button {
+				viewModel.dismissError()
+			} label: {
+				Text(viewModel.str("close", "Close"))
+					.font(.headline)
+					.padding(.horizontal, 28)
+					.padding(.vertical, 10)
+					.background(.white.opacity(0.2), in: Capsule())
+					.foregroundStyle(.white)
+			}
+		}
+		.padding(32)
+		.frame(maxWidth: 420)
+		.background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 20))
+	}
+}
+
+/// Bottom bar: current chapter name, the custom scrubber, then time labels
+/// with the wall-clock finish time under the remaining time (JS TimeDisplay).
+struct PlayerBottomBar: View {
+	@ObservedObject var viewModel: PlayerViewModel
+
+	private static let endsAtFormatter: DateFormatter = {
+		let formatter = DateFormatter()
+		// The JS player renders hour12:false 2-digit — a fixed 24h format.
+		formatter.dateFormat = "HH:mm"
+		return formatter
+	}()
+
+	var body: some View {
+		let position = viewModel.isScrubbing ? viewModel.scrubPosition : viewModel.displayPosition
+		let remaining = max(0, viewModel.duration - position)
+
+		VStack(alignment: .leading, spacing: 6) {
+			if let chapterName = viewModel.currentChapterName {
+				Text(chapterName)
+					.font(.caption)
+					.foregroundStyle(.white.opacity(0.7))
+					.lineLimit(1)
+			}
+			ScrubberView(viewModel: viewModel)
+			HStack(alignment: .top) {
+				Text(formatTime(position))
+				Spacer()
+				VStack(alignment: .trailing, spacing: 1) {
+					Text("-" + formatTime(remaining))
+					if viewModel.duration > 0 {
+						Text(endsAtLabel(remaining: remaining))
+							.font(.system(size: 10).monospacedDigit())
+							.foregroundStyle(.white.opacity(0.55))
+					}
+				}
+			}
+			.font(.footnote.monospacedDigit())
+			.foregroundStyle(.white.opacity(0.85))
+		}
+		.padding(.bottom, 8)
+	}
+
+	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;
+	/// translations without one (e.g. sv "slutar") get the time appended.
+	private func endsAtLabel(remaining: Double) -> String {
+		// Real remaining wall time, not speed-adjusted — matches the JS player.
+		let time = Self.endsAtFormatter.string(from: Date().addingTimeInterval(remaining))
+		let template = viewModel.str("endsAt", "Ends at %TIME%")
+		if template.contains("%TIME%") {
+			return template.replacingOccurrences(of: "%TIME%", with: time)
+		}
+		return "\(template) \(time)"
+	}
+}
+
+/// "H:MM:SS" over an hour, "M:SS" under.
+func formatTime(_ seconds: Double) -> String {
+	guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+	let total = Int(seconds.rounded())
+	let hours = total / 3600
+	let minutes = (total % 3600) / 60
+	let secs = total % 60
+	if hours > 0 {
+		return String(format: "%d:%02d:%02d", hours, minutes, secs)
+	}
+	return String(format: "%d:%02d", minutes, secs)
+}
+#endif

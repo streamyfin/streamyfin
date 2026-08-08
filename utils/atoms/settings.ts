@@ -173,9 +173,11 @@ export type HomeSectionLatestResolver = {
 
 // Video player enum. MPV is the universal default; ExoPlayer is an
 // opt-in alternative on Android TV, selectable via settings.videoPlayer.
+// Native is the fully-native iOS player (iPhone only).
 export enum VideoPlayer {
   MPV = 0,
   ExoPlayer = 1,
+  Native = 2,
 }
 
 /**
@@ -188,19 +190,37 @@ export const isExoPlayerSupported =
   Platform.OS === "android" && Platform.isTV === true;
 
 /**
+ * Whether the fully-native iOS player is available on the current platform.
+ * It only ships for iPhone/iPad (not TV); a persisted `videoPlayer: Native`
+ * preference roaming to another platform must fall back to MPV.
+ */
+export const isNativePlayerSupported =
+  Platform.OS === "ios" && Platform.isTV !== true;
+
+/**
  * Resolve the actually-active video player for the current settings.
- * MPV is the default on every platform; users can opt into ExoPlayer on
- * Android TV via settings.videoPlayer. The Android-TV capability gate is
+ * MPV is the default on Android and TV; users can opt into ExoPlayer on
+ * Android TV via settings.videoPlayer. On iPhone/iPad the fully-native
+ * player is the default: an unset `videoPlayer` (user never chose) or an
+ * explicit `Native` selection resolves to Native, while an explicit MPV
+ * choice is the opt-out and wins. The platform capability gates are
  * folded in here so callers (VideoPlayerView, direct-player's device
- * profile, PlaySettingsProvider) can never advertise ExoPlayer on a
- * platform where MPV is actually rendering — that mismatch would let
- * Jellyfin pick a stream for the wrong renderer.
+ * profile, PlaySettingsProvider) can never advertise a player on a
+ * platform where another one is actually rendering — that mismatch would
+ * let Jellyfin pick a stream for the wrong renderer.
  */
 export const getActiveVideoPlayer = (
   settings: Pick<Settings, "videoPlayer"> | null | undefined,
 ): VideoPlayer => {
   if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
     return VideoPlayer.ExoPlayer;
+  }
+  if (
+    isNativePlayerSupported &&
+    (settings?.videoPlayer === undefined ||
+      settings?.videoPlayer === VideoPlayer.Native)
+  ) {
+    return VideoPlayer.Native;
   }
   return VideoPlayer.MPV;
 };
@@ -212,6 +232,8 @@ export const getActiveVideoPlayer = (
 export const getActivePlayerType = (
   settings: Pick<Settings, "videoPlayer"> | null | undefined,
 ): "mpv" | "exoplayer" => {
+  // The Native player intentionally advertises the mpv device profile
+  // (it uses the MPV engine).
   return getActiveVideoPlayer(settings) === VideoPlayer.ExoPlayer
     ? "exoplayer"
     : "mpv";
