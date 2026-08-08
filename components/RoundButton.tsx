@@ -47,12 +47,19 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
     onPress?.();
   };
 
+  // The RNGH Pressable (required for macOS Catalyst headers) handles its press
+  // natively, outside RN's responder system — so a parent RN touchable (e.g.
+  // TouchableItemRouter around an episode card) would also fire. Claiming the
+  // responder restores the "innermost touchable wins" behavior.
+  const claimResponder = () => true;
+
   // Neither iOS nor Android draws a backdrop, so the button is just a sized box
   // around the glyph. The blur fallback below covers any other platform.
   if (Platform.OS === "ios" || Platform.OS === "android" || !background) {
     return (
       <Pressable
         onPress={handlePress}
+        onStartShouldSetResponder={claimResponder}
         hitSlop={isLarge ? LARGE_HIT_SLOP : undefined}
         className={`rounded-full ${buttonSize} flex items-center justify-center`}
         {...(viewProps as any)}
@@ -65,6 +72,7 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   return (
     <Pressable
       onPress={handlePress}
+      onStartShouldSetResponder={claimResponder}
       hitSlop={isLarge ? LARGE_HIT_SLOP : undefined}
       {...(viewProps as any)}
     >
