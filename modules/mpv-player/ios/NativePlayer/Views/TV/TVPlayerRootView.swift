@@ -8,15 +8,32 @@ import SwiftUI
 /// focus enters only with the panels/shelves of later phases.
 struct TVPlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	/// Focus memory for the button row — lives here because the row unmounts
+	/// whenever the chrome hides, and should reappear on the same control.
+	@State private var lastFocusedControl: TVControl?
 
 	var body: some View {
 		ZStack {
-			if viewModel.controlsVisible {
+			// The bar also shows alone while a remote scrub is armed with the
+			// chrome hidden; the button row only in the full (focus) chrome.
+			if viewModel.controlsVisible || viewModel.isScrubbing {
 				scrims
 				VStack {
 					TVMetadataHeader(viewModel: viewModel)
 					Spacer()
-					TVTransportBar(viewModel: viewModel, time: viewModel.time)
+					VStack(alignment: .leading, spacing: 30) {
+						if viewModel.controlsVisible, !viewModel.isScrubbing {
+							// The button row is tvOS 26+ (native glass Menus);
+							// older boxes keep the recognizer-driven transport.
+							if #available(tvOS 26.0, *) {
+								TVControlsRow(
+									viewModel: viewModel,
+									lastFocused: $lastFocusedControl
+								)
+							}
+						}
+						TVTransportBar(viewModel: viewModel, time: viewModel.time)
+					}
 				}
 				.padding(.horizontal, 80)
 				.padding(.vertical, 60)
@@ -30,12 +47,28 @@ struct TVPlayerRootView: View {
 					.scaleEffect(1.6)
 			}
 
+			// Stats for nerds — independent of the chrome, like on iOS. The
+			// shared overlay is phone-sized; scale it up for viewing distance.
+			if viewModel.showTechnicalInfo {
+				VStack {
+					HStack {
+						TechnicalInfoOverlay(viewModel: viewModel)
+							.scaleEffect(1.5, anchor: .topLeading)
+						Spacer()
+					}
+					Spacer()
+				}
+				.padding(.top, 60)
+				.padding(.leading, 80)
+			}
+
 			if let message = viewModel.errorMessage {
 				errorOverlay(message: message)
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.isScrubbing)
 	}
 
 	/// Subtitles are burned into the video frames by mpv, so the scrims and

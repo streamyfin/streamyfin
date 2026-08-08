@@ -27,6 +27,10 @@ final class NativePlayerViewController: UIViewController {
 	/// merely revealed hidden chrome must not).
 	private var panStartFraction: Double = 0
 	private var panIsScrubbing = false
+	/// All transport recognizers — disabled while the options panel is open
+	/// so SwiftUI focus owns the remote (a recognizer that fires on .select
+	/// would otherwise eat the press before the focused Button gets it).
+	private var remoteRecognizers: [UIGestureRecognizer] = []
 	#endif
 
 	init(engine: MPVPlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
@@ -194,27 +198,68 @@ final class NativePlayerViewController: UIViewController {
 	/// mandatory: an unhandled Menu press on a presented full-screen VC would
 	/// suspend the app instead of closing the player.
 	private func setupRemotePressRecognizers() {
-		addPressRecognizer(for: .menu, action: #selector(handleMenuPress))
+		// Menu stays enabled even while the options panel owns the remote:
+		// if focus ever fails to land inside the panel, an unhandled Menu
+		// press would suspend the app instead of closing the panel. The
+		// handler is panel-aware; the panel's onExitCommand is the backup.
+		addPressRecognizer(
+			for: .menu, action: #selector(handleMenuPress), disabledWhilePanelOpen: false)
 		addPressRecognizer(for: .playPause, action: #selector(handlePlayPausePress))
 		addPressRecognizer(for: .select, action: #selector(handleSelectPress))
 		addPressRecognizer(for: .leftArrow, action: #selector(handleLeftPress))
 		addPressRecognizer(for: .rightArrow, action: #selector(handleRightPress))
+		addPressRecognizer(for: .downArrow, action: #selector(handleDownPress))
+		addPressRecognizer(for: .upArrow, action: #selector(handleDownPress))
 
 		let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
 		view.addGestureRecognizer(pan)
+		remoteRecognizers.append(pan)
+
+		// Focus mode: whenever the button chrome is up, SwiftUI focus owns
+		// the remote and the transport recognizers go quiet (a recognizer
+		// firing on .select would eat the press before the focused Button
+		// gets it). Scrubbing keeps them live — the bar shows without
+		// focusable content in that state. The native Menu popups present in
+		// their own window, so they never see these recognizers at all.
+		Publishers.CombineLatest(viewModel.$controlsVisible, viewModel.$isScrubbing)
+			.map { visible, scrubbing in visible && !scrubbing }
+			.removeDuplicates()
+		.receive(on: DispatchQueue.main)
+		.sink { [weak self] focusMode in
+			guard let self else { return }
+			for recognizer in self.remoteRecognizers {
+				recognizer.isEnabled = !focusMode
+			}
+			if focusMode {
+				// Kick the focus engine a tick later so the freshly mounted
+				// buttons are focusable targets.
+				DispatchQueue.main.async {
+					self.setNeedsFocusUpdate()
+					self.updateFocusIfNeeded()
+				}
+			}
+		}
+		.store(in: &cancellables)
 	}
 
-	private func addPressRecognizer(for pressType: UIPress.PressType, action: Selector) {
+	private func addPressRecognizer(
+		for pressType: UIPress.PressType, action: Selector,
+		disabledWhilePanelOpen: Bool = true
+	) {
 		let recognizer = UITapGestureRecognizer(target: self, action: action)
 		recognizer.allowedPressTypes = [NSNumber(value: pressType.rawValue)]
 		view.addGestureRecognizer(recognizer)
+		if disabledWhilePanelOpen {
+			remoteRecognizers.append(recognizer)
+		}
 	}
 
 	@objc private func handleMenuPress() {
 		// Mirror of useRemoteControl's useTVBackPress flow, extended for the
-		// scrub state: an armed scrub is abandoned first, visible chrome is
-		// hidden next; only a Menu press from the bare-video state asks to
-		// leave playback.
+		// scrub state (open native Menu popups consume Menu in their own
+		// window before this recognizer ever sees it): an armed scrub is
+		// abandoned first, visible chrome is hidden next; only a Menu press
+		// from the bare-video state asks to leave playback.
 		if viewModel.isScrubbing {
 			viewModel.cancelScrub()
 		} else if viewModel.controlsVisible {
@@ -238,23 +283,23 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handleSelectPress() {
+		// Only reachable with the chrome hidden (focus mode disables this
+		// recognizer): commit an armed scrub, otherwise summon the chrome.
 		if viewModel.isScrubbing {
-			// Commit the armed scrub: seek + resume-if-was-playing.
 			viewModel.endScrub()
 		} else {
-			viewModel.toggleControls()
+			viewModel.showControls()
 		}
 	}
 
-	/// Left/right clickpad-edge clicks (arrow keys in the simulator) jump by
-	/// the configured skip amounts; the chrome comes up so the landing
-	/// position is visible, then auto-hides. While a scrub is armed they
-	/// nudge the scrub target instead of seeking playback.
+	/// Left/right clickpad-edge clicks (arrow keys in the simulator) with
+	/// the chrome hidden jump by the configured skip amounts — WITHOUT
+	/// summoning the chrome, which would flip the remote into focus
+	/// navigation mid-jump. While a scrub is armed they nudge the target.
 	@objc private func handleLeftPress() {
 		if viewModel.isScrubbing {
 			nudgeScrub(by: -viewModel.seekBackwardSec)
 		} else {
-			viewModel.showControls()
 			viewModel.seekBackward()
 		}
 	}
@@ -263,9 +308,15 @@ final class NativePlayerViewController: UIViewController {
 		if viewModel.isScrubbing {
 			nudgeScrub(by: viewModel.seekForwardSec)
 		} else {
-			viewModel.showControls()
 			viewModel.seekForward()
 		}
+	}
+
+	/// Clickpad top/bottom-edge clicks (up/down keys in the simulator):
+	/// summon the chrome, like Select.
+	@objc private func handleDownPress() {
+		guard viewModel.errorMessage == nil, !viewModel.isScrubbing else { return }
+		viewModel.showControls()
 	}
 
 	// MARK: tvOS scrubbing (Apple TV convention: pan to arm a position,
@@ -278,12 +329,21 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
 		switch gesture.state {
 		case .began:
-			// A pan with hidden chrome just reveals it; the NEXT pan scrubs.
-			guard viewModel.controlsVisible, viewModel.isReadyToSeek,
+			// A predominantly-vertical swipe never scrubs — it summons the
+			// chrome (focus mode) instead.
+			let velocity = gesture.velocity(in: view)
+			if !viewModel.isScrubbing, abs(velocity.y) > abs(velocity.x) {
+				panIsScrubbing = false
+				if viewModel.errorMessage == nil {
+					viewModel.showControls()
+				}
+				return
+			}
+			// Horizontal pan with the chrome hidden arms a scrub.
+			guard viewModel.isReadyToSeek,
 				viewModel.duration > 0, viewModel.errorMessage == nil
 			else {
 				panIsScrubbing = false
-				viewModel.showControls()
 				return
 			}
 			panIsScrubbing = true
