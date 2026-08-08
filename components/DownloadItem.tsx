@@ -38,16 +38,16 @@ import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
 
 /**
- * The progress ring is drawn slightly under `HEADER_ICON_SIZE`. A stroked
- * circle fills its box edge to edge where a glyph's strokes leave gaps, so at
- * an equal size the ring reads heavier than the icons beside it.
+ * The progress ring is drawn well under `HEADER_ICON_SIZE`. A stroked circle
+ * fills its box edge to edge where a glyph's strokes leave gaps, so at an equal
+ * size the ring reads heavier than the icons beside it.
  *
  * Diameter and stroke are separate knobs: shrinking the circle alone leaves a
  * chunkier-looking ring, and thinning the stroke alone does not make it smaller.
- * The stroke is set close to the weight of the SF Symbol / Material Symbol
- * glyphs it sits between, so the row reads as one set.
+ * The stroke is an absolute width rather than a share of the diameter, so
+ * resizing the ring does not change its weight.
  */
-const PROGRESS_RING_SCALE = 0.875;
+const PROGRESS_RING_SCALE = 0.7875;
 const PROGRESS_RING_SIZE = HEADER_ICON_SIZE * PROGRESS_RING_SCALE;
 const PROGRESS_RING_WIDTH = 2.5;
 
