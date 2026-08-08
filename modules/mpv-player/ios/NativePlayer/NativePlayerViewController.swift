@@ -1,6 +1,10 @@
 import Combine
 import SwiftUI
 import UIKit
+#if os(tvOS)
+import AVKit
+import CoreMedia
+#endif
 
 /// Full-screen presented player: hosts the engine's display layer and a
 /// SwiftUI controls overlay (child UIHostingController). On iOS it owns
@@ -163,6 +167,11 @@ final class NativePlayerViewController: UIViewController {
 
 		#if os(tvOS)
 		setupRemotePressRecognizers()
+		// HDR: the old TV player requests matching display criteria from the
+		// window's AVDisplayManager — without this, HDR plays as SDR.
+		viewModel.onHDRModeDetected = { [weak self] mode, fps in
+			self?.applyDisplayCriteria(for: mode, fps: Float(fps))
+		}
 		#endif
 	}
 
@@ -188,6 +197,9 @@ final class NativePlayerViewController: UIViewController {
 		super.viewWillDisappear(animated)
 		isViewVisible = false
 		UIApplication.shared.isIdleTimerDisabled = false
+		#if os(tvOS)
+		resetDisplayCriteria()
+		#endif
 	}
 
 	// MARK: - tvOS remote input
@@ -204,7 +216,11 @@ final class NativePlayerViewController: UIViewController {
 		// handler is panel-aware; the panel's onExitCommand is the backup.
 		addPressRecognizer(
 			for: .menu, action: #selector(handleMenuPress), disabledWhilePanelOpen: false)
-		addPressRecognizer(for: .playPause, action: #selector(handlePlayPausePress))
+		// Play/Pause stays live even in focus mode: it doubles as the
+		// skip/play-now shortcut while a pill or countdown is showing.
+		addPressRecognizer(
+			for: .playPause, action: #selector(handlePlayPausePress),
+			disabledWhilePanelOpen: false)
 		addPressRecognizer(for: .select, action: #selector(handleSelectPress))
 		addPressRecognizer(for: .leftArrow, action: #selector(handleLeftPress))
 		addPressRecognizer(for: .rightArrow, action: #selector(handleRightPress))
@@ -221,9 +237,14 @@ final class NativePlayerViewController: UIViewController {
 		// gets it). Scrubbing keeps them live — the bar shows without
 		// focusable content in that state. The native Menu popups present in
 		// their own window, so they never see these recognizers at all.
-		Publishers.CombineLatest(viewModel.$controlsVisible, viewModel.$isScrubbing)
-			.map { visible, scrubbing in visible && !scrubbing }
-			.removeDuplicates()
+		Publishers.CombineLatest4(
+			viewModel.$controlsVisible, viewModel.$isScrubbing,
+			viewModel.$showEpisodeList, viewModel.$showStillWatching
+		)
+		.map { visible, scrubbing, shelf, stillWatching in
+			(visible && !scrubbing) || shelf || stillWatching
+		}
+		.removeDuplicates()
 		.receive(on: DispatchQueue.main)
 		.sink { [weak self] focusMode in
 			guard let self else { return }
@@ -260,7 +281,11 @@ final class NativePlayerViewController: UIViewController {
 		// window before this recognizer ever sees it): an armed scrub is
 		// abandoned first, visible chrome is hidden next; only a Menu press
 		// from the bare-video state asks to leave playback.
-		if viewModel.isScrubbing {
+		if viewModel.showEpisodeList {
+			viewModel.showEpisodeList = false
+		} else if viewModel.countdownRemaining != nil {
+			viewModel.cancelCountdown()
+		} else if viewModel.isScrubbing {
 			viewModel.cancelScrub()
 		} else if viewModel.controlsVisible {
 			viewModel.toggleControls()
@@ -270,7 +295,11 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handlePlayPausePress() {
-		if viewModel.isScrubbing {
+		if viewModel.countdownRemaining != nil {
+			viewModel.playNextEpisode()
+		} else if viewModel.activeSegment != nil {
+			viewModel.skipActiveSegment()
+		} else if viewModel.isScrubbing {
 			// Play/Pause on an armed scrub means "jump there and play" even
 			// when playback was paused before the scrub began.
 			viewModel.endScrub()
@@ -285,7 +314,11 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handleSelectPress() {
 		// Only reachable with the chrome hidden (focus mode disables this
 		// recognizer): commit an armed scrub, otherwise summon the chrome.
-		if viewModel.isScrubbing {
+		if viewModel.countdownRemaining != nil {
+			viewModel.playNextEpisode()
+		} else if viewModel.activeSegment != nil {
+			viewModel.skipActiveSegment()
+		} else if viewModel.isScrubbing {
 			viewModel.endScrub()
 		} else {
 			viewModel.showControls()
@@ -377,6 +410,10 @@ final class NativePlayerViewController: UIViewController {
 	/// triggers the cancel action), so our recognizers stay quiet.
 	private func presentExitConfirmation() {
 		guard presentedViewController == nil else { return }
+		// JS parity (handleWillExit): the countdown must not swap the episode
+		// underneath the exit alert. Sticky-cancel is fine — a user who was
+		// asked "stop playback?" and said no is deliberately still watching.
+		viewModel.cancelCountdown()
 
 		let message: String
 		if let itemTitle = viewModel.metadata?.title, !itemTitle.isEmpty {
@@ -399,6 +436,64 @@ final class NativePlayerViewController: UIViewController {
 				self?.viewModel.close()
 			})
 		present(alert, animated: true)
+	}
+
+	// MARK: tvOS HDR display criteria (port of MpvPlayerView's extension —
+	// createHDRFormatDescription + avDisplayManager.preferredDisplayCriteria)
+
+	private func applyDisplayCriteria(for hdrMode: HDRMode, fps: Float) {
+		guard #available(tvOS 17.0, *), let window = view.window else { return }
+		let manager = window.avDisplayManager
+		if hdrMode == .sdr {
+			manager.preferredDisplayCriteria = nil
+			return
+		}
+		guard let formatDescription = createHDRFormatDescription(hdrMode: hdrMode) else {
+			return
+		}
+		manager.preferredDisplayCriteria = AVDisplayCriteria(
+			refreshRate: fps,
+			formatDescription: formatDescription
+		)
+	}
+
+	private func resetDisplayCriteria() {
+		guard #available(tvOS 17.0, *), let window = view.window else { return }
+		window.avDisplayManager.preferredDisplayCriteria = nil
+	}
+
+	private func createHDRFormatDescription(hdrMode: HDRMode) -> CMFormatDescription? {
+		var formatDescription: CMFormatDescription?
+		var extensions: [String: Any] = [
+			kCMFormatDescriptionExtension_FullRangeVideo as String: true
+		]
+		switch hdrMode {
+		case .hdr10, .dolbyVision:
+			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] =
+				kCMFormatDescriptionColorPrimaries_ITU_R_2020
+			extensions[kCMFormatDescriptionExtension_TransferFunction as String] =
+				kCMFormatDescriptionTransferFunction_SMPTE_ST_2084_PQ
+			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] =
+				kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
+		case .hlg:
+			extensions[kCMFormatDescriptionExtension_ColorPrimaries as String] =
+				kCMFormatDescriptionColorPrimaries_ITU_R_2020
+			extensions[kCMFormatDescriptionExtension_TransferFunction as String] =
+				kCMFormatDescriptionTransferFunction_ITU_R_2100_HLG
+			extensions[kCMFormatDescriptionExtension_YCbCrMatrix as String] =
+				kCMFormatDescriptionYCbCrMatrix_ITU_R_2020
+		case .sdr:
+			return nil
+		}
+		let status = CMVideoFormatDescriptionCreate(
+			allocator: kCFAllocatorDefault,
+			codecType: kCMVideoCodecType_HEVC,
+			width: 3840,
+			height: 2160,
+			extensions: extensions as CFDictionary,
+			formatDescriptionOut: &formatDescription
+		)
+		return status == noErr ? formatDescription : nil
 	}
 	#endif
 }

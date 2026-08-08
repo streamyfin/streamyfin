@@ -31,6 +31,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	var onDismissRequested: ((PlayerDismissReason) -> Void)?
 	/// Set by the view controller — it owns the orientation mask.
 	var onRotateRequested: (() -> Void)?
+	/// tvOS: set by the view controller — it owns the window's
+	/// AVDisplayManager (HDR display criteria).
+	var onHDRModeDetected: ((HDRMode, Double) -> Void)?
 
 	// MARK: - Playback state
 
@@ -998,7 +1001,8 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
-		// tvOS-only concern (AVDisplayCriteria); nothing to do on iOS.
+		// tvOS applies AVDisplayCriteria via the view controller; no-op on iOS.
+		onHDRModeDetected?(mode, fps)
 	}
 
 	func engineDidReachEnd(_ engine: MPVPlayerEngine) {

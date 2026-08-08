@@ -62,6 +62,40 @@ struct TVPlayerRootView: View {
 				.padding(.leading, 80)
 			}
 
+			// Skip pill / countdown card stay actionable while the chrome is
+			// hidden (Select / Play-Pause via the VC recognizers).
+			if !viewModel.showEpisodeList {
+				VStack {
+					Spacer()
+					HStack {
+						Spacer()
+						if let countdown = viewModel.countdownRemaining,
+							let next = viewModel.nextEpisode {
+							TVCountdownCard(
+								viewModel: viewModel, next: next, remaining: countdown)
+						} else if let segment = viewModel.activeSegment {
+							TVSkipPill(viewModel: viewModel, segment: segment)
+						}
+					}
+				}
+				.padding(.trailing, 80)
+				.padding(.bottom, viewModel.controlsVisible ? 260 : 80)
+			}
+
+			if viewModel.showEpisodeList {
+				VStack {
+					Spacer()
+					TVEpisodeShelf(viewModel: viewModel)
+				}
+				.transition(.move(edge: .bottom).combined(with: .opacity))
+				.zIndex(3)
+			}
+
+			if viewModel.showStillWatching {
+				TVStillWatchingCard(viewModel: viewModel)
+					.zIndex(4)
+			}
+
 			if let message = viewModel.errorMessage {
 				errorOverlay(message: message)
 			}
@@ -69,6 +103,9 @@ struct TVPlayerRootView: View {
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.isScrubbing)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
+		.animation(.easeInOut(duration: 0.25), value: viewModel.showEpisodeList)
 	}
 
 	/// Subtitles are burned into the video frames by mpv, so the scrims and
