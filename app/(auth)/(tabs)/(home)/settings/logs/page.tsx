@@ -9,7 +9,10 @@ import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
-import { HeaderButton } from "@/components/common/HeaderButton";
+import {
+  HEADER_BUTTON_INSET,
+  HeaderButton,
+} from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
@@ -101,7 +104,11 @@ export default function Page() {
     navigation.setOptions({
       headerRight: () =>
         loading ? (
-          <Loader />
+          // Same inset as the button it stands in for, so the iOS 26 pill
+          // doesn't change shape when the spinner swaps out.
+          <View style={{ paddingHorizontal: HEADER_BUTTON_INSET }}>
+            <Loader />
+          </View>
         ) : (
           <HeaderButton onPress={share}>
             <Text>{t("home.settings.logs.export_logs")}</Text>

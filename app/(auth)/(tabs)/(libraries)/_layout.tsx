@@ -3,7 +3,10 @@ import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
-import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
+import {
+  HEADER_BUTTON_INSET,
+  HEADER_ICON_SIZE,
+} from "@/components/common/HeaderButton";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import {
   nestedTabPageScreenOptions,
@@ -173,7 +176,7 @@ export default function IndexLayout() {
                   <View
                     style={{
                       height: HEADER_ICON_SIZE,
-                      width: HEADER_ICON_SIZE,
+                      paddingHorizontal: HEADER_BUTTON_INSET,
                     }}
                   >
                     <Ionicons

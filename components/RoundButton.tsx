@@ -21,10 +21,10 @@ const LARGE_HIT_SLOP = 10;
 
 /**
  * `size="large"` is the header variant: it matches `HeaderButton`'s box exactly
- * — no padding, icon at `HEADER_ICON_SIZE` — so item-page header buttons land on
- * the same grid as every other header icon in the app. It used to be a 40pt box
- * around a 22pt glyph, and that invisible 9pt of padding is what forced each
- * header to compensate with margins of its own.
+ * — icon at `HEADER_ICON_SIZE` plus the shared `HEADER_BUTTON_INSET` — so
+ * item-page header buttons land on the same grid as every other header icon in
+ * the app. It used to be a 40pt box around a 22pt glyph, and that lopsided 9pt
+ * is what forced each header to compensate with margins of its own.
  */
 export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   background = true,
@@ -38,7 +38,10 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   ...viewProps
 }) => {
   const isLarge = size === "large";
-  const buttonSize = isLarge ? "h-6 w-6" : "h-9 w-9";
+  // Large is the header variant: glyph-sized box plus the shared header inset,
+  // so it spaces identically to a HeaderButton beside it. Width is left to the
+  // content rather than fixed, or the padding would eat into the glyph.
+  const buttonSize = isLarge ? "h-6 px-2" : "h-9 w-9";
   const fillColorClass = fillColor === "primary" ? "bg-purple-600" : "";
   const lightHapticFeedback = useHaptic("light");
 

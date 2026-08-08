@@ -4,15 +4,18 @@
  * `headerLeft`/`headerRight` elements are not laid out by React Native — they
  * are handed to the platform as bar button custom views (iOS:
  * `UIBarButtonItem(customView:)`; Android: a `Gravity.START`/`Gravity.END`
- * child of the Toolbar). The platform already insets that view by the standard
- * 16pt/dp bar margin, so any padding *inside* it pushes the glyph off the
- * system grid. Screens used to compensate with per-screen `px-2`, `p-2`,
- * `pl-1.5`, `mr-4`… which is exactly why no two headers lined up.
+ * child of the Toolbar). The platform positions that view against the bar
+ * margin, and on iOS 26 it also draws the shared-background glass pill around
+ * it. Both hug the content, so the element's own box is what sets the visual
+ * inset. Screens used to set that inset ad hoc — `px-2` here, `p-2` there,
+ * `pl-1.5`, `mr-4`, nothing at all — which is exactly why no two headers lined
+ * up.
  *
- * The rule here: header buttons carry no padding and no margins. The box is the
- * icon's em square, so the container edge *is* the glyph edge and the platform
- * margin is the only offset. `hitSlop` restores the touch target, and
- * `HeaderButtonGroup` owns the spacing between siblings.
+ * The rule here: every header button carries the same horizontal inset and no
+ * margins. Uniform is what makes headers align; the value itself just has to be
+ * shared. It doubles as the pill's internal padding on iOS 26, and two adjacent
+ * buttons produce `2 × HEADER_BUTTON_INSET` between their glyphs, so the group
+ * needs no gap of its own.
  */
 
 import type { PropsWithChildren } from "react";
@@ -31,8 +34,16 @@ import { Pressable, type PressableProps } from "react-native-gesture-handler";
  */
 export const HEADER_ICON_SIZE = 24;
 
-/** Matches UIKit's spacing between adjacent bar button items. */
-const HEADER_BUTTON_GAP = 16;
+/**
+ * Horizontal inset carried by every header button.
+ *
+ * On iOS 26 this is the padding inside the shared-background pill — with zero
+ * inset the glyphs sit hard against the glass edge. Between two adjacent
+ * buttons it doubles to 16pt, which is UIKit's spacing for bar button items.
+ * Anything mounted in a header that is not a `HeaderButton` (`RoundButton`'s
+ * large variant, a dropdown trigger) must use the same value.
+ */
+export const HEADER_BUTTON_INSET = 8;
 
 /** Grows the icon box to the 44pt minimum touch target from Apple's HIG. */
 const HEADER_HIT_SLOP = 10;
@@ -44,9 +55,9 @@ const HEADER_HIT_SLOP = 10;
  * headerLeft view, and react-native-screens clears the Toolbar's own
  * `contentInsetStartWithNavigation` when a left subview is present — so the gap
  * has to come from JS. iOS mounts the title in a separate centre view and needs
- * nothing.
+ * nothing. The button's own trailing inset covers half of it.
  */
-const ANDROID_TITLE_GAP = 16;
+const ANDROID_TITLE_GAP = 16 - HEADER_BUTTON_INSET;
 
 export interface HeaderButtonProps extends Omit<PressableProps, "style"> {
   /**
@@ -72,8 +83,7 @@ export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
     style={[
       {
         height: HEADER_ICON_SIZE,
-        // Icons stay square; text buttons ("Save", "Log out") grow past it.
-        minWidth: HEADER_ICON_SIZE,
+        paddingHorizontal: HEADER_BUTTON_INSET,
         alignItems: "center",
         justifyContent: "center",
         marginRight:
@@ -90,9 +100,9 @@ export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
 );
 
 /**
- * Spaces multiple header buttons evenly. Use this instead of putting margins on
- * the buttons themselves — a button that carries its own margin is misaligned
- * everywhere it is used without a sibling.
+ * Lays header buttons out in a row. Spacing comes from each button's own
+ * horizontal inset, not from a gap here — that way a lone button gets the same
+ * inset inside the iOS 26 pill as one sitting in a group of five.
  */
 export const HeaderButtonGroup: React.FC<PropsWithChildren<ViewProps>> = ({
   children,
@@ -100,14 +110,7 @@ export const HeaderButtonGroup: React.FC<PropsWithChildren<ViewProps>> = ({
   ...props
 }) => (
   <View
-    style={[
-      {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: HEADER_BUTTON_GAP,
-      },
-      style,
-    ]}
+    style={[{ flexDirection: "row", alignItems: "center" }, style]}
     {...props}
   >
     {children}

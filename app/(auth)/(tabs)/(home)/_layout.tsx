@@ -36,7 +36,7 @@ export default function IndexLayout() {
           headerRight: () =>
             Platform.isTV ? null : (
               <HeaderButtonGroup>
-                <Chromecast.Chromecast background='transparent' />
+                <Chromecast.Chromecast />
                 {user?.Policy?.IsAdministrator && <SessionsButton />}
                 <SettingsButton />
               </HeaderButtonGroup>

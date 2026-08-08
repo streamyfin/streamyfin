@@ -17,7 +17,10 @@ import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
-import { HeaderButtonGroup } from "@/components/common/HeaderButton";
+import {
+  HEADER_BUTTON_INSET,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import Cast from "@/components/jellyseerr/Cast";
@@ -240,7 +243,12 @@ const MobilePage: React.FC = () => {
       navigation.setOptions({
         headerRight: () => (
           <HeaderButtonGroup>
-            <ItemActions item={details} />
+            {/* ItemActions is also used in-page, so the header inset is
+                applied here rather than baked into the component. */}
+            <ItemActions
+              item={details}
+              style={{ paddingHorizontal: HEADER_BUTTON_INSET }}
+            />
           </HeaderButtonGroup>
         ),
       });
