@@ -1,7 +1,3 @@
-import {
-  ActionSheetProvider,
-  useActionSheet,
-} from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
@@ -9,6 +5,7 @@ import type React from "react";
 import { useCallback, useMemo } from "react";
 import { View } from "react-native";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
+import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { ProgressBar } from "../common/ProgressBar";
@@ -26,45 +23,26 @@ interface MovieCardProps {
  */
 export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
   const { deleteFile } = useDownload();
-  const { showActionSheetWithOptions } = useActionSheet();
+  const confirmDelete = useConfirmDelete();
 
   const base64Image = useMemo(() => {
     return item?.Id ? storage.getString(item.Id) : undefined;
   }, [item?.Id]);
 
-  /**
-   * Handles deleting the file with haptic feedback.
-   */
   const handleDeleteFile = useCallback(() => {
     if (item.Id) {
       deleteFile(item.Id);
     }
   }, [deleteFile, item.Id]);
 
-  const showActionSheet = useCallback(() => {
-    const options = ["Delete", "Cancel"];
-    const destructiveButtonIndex = 0;
-    const cancelButtonIndex = 1;
-
-    showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-        destructiveButtonIndex,
-      },
-      (selectedIndex) => {
-        switch (selectedIndex) {
-          case destructiveButtonIndex:
-            // Delete
-            handleDeleteFile();
-            break;
-          case cancelButtonIndex:
-            // Cancelled
-            break;
-        }
-      },
-    );
-  }, [showActionSheetWithOptions, handleDeleteFile]);
+  const showActionSheet = useCallback(
+    () =>
+      confirmDelete({
+        title: item.Name ?? undefined,
+        onConfirm: handleDeleteFile,
+      }),
+    [confirmDelete, handleDeleteFile, item.Name],
+  );
 
   return (
     <TouchableItemRouter onLongPress={showActionSheet} item={item}>
@@ -100,10 +78,3 @@ export const MovieCard: React.FC<MovieCardProps> = ({ item }) => {
     </TouchableItemRouter>
   );
 };
-
-// Wrap the parent component with ActionSheetProvider
-export const MovieCardWithActionSheet: React.FC<MovieCardProps> = (props) => (
-  <ActionSheetProvider>
-    <MovieCard {...props} />
-  </ActionSheetProvider>
-);
