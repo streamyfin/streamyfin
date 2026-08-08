@@ -33,19 +33,10 @@
     /// Submitted but the launch handler has not run yet — guards double submission.
     private var isPending = false
 
-    /// Why the keeper stopped covering the download. The distinction matters: an expiration while
-    /// bytes were flowing is almost certainly the user tapping stop on the system UI (a stall
-    /// expiration requires ~30s of silence first), whereas a submission failure happens seconds
-    /// into a healthy, user-wanted download and must never trigger cancellation.
-    enum UnavailableReason {
-      case submissionFailed
-      case expired
-    }
-
     /// The keeper's system UI replaces the module's own Live Activity on iOS 26+, so when the
-    /// keeper cannot run the module needs to know — to fall back to its regular activity, and on
-    /// expiration to apply the user-stop heuristic. Set once by the module at creation.
-    var onUnavailable: ((UnavailableReason) -> Void)?
+    /// keeper cannot run (submission refused, task expired) the module needs to know and put its
+    /// regular activity up instead. Set once by the module at creation.
+    var onUnavailable: (() -> Void)?
 
     /// Submits the keeper task if none is live. Safe to call on every download start; queue
     /// advances reuse the already-running task and retitle its system UI to the episode that is
@@ -73,7 +64,7 @@
           backgroundDownloaderLog.error(
             "Continued processing submit failed: \(error.localizedDescription, privacy: .public)"
           )
-          self.onUnavailable?(.submissionFailed)
+          self.onUnavailable?()
         }
       }
     }
@@ -138,7 +129,7 @@
             )
             self.task?.setTaskCompleted(success: false)
             self.task = nil
-            self.onUnavailable?(.expired)
+            self.onUnavailable?()
           }
         }
 

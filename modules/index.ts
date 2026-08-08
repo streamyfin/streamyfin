@@ -1,7 +1,6 @@
 // Background Downloader
 export type {
   ActiveDownload,
-  DownloadCancelledEvent,
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadProgressEvent,
