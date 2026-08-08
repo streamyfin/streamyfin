@@ -34,6 +34,7 @@ export default function IndexLayout() {
                 <>
                   <Chromecast.Chromecast background='transparent' />
                   {user?.Policy?.IsAdministrator && <SessionsButton />}
+                  {user?.Policy?.IsAdministrator && <AdminButton />}
                   <SettingsButton />
                 </>
               )}
@@ -60,6 +61,24 @@ export default function IndexLayout() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Stack.Screen
+        name='admin/index'
+        options={{
+          title: t("home.admin.title"),
+        }}
+      />
+      <Stack.Screen
+        name='admin/tasks/page'
+        options={{
+          title: t("home.admin.running_tasks"),
+        }}
+      />
+      <Stack.Screen
+        name='admin/users/page'
+        options={{
+          title: t("home.admin.manage_users"),
         }}
       />
       <Stack.Screen
@@ -290,5 +309,20 @@ const SessionsButton = () => {
         size={28}
       />
     </Pressable>
+  );
+};
+
+const AdminButton = () => {
+  const router = useRouter();
+
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        router.push("/(auth)/admin");
+      }}
+      className='mr-4'
+    >
+      <Feather name='shield' color={"white"} size={22} />
+    </TouchableOpacity>
   );
 };
