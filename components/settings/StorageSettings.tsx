@@ -119,7 +119,7 @@ export const StorageSettings = () => {
         </View>
       </View>
       {!Platform.isTV && (
-        <ListGroup className={Platform.OS === "android" ? "mt-4" : undefined}>
+        <ListGroup className='mt-4'>
           <ListItem
             textColor='red'
             onPress={onDeleteClicked}
