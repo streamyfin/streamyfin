@@ -28,11 +28,22 @@ export {
 // Hooks
 export { useDownloadEventHandlers } from "./hooks/useDownloadEventHandlers";
 export { useDownloadOperations } from "./hooks/useDownloadOperations";
+export { useDownloadReconciliation } from "./hooks/useDownloadReconciliation";
 // Notification helpers
 export {
   getNotificationContent,
   sendDownloadNotification,
 } from "./notifications";
+// Pending download records (persisted while a download is in flight)
+export {
+  finalizePendingDownload,
+  getPendingDownload,
+  getPendingDownloads,
+  type PendingDownload,
+  removePendingDownload,
+  savePendingDownload,
+  updatePendingDownload,
+} from "./pendingDownloads";
 // Types (re-export from existing types.ts)
 export type {
   DownloadedItem,

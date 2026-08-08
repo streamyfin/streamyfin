@@ -144,7 +144,6 @@ const MobileActorPage: React.FC<{ personId: string }> = ({ personId }) => {
           queryFn={fetchItems}
           queryKey={["actor", "movies", personId]}
         />
-        <View className='h-12' />
       </View>
     </ParallaxScrollView>
   );

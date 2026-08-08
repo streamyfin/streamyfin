@@ -149,6 +149,8 @@
       },
       "appearance": {
         "title": "Utseende",
+        "download_live_activity": "Liveaktivitet",
+        "download_live_activity_hint": "Visa nedladdningens förlopp på låsskärmen och i Dynamic Island.",
         "merge_next_up_continue_watching": "Slå ihop Fortsätt titta och nästa avsnitt",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
@@ -499,6 +501,12 @@
       "something_went_wrong": "Något Gick Fel",
       "could_not_get_stream_url_from_jellyfin": "Det gick inte att hämta strömadressen från Jellyfin",
       "eta": "ETA {{eta}}",
+      "live_activity": {
+        "downloading": "Laddar ner",
+        "completed": "Nedladdad",
+        "failed": "Nedladdningen misslyckades",
+        "queued": "I kö"
+      },
       "toasts": {
         "you_are_not_allowed_to_download_files": "Du har inte behörighet att ladda ner filer.",
         "deleted_all_movies_successfully": "Alla Filmer Har Tagits Bort!",

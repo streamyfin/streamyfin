@@ -1,4 +1,3 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -17,6 +16,9 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -34,6 +36,25 @@ import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
+
+/**
+ * The progress ring is drawn well under `HEADER_ICON_SIZE`. A stroked circle
+ * fills its box edge to edge where a glyph's strokes leave gaps, so at an equal
+ * size the ring reads heavier than the icons beside it.
+ *
+ * Diameter and stroke are separate knobs: shrinking the circle alone leaves a
+ * chunkier-looking ring, and thinning the stroke alone does not make it smaller.
+ * The stroke is an absolute width rather than a share of the diameter, so
+ * resizing the ring does not change its weight.
+ *
+ * Keep the diameter a whole point. The library draws the stroke tangent to the
+ * SVG's edge — `radius` is `size / 2 - width / 2`, so the outer edge lands
+ * exactly on the boundary with no slack — and a fractional size rounds to
+ * device pixels unevenly, shaving that edge into a visible cutoff.
+ */
+const PROGRESS_RING_SCALE = 0.79;
+const PROGRESS_RING_SIZE = Math.round(HEADER_ICON_SIZE * PROGRESS_RING_SCALE);
+const PROGRESS_RING_WIDTH = 2.5;
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -342,18 +363,18 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       ) : (
         <View className='-rotate-45'>
           <ProgressCircle
-            size={24}
+            size={PROGRESS_RING_SIZE}
             fill={progress}
-            width={4}
-            tintColor='#9334E9'
-            backgroundColor='#bdc3c7'
+            width={PROGRESS_RING_WIDTH}
+            tintColor={Colors.primary}
+            backgroundColor='white'
           />
         </View>
       );
     }
 
     if (itemsQueued) {
-      return <Ionicons name='hourglass' size={24} color='white' />;
+      return <HeaderIcon name='queued' />;
     }
 
     if (allItemsDownloaded) {
@@ -508,11 +529,9 @@ export const DownloadSingleItem: React.FC<{
       }
       subtitle={item.Name!}
       items={[item]}
-      MissingDownloadIconComponent={() => (
-        <Ionicons name='cloud-download-outline' size={24} color='white' />
-      )}
+      MissingDownloadIconComponent={() => <HeaderIcon name='downloads' />}
       DownloadedIconComponent={() => (
-        <Ionicons name='cloud-download' size={26} color='#9333ea' />
+        <HeaderIcon name='downloaded' tintColor={Colors.primary} />
       )}
     />
   );

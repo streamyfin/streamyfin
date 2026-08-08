@@ -1,11 +1,27 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
+import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import {
+  nestedTabPageScreenOptions,
+  stackScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
+
+// Deep entries into this tab — the home "See All" button, or tapping a library /
+// playlist row from another tab (see `itemRouter` in TouchableItemRouter) — push a
+// fully qualified `(libraries)` path from outside the tab. Without an anchor the
+// tab's stack is built as just [detail]: there is nothing to pop to, so the screen
+// has no back button and the tab stays pinned to that library, because pop-to-top
+// on a single-route stack does nothing. Anchoring the group to `index` seeds the
+// library list underneath, and the native stack renders its own back button.
+//
+// TV is excluded on purpose: its "See All" flow deliberately collapses the stack
+// back to [detail] and intercepts Back itself — see [libraryId].tsx.
+export const unstable_settings = Platform.isTV ? {} : { anchor: "index" };
 
 export default function IndexLayout() {
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -150,7 +166,7 @@ export default function IndexLayout() {
   if (!settings?.libraryOptions) return null;
 
   return (
-    <Stack>
+    <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen
         name='index'
         options={{
@@ -166,12 +182,13 @@ export default function IndexLayout() {
                 open={dropdownOpen}
                 onOpenChange={setDropdownOpen}
                 trigger={
-                  <View>
-                    <Ionicons
-                      name='ellipsis-horizontal-outline'
-                      size={24}
-                      color='white'
-                    />
+                  <View
+                    style={{
+                      height: HEADER_ICON_SIZE,
+                      width: HEADER_ICON_SIZE,
+                    }}
+                  >
+                    <HeaderIcon name='more' />
                   </View>
                 }
                 title={t("library.options.display")}
