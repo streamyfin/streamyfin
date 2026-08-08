@@ -52,7 +52,7 @@ import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
  * exactly on the boundary with no slack — and a fractional size rounds to
  * device pixels unevenly, shaving that edge into a visible cutoff.
  */
-const PROGRESS_RING_SCALE = 0.875;
+const PROGRESS_RING_SCALE = 0.79;
 const PROGRESS_RING_SIZE = Math.round(HEADER_ICON_SIZE * PROGRESS_RING_SCALE);
 const PROGRESS_RING_WIDTH = 2.5;
 
