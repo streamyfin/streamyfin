@@ -31,6 +31,16 @@ export interface DownloadStartedEvent {
   itemId?: string;
 }
 
+/**
+ * iOS only: the user stopped the downloads from the system task UI (heuristically detected — see
+ * the keeper's user-stop window). One event per cancelled download, active and queued alike.
+ */
+export interface DownloadCancelledEvent {
+  /** `-1` for downloads that were still queued. */
+  taskId: number;
+  itemId?: string;
+}
+
 export interface ActiveDownload {
   /** Native task id; `-1` for queued entries, which have no task yet. */
   taskId: number;

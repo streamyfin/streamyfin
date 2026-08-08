@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import type {
   ActiveDownload,
   DownloadActivityMetadata,
+  DownloadCancelledEvent,
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadProgressEvent,
@@ -50,6 +51,11 @@ export interface BackgroundDownloader {
 
   addStartedListener(
     listener: (event: DownloadStartedEvent) => void,
+  ): EventSubscription;
+
+  /** iOS only: fires when the user stops downloads from the system task UI. */
+  addCancelledListener(
+    listener: (event: DownloadCancelledEvent) => void,
   ): EventSubscription;
 }
 
@@ -136,6 +142,15 @@ const BackgroundDownloader: BackgroundDownloader = {
       listener,
     );
   },
+
+  addCancelledListener(
+    listener: (event: DownloadCancelledEvent) => void,
+  ): EventSubscription {
+    return BackgroundDownloaderModule.addListener(
+      "onDownloadCancelled",
+      listener,
+    );
+  },
 };
 
 export default BackgroundDownloader;
@@ -143,6 +158,7 @@ export default BackgroundDownloader;
 export type {
   ActiveDownload,
   DownloadActivityMetadata,
+  DownloadCancelledEvent,
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadProgressEvent,

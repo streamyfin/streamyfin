@@ -145,7 +145,8 @@ public class BackgroundDownloaderModule: Module {
       "onDownloadProgress",
       "onDownloadComplete",
       "onDownloadError",
-      "onDownloadStarted"
+      "onDownloadStarted",
+      "onDownloadCancelled"
     )
 
     OnCreate {
@@ -154,10 +155,10 @@ public class BackgroundDownloaderModule: Module {
         // expired), fall back to the module's own Live Activity so the lock screen is not empty.
         #if os(iOS) && compiler(>=6.2)
           if #available(iOS 26.0, *) {
-            DownloadContinuedProcessingKeeper.shared.onUnavailable = { [weak self] in
+            DownloadContinuedProcessingKeeper.shared.onUnavailable = { [weak self] reason in
               guard let self else { return }
               self.stateQueue.async {
-                self.startFallbackLiveActivityLocked()
+                self.handleKeeperUnavailableLocked(expired: reason == .expired)
               }
             }
           }
@@ -687,6 +688,30 @@ public class BackgroundDownloaderModule: Module {
     return false
   }
 
+  /// A stall expiration requires ~30 seconds of missing progress before the system fires it, so
+  /// an expiration while bytes arrived within this window can only realistically be the user
+  /// tapping stop on the system UI. Kept well under the stall threshold so the two cannot overlap.
+  private static let userStopCancelWindow: TimeInterval = 5
+
+  private func handleKeeperUnavailableLocked(expired: Bool) {
+    // Heuristic user-stop detection (Apple provides no explicit signal yet — see the DTS
+    // acknowledgment on forums thread 805088): expiration with fresh progress means the user
+    // tapped stop, so honor the tap and cancel the work. Everything else — submission failures,
+    // stall expirations — falls back to the module's own activity and lets the transfer finish.
+    if expired,
+      let lastProgress = lastProgressTime.values.max(),
+      Date().timeIntervalSince(lastProgress) <= Self.userStopCancelWindow
+    {
+      backgroundDownloaderLog.notice(
+        "Keeper expired while bytes were flowing; treating as user stop and cancelling downloads"
+      )
+      cancelAllForUserStopLocked()
+      return
+    }
+
+    startFallbackLiveActivityLocked()
+  }
+
   /// The keeper refused or died; give the active download the regular activity instead. The
   /// request only succeeds while the app is foregrounded — after a background expiration this is
   /// a logged no-op and the lock screen stays empty until the next real event.
@@ -694,6 +719,39 @@ public class BackgroundDownloaderModule: Module {
     guard let (taskId, info) = downloadTasks.first, let metadata = info.metadata else { return }
     backgroundDownloaderLog.notice("Keeper unavailable; falling back to own Live Activity")
     forceStartLiveActivity(taskId: taskId, metadata: metadata)
+  }
+
+  /// Cancels the active transfer and the whole queue in response to a system-UI stop tap.
+  private func cancelAllForUserStopLocked() {
+    // Events go out first: the process suspends shortly after the keeper dies and JS needs these
+    // to settle its persisted records. If suspension wins the race anyway, the next launch's
+    // reconciliation re-enqueues the queued items as if native lost them — an accepted residual
+    // of the heuristic, correctable by the user in-app.
+    for (taskId, info) in downloadTasks {
+      var payload: [String: Any] = ["taskId": taskId]
+      if let itemId = info.metadata?.itemId {
+        payload["itemId"] = itemId
+      }
+      sendEvent("onDownloadCancelled", payload)
+    }
+    for queued in downloadQueue {
+      guard let itemId = queued.metadata?.itemId else { continue }
+      sendEvent("onDownloadCancelled", ["taskId": -1, "itemId": itemId])
+    }
+
+    downloadQueue.removeAll()
+    queueDidChangeLocked()
+    downloadTasks.removeAll()
+    lastProgressTime.removeAll()
+    persistTasksLocked()
+
+    cancelAllLiveActivities()
+
+    session?.getAllTasks { tasks in
+      for task in tasks {
+        task.cancel()
+      }
+    }
   }
 
   private func updateLiveActivity(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {

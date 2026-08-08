@@ -2,6 +2,7 @@ import { File } from "expo-file-system";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type {
+  DownloadCancelledEvent,
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadProgressEvent,
@@ -279,4 +280,23 @@ export function useDownloadEventHandlers({
 
     return () => errorSub.remove();
   }, [updateProcess, removeProcess, t]);
+
+  // Handle system-UI stop taps (iOS only): the user cancelled from the continued-processing task
+  // pill. Native has already cancelled the transfers and cleared its queue; settle our records
+  // quietly — no error notification, this was an intentional user action.
+  useEffect(() => {
+    const cancelledSub = BackgroundDownloader.addCancelledListener(
+      (event: DownloadCancelledEvent) => {
+        const itemId = event.itemId;
+        if (!itemId || !getPendingDownload(itemId)) return;
+
+        console.log(`[DPL] Cancelled from system UI: ${itemId.slice(0, 8)}...`);
+        removePendingDownload(itemId);
+        clearSpeedData(itemId);
+        removeProcess(itemId);
+      },
+    );
+
+    return () => cancelledSub.remove();
+  }, [removeProcess]);
 }
