@@ -946,6 +946,39 @@ export default function SettingsTV() {
               updateSettings({ mergeNextUpAndContinueWatching: value })
             }
           />
+          <TVSettingsStepper
+            label={t("home.settings.appearance.next_up_days_cutoff")}
+            value={Number.parseInt(settings.nextUpDaysCutoff ?? "0", 10) || 0}
+            onDecrease={() => {
+              const current =
+                Number.parseInt(settings.nextUpDaysCutoff ?? "0", 10) || 0;
+              const newValue = Math.max(0, current - 7);
+              updateSettings({
+                nextUpDaysCutoff: newValue > 0 ? String(newValue) : undefined,
+              });
+            }}
+            onIncrease={() => {
+              const current =
+                Number.parseInt(settings.nextUpDaysCutoff ?? "0", 10) || 0;
+              updateSettings({
+                nextUpDaysCutoff: String(Math.min(365, current + 7)),
+              });
+            }}
+            formatValue={(v) =>
+              v > 0
+                ? t("home.settings.appearance.next_up_days_cutoff_days", {
+                    days: v,
+                  })
+                : t("home.settings.appearance.next_up_days_cutoff_off")
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.appearance.next_up_disable_first_episode")}
+            value={settings.nextUpDisableFirstEpisode}
+            onToggle={(value) =>
+              updateSettings({ nextUpDisableFirstEpisode: value })
+            }
+          />
           <TVSettingsToggle
             label={t("home.settings.appearance.use_episode_images_next_up")}
             value={settings.useEpisodeImagesForNextUp}

@@ -44,6 +44,7 @@ import {
   userAtom,
 } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getNextUpDateCutoff } from "@/utils/jellyfin/getNextUpDateCutoff";
 import { getBackdropUrl } from "@/utils/jellyfin/image/getBackdropUrl";
 import { scaleSize } from "@/utils/scaleSize";
 import { updateTVDiscovery } from "@/utils/tvDiscovery/sync";
@@ -56,7 +57,7 @@ const SECTION_GAP = scaleSize(24);
 type InfiniteScrollingCollectionListSection = {
   type: "InfiniteScrollingCollectionList";
   title?: string;
-  queryKey: (string | undefined | null)[];
+  queryKey: (string | boolean | undefined | null)[];
   queryFn: QueryFunction<BaseItemDto[], any, number>;
   orientation?: "horizontal" | "vertical";
   pageSize?: number;
@@ -222,7 +223,13 @@ export const Home = () => {
 
   // Fetch hero items (Continue Watching + Next Up combined)
   const { data: heroItems } = useQuery({
-    queryKey: ["home", "heroItems", user?.Id],
+    queryKey: [
+      "home",
+      "heroItems",
+      user?.Id,
+      settings.nextUpDaysCutoff ?? null,
+      settings.nextUpDisableFirstEpisode,
+    ],
     queryFn: async () => {
       if (!api || !user?.Id) return [];
 
@@ -242,6 +249,8 @@ export const Home = () => {
           fields: ["Overview"],
           enableImageTypes: ["Primary", "Backdrop", "Thumb"],
           enableResumable: false,
+          nextUpDateCutoff: getNextUpDateCutoff(settings.nextUpDaysCutoff),
+          disableFirstEpisode: settings.nextUpDisableFirstEpisode,
         }),
       ]);
 
@@ -376,7 +385,12 @@ export const Home = () => {
       ? [
           {
             title: t("home.continue_and_next_up"),
-            queryKey: ["home", "continueAndNextUp"],
+            queryKey: [
+              "home",
+              "continueAndNextUp",
+              settings.nextUpDaysCutoff ?? null,
+              settings.nextUpDisableFirstEpisode,
+            ],
             queryFn: async ({ pageParam = 0 }) => {
               const [resumeResponse, nextUpResponse] = await Promise.all([
                 getItemsApi(api).getResumeItems({
@@ -392,6 +406,10 @@ export const Home = () => {
                   limit: 20,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   enableResumable: false,
+                  nextUpDateCutoff: getNextUpDateCutoff(
+                    settings.nextUpDaysCutoff,
+                  ),
+                  disableFirstEpisode: settings.nextUpDisableFirstEpisode,
                 }),
               ]);
 
@@ -429,7 +447,12 @@ export const Home = () => {
           },
           {
             title: t("home.next_up"),
-            queryKey: ["home", "nextUp-all"],
+            queryKey: [
+              "home",
+              "nextUp-all",
+              settings.nextUpDaysCutoff ?? null,
+              settings.nextUpDisableFirstEpisode,
+            ],
             queryFn: async ({ pageParam = 0 }) =>
               (
                 await getTvShowsApi(api).getNextUp({
@@ -438,6 +461,10 @@ export const Home = () => {
                   limit: 10,
                   enableImageTypes: ["Primary", "Backdrop", "Thumb"],
                   enableResumable: false,
+                  nextUpDateCutoff: getNextUpDateCutoff(
+                    settings.nextUpDaysCutoff,
+                  ),
+                  disableFirstEpisode: settings.nextUpDisableFirstEpisode,
                 })
               ).data.Items || [],
             type: "InfiniteScrollingCollectionList",
@@ -480,6 +507,8 @@ export const Home = () => {
     createCollectionConfig,
     settings?.streamyStatsMovieRecommendations,
     settings.mergeNextUpAndContinueWatching,
+    settings.nextUpDaysCutoff,
+    settings.nextUpDisableFirstEpisode,
   ]);
 
   const customSections = useMemo(() => {
@@ -490,7 +519,23 @@ export const Home = () => {
       const pageSize = 10;
       ss.push({
         title: t(`${id}`),
-        queryKey: ["home", "custom", String(index), section.title ?? null],
+        queryKey: [
+          "home",
+          "custom",
+          String(index),
+          section.title ?? null,
+          // Only Next Up sections depend on the cutoff; keep other section
+          // types' keys stable so a setting change doesn't refetch them.
+          section.nextUp
+            ? (section.nextUp.nextUpDaysCutoff ??
+              settings.nextUpDaysCutoff ??
+              null)
+            : null,
+          section.nextUp
+            ? (section.nextUp.disableFirstEpisode ??
+              settings.nextUpDisableFirstEpisode)
+            : null,
+        ],
         queryFn: async ({ pageParam = 0 }) => {
           if (section.items) {
             const response = await getItemsApi(api).getItems({
@@ -514,6 +559,13 @@ export const Home = () => {
               enableImageTypes: ["Primary", "Backdrop", "Thumb"],
               enableResumable: section.nextUp?.enableResumable,
               enableRewatching: section.nextUp?.enableRewatching,
+              // Per-section plugin config wins; global setting is the fallback.
+              nextUpDateCutoff: getNextUpDateCutoff(
+                section.nextUp?.nextUpDaysCutoff ?? settings.nextUpDaysCutoff,
+              ),
+              disableFirstEpisode:
+                section.nextUp?.disableFirstEpisode ??
+                settings.nextUpDisableFirstEpisode,
             });
             return response.data.Items || [];
           }
@@ -554,7 +606,14 @@ export const Home = () => {
       });
     });
     return ss;
-  }, [api, user?.Id, settings?.home?.sections, t]);
+  }, [
+    api,
+    user?.Id,
+    settings?.home?.sections,
+    settings.nextUpDaysCutoff,
+    settings.nextUpDisableFirstEpisode,
+    t,
+  ]);
 
   const sections = settings?.home?.sections ? customSections : defaultSections;
 
