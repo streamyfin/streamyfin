@@ -6,6 +6,7 @@
 import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
 import { Platform } from "react-native";
 import MediaTypes from "../../constants/MediaTypes";
+import { supportsAv1HardwareDecode } from "./codecSupport";
 import { getSubtitleProfiles } from "./subtitles";
 
 export type PlatformType = "ios" | "android";
@@ -19,6 +20,11 @@ export interface ProfileOptions {
   player?: PlayerType;
   /** Audio transcoding mode */
   audioMode?: AudioTranscodeModeType;
+  /**
+   * Whether the device can decode AV1 in hardware. Defaults to probing the
+   * device (see `./codecSupport`); pass explicitly only for tests.
+   */
+  supportsAv1?: boolean;
 }
 
 /**
@@ -165,12 +171,61 @@ const getExoPlayerDirectPlayProfile = () => {
 };
 
 /**
+ * Video codecs the MPV player can direct play, minus anything this device has
+ * no viable decode path for.
+ *
+ * AV1 is conditional: without a hardware decoder mpv falls back to dav1d
+ * software decode, and on tvOS the resulting 10-bit planar frames stall
+ * `vo_avfoundation` before they reach the display layer — the player hangs
+ * rather than erroring. Dropping `av1` from the profile makes Jellyfin transcode
+ * to H.264/HEVC for those devices instead of handing over a stream they cannot
+ * show. Devices that do have the decoder (recent iPhones) are unaffected.
+ */
+const getMpvVideoCodecs = (supportsAv1: boolean) => {
+  const codecProfileCodecs = [
+    "h264",
+    "mpeg4",
+    "divx",
+    "xvid",
+    "wmv",
+    "vc1",
+    "vp8",
+    "vp9",
+  ];
+  const directPlayCodecs = [
+    "h264",
+    "hevc",
+    "mpeg4",
+    "divx",
+    "xvid",
+    "wmv",
+    "vc1",
+    "vp8",
+    "vp9",
+  ];
+
+  if (supportsAv1) {
+    codecProfileCodecs.push("av1");
+    directPlayCodecs.push("av1");
+  }
+
+  // Container-ish entries Jellyfin also matches on, kept at the tail as before
+  directPlayCodecs.push("avi", "mpeg", "mpeg2video");
+
+  return {
+    codecProfile: codecProfileCodecs.join(","),
+    directPlay: directPlayCodecs.join(","),
+  };
+};
+
+/**
  * Generates a device profile for Jellyfin playback.
  */
 export const generateDeviceProfile = (options: ProfileOptions = {}) => {
   const platform = (options.platform || Platform.OS) as PlatformType;
   const audioMode = options.audioMode || "auto";
   const player = options.player || "mpv";
+  const supportsAv1 = options.supportsAv1 ?? supportsAv1HardwareDecode();
 
   // ExoPlayer branch — Media3 capabilities on Android TV.
   if (player === "exoplayer" && platform === "android") {
@@ -245,6 +300,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
     platform,
     audioMode,
   );
+  const videoCodecs = getMpvVideoCodecs(supportsAv1);
 
   /**
    * Device profile for MPV player
@@ -256,7 +312,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
     CodecProfiles: [
       {
         Type: MediaTypes.Video,
-        Codec: "h264,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1",
+        Codec: videoCodecs.codecProfile,
       },
       {
         Type: MediaTypes.Video,
@@ -282,8 +338,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
       {
         Type: MediaTypes.Video,
         Container: "mp4,mkv,avi,mov,flv,ts,m2ts,webm,ogv,3gp,hls",
-        VideoCodec:
-          "h264,hevc,mpeg4,divx,xvid,wmv,vc1,vp8,vp9,av1,avi,mpeg,mpeg2video",
+        VideoCodec: videoCodecs.directPlay,
         AudioCodec: directPlayCodec,
       },
       getAudioDirectPlayProfile(platform),
