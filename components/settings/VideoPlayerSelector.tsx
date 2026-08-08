@@ -14,9 +14,13 @@ import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
+// Labeled Native vs Classic, not "MPV": both players run the same MPV
+// engine, the choice is only which controls layer renders. The mpv/exoplayer
+// keys stay reserved for the Android TV selector, where they really do name
+// engines.
 const PLAYER_OPTIONS: { key: string; value: VideoPlayer }[] = [
   { key: "home.settings.video_player.native", value: VideoPlayer.Native },
-  { key: "home.settings.video_player.mpv", value: VideoPlayer.MPV },
+  { key: "home.settings.video_player.classic", value: VideoPlayer.MPV },
 ];
 
 /**
@@ -50,7 +54,7 @@ export const VideoPlayerSelector: React.FC<ViewProps> = ({ ...props }) => {
 
   const currentPlayerLabel = useMemo(() => {
     const option = PLAYER_OPTIONS.find((o) => o.value === activePlayer);
-    return option ? t(option.key) : t("home.settings.video_player.mpv");
+    return option ? t(option.key) : t("home.settings.video_player.classic");
   }, [activePlayer, t]);
 
   if (!isNativePlayerSupported) return null;
