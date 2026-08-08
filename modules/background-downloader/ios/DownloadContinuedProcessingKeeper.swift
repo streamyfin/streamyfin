@@ -104,11 +104,23 @@
         // finish(). The launch handler runs on `queue`, so state access here is confined.
         continued.progress.totalUnitCount = 100
         continued.progress.completedUnitCount = 0
+
+        // Instrumentation for the stop-button experiment: a user tap on the system UI's stop
+        // control may surface as Progress cancellation, as task expiration, or both — the
+        // distinction decides whether stop can safely cancel the download itself (a system
+        // expiration must NOT).
+        continued.progress.cancellationHandler = { [weak self] in
+          guard let self else { return }
+          self.queue.async {
+            backgroundDownloaderLog.notice("Continued processing progress CANCELLED (user tapped stop?)")
+          }
+        }
         continued.expirationHandler = { [weak self] in
           guard let self else { return }
           self.queue.async {
+            let userCancelled = self.task?.progress.isCancelled ?? false
             backgroundDownloaderLog.notice(
-              "Continued processing task expired; process may suspend until the next wake"
+              "Continued processing task expired (progress.isCancelled: \(userCancelled))"
             )
             self.task?.setTaskCompleted(success: false)
             self.task = nil
