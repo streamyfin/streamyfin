@@ -150,19 +150,6 @@ public class BackgroundDownloaderModule: Module {
 
     OnCreate {
       self.stateQueue.sync {
-        // When the keeper cannot provide the system progress UI (submission refused or task
-        // expired), fall back to the module's own Live Activity so the lock screen is not empty.
-        #if os(iOS) && compiler(>=6.2)
-          if #available(iOS 26.0, *) {
-            DownloadContinuedProcessingKeeper.shared.onUnavailable = { [weak self] in
-              guard let self else { return }
-              self.stateQueue.async {
-                self.startFallbackLiveActivityLocked()
-              }
-            }
-          }
-        #endif
-
         // Restore tasks left behind by a previous process before reconnecting to the session, so a
         // download that completed while we were dead can still be moved into place.
         self.downloadTasks = self.taskStore.load()
@@ -665,35 +652,16 @@ public class BackgroundDownloaderModule: Module {
     #endif
   }
 
-  /// On iOS 26+ the continued-processing keeper's system UI is the single lock-screen element for
-  /// downloads (two progress activities read as a bug), so the module's own activity is skipped
-  /// and only used as the fallback when the keeper is unavailable.
+  /// The module's activity is the primary download UI on every iOS version. On iOS 26+ the
+  /// system's continued-processing pill shows alongside it while the keeper runs — Apple mandates
+  /// that UI for background execution and it cannot be suppressed — but the card is the element
+  /// that survives everything: when the keeper expires (stop tap, stalled progress), the card is
+  /// already live and degrades to the timer projection instead of leaving the lock screen empty.
   private func startLiveActivity(taskId: Int, metadata: DownloadActivityMetadata?) {
-    guard !keeperCoversUILocked() else { return }
-    forceStartLiveActivity(taskId: taskId, metadata: metadata)
-  }
-
-  private func forceStartLiveActivity(taskId: Int, metadata: DownloadActivityMetadata?) {
     #if os(iOS)
       guard #available(iOS 16.2, *), let metadata else { return }
       DownloadLiveActivityController.shared.start(taskId: taskId, metadata: metadata)
     #endif
-  }
-
-  private func keeperCoversUILocked() -> Bool {
-    #if os(iOS) && compiler(>=6.2)
-      if #available(iOS 26.0, *) { return downloadActivityUIEnabled }
-    #endif
-    return false
-  }
-
-  /// The keeper refused or died; give the active download the regular activity instead. The
-  /// request only succeeds while the app is foregrounded — after a background expiration this is
-  /// a logged no-op and the lock screen stays empty until the next real event.
-  private func startFallbackLiveActivityLocked() {
-    guard let (taskId, info) = downloadTasks.first, let metadata = info.metadata else { return }
-    backgroundDownloaderLog.notice("Keeper unavailable; falling back to own Live Activity")
-    forceStartLiveActivity(taskId: taskId, metadata: metadata)
   }
 
   private func updateLiveActivity(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
@@ -737,9 +705,12 @@ public class BackgroundDownloaderModule: Module {
   private func startContinuedProcessingLocked(metadata: DownloadActivityMetadata?) {
     #if os(iOS) && compiler(>=6.2)
       guard #available(iOS 26.0, *), downloadActivityUIEnabled else { return }
+      // Titled as a status ("Downloading" / item name) rather than repeating the activity card's
+      // title/subtitle — the pill reads as the system's task control, the card as the content,
+      // instead of two identical media cards.
       DownloadContinuedProcessingKeeper.shared.ensureRunning(
-        title: metadata?.title ?? "Streamyfin",
-        subtitle: metadata?.subtitle ?? ""
+        title: metadata?.labels["downloading"] ?? "Downloading",
+        subtitle: metadata?.title ?? ""
       )
     #endif
   }
