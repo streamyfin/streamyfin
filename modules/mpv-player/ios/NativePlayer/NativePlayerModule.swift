@@ -1,18 +1,18 @@
 import ExpoModulesCore
 
-internal final class PlayerAlreadyPresentedException: Exception {
+internal final class PlayerAlreadyPresentedException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"A native player is already presented; call load() to swap the stream instead"
 	}
 }
 
-internal final class NoActivePlayerException: Exception {
+internal final class NoActivePlayerException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"No native player is currently presented"
 	}
 }
 
-internal final class InvalidStreamUrlException: Exception {
+internal final class InvalidStreamUrlException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"The stream config contains an unparseable URL"
 	}

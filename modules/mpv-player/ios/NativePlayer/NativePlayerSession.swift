@@ -8,7 +8,7 @@ enum PlayerDismissReason: String {
 	case error
 }
 
-internal final class NoPresenterException: Exception {
+internal final class NoPresenterException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"Could not find a view controller to present the native player from"
 	}

@@ -394,6 +394,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// scrubPosition and SwiftUI frame math unclamped.
 		guard duration > 0, fraction.isFinite else { return }
 		scrubPosition = min(max(fraction, 0), 1) * duration
+		#if os(iOS)
 		// Haptic tick when the thumb crosses a chapter mark.
 		if hapticsEnabled, !chapters.isEmpty {
 			let index = chapterIndex(at: scrubPosition)
@@ -402,6 +403,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 				selectionGenerator.selectionChanged()
 			}
 		}
+		#endif
 	}
 
 	func endScrub() {

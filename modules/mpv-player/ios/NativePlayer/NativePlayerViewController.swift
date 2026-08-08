@@ -189,6 +189,9 @@ final class NativePlayerViewController: UIViewController {
 	private func setupRemotePressRecognizers() {
 		addPressRecognizer(for: .menu, action: #selector(handleMenuPress))
 		addPressRecognizer(for: .playPause, action: #selector(handlePlayPausePress))
+		addPressRecognizer(for: .select, action: #selector(handleSelectPress))
+		addPressRecognizer(for: .leftArrow, action: #selector(handleLeftPress))
+		addPressRecognizer(for: .rightArrow, action: #selector(handleRightPress))
 	}
 
 	private func addPressRecognizer(for pressType: UIPress.PressType, action: Selector) {
@@ -198,14 +201,35 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handleMenuPress() {
-		// Phase 1: Menu always confirms the exit. Later phases hide visible
-		// chrome / close panels first and only confirm from the bare-video
-		// state (mirror of useRemoteControl's useTVBackPress flow).
-		presentExitConfirmation()
+		// Mirror of useRemoteControl's useTVBackPress flow: visible chrome is
+		// hidden first; only a Menu press from the bare-video state asks to
+		// leave playback.
+		if viewModel.controlsVisible {
+			viewModel.toggleControls()
+		} else {
+			presentExitConfirmation()
+		}
 	}
 
 	@objc private func handlePlayPausePress() {
 		viewModel.togglePlayPause()
+	}
+
+	@objc private func handleSelectPress() {
+		viewModel.toggleControls()
+	}
+
+	/// Left/right clickpad-edge clicks (arrow keys in the simulator) jump by
+	/// the configured skip amounts; the chrome comes up so the landing
+	/// position is visible, then auto-hides.
+	@objc private func handleLeftPress() {
+		viewModel.showControls()
+		viewModel.seekBackward()
+	}
+
+	@objc private func handleRightPress() {
+		viewModel.showControls()
+		viewModel.seekForward()
 	}
 
 	/// JS-player parity: Menu with no chrome up asks before leaving playback.
