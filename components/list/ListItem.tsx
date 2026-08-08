@@ -105,7 +105,13 @@ const ListItemContent = ({
             <Ionicons name='person-circle-outline' size={18} color='white' />
           </View>
         )}
-        <View className='flex-1'>
+        {/* The label sizes to its content and only shrinks if it alone
+            overflows; the value column takes whatever is left. That ordering
+            matters — the label used to be `flex-1` with a zero basis, so a long
+            value (the dev build string, say) collapsed it to an ellipsis, while
+            the value itself had no shrink of its own and ran straight past the
+            row to be clipped by the screen edge. */}
+        <View className='shrink'>
           <Text
             className={
               textColor === "blue"
@@ -128,8 +134,11 @@ const ListItemContent = ({
           )}
         </View>
         {value && (
-          <View className='ml-auto items-end'>
-            <Text selectable className=' text-[#9899A1]' numberOfLines={1}>
+          // Values here are diagnostics — build string, token, server URL —
+          // that are only useful in full, so wrap rather than truncate. The row
+          // has a min height, not a fixed one, so it grows to fit.
+          <View className='flex-1 items-end pl-3'>
+            <Text selectable className='text-right text-[#9899A1]'>
               {value}
             </Text>
           </View>

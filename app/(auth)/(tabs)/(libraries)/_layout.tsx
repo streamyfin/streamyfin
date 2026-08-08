@@ -1,10 +1,14 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
+import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import {
+  nestedTabPageScreenOptions,
+  stackScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function IndexLayout() {
@@ -150,7 +154,7 @@ export default function IndexLayout() {
   if (!settings?.libraryOptions) return null;
 
   return (
-    <Stack>
+    <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen
         name='index'
         options={{
@@ -166,12 +170,13 @@ export default function IndexLayout() {
                 open={dropdownOpen}
                 onOpenChange={setDropdownOpen}
                 trigger={
-                  <View>
-                    <Ionicons
-                      name='ellipsis-horizontal-outline'
-                      size={24}
-                      color='white'
-                    />
+                  <View
+                    style={{
+                      height: HEADER_ICON_SIZE,
+                      width: HEADER_ICON_SIZE,
+                    }}
+                  >
+                    <HeaderIcon name='more' />
                   </View>
                 }
                 title={t("library.options.display")}

@@ -1,25 +1,30 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import { Platform } from "react-native";
+import {
+  HeaderButton,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
+import {
+  nestedTabPageScreenOptions,
+  stackScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
+import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
 
 import { useAtom } from "jotai";
-import { HeaderBackButton } from "@/components/common/HeaderBackButton";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
 
 export default function IndexLayout() {
-  const _router = useRouter();
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
 
   return (
-    <Stack>
+    <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen
         name='index'
         options={{
@@ -28,17 +33,14 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerRight: () => (
-            <View className='flex flex-row items-center px-2'>
-              {!Platform.isTV && (
-                <>
-                  <Chromecast.Chromecast background='transparent' />
-                  {user?.Policy?.IsAdministrator && <SessionsButton />}
-                  <SettingsButton />
-                </>
-              )}
-            </View>
-          ),
+          headerRight: () =>
+            Platform.isTV ? null : (
+              <HeaderButtonGroup>
+                <Chromecast.Chromecast />
+                {user?.Policy?.IsAdministrator && <SessionsButton />}
+                <SettingsButton />
+              </HeaderButtonGroup>
+            ),
         }}
       />
       <Stack.Screen
@@ -48,7 +50,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           title: t("home.downloads.downloads_title"),
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -59,7 +60,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -70,14 +70,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => _router.back()}
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </Pressable>
-          ),
         }}
       />
       <Stack.Screen
@@ -88,7 +80,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -99,7 +90,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -110,7 +100,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -121,7 +110,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -132,7 +120,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -143,7 +130,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -154,14 +140,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => (
-            <Pressable
-              onPress={() => _router.back()}
-              style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
-            >
-              <Feather name='chevron-left' size={28} color='white' />
-            </Pressable>
-          ),
         }}
       />
       <Stack.Screen
@@ -172,7 +150,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -183,7 +160,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -194,7 +170,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -205,7 +180,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -216,7 +190,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -227,7 +200,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Stack.Screen
@@ -238,7 +210,6 @@ export default function IndexLayout() {
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
-          headerLeft: () => <HeaderBackButton />,
         }}
       />
       {Object.entries(nestedTabPageScreenOptions).map(([name, options]) => (
@@ -248,7 +219,6 @@ export default function IndexLayout() {
         name='collections/[collectionId]'
         options={{
           title: "",
-          headerLeft: () => <HeaderBackButton />,
           headerShown: !Platform.isTV,
           headerBlurEffect: "prominent",
           headerTransparent: Platform.OS === "ios",
@@ -263,13 +233,9 @@ const SettingsButton = () => {
   const router = useRouter();
 
   return (
-    <Pressable
-      onPress={() => {
-        router.push("/(auth)/settings");
-      }}
-    >
-      <Feather name='settings' color={"white"} size={22} />
-    </Pressable>
+    <HeaderButton onPress={() => router.push("/(auth)/settings")}>
+      <HeaderIcon name='settings' />
+    </HeaderButton>
   );
 };
 
@@ -278,17 +244,11 @@ const SessionsButton = () => {
   const { sessions = [] } = useSessions({} as useSessionsProps);
 
   return (
-    <Pressable
-      onPress={() => {
-        router.push("/(auth)/sessions");
-      }}
-      className='mr-4'
-    >
-      <Ionicons
-        name='play-circle'
-        color={sessions.length === 0 ? "white" : "#9333ea"}
-        size={28}
+    <HeaderButton onPress={() => router.push("/(auth)/sessions")}>
+      <HeaderIcon
+        name='sessions'
+        tintColor={sessions.length === 0 ? "white" : Colors.primary}
       />
-    </Pressable>
+    </HeaderButton>
   );
 };
