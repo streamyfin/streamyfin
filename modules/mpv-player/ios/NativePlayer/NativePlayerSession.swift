@@ -1,4 +1,3 @@
-#if os(iOS)
 import ExpoModulesCore
 import UIKit
 
@@ -63,7 +62,9 @@ final class NativePlayerSession {
 		)
 		vc.modalPresentationStyle = .fullScreen
 		vc.modalTransitionStyle = .crossDissolve
+		#if os(iOS)
 		vc.modalPresentationCapturesStatusBarAppearance = true
+		#endif
 		viewController = vc
 
 		// Kick the stream load off immediately so it races the presentation
@@ -196,7 +197,9 @@ final class NativePlayerSession {
 				// re-evaluation resolves against our landscape mask. Without
 				// this the app stays stuck in landscape until some navigation
 				// forces a re-evaluation.
+				#if os(iOS)
 				presenter.setNeedsUpdateOfSupportedInterfaceOrientations()
+				#endif
 				finish()
 			}
 		} else {
@@ -212,9 +215,10 @@ final class NativePlayerSession {
 		viewModel.willTeardown()
 		let presenter = viewController?.presentingViewController
 		presenter?.dismiss(animated: false)
+		#if os(iOS)
 		presenter?.setNeedsUpdateOfSupportedInterfaceOrientations()
+		#endif
 		engine.shutdown()
 		viewController = nil
 	}
 }
-#endif

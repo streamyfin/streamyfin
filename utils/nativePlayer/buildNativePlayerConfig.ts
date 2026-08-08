@@ -4,8 +4,8 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { OrientationLock } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
+import { Platform } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import type {
   NativePlayerConfig,
@@ -15,6 +15,9 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
+// The TV-safe wrapper, NOT expo-screen-orientation directly: the native
+// module is absent from TV binaries and a top-level import crashes on launch.
+import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
 import { getActivePlayerType } from "@/utils/atoms/settings";
@@ -93,6 +96,12 @@ export const buildNativePlayerStrings = (
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),
+  // Exit confirmation (TV Menu press — mirror of useRemoteControl's alert).
+  // Native substitutes %TITLE% with the current item's title.
+  stop: t("common.stop"),
+  stopPlayback: t("player.stopPlayback"),
+  stopPlayingTitle: t("player.stopPlayingTitle", { title: "%TITLE%" }),
+  stopPlayingConfirm: t("player.stopPlayingConfirm"),
 });
 
 /**
@@ -109,7 +118,7 @@ const resolveStartTicks = (
 };
 
 const mapOrientationLock = (
-  lock: OrientationLock | undefined,
+  lock: (typeof OrientationLock)[keyof typeof OrientationLock] | undefined,
 ): "landscape" | "none" => {
   switch (lock) {
     case OrientationLock.PORTRAIT:
@@ -451,14 +460,18 @@ export async function buildNativePlayerConfig(params: {
     }),
     subtitleStyle: buildSubtitleStyle(settings),
     ui: {
-      orientationLock: mapOrientationLock(settings.defaultVideoOrientation),
-      allowPip: true,
+      // TV: no orientation, no PiP (v1), no haptics, and volume/brightness
+      // belong to the remote/HDMI-CEC — the phone-only chrome stays off.
+      orientationLock: Platform.isTV
+        ? "none"
+        : mapOrientationLock(settings.defaultVideoOrientation),
+      allowPip: !Platform.isTV,
       seekForwardSec: settings.forwardSkipTime,
       seekBackwardSec: settings.rewindSkipTime,
       initialPlaybackSpeed: resolveInitialPlaybackSpeed(item, settings),
-      hapticsEnabled: !settings.disableHapticFeedback,
-      showVolumeSlider: !settings.hideVolumeSlider,
-      showBrightnessSlider: !settings.hideBrightnessSlider,
+      hapticsEnabled: !Platform.isTV && !settings.disableHapticFeedback,
+      showVolumeSlider: !Platform.isTV && !settings.hideVolumeSlider,
+      showBrightnessSlider: !Platform.isTV && !settings.hideBrightnessSlider,
       strings,
     },
   };

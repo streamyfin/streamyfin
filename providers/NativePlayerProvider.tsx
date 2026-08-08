@@ -60,6 +60,7 @@ import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
   getActiveVideoPlayer,
   isNativePlayerSupported,
+  isNativePlayerSupportedTV,
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
@@ -141,11 +142,16 @@ const nativePlayerSubtitleFacade: SubtitleSelectablePlayer = {
 export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-  const enabled = isNativePlayerSupported && isNativePlayerModuleAvailable();
+  // Apple TV mounts the coordinator too — whether a play actually goes
+  // native is decided per-request by getActiveVideoPlayer (the TV opt-in
+  // toggle); the inner WS "Play" handler already respects it.
+  const enabled =
+    (isNativePlayerSupported || isNativePlayerSupportedTV) &&
+    isNativePlayerModuleAvailable();
 
   if (!enabled) {
     // The server-initiated "Play" command still needs a handler on platforms
-    // without the native player (Android, TV, stale iOS binaries) — the app
+    // without the native player (Android, stale iOS binaries) — the app
     // advertises SupportedCommands: ["Play"] everywhere.
     return <PlayCommandRouteFallback>{children}</PlayCommandRouteFallback>;
   }

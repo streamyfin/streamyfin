@@ -135,7 +135,8 @@ export type NativePlayerSubtitleStyle = {
 
 /**
  * Localized labels handed to the native UI; English fallbacks apply.
- * endsAt carries a literal %TIME% placeholder the native side substitutes.
+ * endsAt carries a literal %TIME% placeholder and stopPlayingTitle a literal
+ * %TITLE% placeholder — the native side substitutes both.
  */
 export type NativePlayerStrings = Partial<
   Record<
@@ -165,7 +166,11 @@ export type NativePlayerStrings = Partial<
     | "continueWatching"
     | "goBack"
     | "endsAt"
-    | "zoomToFill",
+    | "zoomToFill"
+    | "stop"
+    | "stopPlayback"
+    | "stopPlayingTitle"
+    | "stopPlayingConfirm",
     string
   >
 >;

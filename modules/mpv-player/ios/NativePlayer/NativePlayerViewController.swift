@@ -1,11 +1,12 @@
-#if os(iOS)
 import Combine
 import SwiftUI
 import UIKit
 
 /// Full-screen presented player: hosts the engine's display layer and a
-/// SwiftUI controls overlay (child UIHostingController). Owns orientation,
-/// status bar, home indicator and keep-awake for the duration of playback.
+/// SwiftUI controls overlay (child UIHostingController). On iOS it owns
+/// orientation, status bar, home indicator and keep-awake for the duration of
+/// playback; on tvOS it owns the Siri Remote press handling (SwiftUI focus is
+/// only used INSIDE panels/shelves in later phases).
 final class NativePlayerViewController: UIViewController {
 	private let engine: MPVPlayerEngine
 	private let viewModel: PlayerViewModel
@@ -13,7 +14,11 @@ final class NativePlayerViewController: UIViewController {
 	private var orientationMask: UIInterfaceOrientationMask
 
 	private let videoContainerView = UIView()
+	#if os(tvOS)
+	private var hostingController: UIHostingController<TVPlayerRootView>?
+	#else
 	private var hostingController: UIHostingController<PlayerControlsRootView>?
+	#endif
 	private var cancellables: Set<AnyCancellable> = []
 	private var isViewVisible = false
 
@@ -29,8 +34,9 @@ final class NativePlayerViewController: UIViewController {
 		fatalError("init(coder:) is not supported")
 	}
 
-	// MARK: - System chrome
+	// MARK: - System chrome (iOS only — tvOS has no status bar / orientation)
 
+	#if os(iOS)
 	// Presenting a full-screen modal that only supports landscape makes UIKit
 	// rotate automatically. The JS coordinator additionally locks orientation
 	// via expo-screen-orientation BEFORE presenting (same as the JS player's
@@ -72,6 +78,7 @@ final class NativePlayerViewController: UIViewController {
 	override var prefersHomeIndicatorAutoHidden: Bool {
 		!viewModel.controlsVisible
 	}
+	#endif
 
 	// MARK: - Lifecycle
 
@@ -90,7 +97,11 @@ final class NativePlayerViewController: UIViewController {
 		engine.displayLayer.frame = view.bounds
 		videoContainerView.layer.addSublayer(engine.displayLayer)
 
+		#if os(tvOS)
+		let hosting = UIHostingController(rootView: TVPlayerRootView(viewModel: viewModel))
+		#else
 		let hosting = UIHostingController(rootView: PlayerControlsRootView(viewModel: viewModel))
+		#endif
 		hosting.view.backgroundColor = .clear
 		addChild(hosting)
 		hosting.view.translatesAutoresizingMaskIntoConstraints = false
@@ -104,6 +115,7 @@ final class NativePlayerViewController: UIViewController {
 		hosting.didMove(toParent: self)
 		hostingController = hosting
 
+		#if os(iOS)
 		viewModel.$controlsVisible
 			.removeDuplicates()
 			.receive(on: DispatchQueue.main)
@@ -115,6 +127,7 @@ final class NativePlayerViewController: UIViewController {
 				}
 			}
 			.store(in: &cancellables)
+		#endif
 
 		// Keep-awake follows playback: paused video releases the idle timer so
 		// the screen can sleep (mirror of the JS player's deactivateKeepAwake
@@ -128,12 +141,18 @@ final class NativePlayerViewController: UIViewController {
 			}
 			.store(in: &cancellables)
 
+		#if os(iOS)
 		// A hidden MPVolumeView in the hierarchy suppresses the system volume
 		// HUD; the player draws its own slider instead. Skipped when the
 		// slider is hidden by settings so the system HUD behaves normally.
 		if viewModel.showVolumeSlider {
 			view.addSubview(viewModel.volumeController.volumeView)
 		}
+		#endif
+
+		#if os(tvOS)
+		setupRemotePressRecognizers()
+		#endif
 	}
 
 	override func viewDidLayoutSubviews() {
@@ -159,5 +178,63 @@ final class NativePlayerViewController: UIViewController {
 		isViewVisible = false
 		UIApplication.shared.isIdleTimerDisabled = false
 	}
+
+	// MARK: - tvOS remote input
+
+	#if os(tvOS)
+	/// VC-level press recognizers own the transport gestures; SwiftUI focus is
+	/// reserved for panels/shelves (later phases). Consuming Menu here is
+	/// mandatory: an unhandled Menu press on a presented full-screen VC would
+	/// suspend the app instead of closing the player.
+	private func setupRemotePressRecognizers() {
+		addPressRecognizer(for: .menu, action: #selector(handleMenuPress))
+		addPressRecognizer(for: .playPause, action: #selector(handlePlayPausePress))
+	}
+
+	private func addPressRecognizer(for pressType: UIPress.PressType, action: Selector) {
+		let recognizer = UITapGestureRecognizer(target: self, action: action)
+		recognizer.allowedPressTypes = [NSNumber(value: pressType.rawValue)]
+		view.addGestureRecognizer(recognizer)
+	}
+
+	@objc private func handleMenuPress() {
+		// Phase 1: Menu always confirms the exit. Later phases hide visible
+		// chrome / close panels first and only confirm from the bare-video
+		// state (mirror of useRemoteControl's useTVBackPress flow).
+		presentExitConfirmation()
+	}
+
+	@objc private func handlePlayPausePress() {
+		viewModel.togglePlayPause()
+	}
+
+	/// JS-player parity: Menu with no chrome up asks before leaving playback.
+	/// While the alert is presented the system routes presses to it (Menu
+	/// triggers the cancel action), so our recognizers stay quiet.
+	private func presentExitConfirmation() {
+		guard presentedViewController == nil else { return }
+
+		let message: String
+		if let itemTitle = viewModel.metadata?.title, !itemTitle.isEmpty {
+			let template = viewModel.str("stopPlayingTitle", "Stop playing \"%TITLE%\"?")
+			message = template.contains("%TITLE%")
+				? template.replacingOccurrences(of: "%TITLE%", with: itemTitle)
+				: template
+		} else {
+			message = viewModel.str("stopPlayingConfirm", "Are you sure you want to stop playback?")
+		}
+
+		let alert = UIAlertController(
+			title: viewModel.str("stopPlayback", "Stop playback"),
+			message: message,
+			preferredStyle: .alert
+		)
+		alert.addAction(UIAlertAction(title: viewModel.str("cancel", "Cancel"), style: .cancel))
+		alert.addAction(
+			UIAlertAction(title: viewModel.str("stop", "Stop"), style: .destructive) { [weak self] _ in
+				self?.viewModel.close()
+			})
+		present(alert, animated: true)
+	}
+	#endif
 }
-#endif

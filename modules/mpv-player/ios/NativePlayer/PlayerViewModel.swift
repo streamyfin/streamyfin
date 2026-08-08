@@ -1,4 +1,3 @@
-#if os(iOS)
 import Combine
 import Foundation
 import QuartzCore
@@ -107,10 +106,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var episodeList: [EpisodeListItemRecord] = []
 	@Published var trickplay: TrickplayProvider?
 
+	#if os(iOS)
 	/// System volume/brightness for the side sliders. The controllers exist
-	/// unconditionally (cheap); the show* flags gate the UI.
+	/// unconditionally (cheap); the show* flags gate the UI. iOS-only: tvOS
+	/// has no writable volume/brightness (remote/HDMI-CEC own them).
 	let volumeController = SystemVolumeController()
 	let brightnessController = SystemBrightnessController()
+	#endif
 
 	private(set) var playMethod: String?
 	private(set) var transcodeReasons: [String] = []
@@ -139,7 +141,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Chapter under the thumb during a scrub — a haptic tick fires when it
 	/// changes (crossing a chapter mark).
 	private var lastScrubChapterIndex: Int?
+	#if os(iOS)
 	private lazy var selectionGenerator = UISelectionFeedbackGenerator()
+	#endif
 	private var displayLink: CADisplayLink?
 	private var lastTickTimestamp: CFTimeInterval = 0
 	/// User canceled the countdown — stays canceled until the next load().
@@ -157,7 +161,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var isTearingDown = false
 	/// Scrubbing pauses playback; resume on release only if it was playing.
 	private var wasPlayingBeforeScrub = false
+	#if os(iOS)
 	private lazy var impactGenerator = UIImpactFeedbackGenerator(style: .light)
+	#endif
 
 	private let autoHideDelay: TimeInterval = 4
 	/// Menus render as UIMenu whose open state SwiftUI cannot observe, so
@@ -175,16 +181,20 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	override init() {
 		super.init()
+		#if os(iOS)
 		volumeController.onExternalChange = { [weak self] in
 			self?.revealVolumeSliderTransiently()
 		}
+		#endif
 	}
 
 	/// Light impact on control interactions; disabled via settings
 	/// (disableHapticFeedback → ui.hapticsEnabled=false).
 	func haptic() {
+		#if os(iOS)
 		guard hapticsEnabled else { return }
 		impactGenerator.impactOccurred()
+		#endif
 	}
 
 	// MARK: - Config application
@@ -997,4 +1007,3 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		}
 	}
 }
-#endif
