@@ -11,11 +11,12 @@
  * `pl-1.5`, `mr-4`, nothing at all — which is exactly why no two headers lined
  * up.
  *
- * The rule here: every header button carries the same horizontal inset and no
- * margins. Uniform is what makes headers align; the value itself just has to be
- * shared. It doubles as the pill's internal padding on iOS 26, and two adjacent
- * buttons produce `2 × HEADER_BUTTON_INSET` between their glyphs, so the group
- * needs no gap of its own.
+ * The rule here: no margins anywhere, and one shared inset per side. Uniform is
+ * what makes headers align; the value itself just has to be shared. The two
+ * sides do not share the same value, though, and that is deliberate — see
+ * `placement`. On the right the inset doubles as the pill's internal padding on
+ * iOS 26, and two adjacent buttons produce `2 × HEADER_BUTTON_INSET` between
+ * their glyphs, so the group needs no gap of its own.
  */
 
 import type { PropsWithChildren } from "react";
@@ -35,13 +36,15 @@ import { Pressable, type PressableProps } from "react-native-gesture-handler";
 export const HEADER_ICON_SIZE = 24;
 
 /**
- * Horizontal inset carried by every header button.
+ * Horizontal inset carried by `headerRight` content.
  *
  * On iOS 26 this is the padding inside the shared-background pill — with zero
  * inset the glyphs sit hard against the glass edge. Between two adjacent
  * buttons it doubles to 16pt, which is UIKit's spacing for bar button items.
- * Anything mounted in a header that is not a `HeaderButton` (`RoundButton`'s
+ * Anything mounted on the right that is not a `HeaderButton` (`RoundButton`'s
  * large variant, a dropdown trigger) must use the same value.
+ *
+ * `headerLeft` deliberately gets none — see `placement`.
  */
 export const HEADER_BUTTON_INSET = 8;
 
@@ -55,14 +58,21 @@ const HEADER_HIT_SLOP = 10;
  * headerLeft view, and react-native-screens clears the Toolbar's own
  * `contentInsetStartWithNavigation` when a left subview is present — so the gap
  * has to come from JS. iOS mounts the title in a separate centre view and needs
- * nothing. The button's own trailing inset covers half of it.
+ * nothing.
  */
-const ANDROID_TITLE_GAP = 16 - HEADER_BUTTON_INSET;
+const ANDROID_TITLE_GAP = 16;
 
 export interface HeaderButtonProps extends Omit<PressableProps, "style"> {
   /**
-   * `"left"` adds the Android-only gap before the title. Defaults to
-   * `"right"`, which needs no compensation on either platform.
+   * Which side of the header this sits on. The two are not symmetric:
+   *
+   * `"left"` gets no horizontal inset, because its glyph has to line up with
+   * the native back button's chevron on sibling screens, and that sits flush at
+   * the bar margin. It does get the Android-only gap before the title.
+   *
+   * `"right"` (the default) gets `HEADER_BUTTON_INSET`. Nothing lines up
+   * against the trailing edge, so there the pill is the visual object and wants
+   * interior padding.
    */
   placement?: "left" | "right";
   /**
@@ -83,7 +93,7 @@ export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
     style={[
       {
         height: HEADER_ICON_SIZE,
-        paddingHorizontal: HEADER_BUTTON_INSET,
+        paddingHorizontal: placement === "left" ? 0 : HEADER_BUTTON_INSET,
         alignItems: "center",
         justifyContent: "center",
         marginRight:
