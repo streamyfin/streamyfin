@@ -7,6 +7,7 @@ import Animated, {
   useAnimatedStyle,
   useScrollViewOffset,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props extends ViewProps {
   headerImage: ReactElement;
@@ -27,6 +28,7 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
 }: Props) => {
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
+  const insets = useSafeAreaInsets();
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -98,8 +100,10 @@ export const ParallaxScrollView: React.FC<PropsWithChildren<Props>> = ({
         <View
           style={{
             top: -50,
+            // Clear the translucent tab bar so the last section stays readable
+            paddingBottom: insets.bottom + 32,
           }}
-          className='relative flex-1  bg-transparent pb-4'
+          className='relative flex-1 bg-transparent'
         >
           <LinearGradient
             // Background Linear Gradient
