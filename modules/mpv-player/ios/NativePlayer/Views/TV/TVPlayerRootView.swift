@@ -106,12 +106,15 @@ private struct TVMetadataHeader: View {
 }
 
 /// Bottom transport bar: play-state glyph, progress (played + buffered),
-/// position, remaining and the wall-clock finish time. Observes
-/// PlaybackTimeModel directly — PlayerViewModel deliberately does not
-/// publish the ~30Hz clock (see PlaybackTimeModel).
+/// position, remaining and the wall-clock finish time. While a remote scrub
+/// is armed, the playhead follows the scrub target and a trickplay bubble
+/// rides above it. Observes PlaybackTimeModel directly — PlayerViewModel
+/// deliberately does not publish the ~30Hz clock (see PlaybackTimeModel).
 private struct TVTransportBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	@ObservedObject var time: PlaybackTimeModel
+
+	private static let bubbleHeight: CGFloat = 180
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -121,12 +124,13 @@ private struct TVTransportBar: View {
 	}()
 
 	var body: some View {
-		let position = time.displayPosition
+		let position =
+			viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition
 		let duration = viewModel.duration
 		let remaining = max(0, duration - position)
 
 		VStack(alignment: .leading, spacing: 12) {
-			if let chapterName = viewModel.currentChapterName {
+			if let chapterName = viewModel.chapterName(at: position) {
 				Text(chapterName)
 					.font(.caption)
 					.foregroundStyle(.white.opacity(0.7))
@@ -134,12 +138,12 @@ private struct TVTransportBar: View {
 			}
 
 			HStack(spacing: 20) {
-				Image(systemName: viewModel.isPlaying ? "play.fill" : "pause.fill")
+				Image(systemName: glyphName)
 					.font(.system(size: 24, weight: .semibold))
 					.foregroundStyle(.white)
 
 				progressBar(position: position, duration: duration)
-					.frame(height: 10)
+					.frame(height: viewModel.isScrubbing ? 14 : 10)
 			}
 
 			HStack(alignment: .top) {
@@ -158,6 +162,13 @@ private struct TVTransportBar: View {
 			.foregroundStyle(.white.opacity(0.85))
 			.padding(.leading, 44)
 		}
+		.animation(
+			.spring(response: 0.25, dampingFraction: 0.9), value: viewModel.isScrubbing)
+	}
+
+	private var glyphName: String {
+		if viewModel.isScrubbing { return "backward.frame.fill" }
+		return viewModel.isPlaying ? "play.fill" : "pause.fill"
 	}
 
 	private func progressBar(position: Double, duration: Double) -> some View {
@@ -166,7 +177,8 @@ private struct TVTransportBar: View {
 			let playedFraction = duration > 0 ? min(max(position / duration, 0), 1) : 0
 			let bufferedFraction =
 				duration > 0
-				? min(max((position + time.cacheSeconds) / duration, 0), 1) : 0
+				? min(max((time.displayPosition + time.cacheSeconds) / duration, 0), 1)
+				: 0
 
 			ZStack(alignment: .leading) {
 				Capsule().fill(.white.opacity(0.25))
@@ -176,8 +188,44 @@ private struct TVTransportBar: View {
 				Capsule()
 					.fill(.white)
 					.frame(width: width * playedFraction)
+
+				// Chapter ticks (skip the implicit chapter at 0)
+				ForEach(Array(viewModel.chapters.enumerated()), id: \.offset) { _, chapter in
+					if chapter.startSec > 0, duration > 0 {
+						RoundedRectangle(cornerRadius: 1)
+							.fill(.black.opacity(0.55))
+							.frame(width: 3, height: geometry.size.height - 2)
+							.offset(
+								x: width * CGFloat(min(max(chapter.startSec / duration, 0), 1)) - 1.5)
+					}
+				}
+			}
+			.overlay(alignment: .topLeading) {
+				if viewModel.isScrubbing, let trickplay = viewModel.trickplay,
+					trickplay.isAvailable {
+					let chapterName = viewModel.chapterName(at: viewModel.scrubPosition)
+					TrickplayBubbleView(
+						provider: trickplay,
+						positionSec: viewModel.scrubPosition,
+						chapterName: chapterName,
+						bubbleHeight: Self.bubbleHeight
+					)
+					.offset(
+						x: bubbleOffsetX(trackWidth: width, provider: trickplay, playedFraction: playedFraction),
+						y: -Self.bubbleHeight - 90 - (chapterName != nil ? 30 : 0)
+					)
+				}
 			}
 		}
+	}
+
+	/// Center the bubble over the playhead, clamped to the track bounds.
+	private func bubbleOffsetX(
+		trackWidth: CGFloat, provider: TrickplayProvider, playedFraction: CGFloat
+	) -> CGFloat {
+		let bubbleWidth = Self.bubbleHeight * provider.aspectRatio
+		let thumbX = trackWidth * playedFraction
+		return min(max(thumbX - bubbleWidth / 2, 0), max(trackWidth - bubbleWidth, 0))
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;

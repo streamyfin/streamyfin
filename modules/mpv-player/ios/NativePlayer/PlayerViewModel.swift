@@ -416,6 +416,19 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	/// tvOS: the pan-then-click model separates choosing a position from
+	/// committing it, so Menu while a scrub is armed abandons it without
+	/// seeking (resuming only if playback was running before the scrub).
+	func cancelScrub() {
+		guard isScrubbing else { return }
+		isScrubbing = false
+		if wasPlayingBeforeScrub {
+			wasPlayingBeforeScrub = false
+			engine?.play()
+		}
+		scheduleAutoHide()
+	}
+
 	// MARK: - Sync offsets, volume boost, rotation
 
 	func setSubtitleDelay(_ seconds: Double) {

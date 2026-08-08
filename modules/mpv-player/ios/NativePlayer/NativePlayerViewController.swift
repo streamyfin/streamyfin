@@ -21,6 +21,13 @@ final class NativePlayerViewController: UIViewController {
 	#endif
 	private var cancellables: Set<AnyCancellable> = []
 	private var isViewVisible = false
+	#if os(tvOS)
+	/// Remote-scrub pan state: fraction the current pan started from, and
+	/// whether this particular pan gesture is driving the scrub (a pan that
+	/// merely revealed hidden chrome must not).
+	private var panStartFraction: Double = 0
+	private var panIsScrubbing = false
+	#endif
 
 	init(engine: MPVPlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
 		self.engine = engine
@@ -192,6 +199,9 @@ final class NativePlayerViewController: UIViewController {
 		addPressRecognizer(for: .select, action: #selector(handleSelectPress))
 		addPressRecognizer(for: .leftArrow, action: #selector(handleLeftPress))
 		addPressRecognizer(for: .rightArrow, action: #selector(handleRightPress))
+
+		let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+		view.addGestureRecognizer(pan)
 	}
 
 	private func addPressRecognizer(for pressType: UIPress.PressType, action: Selector) {
@@ -201,10 +211,13 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handleMenuPress() {
-		// Mirror of useRemoteControl's useTVBackPress flow: visible chrome is
-		// hidden first; only a Menu press from the bare-video state asks to
+		// Mirror of useRemoteControl's useTVBackPress flow, extended for the
+		// scrub state: an armed scrub is abandoned first, visible chrome is
+		// hidden next; only a Menu press from the bare-video state asks to
 		// leave playback.
-		if viewModel.controlsVisible {
+		if viewModel.isScrubbing {
+			viewModel.cancelScrub()
+		} else if viewModel.controlsVisible {
 			viewModel.toggleControls()
 		} else {
 			presentExitConfirmation()
@@ -212,24 +225,91 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handlePlayPausePress() {
-		viewModel.togglePlayPause()
+		if viewModel.isScrubbing {
+			// Play/Pause on an armed scrub means "jump there and play" even
+			// when playback was paused before the scrub began.
+			viewModel.endScrub()
+			if engine.isPaused() {
+				engine.play()
+			}
+		} else {
+			viewModel.togglePlayPause()
+		}
 	}
 
 	@objc private func handleSelectPress() {
-		viewModel.toggleControls()
+		if viewModel.isScrubbing {
+			// Commit the armed scrub: seek + resume-if-was-playing.
+			viewModel.endScrub()
+		} else {
+			viewModel.toggleControls()
+		}
 	}
 
 	/// Left/right clickpad-edge clicks (arrow keys in the simulator) jump by
 	/// the configured skip amounts; the chrome comes up so the landing
-	/// position is visible, then auto-hides.
+	/// position is visible, then auto-hides. While a scrub is armed they
+	/// nudge the scrub target instead of seeking playback.
 	@objc private func handleLeftPress() {
-		viewModel.showControls()
-		viewModel.seekBackward()
+		if viewModel.isScrubbing {
+			nudgeScrub(by: -viewModel.seekBackwardSec)
+		} else {
+			viewModel.showControls()
+			viewModel.seekBackward()
+		}
 	}
 
 	@objc private func handleRightPress() {
-		viewModel.showControls()
-		viewModel.seekForward()
+		if viewModel.isScrubbing {
+			nudgeScrub(by: viewModel.seekForwardSec)
+		} else {
+			viewModel.showControls()
+			viewModel.seekForward()
+		}
+	}
+
+	// MARK: tvOS scrubbing (Apple TV convention: pan to arm a position,
+	// Select/Play to commit, Menu to abandon — viewModel.beginScrub already
+	// pauses, endScrub seeks and resumes)
+
+	/// Fraction of the duration covered by one full-screen-width pan.
+	private static let panFullWidthFraction: Double = 1.0
+
+	@objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+		switch gesture.state {
+		case .began:
+			// A pan with hidden chrome just reveals it; the NEXT pan scrubs.
+			guard viewModel.controlsVisible, viewModel.isReadyToSeek,
+				viewModel.duration > 0, viewModel.errorMessage == nil
+			else {
+				panIsScrubbing = false
+				viewModel.showControls()
+				return
+			}
+			panIsScrubbing = true
+			if !viewModel.isScrubbing {
+				viewModel.beginScrub()
+			}
+			panStartFraction = viewModel.scrubPosition / viewModel.duration
+		case .changed:
+			guard panIsScrubbing else { return }
+			let translation = gesture.translation(in: view).x
+			let deltaFraction =
+				Double(translation / max(view.bounds.width, 1)) * Self.panFullWidthFraction
+			viewModel.updateScrub(fraction: panStartFraction + deltaFraction)
+		case .ended, .cancelled, .failed:
+			// Lifting the finger keeps the scrub armed; consecutive pans
+			// accumulate from the armed position.
+			panIsScrubbing = false
+		default:
+			break
+		}
+	}
+
+	private func nudgeScrub(by delta: Double) {
+		guard viewModel.duration > 0 else { return }
+		viewModel.updateScrub(
+			fraction: (viewModel.scrubPosition + delta) / viewModel.duration)
 	}
 
 	/// JS-player parity: Menu with no chrome up asks before leaving playback.
