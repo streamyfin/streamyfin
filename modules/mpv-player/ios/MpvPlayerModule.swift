@@ -1,4 +1,6 @@
 import ExpoModulesCore
+import CoreMedia
+import VideoToolbox
 
 public class MpvPlayerModule: Module {
   private func parseNumericTrackId(_ value: Any?) -> Int? {
@@ -20,6 +22,24 @@ public class MpvPlayerModule: Module {
     // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
     Function("hello") {
       return "Hello from MPV Player! 👋"
+    }
+
+    /// Whether this device has a hardware AV1 decoder.
+    ///
+    /// Apple silicon only gained AV1 decode with A17 Pro / M3, so no Apple TV
+    /// shipped to date can decode it in hardware (Apple TV 4K 3rd gen is A15).
+    /// When VideoToolbox refuses the codec, mpv falls back to dav1d software
+    /// decode, whose `yuv420p10le` output has to be converted and uploaded per
+    /// frame before `vo_avfoundation` can enqueue it into the
+    /// AVSampleBufferDisplayLayer — on tvOS that stalls, and the display-layer
+    /// recovery in MPVLayerRenderer then retries the same failing hardware path.
+    ///
+    /// The JS device profile calls this to decide whether to advertise AV1 as
+    /// direct-play to Jellyfin, so unsupported devices get a transcode instead
+    /// of a hang. Querying VideoToolbox rather than hardcoding `Platform.isTV`
+    /// means a future AV1-capable Apple TV keeps direct play automatically.
+    Function("supportsAv1HardwareDecode") { () -> Bool in
+      return VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)
     }
 
     // Defines a JavaScript function that always returns a Promise and whose native code

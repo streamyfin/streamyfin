@@ -35,9 +35,6 @@ const dependencies = {
   "react-native-pager-view": disableForTV("react-native-pager-view"),
   "react-native-track-player": disableForTV("react-native-track-player"),
   "expo-location": disableForTV("expo-location"),
-  "react-native-glass-effect-view": disableForTV(
-    "react-native-glass-effect-view",
-  ),
 };
 
 // Filter out undefined values

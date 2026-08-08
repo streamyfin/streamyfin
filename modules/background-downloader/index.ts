@@ -1,6 +1,8 @@
 import type { EventSubscription } from "expo-modules-core";
+import { Platform } from "react-native";
 import type {
   ActiveDownload,
+  DownloadActivityMetadata,
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadProgressEvent,
@@ -9,12 +11,30 @@ import type {
 import BackgroundDownloaderModule from "./src/BackgroundDownloaderModule";
 
 export interface BackgroundDownloader {
-  startDownload(url: string, destinationPath?: string): Promise<number>;
-  enqueueDownload(url: string, destinationPath?: string): Promise<number>;
+  startDownload(
+    url: string,
+    destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
+  ): Promise<number>;
+  enqueueDownload(
+    url: string,
+    destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
+  ): Promise<number>;
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;
   cancelAllDownloads(): void;
   getActiveDownloads(): Promise<ActiveDownload[]>;
+
+  /** iOS only; no-op elsewhere. Ends any live activity when turned off. */
+  setLiveActivityEnabled(enabled: boolean): void;
+
+  /**
+   * iOS only. Absolute path of the App Group directory the Live Activity extension can read, or
+   * `null` when unavailable. Poster images must be staged here — the extension has no access to the
+   * app's Documents directory.
+   */
+  getLiveActivityDirectory(): string | null;
 
   addProgressListener(
     listener: (event: DownloadProgressEvent) => void,
@@ -34,18 +54,38 @@ export interface BackgroundDownloader {
 }
 
 const BackgroundDownloader: BackgroundDownloader = {
-  async startDownload(url: string, destinationPath?: string): Promise<number> {
-    return await BackgroundDownloaderModule.startDownload(url, destinationPath);
+  async startDownload(
+    url: string,
+    destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
+  ): Promise<number> {
+    return await BackgroundDownloaderModule.startDownload(
+      url,
+      destinationPath,
+      metadata,
+    );
   },
 
   async enqueueDownload(
     url: string,
     destinationPath?: string,
+    metadata?: DownloadActivityMetadata,
   ): Promise<number> {
     return await BackgroundDownloaderModule.enqueueDownload(
       url,
       destinationPath,
+      metadata,
     );
+  },
+
+  setLiveActivityEnabled(enabled: boolean): void {
+    if (Platform.OS !== "ios") return;
+    BackgroundDownloaderModule.setLiveActivityEnabled?.(enabled);
+  },
+
+  getLiveActivityDirectory(): string | null {
+    if (Platform.OS !== "ios") return null;
+    return BackgroundDownloaderModule.getLiveActivityDirectory?.() ?? null;
   },
 
   cancelDownload(taskId: number): void {
@@ -102,6 +142,7 @@ export default BackgroundDownloader;
 
 export type {
   ActiveDownload,
+  DownloadActivityMetadata,
   DownloadCompleteEvent,
   DownloadErrorEvent,
   DownloadProgressEvent,

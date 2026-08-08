@@ -62,7 +62,20 @@ final class MPVLayerRenderer {
     
     // KVO observation for display layer status
     private var statusObservation: NSKeyValueObservation?
-    
+
+    // Display layer recovery (see performDecoderReset)
+    private static let maxDecoderResets = 3
+    private var _decoderResetCount = 0
+    private var decoderResetCount: Int {
+        get { stateQueue.sync { _decoderResetCount } }
+        set { stateQueue.sync(flags: .barrier) { _decoderResetCount = newValue } }
+    }
+
+    /// The hwdec mode this renderer was configured with in `start()`. Recovery
+    /// restores exactly this instead of `auto`, so a device that was told to
+    /// software-decode never gets silently promoted back to VideoToolbox.
+    private var configuredHwdec = "videotoolbox"
+
     weak var delegate: MPVLayerRendererDelegate?
     
     // Thread-safe state for playback
@@ -159,11 +172,36 @@ final class MPVLayerRenderer {
     }
     
     /// Actually performs the decoder reset (called by observer or manually)
+    ///
+    /// Bounded on purpose. The reset re-enables hardware decoding, so if the
+    /// layer failed *because* the codec has no hardware decoder on this device
+    /// (AV1 on any current Apple TV, for instance), the retry reproduces the
+    /// exact failure and the KVO observer fires again — an unbounded loop that
+    /// presents as a permanent hang rather than an error. After
+    /// `maxDecoderResets` consecutive failures we stop retrying and leave mpv
+    /// on software decoding, which at worst plays badly instead of not at all.
+    /// The budget is reset per loaded file in `load()`.
     private func performDecoderReset() {
         guard let handle = mpv else { return }
-        print("🔧 Resetting decoder: status=\(displayLayer.status.rawValue), requiresFlush=\(displayLayer.requiresFlushToResumeDecoding)")
+
+        let attempt = decoderResetCount + 1
+        guard attempt <= Self.maxDecoderResets else {
+            Logger.shared.log(
+                "Display layer failed again after \(Self.maxDecoderResets) decoder resets; staying on software decoding",
+                type: "Warn"
+            )
+            return
+        }
+        decoderResetCount = attempt
+
+        print("🔧 Resetting decoder (\(attempt)/\(Self.maxDecoderResets)): status=\(displayLayer.status.rawValue), requiresFlush=\(displayLayer.requiresFlushToResumeDecoding)")
         commandSync(handle, ["set", "hwdec", "no"])
-        commandSync(handle, ["set", "hwdec", "auto"])
+
+        // On the final attempt, stay on software decoding rather than handing
+        // the same unsupported stream back to VideoToolbox one more time.
+        if attempt < Self.maxDecoderResets {
+            commandSync(handle, ["set", "hwdec", configuredHwdec])
+        }
     }
     
     deinit {
@@ -209,10 +247,11 @@ final class MPVLayerRenderer {
         // On simulator, use software decoding since VideoToolbox is not available
         // On device, use VideoToolbox with software fallback enabled
         #if targetEnvironment(simulator)
-        checkError(mpv_set_option_string(handle, "hwdec", "no"))
+        configuredHwdec = "no"
         #else
-        checkError(mpv_set_option_string(handle, "hwdec", "videotoolbox"))
+        configuredHwdec = "videotoolbox"
         #endif
+        checkError(mpv_set_option_string(handle, "hwdec", configuredHwdec))
         checkError(mpv_set_option_string(handle, "hwdec-codecs", "all"))
         checkError(mpv_set_option_string(handle, "hwdec-software-fallback", "yes"))
 
@@ -378,6 +417,8 @@ final class MPVLayerRenderer {
             guard let self else { return }
             self.isLoading = true
             self.isReadyToSeek = false
+            // Fresh file, fresh recovery budget (see performDecoderReset)
+            self.decoderResetCount = 0
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.delegate?.renderer(self, didChangeLoading: true)

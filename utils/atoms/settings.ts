@@ -275,6 +275,8 @@ export type Settings = {
   streamyStatsSeriesRecommendations?: boolean;
   streamyStatsPromotedWatchlists?: boolean;
   downloadQuality?: DownloadOption;
+  /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
+  showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
@@ -377,6 +379,7 @@ export const defaultValues: Settings = {
   streamyStatsSeriesRecommendations: false,
   streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
+  showDownloadLiveActivity: true,
   defaultBitrate: BITRATES[0],
   libraryOptions: {
     display: "list",
