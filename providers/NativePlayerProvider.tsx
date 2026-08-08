@@ -204,6 +204,10 @@ const NativePlayerProviderInner: React.FC<{
   const { lastMessage, subscribe, clearLastMessage } = useWebSocketContext();
 
   const sessionRef = useRef<NativeSession | null>(null);
+  // Monotonic id per beginSession call: the config build awaits a PlaybackInfo
+  // round trip, so overlapping play requests (double-fired next-episode, WS
+  // Play mid-swap, fast taps) can interleave — only the newest may commit.
+  const playRequestTokenRef = useRef(0);
   const [activeItem, setActiveItem] = useState<BaseItemDto | null>(null);
   const [isActive, setIsActive] = useState(false);
 
@@ -470,6 +474,7 @@ const NativePlayerProviderInner: React.FC<{
     ): Promise<boolean> => {
       const currentSettings = settingsRef.current;
       if (!currentSettings) return false;
+      const token = ++playRequestTokenRef.current;
 
       const built = await buildNativePlayerConfig({
         api: apiRef.current,
@@ -489,7 +494,6 @@ const NativePlayerProviderInner: React.FC<{
       });
       if (!built) return false;
 
-      const previous = sessionRef.current;
       const session: NativeSession = {
         ...built.seed,
         currentAudioIndex: built.seed.audioIndex,
@@ -501,6 +505,16 @@ const NativePlayerProviderInner: React.FC<{
         awaitingLoad: true,
         lastProgressReportAt: 0,
       };
+
+      if (token !== playRequestTokenRef.current) {
+        // A newer play request started while this stream was negotiating —
+        // abandon before touching sessionRef or the native player, and close
+        // the live stream this build just opened on the server.
+        releaseLiveStream(session);
+        return false;
+      }
+
+      const previous = sessionRef.current;
 
       try {
         if (options.replace && previous) {

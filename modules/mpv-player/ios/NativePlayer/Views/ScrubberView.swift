@@ -50,6 +50,9 @@ struct ScrubberView: View {
 			.gesture(
 				DragGesture(minimumDistance: 0)
 					.onChanged { value in
+						// A zero width would make the fraction NaN/infinite
+						// (same guard as PlayerControlsRootView's drag gesture).
+						guard width > 0 else { return }
 						if !viewModel.isScrubbing {
 							viewModel.beginScrub()
 						}

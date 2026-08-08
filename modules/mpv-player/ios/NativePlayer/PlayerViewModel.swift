@@ -144,6 +144,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var lastTickTimestamp: CFTimeInterval = 0
 	/// User canceled the countdown — stays canceled until the next load().
 	private var countdownCanceled = false
+	/// An episode-change request was already emitted for this item (countdown
+	/// fire or explicit tap/selection) — without this latch the arm condition
+	/// re-triggers on the next progress tick (JS is still negotiating the next
+	/// stream) and a second onNextEpisodeRequested fires mid-swap.
+	private var countdownFired = false
 	/// Set on every user/remote seek; the next progress tick reports
 	/// didSeek=true so the JS coordinator sends an immediate progress report.
 	private var pendingSeekReport = false
@@ -191,6 +196,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		let newItemId = config.metadata?.itemId
 		if newItemId == nil || newItemId != currentItemId {
 			countdownCanceled = false
+			countdownFired = false
 			// Sync offsets and gain are per-item compensations — a same-item
 			// swap (track/bitrate renegotiation) keeps them, a new item
 			// starts neutral.
@@ -212,8 +218,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		transcodeReasons = config.stream.transcodeReasons
 		videoWidth = config.stream.videoWidth
 		videoHeight = config.stream.videoHeight
-		seekForwardSec = config.ui.seekForwardSec
-		seekBackwardSec = config.ui.seekBackwardSec
+		// Skip times are persisted settings that arrive unvalidated; a
+		// non-finite value would trap in seekSymbol's Int() and poison
+		// seek targets.
+		seekForwardSec = config.ui.seekForwardSec.isFinite ? max(1, config.ui.seekForwardSec) : 10
+		seekBackwardSec = config.ui.seekBackwardSec.isFinite ? max(1, config.ui.seekBackwardSec) : 10
 		hapticsEnabled = config.ui.hapticsEnabled
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
@@ -371,7 +380,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func updateScrub(fraction: Double) {
-		guard duration > 0 else { return }
+		// min/max propagate NaN, so a non-finite fraction would reach
+		// scrubPosition and SwiftUI frame math unclamped.
+		guard duration > 0, fraction.isFinite else { return }
 		scrubPosition = min(max(fraction, 0), 1) * duration
 		// Haptic tick when the thumb crosses a chapter mark.
 		if hapticsEnabled, !chapters.isEmpty {
@@ -669,8 +680,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func playNextEpisode() {
-		cancelCountdownTask()
-		countdownRemaining = nil
+		disarmCountdownForEpisodeChange()
 		emit?("onNextEpisodeRequested", [
 			"reason": "userTap",
 			"positionSec": displayPosition,
@@ -678,6 +688,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func playPreviousEpisode() {
+		disarmCountdownForEpisodeChange()
 		emit?("onPreviousEpisodeRequested", [
 			"positionSec": displayPosition,
 		])
@@ -694,6 +705,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func selectEpisode(_ episode: EpisodeListItemRecord) {
 		showEpisodeList = false
 		guard !episode.isCurrent else { return }
+		disarmCountdownForEpisodeChange()
 		emit?("onEpisodeSelected", [
 			"itemId": episode.itemId,
 			"positionSec": displayPosition,
@@ -752,6 +764,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 						// Clear the handle so a completed countdown doesn't
 						// block startCountdown's already-running guard forever.
 						self.countdownTask = nil
+						self.countdownFired = true
 						self.emit?("onNextEpisodeRequested", [
 							"reason": "countdown",
 							"positionSec": self.displayPosition,
@@ -769,6 +782,15 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private func cancelCountdownTask() {
 		countdownTask?.cancel()
 		countdownTask = nil
+	}
+
+	/// An episode change was explicitly requested — stop any running countdown
+	/// and keep the auto-advance disarmed until the next item's config applies,
+	/// so a countdown firing mid-swap can't override the user's choice.
+	private func disarmCountdownForEpisodeChange() {
+		countdownFired = true
+		cancelCountdownTask()
+		countdownRemaining = nil
 	}
 
 	// MARK: - Segment tracking
@@ -798,7 +820,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 		if inFinalCredits || nearEnd,
 		   let next = nextEpisode, next.countdownSeconds > 0,
-		   !countdownCanceled, countdownRemaining == nil, countdownTask == nil {
+		   !countdownCanceled, !countdownFired,
+		   countdownRemaining == nil, countdownTask == nil {
 			// Never count longer than the video has left: the nearEnd case
 			// arms with <= countdownSeconds of video remaining and EOF
 			// advances the episode regardless, so an uncapped timer would

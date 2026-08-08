@@ -18,6 +18,11 @@ actor TrickplayProvider {
 		cache.totalCostLimit = 50 * 1024 * 1024
 
 		let sessionConfig = URLSessionConfiguration.default
+		// Previews are disposable: fail fast so a stalled fetch doesn't pin
+		// the shared inflight task (and blank a whole sheet's worth of
+		// thumbnails) for the 60s default timeout — the next scrub retries.
+		sessionConfig.timeoutIntervalForRequest = 10
+		sessionConfig.timeoutIntervalForResource = 20
 		if let headers = config.headers, !headers.isEmpty {
 			sessionConfig.httpAdditionalHeaders = headers
 		}
