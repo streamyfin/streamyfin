@@ -7,6 +7,12 @@ import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageSta
 import useRouter from "@/hooks/useAppRouter";
 import { useStreamystatsEnabled } from "@/hooks/useWatchlists";
 
+// The promoted-watchlists "See all" on the home page pushes a fully qualified
+// `(watchlists)` path from the home tab, which would otherwise build this tab's
+// stack as just [detail] — no back button, and the tab pinned to that watchlist.
+// Same reasoning as the `(libraries)` layout; see the comment there.
+export const unstable_settings = Platform.isTV ? {} : { anchor: "index" };
+
 export default function WatchlistsLayout() {
   const { t } = useTranslation();
   const router = useRouter();
