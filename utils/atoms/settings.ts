@@ -652,7 +652,7 @@ export const useSettings = () => {
     return newPluginSettings;
   }, [api, _settings]);
 
-  const updateSettings = (update: Partial<Settings>) => {
+  const updateSettings = (update: Partial<Settings>, markAsExplicit = true) => {
     // Admin-locked settings are enforced at write time too: a control that
     // isn't disabled in the UI must not persist a value the admin pinned.
     // The read memo already overrides locked keys, but without this guard the
@@ -665,31 +665,40 @@ export const useSettings = () => {
 
     if (Object.keys(sanitizedUpdate).length === 0) return;
 
-    let overridesChanged = false;
-    for (const key of Object.keys(sanitizedUpdate) as Array<keyof Settings>) {
-      if (
-        pluginSettings?.[key] !== undefined &&
-        pluginSettings[key]?.locked !== true &&
-        !explicitPluginSettingOverrides.has(key)
-      ) {
-        explicitPluginSettingOverrides.add(key);
-        overridesChanged = true;
-      }
-    }
-    if (overridesChanged) {
-      storage.set(
-        EXPLICIT_PLUGIN_SETTING_OVERRIDES,
-        JSON.stringify([...explicitPluginSettingOverrides]),
-      );
-    }
-
     setSettings((currentSettings) => {
       if (!currentSettings) return currentSettings;
 
-      const hasChanges = Object.entries(sanitizedUpdate).some(
-        ([key, value]) => currentSettings[key as keyof Settings] !== value,
+      const requestedKeys = Object.keys(sanitizedUpdate) as Array<
+        keyof Settings
+      >;
+      const changedKeys = requestedKeys.filter(
+        (key) => !Object.is(currentSettings[key], sanitizedUpdate[key]),
       );
-      if (!hasChanges) return currentSettings;
+      const explicitKeys = markAsExplicit
+        ? requestedKeys.filter(
+            (key) =>
+              pluginSettings?.[key] !== undefined &&
+              pluginSettings[key]?.locked !== true &&
+              !explicitPluginSettingOverrides.has(key) &&
+              !Object.is(settings[key], sanitizedUpdate[key]),
+          )
+        : [];
+
+      if (changedKeys.length === 0 && explicitKeys.length === 0) {
+        return currentSettings;
+      }
+
+      if (explicitKeys.length > 0) {
+        for (const key of explicitKeys) {
+          explicitPluginSettingOverrides.add(key);
+        }
+        storage.set(
+          EXPLICIT_PLUGIN_SETTING_OVERRIDES,
+          JSON.stringify([...explicitPluginSettingOverrides]),
+        );
+      }
+
+      if (changedKeys.length === 0) return { ...currentSettings };
 
       const newSettings = {
         ...defaultValues,

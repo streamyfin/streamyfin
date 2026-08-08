@@ -70,7 +70,10 @@ export default function SettingsTV() {
   const queryClient = useQueryClient();
   const settingsRef = useRef(settings);
   const mediaUpdateQueueRef = useRef<Promise<void>>(Promise.resolve());
-  settingsRef.current = settings;
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   const stripLocked = (update: Partial<Settings>) =>
     Object.fromEntries(
@@ -106,8 +109,8 @@ export default function SettingsTV() {
     );
 
     const syncedSettings = stripLocked({
-      defaultSubtitleLanguage: subtitlePreference,
-      defaultAudioLanguage: audioPreference,
+      defaultSubtitleLanguage: subtitlePreference ?? null,
+      defaultAudioLanguage: audioPreference ?? null,
       subtitleMode: user.Configuration?.SubtitleMode,
       playDefaultAudioTrack: user.Configuration?.PlayDefaultAudioTrack,
       rememberAudioSelections: user.Configuration?.RememberAudioSelections,
@@ -117,7 +120,7 @@ export default function SettingsTV() {
 
     if (Object.keys(syncedSettings).length > 0) {
       settingsRef.current = { ...settingsRef.current, ...syncedSettings };
-      updateSettings(syncedSettings);
+      updateSettings(syncedSettings, false);
     }
   }, [user, cultures, isCulturesFetched, pluginSettings]);
 
@@ -153,12 +156,15 @@ export default function SettingsTV() {
           "",
       } as Partial<UserConfiguration>;
 
-      await getUserApi(api).updateUserConfiguration({
-        userConfiguration: {
-          ...user.Configuration,
-          ...updatePayload,
+      await getUserApi(api).updateUserConfiguration(
+        {
+          userConfiguration: {
+            ...user.Configuration,
+            ...updatePayload,
+          },
         },
-      });
+        { timeout: 10_000 },
+      );
       await queryClient.invalidateQueries({ queryKey: ["authUser"] });
     });
 
@@ -179,7 +185,7 @@ export default function SettingsTV() {
 
       if (Object.keys(rollback).length > 0) {
         settingsRef.current = { ...settingsRef.current, ...rollback };
-        updateSettings(rollback);
+        updateSettings(rollback, false);
       }
     });
   };

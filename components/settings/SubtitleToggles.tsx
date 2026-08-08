@@ -179,16 +179,14 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   );
 
   const fontOptionGroups = useMemo(() => {
+    const isLocked = pluginSettings?.subtitleFont?.locked === true;
     const options = fontOptions.map((font) => ({
       type: "radio" as const,
       label: font.label,
       value: font.value,
       selected: font.value === settings?.subtitleFont,
-      onPress: () => {
-        if (!pluginSettings?.subtitleFont?.locked) {
-          updateSettings({ subtitleFont: font.value });
-        }
-      },
+      disabled: isLocked,
+      onPress: () => updateSettings({ subtitleFont: font.value }),
     }));
 
     return [{ options }];
