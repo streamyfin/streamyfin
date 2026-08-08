@@ -942,6 +942,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.audio.transcode_mode.title")}
             value={audioTranscodeLabel}
+            disabled={pluginSettings?.audioTranscodeMode?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.audio.transcode_mode.title"),

@@ -141,6 +141,8 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     [t],
   );
 
+  const isAudioTranscodeModeLocked =
+    pluginSettings?.audioTranscodeMode?.locked === true;
   const audioTranscodeModeOptions = useMemo(
     () => [
       {
@@ -148,6 +150,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           type: "radio" as const,
           label: audioTranscodeModeLabels[mode],
           value: mode,
+          disabled: isAudioTranscodeModeLocked,
           selected:
             settings?.audioTranscodeMode === mode ||
             (mode === AudioTranscodeMode.Auto && !settings?.audioTranscodeMode),
@@ -155,7 +158,12 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         })),
       },
     ],
-    [audioTranscodeModeLabels, settings?.audioTranscodeMode, updateSettings],
+    [
+      audioTranscodeModeLabels,
+      isAudioTranscodeModeLocked,
+      settings?.audioTranscodeMode,
+      updateSettings,
+    ],
   );
 
   const fontOptions = useMemo(
@@ -315,9 +323,11 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         <ListItem
           title={t("home.settings.audio.transcode_mode.title")}
           subtitle={t("home.settings.audio.transcode_mode.description")}
+          disabled={isAudioTranscodeModeLocked}
         >
           <PlatformDropdown
             groups={audioTranscodeModeOptions}
+            disabled={isAudioTranscodeModeLocked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>

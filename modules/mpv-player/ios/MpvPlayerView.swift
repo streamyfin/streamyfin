@@ -458,6 +458,10 @@ class MpvPlayerView: ExpoView {
 	func setSubtitleAlignY(_ alignment: String) {
 		renderer?.setSubtitleAlignY(alignment)
 	}
+
+	func setSubtitleFontSize(_ size: Int) {
+		renderer?.setSubtitleFontSize(size)
+	}
 	
 	func setSubtitleStyle(config: [String: Any]) {
 		renderer?.setSubtitleStyle(config: config)

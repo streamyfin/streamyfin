@@ -562,12 +562,13 @@ const EXCLUDE_FROM_SAVE = ["home"];
 
 const saveSettings = (settings: Settings) => {
   try {
-    for (const key of Object.keys(settings)) {
+    const persistedSettings = { ...settings };
+    for (const key of Object.keys(persistedSettings)) {
       if (EXCLUDE_FROM_SAVE.includes(key)) {
-        delete settings[key as keyof Settings];
+        delete persistedSettings[key as keyof Settings];
       }
     }
-    const jsonValue = JSON.stringify(settings);
+    const jsonValue = JSON.stringify(persistedSettings);
     storage.set("settings", jsonValue);
   } catch (error) {
     console.error("Failed to save settings:", error);
@@ -677,6 +678,8 @@ export const useSettings = () => {
       const changedKeys = requestedKeys.filter(
         (key) => !Object.is(currentSettings[key], sanitizedUpdate[key]),
       );
+      // Compare explicit choices with the effective values displayed by this
+      // render; changedKeys uses live persisted state to merge same-tick writes.
       const explicitKeys = markAsExplicit
         ? requestedKeys.filter(
             (key) =>

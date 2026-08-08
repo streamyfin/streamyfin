@@ -58,15 +58,12 @@ const getPlatformScaleMultiplier = (playerType: "mpv" | "exoplayer") => {
         : ANDROID_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER)
     );
   }
+  if (Platform.OS !== "ios") return tv;
   return (
     tv *
     (Platform.isTV
-      ? Platform.OS === "ios"
-        ? IOS_TV_MPV_SUBTITLE_SCALE_MULTIPLIER
-        : 1
-      : Platform.OS === "ios"
-        ? IOS_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER
-        : 1)
+      ? IOS_TV_MPV_SUBTITLE_SCALE_MULTIPLIER
+      : IOS_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER)
   );
 };
 

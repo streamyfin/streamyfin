@@ -206,6 +206,10 @@ public class MpvPlayerModule: Module {
         view.setSubtitleAlignY(alignment)
       }
 
+      AsyncFunction("setSubtitleFontSize") { (view: MpvPlayerView, size: Int) in
+        view.setSubtitleFontSize(size)
+      }
+
       AsyncFunction("setSubtitleStyle") { (view: MpvPlayerView, config: [String: Any]) in
         view.setSubtitleStyle(config: config)
       }
