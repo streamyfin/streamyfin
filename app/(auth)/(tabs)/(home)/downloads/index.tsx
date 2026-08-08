@@ -108,7 +108,10 @@ export default function DownloadsPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <HeaderButton onPress={() => bottomSheetModalRef.current?.present()}>
+        <HeaderButton
+          variant='text'
+          onPress={() => bottomSheetModalRef.current?.present()}
+        >
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
         </HeaderButton>
       ),

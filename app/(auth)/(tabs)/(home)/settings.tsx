@@ -30,6 +30,7 @@ function SettingsMobile() {
     navigation.setOptions({
       headerRight: () => (
         <HeaderButton
+          variant='text'
           onPress={() => {
             logout();
           }}

@@ -142,6 +142,7 @@ export const Login: React.FC = () => {
         api?.basePath ? (
           <HeaderButton
             placement='left'
+            variant='text'
             onPress={() => {
               removeServer();
             }}

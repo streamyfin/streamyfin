@@ -11,12 +11,11 @@
  * `pl-1.5`, `mr-4`, nothing at all — which is exactly why no two headers lined
  * up.
  *
- * The rule here: no margins anywhere, and one shared inset per side. Uniform is
- * what makes headers align; the value itself just has to be shared. The two
- * sides do not share the same value, though, and that is deliberate — see
- * `placement`. On the right the inset doubles as the pill's internal padding on
- * iOS 26, and two adjacent buttons produce `2 × HEADER_BUTTON_INSET` between
- * their glyphs, so the group needs no gap of its own.
+ * The rule here: no margins anywhere, and all spacing owned by
+ * `HeaderButtonGroup` — the end insets and the gap between neighbours. Buttons
+ * themselves sit flush, with one exception: a lone text button opts back into
+ * the inset via `variant="text"`, because bare letters against the pill's glass
+ * edge read as a bug where a bare glyph does not.
  */
 
 import { Children, type PropsWithChildren } from "react";
@@ -36,14 +35,15 @@ import { Pressable, type PressableProps } from "react-native-gesture-handler";
 export const HEADER_ICON_SIZE = 24;
 
 /**
- * End padding inside a `HeaderButtonGroup`.
+ * End padding inside a `HeaderButtonGroup`, and inside a lone `variant="text"`
+ * button.
  *
- * On iOS 26 the group is what the shared-background pill wraps, and with zero
- * inset the outermost glyphs sit hard against the glass edge. A lone button
- * gets none of this: it has no neighbour to separate from, and padding a pill
- * drawn around a single glyph just makes it wide for no reason.
+ * On iOS 26 the pill hugs whichever of those it wraps, and with zero inset the
+ * content sits hard against the glass edge. A lone icon is the one case that
+ * gets none of this: a glyph carries whitespace inside its em square, and
+ * padding a pill drawn around a single glyph just makes it wide for no reason.
  */
-const HEADER_GROUP_INSET = 8;
+const HEADER_INSET = 8;
 
 /** UIKit's spacing between adjacent bar button items. */
 const HEADER_BUTTON_GAP = 16;
@@ -69,6 +69,14 @@ export interface HeaderButtonProps extends Omit<PressableProps, "style"> {
    */
   placement?: "left" | "right";
   /**
+   * `"text"` restores the end inset for buttons that hold a label ("Save",
+   * "Log out") rather than a glyph — text runs to the edge of its box, so with
+   * zero inset the iOS 26 pill hugs the letters. Only a lone button needs it;
+   * inside a `HeaderButtonGroup` the group's end padding already covers both
+   * ends. Defaults to `"icon"`, which sits flush.
+   */
+  variant?: "icon" | "text";
+  /**
    * Layout tweaks for buttons that hold more than one glyph. Do not add padding
    * or margins here — that is what knocks the button off the header grid.
    */
@@ -78,6 +86,7 @@ export interface HeaderButtonProps extends Omit<PressableProps, "style"> {
 export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
   children,
   placement = "right",
+  variant = "icon",
   style,
   ...props
 }) => (
@@ -90,6 +99,7 @@ export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
         minWidth: HEADER_ICON_SIZE,
         alignItems: "center",
         justifyContent: "center",
+        paddingHorizontal: variant === "text" ? HEADER_INSET : 0,
         marginRight:
           placement === "left" && Platform.OS === "android"
             ? ANDROID_TITLE_GAP
@@ -132,7 +142,7 @@ export const HeaderButtonGroup: React.FC<PropsWithChildren<ViewProps>> = ({
           flexDirection: "row",
           alignItems: "center",
           gap: HEADER_BUTTON_GAP,
-          paddingHorizontal: isAlone ? 0 : HEADER_GROUP_INSET,
+          paddingHorizontal: isAlone ? 0 : HEADER_INSET,
         },
         style,
       ]}

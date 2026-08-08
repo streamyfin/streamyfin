@@ -103,7 +103,7 @@ export default function Page() {
         loading ? (
           <Loader />
         ) : (
-          <HeaderButton onPress={share}>
+          <HeaderButton variant='text' onPress={share}>
             <Text>{t("home.settings.logs.export_logs")}</Text>
           </HeaderButton>
         ),

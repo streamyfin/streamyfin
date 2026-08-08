@@ -57,7 +57,7 @@ export default function MarlinSearchPage() {
     if (!marlinUrlLocked) {
       navigation.setOptions({
         headerRight: () => (
-          <HeaderButton onPress={() => onSave(value)}>
+          <HeaderButton variant='text' onPress={() => onSave(value)}>
             <Text className='text-blue-500'>
               {t("home.settings.plugins.marlin_search.save_button")}
             </Text>

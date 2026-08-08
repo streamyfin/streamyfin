@@ -108,7 +108,7 @@ export default function StreamystatsPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <HeaderButton onPress={onSave}>
+        <HeaderButton variant='text' onPress={onSave}>
           <Text className='text-blue-500 font-medium'>
             {t("home.settings.plugins.streamystats.save")}
           </Text>
