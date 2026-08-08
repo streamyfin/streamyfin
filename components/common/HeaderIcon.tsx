@@ -15,6 +15,7 @@
  * or earlier — a symbol added later renders as a blank box on older devices.
  */
 
+import { Feather } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
 import type { ColorValue } from "react-native";
 import { HEADER_ICON_SIZE } from "./HeaderButton";
@@ -25,10 +26,11 @@ import { HEADER_ICON_SIZE } from "./HeaderButton";
  * tense (`favorited`, `watchlisted`, `played`) are the "on" state of a toggle.
  */
 const HEADER_ICONS = {
-  // SF Symbols has no Cast glyph — it is a Google mark. `airplayvideo` would be
-  // actively misleading here because the app offers AirPlay separately in the
-  // now-playing screen, so this uses the neutral broadcast symbol instead.
-  cast: { ios: "dot.radiowaves.up.forward", android: "cast" },
+  // No `ios` entry on purpose: Cast is a Google mark, so SF Symbols has no
+  // equivalent, and every near-miss reads as something else — `airplayvideo` is
+  // AirPlay, which the app offers separately in now-playing. iOS falls back to
+  // the Feather glyph below; Android has the real mark in Material Symbols.
+  cast: { android: "cast" },
   sessions: { ios: "play.circle", android: "play_circle" },
   settings: { ios: "gearshape", android: "settings" },
   downloads: { ios: "arrow.down.circle", android: "download" },
@@ -51,6 +53,20 @@ const HEADER_ICONS = {
 
 export type HeaderIconName = keyof typeof HEADER_ICONS;
 
+/**
+ * Glyphs for entries above that omit a platform, drawn from Feather instead.
+ *
+ * `SymbolView` renders `fallback` whenever the current platform has no name, so
+ * this covers the gaps rather than forcing a bad symbol match. Keep it as short
+ * as possible — it is the one place a header steps outside the platform's own
+ * icon system.
+ */
+const FALLBACK_GLYPHS: Partial<
+  Record<HeaderIconName, keyof typeof Feather.glyphMap>
+> = {
+  cast: "cast",
+};
+
 interface Props {
   name: HeaderIconName;
   /** Defaults to white; pass a colour to signal a toggle's "on" state. */
@@ -63,11 +79,20 @@ export const HeaderIcon: React.FC<Props> = ({
   name,
   tintColor = "white",
   size = HEADER_ICON_SIZE,
-}) => (
-  <SymbolView
-    name={HEADER_ICONS[name]}
-    size={size}
-    tintColor={tintColor}
-    resizeMode='scaleAspectFit'
-  />
-);
+}) => {
+  const fallbackGlyph = FALLBACK_GLYPHS[name];
+
+  return (
+    <SymbolView
+      name={HEADER_ICONS[name]}
+      size={size}
+      tintColor={tintColor}
+      resizeMode='scaleAspectFit'
+      fallback={
+        fallbackGlyph ? (
+          <Feather name={fallbackGlyph} size={size} color={tintColor} />
+        ) : undefined
+      }
+    />
+  );
+};
