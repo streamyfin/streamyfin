@@ -39,11 +39,16 @@
     var onUnavailable: (() -> Void)?
 
     /// Submits the keeper task if none is live. Safe to call on every download start; queue
-    /// advances reuse the already-running task. Submission is refused by the system outside the
-    /// foreground — that is fine, the caller's flow works without it.
+    /// advances reuse the already-running task and retitle its system UI to the episode that is
+    /// now downloading. Submission is refused by the system outside the foreground — that is
+    /// fine, the caller's flow works without it.
     func ensureRunning(title: String, subtitle: String) {
       queue.async {
-        guard self.task == nil, !self.isPending else { return }
+        if let task = self.task {
+          task.updateTitle(title, subtitle: subtitle)
+          return
+        }
+        guard !self.isPending else { return }
         self.registerIfNeededLocked()
 
         let request = BGContinuedProcessingTaskRequest(
