@@ -16,6 +16,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
@@ -35,6 +36,16 @@ import { MediaSourceSelector } from "./MediaSourceSelector";
 import ProgressCircle from "./ProgressCircle";
 import { RoundButton } from "./RoundButton";
 import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
+
+/**
+ * The progress ring is drawn slightly under `HEADER_ICON_SIZE`. A stroked
+ * circle fills its box edge to edge where a glyph's strokes leave gaps, so at
+ * an equal size the ring reads heavier than the icons beside it. Diameter and
+ * stroke scale together so it shrinks as one shape rather than just thinning.
+ */
+const PROGRESS_RING_SCALE = 0.875;
+const PROGRESS_RING_SIZE = HEADER_ICON_SIZE * PROGRESS_RING_SCALE;
+const PROGRESS_RING_WIDTH = 4 * PROGRESS_RING_SCALE;
 
 export type SelectedOptions = {
   bitrate: Bitrate;
@@ -343,11 +354,11 @@ export const DownloadItems: React.FC<DownloadProps> = ({
       ) : (
         <View className='-rotate-45'>
           <ProgressCircle
-            size={24}
+            size={PROGRESS_RING_SIZE}
             fill={progress}
-            width={4}
-            tintColor='#9334E9'
-            backgroundColor='#bdc3c7'
+            width={PROGRESS_RING_WIDTH}
+            tintColor={Colors.primary}
+            backgroundColor='white'
           />
         </View>
       );
