@@ -226,6 +226,9 @@
         "title": "Video player",
         "exoplayer": "ExoPlayer",
         "mpv": "MPV",
+        "native": "Native (recommended)",
+        "classic": "Classic",
+        "native_note": "Both options use the same MPV engine, this only changes the player controls. The native player uses iOS system controls and opens instantly. Switch back if you run into playback issues.",
         "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
         "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
       },
@@ -555,7 +558,8 @@
     "episodes": "Episodes",
     "movies": "Movies",
     "loading": "Loading...",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "close": "Close"
   },
   "search": {
     "search": "Search...",
@@ -691,6 +695,13 @@
     "downloaded_file_cancel": "Cancel",
     "swipe_down_settings": "Swipe down for settings",
     "ends_at": "Ends at {{time}}",
+    "zoom_to_fill": "Zoom to fill",
+    "subtitle_sync": "Subtitle sync",
+    "audio_sync": "Audio sync",
+    "volume_boost": "Volume boost",
+    "rotate": "Rotate",
+    "lock_controls": "Lock controls",
+    "unlock": "Unlock",
     "search_subtitles": "Search subtitles",
     "subtitle_tracks": "Tracks",
     "subtitle_search": "Search & download",

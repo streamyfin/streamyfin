@@ -20,6 +20,9 @@ protocol MPVLayerRendererDelegate: AnyObject {
     func renderer(_ renderer: MPVLayerRenderer, didBecomeTracksReady: Bool)
     func renderer(_ renderer: MPVLayerRenderer, didDetectHDRMode mode: HDRMode, fps: Double)
     func renderer(_ renderer: MPVLayerRenderer, didSelectAudioOutput audioOutput: String)
+    /// Fired only for a genuine end-of-file (MPV_END_FILE_REASON_EOF) — never
+    /// for stop/quit during teardown, which would emit spurious end events.
+    func rendererDidReachEnd(_ renderer: MPVLayerRenderer)
 }
 
 /// MPV player using vo_avfoundation for video output.
@@ -598,6 +601,19 @@ final class MPVLayerRenderer {
                     self.delegate?.renderer(self, didChangeLoading: false)
                 }
             }
+        case MPV_EVENT_END_FILE:
+            // Only a real EOF counts as "playback ended". The other reasons
+            // (stop, quit, error, redirect) fire during teardown and stream
+            // replacement, where an end event would incorrectly trigger the
+            // native player's auto-advance/auto-close.
+            if let endFile = event.data?.assumingMemoryBound(to: mpv_event_end_file.self).pointee,
+               endFile.reason == MPV_END_FILE_REASON_EOF {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.delegate?.rendererDidReachEnd(self)
+                }
+            }
+
         case MPV_EVENT_PROPERTY_CHANGE:
             if let property = event.data?.assumingMemoryBound(to: mpv_event_property.self).pointee.name {
                 let name = String(cString: property)
@@ -894,6 +910,21 @@ final class MPVLayerRenderer {
     
     func setSubtitleScale(_ scale: Double) {
         setProperty(name: "sub-scale", value: String(scale))
+    }
+
+    func setSubtitleDelay(_ seconds: Double) {
+        setProperty(name: "sub-delay", value: String(seconds))
+    }
+
+    func setAudioDelay(_ seconds: Double) {
+        setProperty(name: "audio-delay", value: String(seconds))
+    }
+
+    func setVolumeBoost(_ percent: Int) {
+        // Softvol gain: 100 = neutral, above amplifies. volume-max defaults
+        // to 130, so lift the ceiling first or 150/200% writes get clamped.
+        setProperty(name: "volume-max", value: "200")
+        setProperty(name: "volume", value: String(percent))
     }
     
     func setSubtitleMarginY(_ margin: Int) {

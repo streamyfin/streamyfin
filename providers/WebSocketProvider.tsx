@@ -1,5 +1,4 @@
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api";
-import { router } from "expo-router";
 import { useAtomValue } from "jotai";
 import {
   createContext,
@@ -325,32 +324,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     };
   }, []);
 
-  const handlePlayCommand = useCallback((data: any) => {
-    if (!data?.ItemIds?.length) {
-      return;
-    }
-
-    const itemId = data.ItemIds[0];
-
-    router.push({
-      pathname: "/(auth)/player/direct-player",
-      params: {
-        itemId: itemId,
-        playCommand: data.PlayCommand || "PlayNow",
-        audioIndex: data.AudioStreamIndex?.toString(),
-        subtitleIndex: data.SubtitleStreamIndex?.toString(),
-        mediaSourceId: data.MediaSourceId || "",
-        bitrateValue: "",
-        offline: "false",
-      },
-    });
-  }, []);
-
-  // Server-initiated "Play me this item" remote command.
-  useEffect(
-    () => subscribe("Play", handlePlayCommand),
-    [subscribe, handlePlayCommand],
-  );
+  // The server-initiated "Play me this item" command is handled by
+  // NativePlayerProvider (mounted below this provider): it presents the
+  // native player when active, and falls back to the JS player route.
 
   useEffect(() => {
     const cleanup = connectWebSocket();
