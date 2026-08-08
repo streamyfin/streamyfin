@@ -133,10 +133,20 @@ struct PlayerControlsRootView: View {
 				.padding(.leading, 24)
 			}
 
+			if viewModel.showStillWatching {
+				// Above the bars layer (zIndex 1); shown even in lock mode —
+				// the video has ended and this is the only way forward.
+				StillWatchingOverlay(viewModel: viewModel)
+					.transition(.opacity)
+					.zIndex(2)
+			}
+
 			if let message = viewModel.errorMessage {
 				errorOverlay(message: message)
+					.zIndex(3)
 			}
 		}
+		.animation(.easeInOut(duration: 0.2), value: viewModel.showStillWatching)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)

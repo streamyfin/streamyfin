@@ -87,6 +87,9 @@ export const buildNativePlayerStrings = (
   rotate: t("player.rotate"),
   lockControls: t("player.lock_controls"),
   unlock: t("player.unlock"),
+  stillWatching: t("player.still_watching"),
+  continueWatching: t("player.continue_watching"),
+  goBack: t("player.go_back"),
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),

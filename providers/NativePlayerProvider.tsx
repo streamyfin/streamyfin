@@ -368,9 +368,10 @@ const NativePlayerProviderInner: React.FC<{
     (_session: NativeSession, next: BaseItemDto): NativePlayerNextEpisode => {
       const currentSettings = settingsRef.current;
       const max = currentSettings?.maxAutoPlayEpisodeCount?.value ?? -1;
-      const autoplayAllowed =
-        (currentSettings?.autoPlayNextEpisode ?? false) &&
-        (max === -1 || (currentSettings?.autoPlayEpisodeCount ?? 0) < max);
+      const autoplayWanted = currentSettings?.autoPlayNextEpisode ?? false;
+      const capReached =
+        max !== -1 && (currentSettings?.autoPlayEpisodeCount ?? 0) >= max;
+      const autoplayAllowed = autoplayWanted && !capReached;
       const epNumber =
         next.ParentIndexNumber !== undefined && next.IndexNumber !== undefined
           ? `S${next.ParentIndexNumber}E${next.IndexNumber}`
@@ -387,6 +388,9 @@ const NativePlayerProviderInner: React.FC<{
             width: 300,
           }) ?? undefined,
         countdownSeconds: autoplayAllowed ? NEXT_EPISODE_COUNTDOWN_SECONDS : 0,
+        // Autoplay would have run but the episode cap stops it: EOF shows
+        // the "Still watching?" card instead (JS ContinueWatchingOverlay).
+        stillWatchingRequired: autoplayWanted && capReached,
       };
     },
     [],

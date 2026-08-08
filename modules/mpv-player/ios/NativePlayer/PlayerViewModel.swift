@@ -95,6 +95,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var nextEpisode: NextEpisodeRecord?
 	/// Non-nil while the next-episode countdown card is up.
 	@Published var countdownRemaining: Double?
+	/// The "Are you still watching?" card, shown at EOF when the autoplay
+	/// episode cap is reached (nextEpisode.stillWatchingRequired).
+	@Published var showStillWatching = false
 	@Published var subtitleMenu: [TrackMenuItemRecord] = []
 	@Published var audioMenu: [TrackMenuItemRecord] = []
 	@Published var qualityMenu: [TrackMenuItemRecord] = []
@@ -229,6 +232,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		activeSegment = nil
 		cancelCountdownTask()
 		countdownRemaining = nil
+		showStillWatching = false
 		showEpisodeList = false
 		errorMessage = nil
 	}
@@ -409,6 +413,25 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		haptic()
 		onRotateRequested?()
 		scheduleAutoHide()
+	}
+
+	// MARK: - Still watching?
+
+	/// Advance to the next episode. Emitted as a user tap so the JS
+	/// coordinator resets the autoplay chain counter before advancing.
+	func continueWatchingTapped() {
+		haptic()
+		showStillWatching = false
+		emit?("onNextEpisodeRequested", [
+			"reason": "userTap",
+			"positionSec": displayPosition,
+		])
+	}
+
+	func stillWatchingCloseTapped() {
+		haptic()
+		showStillWatching = false
+		onDismissRequested?(.playbackEnded)
 	}
 
 	// MARK: - Lock mode
@@ -916,13 +939,17 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		guard !isTearingDown else { return }
 		// A canceled countdown is a deliberate "let me watch to the end" —
 		// EOF must not auto-advance past it.
-		if nextEpisode != nil, !countdownCanceled {
+		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {
 			cancelCountdownTask()
 			countdownRemaining = nil
 			emit?("onNextEpisodeRequested", [
 				"reason": "countdown",
 				"positionSec": displayPosition,
 			])
+		} else if nextEpisode?.stillWatchingRequired == true {
+			// Autoplay episode cap reached: ask instead of advancing. The
+			// video sits on its last frame under the card.
+			showStillWatching = true
 		} else {
 			emit?("onPlaybackEnded", ["positionSec": displayPosition])
 			onDismissRequested?(.playbackEnded)

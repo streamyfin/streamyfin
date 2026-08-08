@@ -70,6 +70,9 @@ struct NextEpisodeRecord: Record {
 	@Field var imageUrl: String?
 	/// 0 = no auto-countdown; show the "Next episode" button only.
 	@Field var countdownSeconds: Double = 0
+	/// The autoplay episode cap is reached: EOF shows the "Still watching?"
+	/// card instead of auto-advancing (countdownSeconds is 0 in that case).
+	@Field var stillWatchingRequired: Bool = false
 }
 
 struct TrackMenuItemRecord: Record {
@@ -125,8 +128,9 @@ struct UIOptionsRecord: Record {
 	/// nextEpisode, playNow, cancel, episodes, speed, audio, subtitles,
 	/// chapters, technicalInfo, playbackError, close, off, quality,
 	/// subtitleSize, subtitleSync, audioSync, volumeBoost, rotate,
-	/// lockControls, unlock, zoomToFill, endsAt — endsAt carries a %TIME%
-	/// placeholder). Native falls back to English for missing keys.
+	/// lockControls, unlock, zoomToFill, stillWatching, continueWatching,
+	/// goBack, endsAt — endsAt carries a %TIME% placeholder). Native falls
+	/// back to English for missing keys.
 	@Field var strings: [String: String] = [:]
 }
 
