@@ -1,9 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { BackHandler, Platform, View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
+import { Text } from "@/components/common/Text";
+import { Stepper } from "@/components/inputs/Stepper";
 import {
   type OptionGroup,
   PlatformDropdown,
@@ -16,11 +24,34 @@ import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
-// Subtitle scale options match the shared settings range (0.1 → 3.0 in 0.1 steps).
-const SUBTITLE_SCALE_PRESETS = Array.from({ length: 30 }, (_, index) => {
-  const value = Math.round((index + 1) * 10) / 100;
-  return { label: `${value.toFixed(1)}x`, value };
-});
+const SubtitleScaleControl = () => {
+  const { t } = useTranslation();
+  const { settings, updateSettings, pluginSettings } = useSettings();
+
+  return (
+    <BottomSheetView>
+      <View className='px-6 pt-2 pb-8'>
+        <Text className='text-xl font-bold mb-6'>
+          {t("player.menu.subtitle_scale")}
+        </Text>
+        <View className='items-center'>
+          <Stepper
+            value={settings.subtitleSize}
+            disabled={pluginSettings?.subtitleSize?.locked}
+            step={0.1}
+            min={0.1}
+            max={3}
+            appendValue='×'
+            formatValue={(value) => value.toFixed(1)}
+            onUpdate={(value) =>
+              updateSettings({ subtitleSize: Number(value.toFixed(1)) })
+            }
+          />
+        </View>
+      </View>
+    </BottomSheetView>
+  );
+};
 
 interface DropdownViewProps {
   playbackSpeed?: number;
@@ -37,7 +68,9 @@ const DropdownView = ({
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
-  const { settings, updateSettings } = useSettings();
+  const { settings, pluginSettings } = useSettings();
+  const subtitleScaleModalRef = useRef<BottomSheetModal>(null);
+  const [isSubtitleScaleVisible, setIsSubtitleScaleVisible] = useState(false);
   const router = useRouter();
   const isOffline = useOfflineMode();
   const { t } = useTranslation();
@@ -88,6 +121,33 @@ const DropdownView = ({
     [audioTracks],
   );
 
+  const openSubtitleScale = useCallback(() => {
+    subtitleScaleModalRef.current?.present();
+  }, []);
+
+  useEffect(() => {
+    if (!isSubtitleScaleVisible || Platform.OS !== "android") return;
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        subtitleScaleModalRef.current?.dismiss();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [isSubtitleScaleVisible]);
+
+  const renderSubtitleScaleBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+      />
+    ),
+    [],
+  );
+
   // Transform sections into OptionGroup format
   const optionGroups = useMemo<OptionGroup[]>(() => {
     const groups: OptionGroup[] = [];
@@ -119,19 +179,23 @@ const DropdownView = ({
           onPress: () => sub.setTrack(),
         })),
       });
-
-      // Subtitle Scale Section
-      groups.push({
-        title: t("player.menu.subtitle_scale"),
-        options: SUBTITLE_SCALE_PRESETS.map((preset) => ({
-          type: "radio" as const,
-          label: preset.label,
-          value: preset.value.toString(),
-          selected: Math.abs(settings.subtitleSize - preset.value) < 0.001,
-          onPress: () => updateSettings({ subtitleSize: preset.value }),
-        })),
-      });
     }
+
+    // Subtitle Scale Section
+    groups.push({
+      title: t("player.menu.subtitle_scale"),
+      options: [
+        {
+          type: "action" as const,
+          label:
+            Platform.OS === "android"
+              ? `${settings.subtitleSize.toFixed(1)}×`
+              : `${t("player.menu.subtitle_scale")}: ${settings.subtitleSize.toFixed(1)}×`,
+          disabled: pluginSettings?.subtitleSize?.locked,
+          onPress: openSubtitleScale,
+        },
+      ],
+    });
 
     // Audio Section
     if (audioTracks && audioTracks.length > 0) {
@@ -188,7 +252,8 @@ const DropdownView = ({
     subtitleIndex,
     audioIndex,
     settings.subtitleSize,
-    updateSettings,
+    pluginSettings?.subtitleSize?.locked,
+    openSubtitleScale,
     playbackSpeed,
     setPlaybackSpeed,
     showTechnicalInfo,
@@ -211,15 +276,29 @@ const DropdownView = ({
   if (Platform.isTV) return null;
 
   return (
-    <PlatformDropdown
-      title={t("player.menu.playback_options")}
-      groups={optionGroups}
-      trigger={trigger}
-      expoUIConfig={{}}
-      bottomSheetConfig={{
-        enablePanDownToClose: true,
-      }}
-    />
+    <>
+      <PlatformDropdown
+        title={t("player.menu.playback_options")}
+        groups={optionGroups}
+        trigger={trigger}
+        expoUIConfig={{}}
+        bottomSheetConfig={{
+          enablePanDownToClose: true,
+        }}
+      />
+      <BottomSheetModal
+        ref={subtitleScaleModalRef}
+        enableDynamicSizing
+        enablePanDownToClose
+        stackBehavior='push'
+        backdropComponent={renderSubtitleScaleBackdrop}
+        onChange={(index) => setIsSubtitleScaleVisible(index >= 0)}
+        backgroundStyle={{ backgroundColor: "#171717" }}
+        handleIndicatorStyle={{ backgroundColor: "white" }}
+      >
+        <SubtitleScaleControl />
+      </BottomSheetModal>
+    </>
   );
 };
 

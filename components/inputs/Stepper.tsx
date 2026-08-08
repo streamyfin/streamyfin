@@ -11,6 +11,7 @@ interface StepperProps {
   max: number;
   onUpdate: (value: number) => void;
   appendValue?: string;
+  formatValue?: (value: number) => string;
 }
 
 export const Stepper: React.FC<StepperProps> = ({
@@ -21,6 +22,7 @@ export const Stepper: React.FC<StepperProps> = ({
   max,
   onUpdate,
   appendValue,
+  formatValue,
 }) => {
   const isDisabled = disabled === true;
 
@@ -43,7 +45,7 @@ export const Stepper: React.FC<StepperProps> = ({
       <Text
         className={`w-auto h-8 bg-neutral-800 py-2 px-1 flex items-center justify-center${appendValue ? "first-letter:px-2" : ""}`}
       >
-        {value}
+        {formatValue ? formatValue(value) : value}
         {appendValue}
       </Text>
       <TouchableOpacity
