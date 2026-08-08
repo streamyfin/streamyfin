@@ -226,6 +226,9 @@
         "title": "Videospelare",
         "exoplayer": "ExoPlayer",
         "mpv": "MPV",
+        "native": "Inbyggd (rekommenderas)",
+        "classic": "Klassisk",
+        "native_note": "Båda alternativen använder samma MPV-motor, det här ändrar bara spelarens kontroller. Den inbyggda spelaren använder iOS systemkontroller och öppnas direkt. Byt tillbaka om du får uppspelningsproblem.",
         "exoplayer_note": "ExoPlayer stöder inte avancerad ASS/SSA-undertextstil eller horisontell undertextjustering. Byt till MPV om du behöver det.",
         "mpv_note": "MPV på TV skickar för närvarande inte HDR-metadata till skärmen, så HDR10-/HDR10+-innehåll konverteras till SDR. Byt till ExoPlayer för HDR-utdata."
       },
@@ -555,7 +558,8 @@
     "episodes": "Episodes",
     "movies": "Movies",
     "loading": "Loading…",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "close": "Stäng"
   },
   "search": {
     "search": "Sök...",
@@ -691,6 +695,13 @@
     "downloaded_file_cancel": "Avbryt",
     "swipe_down_settings": "Svep nedåt för inställningar",
     "ends_at": "slutar",
+    "zoom_to_fill": "Fyll skärmen",
+    "subtitle_sync": "Undertextsynkning",
+    "audio_sync": "Ljudsynkning",
+    "volume_boost": "Volymförstärkning",
+    "rotate": "Rotera",
+    "lock_controls": "Lås kontroller",
+    "unlock": "Lås upp",
     "search_subtitles": "Sök undertexter",
     "subtitle_tracks": "Spår",
     "subtitle_search": "Sök & ladda ner",
