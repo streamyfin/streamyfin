@@ -78,7 +78,9 @@ export default function SettingsTV() {
   const stripLocked = (update: Partial<Settings>) =>
     Object.fromEntries(
       Object.entries(update).filter(
-        ([key]) => pluginSettings?.[key as keyof Settings]?.locked !== true,
+        ([key, value]) =>
+          value !== undefined &&
+          pluginSettings?.[key as keyof Settings]?.locked !== true,
       ),
     ) as Partial<Settings>;
 
