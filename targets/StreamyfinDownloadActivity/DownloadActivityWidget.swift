@@ -87,9 +87,13 @@ private struct LockScreenView: View {
 
         HStack {
           if context.state.state == .downloading {
+            // Instant swap instead of the default fade — this line changes on every 1s update,
+            // and a fade per second reads as flicker. numericText is wrong here: the string mixes
+            // units and separators, not a single rolling number.
             Text(transferredText(for: context))
               .font(.caption2)
               .foregroundStyle(.secondary)
+              .contentTransition(.identity)
           }
           Spacer(minLength: 8)
           PercentLabel(context: context)
@@ -139,9 +143,11 @@ private struct PercentLabel: View {
         // Measured percent, not a countdown — the owner's call. It freezes while the app is
         // suspended (no self-updating percent primitive exists); the timer-driven bar beside it
         // is what keeps advancing, and the stale treatment covers a projection that expires.
+        // numericText rolls the digits in place instead of fading the whole label every update.
         Text(percentText(for: context))
           .font(.caption.weight(.semibold))
           .monospacedDigit()
+          .contentTransition(.numericText())
           .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
       }
     }
@@ -156,10 +162,12 @@ private struct TrailingStatus: View {
       Text(percentText(for: context))
         .font(.body.weight(.semibold))
         .monospacedDigit()
+        .contentTransition(.numericText())
         .foregroundStyle(isProgressStale(context) ? .secondary : .primary)
       if context.state.queuedCount > 0 {
         Text("+\(context.state.queuedCount)")
           .font(.caption2)
+          .contentTransition(.numericText())
           .foregroundStyle(.secondary)
       }
     }
@@ -172,6 +180,7 @@ private struct CompactTrailing: View {
   var body: some View {
     Text(percentText(for: context))
       .monospacedDigit()
+      .contentTransition(.numericText())
       .foregroundStyle(isProgressStale(context) ? Color.secondary : brandTint)
   }
 }
