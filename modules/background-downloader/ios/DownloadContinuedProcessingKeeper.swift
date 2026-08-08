@@ -33,6 +33,11 @@
     /// Submitted but the launch handler has not run yet — guards double submission.
     private var isPending = false
 
+    /// The keeper's system UI replaces the module's own Live Activity on iOS 26+, so when the
+    /// keeper cannot run (submission refused, task expired) the module needs to know and put its
+    /// regular activity up instead. Set once by the module at creation.
+    var onUnavailable: (() -> Void)?
+
     /// Submits the keeper task if none is live. Safe to call on every download start; queue
     /// advances reuse the already-running task. Submission is refused by the system outside the
     /// foreground — that is fine, the caller's flow works without it.
@@ -54,6 +59,7 @@
           backgroundDownloaderLog.error(
             "Continued processing submit failed: \(error.localizedDescription, privacy: .public)"
           )
+          self.onUnavailable?()
         }
       }
     }
@@ -106,6 +112,7 @@
             )
             self.task?.setTaskCompleted(success: false)
             self.task = nil
+            self.onUnavailable?()
           }
         }
 

@@ -123,6 +123,10 @@ public class BackgroundDownloaderModule: Module {
   private var downloadTasks: [Int: DownloadTaskInfo] = [:]
   private var downloadQueue: [QueuedDownloadInfo] = []
   private var lastProgressTime: [Int: Date] = [:]
+  /// Mirrors the JS `showDownloadLiveActivity` setting. Gates both the module's own activity
+  /// (also gated inside the controller) and the continued-processing keeper, whose system UI is
+  /// equally lock-screen download UI the user asked to turn off.
+  private var downloadActivityUIEnabled = true
   /// Heartbeat throttle for the unified log — proves whether progress callbacks are being
   /// delivered while backgrounded without flooding the log.
   private var lastProgressLogTime = Date.distantPast
@@ -146,6 +150,19 @@ public class BackgroundDownloaderModule: Module {
 
     OnCreate {
       self.stateQueue.sync {
+        // When the keeper cannot provide the system progress UI (submission refused or task
+        // expired), fall back to the module's own Live Activity so the lock screen is not empty.
+        #if os(iOS) && compiler(>=6.2)
+          if #available(iOS 26.0, *) {
+            DownloadContinuedProcessingKeeper.shared.onUnavailable = { [weak self] in
+              guard let self else { return }
+              self.stateQueue.async {
+                self.startFallbackLiveActivityLocked()
+              }
+            }
+          }
+        #endif
+
         // Restore tasks left behind by a previous process before reconnecting to the session, so a
         // download that completed while we were dead can still be moved into place.
         self.downloadTasks = self.taskStore.load()
@@ -165,6 +182,9 @@ public class BackgroundDownloaderModule: Module {
     }
 
     Function("setLiveActivityEnabled") { (enabled: Bool) in
+      self.stateQueue.sync {
+        self.downloadActivityUIEnabled = enabled
+      }
       #if os(iOS)
         if #available(iOS 16.2, *) {
           DownloadLiveActivityController.shared.setEnabled(enabled)
@@ -645,11 +665,35 @@ public class BackgroundDownloaderModule: Module {
     #endif
   }
 
+  /// On iOS 26+ the continued-processing keeper's system UI is the single lock-screen element for
+  /// downloads (two progress activities read as a bug), so the module's own activity is skipped
+  /// and only used as the fallback when the keeper is unavailable.
   private func startLiveActivity(taskId: Int, metadata: DownloadActivityMetadata?) {
+    guard !keeperCoversUILocked() else { return }
+    forceStartLiveActivity(taskId: taskId, metadata: metadata)
+  }
+
+  private func forceStartLiveActivity(taskId: Int, metadata: DownloadActivityMetadata?) {
     #if os(iOS)
       guard #available(iOS 16.2, *), let metadata else { return }
       DownloadLiveActivityController.shared.start(taskId: taskId, metadata: metadata)
     #endif
+  }
+
+  private func keeperCoversUILocked() -> Bool {
+    #if os(iOS) && compiler(>=6.2)
+      if #available(iOS 26.0, *) { return downloadActivityUIEnabled }
+    #endif
+    return false
+  }
+
+  /// The keeper refused or died; give the active download the regular activity instead. The
+  /// request only succeeds while the app is foregrounded — after a background expiration this is
+  /// a logged no-op and the lock screen stays empty until the next real event.
+  private func startFallbackLiveActivityLocked() {
+    guard let (taskId, info) = downloadTasks.first, let metadata = info.metadata else { return }
+    backgroundDownloaderLog.notice("Keeper unavailable; falling back to own Live Activity")
+    forceStartLiveActivity(taskId: taskId, metadata: metadata)
   }
 
   private func updateLiveActivity(taskId: Int, bytesWritten: Int64, totalBytes: Int64) {
@@ -692,7 +736,7 @@ public class BackgroundDownloaderModule: Module {
 
   private func startContinuedProcessingLocked(metadata: DownloadActivityMetadata?) {
     #if os(iOS) && compiler(>=6.2)
-      guard #available(iOS 26.0, *) else { return }
+      guard #available(iOS 26.0, *), downloadActivityUIEnabled else { return }
       DownloadContinuedProcessingKeeper.shared.ensureRunning(
         title: metadata?.title ?? "Streamyfin",
         subtitle: metadata?.subtitle ?? ""
