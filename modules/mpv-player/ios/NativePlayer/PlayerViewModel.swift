@@ -81,6 +81,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Hardware volume press while the chrome is hidden briefly shows just the
 	/// volume slider (mirror of the JS AudioSlider auto-reveal).
 	@Published var volumeSliderRevealed = false
+	/// Vertical brightness drag while the chrome is hidden shows just the
+	/// brightness slider as feedback.
+	@Published var brightnessSliderRevealed = false
 	@Published var isScrubbing = false
 	@Published var scrubPosition: Double = 0
 	@Published var showTechnicalInfo = false
@@ -131,6 +134,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var autoHideTask: Task<Void, Never>?
 	private var countdownTask: Task<Void, Never>?
 	private var volumeRevealTask: Task<Void, Never>?
+	private var brightnessRevealTask: Task<Void, Never>?
 	private var unlockRevealTask: Task<Void, Never>?
 	/// Chapter under the thumb during a scrub — a haptic tick fires when it
 	/// changes (crossing a chapter mark).
@@ -573,6 +577,19 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	/// Same as the volume reveal, for the brightness gesture: the vertical
+	/// drag needs its pill as feedback while the chrome is hidden.
+	func revealBrightnessSliderTransiently() {
+		guard showBrightnessSlider, !controlsVisible, !isTearingDown else { return }
+		brightnessSliderRevealed = true
+		brightnessRevealTask?.cancel()
+		brightnessRevealTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 1_000_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.brightnessSliderRevealed = false }
+		}
+	}
+
 	// MARK: Tracks / speed
 
 	func selectSubtitle(_ item: TrackMenuItemRecord) {
@@ -711,6 +728,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		autoHideTask?.cancel()
 		cancelCountdownTask()
 		volumeRevealTask?.cancel()
+		brightnessRevealTask?.cancel()
 		unlockRevealTask?.cancel()
 		stopDisplayLink()
 	}

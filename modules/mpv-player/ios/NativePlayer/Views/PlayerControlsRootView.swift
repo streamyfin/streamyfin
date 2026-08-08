@@ -8,21 +8,37 @@ import SwiftUI
 struct PlayerControlsRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
+	private enum DragAxis { case horizontal, vertical }
+
+	// One gesture session on the background surface: the axis locks on the
+	// first movement and sticks for the whole drag (mirror of the JS
+	// useGestureDetection).
+	@State private var dragAxis: DragAxis?
+	@State private var dragOnLeftHalf = false
+	@State private var dragStartFraction: Double = 0
+	@State private var dragStartLevel: Double = 0
+
+	/// Points of vertical travel for a full 0→1 volume/brightness swing.
+	private let verticalDragRange: CGFloat = 280
+
 	var body: some View {
 		GeometryReader { geometry in
 			// Portrait phones can't fit the full top-bar button row — late
 			// data pushes (episode list) add buttons after load, so the bar
 			// must adapt by width, not by content.
-			content(isCompactWidth: geometry.size.width < 500)
+			content(size: geometry.size)
 		}
 	}
 
-	private func content(isCompactWidth: Bool) -> some View {
+	private func content(size: CGSize) -> some View {
 		ZStack {
-			// Tap-to-toggle catcher behind everything interactive.
+			// Tap-to-toggle catcher behind everything interactive; also the
+			// gesture surface — controls layered above receive their own
+			// touches first, so drags here only start on empty video area.
 			Color.clear
 				.contentShape(Rectangle())
 				.onTapGesture { viewModel.toggleControls() }
+				.gesture(surfaceDragGesture(size: size))
 
 			if viewModel.controlsVisible {
 				scrims
@@ -31,7 +47,7 @@ struct PlayerControlsRootView: View {
 				// and must cover the play/skip buttons in landscape, not duck
 				// under them. Hit-testing is unaffected — the layer's empty
 				// middle isn't tappable.
-				controls(compact: isCompactWidth)
+				controls(compact: size.width < 500)
 					.transition(.opacity)
 					.zIndex(1)
 				// Centered in the ZStack (true screen center) rather than in
@@ -58,7 +74,8 @@ struct PlayerControlsRootView: View {
 			// additionally appears alone on hardware volume presses while the
 			// chrome is hidden (the system volume HUD is suppressed).
 			HStack {
-				if viewModel.controlsVisible && viewModel.showBrightnessSlider {
+				if viewModel.showBrightnessSlider
+					&& (viewModel.controlsVisible || viewModel.brightnessSliderRevealed) {
 					BrightnessSliderView(
 						viewModel: viewModel,
 						controller: viewModel.brightnessController
@@ -151,10 +168,81 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.brightnessSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}
+	}
+
+	// MARK: - Surface gestures
+
+	/// Horizontal drag anywhere = scrub (Apple TV app style, through the same
+	/// beginScrub/updateScrub/endScrub path as the scrubber, so trickplay,
+	/// chapter haptics and pause-while-scrubbing come along). Vertical drag =
+	/// brightness on the left half, volume on the right (JS GestureOverlay
+	/// parity), with the edge pills transiently revealed as feedback.
+	private func surfaceDragGesture(size: CGSize) -> some Gesture {
+		DragGesture(minimumDistance: 12)
+			.onChanged { value in
+				guard !viewModel.controlsLocked,
+					!viewModel.showStillWatching,
+					viewModel.errorMessage == nil
+				else { return }
+
+				if dragAxis == nil {
+					if abs(value.translation.width) >= abs(value.translation.height) {
+						dragAxis = .horizontal
+						if viewModel.duration > 0 {
+							viewModel.showControls()
+							viewModel.beginScrub()
+							dragStartFraction = viewModel.scrubPosition / viewModel.duration
+						}
+					} else {
+						dragAxis = .vertical
+						dragOnLeftHalf = value.startLocation.x < size.width / 2
+						if dragOnLeftHalf {
+							dragStartLevel = viewModel.brightnessController.brightness
+							viewModel.brightnessController.isUserInteracting = true
+						} else {
+							dragStartLevel = viewModel.volumeController.volume
+							viewModel.volumeController.isUserInteracting = true
+						}
+					}
+				}
+
+				switch dragAxis {
+				case .horizontal:
+					guard viewModel.isScrubbing, size.width > 0 else { return }
+					viewModel.updateScrub(
+						fraction: dragStartFraction + value.translation.width / size.width
+					)
+				case .vertical:
+					let level = dragStartLevel - value.translation.height / verticalDragRange
+					if dragOnLeftHalf {
+						viewModel.brightnessController.setBrightness(level)
+						viewModel.revealBrightnessSliderTransiently()
+					} else {
+						viewModel.volumeController.setVolume(level)
+						viewModel.revealVolumeSliderTransiently()
+					}
+				case nil:
+					break
+				}
+			}
+			.onEnded { _ in
+				if dragAxis == .horizontal, viewModel.isScrubbing {
+					viewModel.endScrub()
+				}
+				if dragAxis == .vertical {
+					if dragOnLeftHalf {
+						viewModel.brightnessController.isUserInteracting = false
+					} else {
+						viewModel.volumeController.isUserInteracting = false
+					}
+				}
+				dragAxis = nil
+			}
 	}
 
 	private var scrims: some View {
