@@ -2,8 +2,10 @@ import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 
 export default function AudioSubtitlesPage() {
+  useDismissKeyboardOnLeave();
   const insets = useSafeAreaInsets();
 
   return (

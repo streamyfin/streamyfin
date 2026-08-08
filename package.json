@@ -76,6 +76,7 @@
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.6",
     "expo-splash-screen": "~57.0.4",
+    "expo-symbols": "~57.0.1",
     "expo-task-manager": "~57.0.5",
     "expo-web-browser": "~57.0.1",
     "i18next": "26.3.6",

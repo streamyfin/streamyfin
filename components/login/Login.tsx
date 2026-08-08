@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
@@ -17,6 +17,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
@@ -138,17 +140,17 @@ export const Login: React.FC = () => {
       headerTitle: serverName,
       headerLeft: () =>
         api?.basePath ? (
-          <TouchableOpacity
+          <HeaderButton
+            placement='left'
+            variant='text'
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center pr-2 pl-1'
+            style={{ flexDirection: "row", gap: 4 }}
           >
-            <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className=' ml-1 text-purple-600'>
-              {t("login.change_server")}
-            </Text>
-          </TouchableOpacity>
+            <HeaderIcon name='back' tintColor={Colors.primary} size={18} />
+            <Text className='text-purple-600'>{t("login.change_server")}</Text>
+          </HeaderButton>
         ) : null,
     });
   }, [serverName, navigation, api?.basePath]);
