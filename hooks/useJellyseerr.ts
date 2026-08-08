@@ -279,6 +279,32 @@ export class JellyseerrApi {
       .then(({ data }) => data);
   }
 
+  /**
+   * One page of requests, for scanning `media.downloadStatus`.
+   *
+   * `filter=all` rather than `filter=processing` on purpose: `processing`
+   * pins the request status to APPROVED and the media status to everything
+   * below AVAILABLE, so it drops quality upgrades on already-available media
+   * and stalled downloads whose request has flipped to COMPLETED/FAILED —
+   * both of which still hold a live Radarr/Sonarr queue entry.
+   *
+   * Callers must paginate: download activity never touches `request.updatedAt`,
+   * so `sort=modified` cannot float an in-flight download into the first page.
+   */
+  async activeDownloads(take = 100, skip = 0): Promise<RequestResultsResponse> {
+    return this.axios
+      ?.get<RequestResultsResponse>(Endpoints.API_V1 + Endpoints.REQUEST, {
+        params: {
+          filter: "all",
+          take,
+          skip,
+          sort: "modified",
+          sortDirection: "desc",
+        },
+      })
+      .then(({ data }) => data);
+  }
+
   async movieDetails(id: number) {
     return this.axios
       ?.get<MovieDetails>(`${Endpoints.API_V1 + Endpoints.MOVIE}/${id}`)
