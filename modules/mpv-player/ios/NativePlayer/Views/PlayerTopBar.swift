@@ -68,11 +68,7 @@ struct PlayerTopBar: View {
 			}
 
 			if !viewModel.audioMenu.isEmpty {
-				trackMenu(
-					items: viewModel.audioMenu,
-					systemName: "waveform",
-					label: viewModel.str("audio", "Audio")
-				) { viewModel.selectAudio($0) }
+				audioTracksMenu
 			}
 
 			if !viewModel.subtitleMenu.isEmpty {
@@ -110,20 +106,43 @@ struct PlayerTopBar: View {
 		}
 	}
 
-	private func trackMenu(
-		items: [TrackMenuItemRecord],
-		systemName: String,
-		label: String,
-		onSelect: @escaping (TrackMenuItemRecord) -> Void
-	) -> some View {
+	/// Audio track picker plus a nested sync-offset submenu (mpv audio-delay).
+	private var audioTracksMenu: some View {
 		Menu {
-			trackMenuItems(items, onSelect: onSelect)
+			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
+			Divider()
+			Menu {
+				syncOffsetEntries(current: viewModel.audioDelay) { viewModel.setAudioDelay($0) }
+			} label: {
+				Label(viewModel.str("audioSync", "Audio sync"), systemImage: "clock.arrow.2.circlepath")
+			}
 		} label: {
-			barIcon(systemName: systemName)
+			barIcon(systemName: "waveform")
 		}
 		.menuOrder(.fixed)
 		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
-		.accessibilityLabel(label)
+		.accessibilityLabel(viewModel.str("audio", "Audio"))
+	}
+
+	private func syncOffsetEntries(
+		current: Double,
+		onSelect: @escaping (Double) -> Void
+	) -> some View {
+		ForEach(PlayerViewModel.syncOffsetPresets, id: \.self) { offset in
+			Button {
+				onSelect(offset)
+			} label: {
+				if abs(current - offset) < 0.001 {
+					Label(offsetLabel(offset), systemImage: "checkmark")
+				} else {
+					Text(offsetLabel(offset))
+				}
+			}
+		}
+	}
+
+	private func offsetLabel(_ offset: Double) -> String {
+		offset == 0 ? "0 s" : String(format: "%+g s", offset)
 	}
 
 	private func trackMenuItems(
@@ -163,6 +182,11 @@ struct PlayerTopBar: View {
 				}
 			} label: {
 				Label(viewModel.str("subtitleSize", "Subtitle size"), systemImage: "textformat.size")
+			}
+			Menu {
+				syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
+			} label: {
+				Label(viewModel.str("subtitleSync", "Subtitle sync"), systemImage: "clock.arrow.2.circlepath")
 			}
 		} label: {
 			barIcon(systemName: "captions.bubble")
@@ -214,6 +238,31 @@ struct PlayerTopBar: View {
 					Label(viewModel.str("chapters", "Chapters"), systemImage: "bookmark")
 				}
 			}
+			Menu {
+				ForEach(PlayerViewModel.volumeBoostPresets, id: \.self) { percent in
+					Button {
+						viewModel.setVolumeBoost(percent)
+					} label: {
+						if viewModel.volumeBoostPercent == percent {
+							Label(boostLabel(percent), systemImage: "checkmark")
+						} else {
+							Text(boostLabel(percent))
+						}
+					}
+				}
+			} label: {
+				Label(viewModel.str("volumeBoost", "Volume boost"), systemImage: "speaker.wave.3")
+			}
+			Button {
+				viewModel.requestRotate()
+			} label: {
+				Label(viewModel.str("rotate", "Rotate"), systemImage: "rotate.right")
+			}
+			Button {
+				viewModel.lockControls()
+			} label: {
+				Label(viewModel.str("lockControls", "Lock controls"), systemImage: "lock")
+			}
 			Button {
 				viewModel.showTechnicalInfo.toggle()
 				viewModel.scheduleAutoHide()
@@ -233,6 +282,10 @@ struct PlayerTopBar: View {
 
 	private func speedLabel(_ speed: Double) -> String {
 		speed == 1.0 ? "1×" : String(format: "%g×", speed)
+	}
+
+	private func boostLabel(_ percent: Int) -> String {
+		percent == 100 ? viewModel.str("off", "Off") : "\(percent)%"
 	}
 
 	// MARK: - Buttons

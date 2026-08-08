@@ -30,6 +30,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	weak var engine: MPVPlayerEngine?
 	var emit: ((String, [String: Any]) -> Void)?
 	var onDismissRequested: ((PlayerDismissReason) -> Void)?
+	/// Set by the view controller — it owns the orientation mask.
+	var onRotateRequested: (() -> Void)?
 
 	// MARK: - Playback state
 
@@ -60,10 +62,22 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var errorMessage: String?
 	@Published var isZoomedToFill = false
 	@Published var subtitleScale: Double = 1.0
+	/// Session-scoped A/V sync offsets (seconds) and softvol gain (percent).
+	/// Reset to neutral when the played item changes; re-applied to the
+	/// engine on every stream swap because mpv properties persist on the
+	/// handle across loadfile.
+	@Published var subtitleDelay: Double = 0
+	@Published var audioDelay: Double = 0
+	@Published var volumeBoostPercent = 100
 
 	// MARK: - UI state
 
 	@Published var controlsVisible = true
+	/// VLC-style lock mode: chrome hidden and taps ignored except for a
+	/// transient unlock pill. Survives episode changes on purpose — it's a
+	/// hands-off viewing mode.
+	@Published var controlsLocked = false
+	@Published var unlockButtonRevealed = false
 	/// Hardware volume press while the chrome is hidden briefly shows just the
 	/// volume slider (mirror of the JS AudioSlider auto-reveal).
 	@Published var volumeSliderRevealed = false
@@ -114,6 +128,11 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var autoHideTask: Task<Void, Never>?
 	private var countdownTask: Task<Void, Never>?
 	private var volumeRevealTask: Task<Void, Never>?
+	private var unlockRevealTask: Task<Void, Never>?
+	/// Chapter under the thumb during a scrub — a haptic tick fires when it
+	/// changes (crossing a chapter mark).
+	private var lastScrubChapterIndex: Int?
+	private lazy var selectionGenerator = UISelectionFeedbackGenerator()
 	private var displayLink: CADisplayLink?
 	private var lastTickTimestamp: CFTimeInterval = 0
 	/// User canceled the countdown — stays canceled until the next load().
@@ -137,6 +156,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private let chapterRestartThreshold: Double = 3
 
 	static let subtitleScalePresets: [Double] = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
+	/// Sync offsets in seconds; positive delays the track. Presets rather
+	/// than a stepper so both fit the existing UIMenu-based UI.
+	static let syncOffsetPresets: [Double] = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5]
+	static let volumeBoostPresets: [Int] = [100, 125, 150, 200]
 
 	override init() {
 		super.init()
@@ -161,6 +184,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		let newItemId = config.metadata?.itemId
 		if newItemId == nil || newItemId != currentItemId {
 			countdownCanceled = false
+			// Sync offsets and gain are per-item compensations — a same-item
+			// swap (track/bitrate renegotiation) keeps them, a new item
+			// starts neutral.
+			subtitleDelay = 0
+			audioDelay = 0
+			volumeBoostPercent = 100
 		}
 		currentItemId = newItemId
 		metadata = config.metadata
@@ -239,6 +268,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: - User intents
 
 	func toggleControls() {
+		if controlsLocked {
+			// Locked chrome swallows taps; they only toggle the unlock pill.
+			if unlockButtonRevealed {
+				unlockRevealTask?.cancel()
+				unlockButtonRevealed = false
+			} else {
+				revealUnlockButton()
+			}
+			return
+		}
 		if controlsVisible {
 			controlsVisible = false
 			autoHideTask?.cancel()
@@ -313,6 +352,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func beginScrub() {
 		isScrubbing = true
 		scrubPosition = displayPosition
+		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
 		// Pause while scrubbing; endScrub resumes only if it was playing
 		// (mirror of the JS player's useVideoSlider).
 		wasPlayingBeforeScrub = isPlaying
@@ -325,6 +365,14 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func updateScrub(fraction: Double) {
 		guard duration > 0 else { return }
 		scrubPosition = min(max(fraction, 0), 1) * duration
+		// Haptic tick when the thumb crosses a chapter mark.
+		if hapticsEnabled, !chapters.isEmpty {
+			let index = chapterIndex(at: scrubPosition)
+			if index != lastScrubChapterIndex {
+				lastScrubChapterIndex = index
+				selectionGenerator.selectionChanged()
+			}
+		}
 	}
 
 	func endScrub() {
@@ -334,6 +382,61 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		if wasPlayingBeforeScrub {
 			wasPlayingBeforeScrub = false
 			engine?.play()
+		}
+	}
+
+	// MARK: - Sync offsets, volume boost, rotation
+
+	func setSubtitleDelay(_ seconds: Double) {
+		subtitleDelay = seconds
+		engine?.setSubtitleDelay(seconds)
+		scheduleAutoHide()
+	}
+
+	func setAudioDelay(_ seconds: Double) {
+		audioDelay = seconds
+		engine?.setAudioDelay(seconds)
+		scheduleAutoHide()
+	}
+
+	func setVolumeBoost(_ percent: Int) {
+		volumeBoostPercent = percent
+		engine?.setVolumeBoost(percent)
+		scheduleAutoHide()
+	}
+
+	func requestRotate() {
+		haptic()
+		onRotateRequested?()
+		scheduleAutoHide()
+	}
+
+	// MARK: - Lock mode
+
+	func lockControls() {
+		haptic()
+		controlsLocked = true
+		controlsVisible = false
+		autoHideTask?.cancel()
+		// Brief confirmation so the lock doesn't look like a plain hide.
+		revealUnlockButton()
+	}
+
+	func unlockControls() {
+		haptic()
+		unlockRevealTask?.cancel()
+		unlockButtonRevealed = false
+		controlsLocked = false
+		showControls()
+	}
+
+	private func revealUnlockButton() {
+		unlockButtonRevealed = true
+		unlockRevealTask?.cancel()
+		unlockRevealTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.unlockButtonRevealed = false }
 		}
 	}
 
@@ -585,6 +688,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		autoHideTask?.cancel()
 		cancelCountdownTask()
 		volumeRevealTask?.cancel()
+		unlockRevealTask?.cancel()
 		stopDisplayLink()
 	}
 

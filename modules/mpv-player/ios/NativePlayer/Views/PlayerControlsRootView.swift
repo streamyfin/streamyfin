@@ -78,21 +78,48 @@ struct PlayerControlsRootView: View {
 			.padding(.horizontal, 20)
 
 			// Skip pill / countdown card live outside controlsVisible so they
-			// stay actionable while the chrome is hidden.
-			VStack {
-				Spacer()
-				HStack {
+			// stay actionable while the chrome is hidden — but not while the
+			// controls are locked (nothing tappable in lock mode; an armed
+			// countdown still auto-advances, which suits hands-off viewing).
+			if !viewModel.controlsLocked {
+				VStack {
 					Spacer()
-					if let countdown = viewModel.countdownRemaining, let next = viewModel.nextEpisode {
-						NextEpisodeCountdownView(viewModel: viewModel, next: next, remaining: countdown)
-					} else if let segment = viewModel.activeSegment {
-						SkipSegmentButton(viewModel: viewModel, segment: segment)
+					HStack {
+						Spacer()
+						if let countdown = viewModel.countdownRemaining, let next = viewModel.nextEpisode {
+							NextEpisodeCountdownView(viewModel: viewModel, next: next, remaining: countdown)
+						} else if let segment = viewModel.activeSegment {
+							SkipSegmentButton(viewModel: viewModel, segment: segment)
+						}
 					}
 				}
+				.padding(.trailing, 24)
+				// Clears the bottom bar, which grew a chapter label + ends-at line.
+				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
 			}
-			.padding(.trailing, 24)
-			// Clears the bottom bar, which grew a chapter label + ends-at line.
-			.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
+
+			// Lock mode: taps only toggle this transient unlock pill.
+			if viewModel.controlsLocked && viewModel.unlockButtonRevealed {
+				VStack {
+					Button {
+						viewModel.unlockControls()
+					} label: {
+						HStack(spacing: 6) {
+							Image(systemName: "lock.open.fill")
+								.font(.system(size: 13, weight: .semibold))
+							Text(viewModel.str("unlock", "Unlock"))
+								.font(.footnote.weight(.semibold))
+						}
+						.foregroundStyle(.white)
+						.padding(.horizontal, 14)
+						.padding(.vertical, 9)
+						.background(.black.opacity(0.55), in: Capsule())
+					}
+					Spacer()
+				}
+				.padding(.top, 24)
+				.transition(.opacity)
+			}
 
 			if viewModel.showTechnicalInfo {
 				VStack {
@@ -114,6 +141,7 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}

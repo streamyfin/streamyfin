@@ -81,6 +81,12 @@ export const buildNativePlayerStrings = (
   quality: t("player.menu.quality"),
   subtitleSize: t("player.menu.subtitle_scale"),
   zoomToFill: t("player.zoom_to_fill"),
+  subtitleSync: t("player.subtitle_sync"),
+  audioSync: t("player.audio_sync"),
+  volumeBoost: t("player.volume_boost"),
+  rotate: t("player.rotate"),
+  lockControls: t("player.lock_controls"),
+  unlock: t("player.unlock"),
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),

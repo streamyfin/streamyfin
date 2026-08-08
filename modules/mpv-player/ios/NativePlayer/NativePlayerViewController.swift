@@ -9,7 +9,8 @@ import UIKit
 final class NativePlayerViewController: UIViewController {
 	private let engine: MPVPlayerEngine
 	private let viewModel: PlayerViewModel
-	private let lockLandscape: Bool
+	/// Starts from the config's lock and changes when the user taps Rotate.
+	private var orientationMask: UIInterfaceOrientationMask
 
 	private let videoContainerView = UIView()
 	private var hostingController: UIHostingController<PlayerControlsRootView>?
@@ -19,7 +20,7 @@ final class NativePlayerViewController: UIViewController {
 	init(engine: MPVPlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
 		self.engine = engine
 		self.viewModel = viewModel
-		self.lockLandscape = lockLandscape
+		self.orientationMask = lockLandscape ? .landscape : .allButUpsideDown
 		super.init(nibName: nil, bundle: nil)
 	}
 
@@ -38,7 +39,26 @@ final class NativePlayerViewController: UIViewController {
 	// a landscape-only VC while the window mask is portrait-only would crash
 	// with UIApplicationInvalidInterfaceOrientation.
 	override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-		lockLandscape ? .landscape : .allButUpsideDown
+		orientationMask
+	}
+
+	/// The in-player rotate button: flip between landscape and portrait and
+	/// lock there. iOS has no "unlock and rotate once", so the button always
+	/// forces the opposite orientation and the lock follows it.
+	private func rotateInterface() {
+		guard let scene = view.window?.windowScene else { return }
+		let toPortrait = scene.interfaceOrientation.isLandscape
+		orientationMask = toPortrait ? .portrait : .landscape
+		setNeedsUpdateOfSupportedInterfaceOrientations()
+		scene.requestGeometryUpdate(
+			.iOS(interfaceOrientations: orientationMask)
+		)
+		// When the landscape-on-open setting is active, JS holds a WINDOW-level
+		// landscape mask via expo-screen-orientation that outvotes the
+		// geometry request above — the coordinator must re-lock to match.
+		viewModel.emit?("onOrientationChangeRequested", [
+			"orientation": toPortrait ? "portrait" : "landscape",
+		])
 	}
 
 	override var prefersStatusBarHidden: Bool {
@@ -58,6 +78,10 @@ final class NativePlayerViewController: UIViewController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		view.backgroundColor = .black
+
+		viewModel.onRotateRequested = { [weak self] in
+			self?.rotateInterface()
+		}
 
 		videoContainerView.backgroundColor = .black
 		videoContainerView.clipsToBounds = true

@@ -124,7 +124,8 @@ struct UIOptionsRecord: Record {
 	/// Localized UI labels from JS i18n (keys: skipIntro, skipCredits,
 	/// nextEpisode, playNow, cancel, episodes, speed, audio, subtitles,
 	/// chapters, technicalInfo, playbackError, close, off, quality,
-	/// subtitleSize, zoomToFill, endsAt — endsAt carries a %TIME%
+	/// subtitleSize, subtitleSync, audioSync, volumeBoost, rotate,
+	/// lockControls, unlock, zoomToFill, endsAt — endsAt carries a %TIME%
 	/// placeholder). Native falls back to English for missing keys.
 	@Field var strings: [String: String] = [:]
 }

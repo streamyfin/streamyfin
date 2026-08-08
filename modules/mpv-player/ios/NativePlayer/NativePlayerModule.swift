@@ -46,6 +46,7 @@ public class NativePlayerModule: Module {
 			"onTracksReady", "onPictureInPictureChange",
 			"onTrackSelectionRequested", "onSpeedChange",
 			"onQualitySelected", "onSubtitleScaleChange",
+			"onOrientationChangeRequested",
 			"onNextEpisodeRequested", "onPreviousEpisodeRequested",
 			"onEpisodeSelected", "onPlaybackEnded", "onDismiss"
 		)

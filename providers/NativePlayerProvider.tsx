@@ -11,6 +11,7 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
+import { OrientationLock } from "expo-screen-orientation";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import {
@@ -926,6 +927,19 @@ const NativePlayerProviderInner: React.FC<{
         updateSettings({ mpvSubtitleScale: payload.scale });
       }),
 
+      addNativePlayerListener("onOrientationChangeRequested", (payload) => {
+        if (!sessionRef.current) return;
+        // The in-player rotate button. The VC flipped its own mask, but when
+        // the landscape-on-open setting armed a window-level
+        // expo-screen-orientation lock, that mask outvotes the VC — re-lock
+        // it to the requested orientation so the rotation actually happens.
+        void lockOrientation(
+          payload.orientation === "portrait"
+            ? OrientationLock.PORTRAIT_UP
+            : OrientationLock.LANDSCAPE,
+        );
+      }),
+
       addNativePlayerListener("onSpeedChange", (payload) => {
         // Persist like the JS player's plain speed rows (scope "all") so the
         // next stream load resolves the same speed instead of a stale one.
@@ -977,6 +991,7 @@ const NativePlayerProviderInner: React.FC<{
     teardownSession,
     downloadUtils,
     updateSettings,
+    lockOrientation,
   ]);
 
   // MARK: - Remote control (Jellyfin WebSocket)

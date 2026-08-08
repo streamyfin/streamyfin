@@ -148,6 +148,12 @@ export type NativePlayerStrings = Partial<
     | "off"
     | "quality"
     | "subtitleSize"
+    | "subtitleSync"
+    | "audioSync"
+    | "volumeBoost"
+    | "rotate"
+    | "lockControls"
+    | "unlock"
     | "endsAt"
     | "zoomToFill",
     string
@@ -245,6 +251,15 @@ export type NativePlayerEvents = {
   }) => void;
   /** In-player subtitle size change; persist as settings.mpvSubtitleScale. */
   onSubtitleScaleChange: (payload: { scale: number }) => void;
+  /**
+   * In-player rotate button. The native VC already flipped its own mask and
+   * requested the geometry change, but when JS holds a window-level
+   * expo-screen-orientation lock (landscape-on-open setting) it outvotes the
+   * VC — JS must re-lock to the requested orientation.
+   */
+  onOrientationChangeRequested: (payload: {
+    orientation: "portrait" | "landscape";
+  }) => void;
   onNextEpisodeRequested: (payload: NativePlayerNextEpisodeRequest) => void;
   onPreviousEpisodeRequested: (payload: { positionSec: number }) => void;
   onEpisodeSelected: (payload: { itemId: string; positionSec: number }) => void;

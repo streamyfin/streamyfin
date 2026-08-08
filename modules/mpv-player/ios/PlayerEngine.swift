@@ -390,6 +390,19 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setSubtitleScale(scale)
 	}
 
+	func setSubtitleDelay(_ seconds: Double) {
+		renderer?.setSubtitleDelay(seconds)
+	}
+
+	func setAudioDelay(_ seconds: Double) {
+		renderer?.setAudioDelay(seconds)
+	}
+
+	/// Software gain in percent: 100 = neutral, above amplifies (mpv softvol).
+	func setVolumeBoost(_ percent: Int) {
+		renderer?.setVolumeBoost(percent)
+	}
+
 	func setSubtitleMarginY(_ margin: Int) {
 		renderer?.setSubtitleMarginY(margin)
 	}

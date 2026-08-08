@@ -93,6 +93,12 @@ final class NativePlayerSession {
 		// explicitly write 1.0 or the old speed carries over.
 		engine.setSpeed(speed: config.ui.initialPlaybackSpeed)
 		viewModel.speed = config.ui.initialPlaybackSpeed
+		// Same persistence rule as speed: sync offsets and gain survive on
+		// the mpv handle across loadfile, so write the view model's current
+		// values on every swap (apply() resets them when the item changes).
+		engine.setSubtitleDelay(viewModel.subtitleDelay)
+		engine.setAudioDelay(viewModel.audioDelay)
+		engine.setVolumeBoost(viewModel.volumeBoostPercent)
 		if let style = config.subtitleStyle {
 			applySubtitleStyle(style)
 		}
