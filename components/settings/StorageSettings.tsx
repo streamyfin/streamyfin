@@ -2,18 +2,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, View } from "react-native";
 import { toast } from "sonner-native";
-import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { Colors } from "@/constants/Colors";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useDownload } from "@/providers/DownloadProvider";
-import { useSettings } from "@/utils/atoms/settings";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
 export const StorageSettings = () => {
   const { deleteAllFiles, appSizeUsage } = useDownload();
-  const { settings, updateSettings } = useSettings();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const successHapticFeedback = useHaptic("success");
@@ -127,21 +124,6 @@ export const StorageSettings = () => {
           )}
         </View>
       </View>
-      {Platform.OS === "ios" && !Platform.isTV && settings && (
-        <ListGroup className='mt-4'>
-          <ListItem
-            title={t("home.settings.storage.download_live_activity")}
-            subtitle={t("home.settings.storage.download_live_activity_hint")}
-          >
-            <SettingSwitch
-              value={settings.showDownloadLiveActivity}
-              onValueChange={(value) =>
-                updateSettings({ showDownloadLiveActivity: value })
-              }
-            />
-          </ListItem>
-        </ListGroup>
-      )}
       {!Platform.isTV && (
         <ListGroup className='mt-4'>
           <ListItem

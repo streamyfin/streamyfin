@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import useRouter from "@/hooks/useAppRouter";
@@ -83,6 +83,19 @@ export const AppearanceSettings: React.FC = () => {
             }
           />
         </ListItem>
+        {Platform.OS === "ios" && !Platform.isTV && (
+          <ListItem
+            title={t("home.settings.appearance.download_live_activity")}
+            subtitle={t("home.settings.appearance.download_live_activity_hint")}
+          >
+            <SettingSwitch
+              value={settings.showDownloadLiveActivity}
+              onValueChange={(value) =>
+                updateSettings({ showDownloadLiveActivity: value })
+              }
+            />
+          </ListItem>
+        )}
         <ListItem
           onPress={() =>
             router.push("/settings/appearance/hide-libraries/page")

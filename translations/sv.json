@@ -149,6 +149,8 @@
       },
       "appearance": {
         "title": "Utseende",
+        "download_live_activity": "Liveaktivitet",
+        "download_live_activity_hint": "Visa nedladdningens förlopp på låsskärmen och i Dynamic Island.",
         "merge_next_up_continue_watching": "Slå ihop Fortsätt titta och nästa avsnitt",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
@@ -417,8 +419,6 @@
         "app_usage": "Streamyfin {{usedSpace}}%",
         "device_usage": "Telefon {{availableSpace}}%",
         "size_used": "{{used}} av {{total}} används",
-        "download_live_activity": "Liveaktivitet",
-        "download_live_activity_hint": "Visa nedladdningens förlopp på låsskärmen och i Dynamic Island.",
         "delete_all_downloaded_files": "Ta bort alla nerladdade filer",
         "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",

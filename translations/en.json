@@ -149,6 +149,8 @@
       },
       "appearance": {
         "title": "Appearance",
+        "download_live_activity": "Live Activity",
+        "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "merge_next_up_continue_watching": "Merge Continue watching & Next up",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
@@ -417,8 +419,6 @@
         "app_usage": "App {{usedSpace}}%",
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} used",
-        "download_live_activity": "Live Activity",
-        "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "delete_all_downloaded_files": "Delete all downloaded files",
         "delete_all_downloaded_files_confirm": "Delete all downloaded files?",
         "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
