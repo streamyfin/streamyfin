@@ -46,9 +46,14 @@ import { SubtitleTrackSelector } from "./SubtitleTrackSelector";
  * chunkier-looking ring, and thinning the stroke alone does not make it smaller.
  * The stroke is an absolute width rather than a share of the diameter, so
  * resizing the ring does not change its weight.
+ *
+ * Keep the diameter a whole point. The library draws the stroke tangent to the
+ * SVG's edge — `radius` is `size / 2 - width / 2`, so the outer edge lands
+ * exactly on the boundary with no slack — and a fractional size rounds to
+ * device pixels unevenly, shaving that edge into a visible cutoff.
  */
-const PROGRESS_RING_SCALE = 0.7875;
-const PROGRESS_RING_SIZE = HEADER_ICON_SIZE * PROGRESS_RING_SCALE;
+const PROGRESS_RING_SCALE = 0.875;
+const PROGRESS_RING_SIZE = Math.round(HEADER_ICON_SIZE * PROGRESS_RING_SCALE);
 const PROGRESS_RING_WIDTH = 2.5;
 
 export type SelectedOptions = {
