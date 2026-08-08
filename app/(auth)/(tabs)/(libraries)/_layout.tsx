@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,6 +6,7 @@ import {
   HEADER_BUTTON_INSET,
   HEADER_ICON_SIZE,
 } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import {
   nestedTabPageScreenOptions,
@@ -179,11 +179,7 @@ export default function IndexLayout() {
                       paddingHorizontal: HEADER_BUTTON_INSET,
                     }}
                   >
-                    <Ionicons
-                      name='ellipsis-horizontal-outline'
-                      size={HEADER_ICON_SIZE}
-                      color='white'
-                    />
+                    <HeaderIcon name='more' />
                   </View>
                 }
                 title={t("library.options.display")}

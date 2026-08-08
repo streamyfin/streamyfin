@@ -1,4 +1,3 @@
-import { Feather } from "@expo/vector-icons";
 import { useEffect } from "react";
 import { Platform, View } from "react-native";
 import GoogleCast, {
@@ -9,11 +8,8 @@ import GoogleCast, {
   useMediaStatus,
   useRemoteMediaClient,
 } from "react-native-google-cast";
-import {
-  HEADER_ICON_SIZE,
-  HeaderButton,
-  type HeaderButtonProps,
-} from "./common/HeaderButton";
+import { HeaderButton, type HeaderButtonProps } from "./common/HeaderButton";
+import { HeaderIcon } from "./common/HeaderIcon";
 
 type Props = Omit<HeaderButtonProps, "onPress" | "children">;
 
@@ -56,7 +52,7 @@ export function Chromecast(props: Props) {
           <CastButton tintColor='transparent' />
         </View>
       ) : null}
-      <Feather name='cast' size={HEADER_ICON_SIZE} color='white' />
+      <HeaderIcon name='cast' />
     </HeaderButton>
   );
 }

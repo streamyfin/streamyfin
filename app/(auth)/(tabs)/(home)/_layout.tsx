@@ -1,16 +1,16 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
 import {
-  HEADER_ICON_SIZE,
   HeaderButton,
   HeaderButtonGroup,
 } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   nestedTabPageScreenOptions,
   stackScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
+import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 
 const Chromecast = Platform.isTV ? null : require("@/components/Chromecast");
@@ -234,7 +234,7 @@ const SettingsButton = () => {
 
   return (
     <HeaderButton onPress={() => router.push("/(auth)/settings")}>
-      <Feather name='settings' color='white' size={HEADER_ICON_SIZE} />
+      <HeaderIcon name='settings' />
     </HeaderButton>
   );
 };
@@ -245,10 +245,9 @@ const SessionsButton = () => {
 
   return (
     <HeaderButton onPress={() => router.push("/(auth)/sessions")}>
-      <Ionicons
-        name='play-circle'
-        color={sessions.length === 0 ? "white" : "#9333ea"}
-        size={HEADER_ICON_SIZE}
+      <HeaderIcon
+        name='sessions'
+        tintColor={sessions.length === 0 ? "white" : Colors.primary}
       />
     </HeaderButton>
   );

@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -10,12 +9,14 @@ import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
 import { SeasonPicker } from "@/components/series/SeasonPicker";
 import { SeriesHeader } from "@/components/series/SeriesHeader";
 import { TVSeriesPage } from "@/components/series/TVSeriesPage";
+import { Colors } from "@/constants/Colors";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { OfflineModeProvider } from "@/providers/OfflineModeProvider";
@@ -144,14 +145,10 @@ const page: React.FC = () => {
                 title={t("item_card.download.download_series")}
                 items={allEpisodes}
                 MissingDownloadIconComponent={() => (
-                  <Ionicons name='download' size={22} color='white' />
+                  <HeaderIcon name='downloads' />
                 )}
                 DownloadedIconComponent={() => (
-                  <Ionicons
-                    name='checkmark-done-outline'
-                    size={24}
-                    color='#9333ea'
-                  />
+                  <HeaderIcon name='downloaded' tintColor={Colors.primary} />
                 )}
               />
             )}

@@ -16,10 +16,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  HEADER_ICON_SIZE,
   HeaderButton,
   HeaderButtonGroup,
 } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
@@ -108,14 +108,10 @@ export default function WatchlistDetailScreen() {
                   router.push(`/(auth)/(tabs)/(watchlists)/edit/${watchlistId}`)
                 }
               >
-                <Ionicons name='pencil' size={HEADER_ICON_SIZE} color='white' />
+                <HeaderIcon name='edit' />
               </HeaderButton>
               <HeaderButton onPress={handleDelete}>
-                <Ionicons
-                  name='trash-outline'
-                  size={HEADER_ICON_SIZE}
-                  color='#ef4444'
-                />
+                <HeaderIcon name='delete' tintColor='#ef4444' />
               </HeaderButton>
             </HeaderButtonGroup>
           )

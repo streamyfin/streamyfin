@@ -1,11 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
-import {
-  HEADER_ICON_SIZE,
-  HeaderButton,
-} from "@/components/common/HeaderButton";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   nestedTabPageScreenOptions,
   stackScreenOptions,
@@ -35,7 +32,7 @@ export default function WatchlistsLayout() {
                     router.push("/(auth)/(tabs)/(watchlists)/create")
                   }
                 >
-                  <Ionicons name='add' size={HEADER_ICON_SIZE} color='white' />
+                  <HeaderIcon name='add' />
                 </HeaderButton>
               )
             : undefined,

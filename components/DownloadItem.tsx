@@ -1,4 +1,3 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
@@ -17,6 +16,8 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, Switch, View, type ViewProps } from "react-native";
 import { toast } from "sonner-native";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
+import { Colors } from "@/constants/Colors";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useDownload } from "@/providers/DownloadProvider";
@@ -353,7 +354,7 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     }
 
     if (itemsQueued) {
-      return <Ionicons name='hourglass' size={24} color='white' />;
+      return <HeaderIcon name='queued' />;
     }
 
     if (allItemsDownloaded) {
@@ -508,11 +509,9 @@ export const DownloadSingleItem: React.FC<{
       }
       subtitle={item.Name!}
       items={[item]}
-      MissingDownloadIconComponent={() => (
-        <Ionicons name='cloud-download-outline' size={24} color='white' />
-      )}
+      MissingDownloadIconComponent={() => <HeaderIcon name='downloads' />}
       DownloadedIconComponent={() => (
-        <Ionicons name='cloud-download' size={26} color='#9333ea' />
+        <HeaderIcon name='downloaded' tintColor={Colors.primary} />
       )}
     />
   );

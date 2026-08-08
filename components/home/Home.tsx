@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -25,10 +25,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
-import {
-  HEADER_ICON_SIZE,
-  HeaderButton,
-} from "@/components/common/HeaderButton";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
@@ -147,10 +145,9 @@ const HomeMobile = () => {
             router.push("/(auth)/downloads");
           }}
         >
-          <Feather
-            name='download'
-            color={hasDownloads ? Colors.primary : "white"}
-            size={HEADER_ICON_SIZE}
+          <HeaderIcon
+            name='downloads'
+            tintColor={hasDownloads ? Colors.primary : "white"}
           />
         </HeaderButton>
       ),

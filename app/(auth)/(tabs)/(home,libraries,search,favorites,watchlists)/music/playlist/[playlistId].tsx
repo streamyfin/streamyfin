@@ -10,10 +10,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  HEADER_ICON_SIZE,
-  HeaderButton,
-} from "@/components/common/HeaderButton";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
@@ -103,11 +101,7 @@ export default function PlaylistDetailScreen() {
       headerShadowVisible: false,
       headerRight: () => (
         <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
-          <Ionicons
-            name='ellipsis-horizontal'
-            size={HEADER_ICON_SIZE}
-            color='white'
-          />
+          <HeaderIcon name='more' />
         </HeaderButton>
       ),
     });
