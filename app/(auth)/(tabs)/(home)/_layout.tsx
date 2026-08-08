@@ -5,6 +5,7 @@ import {
   HeaderButton,
   HeaderButtonGroup,
 } from "@/components/common/HeaderButton";
+import { HeaderGradient } from "@/components/common/HeaderGradient";
 import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   nestedTabPageScreenOptions,
@@ -32,6 +33,8 @@ export default function IndexLayout() {
           headerTitle: t("tabs.home"),
           headerBlurEffect: "none",
           headerTransparent: Platform.OS === "ios",
+          headerBackground:
+            Platform.OS === "ios" ? () => <HeaderGradient /> : undefined,
           headerShadowVisible: false,
           headerRight: () =>
             Platform.isTV ? null : (

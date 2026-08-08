@@ -19,7 +19,7 @@
  * their glyphs, so the group needs no gap of its own.
  */
 
-import type { PropsWithChildren } from "react";
+import { Children, type PropsWithChildren } from "react";
 import {
   Platform,
   type StyleProp,
@@ -36,17 +36,17 @@ import { Pressable, type PressableProps } from "react-native-gesture-handler";
 export const HEADER_ICON_SIZE = 24;
 
 /**
- * Horizontal inset carried by `headerRight` content.
+ * End padding inside a `HeaderButtonGroup`.
  *
- * On iOS 26 this is the padding inside the shared-background pill — with zero
- * inset the glyphs sit hard against the glass edge. Between two adjacent
- * buttons it doubles to 16pt, which is UIKit's spacing for bar button items.
- * Anything mounted on the right that is not a `HeaderButton` (`RoundButton`'s
- * large variant, a dropdown trigger) must use the same value.
- *
- * `headerLeft` deliberately gets none — see `placement`.
+ * On iOS 26 the group is what the shared-background pill wraps, and with zero
+ * inset the outermost glyphs sit hard against the glass edge. A lone button
+ * gets none of this: it has no neighbour to separate from, and padding a pill
+ * drawn around a single glyph just makes it wide for no reason.
  */
-export const HEADER_BUTTON_INSET = 8;
+const HEADER_GROUP_INSET = 8;
+
+/** UIKit's spacing between adjacent bar button items. */
+const HEADER_BUTTON_GAP = 16;
 
 /** Grows the icon box to the 44pt minimum touch target from Apple's HIG. */
 const HEADER_HIT_SLOP = 10;
@@ -64,15 +64,8 @@ const ANDROID_TITLE_GAP = 16;
 
 export interface HeaderButtonProps extends Omit<PressableProps, "style"> {
   /**
-   * Which side of the header this sits on. The two are not symmetric:
-   *
-   * `"left"` gets no horizontal inset, because its glyph has to line up with
-   * the native back button's chevron on sibling screens, and that sits flush at
-   * the bar margin. It does get the Android-only gap before the title.
-   *
-   * `"right"` (the default) gets `HEADER_BUTTON_INSET`. Nothing lines up
-   * against the trailing edge, so there the pill is the visual object and wants
-   * interior padding.
+   * `"left"` adds the Android-only gap before the title. Defaults to
+   * `"right"`, which needs no compensation on either platform.
    */
   placement?: "left" | "right";
   /**
@@ -93,7 +86,8 @@ export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
     style={[
       {
         height: HEADER_ICON_SIZE,
-        paddingHorizontal: placement === "left" ? 0 : HEADER_BUTTON_INSET,
+        // Icons stay square; text buttons ("Save", "Log out") grow past it.
+        minWidth: HEADER_ICON_SIZE,
         alignItems: "center",
         justifyContent: "center",
         marginRight:
@@ -110,19 +104,41 @@ export const HeaderButton: React.FC<PropsWithChildren<HeaderButtonProps>> = ({
 );
 
 /**
- * Lays header buttons out in a row. Spacing comes from each button's own
- * horizontal inset, not from a gap here — that way a lone button gets the same
- * inset inside the iOS 26 pill as one sitting in a group of five.
+ * Lays out header buttons in a row and owns all of their spacing: the gap
+ * between them and the padding at each end of the iOS 26 pill. Buttons carry
+ * none of it themselves, so a lone one — the `+` on watchlists, the library
+ * filter — sits flush with no wrapper needed.
+ *
+ * The end padding drops away when only one child survives, since a pill drawn
+ * around a single glyph has nothing to pad. That matters because most of these
+ * groups are conditional (no sessions button for non-admins, no download row
+ * for a Live TV programme), so "how many buttons" is a render-time answer.
+ *
+ * `Children.toArray` discards the `false` a short-circuited child renders, but
+ * counts a fragment as one — so keep buttons as direct children rather than
+ * grouping several inside a single fragment.
  */
 export const HeaderButtonGroup: React.FC<PropsWithChildren<ViewProps>> = ({
   children,
   style,
   ...props
-}) => (
-  <View
-    style={[{ flexDirection: "row", alignItems: "center" }, style]}
-    {...props}
-  >
-    {children}
-  </View>
-);
+}) => {
+  const isAlone = Children.toArray(children).length < 2;
+
+  return (
+    <View
+      style={[
+        {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: HEADER_BUTTON_GAP,
+          paddingHorizontal: isAlone ? 0 : HEADER_GROUP_INSET,
+        },
+        style,
+      ]}
+      {...props}
+    >
+      {children}
+    </View>
+  );
+};

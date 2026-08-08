@@ -34,10 +34,9 @@ export const RoundButton: React.FC<PropsWithChildren<Props>> = ({
   ...viewProps
 }) => {
   const isLarge = size === "large";
-  // Large is the header variant: glyph-sized box plus the shared header inset,
-  // so it spaces identically to a HeaderButton beside it. Width is left to the
-  // content rather than fixed, or the padding would eat into the glyph.
-  const buttonSize = isLarge ? "h-6 px-2" : "h-9 w-9";
+  // Large is the header variant: a glyph-sized box matching HeaderButton, with
+  // spacing owned by the surrounding HeaderButtonGroup rather than the button.
+  const buttonSize = isLarge ? "h-6 w-6" : "h-9 w-9";
   const lightHapticFeedback = useHaptic("light");
 
   const handlePress = () => {
