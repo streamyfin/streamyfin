@@ -33,8 +33,14 @@ const HEADER_ICONS = {
   cast: { android: "cast" },
   sessions: { ios: "play.circle", android: "play_circle" },
   settings: { ios: "gearshape", android: "settings" },
+  // `downloaded` is the filled counterpart of `downloads`, not a checkmark —
+  // the state being shown is "this is downloaded", and a tick reads as "done"
+  // (a finished transfer) rather than as a property of the item.
   downloads: { ios: "arrow.down.circle", android: "download" },
-  downloaded: { ios: "checkmark.circle.fill", android: "download_done" },
+  downloaded: {
+    ios: "arrow.down.circle.fill",
+    android: "download_for_offline",
+  },
   queued: { ios: "hourglass", android: "hourglass" },
   remoteSession: { ios: "play.rectangle", android: "personal_video" },
   played: { ios: "checkmark.circle.fill", android: "check_circle" },
