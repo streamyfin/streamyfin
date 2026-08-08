@@ -9,6 +9,7 @@ import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
 import { AddToFavorites } from "@/components/AddToFavorites";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { DownloadItems } from "@/components/DownloadItem";
 import { ParallaxScrollView } from "@/components/ParallaxPage";
 import { NextUp } from "@/components/series/NextUp";
@@ -135,7 +136,7 @@ const page: React.FC = () => {
     navigation.setOptions({
       headerRight: () =>
         !isLoading && item && allEpisodes && allEpisodes.length > 0 ? (
-          <View className='flex flex-row items-center space-x-2'>
+          <HeaderButtonGroup>
             <AddToFavorites item={item} />
             {!Platform.isTV && (
               <DownloadItems
@@ -154,7 +155,7 @@ const page: React.FC = () => {
                 )}
               />
             )}
-          </View>
+          </HeaderButtonGroup>
         ) : null,
     });
   }, [allEpisodes, isLoading, item, isOffline]);

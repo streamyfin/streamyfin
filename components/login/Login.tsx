@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
@@ -138,17 +139,16 @@ export const Login: React.FC = () => {
       headerTitle: serverName,
       headerLeft: () =>
         api?.basePath ? (
-          <TouchableOpacity
+          <HeaderButton
+            placement='left'
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center pr-2 pl-1'
+            style={{ flexDirection: "row", gap: 4 }}
           >
             <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className=' ml-1 text-purple-600'>
-              {t("login.change_server")}
-            </Text>
-          </TouchableOpacity>
+            <Text className='text-purple-600'>{t("login.change_server")}</Text>
+          </HeaderButton>
         ) : null,
     });
   }, [serverName, navigation, api?.basePath]);

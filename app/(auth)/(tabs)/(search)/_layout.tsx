@@ -4,12 +4,13 @@ import { Platform } from "react-native";
 import {
   commonScreenOptions,
   nestedTabPageScreenOptions,
+  stackScreenOptions,
 } from "@/components/stacks/NestedTabPageStack";
 
 export default function SearchLayout() {
   const { t } = useTranslation();
   return (
-    <Stack>
+    <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen
         name='index'
         options={{

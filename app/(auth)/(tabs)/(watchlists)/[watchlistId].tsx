@@ -11,12 +11,15 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HeaderBackButton } from "@/components/common/HeaderBackButton";
+import {
+  HEADER_ICON_SIZE,
+  HeaderButton,
+  HeaderButtonGroup,
+} from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
@@ -97,22 +100,24 @@ export default function WatchlistDetailScreen() {
   useEffect(() => {
     navigation.setOptions({
       headerTitle: watchlist?.name || "",
-      headerLeft: () => <HeaderBackButton />,
       headerRight: isOwner
         ? () => (
-            <View className='flex-row gap-2'>
-              <TouchableOpacity
+            <HeaderButtonGroup>
+              <HeaderButton
                 onPress={() =>
                   router.push(`/(auth)/(tabs)/(watchlists)/edit/${watchlistId}`)
                 }
-                className='p-2'
               >
-                <Ionicons name='pencil' size={20} color='white' />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete} className='p-2'>
-                <Ionicons name='trash-outline' size={20} color='#ef4444' />
-              </TouchableOpacity>
-            </View>
+                <Ionicons name='pencil' size={HEADER_ICON_SIZE} color='white' />
+              </HeaderButton>
+              <HeaderButton onPress={handleDelete}>
+                <Ionicons
+                  name='trash-outline'
+                  size={HEADER_ICON_SIZE}
+                  color='#ef4444'
+                />
+              </HeaderButton>
+            </HeaderButtonGroup>
           )
         : undefined,
     });

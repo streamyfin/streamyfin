@@ -9,10 +9,10 @@ import { useAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import ActiveDownloads from "@/components/downloads/ActiveDownloads";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
@@ -108,12 +108,9 @@ export default function DownloadsPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable
-          onPress={() => bottomSheetModalRef.current?.present()}
-          className='px-2'
-        >
+        <HeaderButton onPress={() => bottomSheetModalRef.current?.present()}>
           <DownloadSize items={downloadedFiles?.map((f) => f.item) || []} />
-        </Pressable>
+        </HeaderButton>
       ),
     });
   }, [downloadedFiles]);

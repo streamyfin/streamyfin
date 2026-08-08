@@ -10,17 +10,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
 import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function StreamystatsPage() {
+  useDismissKeyboardOnLeave();
   const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -105,11 +108,11 @@ export default function StreamystatsPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={onSave}>
+        <HeaderButton onPress={onSave}>
           <Text className='text-blue-500 font-medium'>
             {t("home.settings.plugins.streamystats.save")}
           </Text>
-        </TouchableOpacity>
+        </HeaderButton>
       ),
     });
   }, [navigation, onSave, t]);

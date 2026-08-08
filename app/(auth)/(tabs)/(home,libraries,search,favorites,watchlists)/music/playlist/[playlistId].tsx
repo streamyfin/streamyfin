@@ -10,6 +10,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  HEADER_ICON_SIZE,
+  HeaderButton,
+} from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { CreatePlaylistModal } from "@/components/music/CreatePlaylistModal";
@@ -98,12 +102,13 @@ export default function PlaylistDetailScreen() {
       headerStyle: { backgroundColor: "transparent" },
       headerShadowVisible: false,
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => setPlaylistOptionsOpen(true)}
-          className='p-1.5'
-        >
-          <Ionicons name='ellipsis-horizontal' size={24} color='white' />
-        </TouchableOpacity>
+        <HeaderButton onPress={() => setPlaylistOptionsOpen(true)}>
+          <Ionicons
+            name='ellipsis-horizontal'
+            size={HEADER_ICON_SIZE}
+            color='white'
+          />
+        </HeaderButton>
       ),
     });
   }, [playlist?.Name, navigation]);

@@ -3,8 +3,12 @@ import { Stack } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View } from "react-native";
+import { HEADER_ICON_SIZE } from "@/components/common/HeaderButton";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import {
+  nestedTabPageScreenOptions,
+  stackScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import { useSettings } from "@/utils/atoms/settings";
 
 export default function IndexLayout() {
@@ -150,7 +154,7 @@ export default function IndexLayout() {
   if (!settings?.libraryOptions) return null;
 
   return (
-    <Stack>
+    <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen
         name='index'
         options={{
@@ -166,10 +170,15 @@ export default function IndexLayout() {
                 open={dropdownOpen}
                 onOpenChange={setDropdownOpen}
                 trigger={
-                  <View>
+                  <View
+                    style={{
+                      height: HEADER_ICON_SIZE,
+                      width: HEADER_ICON_SIZE,
+                    }}
+                  >
                     <Ionicons
                       name='ellipsis-horizontal-outline'
-                      size={24}
+                      size={HEADER_ICON_SIZE}
                       color='white'
                     />
                   </View>

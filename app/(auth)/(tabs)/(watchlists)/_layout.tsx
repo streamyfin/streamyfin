@@ -2,8 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Platform } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
-import { nestedTabPageScreenOptions } from "@/components/stacks/NestedTabPageStack";
+import {
+  HEADER_ICON_SIZE,
+  HeaderButton,
+} from "@/components/common/HeaderButton";
+import {
+  nestedTabPageScreenOptions,
+  stackScreenOptions,
+} from "@/components/stacks/NestedTabPageStack";
 import useRouter from "@/hooks/useAppRouter";
 import { useStreamystatsEnabled } from "@/hooks/useWatchlists";
 
@@ -13,7 +19,7 @@ export default function WatchlistsLayout() {
   const streamystatsEnabled = useStreamystatsEnabled();
 
   return (
-    <Stack>
+    <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen
         name='index'
         options={{
@@ -24,14 +30,13 @@ export default function WatchlistsLayout() {
           headerShadowVisible: false,
           headerRight: streamystatsEnabled
             ? () => (
-                <Pressable
+                <HeaderButton
                   onPress={() =>
                     router.push("/(auth)/(tabs)/(watchlists)/create")
                   }
-                  className='p-1.5'
                 >
-                  <Ionicons name='add' size={24} color='white' />
-                </Pressable>
+                  <Ionicons name='add' size={HEADER_ICON_SIZE} color='white' />
+                </HeaderButton>
               )
             : undefined,
         }}

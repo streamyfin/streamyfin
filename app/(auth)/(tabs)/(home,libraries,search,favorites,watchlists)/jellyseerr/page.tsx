@@ -13,10 +13,11 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, TouchableOpacity, View } from "react-native";
+import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { Button } from "@/components/Button";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
 import Cast from "@/components/jellyseerr/Cast";
@@ -30,6 +31,7 @@ import { JellyserrRatings } from "@/components/Ratings";
 import JellyseerrSeasons from "@/components/series/JellyseerrSeasons";
 import { ItemActions } from "@/components/series/SeriesActions";
 import useRouter from "@/hooks/useAppRouter";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useJellyseerrCanRequest } from "@/utils/_jellyseerr/useJellyseerrCanRequest";
 import { ANIME_KEYWORD_ID } from "@/utils/jellyseerr/server/api/themoviedb/constants";
@@ -56,6 +58,7 @@ import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
 
 // Mobile page component
 const MobilePage: React.FC = () => {
+  useDismissKeyboardOnLeave();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
@@ -236,11 +239,9 @@ const MobilePage: React.FC = () => {
     if (details) {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity
-            className={`rounded-full pl-1.5 ${Platform.OS === "android" ? "" : "bg-neutral-800/80"}`}
-          >
+          <HeaderButtonGroup>
             <ItemActions item={details} />
-          </TouchableOpacity>
+          </HeaderButtonGroup>
         ),
       });
     }

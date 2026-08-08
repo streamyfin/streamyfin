@@ -1,26 +1,23 @@
 import { useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Linking,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Linking, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { ServerUrlStatusText } from "@/components/common/ServerUrlStatusText";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
 import { reachabilityProbe } from "@/utils/serverUrl/probes/reachability";
 
 export default function MarlinSearchPage() {
+  useDismissKeyboardOnLeave();
   const navigation = useNavigation();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -60,11 +57,11 @@ export default function MarlinSearchPage() {
     if (!marlinUrlLocked) {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity onPress={() => onSave(value)} className='px-2'>
+          <HeaderButton onPress={() => onSave(value)}>
             <Text className='text-blue-500'>
               {t("home.settings.plugins.marlin_search.save_button")}
             </Text>
-          </TouchableOpacity>
+          </HeaderButton>
         ),
       });
     }
