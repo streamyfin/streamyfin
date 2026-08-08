@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   BaseItemDtoQueryResult,
@@ -23,9 +23,10 @@ import {
   ScrollView,
   View,
 } from "react-native";
-import { Pressable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Text } from "@/components/common/Text";
 import { InfiniteScrollingCollectionList } from "@/components/home/InfiniteScrollingCollectionList";
 import { StreamystatsPromotedWatchlists } from "@/components/home/StreamystatsPromotedWatchlists";
@@ -138,18 +139,17 @@ const HomeMobile = () => {
     }
     navigation.setOptions({
       headerLeft: () => (
-        <Pressable
+        <HeaderButton
+          placement='left'
           onPress={() => {
             router.push("/(auth)/downloads");
           }}
-          style={{ marginRight: Platform.OS === "android" ? 16 : 0 }}
         >
-          <Feather
-            name='download'
-            color={hasDownloads ? Colors.primary : "white"}
-            size={24}
+          <HeaderIcon
+            name='downloads'
+            tintColor={hasDownloads ? Colors.primary : "white"}
           />
-        </Pressable>
+        </HeaderButton>
       ),
     });
   }, [navigation, router, hasDownloads]);

@@ -2,7 +2,9 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import type React from "react";
 import { useCallback } from "react";
 import { View, type ViewProps } from "react-native";
+import { Colors } from "@/constants/Colors";
 import { useMarkAsPlayed } from "@/hooks/useMarkAsPlayed";
+import { HeaderIcon } from "./common/HeaderIcon";
 import { RoundButton } from "./RoundButton";
 
 interface Props extends ViewProps {
@@ -20,12 +22,13 @@ export const PlayedStatus: React.FC<Props> = ({ items, ...props }) => {
 
   return (
     <View {...props}>
-      <RoundButton
-        color={allPlayed ? "purple" : "white"}
-        icon={allPlayed ? "checkmark" : "checkmark"}
-        onPress={handlePress}
-        size={props.size}
-      />
+      <RoundButton onPress={handlePress} size={props.size}>
+        <HeaderIcon
+          name={allPlayed ? "played" : "unplayed"}
+          tintColor={allPlayed ? Colors.primary : "white"}
+          size={props.size === "large" ? undefined : 18}
+        />
+      </RoundButton>
     </View>
   );
 };

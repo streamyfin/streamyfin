@@ -149,6 +149,8 @@
       },
       "appearance": {
         "title": "Appearance",
+        "download_live_activity": "Live Activity",
+        "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "merge_next_up_continue_watching": "Merge Continue watching & Next up",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
@@ -499,6 +501,12 @@
       "something_went_wrong": "Something went wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
+      "live_activity": {
+        "downloading": "Downloading",
+        "completed": "Downloaded",
+        "failed": "Download failed",
+        "queued": "Queued"
+      },
       "toasts": {
         "you_are_not_allowed_to_download_files": "You are not allowed to download files.",
         "deleted_all_movies_successfully": "Deleted all movies successfully!",

@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useAllSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import { HeaderIcon } from "./common/HeaderIcon";
 import { Text } from "./common/Text";
 import { Loader } from "./Loader";
 import { RoundButton } from "./RoundButton";
@@ -52,11 +53,12 @@ export const PlayInRemoteSessionButton: React.FC<Props> = ({
 
   return (
     <View {...props}>
-      <RoundButton
-        icon='play-circle-outline'
-        onPress={() => setModalVisible(true)}
-        size={props.size}
-      />
+      <RoundButton onPress={() => setModalVisible(true)} size={props.size}>
+        <HeaderIcon
+          name='remoteSession'
+          size={props.size === "large" ? undefined : 18}
+        />
+      </RoundButton>
 
       <Modal
         animationType='slide'

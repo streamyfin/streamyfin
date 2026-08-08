@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
+import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { ItemImage } from "@/components/common/ItemImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
@@ -122,12 +123,11 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     if (!Platform.isTV && itemWithSources) {
       navigation.setOptions({
         headerRight: () =>
-          item &&
-          (Platform.OS === "ios" ? (
-            <View className='flex flex-row items-center pl-2'>
-              <Chromecast.Chromecast width={22} height={22} />
+          item && (
+            <HeaderButtonGroup>
+              <Chromecast.Chromecast />
               {item.Type !== "Program" && (
-                <View className='flex flex-row items-center'>
+                <>
                   {!Platform.isTV && (
                     <DownloadSingleItem item={itemWithSources} size='large' />
                   )}
@@ -142,32 +142,10 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
                     !settings.hideWatchlistsTab && (
                       <AddToWatchlist item={item} />
                     )}
-                </View>
+                </>
               )}
-            </View>
-          ) : (
-            <View className='flex flex-row items-center space-x-2'>
-              <Chromecast.Chromecast width={22} height={22} />
-              {item.Type !== "Program" && (
-                <View className='flex flex-row items-center space-x-2'>
-                  {!Platform.isTV && (
-                    <DownloadSingleItem item={itemWithSources} size='large' />
-                  )}
-                  {user?.Policy?.IsAdministrator &&
-                    !settings.hideRemoteSessionButton && (
-                      <PlayInRemoteSessionButton item={item} size='large' />
-                    )}
-
-                  <PlayedStatus items={[item]} size='large' />
-                  <AddToFavorites item={item} />
-                  {settings.streamyStatsServerUrl &&
-                    !settings.hideWatchlistsTab && (
-                      <AddToWatchlist item={item} />
-                    )}
-                </View>
-              )}
-            </View>
-          )),
+            </HeaderButtonGroup>
+          ),
       });
     }
   }, [

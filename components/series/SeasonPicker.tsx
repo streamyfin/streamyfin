@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { getTvShowsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
@@ -6,10 +5,12 @@ import { atom, useAtom } from "jotai";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import {
   SeasonDropdown,
   type SeasonIndexState,
 } from "@/components/series/SeasonDropdown";
+import { Colors } from "@/constants/Colors";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
@@ -172,10 +173,14 @@ export const SeasonPicker: React.FC<Props> = ({ item }) => {
               className='ml-2'
               items={episodes || []}
               MissingDownloadIconComponent={() => (
-                <Ionicons name='download' size={20} color='white' />
+                <HeaderIcon name='downloads' size={18} />
               )}
               DownloadedIconComponent={() => (
-                <Ionicons name='download' size={20} color='#9333ea' />
+                <HeaderIcon
+                  name='downloaded'
+                  tintColor={Colors.primary}
+                  size={18}
+                />
               )}
             />
             <PlayedStatus items={episodes || []} />
