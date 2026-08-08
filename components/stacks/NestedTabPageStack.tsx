@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import type { ComponentProps } from "react";
 import { Platform } from "react-native";
+import { HeaderGradient } from "@/components/common/HeaderGradient";
 
 type ICommonScreenOptions = ComponentProps<typeof Stack.Screen>["options"];
 
@@ -14,12 +15,15 @@ type ICommonScreenOptions = ComponentProps<typeof Stack.Screen>["options"];
  *
  * `scrollEdgeEffects.top` is hidden because on iOS 26 UIKit paints a soft blur
  * under the navigation bar of any inset-adjusted scroll view, which defeats the
- * fully transparent headers this app uses.
+ * fully transparent headers this app uses. Readability over content comes from
+ * `headerBackground` instead: a dark-to-transparent scrim behind every header.
  */
 export const stackScreenOptions: ICommonScreenOptions = {
   headerTintColor: "white",
   headerBackButtonDisplayMode: "minimal",
   scrollEdgeEffects: { top: "hidden" },
+  headerBackground:
+    Platform.OS === "ios" ? () => <HeaderGradient /> : undefined,
 };
 
 export const commonScreenOptions: ICommonScreenOptions = {
