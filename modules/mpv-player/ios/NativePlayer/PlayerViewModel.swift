@@ -696,8 +696,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	private func startCountdown(seconds: Double) {
 		guard countdownTask == nil else { return }
+		// Deliberately does NOT reveal the chrome — the card renders outside
+		// the controlsVisible layer, so it shows on its own over clean video.
 		countdownRemaining = seconds
-		showControls()
 		countdownTask = Task { [weak self] in
 			while !Task.isCancelled {
 				try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -757,7 +758,24 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		if inFinalCredits || nearEnd,
 		   let next = nextEpisode, next.countdownSeconds > 0,
 		   !countdownCanceled, countdownRemaining == nil, countdownTask == nil {
-			startCountdown(seconds: next.countdownSeconds)
+			// Never count longer than the video has left: the nearEnd case
+			// arms with <= countdownSeconds of video remaining and EOF
+			// advances the episode regardless, so an uncapped timer would
+			// visibly lag the actual switch. In-credits arming keeps the full
+			// configured countdown (the advance intentionally cuts credits
+			// short there).
+			let remaining = max(1, duration - currentPosition)
+			startCountdown(seconds: min(next.countdownSeconds, remaining))
+		}
+
+		// Keep a running countdown honest against playback (1Hz quantization,
+		// timer drift, speed changes): it must reach 0 no later than the
+		// video ends, because EOF is what actually triggers the switch.
+		if let counting = countdownRemaining, duration > 0 {
+			let remaining = max(0, duration - currentPosition)
+			if remaining < counting {
+				countdownRemaining = remaining
+			}
 		}
 
 		// Leaving the countdown window (e.g. the user seeked back) tears the
