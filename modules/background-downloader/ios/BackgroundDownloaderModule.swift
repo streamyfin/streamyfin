@@ -177,6 +177,14 @@ public class BackgroundDownloaderModule: Module {
           DownloadLiveActivityController.shared.setEnabled(enabled)
         }
       #endif
+      #if os(iOS) && compiler(>=6.2)
+        // Turning the setting off must drop the system pill too, not just the card — finish a
+        // keeper task that is already running. The transfer itself continues in the background
+        // session; the process just suspends and the completion wake handles the rest.
+        if #available(iOS 26.0, *), !enabled {
+          DownloadContinuedProcessingKeeper.shared.finish()
+        }
+      #endif
     }
 
     /// Path of the App Group directory the widget extension can read. JS stages poster images here,
