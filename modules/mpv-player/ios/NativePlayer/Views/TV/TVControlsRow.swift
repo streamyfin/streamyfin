@@ -19,7 +19,7 @@ import SwiftUI
 enum TVControl: Hashable {
 	case previousEpisode, skipBack, previousChapter, playPause
 	case nextChapter, skipForward, nextEpisode
-	case quality, audio, subtitles, speed, techInfo
+	case quality, audio, subtitles, speed, techInfo, episodes, more
 }
 
 @available(tvOS 26.0, *)
@@ -65,6 +65,12 @@ struct TVControlsRow: View {
 
 			Spacer(minLength: 12)
 
+			if !viewModel.episodeList.isEmpty {
+				iconButton("rectangle.stack.badge.play") {
+					viewModel.showEpisodeList = true
+				}
+				.focused($focusedControl, equals: .episodes)
+			}
 			if !viewModel.qualityMenu.isEmpty {
 				qualityMenu
 					.focused($focusedControl, equals: .quality)
@@ -79,6 +85,8 @@ struct TVControlsRow: View {
 			}
 			speedMenu
 				.focused($focusedControl, equals: .speed)
+			moreMenu
+				.focused($focusedControl, equals: .more)
 			iconButton("chevron.left.forwardslash.chevron.right") {
 				viewModel.showTechnicalInfo.toggle()
 			}
@@ -123,6 +131,30 @@ struct TVControlsRow: View {
 	private var audioMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
+			Menu {
+				ForEach(PlayerViewModel.syncOffsetPresets, id: \.self) { offset in
+					menuRow(
+						label: offsetLabel(offset),
+						selected: abs(viewModel.audioDelay - offset) < 0.001
+					) {
+						viewModel.setAudioDelay(offset)
+					}
+				}
+			} label: {
+				Text(viewModel.str("audioSync", "Audio sync"))
+			}
+			Menu {
+				ForEach(PlayerViewModel.volumeBoostPresets, id: \.self) { percent in
+					menuRow(
+						label: "\(percent)%",
+						selected: viewModel.volumeBoostPercent == percent
+					) {
+						viewModel.setVolumeBoost(percent)
+					}
+				}
+			} label: {
+				Text(viewModel.str("volumeBoost", "Volume boost"))
+			}
 		} label: {
 			icon("speaker.wave.2.fill")
 		}
@@ -148,6 +180,18 @@ struct TVControlsRow: View {
 				}
 			} label: {
 				Text(viewModel.str("subtitleSize", "Subtitle size"))
+			}
+			Menu {
+				ForEach(PlayerViewModel.syncOffsetPresets, id: \.self) { offset in
+					menuRow(
+						label: offsetLabel(offset),
+						selected: abs(viewModel.subtitleDelay - offset) < 0.001
+					) {
+						viewModel.setSubtitleDelay(offset)
+					}
+				}
+			} label: {
+				Text(viewModel.str("subtitleSync", "Subtitle sync"))
 			}
 		} label: {
 			icon("captions.bubble.fill")
@@ -177,6 +221,27 @@ struct TVControlsRow: View {
 		.buttonBorderShape(.circle)
 		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
 		.accessibilityLabel(viewModel.str("speed", "Speed"))
+	}
+
+	private var moreMenu: some View {
+		Menu {
+			menuRow(
+				label: viewModel.str("zoomToFill", "Zoom to fill"),
+				selected: viewModel.isZoomedToFill
+			) {
+				viewModel.toggleZoomToFill()
+			}
+		} label: {
+			icon("ellipsis")
+		}
+		.menuOrder(.fixed)
+		.buttonStyle(.glass)
+		.buttonBorderShape(.circle)
+		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
+	}
+
+	private func offsetLabel(_ offset: Double) -> String {
+		offset == 0 ? "0 s" : String(format: "%+g s", offset)
 	}
 
 	private func trackMenuItems(
