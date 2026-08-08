@@ -691,7 +691,7 @@ public class BackgroundDownloaderModule: Module {
   // Wrapped like the Live Activity helpers; a no-op before iOS 26 or on older build toolchains.
 
   private func startContinuedProcessingLocked(metadata: DownloadActivityMetadata?) {
-    #if os(iOS) && swift(>=6.2)
+    #if os(iOS) && compiler(>=6.2)
       guard #available(iOS 26.0, *) else { return }
       DownloadContinuedProcessingKeeper.shared.ensureRunning(
         title: metadata?.title ?? "Streamyfin",
@@ -705,7 +705,7 @@ public class BackgroundDownloaderModule: Module {
     bytesWritten: Int64,
     totalBytes: Int64
   ) {
-    #if os(iOS) && swift(>=6.2)
+    #if os(iOS) && compiler(>=6.2)
       guard #available(iOS 26.0, *) else { return }
       let effectiveTotal =
         totalBytes > 0
@@ -719,7 +719,7 @@ public class BackgroundDownloaderModule: Module {
   }
 
   private func finishContinuedProcessingIfIdleLocked() {
-    #if os(iOS) && swift(>=6.2)
+    #if os(iOS) && compiler(>=6.2)
       guard #available(iOS 26.0, *) else { return }
       guard downloadTasks.isEmpty, downloadQueue.isEmpty else { return }
       DownloadContinuedProcessingKeeper.shared.finish()

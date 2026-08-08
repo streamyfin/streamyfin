@@ -1,6 +1,8 @@
-// swift(>=6.2) ≈ Xcode 26 / iOS 26 SDK. On older toolchains this whole file compiles away and the
-// module degrades to the pre-26 behavior (suspension + timer-projection Live Activity).
-#if os(iOS) && swift(>=6.2)
+// compiler(>=6.2) ≈ Xcode 26 / iOS 26 SDK. On older toolchains this whole file compiles away and
+// the module degrades to the pre-26 behavior (suspension + timer-projection Live Activity).
+// NOT swift(>=…): that checks the language *mode*, and CocoaPods targets build in Swift 5 mode —
+// it silently compiled this feature out even under Xcode 26.
+#if os(iOS) && compiler(>=6.2)
   import BackgroundTasks
   import Foundation
 
