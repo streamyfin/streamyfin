@@ -26,15 +26,21 @@ struct PlayerControlsRootView: View {
 
 			if viewModel.controlsVisible {
 				scrims
+				// zIndex lifts the bars above the center-controls layer below:
+				// the trickplay bubble pops up out of the bottom bar's scrubber
+				// and must cover the play/skip buttons in landscape, not duck
+				// under them. Hit-testing is unaffected — the layer's empty
+				// middle isn't tappable.
 				controls(compact: isCompactWidth)
 					.transition(.opacity)
+					.zIndex(1)
 				// Centered in the ZStack (true screen center) rather than in
 				// the bar VStack — the bottom bar is taller than the top bar,
 				// so centering between them would sit visibly high. The
 				// horizontal padding reserves the edge-slider gutters (20pt
 				// inset + 34pt pill + 8pt gap) so the row's ViewThatFits
 				// tiers fit BETWEEN the sliders instead of underneath them.
-				PlayerCenterControls(viewModel: viewModel)
+				PlayerCenterControls(viewModel: viewModel, time: viewModel.time)
 					.padding(
 						.horizontal,
 						viewModel.showVolumeSlider || viewModel.showBrightnessSlider ? 62 : 24
@@ -135,7 +141,7 @@ struct PlayerControlsRootView: View {
 		VStack(spacing: 0) {
 			PlayerTopBar(viewModel: viewModel, compact: compact)
 			Spacer()
-			PlayerBottomBar(viewModel: viewModel)
+			PlayerBottomBar(viewModel: viewModel, time: viewModel.time)
 		}
 		.padding(.horizontal, 24)
 		.padding(.vertical, 8)
@@ -175,6 +181,8 @@ struct PlayerControlsRootView: View {
 /// with the wall-clock finish time under the remaining time (JS TimeDisplay).
 struct PlayerBottomBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	/// The fast clock — time labels and the chapter caption tick off this.
+	@ObservedObject var time: PlaybackTimeModel
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -184,7 +192,7 @@ struct PlayerBottomBar: View {
 	}()
 
 	var body: some View {
-		let position = viewModel.isScrubbing ? viewModel.scrubPosition : viewModel.displayPosition
+		let position = viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition
 		let remaining = max(0, viewModel.duration - position)
 
 		VStack(alignment: .leading, spacing: 6) {
@@ -194,7 +202,7 @@ struct PlayerBottomBar: View {
 					.foregroundStyle(.white.opacity(0.7))
 					.lineLimit(1)
 			}
-			ScrubberView(viewModel: viewModel)
+			ScrubberView(viewModel: viewModel, time: time)
 			HStack(alignment: .top) {
 				Text(formatTime(position))
 				Spacer()

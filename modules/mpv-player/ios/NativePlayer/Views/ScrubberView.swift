@@ -7,14 +7,16 @@ import SwiftUI
 /// SwiftUI's Slider can render none of that, hence hand-rolled.
 struct ScrubberView: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	/// The fast clock — the progress fill only moves when this fires.
+	@ObservedObject var time: PlaybackTimeModel
 
 	private var trackHeight: CGFloat { viewModel.isScrubbing ? 11 : 7 }
 
 	var body: some View {
 		GeometryReader { geometry in
 			let width = geometry.size.width
-			let progressFraction = fraction(of: viewModel.isScrubbing ? viewModel.scrubPosition : viewModel.displayPosition)
-			let bufferedFraction = fraction(of: viewModel.displayPosition + viewModel.cacheSeconds)
+			let progressFraction = fraction(of: viewModel.isScrubbing ? viewModel.scrubPosition : time.displayPosition)
+			let bufferedFraction = fraction(of: time.displayPosition + time.cacheSeconds)
 
 			ZStack(alignment: .leading) {
 				// Track

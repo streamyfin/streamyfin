@@ -4,6 +4,21 @@ import Foundation
 import QuartzCore
 import UIKit
 
+/// Fast-ticking playback clock, deliberately isolated from PlayerViewModel.
+/// The display link writes ~30Hz while playing; if those writes fired
+/// PlayerViewModel.objectWillChange, every observing view would rebuild each
+/// frame — and rebuilding the button behind a presented UIMenu makes iOS
+/// gray out its items and drop their actions. Only views that render
+/// time/progress observe this object; the menu-bearing bars observe
+/// PlayerViewModel alone and must never take a dependency on it.
+final class PlaybackTimeModel: ObservableObject {
+	/// Interpolated position for smooth scrubber/time-label motion between
+	/// the renderer's 1Hz ticks, seconds. Never weaken the renderer's
+	/// progress throttle instead — it is battery-critical.
+	@Published var displayPosition: Double = 0
+	@Published var cacheSeconds: Double = 0
+}
+
 /// Bridges MPVPlayerEngine callbacks into SwiftUI state and dual-emits every
 /// engine event to the JS coordinator via `emit`. Also owns pure-UI behavior:
 /// auto-hide, scrubbing state, display-position interpolation between the
@@ -21,14 +36,25 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var isPlaying = false
 	@Published var isBuffering = true
 	@Published var isReadyToSeek = false
-	/// Authoritative position from the renderer (~1Hz), seconds.
-	@Published var position: Double = 0
-	/// Interpolated position for smooth scrubber/time-label motion between
-	/// 1Hz ticks. Never weaken the renderer's progress throttle instead —
-	/// it is battery-critical.
-	@Published var displayPosition: Double = 0
+	/// Authoritative position from the renderer (~1Hz), seconds. Not
+	/// published on purpose — no view renders it, and publishing would fire
+	/// objectWillChange once per second for every observer.
+	private(set) var position: Double = 0
 	@Published var duration: Double = 0
-	@Published var cacheSeconds: Double = 0
+	/// The ticking values live here, not on this object — see
+	/// PlaybackTimeModel. Views that render them observe `time` explicitly.
+	let time = PlaybackTimeModel()
+
+	/// Proxies so internal logic keeps reading/writing the clock naturally.
+	/// Views must NOT rely on these for updates — observe `time`.
+	var displayPosition: Double {
+		get { time.displayPosition }
+		set { time.displayPosition = newValue }
+	}
+	var cacheSeconds: Double {
+		get { time.cacheSeconds }
+		set { time.cacheSeconds = newValue }
+	}
 	@Published var speed: Double = 1.0
 	@Published var isPipActive = false
 	@Published var errorMessage: String?
@@ -104,8 +130,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	private let autoHideDelay: TimeInterval = 4
 	/// Menus render as UIMenu whose open state SwiftUI cannot observe, so
-	/// opening one grants a longer auto-hide grace period instead.
-	private let menuAutoHideDelay: TimeInterval = 8
+	/// opening one grants a longer auto-hide grace period instead. Hiding
+	/// unmounts the bar, which grays out an open menu — so err long.
+	private let menuAutoHideDelay: TimeInterval = 15
 	/// More than this far into a chapter, "previous chapter" restarts it.
 	private let chapterRestartThreshold: Double = 3
 
@@ -684,7 +711,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
 		guard !isTearingDown else { return }
 		self.position = position
-		self.duration = duration
+		// This callback is 1Hz and duration is @Published — only assign on a
+		// real change, or every observer re-renders once per second (which
+		// grays out any open menu, see PlaybackTimeModel).
+		if self.duration != duration {
+			self.duration = duration
+		}
 		self.cacheSeconds = cacheSeconds
 		if !isScrubbing {
 			// Snap the interpolated position on every authoritative tick.

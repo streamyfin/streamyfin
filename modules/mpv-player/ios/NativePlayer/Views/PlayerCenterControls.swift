@@ -11,6 +11,10 @@ import SwiftUI
 /// the density down until the row fits the available width.
 struct PlayerCenterControls: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	/// Not read directly, but hasPrevious/hasNextChapter derive from the
+	/// playback clock — observing it keeps the chapter buttons' enabled
+	/// state fresh as playback crosses chapter marks.
+	@ObservedObject var time: PlaybackTimeModel
 
 	private var hasChapters: Bool { !viewModel.chapters.isEmpty }
 

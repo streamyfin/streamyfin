@@ -181,8 +181,16 @@ final class NativePlayerSession {
 			completion?()
 		}
 
-		if let vc = viewController, vc.presentingViewController != nil {
-			vc.presentingViewController?.dismiss(animated: true) {
+		if let vc = viewController, let presenter = vc.presentingViewController {
+			presenter.dismiss(animated: true) {
+				// The landscape lock died with the VC, but iOS never re-reads
+				// the hierarchy's supported orientations on its own after a
+				// dismissal — the JS-side expo-screen-orientation unlock runs
+				// on onDismiss, while this VC is still up, so its
+				// re-evaluation resolves against our landscape mask. Without
+				// this the app stays stuck in landscape until some navigation
+				// forces a re-evaluation.
+				presenter.setNeedsUpdateOfSupportedInterfaceOrientations()
 				finish()
 			}
 		} else {
@@ -196,7 +204,9 @@ final class NativePlayerSession {
 		guard !isDismissing else { return }
 		isDismissing = true
 		viewModel.willTeardown()
-		viewController?.presentingViewController?.dismiss(animated: false)
+		let presenter = viewController?.presentingViewController
+		presenter?.dismiss(animated: false)
+		presenter?.setNeedsUpdateOfSupportedInterfaceOrientations()
 		engine.shutdown()
 		viewController = nil
 	}
