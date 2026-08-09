@@ -463,6 +463,7 @@ export async function buildNativePlayerConfig(params: {
       showVolumeSlider: !settings.hideVolumeSlider,
       showBrightnessSlider: !settings.hideBrightnessSlider,
       holdToSpeedEnabled: settings.enableHoldToSpeed,
+      pinchToZoomEnabled: settings.enablePinchToZoom,
       strings,
     },
   };

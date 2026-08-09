@@ -125,6 +125,7 @@ struct UIOptionsRecord: Record {
 	@Field var showVolumeSlider: Bool = true
 	@Field var showBrightnessSlider: Bool = true
 	@Field var holdToSpeedEnabled: Bool = true
+	@Field var pinchToZoomEnabled: Bool = true
 	/// Localized UI labels from JS i18n (keys: skipIntro, skipCredits,
 	/// nextEpisode, playNow, cancel, episodes, speed, audio, subtitles,
 	/// chapters, technicalInfo, playbackError, close, off, quality,

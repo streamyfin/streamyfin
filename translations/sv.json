@@ -258,6 +258,8 @@
         "right_side_volume_description": "Svep upp/nedåt på höger sida för att justera volymen",
         "hold_to_speed": "Håll för 2× hastighet",
         "hold_to_speed_description": "Tryck och håll på videon för att spela i 2× hastighet tills du släpper",
+        "pinch_to_zoom": "Nyp för att zooma",
+        "pinch_to_zoom_description": "Nyp utåt för att fylla skärmen, nyp inåt för att anpassa",
         "hide_volume_slider": "Dölj volymreglage",
         "hide_volume_slider_description": "Dölj volymreglaget i videospelaren",
         "hide_brightness_slider": "Dölj ljusstyrkeglage",

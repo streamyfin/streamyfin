@@ -235,6 +235,9 @@ struct PlayerControlsRootView: View {
 			.onChanged { value in
 				guard !viewModel.controlsLocked,
 					!viewModel.showStillWatching,
+					// A two-finger pinch owns the touches — the spread must
+					// not scrub or yank volume/brightness.
+					!viewModel.isPinching,
 					viewModel.errorMessage == nil
 				else { return }
 

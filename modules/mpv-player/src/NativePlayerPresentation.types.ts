@@ -186,6 +186,8 @@ export type NativePlayerUIOptions = {
   showBrightnessSlider?: boolean;
   /** false disables press-and-hold for 2× speed (settings.enableHoldToSpeed). */
   holdToSpeedEnabled?: boolean;
+  /** false disables pinch to zoom-to-fill (settings.enablePinchToZoom). */
+  pinchToZoomEnabled?: boolean;
   strings?: NativePlayerStrings;
 };
 

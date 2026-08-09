@@ -127,6 +127,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var showVolumeSlider = true
 	private(set) var showBrightnessSlider = true
 	private(set) var holdToSpeedEnabled = true
+	private(set) var pinchToZoomEnabled = true
 	private(set) var videoWidth: Int?
 	private(set) var videoHeight: Int?
 	private(set) var uiStrings: [String: String] = [:]
@@ -248,6 +249,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
 		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
+		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
@@ -444,6 +446,18 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	/// Abandon an in-flight scrub WITHOUT seeking — a pinch starting mid-drag
+	/// means the horizontal movement was finger spread, not a scrub intent.
+	func cancelScrub() {
+		guard isScrubbing else { return }
+		isScrubbing = false
+		if wasPlayingBeforeScrub {
+			wasPlayingBeforeScrub = false
+			engine?.play()
+		}
+		scheduleAutoHide()
+	}
+
 	// MARK: - Sync offsets, volume boost, rotation
 
 	func setSubtitleDelay(_ seconds: Double) {
@@ -580,6 +594,44 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		isZoomedToFill.toggle()
 		applyZoomState()
 		scheduleAutoHide()
+	}
+
+	// MARK: Pinch to zoom
+
+	/// True while a two-finger pinch is in flight (UIPinchGestureRecognizer on
+	/// the VC's view). Read by the SwiftUI surface drag to stand down — a
+	/// pinch's finger spread would otherwise start a scrub or yank
+	/// volume/brightness. Not @Published on purpose: no view renders it.
+	private(set) var isPinching = false
+	/// One zoom flip per pinch — crossing the threshold repeatedly within a
+	/// single continuous pinch must not toggle back and forth.
+	private var pinchActionTaken = false
+
+	func pinchBegan() {
+		guard pinchToZoomEnabled, !controlsLocked, !showStillWatching,
+			errorMessage == nil
+		else { return }
+		isPinching = true
+		pinchActionTaken = false
+		// The second finger usually lands after the first already moved —
+		// abandon a scrub the spread may have started.
+		cancelScrub()
+	}
+
+	func pinchChanged(scale: Double) {
+		guard isPinching, !pinchActionTaken else { return }
+		if scale > 1.12, !isZoomedToFill {
+			pinchActionTaken = true
+			toggleZoomToFill()
+		} else if scale < 0.88, isZoomedToFill {
+			pinchActionTaken = true
+			toggleZoomToFill()
+		}
+	}
+
+	func pinchEnded() {
+		isPinching = false
+		pinchActionTaken = false
 	}
 
 	/// Applies the zoom mode + burned-in-subtitle position compensation to the

@@ -97,6 +97,22 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
+          title={t("home.settings.gesture_controls.pinch_to_zoom")}
+          subtitle={t(
+            "home.settings.gesture_controls.pinch_to_zoom_description",
+          )}
+          disabled={pluginSettings?.enablePinchToZoom?.locked}
+        >
+          <SettingSwitch
+            value={settings.enablePinchToZoom}
+            disabled={pluginSettings?.enablePinchToZoom?.locked}
+            onValueChange={(enablePinchToZoom) =>
+              updateSettings({ enablePinchToZoom })
+            }
+          />
+        </ListItem>
+
+        <ListItem
           title={t("home.settings.gesture_controls.hide_volume_slider")}
           subtitle={t(
             "home.settings.gesture_controls.hide_volume_slider_description",
