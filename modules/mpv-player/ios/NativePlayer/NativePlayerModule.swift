@@ -3,25 +3,25 @@ import ExpoModulesCore
 // Exceptions shared by both platforms (tvOS builds this file too — the
 // generated ExpoModulesProvider references the class on all Apple platforms).
 
-internal final class NativePlayerUnsupportedException: Exception {
+internal final class NativePlayerUnsupportedException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"The native player is only available on iOS (iPhone/iPad)"
 	}
 }
 
-internal final class PlayerAlreadyPresentedException: Exception {
+internal final class PlayerAlreadyPresentedException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"A native player is already presented; call load() to swap the stream instead"
 	}
 }
 
-internal final class NoActivePlayerException: Exception {
+internal final class NoActivePlayerException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"No native player is currently presented"
 	}
 }
 
-internal final class InvalidStreamUrlException: Exception {
+internal final class InvalidStreamUrlException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"The stream config contains an unparseable URL"
 	}
