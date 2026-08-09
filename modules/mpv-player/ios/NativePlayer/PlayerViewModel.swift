@@ -205,6 +205,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Mirrors utils/subtitles.ts for mobile iOS MPV.
 	private let subtitleScaleMultiplier = 0.6 * 1.25 * 1.2
 
+	/// tvOS uses focusable presets; iOS uses the in-player slider.
+	static let subtitleScalePresets: [Double] = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 	/// Sync offsets in seconds; positive delays the track. Presets rather
 	/// than a stepper so both fit the existing UIMenu-based UI.
 	static let syncOffsetPresets: [Double] = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5]
@@ -386,7 +388,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private var canAutoHide: Bool {
-		isPlaying && !isScrubbing && !isBuffering && !showEpisodeList && !showTechnicalInfo && errorMessage == nil
+		isPlaying && !isScrubbing && !isBuffering && !showEpisodeList
+			&& !showSubtitleScaleControl && !showTechnicalInfo && errorMessage == nil
 	}
 
 	func menuInteractionStarted() {

@@ -44,7 +44,13 @@ struct PlayerControlsRootView: View {
 			// touches first, so drags here only start on empty video area.
 			Color.clear
 				.contentShape(Rectangle())
-				.onTapGesture { viewModel.toggleControls() }
+				.onTapGesture {
+					if viewModel.showSubtitleScaleControl {
+						closeSubtitleScaleControl()
+					} else {
+						viewModel.toggleControls()
+					}
+				}
 				.gesture(surfaceDragGesture(size: size))
 				.gesture(holdSpeedGesture)
 
@@ -70,6 +76,21 @@ struct PlayerControlsRootView: View {
 						viewModel.showVolumeSlider || viewModel.showBrightnessSlider ? 62 : 24
 					)
 					.transition(.opacity)
+			}
+
+			if viewModel.controlsVisible && viewModel.showSubtitleScaleControl {
+				VStack {
+					SubtitleScaleOverlay(
+						viewModel: viewModel,
+						onClose: closeSubtitleScaleControl
+					)
+					.frame(maxWidth: 360)
+					Spacer()
+				}
+				.padding(.top, 64)
+				.padding(.horizontal, 24)
+				.transition(.scale(scale: 0.95).combined(with: .opacity))
+				.zIndex(2)
 			}
 
 			if viewModel.isBuffering && !viewModel.isScrubbing && viewModel.errorMessage == nil {
@@ -207,6 +228,7 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.brightnessSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
 		.animation(.easeInOut(duration: 0.15), value: viewModel.isHoldSpeedActive)
+		.animation(.easeInOut(duration: 0.15), value: viewModel.showSubtitleScaleControl)
 		// SwiftUI never delivers onEnded when the SYSTEM cancels the touch
 		// (incoming call, Control Center edge swipe, backgrounding) — release
 		// an engaged hold here or playback stays stuck at 2×.
@@ -219,9 +241,6 @@ struct PlayerControlsRootView: View {
 		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
-		}
-		.sheet(isPresented: $viewModel.showSubtitleScaleControl) {
-			SubtitleScaleView(viewModel: viewModel)
 		}
 		.sheet(isPresented: $viewModel.showSubtitleSearch) {
 			SubtitleSearchView(viewModel: viewModel)
@@ -355,6 +374,11 @@ struct PlayerControlsRootView: View {
 		.allowsHitTesting(false)
 	}
 
+	private func closeSubtitleScaleControl() {
+		viewModel.showSubtitleScaleControl = false
+		viewModel.scheduleAutoHide()
+	}
+
 	private func controls(compact: Bool) -> some View {
 		VStack(spacing: 0) {
 			PlayerTopBar(viewModel: viewModel, compact: compact)
@@ -395,41 +419,48 @@ struct PlayerControlsRootView: View {
 	}
 }
 
-private struct SubtitleScaleView: View {
+private struct SubtitleScaleOverlay: View {
 	@ObservedObject var viewModel: PlayerViewModel
-	@Environment(\.dismiss) private var dismiss
+	let onClose: () -> Void
 
 	var body: some View {
-		NavigationStack {
-			Form {
-				Stepper(
-					value: Binding(
-						get: { viewModel.subtitleScale },
-						set: { viewModel.setSubtitleScale($0) }
-					),
-					in: 0.1 ... 3,
-					step: 0.1
-				) {
-					HStack {
-						Text(viewModel.str("subtitleSize", "Subtitle size"))
-						Spacer()
-						Text(String(format: "%.1f×", viewModel.subtitleScale))
-							.monospacedDigit()
-							.foregroundStyle(.secondary)
-					}
+		VStack(spacing: 12) {
+			HStack {
+				Text(viewModel.str("subtitleSize", "Subtitle size"))
+					.font(.headline)
+				Spacer()
+				Text(String(format: "%.1f×", viewModel.subtitleScale))
+					.font(.subheadline.monospacedDigit())
+					.foregroundStyle(.white.opacity(0.75))
+				Button(action: onClose) {
+					Image(systemName: "xmark.circle.fill")
+						.font(.title3)
+						.foregroundStyle(.white.opacity(0.75))
+						.frame(width: 32, height: 32)
 				}
-				.disabled(viewModel.subtitleScaleLocked)
+				.buttonStyle(.plain)
+				.accessibilityLabel(viewModel.str("close", "Close"))
 			}
-			.navigationTitle(viewModel.str("subtitleSize", "Subtitle size"))
-			.navigationBarTitleDisplayMode(.inline)
-			.toolbar {
-				ToolbarItem(placement: .confirmationAction) {
-					Button(viewModel.str("close", "Close")) { dismiss() }
-				}
-			}
+
+			Slider(
+				value: Binding(
+					get: { viewModel.subtitleScale },
+					set: { viewModel.setSubtitleScale($0) }
+				),
+				in: 0.1 ... 3,
+				step: 0.1,
+				label: { Text(viewModel.str("subtitleSize", "Subtitle size")) },
+				minimumValueLabel: { Text("A").font(.caption2) },
+				maximumValueLabel: { Text("A").font(.title3) }
+			)
+			.tint(.white)
+			.disabled(viewModel.subtitleScaleLocked)
+			.accessibilityValue(Text(String(format: "%.1f×", viewModel.subtitleScale)))
 		}
-		.presentationDetents([.height(180)])
-		.preferredColorScheme(.dark)
+		.foregroundStyle(.white)
+		.padding(16)
+		.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+		.shadow(color: .black.opacity(0.25), radius: 12, y: 4)
 	}
 }
 
