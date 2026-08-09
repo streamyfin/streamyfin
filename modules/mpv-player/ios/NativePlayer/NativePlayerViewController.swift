@@ -173,6 +173,15 @@ final class NativePlayerViewController: UIViewController {
 
 		#if os(tvOS)
 		setupRemotePressRecognizers()
+		// Zoom toggles re-run layout — the layer frame carries the fill.
+		viewModel.$isZoomedToFill
+			.removeDuplicates()
+			.receive(on: DispatchQueue.main)
+			.sink { [weak self] _ in
+				self?.view.setNeedsLayout()
+				self?.view.layoutIfNeeded()
+			}
+			.store(in: &cancellables)
 		// HDR: the old TV player requests matching display criteria from the
 		// window's AVDisplayManager — without this, HDR plays as SDR.
 		viewModel.onHDRModeDetected = { [weak self] mode, fps in
@@ -189,8 +198,39 @@ final class NativePlayerViewController: UIViewController {
 		CATransaction.begin()
 		CATransaction.setDisableActions(true)
 		videoContainerView.frame = view.bounds
-		engine.displayLayer.frame = videoContainerView.bounds
+		engine.displayLayer.frame = zoomAwareLayerFrame()
 		CATransaction.commit()
+	}
+
+	/// tvOS zoom-to-fill: AVSampleBufferDisplayLayer.videoGravity has a
+	/// history of silently not applying (and mpv's VO owns the layer), so
+	/// fill is implemented by sizing the layer to the aspect-fill rect —
+	/// the clipping container crops the overflow. The layer's aspect then
+	/// matches the video's, making gravity irrelevant. iOS keeps the
+	/// gravity-based fill (proven, and PiP depends on the layer geometry).
+	private func zoomAwareLayerFrame() -> CGRect {
+		let bounds = videoContainerView.bounds
+		#if os(tvOS)
+		guard viewModel.isZoomedToFill, bounds.width > 0, bounds.height > 0 else {
+			return bounds
+		}
+		let videoAR =
+			CGFloat(viewModel.videoWidth ?? 1920)
+			/ CGFloat(max(viewModel.videoHeight ?? 1080, 1))
+		let screenAR = bounds.width / bounds.height
+		let size: CGSize =
+			videoAR > screenAR
+			? CGSize(width: bounds.height * videoAR, height: bounds.height)
+			: CGSize(width: bounds.width, height: bounds.width / videoAR)
+		return CGRect(
+			x: (bounds.width - size.width) / 2,
+			y: (bounds.height - size.height) / 2,
+			width: size.width,
+			height: size.height
+		)
+		#else
+		return bounds
+		#endif
 	}
 
 	override func viewDidAppear(_ animated: Bool) {
