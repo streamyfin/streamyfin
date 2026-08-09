@@ -93,6 +93,12 @@ final class NativePlayerSession {
 		waitingForLandscape: Bool,
 		promise: Promise
 	) {
+		#if os(tvOS)
+		// No interface orientation on tvOS — present immediately.
+		presenter.present(vc, animated: true) {
+			promise.resolve()
+		}
+		#else
 		let scene = presenter.view.window?.windowScene
 		guard waitingForLandscape, let scene, !scene.interfaceOrientation.isLandscape else {
 			presenter.present(vc, animated: true) {
@@ -128,6 +134,7 @@ final class NativePlayerSession {
 			}
 		}
 		poll()
+		#endif
 	}
 
 	/// In-place stream swap while presented: track/bitrate re-negotiation and
