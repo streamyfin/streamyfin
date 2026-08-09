@@ -233,11 +233,16 @@ public class NativePlayerModule: Module {
 		// (utils/jellyfin/subtitleUtils.ts drives these through a
 		// SubtitleSelectablePlayer facade; selection logic never lives here)
 
-		AsyncFunction("getSubtitleTracks") { () -> [[String: Any]] in
+		// Track/info getters resolve via completion: the underlying mpv
+		// property reads block on the core and must never run on the main
+		// thread (vo_create deadlock → 0x8BADF00D watchdog kill; see
+		// MPVLayerRenderer.onQueue). Main is only used to read self.session.
+		AsyncFunction("getSubtitleTracks") { (promise: Promise) in
 			#if os(iOS)
-			return self.session?.engine.getSubtitleTracks() ?? []
+			guard let engine = self.session?.engine else { return promise.resolve([[String: Any]]()) }
+			engine.getSubtitleTracks { promise.resolve($0) }
 			#else
-			return []
+			promise.resolve([[String: Any]]())
 			#endif
 		}.runOnQueue(.main)
 
@@ -253,11 +258,12 @@ public class NativePlayerModule: Module {
 			#endif
 		}.runOnQueue(.main)
 
-		AsyncFunction("getAudioTracks") { () -> [[String: Any]] in
+		AsyncFunction("getAudioTracks") { (promise: Promise) in
 			#if os(iOS)
-			return self.session?.engine.getAudioTracks() ?? []
+			guard let engine = self.session?.engine else { return promise.resolve([[String: Any]]()) }
+			engine.getAudioTracks { promise.resolve($0) }
 			#else
-			return []
+			promise.resolve([[String: Any]]())
 			#endif
 		}.runOnQueue(.main)
 
@@ -267,11 +273,12 @@ public class NativePlayerModule: Module {
 			#endif
 		}.runOnQueue(.main)
 
-		AsyncFunction("getTechnicalInfo") { () -> [String: Any] in
+		AsyncFunction("getTechnicalInfo") { (promise: Promise) in
 			#if os(iOS)
-			return self.session?.engine.getTechnicalInfo() ?? [:]
+			guard let engine = self.session?.engine else { return promise.resolve([String: Any]()) }
+			engine.getTechnicalInfo { promise.resolve($0) }
 			#else
-			return [:]
+			promise.resolve([String: Any]())
 			#endif
 		}.runOnQueue(.main)
 
