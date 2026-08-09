@@ -30,37 +30,73 @@ struct TVControlsRow: View {
 	@Binding var lastFocused: TVControl?
 	@Namespace private var focusNamespace
 	@FocusState private var focusedControl: TVControl?
+	@Environment(\.resetFocus) private var resetFocus
+
+	/// The control that should own default focus when the row (re)appears:
+	/// the remembered one when it still exists, play/pause otherwise. The
+	/// preference carries the memory — a programmatic FocusState write alone
+	/// loses the race against the focus-engine update the VC kicks after the
+	/// row mounts (which lands on the left-most button).
+	private var defaultFocusTarget: TVControl {
+		guard let lastFocused, isAvailable(lastFocused) else { return .playPause }
+		return lastFocused
+	}
+
+	private func isAvailable(_ control: TVControl) -> Bool {
+		switch control {
+		case .previousEpisode, .nextEpisode:
+			return viewModel.metadata?.isEpisode == true
+		case .previousChapter, .nextChapter:
+			return !viewModel.chapters.isEmpty
+		case .quality:
+			return !viewModel.qualityMenu.isEmpty
+		case .audio:
+			return !viewModel.audioMenu.isEmpty
+		case .subtitles:
+			return !viewModel.subtitleMenu.isEmpty
+		case .episodes:
+			return !viewModel.episodeList.isEmpty
+		case .skipBack, .skipForward, .playPause, .speed, .techInfo, .more:
+			return true
+		}
+	}
 
 	var body: some View {
 		HStack(spacing: 22) {
 			if viewModel.metadata?.isEpisode == true {
 				iconButton("backward.end.fill") { viewModel.playPreviousEpisode() }
 					.focused($focusedControl, equals: .previousEpisode)
+				.prefersDefaultFocus(defaultFocusTarget == .previousEpisode, in: focusNamespace)
 			}
 			iconButton(skipSymbol("gobackward", viewModel.seekBackwardSec)) {
 				viewModel.seekBackward()
 			}
 			.focused($focusedControl, equals: .skipBack)
+				.prefersDefaultFocus(defaultFocusTarget == .skipBack, in: focusNamespace)
 			if !viewModel.chapters.isEmpty {
 				iconButton("backward.fill") { viewModel.goToPreviousChapter() }
 					.focused($focusedControl, equals: .previousChapter)
+				.prefersDefaultFocus(defaultFocusTarget == .previousChapter, in: focusNamespace)
 			}
 			iconButton(viewModel.isPlaying ? "pause.fill" : "play.fill") {
 				viewModel.togglePlayPause()
 			}
 			.focused($focusedControl, equals: .playPause)
-			.prefersDefaultFocus(in: focusNamespace)
+				.prefersDefaultFocus(defaultFocusTarget == .playPause, in: focusNamespace)
 			if !viewModel.chapters.isEmpty {
 				iconButton("forward.fill") { viewModel.goToNextChapter() }
 					.focused($focusedControl, equals: .nextChapter)
+				.prefersDefaultFocus(defaultFocusTarget == .nextChapter, in: focusNamespace)
 			}
 			iconButton(skipSymbol("goforward", viewModel.seekForwardSec)) {
 				viewModel.seekForward()
 			}
 			.focused($focusedControl, equals: .skipForward)
+				.prefersDefaultFocus(defaultFocusTarget == .skipForward, in: focusNamespace)
 			if viewModel.metadata?.isEpisode == true {
 				iconButton("forward.end.fill") { viewModel.playNextEpisode() }
 					.focused($focusedControl, equals: .nextEpisode)
+				.prefersDefaultFocus(defaultFocusTarget == .nextEpisode, in: focusNamespace)
 			}
 
 			Spacer(minLength: 12)
@@ -70,27 +106,34 @@ struct TVControlsRow: View {
 					viewModel.showEpisodeList = true
 				}
 				.focused($focusedControl, equals: .episodes)
+				.prefersDefaultFocus(defaultFocusTarget == .episodes, in: focusNamespace)
 			}
 			if !viewModel.qualityMenu.isEmpty {
 				qualityMenu
 					.focused($focusedControl, equals: .quality)
+				.prefersDefaultFocus(defaultFocusTarget == .quality, in: focusNamespace)
 			}
 			if !viewModel.audioMenu.isEmpty {
 				audioMenu
 					.focused($focusedControl, equals: .audio)
+				.prefersDefaultFocus(defaultFocusTarget == .audio, in: focusNamespace)
 			}
 			if !viewModel.subtitleMenu.isEmpty {
 				subtitlesMenu
 					.focused($focusedControl, equals: .subtitles)
+				.prefersDefaultFocus(defaultFocusTarget == .subtitles, in: focusNamespace)
 			}
 			speedMenu
 				.focused($focusedControl, equals: .speed)
+				.prefersDefaultFocus(defaultFocusTarget == .speed, in: focusNamespace)
 			moreMenu
 				.focused($focusedControl, equals: .more)
+				.prefersDefaultFocus(defaultFocusTarget == .more, in: focusNamespace)
 			iconButton("chevron.left.forwardslash.chevron.right") {
 				viewModel.showTechnicalInfo.toggle()
 			}
 			.focused($focusedControl, equals: .techInfo)
+				.prefersDefaultFocus(defaultFocusTarget == .techInfo, in: focusNamespace)
 		}
 		.focusScope(focusNamespace)
 		.onChange(of: focusedControl) { newValue in
@@ -99,12 +142,12 @@ struct TVControlsRow: View {
 			}
 		}
 		.onAppear {
-			// Restore the remembered control (fall back to play/pause). The
-			// async hop lets the row finish mounting first; if the target no
-			// longer exists (e.g. chapters gone after an episode swap) the
-			// assignment is a no-op and prefersDefaultFocus wins instead.
-			DispatchQueue.main.async {
-				focusedControl = lastFocused ?? .playPause
+			// Re-evaluate default focus AFTER the VC's post-mount focus kick,
+			// so the scope's preference (the remembered control) wins over
+			// the engine's left-most pick.
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+				resetFocus(in: focusNamespace)
+				focusedControl = defaultFocusTarget
 			}
 		}
 	}
