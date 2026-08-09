@@ -133,8 +133,14 @@ struct TVEpisodeShelf: View {
 		.padding(.vertical, 30)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
+			// Darkness arrives early (75% black a third of the way down) so
+			// the cards sit on solid ground; only the top edge stays a fade.
 			LinearGradient(
-				colors: [Color.black.opacity(0), Color.black.opacity(0.9)],
+				stops: [
+					.init(color: .black.opacity(0), location: 0),
+					.init(color: .black.opacity(0.75), location: 0.35),
+					.init(color: .black.opacity(0.95), location: 1),
+				],
 				startPoint: .top, endPoint: .bottom
 			)
 			// Bleed past the tvOS overscan insets on every touched edge —
