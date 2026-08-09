@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -236,6 +236,10 @@ export const GestureOverlay = ({
     });
   }, [onHoldSpeedEnd, hideDragFeedback, scrimOpacity]);
 
+  // A hold must not survive the overlay being removed, since entering
+  // picture in picture unmounts the controls mid-gesture
+  useEffect(() => handleHoldSpeedEnd, [handleHoldSpeedEnd]);
+
   const handleVerticalDragStart = useCallback(
     (side: "left" | "right", startY: number) => {
       if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
@@ -295,6 +299,10 @@ export const GestureOverlay = ({
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
 
+  // Wiring the long press only while enabled keeps a disabled setting from
+  // swallowing the tap, swipe and drag gestures
+  const holdSpeedEnabled = settings.enableHoldToSpeed;
+
   const {
     handleTouchStart,
     handleTouchMove,
@@ -307,8 +315,8 @@ export const GestureOverlay = ({
     onVerticalDragMove: handleVerticalDragMove,
     onVerticalDragEnd: handleVerticalDragEnd,
     onTap: onToggleControls,
-    onLongPressStart: handleHoldSpeedStart,
-    onLongPressEnd: handleHoldSpeedEnd,
+    onLongPressStart: holdSpeedEnabled ? handleHoldSpeedStart : undefined,
+    onLongPressEnd: holdSpeedEnabled ? handleHoldSpeedEnd : undefined,
     longPressDuration: CONTROLS_CONSTANTS.HOLD_SPEED_DELAY,
     screenWidth,
     screenHeight,
@@ -325,8 +333,8 @@ export const GestureOverlay = ({
         // are not active here
         <AnimatedPressable
           onPress={onToggleControls}
-          onLongPress={handleHoldSpeedStart}
-          onPressOut={handleHoldSpeedEnd}
+          onLongPress={holdSpeedEnabled ? handleHoldSpeedStart : undefined}
+          onPressOut={holdSpeedEnabled ? handleHoldSpeedEnd : undefined}
           delayLongPress={CONTROLS_CONSTANTS.HOLD_SPEED_DELAY}
           style={{
             position: "absolute",

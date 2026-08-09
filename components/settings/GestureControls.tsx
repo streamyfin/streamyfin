@@ -26,6 +26,10 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
       pluginSettings?.enableHorizontalSwipeSkip?.locked === true &&
       pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true &&
       pluginSettings?.enableRightSideVolumeSwipe?.locked === true &&
+      pluginSettings?.enableHoldToSpeed?.locked === true &&
+      pluginSettings?.holdToSpeedRate?.locked === true &&
+      pluginSettings?.enablePinchToZoom?.locked === true &&
+      pluginSettings?.enableDoubleTapToSeek?.locked === true &&
       pluginSettings?.hideVolumeSlider?.locked === true &&
       pluginSettings?.hideBrightnessSlider?.locked === true,
     [pluginSettings],
@@ -126,7 +130,10 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
 
         {!Platform.isTV && (
           <DisabledSetting
-            disabled={!settings.enableHoldToSpeed}
+            disabled={
+              !settings.enableHoldToSpeed ||
+              pluginSettings?.holdToSpeedRate?.locked === true
+            }
             showText={false}
           >
             <ListItem
