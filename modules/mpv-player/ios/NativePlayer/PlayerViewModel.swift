@@ -1043,6 +1043,11 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 
 	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String) {
 		guard !isTearingDown else { return }
+		// Same keep-awake hole as the still-watching card: the error overlay
+		// waits for a tap that may never come, and mpv doesn't reliably flip
+		// pause on a fatal error — release the idle timer by hand.
+		isPlaying = false
+		updateDisplayLinkState()
 		errorMessage = message
 		showControls()
 		autoHideTask?.cancel()
@@ -1067,6 +1072,12 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		} else if nextEpisode?.stillWatchingRequired == true {
 			// Autoplay episode cap reached: ask instead of advancing. The
 			// video sits on its last frame under the card.
+			// mpv never flips its pause property at EOF (no keep-open), so
+			// isPlaying must drop here by hand — the VC's keep-awake sink
+			// releases the idle timer and the display link stops while the
+			// card waits, letting the phone lock on a sleeping viewer.
+			isPlaying = false
+			updateDisplayLinkState()
 			showStillWatching = true
 		} else {
 			emit?("onPlaybackEnded", ["positionSec": displayPosition])
