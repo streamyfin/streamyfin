@@ -83,6 +83,23 @@ struct SubtitleSearchView: View {
 	}
 
 	private var resultsList: some View {
+		VStack(spacing: 0) {
+			// Inline failure banner (e.g. a download that errored) — the
+			// result list stays usable underneath, unlike the full-screen
+			// search-error state.
+			if let message = viewModel.subtitleSearchError {
+				Text(message)
+					.font(.footnote)
+					.foregroundStyle(.orange)
+					.frame(maxWidth: .infinity, alignment: .leading)
+					.padding(.horizontal, 20)
+					.padding(.vertical, 8)
+			}
+			resultRows
+		}
+	}
+
+	private var resultRows: some View {
 		List(Array(viewModel.subtitleSearchResults.enumerated()), id: \.offset) { _, result in
 			Button {
 				viewModel.downloadSubtitleResult(result)

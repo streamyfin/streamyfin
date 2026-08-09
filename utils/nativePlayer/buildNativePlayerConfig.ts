@@ -221,6 +221,36 @@ export const buildTrickplayDescriptor = (
 };
 
 /**
+ * ISO 639-2/T → /B. Jellyfin's CultureDto.ThreeLetterISOLanguageName carries
+ * .NET-style /T codes ("fra", "deu"), while COMMON_SUBTITLE_LANGUAGES and the
+ * OpenSubtitles 3→2 mapping use /B codes ("fre", "ger") — an unmapped /T code
+ * matches neither the picker nor the fallback search. ron maps to the app
+ * list's existing "rom" entry rather than the standard "rum".
+ */
+const ISO_639_2_T_TO_B: Record<string, string> = {
+  bod: "tib",
+  ces: "cze",
+  cym: "wel",
+  deu: "ger",
+  ell: "gre",
+  eus: "baq",
+  fas: "per",
+  fra: "fre",
+  hye: "arm",
+  isl: "ice",
+  kat: "geo",
+  mkd: "mac",
+  mri: "mao",
+  msa: "may",
+  mya: "bur",
+  nld: "dut",
+  ron: "rom",
+  slk: "slo",
+  sqi: "alb",
+  zho: "chi",
+};
+
+/**
  * Sentinel jellyfinIndex for a client-side downloaded sidecar subtitle
  * (OpenSubtitles fallback). It exists only on the mpv handle, not in the
  * Jellyfin media source — the coordinator maps this index back to the local
@@ -493,8 +523,12 @@ export async function buildNativePlayerConfig(params: {
         code: l.code,
         name: l.name,
       })),
-      subtitleSearchDefaultLanguage:
-        settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? "eng",
+      subtitleSearchDefaultLanguage: (() => {
+        const raw =
+          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
+        if (!raw) return "eng";
+        return ISO_639_2_T_TO_B[raw] ?? raw;
+      })(),
       strings,
     },
   };

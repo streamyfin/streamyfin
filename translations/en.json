@@ -720,6 +720,7 @@
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
+    "subtitle_apply_failed": "The subtitle was downloaded but couldn't be applied",
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
     "settings": "Settings",
     "skip_intro": "Skip intro",

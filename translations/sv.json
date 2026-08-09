@@ -720,6 +720,7 @@
     "search_failed": "Sökningen misslyckades",
     "no_subtitle_provider": "Ingen undertextleverantör konfigurerad på servern",
     "no_subtitles_found": "Inga undertexter hittades",
+    "subtitle_apply_failed": "Undertexten laddades ned men kunde inte användas",
     "add_opensubtitles_key_hint": "Lägg till OpenSubtitles API-nyckel i inställningar för klientsidesökning som reserv",
     "settings": "Inställningar",
     "skip_intro": "Hoppa över intro",

@@ -770,6 +770,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func requestSubtitleSearch(language: String) {
+		// No language switches mid-download — the search answer would clear
+		// the downloading state and re-enable the rows under an in-flight
+		// download.
+		guard downloadingResultId == nil else { return }
 		subtitleSearchLanguage = language
 		subtitleSearchStatus = "searching"
 		subtitleSearchResults = []
