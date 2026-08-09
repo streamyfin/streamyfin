@@ -242,6 +242,7 @@ struct PlayerTopBar: View {
 			} label: {
 				Label(viewModel.str("volumeBoost", "Volume boost"), systemImage: "speaker.wave.3")
 			}
+			sleepTimerMenu
 			Button {
 				viewModel.requestRotate()
 			} label: {
@@ -267,6 +268,41 @@ struct PlayerTopBar: View {
 		}
 		.menuOrder(.fixed)
 		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
+	}
+
+	/// When the timer fires the player dismisses fully, so the idle timer
+	/// re-enables and the phone auto-locks on its own.
+	private var sleepTimerMenu: some View {
+		Menu {
+			if viewModel.sleepTimerMinutes != nil {
+				Button {
+					viewModel.cancelSleepTimer()
+				} label: {
+					Label(viewModel.str("sleepTimerOff", "Turn off"), systemImage: "xmark")
+				}
+				Divider()
+			}
+			ForEach(PlayerViewModel.sleepTimerPresetMinutes, id: \.self) { minutes in
+				Button {
+					viewModel.setSleepTimer(minutes: minutes)
+				} label: {
+					if viewModel.sleepTimerMinutes == minutes {
+						Label(sleepTimerLabel(minutes), systemImage: "checkmark")
+					} else {
+						Text(sleepTimerLabel(minutes))
+					}
+				}
+			}
+		} label: {
+			Label(
+				viewModel.str("sleepTimer", "Sleep timer"),
+				systemImage: viewModel.sleepTimerMinutes == nil ? "moon.zzz" : "moon.zzz.fill"
+			)
+		}
+	}
+
+	private func sleepTimerLabel(_ minutes: Int) -> String {
+		minutes < 60 ? "\(minutes) min" : String(format: "%g h", Double(minutes) / 60)
 	}
 
 	private func speedLabel(_ speed: Double) -> String {

@@ -167,7 +167,9 @@ export type NativePlayerStrings = Partial<
     | "continueWatching"
     | "goBack"
     | "endsAt"
-    | "zoomToFill",
+    | "zoomToFill"
+    | "sleepTimer"
+    | "sleepTimerOff",
     string
   >
 >;

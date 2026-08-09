@@ -11,7 +11,6 @@ import {
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
 import { router } from "expo-router";
-import { OrientationLock } from "expo-screen-orientation";
 import { useAtomValue } from "jotai";
 import type React from "react";
 import {
@@ -54,6 +53,7 @@ import {
   updateNativePlayerSegments,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
+import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";

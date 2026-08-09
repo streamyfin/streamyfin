@@ -163,6 +163,13 @@ struct PlayerControlsRootView: View {
 					.zIndex(3)
 			}
 		}
+		// Any touch-down anywhere on the overlay (buttons included — the
+		// gesture is simultaneous, so it never steals their taps) re-arms the
+		// auto-hide so the chrome can't vanish mid-press.
+		.simultaneousGesture(
+			DragGesture(minimumDistance: 0)
+				.onChanged { _ in viewModel.touchInteractionOccurred() }
+		)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.showStillWatching)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
@@ -379,6 +386,20 @@ struct PlayerBottomBar: View {
 						Text(endsAtLabel(remaining: remaining))
 							.font(.system(size: 10).monospacedDigit())
 							.foregroundStyle(.white.opacity(0.55))
+					}
+					if viewModel.sleepTimerMinutes != nil, let end = viewModel.sleepTimerEndDate {
+						// TimelineView ticks the label on its own — the
+						// countdown must keep moving while paused, when the
+						// display-link clock driving this bar is frozen.
+						TimelineView(.periodic(from: .now, by: 1)) { context in
+							HStack(spacing: 3) {
+								Image(systemName: "moon.zzz.fill")
+									.font(.system(size: 9))
+								Text(formatTime(max(0, end.timeIntervalSince(context.date))))
+									.font(.system(size: 10).monospacedDigit())
+							}
+							.foregroundStyle(.white.opacity(0.55))
+						}
 					}
 				}
 			}

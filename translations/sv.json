@@ -708,6 +708,8 @@
     "rotate": "Rotera",
     "lock_controls": "Lås kontroller",
     "unlock": "Lås upp",
+    "sleep_timer": "Sovtimer",
+    "sleep_timer_off": "Stäng av",
     "search_subtitles": "Sök undertexter",
     "subtitle_tracks": "Spår",
     "subtitle_search": "Sök & ladda ner",
