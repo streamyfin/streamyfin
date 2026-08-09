@@ -142,6 +142,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private lazy var selectionGenerator = UISelectionFeedbackGenerator()
 	private var displayLink: CADisplayLink?
 	private var lastTickTimestamp: CFTimeInterval = 0
+	/// mpv reports "unpaused" while the stream is still loading — without this
+	/// gate the interpolation clock counts up from the seed position and then
+	/// snaps back on the first real progress tick.
+	private var hasAuthoritativePosition = false
 	/// User canceled the countdown — stays canceled until the next load().
 	private var countdownCanceled = false
 	/// An episode-change request was already emitted for this item (countdown
@@ -230,6 +234,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
 		displayPosition = position
+		hasAuthoritativePosition = false
 		showControls()
 	}
 
@@ -875,10 +880,15 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	@objc private func displayLinkTick() {
-		guard isPlaying, !isScrubbing else { return }
+		// Always advance the timestamp, even while gated — otherwise the whole
+		// gated span lands in one elapsed the moment the gate opens.
 		let now = CACurrentMediaTime()
 		let elapsed = now - lastTickTimestamp
 		lastTickTimestamp = now
+		// Stand still while the stream is loading or rebuffering: the video
+		// clock isn't advancing, so interpolating here just drifts ahead and
+		// snaps back on the next authoritative tick.
+		guard isPlaying, !isScrubbing, !isBuffering, hasAuthoritativePosition else { return }
 		var next = displayPosition + elapsed * speed
 		if duration > 0 {
 			next = min(next, duration)
@@ -896,6 +906,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
 		guard !isTearingDown else { return }
+		hasAuthoritativePosition = true
 		self.position = position
 		// This callback is 1Hz and duration is @Published — only assign on a
 		// real change, or every observer re-renders once per second (which
