@@ -31,6 +31,11 @@ struct TVControlsRow: View {
 	@Namespace private var focusNamespace
 	@FocusState private var focusedControl: TVControl?
 	@Environment(\.resetFocus) private var resetFocus
+	/// The row stays invisible until focus has settled on the remembered
+	/// control — the engine's initial left-most pick and our correction both
+	/// happen off-screen, so the row appears already focused correctly.
+	@State private var revealed = false
+	@State private var pendingTarget: TVControl?
 
 	/// The control that should own default focus when the row (re)appears:
 	/// the remembered one when it still exists, play/pause otherwise. The
@@ -136,25 +141,32 @@ struct TVControlsRow: View {
 				.prefersDefaultFocus(defaultFocusTarget == .techInfo, in: focusNamespace)
 		}
 		.focusScope(focusNamespace)
+		.opacity(revealed ? 1 : 0)
+		.animation(.easeInOut(duration: 0.15), value: revealed)
 		.onChange(of: focusedControl) { newValue in
 			if let newValue {
 				lastFocused = newValue
+				if newValue == pendingTarget {
+					revealed = true
+				}
 			}
 		}
 		.onAppear {
-			// Steer focus to the remembered control (fallback play/pause).
-			// Two attempts: right after mount, and again a beat later in case
-			// the focus engine's own initial update lands in between.
+			// Steer focus to the remembered control (fallback play/pause)
+			// while still invisible; reveal as soon as it lands (onChange),
+			// with a worst-case reveal at 300ms so the row can never stay
+			// hidden if the engine refuses the target.
 			let target = defaultFocusTarget
+			pendingTarget = target
 			DispatchQueue.main.async {
 				resetFocus(in: focusNamespace)
 				focusedControl = target
 			}
-			DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
 				if focusedControl != target {
-					resetFocus(in: focusNamespace)
 					focusedControl = target
 				}
+				revealed = true
 			}
 		}
 	}
