@@ -1,9 +1,10 @@
 #if os(tvOS)
 import SwiftUI
 
-/// Skip intro/credits pill — non-focusable on purpose: with the chrome
-/// hidden, Select or Play/Pause triggers the skip via the VC recognizers
-/// (TV users expect a button press, not focus-hunting).
+/// Skip intro/credits pill — non-focusable on purpose, and shown only while
+/// the chrome is hidden: Select triggers the skip via the VC recognizers
+/// (Play/Pause stays playback-only). In the full chrome the controls row
+/// hosts a focusable Skip button instead.
 @available(tvOS 26.0, *)
 struct TVSkipPill: View {
 	@ObservedObject var viewModel: PlayerViewModel
@@ -19,8 +20,9 @@ struct TVSkipPill: View {
 		.foregroundStyle(.white)
 		.padding(.horizontal, 28)
 		.padding(.vertical, 14)
-		.background(.black.opacity(0.7), in: Capsule())
-		.overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 1))
+		// Liquid Glass, matching the .glass button style of the controls row —
+		// a flat black capsule reads as a foreign tint next to the real material.
+		.glassEffect(.regular, in: Capsule())
 	}
 }
 
@@ -61,8 +63,7 @@ struct TVCountdownCard: View {
 		}
 		.padding(18)
 		.frame(maxWidth: 620, alignment: .leading)
-		.background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 18))
-		.overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.25), lineWidth: 1))
+		.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18))
 	}
 }
 
@@ -87,7 +88,7 @@ struct TVStillWatchingCard: View {
 			}
 		}
 		.padding(48)
-		.background(.black.opacity(0.88), in: RoundedRectangle(cornerRadius: 24))
+		.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
 	}
 }
 

@@ -61,8 +61,11 @@ struct TVPlayerRootView: View {
 				.padding(.leading, 80)
 			}
 
-			// Skip pill / countdown card stay actionable while the chrome is
-			// hidden (Select / Play-Pause via the VC recognizers).
+			// Skip pill (Select) / countdown card (Select or Play-Pause) stay
+			// actionable while the chrome is hidden, via the VC recognizers.
+			// In the full chrome the pill yields to the row's focusable Skip
+			// button — a non-focusable pill next to focusable glass buttons
+			// reads as a control that focus can never reach.
 			if !viewModel.showEpisodeList {
 				VStack {
 					Spacer()
@@ -72,7 +75,8 @@ struct TVPlayerRootView: View {
 							let next = viewModel.nextEpisode {
 							TVCountdownCard(
 								viewModel: viewModel, next: next, remaining: countdown)
-						} else if let segment = viewModel.activeSegment {
+						} else if let segment = viewModel.activeSegment,
+							!viewModel.controlsVisible, !viewModel.isScrubbing {
 							TVSkipPill(viewModel: viewModel, segment: segment)
 						}
 					}

@@ -363,9 +363,9 @@ final class NativePlayerViewController: UIViewController {
 	@objc private func handlePlayPausePress() {
 		if viewModel.countdownRemaining != nil {
 			viewModel.playNextEpisode()
-		} else if viewModel.activeSegment != nil {
-			viewModel.skipActiveSegment()
 		} else if viewModel.isScrubbing {
+			// An armed scrub outranks an active segment: a scrub armed inside
+			// an intro must commit its target, not skip the intro.
 			// Play/Pause on an armed scrub means "jump there and play" even
 			// when playback was paused before the scrub began.
 			viewModel.endScrub()
@@ -373,6 +373,9 @@ final class NativePlayerViewController: UIViewController {
 				engine.play()
 			}
 		} else {
+			// Never skips a segment: Play/Pause is playback only. Skipping
+			// is Select's job — the pill with the chrome hidden, the focused
+			// row button in the full chrome.
 			viewModel.togglePlayPause()
 		}
 	}
@@ -384,10 +387,12 @@ final class NativePlayerViewController: UIViewController {
 		// scrub, otherwise summon the chrome.
 		if viewModel.countdownRemaining != nil {
 			viewModel.playNextEpisode()
+		} else if viewModel.isScrubbing {
+			// Same precedence as Play/Pause: commit the armed scrub even
+			// while a segment is active.
+			viewModel.endScrub()
 		} else if viewModel.activeSegment != nil {
 			viewModel.skipActiveSegment()
-		} else if viewModel.isScrubbing {
-			viewModel.endScrub()
 		} else {
 			viewModel.showControls()
 		}

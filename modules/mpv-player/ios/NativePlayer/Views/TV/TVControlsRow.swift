@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The focusable button row under the transport bar — same configuration as
 /// the JS TV player (Controls.tv.tsx): previous episode, previous chapter,
-/// play/pause, next chapter, next episode, then quality / audio / subtitles /
-/// technical info, plus the ±seconds jump buttons.
+/// play/pause, next chapter, next episode, then quality / audio / subtitles,
+/// plus the ±seconds jump buttons (technical info lives in the More menu).
 ///
 /// Dropdowns are NATIVE SwiftUI Menus — the system Liquid Glass popup with
 /// system focus handling — mirroring the iOS PlayerTopBar pattern 1:1
@@ -18,8 +18,8 @@ import SwiftUI
 /// Stable identifiers for focus memory across chrome hide/show cycles.
 enum TVControl: Hashable {
 	case previousEpisode, skipBack, previousChapter, playPause
-	case nextChapter, skipForward, nextEpisode
-	case quality, audio, subtitles, speed, techInfo, episodes, more
+	case nextChapter, skipForward, nextEpisode, skipSegment
+	case quality, audio, subtitles, speed, episodes, more, chapters
 }
 
 @available(tvOS 26.0, *)
@@ -51,7 +51,7 @@ struct TVControlsRow: View {
 		switch control {
 		case .previousEpisode, .nextEpisode:
 			return viewModel.metadata?.isEpisode == true
-		case .previousChapter, .nextChapter:
+		case .previousChapter, .nextChapter, .chapters:
 			return !viewModel.chapters.isEmpty
 		case .quality:
 			return !viewModel.qualityMenu.isEmpty
@@ -61,7 +61,9 @@ struct TVControlsRow: View {
 			return !viewModel.subtitleMenu.isEmpty
 		case .episodes:
 			return !viewModel.episodeList.isEmpty
-		case .skipBack, .skipForward, .playPause, .speed, .techInfo, .more:
+		case .skipSegment:
+			return viewModel.activeSegment != nil
+		case .skipBack, .skipForward, .playPause, .speed, .more:
 			return true
 		}
 	}
@@ -103,6 +105,28 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .nextEpisode)
 				.prefersDefaultFocus(defaultFocusTarget == .nextEpisode, in: focusNamespace)
 			}
+			// Focus-mode counterpart of TVSkipPill: while the row owns the
+			// remote the pill would just be a non-focusable impostor, so the
+			// skip action lives here instead (the pill shows only with the
+			// chrome hidden). Unmounts when the segment ends — a focus hop to
+			// a neighbor then is accepted; isAvailable() already reroutes the
+			// remembered default to play/pause.
+			if let segment = viewModel.activeSegment {
+				Button {
+					viewModel.skipActiveSegment()
+				} label: {
+					Text(
+						segment.type == "Intro"
+							? viewModel.str("skipIntro", "Skip Intro")
+							: viewModel.str("skipCredits", "Skip Credits")
+					)
+					.font(.system(size: 26, weight: .semibold))
+					.frame(height: 40)
+				}
+				.buttonStyle(.glass)
+				.focused($focusedControl, equals: .skipSegment)
+				.prefersDefaultFocus(defaultFocusTarget == .skipSegment, in: focusNamespace)
+			}
 
 			Spacer(minLength: 12)
 
@@ -112,6 +136,11 @@ struct TVControlsRow: View {
 				}
 				.focused($focusedControl, equals: .episodes)
 				.prefersDefaultFocus(defaultFocusTarget == .episodes, in: focusNamespace)
+			}
+			if !viewModel.chapters.isEmpty {
+				chaptersMenu
+					.focused($focusedControl, equals: .chapters)
+				.prefersDefaultFocus(defaultFocusTarget == .chapters, in: focusNamespace)
 			}
 			if !viewModel.qualityMenu.isEmpty {
 				qualityMenu
@@ -134,11 +163,6 @@ struct TVControlsRow: View {
 			moreMenu
 				.focused($focusedControl, equals: .more)
 				.prefersDefaultFocus(defaultFocusTarget == .more, in: focusNamespace)
-			iconButton("chevron.left.forwardslash.chevron.right") {
-				viewModel.showTechnicalInfo.toggle()
-			}
-			.focused($focusedControl, equals: .techInfo)
-				.prefersDefaultFocus(defaultFocusTarget == .techInfo, in: focusNamespace)
 		}
 		.focusScope(focusNamespace)
 		.opacity(revealed ? 1 : 0.02)
@@ -292,6 +316,32 @@ struct TVControlsRow: View {
 		.accessibilityLabel(viewModel.str("speed", "Speed"))
 	}
 
+	/// Direct chapter jumps — iOS keeps this in the More menu; on TV the
+	/// prev/next chapter buttons already advertise chapters, so the list gets
+	/// its own glass button beside them. The current chapter is checkmarked
+	/// (menuRow), which iOS doesn't do — on TV the popup is the only place
+	/// showing where you are.
+	private var chaptersMenu: some View {
+		Menu {
+			ForEach(Array(viewModel.chapters.enumerated()), id: \.offset) { index, chapter in
+				menuRow(
+					label:
+						"\(chapter.name ?? "\(index + 1)") — \(formatTime(chapter.startSec))",
+					selected: index == viewModel.currentChapterIndex
+				) {
+					viewModel.seek(to: chapter.startSec)
+				}
+			}
+		} label: {
+			icon("bookmark")
+		}
+		.menuOrder(.fixed)
+		.buttonStyle(.glass)
+		.buttonBorderShape(.circle)
+		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
+		.accessibilityLabel(viewModel.str("chapters", "Chapters"))
+	}
+
 	private var moreMenu: some View {
 		Menu {
 			menuRow(
@@ -299,6 +349,12 @@ struct TVControlsRow: View {
 				selected: viewModel.isZoomedToFill
 			) {
 				viewModel.toggleZoomToFill()
+			}
+			menuRow(
+				label: viewModel.str("technicalInfo", "Technical info"),
+				selected: viewModel.showTechnicalInfo
+			) {
+				viewModel.showTechnicalInfo.toggle()
 			}
 		} label: {
 			icon("ellipsis")
