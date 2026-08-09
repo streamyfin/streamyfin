@@ -1,7 +1,7 @@
-#if os(iOS)
 import SwiftUI
 
-/// Preview thumbnail bubble shown above the scrubber thumb while dragging.
+/// Preview thumbnail bubble shown above the scrubber thumb while dragging
+/// (iOS) or above the transport bar while remote-scrubbing (tvOS).
 /// Loads are keyed on the bucketed tile index, so scrubbing across one tile
 /// issues exactly one fetch — .task(id:) naturally debounces.
 struct TrickplayBubbleView: View {
@@ -11,6 +11,9 @@ struct TrickplayBubbleView: View {
 	let positionSec: Double
 	/// Chapter at the scrub position (JS bubble shows it over the thumbnail).
 	var chapterName: String?
+	/// iOS callers use the default; the TV chrome renders the bubble larger
+	/// for viewing distance.
+	var bubbleHeight: CGFloat = TrickplayBubbleView.height
 
 	@State private var image: UIImage?
 
@@ -26,7 +29,7 @@ struct TrickplayBubbleView: View {
 						.clipShape(RoundedRectangle(cornerRadius: 8))
 				}
 			}
-			.frame(width: Self.height * provider.aspectRatio, height: Self.height)
+			.frame(width: bubbleHeight * provider.aspectRatio, height: bubbleHeight)
 			.overlay(
 				RoundedRectangle(cornerRadius: 8)
 					.stroke(.white.opacity(0.3), lineWidth: 1)
@@ -37,7 +40,7 @@ struct TrickplayBubbleView: View {
 					.font(.caption2)
 					.foregroundStyle(.white.opacity(0.9))
 					.lineLimit(1)
-					.frame(maxWidth: Self.height * provider.aspectRatio)
+					.frame(maxWidth: bubbleHeight * provider.aspectRatio)
 			}
 
 			Text(formatTime(positionSec))
@@ -52,4 +55,3 @@ struct TrickplayBubbleView: View {
 		}
 	}
 }
-#endif

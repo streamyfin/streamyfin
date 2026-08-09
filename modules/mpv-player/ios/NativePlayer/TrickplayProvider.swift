@@ -1,4 +1,3 @@
-#if os(iOS)
 import UIKit
 
 /// Fetches Jellyfin trickplay tile sheets (JPEG grids) and crops individual
@@ -117,4 +116,3 @@ actor TrickplayProvider {
 		Task { _ = await sheetImage(at: index) }
 	}
 }
-#endif

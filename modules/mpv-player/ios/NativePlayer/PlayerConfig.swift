@@ -162,7 +162,9 @@ struct UIOptionsRecord: Record {
 	/// chapters, technicalInfo, playbackError, close, off, quality,
 	/// subtitleSize, subtitleSync, audioSync, volumeBoost, rotate,
 	/// lockControls, unlock, zoomToFill, stillWatching, continueWatching,
-	/// goBack, endsAt — endsAt carries a %TIME% placeholder). Native falls
+	/// goBack, endsAt, stop, stopPlayback, stopPlayingTitle,
+	/// stopPlayingConfirm — endsAt carries a %TIME% placeholder,
+	/// stopPlayingTitle a %TITLE% placeholder). Native falls
 	/// back to English for missing keys.
 	@Field var strings: [String: String] = [:]
 }

@@ -6,6 +6,7 @@ import type {
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
 import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
+import { Platform } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import type {
   NativePlayerConfig,
@@ -15,6 +16,9 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
+// The TV-safe wrapper, NOT expo-screen-orientation directly: the native
+// module is absent from TV binaries and a top-level value import crashes on
+// launch (the type-only import above is erased at build time).
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
@@ -102,6 +106,12 @@ export const buildNativePlayerStrings = (
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),
+  // Exit confirmation (TV Menu press — mirror of useRemoteControl's alert).
+  // Native substitutes %TITLE% with the current item's title.
+  stop: t("common.stop"),
+  stopPlayback: t("player.stopPlayback"),
+  stopPlayingTitle: t("player.stopPlayingTitle", { title: "%TITLE%" }),
+  stopPlayingConfirm: t("player.stopPlayingConfirm"),
 });
 
 /**
@@ -507,16 +517,21 @@ export async function buildNativePlayerConfig(params: {
     }),
     subtitleStyle: buildSubtitleStyle(settings),
     ui: {
-      orientationLock: mapOrientationLock(settings.defaultVideoOrientation),
-      allowPip: true,
+      // TV: no orientation, no PiP (v1), no haptics, and volume/brightness
+      // belong to the remote/HDMI-CEC — the phone-only chrome stays off.
+      orientationLock: Platform.isTV
+        ? "none"
+        : mapOrientationLock(settings.defaultVideoOrientation),
+      allowPip: !Platform.isTV,
       seekForwardSec: settings.forwardSkipTime,
       seekBackwardSec: settings.rewindSkipTime,
       initialPlaybackSpeed: resolveInitialPlaybackSpeed(item, settings),
-      hapticsEnabled: !settings.disableHapticFeedback,
-      showVolumeSlider: !settings.hideVolumeSlider,
-      showBrightnessSlider: !settings.hideBrightnessSlider,
-      holdToSpeedEnabled: settings.enableHoldToSpeed,
-      pinchToZoomEnabled: settings.enablePinchToZoom,
+      hapticsEnabled: !Platform.isTV && !settings.disableHapticFeedback,
+      showVolumeSlider: !Platform.isTV && !settings.hideVolumeSlider,
+      showBrightnessSlider: !Platform.isTV && !settings.hideBrightnessSlider,
+      // Touch gestures — no equivalent on the Siri remote.
+      holdToSpeedEnabled: !Platform.isTV && settings.enableHoldToSpeed,
+      pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,
       // Server search needs connectivity; the OpenSubtitles fallback needs
       // the network either way — offline sessions hide the entry.
       subtitleSearchEnabled: !offline && !!api,

@@ -35,6 +35,7 @@ import {
   AudioTranscodeMode,
   getActiveVideoPlayer,
   InactivityTimeout,
+  isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
   TVTypographyScale,
@@ -267,7 +268,8 @@ export default function SettingsTV() {
 
   // Video player selection. MPV is the default; ExoPlayer is only offered
   // as an opt-in alternative on Android TV. The selector is hidden on
-  // other platforms.
+  // other platforms. Apple TV instead gets an opt-in toggle for the
+  // experimental fully-native tvOS player (default off).
   const isAndroidTv = Platform.OS === "android" && Platform.isTV;
   const currentVideoPlayer = getActiveVideoPlayer(settings);
   const isMpv = currentVideoPlayer !== VideoPlayer.ExoPlayer;
@@ -667,6 +669,22 @@ export default function SettingsTV() {
                   {t("home.settings.video_player.mpv_note")}
                 </Text>
               )}
+            </>
+          )}
+
+          {/* Native tvOS player opt-in — Apple TV on tvOS 26+, default off */}
+          {isNativePlayerSupportedTV && (
+            <>
+              <TVSettingsToggle
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerTV}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_tv_note")}
+              </Text>
             </>
           )}
 

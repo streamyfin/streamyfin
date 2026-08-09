@@ -198,22 +198,42 @@ export const isNativePlayerSupported =
   Platform.OS === "ios" && Platform.isTV !== true;
 
 /**
+ * Whether the fully-native player can run on the current platform as the
+ * Apple TV variant. Unlike iPhone/iPad (default-on), tvOS is opt-in via the
+ * `nativeVideoPlayerTV` setting while the TV UI is being built out, and it
+ * requires tvOS 26+ — the chrome is built on native glass Menus and other
+ * 26-era APIs, so older boxes keep the JS player unconditionally.
+ */
+export const isNativePlayerSupportedTV =
+  Platform.OS === "ios" &&
+  Platform.isTV === true &&
+  Number.parseInt(String(Platform.Version), 10) >= 26;
+
+/**
  * Resolve the actually-active video player for the current settings.
  * MPV is the default on Android and TV; users can opt into ExoPlayer on
  * Android TV via settings.videoPlayer. On iPhone/iPad the fully-native
  * player is the default: an unset `videoPlayer` (user never chose) or an
  * explicit `Native` selection resolves to Native, while an explicit MPV
- * choice is the opt-out and wins. The platform capability gates are
+ * choice is the opt-out and wins. On Apple TV the native player is opt-in
+ * via the separate `nativeVideoPlayerTV` toggle (default off — MPV stays
+ * the TV default). The platform capability gates are
  * folded in here so callers (VideoPlayerView, direct-player's device
  * profile, PlaySettingsProvider) can never advertise a player on a
  * platform where another one is actually rendering — that mismatch would
  * let Jellyfin pick a stream for the wrong renderer.
  */
 export const getActiveVideoPlayer = (
-  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+  settings:
+    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | null
+    | undefined,
 ): VideoPlayer => {
   if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
     return VideoPlayer.ExoPlayer;
+  }
+  if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV === true) {
+    return VideoPlayer.Native;
   }
   if (
     isNativePlayerSupported &&
@@ -230,7 +250,10 @@ export const getActiveVideoPlayer = (
  * player-type identifier that `generateDeviceProfile` expects.
  */
 export const getActivePlayerType = (
-  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+  settings:
+    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | null
+    | undefined,
 ): "mpv" | "exoplayer" => {
   // The Native player intentionally advertises the mpv device profile
   // (it uses the MPV engine).
@@ -349,6 +372,8 @@ export type Settings = {
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
+  /** Apple TV only: opt into the fully-native tvOS player (default off). */
+  nativeVideoPlayerTV: boolean;
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
   tvTypographyScale: TVTypographyScale;
@@ -464,6 +489,7 @@ export const defaultValues: Settings = {
   mergeNextUpAndContinueWatching: false,
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
+  nativeVideoPlayerTV: false,
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,

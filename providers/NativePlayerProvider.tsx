@@ -60,6 +60,8 @@ import {
   updateNativePlayerSubtitleSearch,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
+// The TV-safe wrapper, NOT expo-screen-orientation directly: the native
+// module is absent from TV binaries and a top-level import crashes on launch.
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
@@ -67,6 +69,7 @@ import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import {
   getActiveVideoPlayer,
   isNativePlayerSupported,
+  isNativePlayerSupportedTV,
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
@@ -224,11 +227,16 @@ const mapSearchResults = (
 export const NativePlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-  const enabled = isNativePlayerSupported && isNativePlayerModuleAvailable();
+  // Apple TV mounts the coordinator too — whether a play actually goes
+  // native is decided per-request by getActiveVideoPlayer (the TV opt-in
+  // toggle); the inner WS "Play" handler already respects it.
+  const enabled =
+    (isNativePlayerSupported || isNativePlayerSupportedTV) &&
+    isNativePlayerModuleAvailable();
 
   if (!enabled) {
     // The server-initiated "Play" command still needs a handler on platforms
-    // without the native player (Android, TV, stale iOS binaries) — the app
+    // without the native player (Android, stale iOS binaries) — the app
     // advertises SupportedCommands: ["Play"] everywhere.
     return <PlayCommandRouteFallback>{children}</PlayCommandRouteFallback>;
   }
