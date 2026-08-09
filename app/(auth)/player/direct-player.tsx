@@ -67,6 +67,11 @@ import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings"
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { getStreamUrl } from "@/utils/jellyfin/media/getStreamUrl";
 import {
+  getPlayMethod,
+  type PlayMethod,
+  parseTranscodeReasons,
+} from "@/utils/jellyfin/playMethod";
+import {
   applyMpvSubtitleSelection,
   getExternalSubtitleUrl,
   getMpvAudioId,
@@ -80,30 +85,6 @@ import {
 } from "@/utils/subtitles";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
-
-type PlayMethod = "DirectPlay" | "DirectStream" | "Transcode";
-
-/**
- * How the session is actually being played. Shared by the reports sent to the
- * server and the technical info overlay, so the dashboard and the app never
- * disagree about the same playback.
- */
-function getPlayMethod(
-  source: { url?: string | null; mediaSource?: MediaSourceInfo | null },
-  offline: boolean,
-): PlayMethod {
-  // A downloaded item plays from a local file, with no server in the path.
-  if (offline) return "DirectPlay";
-  const url = source.url ?? "";
-  if (url.includes("m3u8") || source.mediaSource?.TranscodingUrl) {
-    return "Transcode";
-  }
-  // Served through the stream endpoint rather than as the original file.
-  if (url.includes("/Videos/") && url.includes("/stream")) {
-    return "DirectStream";
-  }
-  return "DirectPlay";
-}
 
 export default function DirectPlayerPage() {
   const videoRef = useRef<MpvPlayerViewRef>(null);
@@ -1327,26 +1308,10 @@ export default function DirectPlayerPage() {
   }, [stream, offline]);
 
   // Extract transcode reasons from the TranscodingUrl
-  const transcodeReasons = useMemo<string[]>(() => {
-    const transcodingUrl = stream?.mediaSource?.TranscodingUrl;
-    if (!transcodingUrl) return [];
-
-    try {
-      // Parse the TranscodeReasons parameter from the URL
-      const url = new URL(transcodingUrl, "http://localhost");
-      const reasons = url.searchParams.get("TranscodeReasons");
-      if (reasons) {
-        return reasons.split(",").filter(Boolean);
-      }
-    } catch {
-      // If URL parsing fails, try regex fallback
-      const match = transcodingUrl.match(/TranscodeReasons=([^&]+)/);
-      if (match) {
-        return match[1].split(",").filter(Boolean);
-      }
-    }
-    return [];
-  }, [stream?.mediaSource?.TranscodingUrl]);
+  const transcodeReasons = useMemo<string[]>(
+    () => parseTranscodeReasons(stream?.mediaSource?.TranscodingUrl),
+    [stream?.mediaSource?.TranscodingUrl],
+  );
 
   const handleZoomToggle = useCallback(async () => {
     const newZoomState = !isZoomedToFill;
