@@ -625,6 +625,22 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
         } else {
             mpv?.setPropertyInt("sid", trackId)
         }
+        applyBidiModeFor(trackId)
+    }
+
+    private fun applyBidiModeFor(trackId: Int) {
+        val isAss = trackId >= 0 && subtitleCodecFor(trackId).let { it == "ass" || it == "ssa" }
+        mpv?.setPropertyString("sub-ass-style-overrides", if (isAss) "Encoding=-1" else "")
+    }
+
+    private fun subtitleCodecFor(trackId: Int): String? {
+        val trackCount = mpv?.getPropertyInt("track-list/count") ?: 0
+        for (i in 0 until trackCount) {
+            if (mpv?.getPropertyString("track-list/$i/type") != "sub") continue
+            if (mpv?.getPropertyInt("track-list/$i/id") != trackId) continue
+            return mpv?.getPropertyString("track-list/$i/codec")
+        }
+        return null
     }
     
     fun disableSubtitles() {
@@ -680,7 +696,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     }
 
     fun setSubtitleAssOverride(mode: String) {
-        mpv?.setPropertyString("sub-ass-override", mode)
+        mpv?.setPropertyString("sub-ass-override", if (mode == "no") "scale" else mode)
     }
 
     // MARK: - Audio Track Controls
