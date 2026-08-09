@@ -123,13 +123,15 @@ export type NativePlayerEpisodeListItem = {
 };
 
 export type NativePlayerSubtitleStyle = {
-  fontSize?: number;
   scale?: number;
+  scaleLocked?: boolean;
   marginY?: number;
   alignX?: "left" | "center" | "right";
   alignY?: "top" | "center" | "bottom";
-  backgroundColor?: string;
-  borderStyle?: "outline-and-shadow" | "background-box";
+  color?: string;
+  font?: string;
+  background?: string;
+  backgroundPadding?: number;
   assOverride?: "no" | "force";
 };
 

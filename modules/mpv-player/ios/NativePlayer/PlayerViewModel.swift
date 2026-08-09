@@ -62,6 +62,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var errorMessage: String?
 	@Published var isZoomedToFill = false
 	@Published var subtitleScale: Double = 1.0
+	@Published var subtitleScaleLocked = false
 	/// Session-scoped A/V sync offsets (seconds) and softvol gain (percent).
 	/// Reset to neutral when the played item changes; re-applied to the
 	/// engine on every stream swap because mpv properties persist on the
@@ -88,6 +89,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var scrubPosition: Double = 0
 	@Published var showTechnicalInfo = false
 	@Published var showEpisodeList = false
+	@Published var showSubtitleScaleControl = false
 
 	// MARK: - Content state
 
@@ -170,8 +172,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private let menuAutoHideDelay: TimeInterval = 15
 	/// More than this far into a chapter, "previous chapter" restarts it.
 	private let chapterRestartThreshold: Double = 3
+	/// Mirrors utils/subtitles.ts for mobile iOS MPV.
+	private let subtitleScaleMultiplier = 0.6 * 1.25 * 1.2
 
-	static let subtitleScalePresets: [Double] = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
 	/// Sync offsets in seconds; positive delays the track. Presets rather
 	/// than a stepper so both fit the existing UIMenu-based UI.
 	static let syncOffsetPresets: [Double] = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5]
@@ -231,6 +234,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
+		subtitleScaleLocked = config.subtitleStyle?.scaleLocked ?? false
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
 		displayPosition = position
@@ -554,26 +558,49 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func applyZoomState() {
 		guard let engine else { return }
 		engine.setZoomedToFill(isZoomedToFill)
-		guard isZoomedToFill else {
-			engine.setSubtitlePosition(100)
-			return
-		}
-		let videoAR = Double(videoWidth ?? 1920) / Double(max(videoHeight ?? 1080, 1))
-		let layerSize = engine.displayLayer.bounds.size
-		let screenSize = (layerSize.width > 0 && layerSize.height > 0)
-			? layerSize
-			: UIScreen.main.bounds.size
-		let screenAR = Double(screenSize.width) / Double(max(screenSize.height, 1))
-		if screenAR > videoAR {
-			// Screen wider than video: filling crops top/bottom. Raise the
-			// subtitles by 70% of the bottom crop so they stay visible (the
-			// remaining 30% keeps a comfortable margin from the edge).
-			let bottomCropPercent = 50.0 * (1.0 - videoAR / screenAR)
-			engine.setSubtitlePosition(Int((100.0 - bottomCropPercent * 0.7).rounded()))
+		if isZoomedToFill {
+			let videoAR = Double(videoWidth ?? 1920) / Double(max(videoHeight ?? 1080, 1))
+			let screenSize = playerSurfaceSize
+			let screenAR = Double(screenSize.width) / Double(max(screenSize.height, 1))
+			if screenAR > videoAR {
+				// Screen wider than video: filling crops top/bottom. Raise the
+				// subtitles by 70% of the bottom crop so they stay visible.
+				let bottomCropPercent = 50.0 * (1.0 - videoAR / screenAR)
+				engine.setSubtitlePosition(Int((100.0 - bottomCropPercent * 0.7).rounded()))
+			} else {
+				engine.setSubtitlePosition(100)
+			}
 		} else {
-			// Sides are cropped but the bottom stays visible — no adjustment.
 			engine.setSubtitlePosition(100)
 		}
+		applySubtitleScale()
+	}
+
+	/// Match the embedded player's calibrated, video-relative subtitle size.
+	/// MPV renders in source-video pixels, so compensate when fitting a larger
+	/// video into a smaller display, capped at the shared 3× boost.
+	func applySubtitleScale() {
+		guard let engine else { return }
+		var effectiveScale = subtitleScale * subtitleScaleMultiplier
+		if let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
+			let surface = playerSurfaceSize
+			let pixelScale = UIScreen.main.scale
+			let width = Double(surface.width * pixelScale)
+			let height = Double(surface.height * pixelScale)
+			let fitScale = isZoomedToFill
+				? max(width / Double(videoWidth), height / Double(videoHeight))
+				: min(width / Double(videoWidth), height / Double(videoHeight))
+			if fitScale > 0, fitScale < 1 {
+				effectiveScale *= min(1 / fitScale, 3)
+			}
+		}
+		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
+	}
+
+	private var playerSurfaceSize: CGSize {
+		guard let engine else { return UIScreen.main.bounds.size }
+		let size = engine.displayLayer.bounds.size
+		return size.width > 0 && size.height > 0 ? size : UIScreen.main.bounds.size
 	}
 
 	// MARK: Volume slider reveal
@@ -667,9 +694,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Applies live on the engine and notifies JS, which persists the global
 	/// subtitleSize setting (mirror of the JS in-player subtitle scale).
 	func setSubtitleScale(_ scale: Double) {
-		subtitleScale = scale
-		engine?.setSubtitleScale(scale)
-		emit?("onSubtitleScaleChange", ["scale": scale])
+		guard !subtitleScaleLocked else { return }
+		subtitleScale = min(max((scale * 10).rounded() / 10, 0.1), 3)
+		applySubtitleScale()
+		emit?("onSubtitleScaleChange", ["scale": subtitleScale])
 		scheduleAutoHide()
 	}
 

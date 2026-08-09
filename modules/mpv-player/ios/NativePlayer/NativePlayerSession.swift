@@ -165,13 +165,17 @@ final class NativePlayerSession {
 	}
 
 	private func applySubtitleStyle(_ style: SubtitleStyleRecord) {
-		if let fontSize = style.fontSize { engine.setSubtitleFontSize(fontSize) }
-		if let scale = style.scale { engine.setSubtitleScale(scale) }
 		if let marginY = style.marginY { engine.setSubtitleMarginY(marginY) }
 		if let alignX = style.alignX { engine.setSubtitleAlignX(alignX) }
 		if let alignY = style.alignY { engine.setSubtitleAlignY(alignY) }
-		if let backgroundColor = style.backgroundColor { engine.setSubtitleBackgroundColor(backgroundColor) }
-		if let borderStyle = style.borderStyle { engine.setSubtitleBorderStyle(borderStyle) }
+
+		var appearance: [String: Any] = [:]
+		if let color = style.color { appearance["color"] = color }
+		if let font = style.font { appearance["font"] = font }
+		if let background = style.background { appearance["background"] = background }
+		if let padding = style.backgroundPadding { appearance["backgroundPadding"] = padding }
+		if !appearance.isEmpty { engine.setSubtitleStyle(config: appearance) }
+
 		if let assOverride = style.assOverride { engine.setSubtitleAssOverride(assOverride) }
 	}
 

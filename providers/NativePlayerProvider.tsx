@@ -196,7 +196,7 @@ const NativePlayerProviderInner: React.FC<{
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
   const { t } = useTranslation();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const { isConnected } = useNetworkStatus();
   const { lockOrientation, unlockOrientation } = useOrientation();
   const downloadUtils = useDownload();
@@ -231,11 +231,13 @@ const NativePlayerProviderInner: React.FC<{
 
   const apiRef = useRef(api);
   const settingsRef = useRef(settings);
+  const pluginSettingsRef = useRef(pluginSettings);
   const userRef = useRef(user);
   const isConnectedRef = useRef(isConnected);
   useEffect(() => {
     apiRef.current = api;
     settingsRef.current = settings;
+    pluginSettingsRef.current = pluginSettings;
     userRef.current = user;
     isConnectedRef.current = isConnected;
   });
@@ -480,6 +482,8 @@ const NativePlayerProviderInner: React.FC<{
         api: apiRef.current,
         userId: userRef.current?.Id,
         settings: currentSettings,
+        subtitleSizeLocked:
+          pluginSettingsRef.current?.subtitleSize?.locked === true,
         req,
         getDownloadedItemById: downloadUtils.getDownloadedItemById,
         strings: buildNativePlayerStrings(t),

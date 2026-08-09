@@ -145,7 +145,9 @@ final class NativePlayerViewController: UIViewController {
 		CATransaction.setDisableActions(true)
 		videoContainerView.frame = view.bounds
 		engine.displayLayer.frame = videoContainerView.bounds
+		engine.displayLayer.contentsScale = view.window?.screen.scale ?? UIScreen.main.scale
 		CATransaction.commit()
+		viewModel.applySubtitleScale()
 	}
 
 	override func viewDidAppear(_ animated: Bool) {

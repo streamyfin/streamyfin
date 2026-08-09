@@ -32,6 +32,10 @@ import {
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import {
+  getEffectiveSubtitleMarginY,
+  hasCustomSubtitleStyle,
+} from "@/utils/subtitles";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
@@ -126,28 +130,35 @@ const mapOrientationLock = (
 };
 
 /** Mirror of the subtitle-style effect at direct-player.tsx. */
-const buildSubtitleStyle = (settings: Settings): NativePlayerSubtitleStyle => {
-  const style: NativePlayerSubtitleStyle = {
+const buildSubtitleStyle = (
+  settings: Settings,
+  scaleLocked: boolean,
+): NativePlayerSubtitleStyle => {
+  const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
+  const opacity = Math.min(
+    Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 40, 0),
+    100,
+  );
+  const alpha = Math.round((opacity / 100) * 255)
+    .toString(16)
+    .padStart(2, "0")
+    .toUpperCase();
+
+  return {
     scale: settings.subtitleSize,
-    marginY: settings.subtitleMarginY,
+    scaleLocked,
+    marginY:
+      settings.subtitleMarginY === undefined
+        ? undefined
+        : getEffectiveSubtitleMarginY(settings.subtitleMarginY),
     alignX: settings.subtitleAlignX,
     alignY: settings.subtitleAlignY,
+    color: settings.subtitleColor,
+    font: settings.subtitleFont,
+    background: settings.subtitleBackground ? `#${alpha}000000` : "",
+    backgroundPadding: settings.subtitleBackgroundPadding ?? 8,
+    assOverride: hasCustomSubtitleStyle(settings) ? "force" : "no",
   };
-  if (settings.subtitleBackground) {
-    const opacity = settings.subtitleBackgroundOpacity ?? 40;
-    const alphaHex = Math.round((opacity / 100) * 255)
-      .toString(16)
-      .padStart(2, "0")
-      .toUpperCase();
-    style.borderStyle = "background-box";
-    style.backgroundColor = `#000000${alphaHex}`;
-    style.assOverride = "force";
-  } else {
-    style.borderStyle = "outline-and-shadow";
-    style.backgroundColor = "#00000000";
-    style.assOverride = "no";
-  }
-  return style;
 };
 
 /** Mirror of hooks/usePlaybackSpeed.ts (media > series > default). */
@@ -310,6 +321,7 @@ export async function buildNativePlayerConfig(params: {
   api: Api | null;
   userId: string | undefined;
   settings: Settings;
+  subtitleSizeLocked?: boolean;
   req: PlayRequest;
   getDownloadedItemById: (id: string) => DownloadedItem | undefined;
   strings: NativePlayerStrings;
@@ -449,7 +461,10 @@ export async function buildNativePlayerConfig(params: {
       offLabel: strings.off ?? "None",
       bitrateValue,
     }),
-    subtitleStyle: buildSubtitleStyle(settings),
+    subtitleStyle: buildSubtitleStyle(
+      settings,
+      params.subtitleSizeLocked === true,
+    ),
     ui: {
       orientationLock: mapOrientationLock(settings.defaultVideoOrientation),
       allowPip: true,

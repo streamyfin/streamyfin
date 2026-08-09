@@ -162,27 +162,20 @@ struct PlayerTopBar: View {
 		}
 	}
 
-	/// Subtitle track picker plus a nested size submenu (the JS player's
-	/// in-menu Subtitle Scale presets).
+	/// Subtitle track picker plus the shared subtitle-size control.
 	private var subtitlesMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
 			Divider()
-			Menu {
-				ForEach(PlayerViewModel.subtitleScalePresets, id: \.self) { preset in
-					Button {
-						viewModel.setSubtitleScale(preset)
-					} label: {
-						if abs(viewModel.subtitleScale - preset) < 0.001 {
-							Label(scaleLabel(preset), systemImage: "checkmark")
-						} else {
-							Text(scaleLabel(preset))
-						}
-					}
-				}
+			Button {
+				viewModel.showSubtitleScaleControl = true
 			} label: {
-				Label(viewModel.str("subtitleSize", "Subtitle size"), systemImage: "textformat.size")
+				Label(
+					"\(viewModel.str("subtitleSize", "Subtitle size")): \(String(format: "%.1f×", viewModel.subtitleScale))",
+					systemImage: "textformat.size"
+				)
 			}
+			.disabled(viewModel.subtitleScaleLocked)
 			Menu {
 				syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
 			} label: {
@@ -194,10 +187,6 @@ struct PlayerTopBar: View {
 		.menuOrder(.fixed)
 		.simultaneousGesture(TapGesture().onEnded { viewModel.menuInteractionStarted() })
 		.accessibilityLabel(viewModel.str("subtitles", "Subtitles"))
-	}
-
-	private func scaleLabel(_ scale: Double) -> String {
-		String(format: "%g×", scale)
 	}
 
 	private var moreMenu: some View {

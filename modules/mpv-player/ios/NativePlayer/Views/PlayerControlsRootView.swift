@@ -173,6 +173,9 @@ struct PlayerControlsRootView: View {
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}
+		.sheet(isPresented: $viewModel.showSubtitleScaleControl) {
+			SubtitleScaleView(viewModel: viewModel)
+		}
 	}
 
 	// MARK: - Surface gestures
@@ -300,6 +303,44 @@ struct PlayerControlsRootView: View {
 		.padding(32)
 		.frame(maxWidth: 420)
 		.background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 20))
+	}
+}
+
+private struct SubtitleScaleView: View {
+	@ObservedObject var viewModel: PlayerViewModel
+	@Environment(\.dismiss) private var dismiss
+
+	var body: some View {
+		NavigationStack {
+			Form {
+				Stepper(
+					value: Binding(
+						get: { viewModel.subtitleScale },
+						set: { viewModel.setSubtitleScale($0) }
+					),
+					in: 0.1 ... 3,
+					step: 0.1
+				) {
+					HStack {
+						Text(viewModel.str("subtitleSize", "Subtitle size"))
+						Spacer()
+						Text(String(format: "%.1f×", viewModel.subtitleScale))
+							.monospacedDigit()
+							.foregroundStyle(.secondary)
+					}
+				}
+				.disabled(viewModel.subtitleScaleLocked)
+			}
+			.navigationTitle(viewModel.str("subtitleSize", "Subtitle size"))
+			.navigationBarTitleDisplayMode(.inline)
+			.toolbar {
+				ToolbarItem(placement: .confirmationAction) {
+					Button(viewModel.str("close", "Close")) { dismiss() }
+				}
+			}
+		}
+		.presentationDetents([.height(180)])
+		.preferredColorScheme(.dark)
 	}
 }
 
