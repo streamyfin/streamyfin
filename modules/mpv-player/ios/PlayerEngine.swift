@@ -415,6 +415,11 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setDialogueBoost(enabled)
 	}
 
+	/// Accessibility mono downmix (mpv audio-channels).
+	func setMonoDownmix(_ enabled: Bool) {
+		renderer?.setMonoDownmix(enabled)
+	}
+
 	func setSubtitleMarginY(_ margin: Int) {
 		renderer?.setSubtitleMarginY(margin)
 	}

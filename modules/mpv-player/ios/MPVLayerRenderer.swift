@@ -1001,6 +1001,12 @@ final class MPVLayerRenderer {
             setProperty(name: "af", value: "")
         }
     }
+
+    /// Accessibility mono downmix — collapses all channels to a single one so
+    /// both ears hear the full mix. "auto-safe" is mpv's default layout pick.
+    func setMonoDownmix(_ enabled: Bool) {
+        setProperty(name: "audio-channels", value: enabled ? "mono" : "auto-safe")
+    }
     
     func setSubtitleMarginY(_ margin: Int) {
         setProperty(name: "sub-margin-y", value: String(margin))

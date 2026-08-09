@@ -187,6 +187,7 @@ export type NativePlayerStrings = Partial<
     | "audioSync"
     | "volumeBoost"
     | "dialogueBoost"
+    | "monoAudio"
     | "rotate"
     | "lockControls"
     | "unlock"
@@ -324,6 +325,14 @@ export type NativePlayerEvents = {
   /** A result row was tapped; resultId keys into the last pushed results. */
   onSubtitleDownloadRequested: (payload: {
     resultId: string;
+    positionSec: number;
+  }) => void;
+  /**
+   * System volume crossed zero (either direction). JS may auto-enable
+   * subtitles while muted (settings.subtitlesOnMute) and revert on unmute.
+   */
+  onMuteStateChanged: (payload: {
+    muted: boolean;
     positionSec: number;
   }) => void;
 };

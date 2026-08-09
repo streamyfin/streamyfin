@@ -119,6 +119,7 @@ struct PlayerTopBar: View {
 			}
 			volumeBoostMenu
 			dialogueBoostButton
+			monoAudioButton
 		} label: {
 			barIcon(systemName: "waveform")
 		}
@@ -174,6 +175,18 @@ struct PlayerTopBar: View {
 				Label(viewModel.str("dialogueBoost", "Dialogue boost"), systemImage: "checkmark")
 			} else {
 				Label(viewModel.str("dialogueBoost", "Dialogue boost"), systemImage: "speaker.wave.2")
+			}
+		}
+	}
+
+	private var monoAudioButton: some View {
+		Button {
+			viewModel.toggleMonoAudio()
+		} label: {
+			if viewModel.monoAudioEnabled {
+				Label(viewModel.str("monoAudio", "Mono audio"), systemImage: "checkmark")
+			} else {
+				Label(viewModel.str("monoAudio", "Mono audio"), systemImage: "speaker.wave.1")
 			}
 		}
 	}

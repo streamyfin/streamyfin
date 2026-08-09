@@ -16,6 +16,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { BITRATES } from "@/components/BitrateSelector";
+import { getSeriesTrackMemory } from "@/utils/seriesTrackMemory";
 import { type Settings } from "../atoms/settings";
 import {
   AudioStreamRanker,
@@ -239,6 +240,42 @@ export function getDefaultPlaySettings(
       if (result.matched) {
         audioIndex = result.DefaultAudioStreamIndex;
         matchedPreviousAudio = true;
+      }
+    }
+  }
+
+  // Per-series memory: a track deliberately picked in the player is stored
+  // by language per series and beats server defaults on a fresh session.
+  // The sequential-play carry-over above is fresher and wins when it matched.
+  if (item.Type === "Episode" && item.SeriesId && settings) {
+    const memory = getSeriesTrackMemory(item.SeriesId);
+    if (memory) {
+      if (
+        settings.rememberAudioSelections &&
+        !matchedPreviousAudio &&
+        memory.audioLang
+      ) {
+        const match = findTrackByLanguage(streams, memory.audioLang, "Audio");
+        if (match !== undefined) {
+          audioIndex = match;
+          matchedPreviousAudio = true;
+        }
+      }
+      if (settings.rememberSubtitleSelections && !matchedPreviousSubtitle) {
+        if (memory.subtitleLang === "off") {
+          subtitleIndex = -1;
+          matchedPreviousSubtitle = true;
+        } else if (memory.subtitleLang) {
+          const match = findTrackByLanguage(
+            streams,
+            memory.subtitleLang,
+            "Subtitle",
+          );
+          if (match !== undefined) {
+            subtitleIndex = match;
+            matchedPreviousSubtitle = true;
+          }
+        }
       }
     }
   }

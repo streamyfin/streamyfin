@@ -92,6 +92,7 @@ import {
   toDirectPlayerQuery,
 } from "@/utils/nativePlayer/playRequest";
 import { fetchAndParseSegments, getSegmentsForItem } from "@/utils/segments";
+import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 const PROGRESS_REPORT_INTERVAL = 10_000;
@@ -131,6 +132,12 @@ interface NativeSession extends NativePlayerSessionSeed {
   localSubtitle: { path: string; label: string; active: boolean } | null;
   /** Consecutive sidecar-lookup misses on onTracksReady (see self-heal). */
   localSubtitleMisses: number;
+  /**
+   * Subtitle index this provider auto-enabled because the volume hit zero
+   * (settings.subtitlesOnMute). Unmuting reverts to Off only while the
+   * selection is still ours; any manual pick clears it.
+   */
+  muteSubtitleIndex: number | null;
 }
 
 interface NativePlayerContextValue {
@@ -156,6 +163,46 @@ const nativePlayerSubtitleFacade: SubtitleSelectablePlayer = {
   getSubtitleTracks: nativePlayerGetSubtitleTracks,
   setSubtitleTrack: nativePlayerSetSubtitleTrack,
   disableSubtitles: nativePlayerDisableSubtitles,
+};
+
+/**
+ * Persist a deliberate in-player track pick as the series preference (stored
+ * by language — indexes differ between episode files). Client-side sidecar
+ * selections carry no server-side identity and are skipped.
+ */
+const rememberSeriesSelection = (
+  session: NativeSession,
+  kind: "audio" | "subtitle",
+  jellyfinIndex: number,
+  settings:
+    | {
+        rememberAudioSelections?: boolean;
+        rememberSubtitleSelections?: boolean;
+      }
+    | null
+    | undefined,
+) => {
+  const item = session.item;
+  if (item?.Type !== "Episode" || !item.SeriesId) return;
+  if (jellyfinIndex === LOCAL_SUBTITLE_MENU_INDEX) return;
+  const streams = session.stream.mediaSource.MediaStreams;
+  if (kind === "audio") {
+    if (!settings?.rememberAudioSelections) return;
+    const lang = streams?.find(
+      (s) => s.Index === jellyfinIndex && s.Type === "Audio",
+    )?.Language;
+    if (lang) rememberSeriesTrack(item.SeriesId, { audioLang: lang });
+    return;
+  }
+  if (!settings?.rememberSubtitleSelections) return;
+  if (jellyfinIndex === -1) {
+    rememberSeriesTrack(item.SeriesId, { subtitleLang: "off" });
+    return;
+  }
+  const lang = streams?.find(
+    (s) => s.Index === jellyfinIndex && s.Type === "Subtitle",
+  )?.Language;
+  if (lang) rememberSeriesTrack(item.SeriesId, { subtitleLang: lang });
 };
 
 const mapSearchResults = (
@@ -556,6 +603,7 @@ const NativePlayerProviderInner: React.FC<{
         subtitleSearchToken: 0,
         localSubtitle: null,
         localSubtitleMisses: 0,
+        muteSubtitleIndex: null,
       };
 
       if (token !== playRequestTokenRef.current) {
@@ -931,6 +979,46 @@ const NativePlayerProviderInner: React.FC<{
     ],
   );
 
+  /**
+   * Volume hit zero → auto-enable a text subtitle (settings.subtitlesOnMute);
+   * volume back → revert to Off while the selection is still ours. Text-only
+   * and never during a transcode, so the automation can't restart the stream.
+   */
+  const handleMuteChanged = useCallback(
+    (session: NativeSession, muted: boolean, positionSec: number) => {
+      if (!settingsRef.current?.subtitlesOnMute) return;
+      if (muted) {
+        if (session.muteSubtitleIndex !== null) return;
+        if (session.localSubtitle?.active) return;
+        if (session.currentSubtitleIndex !== -1) return;
+        if (session.stream.mediaSource.TranscodingUrl) return;
+        const streams = session.stream.mediaSource.MediaStreams ?? [];
+        const candidates = streams.filter(
+          (s) =>
+            s.Type === "Subtitle" && !isImageBasedSubtitle(s) && !s.IsForced,
+        );
+        const preferred =
+          settingsRef.current?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
+        const pick =
+          (preferred &&
+            candidates.find((s) => s.Language?.toLowerCase() === preferred)) ||
+          candidates.find((s) => s.IsDefault) ||
+          candidates[0];
+        if (pick?.Index === undefined || pick.Index === null) return;
+        session.muteSubtitleIndex = pick.Index;
+        void handleSubtitleSelection(session, pick.Index, positionSec);
+        return;
+      }
+      const autoIndex = session.muteSubtitleIndex;
+      session.muteSubtitleIndex = null;
+      if (autoIndex === null) return;
+      if (session.currentSubtitleIndex !== autoIndex) return;
+      if (session.localSubtitle?.active) return;
+      void handleSubtitleSelection(session, -1, positionSec);
+    },
+    [handleSubtitleSelection],
+  );
+
   // MARK: - Remote subtitle search/download (native search sheet)
 
   const handleSubtitleSearch = useCallback(
@@ -1235,18 +1323,38 @@ const NativePlayerProviderInner: React.FC<{
         const session = sessionRef.current;
         if (!session || session.awaitingLoad) return;
         if (payload.kind === "audio") {
+          rememberSeriesSelection(
+            session,
+            "audio",
+            payload.jellyfinIndex,
+            settingsRef.current,
+          );
           void handleAudioSelection(
             session,
             payload.jellyfinIndex,
             payload.positionSec,
           );
         } else {
+          // A manual pick takes ownership back from the mute automation.
+          session.muteSubtitleIndex = null;
+          rememberSeriesSelection(
+            session,
+            "subtitle",
+            payload.jellyfinIndex,
+            settingsRef.current,
+          );
           void handleSubtitleSelection(
             session,
             payload.jellyfinIndex,
             payload.positionSec,
           );
         }
+      }),
+
+      addNativePlayerListener("onMuteStateChanged", (payload) => {
+        const session = sessionRef.current;
+        if (!session || session.awaitingLoad) return;
+        handleMuteChanged(session, payload.muted, payload.positionSec);
       }),
 
       addNativePlayerListener("onNextEpisodeRequested", (payload) => {
@@ -1391,6 +1499,7 @@ const NativePlayerProviderInner: React.FC<{
     handleSubtitleSelection,
     handleSubtitleSearch,
     handleSubtitleDownload,
+    handleMuteChanged,
     playAdjacentItem,
     pushTrackMenus,
     replaceStream,
