@@ -149,6 +149,9 @@ struct TVControlsRow: View {
 				if newValue == pendingTarget {
 					revealed = true
 				}
+				// Navigating the row counts as interaction — keep the chrome
+				// up while the user is moving between buttons.
+				viewModel.scheduleAutoHide()
 			}
 		}
 		.onAppear {
