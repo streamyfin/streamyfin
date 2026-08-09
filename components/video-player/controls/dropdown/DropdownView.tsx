@@ -9,6 +9,8 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BackHandler, Platform, View } from "react-native";
+import { Slider } from "react-native-awesome-slider";
+import { useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
 import { Stepper } from "@/components/inputs/Stepper";
@@ -25,31 +27,110 @@ import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
 const SUBTITLE_SYNC_OFFSETS = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5];
+const SUBTITLE_SCALE_MIN = 0.1;
+const SUBTITLE_SCALE_MAX = 3;
+const SUBTITLE_SCALE_STEPS = 29;
 
 const SubtitleScaleControl = () => {
   const { t } = useTranslation();
   const { settings, updateSettings, pluginSettings } = useSettings();
+  const progress = useSharedValue(settings.subtitleSize);
+  const minimumValue = useSharedValue(SUBTITLE_SCALE_MIN);
+  const maximumValue = useSharedValue(SUBTITLE_SCALE_MAX);
+  const disabled = pluginSettings?.subtitleSize?.locked === true;
+
+  useEffect(() => {
+    progress.value = settings.subtitleSize;
+  }, [progress, settings.subtitleSize]);
+
+  const updateSubtitleScale = useCallback(
+    (value: number) => {
+      const subtitleSize = Math.round(value * 10) / 10;
+      progress.value = subtitleSize;
+      updateSettings({ subtitleSize });
+    },
+    [progress, updateSettings],
+  );
 
   return (
     <BottomSheetView>
       <View className='px-6 pt-2 pb-8'>
-        <Text className='text-xl font-bold mb-6'>
-          {t("player.menu.subtitle_scale")}
-        </Text>
-        <View className='items-center'>
-          <Stepper
-            value={settings.subtitleSize}
-            disabled={pluginSettings?.subtitleSize?.locked}
-            step={0.1}
-            min={0.1}
-            max={3}
-            appendValue='×'
-            formatValue={(value) => value.toFixed(1)}
-            onUpdate={(value) =>
-              updateSettings({ subtitleSize: Number(value.toFixed(1)) })
-            }
-          />
+        <View className='flex-row items-center justify-between mb-6'>
+          <Text className='text-xl font-bold'>
+            {t("player.menu.subtitle_scale")}
+          </Text>
+          {Platform.OS === "android" && (
+            <Text className='text-base text-neutral-300'>
+              {settings.subtitleSize.toFixed(1)}×
+            </Text>
+          )}
         </View>
+        {Platform.OS === "android" ? (
+          <View
+            className={`flex-row items-center${disabled ? " opacity-50" : ""}`}
+          >
+            <Text className='text-sm'>A</Text>
+            <View
+              className='flex-1 mx-4'
+              accessible
+              accessibilityRole='adjustable'
+              accessibilityLabel={t("player.menu.subtitle_scale")}
+              accessibilityState={{ disabled }}
+              accessibilityValue={{
+                min: SUBTITLE_SCALE_MIN,
+                max: SUBTITLE_SCALE_MAX,
+                now: settings.subtitleSize,
+                text: `${settings.subtitleSize.toFixed(1)}×`,
+              }}
+              accessibilityActions={[
+                { name: "decrement" },
+                { name: "increment" },
+              ]}
+              onAccessibilityAction={({ nativeEvent }) => {
+                if (disabled) return;
+                updateSubtitleScale(
+                  nativeEvent.actionName === "increment"
+                    ? Math.min(SUBTITLE_SCALE_MAX, settings.subtitleSize + 0.1)
+                    : Math.max(SUBTITLE_SCALE_MIN, settings.subtitleSize - 0.1),
+                );
+              }}
+            >
+              <Slider
+                progress={progress}
+                minimumValue={minimumValue}
+                maximumValue={maximumValue}
+                steps={SUBTITLE_SCALE_STEPS}
+                forceSnapToStep
+                disable={disabled}
+                sliderHeight={6}
+                thumbWidth={24}
+                renderBubble={() => null}
+                renderMark={() => null}
+                onValueChange={updateSubtitleScale}
+                containerStyle={{ borderRadius: 100 }}
+                theme={{
+                  minimumTrackTintColor: "#fff",
+                  maximumTrackTintColor: "rgba(255,255,255,0.2)",
+                  disableMinTrackTintColor: "rgba(255,255,255,0.35)",
+                }}
+              />
+            </View>
+            <Text className='text-xl'>A</Text>
+          </View>
+        ) : (
+          <View className='items-center'>
+            <Stepper
+              value={settings.subtitleSize}
+              disabled={disabled}
+              step={0.1}
+              min={SUBTITLE_SCALE_MIN}
+              max={SUBTITLE_SCALE_MAX}
+              appendValue='×'
+              formatValue={(value) => value.toFixed(1)}
+              onUpdate={updateSubtitleScale}
+            />
+          </View>
+        )}
       </View>
     </BottomSheetView>
   );
