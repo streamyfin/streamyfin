@@ -108,6 +108,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var qualityMenu: [TrackMenuItemRecord] = []
 	@Published var episodeList: [EpisodeListItemRecord] = []
 	@Published var trickplay: TrickplayProvider?
+	/// Active sleep-timer preset (nil = off). Only the selection is published —
+	/// the countdown itself is a wall-clock deadline, so nothing rebuilds the
+	/// menu-bearing bar while a menu is open.
+	@Published private(set) var sleepTimerMinutes: Int?
 
 	#if os(iOS)
 	/// System volume/brightness for the side sliders. The controllers exist
@@ -141,6 +145,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var volumeRevealTask: Task<Void, Never>?
 	private var brightnessRevealTask: Task<Void, Never>?
 	private var unlockRevealTask: Task<Void, Never>?
+	private var sleepTimerTask: Task<Void, Never>?
+	/// Read by the bottom bar's countdown label at render time — deliberately
+	/// not @Published (a 1Hz tick would rebuild menu-bearing views).
+	private(set) var sleepTimerEndDate: Date?
+	/// Throttle for touchInteractionOccurred.
+	private var lastTouchResetTime: CFTimeInterval = 0
 	/// Chapter under the thumb during a scrub — a haptic tick fires when it
 	/// changes (crossing a chapter mark).
 	private var lastScrubChapterIndex: Int?
@@ -149,6 +159,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	#endif
 	private var displayLink: CADisplayLink?
 	private var lastTickTimestamp: CFTimeInterval = 0
+	/// mpv reports "unpaused" while the stream is still loading — without this
+	/// gate the interpolation clock counts up from the seed position and then
+	/// snaps back on the first real progress tick.
+	private var hasAuthoritativePosition = false
 	/// User canceled the countdown — stays canceled until the next load().
 	private var countdownCanceled = false
 	/// An episode-change request was already emitted for this item (countdown
@@ -181,6 +195,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// than a stepper so both fit the existing UIMenu-based UI.
 	static let syncOffsetPresets: [Double] = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5]
 	static let volumeBoostPresets: [Int] = [100, 125, 150, 200]
+	static let sleepTimerPresetMinutes: [Int] = [15, 30, 45, 60, 90, 120]
 
 	override init() {
 		super.init()
@@ -243,6 +258,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
 		displayPosition = position
+		hasAuthoritativePosition = false
 		showControls()
 	}
 
@@ -345,6 +361,19 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func menuInteractionStarted() {
 		scheduleAutoHide(delay: menuAutoHideDelay)
+	}
+
+	/// Blanket reset on any touch-down over the overlay. The per-action
+	/// scheduleAutoHide calls fire on touch-UP, so a press landing near the
+	/// end of the 4s window could watch the chrome vanish mid-press — this
+	/// re-arms at press START instead. Throttled: continuous drags stream
+	/// touch events every frame and shouldn't churn a Task each one.
+	func touchInteractionOccurred() {
+		guard controlsVisible, !controlsLocked else { return }
+		let now = CACurrentMediaTime()
+		guard now - lastTouchResetTime > 0.5 else { return }
+		lastTouchResetTime = now
+		scheduleAutoHide()
 	}
 
 	func togglePlayPause() {
@@ -761,12 +790,54 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		onDismissRequested?(.error)
 	}
 
+	// MARK: - Sleep timer
+
+	/// Deliberately survives apply()/in-place swaps — falling asleep during
+	/// next-episode autoplay is the main use case. The deadline is wall-clock,
+	/// checked in 1s slices, so a stint suspended in the background fires on
+	/// resume instead of drifting.
+	func setSleepTimer(minutes: Int) {
+		haptic()
+		sleepTimerTask?.cancel()
+		sleepTimerMinutes = minutes
+		sleepTimerEndDate = Date().addingTimeInterval(TimeInterval(minutes) * 60)
+		sleepTimerTask = Task { [weak self] in
+			while !Task.isCancelled {
+				try? await Task.sleep(nanoseconds: 1_000_000_000)
+				guard !Task.isCancelled, let self else { return }
+				let fired: Bool = await MainActor.run {
+					guard let end = self.sleepTimerEndDate else { return true }
+					guard Date() >= end else { return false }
+					self.sleepTimerMinutes = nil
+					self.sleepTimerEndDate = nil
+					self.sleepTimerTask = nil
+					// Full dismissal (not just pause) so the idle timer
+					// re-enables and the phone can auto-lock.
+					self.onDismissRequested?(.programmatic)
+					return true
+				}
+				if fired { return }
+			}
+		}
+		scheduleAutoHide()
+	}
+
+	func cancelSleepTimer() {
+		haptic()
+		sleepTimerTask?.cancel()
+		sleepTimerTask = nil
+		sleepTimerEndDate = nil
+		sleepTimerMinutes = nil
+		scheduleAutoHide()
+	}
+
 	// MARK: - Teardown
 
 	func willTeardown() {
 		isTearingDown = true
 		autoHideTask?.cancel()
 		cancelCountdownTask()
+		sleepTimerTask?.cancel()
 		volumeRevealTask?.cancel()
 		brightnessRevealTask?.cancel()
 		unlockRevealTask?.cancel()
@@ -903,10 +974,15 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	@objc private func displayLinkTick() {
-		guard isPlaying, !isScrubbing else { return }
+		// Always advance the timestamp, even while gated — otherwise the whole
+		// gated span lands in one elapsed the moment the gate opens.
 		let now = CACurrentMediaTime()
 		let elapsed = now - lastTickTimestamp
 		lastTickTimestamp = now
+		// Stand still while the stream is loading or rebuffering: the video
+		// clock isn't advancing, so interpolating here just drifts ahead and
+		// snaps back on the next authoritative tick.
+		guard isPlaying, !isScrubbing, !isBuffering, hasAuthoritativePosition else { return }
 		var next = displayPosition + elapsed * speed
 		if duration > 0 {
 			next = min(next, duration)
@@ -924,6 +1000,7 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 
 	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
 		guard !isTearingDown else { return }
+		hasAuthoritativePosition = true
 		self.position = position
 		// This callback is 1Hz and duration is @Published — only assign on a
 		// real change, or every observer re-renders once per second (which

@@ -170,7 +170,9 @@ export type NativePlayerStrings = Partial<
     | "stop"
     | "stopPlayback"
     | "stopPlayingTitle"
-    | "stopPlayingConfirm",
+    | "stopPlayingConfirm"
+    | "sleepTimer"
+    | "sleepTimerOff",
     string
   >
 >;
