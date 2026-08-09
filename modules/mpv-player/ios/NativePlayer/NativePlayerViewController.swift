@@ -149,6 +149,12 @@ final class NativePlayerViewController: UIViewController {
 		// per pinch in the view model, so config swaps need no re-wiring.
 		let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
 		pinch.cancelsTouchesInView = false
+		// Without a delegate, whichever gesture begins first excludes the other
+		// for the whole touch sequence — the overlay's 12pt surface drag usually
+		// wins (first finger moves before the second lands) and the pinch is
+		// silently starved. Simultaneous recognition lets the pinch always fire;
+		// the overlay stands down via isPinching once it does.
+		pinch.delegate = self
 		view.addGestureRecognizer(pinch)
 	}
 
@@ -191,6 +197,15 @@ final class NativePlayerViewController: UIViewController {
 		// Hand the bar back visible — the app-level state persists past this
 		// VC, and the RN screens underneath expect the bar shown.
 		UIApplication.shared.setStatusBarHidden(false, with: .fade)
+	}
+}
+
+extension NativePlayerViewController: UIGestureRecognizerDelegate {
+	func gestureRecognizer(
+		_ gestureRecognizer: UIGestureRecognizer,
+		shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+	) -> Bool {
+		true
 	}
 }
 #endif
