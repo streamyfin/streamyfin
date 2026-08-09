@@ -141,7 +141,7 @@ struct TVControlsRow: View {
 				.prefersDefaultFocus(defaultFocusTarget == .techInfo, in: focusNamespace)
 		}
 		.focusScope(focusNamespace)
-		.opacity(revealed ? 1 : 0)
+		.opacity(revealed ? 1 : 0.02)
 		.animation(.easeInOut(duration: 0.15), value: revealed)
 		.onChange(of: focusedControl) { newValue in
 			if let newValue {
@@ -166,7 +166,11 @@ struct TVControlsRow: View {
 				if focusedControl != target {
 					focusedControl = target
 				}
-				revealed = true
+				// Reveal on the NEXT tick so the assignment above resolves
+				// while the row is still in its focusable (0.02) state.
+				DispatchQueue.main.async {
+					revealed = true
+				}
 			}
 		}
 	}
