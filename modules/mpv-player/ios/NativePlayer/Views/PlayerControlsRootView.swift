@@ -424,6 +424,21 @@ private struct SubtitleScaleOverlay: View {
 	let onClose: () -> Void
 
 	var body: some View {
+		Group {
+			#if os(iOS)
+			if #available(iOS 26.0, *) {
+				content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+			} else {
+				materialContent
+			}
+			#else
+			materialContent
+			#endif
+		}
+		.shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+	}
+
+	private var content: some View {
 		VStack(spacing: 12) {
 			HStack {
 				Text(viewModel.str("subtitleSize", "Subtitle size"))
@@ -459,8 +474,10 @@ private struct SubtitleScaleOverlay: View {
 		}
 		.foregroundStyle(.white)
 		.padding(16)
-		.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-		.shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+	}
+
+	private var materialContent: some View {
+		content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 	}
 }
 
