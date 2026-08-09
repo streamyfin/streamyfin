@@ -58,7 +58,7 @@ struct TVControlsRow: View {
 		case .audio:
 			return !viewModel.audioMenu.isEmpty
 		case .subtitles:
-			return !viewModel.subtitleMenu.isEmpty
+			return !viewModel.subtitleMenu.isEmpty || viewModel.subtitleSearchEnabled
 		case .episodes:
 			return !viewModel.episodeList.isEmpty
 		case .skipSegment:
@@ -152,7 +152,9 @@ struct TVControlsRow: View {
 					.focused($focusedControl, equals: .audio)
 				.prefersDefaultFocus(defaultFocusTarget == .audio, in: focusNamespace)
 			}
-			if !viewModel.subtitleMenu.isEmpty {
+			// Also mounted with no subtitle tracks when remote search is
+			// available — the search entry is then the way to get some.
+			if !viewModel.subtitleMenu.isEmpty || viewModel.subtitleSearchEnabled {
 				subtitlesMenu
 					.focused($focusedControl, equals: .subtitles)
 				.prefersDefaultFocus(defaultFocusTarget == .subtitles, in: focusNamespace)
@@ -285,6 +287,19 @@ struct TVControlsRow: View {
 				}
 			} label: {
 				Text(viewModel.str("subtitleSync", "Subtitle sync"))
+			}
+			if viewModel.subtitleSearchEnabled {
+				Button {
+					// The panel is a focus overlay: hide the chrome so its
+					// buttons are the only focusable content while it is up
+					// (closeSubtitleSearch brings the chrome back).
+					viewModel.controlsVisible = false
+					viewModel.openSubtitleSearch()
+				} label: {
+					Label(
+						viewModel.str("searchSubtitles", "Search subtitles"),
+						systemImage: "magnifyingglass")
+				}
 			}
 		} label: {
 			icon("captions.bubble.fill")

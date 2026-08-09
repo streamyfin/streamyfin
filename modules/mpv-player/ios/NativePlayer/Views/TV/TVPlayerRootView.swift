@@ -66,7 +66,7 @@ struct TVPlayerRootView: View {
 			// In the full chrome the pill yields to the row's focusable Skip
 			// button — a non-focusable pill next to focusable glass buttons
 			// reads as a control that focus can never reach.
-			if !viewModel.showEpisodeList {
+			if !viewModel.showEpisodeList, !viewModel.showSubtitleSearch {
 				VStack {
 					Spacer()
 					HStack {
@@ -94,9 +94,15 @@ struct TVPlayerRootView: View {
 				.zIndex(3)
 			}
 
+			if viewModel.showSubtitleSearch {
+				TVSubtitleSearchPanel(viewModel: viewModel)
+					.transition(.opacity)
+					.zIndex(4)
+			}
+
 			if viewModel.showStillWatching {
 				TVStillWatchingCard(viewModel: viewModel)
-					.zIndex(4)
+					.zIndex(5)
 			}
 
 			if let message = viewModel.errorMessage {
@@ -110,6 +116,7 @@ struct TVPlayerRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
 		.animation(.easeInOut(duration: 0.25), value: viewModel.showEpisodeList)
+		.animation(.easeInOut(duration: 0.2), value: viewModel.showSubtitleSearch)
 	}
 
 	/// Subtitles are burned into the video frames by mpv, so the scrims and

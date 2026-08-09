@@ -815,6 +815,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
+	#if os(tvOS)
+	/// Close the TV panel and hand the remote back to the chrome — the panel
+	/// opens with the chrome hidden, so plain dismissal would leave the user
+	/// staring at bare video after an explicit "back out of this" press.
+	func closeSubtitleSearch() {
+		showSubtitleSearch = false
+		showControls()
+	}
+	#endif
+
 	func requestSubtitleSearch(language: String) {
 		// No language switches mid-download — the search answer would clear
 		// the downloading state and re-enable the rows under an in-flight

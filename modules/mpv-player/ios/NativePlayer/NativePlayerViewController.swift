@@ -338,8 +338,10 @@ final class NativePlayerViewController: UIViewController {
 			viewModel.$controlsVisible, viewModel.$isScrubbing,
 			viewModel.$showEpisodeList, viewModel.$showStillWatching
 		)
-		.map { visible, scrubbing, shelf, stillWatching in
-			(visible && !scrubbing) || shelf || stillWatching
+		.combineLatest(viewModel.$showSubtitleSearch)
+		.map { state, subtitleSearch in
+			let (visible, scrubbing, shelf, stillWatching) = state
+			return (visible && !scrubbing) || shelf || stillWatching || subtitleSearch
 		}
 		.removeDuplicates()
 		.receive(on: DispatchQueue.main)
@@ -374,7 +376,9 @@ final class NativePlayerViewController: UIViewController {
 		// window before this recognizer ever sees it): an armed scrub is
 		// abandoned first, visible chrome is hidden next; only a Menu press
 		// from the bare-video state asks to leave playback.
-		if viewModel.showEpisodeList {
+		if viewModel.showSubtitleSearch {
+			viewModel.closeSubtitleSearch()
+		} else if viewModel.showEpisodeList {
 			viewModel.showEpisodeList = false
 		} else if viewModel.countdownRemaining != nil {
 			viewModel.cancelCountdown()
