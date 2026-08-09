@@ -33,7 +33,10 @@ struct TechnicalInfoOverlay: View {
 	}
 
 	private func refresh() {
-		info = viewModel.engine?.getTechnicalInfo() ?? [:]
+		// Completion arrives on the mpv work queue — hop back for @State.
+		viewModel.engine?.getTechnicalInfo { latest in
+			DispatchQueue.main.async { info = latest }
+		}
 	}
 
 	private func line(_ key: String, _ value: String) -> some View {
