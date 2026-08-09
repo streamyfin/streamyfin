@@ -14,8 +14,10 @@ import CoreMedia
 final class NativePlayerViewController: UIViewController {
 	private let engine: MPVPlayerEngine
 	private let viewModel: PlayerViewModel
+	#if os(iOS)
 	/// Starts from the config's lock and changes when the user taps Rotate.
 	private var orientationMask: UIInterfaceOrientationMask
+	#endif
 
 	private let videoContainerView = UIView()
 	#if os(tvOS)
@@ -40,7 +42,9 @@ final class NativePlayerViewController: UIViewController {
 	init(engine: MPVPlayerEngine, viewModel: PlayerViewModel, lockLandscape: Bool) {
 		self.engine = engine
 		self.viewModel = viewModel
+		#if os(iOS)
 		self.orientationMask = lockLandscape ? .landscape : .allButUpsideDown
+		#endif
 		super.init(nibName: nil, bundle: nil)
 	}
 
@@ -101,9 +105,11 @@ final class NativePlayerViewController: UIViewController {
 		super.viewDidLoad()
 		view.backgroundColor = .black
 
+		#if os(iOS)
 		viewModel.onRotateRequested = { [weak self] in
 			self?.rotateInterface()
 		}
+		#endif
 
 		videoContainerView.backgroundColor = .black
 		videoContainerView.clipsToBounds = true
