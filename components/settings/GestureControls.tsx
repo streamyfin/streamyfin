@@ -81,6 +81,22 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         <ListItem
+          title={t("home.settings.gesture_controls.hold_to_speed")}
+          subtitle={t(
+            "home.settings.gesture_controls.hold_to_speed_description",
+          )}
+          disabled={pluginSettings?.enableHoldToSpeed?.locked}
+        >
+          <SettingSwitch
+            value={settings.enableHoldToSpeed}
+            disabled={pluginSettings?.enableHoldToSpeed?.locked}
+            onValueChange={(enableHoldToSpeed) =>
+              updateSettings({ enableHoldToSpeed })
+            }
+          />
+        </ListItem>
+
+        <ListItem
           title={t("home.settings.gesture_controls.hide_volume_slider")}
           subtitle={t(
             "home.settings.gesture_controls.hide_volume_slider_description",

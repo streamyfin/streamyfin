@@ -184,6 +184,8 @@ export type NativePlayerUIOptions = {
   showVolumeSlider?: boolean;
   /** false hides the left-edge brightness slider (settings.hideBrightnessSlider). */
   showBrightnessSlider?: boolean;
+  /** false disables press-and-hold for 2× speed (settings.enableHoldToSpeed). */
+  holdToSpeedEnabled?: boolean;
   strings?: NativePlayerStrings;
 };
 

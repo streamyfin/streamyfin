@@ -462,6 +462,7 @@ export async function buildNativePlayerConfig(params: {
       hapticsEnabled: !settings.disableHapticFeedback,
       showVolumeSlider: !settings.hideVolumeSlider,
       showBrightnessSlider: !settings.hideBrightnessSlider,
+      holdToSpeedEnabled: settings.enableHoldToSpeed,
       strings,
     },
   };

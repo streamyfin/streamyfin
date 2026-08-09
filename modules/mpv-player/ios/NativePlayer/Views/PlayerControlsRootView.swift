@@ -39,6 +39,7 @@ struct PlayerControlsRootView: View {
 				.contentShape(Rectangle())
 				.onTapGesture { viewModel.toggleControls() }
 				.gesture(surfaceDragGesture(size: size))
+				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
 				scrims
@@ -115,6 +116,27 @@ struct PlayerControlsRootView: View {
 				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
 			}
 
+			// Hold-for-2× feedback pill; lives outside controlsVisible so it
+			// shows over clean video too.
+			if viewModel.isHoldSpeedActive {
+				VStack {
+					HStack(spacing: 5) {
+						Text("2×")
+							.font(.footnote.weight(.bold).monospacedDigit())
+						Image(systemName: "forward.fill")
+							.font(.system(size: 11, weight: .semibold))
+					}
+					.foregroundStyle(.white)
+					.padding(.horizontal, 14)
+					.padding(.vertical, 8)
+					.background(.black.opacity(0.55), in: Capsule())
+					Spacer()
+				}
+				.padding(.top, 24)
+				.transition(.opacity)
+				.allowsHitTesting(false)
+			}
+
 			// Lock mode: taps only toggle this transient unlock pill.
 			if viewModel.controlsLocked && viewModel.unlockButtonRevealed {
 				VStack {
@@ -177,12 +199,31 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.brightnessSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
+		.animation(.easeInOut(duration: 0.15), value: viewModel.isHoldSpeedActive)
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}
 	}
 
 	// MARK: - Surface gestures
+
+	/// Press-and-hold anywhere on empty video = 2× until release. The long
+	/// press alone ends the moment its duration elapses, so it sequences into
+	/// a zero-distance drag that keeps the composite alive until the finger
+	/// lifts — onEnded is the release. beginHoldSpeed re-entry-guards itself,
+	/// so the repeated onChanged ticks during the drag phase are harmless.
+	private var holdSpeedGesture: some Gesture {
+		LongPressGesture(minimumDuration: 0.5)
+			.sequenced(before: DragGesture(minimumDistance: 0))
+			.onChanged { value in
+				if case .second = value {
+					viewModel.beginHoldSpeed()
+				}
+			}
+			.onEnded { _ in
+				viewModel.endHoldSpeed()
+			}
+	}
 
 	/// Horizontal drag anywhere = scrub (Apple TV app style, through the same
 	/// beginScrub/updateScrub/endScrub path as the scrubber, so trickplay,

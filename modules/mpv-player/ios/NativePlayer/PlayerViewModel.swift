@@ -58,6 +58,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		set { time.cacheSeconds = newValue }
 	}
 	@Published var speed: Double = 1.0
+	/// Press-and-hold 2× is engaged. Purely transient: the pre-hold speed is
+	/// restored on release and never persisted (no onSpeedChange emit).
+	@Published var isHoldSpeedActive = false
 	@Published var isPipActive = false
 	@Published var errorMessage: String?
 	@Published var isZoomedToFill = false
@@ -123,6 +126,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var hapticsEnabled = true
 	private(set) var showVolumeSlider = true
 	private(set) var showBrightnessSlider = true
+	private(set) var holdToSpeedEnabled = true
 	private(set) var videoWidth: Int?
 	private(set) var videoHeight: Int?
 	private(set) var uiStrings: [String: String] = [:]
@@ -166,6 +170,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Set on every user/remote seek; the next progress tick reports
 	/// didSeek=true so the JS coordinator sends an immediate progress report.
 	private var pendingSeekReport = false
+	/// Speed to restore when the press-and-hold 2× gesture releases.
+	private var speedBeforeHold: Double?
 	/// Item the current config belongs to — gates the countdownCanceled reset.
 	private var currentItemId: String?
 	private var isTearingDown = false
@@ -241,6 +247,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		hapticsEnabled = config.ui.hapticsEnabled
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
+		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
@@ -252,6 +259,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Reset transient state before an in-place stream swap (re-negotiation
 	/// or episode change) — the view controller stays presented.
 	func prepareForReload() {
+		// Drop before the swap: startStream rewrites the engine speed from the
+		// new config, and a release after that must not restore a stale one.
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
 		isBuffering = true
 		isReadyToSeek = false
 		isScrubbing = false
@@ -672,10 +683,39 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func setSpeed(_ newSpeed: Double) {
+		// A deliberate speed choice (menu / remote) wins over a transient hold.
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
 		speed = newSpeed
 		engine?.setSpeed(speed: newSpeed)
 		emit?("onSpeedChange", ["speed": newSpeed])
 		scheduleAutoHide()
+	}
+
+	// MARK: Press-and-hold 2×
+
+	/// YouTube-style hold-for-2×: engages on a long press over empty video
+	/// area, releases back to the pre-hold speed. Deliberately does NOT emit
+	/// onSpeedChange — the transient 2× must never be persisted as the user's
+	/// speed preference.
+	func beginHoldSpeed() {
+		guard holdToSpeedEnabled, !isHoldSpeedActive, isPlaying,
+			!controlsLocked, !showStillWatching, errorMessage == nil
+		else { return }
+		speedBeforeHold = speed
+		isHoldSpeedActive = true
+		haptic()
+		speed = 2.0
+		engine?.setSpeed(speed: 2.0)
+	}
+
+	func endHoldSpeed() {
+		guard isHoldSpeedActive else { return }
+		isHoldSpeedActive = false
+		let restore = speedBeforeHold ?? 1.0
+		speedBeforeHold = nil
+		speed = restore
+		engine?.setSpeed(speed: restore)
 	}
 
 	/// Bitrate change always re-negotiates the stream in JS — no optimistic
@@ -807,6 +847,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func willTeardown() {
 		isTearingDown = true
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
 		autoHideTask?.cancel()
 		cancelCountdownTask()
 		sleepTimerTask?.cancel()

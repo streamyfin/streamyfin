@@ -256,6 +256,8 @@
         "left_side_brightness_description": "Svep upp/nedåt på vänster sida för att justera ljusstyrkan",
         "right_side_volume": "Höger sida Volymkontroll",
         "right_side_volume_description": "Svep upp/nedåt på höger sida för att justera volymen",
+        "hold_to_speed": "Håll för 2× hastighet",
+        "hold_to_speed_description": "Tryck och håll på videon för att spela i 2× hastighet tills du släpper",
         "hide_volume_slider": "Dölj volymreglage",
         "hide_volume_slider_description": "Dölj volymreglaget i videospelaren",
         "hide_brightness_slider": "Dölj ljusstyrkeglage",

@@ -256,6 +256,8 @@
         "left_side_brightness_description": "Swipe up/down on the left side to adjust brightness",
         "right_side_volume": "Right side volume control",
         "right_side_volume_description": "Swipe up/down on the right side to adjust volume",
+        "hold_to_speed": "Hold for 2× speed",
+        "hold_to_speed_description": "Press and hold the video to play at 2× speed until released",
         "hide_volume_slider": "Hide volume slider",
         "hide_volume_slider_description": "Hide the volume slider in the video player",
         "hide_brightness_slider": "Hide brightness slider",
