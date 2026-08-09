@@ -104,6 +104,33 @@ struct EpisodeListItemRecord: Record {
 	@Field var isCurrent: Bool = false
 }
 
+struct SubtitleSearchLanguageRecord: Record {
+	@Field var code: String = ""   // ISO 639-2 three-letter code, e.g. "eng"
+	@Field var name: String = ""   // Display name from JS i18n
+}
+
+/// One remote subtitle hit (display model; search/download logic stays in JS).
+struct SubtitleSearchResultRecord: Record {
+	@Field var id: String = ""
+	@Field var name: String = ""
+	@Field var providerName: String = ""
+	@Field var format: String?
+	@Field var language: String?
+	@Field var communityRating: Double?
+	@Field var downloadCount: Int?
+	@Field var isHashMatch: Bool = false
+	@Field var hearingImpaired: Bool = false
+	@Field var aiTranslated: Bool = false
+}
+
+/// Pushed by JS to drive the subtitle-search sheet through its states.
+struct SubtitleSearchStateRecord: Record {
+	/// "idle" | "searching" | "results" | "error" | "downloading" | "applied"
+	@Field var status: String = "idle"
+	@Field var results: [SubtitleSearchResultRecord] = []
+	@Field var errorMessage: String?
+}
+
 struct SubtitleStyleRecord: Record {
 	@Field var scale: Double?
 	@Field var scaleLocked: Bool = false
@@ -126,6 +153,12 @@ struct UIOptionsRecord: Record {
 	@Field var hapticsEnabled: Bool = true
 	@Field var showVolumeSlider: Bool = true
 	@Field var showBrightnessSlider: Bool = true
+	@Field var holdToSpeedEnabled: Bool = true
+	@Field var pinchToZoomEnabled: Bool = true
+	/// Remote subtitle search (online sessions with an API only).
+	@Field var subtitleSearchEnabled: Bool = false
+	@Field var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
+	@Field var subtitleSearchDefaultLanguage: String = "eng"
 	/// Localized UI labels from JS i18n (keys: skipIntro, skipCredits,
 	/// nextEpisode, playNow, cancel, episodes, speed, audio, subtitles,
 	/// chapters, technicalInfo, playbackError, close, off, quality,

@@ -32,6 +32,7 @@ import {
   getMpvAudioId,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import {
   getEffectiveSubtitleMarginY,
@@ -89,10 +90,14 @@ export const buildNativePlayerStrings = (
   subtitleSync: t("player.subtitle_sync"),
   audioSync: t("player.audio_sync"),
   volumeBoost: t("player.volume_boost"),
+  dialogueBoost: t("player.dialogue_boost"),
   rotate: t("player.rotate"),
   lockControls: t("player.lock_controls"),
   sleepTimer: t("player.sleep_timer"),
   sleepTimerOff: t("player.sleep_timer_off"),
+  searchSubtitles: t("player.search_subtitles"),
+  searchFailed: t("player.search_failed"),
+  noSubtitlesFound: t("player.no_subtitles_found"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),
@@ -227,6 +232,44 @@ export const buildTrickplayDescriptor = (
 };
 
 /**
+ * ISO 639-2/T → /B. Jellyfin's CultureDto.ThreeLetterISOLanguageName carries
+ * .NET-style /T codes ("fra", "deu"), while COMMON_SUBTITLE_LANGUAGES and the
+ * OpenSubtitles 3→2 mapping use /B codes ("fre", "ger") — an unmapped /T code
+ * matches neither the picker nor the fallback search. ron maps to the app
+ * list's existing "rom" entry rather than the standard "rum".
+ */
+const ISO_639_2_T_TO_B: Record<string, string> = {
+  bod: "tib",
+  ces: "cze",
+  cym: "wel",
+  deu: "ger",
+  ell: "gre",
+  eus: "baq",
+  fas: "per",
+  fra: "fre",
+  hye: "arm",
+  isl: "ice",
+  kat: "geo",
+  mkd: "mac",
+  mri: "mao",
+  msa: "may",
+  mya: "bur",
+  nld: "dut",
+  ron: "rom",
+  slk: "slo",
+  sqi: "alb",
+  zho: "chi",
+};
+
+/**
+ * Sentinel jellyfinIndex for a client-side downloaded sidecar subtitle
+ * (OpenSubtitles fallback). It exists only on the mpv handle, not in the
+ * Jellyfin media source — the coordinator maps this index back to the local
+ * file instead of a server stream.
+ */
+export const LOCAL_SUBTITLE_MENU_INDEX = -1000;
+
+/**
  * Menu display models for the native track menus. Selection stays in JS —
  * these only carry labels, Jellyfin indices and the requiresReload flag
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
@@ -240,6 +283,8 @@ export const buildTrackMenus = (options: {
   offLabel: string;
   /** Current max streaming bitrate (undefined = Max). */
   bitrateValue?: number;
+  /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
+  localSubtitle?: { label: string; selected: boolean };
 }): NativePlayerTrackMenus => {
   const isTranscoding = Boolean(options.mediaSource.TranscodingUrl);
   const streams = options.mediaSource.MediaStreams ?? [];
@@ -262,6 +307,13 @@ export const buildTrackMenus = (options: {
         requiresReload: isTranscoding && isImageBasedSubtitle(s),
       })),
   ];
+  if (options.localSubtitle) {
+    subtitleItems.push({
+      label: options.localSubtitle.label,
+      jellyfinIndex: LOCAL_SUBTITLE_MENU_INDEX,
+      selected: options.localSubtitle.selected,
+    });
+  }
 
   // A transcoded stream (and a transcoded download) only carries the audio
   // track that was encoded into it — other tracks require re-negotiation
@@ -477,6 +529,21 @@ export async function buildNativePlayerConfig(params: {
       hapticsEnabled: !settings.disableHapticFeedback,
       showVolumeSlider: !settings.hideVolumeSlider,
       showBrightnessSlider: !settings.hideBrightnessSlider,
+      holdToSpeedEnabled: settings.enableHoldToSpeed,
+      pinchToZoomEnabled: settings.enablePinchToZoom,
+      // Server search needs connectivity; the OpenSubtitles fallback needs
+      // the network either way — offline sessions hide the entry.
+      subtitleSearchEnabled: !offline && !!api,
+      subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
+        code: l.code,
+        name: l.name,
+      })),
+      subtitleSearchDefaultLanguage: (() => {
+        const raw =
+          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
+        if (!raw) return "eng";
+        return ISO_639_2_T_TO_B[raw] ?? raw;
+      })(),
       strings,
     },
   };

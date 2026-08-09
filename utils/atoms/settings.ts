@@ -345,6 +345,8 @@ export type Settings = {
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
+  enableHoldToSpeed: boolean;
+  enablePinchToZoom: boolean;
   hideVolumeSlider: boolean;
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
@@ -459,6 +461,8 @@ export const defaultValues: Settings = {
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  enableHoldToSpeed: true,
+  enablePinchToZoom: true,
   hideVolumeSlider: false,
   hideBrightnessSlider: false,
   usePopularPlugin: true,

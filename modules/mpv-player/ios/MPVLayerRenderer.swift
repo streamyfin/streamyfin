@@ -996,6 +996,23 @@ final class MPVLayerRenderer {
         setProperty(name: "volume-max", value: "200")
         setProperty(name: "volume", value: String(percent))
     }
+
+    /// Speech-clarity EQ ("dialogue boost"): cut the low rumble where scores
+    /// and explosions live, lift the 2-3kHz presence band where consonants
+    /// live. EQ rather than a compressor because MPVKit's trimmed FFmpeg
+    /// build ships no dynaudnorm/loudnorm/acompressor — `equalizer` (lavfi)
+    /// is available. Gains are modest and net-neutral-ish so the float path
+    /// cannot clip.
+    func setDialogueBoost(_ enabled: Bool) {
+        if enabled {
+            setProperty(
+                name: "af",
+                value: "lavfi=[equalizer=f=100:t=q:w=1.2:g=-6,equalizer=f=2800:t=q:w=1.2:g=5]"
+            )
+        } else {
+            setProperty(name: "af", value: "")
+        }
+    }
     
     func setSubtitleMarginY(_ margin: Int) {
         setProperty(name: "sub-margin-y", value: String(margin))

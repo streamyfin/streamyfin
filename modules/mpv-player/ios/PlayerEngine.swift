@@ -407,6 +407,11 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.setVolumeBoost(percent)
 	}
 
+	/// Speech-clarity EQ toggle (bass cut + presence boost via mpv af/lavfi).
+	func setDialogueBoost(_ enabled: Bool) {
+		renderer?.setDialogueBoost(enabled)
+	}
+
 	func setSubtitleMarginY(_ margin: Int) {
 		renderer?.setSubtitleMarginY(margin)
 	}
