@@ -147,8 +147,15 @@ final class NativePlayerViewController: UIViewController {
 		viewModel.$controlsVisible
 			.removeDuplicates()
 			.receive(on: DispatchQueue.main)
-			.sink { [weak self] _ in
+			.sink { [weak self] visible in
 				guard let self else { return }
+				// Deprecated, and knowingly so: RN's required
+				// UIViewControllerBasedStatusBarAppearance=false disables
+				// prefersStatusBarHidden app-wide, so the app-level setter is
+				// the only working control — the same call RN's own StatusBar
+				// module makes. (iPhone landscape masks the whole issue: no
+				// status bar there ever.)
+				UIApplication.shared.setStatusBarHidden(!visible, with: .fade)
 				UIView.animate(withDuration: 0.2) {
 					self.setNeedsStatusBarAppearanceUpdate()
 					self.setNeedsUpdateOfHomeIndicatorAutoHidden()
@@ -244,12 +251,20 @@ final class NativePlayerViewController: UIViewController {
 		super.viewDidAppear(animated)
 		isViewVisible = true
 		UIApplication.shared.isIdleTimerDisabled = viewModel.isPlaying
+		#if os(iOS)
+		UIApplication.shared.setStatusBarHidden(!viewModel.controlsVisible, with: .none)
+		#endif
 	}
 
 	override func viewWillDisappear(_ animated: Bool) {
 		super.viewWillDisappear(animated)
 		isViewVisible = false
 		UIApplication.shared.isIdleTimerDisabled = false
+		#if os(iOS)
+		// Hand the bar back visible — the app-level state persists past this
+		// VC, and the RN screens underneath expect the bar shown.
+		UIApplication.shared.setStatusBarHidden(false, with: .fade)
+		#endif
 		#if os(tvOS)
 		resetDisplayCriteria()
 		#endif

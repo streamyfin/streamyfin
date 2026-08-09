@@ -4,6 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
+import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
 import { Platform } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
@@ -16,7 +17,8 @@ import type {
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
 // The TV-safe wrapper, NOT expo-screen-orientation directly: the native
-// module is absent from TV binaries and a top-level import crashes on launch.
+// module is absent from TV binaries and a top-level value import crashes on
+// launch (the type-only import above is erased at build time).
 import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
@@ -120,7 +122,7 @@ const resolveStartTicks = (
 };
 
 const mapOrientationLock = (
-  lock: (typeof OrientationLock)[keyof typeof OrientationLock] | undefined,
+  lock: OrientationLockType | undefined,
 ): "landscape" | "none" => {
   switch (lock) {
     case OrientationLock.PORTRAIT:
