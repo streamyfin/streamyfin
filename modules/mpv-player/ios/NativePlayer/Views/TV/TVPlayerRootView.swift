@@ -6,6 +6,7 @@ import SwiftUI
 /// is focusable — all transport input arrives through the hosting view
 /// controller's press recognizers, so Menu reliably reaches the VC. SwiftUI
 /// focus enters only with the panels/shelves of later phases.
+@available(tvOS 26.0, *)
 struct TVPlayerRootView: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	/// Focus memory for the button row — lives here because the row unmounts
@@ -23,14 +24,10 @@ struct TVPlayerRootView: View {
 					Spacer()
 					VStack(alignment: .leading, spacing: 30) {
 						if viewModel.controlsVisible, !viewModel.isScrubbing {
-							// The button row is tvOS 26+ (native glass Menus);
-							// older boxes keep the recognizer-driven transport.
-							if #available(tvOS 26.0, *) {
-								TVControlsRow(
-									viewModel: viewModel,
-									lastFocused: $lastFocusedControl
-								)
-							}
+							TVControlsRow(
+								viewModel: viewModel,
+								lastFocused: $lastFocusedControl
+							)
 						}
 						TVTransportBar(viewModel: viewModel, time: viewModel.time)
 					}
@@ -151,6 +148,7 @@ struct TVPlayerRootView: View {
 
 /// Title + subtitle ("Series · S2E5" or production year), top-left like the
 /// system player.
+@available(tvOS 26.0, *)
 private struct TVMetadataHeader: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
@@ -180,6 +178,7 @@ private struct TVMetadataHeader: View {
 /// is armed, the playhead follows the scrub target and a trickplay bubble
 /// rides above it. Observes PlaybackTimeModel directly — PlayerViewModel
 /// deliberately does not publish the ~30Hz clock (see PlaybackTimeModel).
+@available(tvOS 26.0, *)
 private struct TVTransportBar: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	@ObservedObject var time: PlaybackTimeModel

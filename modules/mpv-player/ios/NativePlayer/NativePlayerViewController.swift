@@ -21,7 +21,7 @@ final class NativePlayerViewController: UIViewController {
 
 	private let videoContainerView = UIView()
 	#if os(tvOS)
-	private var hostingController: UIHostingController<TVPlayerRootView>?
+	private var hostingController: UIHostingController<AnyView>?
 	#else
 	private var hostingController: UIHostingController<PlayerControlsRootView>?
 	#endif
@@ -119,7 +119,16 @@ final class NativePlayerViewController: UIViewController {
 		videoContainerView.layer.addSublayer(engine.displayLayer)
 
 		#if os(tvOS)
-		let hosting = UIHostingController(rootView: TVPlayerRootView(viewModel: viewModel))
+		// The TV chrome is tvOS 26+ by design (native glass menus etc.) —
+		// the JS chooser never routes older boxes here, so pre-26 gets a
+		// bare spinner-less surface as a defensive fallback only.
+		let tvRoot: AnyView
+		if #available(tvOS 26.0, *) {
+			tvRoot = AnyView(TVPlayerRootView(viewModel: viewModel))
+		} else {
+			tvRoot = AnyView(EmptyView())
+		}
+		let hosting = UIHostingController(rootView: tvRoot)
 		#else
 		let hosting = UIHostingController(rootView: PlayerControlsRootView(viewModel: viewModel))
 		#endif

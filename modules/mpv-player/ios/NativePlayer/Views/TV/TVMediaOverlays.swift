@@ -4,6 +4,7 @@ import SwiftUI
 /// Skip intro/credits pill — non-focusable on purpose: with the chrome
 /// hidden, Select or Play/Pause triggers the skip via the VC recognizers
 /// (TV users expect a button press, not focus-hunting).
+@available(tvOS 26.0, *)
 struct TVSkipPill: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let segment: MediaSegmentRecord
@@ -25,6 +26,7 @@ struct TVSkipPill: View {
 
 /// Next-episode countdown card. Select / Play-Pause = play now (VC
 /// recognizers), Menu = cancel. Mirrors NextEpisodeCountdownView content.
+@available(tvOS 26.0, *)
 struct TVCountdownCard: View {
 	@ObservedObject var viewModel: PlayerViewModel
 	let next: NextEpisodeRecord
@@ -66,6 +68,7 @@ struct TVCountdownCard: View {
 
 /// "Are you still watching?" — focusable card (the VC hands the remote to
 /// SwiftUI focus while it is up). Same actions as the iOS overlay.
+@available(tvOS 26.0, *)
 struct TVStillWatchingCard: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
@@ -88,8 +91,25 @@ struct TVStillWatchingCard: View {
 	}
 }
 
+/// Focus style for shelf cards: no platter, just scale + shadow on the
+/// whole label (image and text together). Every built-in tvOS style draws
+/// its own focus decor (.card/.plain add a platter around the label,
+/// .borderless lifts only the image), so the bare look needs this.
+@available(tvOS 26.0, *)
+private struct TVShelfCardButtonStyle: ButtonStyle {
+	@Environment(\.isFocused) private var isFocused
+
+	func makeBody(configuration: Configuration) -> some View {
+		configuration.label
+			.scaleEffect(isFocused ? 1.1 : 1.0)
+			.shadow(color: .black.opacity(isFocused ? 0.5 : 0), radius: 18, y: 10)
+			.animation(.easeOut(duration: 0.15), value: isFocused)
+	}
+}
+
 /// Horizontal episode shelf (bottom third). Focusable cards; Select fires
 /// the existing onEpisodeSelected intent via viewModel.selectEpisode.
+@available(tvOS 26.0, *)
 struct TVEpisodeShelf: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
@@ -116,7 +136,9 @@ struct TVEpisodeShelf: View {
 				colors: [Color.black.opacity(0), Color.black.opacity(0.9)],
 				startPoint: .top, endPoint: .bottom
 			)
-			.ignoresSafeArea(edges: .bottom)
+			// Bleed past the tvOS overscan insets on every touched edge —
+			// .bottom alone leaves ~90pt gaps at the left/right screen edges.
+			.ignoresSafeArea()
 		)
 		.onExitCommand { viewModel.showEpisodeList = false }
 	}
@@ -167,7 +189,7 @@ struct TVEpisodeShelf: View {
 				.frame(maxWidth: 300, alignment: .leading)
 			}
 		}
-		.buttonStyle(.card)
+		.buttonStyle(TVShelfCardButtonStyle())
 	}
 }
 #endif

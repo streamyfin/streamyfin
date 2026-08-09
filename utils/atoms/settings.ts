@@ -200,10 +200,14 @@ export const isNativePlayerSupported =
 /**
  * Whether the fully-native player can run on the current platform as the
  * Apple TV variant. Unlike iPhone/iPad (default-on), tvOS is opt-in via the
- * `nativeVideoPlayerTV` setting while the TV UI is being built out.
+ * `nativeVideoPlayerTV` setting while the TV UI is being built out, and it
+ * requires tvOS 26+ — the chrome is built on native glass Menus and other
+ * 26-era APIs, so older boxes keep the JS player unconditionally.
  */
 export const isNativePlayerSupportedTV =
-  Platform.OS === "ios" && Platform.isTV === true;
+  Platform.OS === "ios" &&
+  Platform.isTV === true &&
+  Number.parseInt(String(Platform.Version), 10) >= 26;
 
 /**
  * Resolve the actually-active video player for the current settings.
