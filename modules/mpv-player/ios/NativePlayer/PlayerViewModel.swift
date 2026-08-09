@@ -72,6 +72,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var subtitleDelay: Double = 0
 	@Published var audioDelay: Double = 0
 	@Published var volumeBoostPercent = 100
+	/// Speech-clarity EQ (bass cut + presence lift). Session-scoped like the
+	/// sync offsets: reset when the item changes, re-applied on stream swaps.
+	@Published var dialogueBoostEnabled = false
 
 	// MARK: - UI state
 
@@ -225,6 +228,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			subtitleDelay = 0
 			audioDelay = 0
 			volumeBoostPercent = 100
+			dialogueBoostEnabled = false
 		}
 		currentItemId = newItemId
 		metadata = config.metadata
@@ -475,6 +479,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func setVolumeBoost(_ percent: Int) {
 		volumeBoostPercent = percent
 		engine?.setVolumeBoost(percent)
+		scheduleAutoHide()
+	}
+
+	func toggleDialogueBoost() {
+		haptic()
+		dialogueBoostEnabled.toggle()
+		engine?.setDialogueBoost(dialogueBoostEnabled)
 		scheduleAutoHide()
 	}
 

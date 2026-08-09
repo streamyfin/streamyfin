@@ -703,6 +703,7 @@
     "subtitle_sync": "Subtitle sync",
     "audio_sync": "Audio sync",
     "volume_boost": "Volume boost",
+    "dialogue_boost": "Dialogue boost",
     "rotate": "Rotate",
     "lock_controls": "Lock controls",
     "unlock": "Unlock",

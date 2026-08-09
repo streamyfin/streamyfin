@@ -85,6 +85,7 @@ export const buildNativePlayerStrings = (
   subtitleSync: t("player.subtitle_sync"),
   audioSync: t("player.audio_sync"),
   volumeBoost: t("player.volume_boost"),
+  dialogueBoost: t("player.dialogue_boost"),
   rotate: t("player.rotate"),
   lockControls: t("player.lock_controls"),
   sleepTimer: t("player.sleep_timer"),

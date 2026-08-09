@@ -153,6 +153,7 @@ final class NativePlayerSession {
 		engine.setSubtitleDelay(viewModel.subtitleDelay)
 		engine.setAudioDelay(viewModel.audioDelay)
 		engine.setVolumeBoost(viewModel.volumeBoostPercent)
+		engine.setDialogueBoost(viewModel.dialogueBoostEnabled)
 		if let style = config.subtitleStyle {
 			applySubtitleStyle(style)
 		}

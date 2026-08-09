@@ -158,6 +158,7 @@ export type NativePlayerStrings = Partial<
     | "subtitleSync"
     | "audioSync"
     | "volumeBoost"
+    | "dialogueBoost"
     | "rotate"
     | "lockControls"
     | "unlock"

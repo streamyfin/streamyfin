@@ -253,6 +253,15 @@ struct PlayerTopBar: View {
 			} label: {
 				Label(viewModel.str("volumeBoost", "Volume boost"), systemImage: "speaker.wave.3")
 			}
+			Button {
+				viewModel.toggleDialogueBoost()
+			} label: {
+				if viewModel.dialogueBoostEnabled {
+					Label(viewModel.str("dialogueBoost", "Dialogue boost"), systemImage: "checkmark")
+				} else {
+					Label(viewModel.str("dialogueBoost", "Dialogue boost"), systemImage: "speaker.wave.2")
+				}
+			}
 			sleepTimerMenu
 			Button {
 				viewModel.requestRotate()
