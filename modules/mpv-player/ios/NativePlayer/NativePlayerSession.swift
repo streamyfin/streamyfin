@@ -66,13 +66,67 @@ final class NativePlayerSession {
 		vc.modalPresentationCapturesStatusBarAppearance = true
 		viewController = vc
 
-		// Kick the stream load off immediately so it races the presentation
-		// fade instead of waiting for it.
+		// Kick the stream load off immediately so it races the rotation wait
+		// and the presentation fade instead of waiting for them.
 		startStream(config: config)
 
-		presenter.present(vc, animated: true) {
-			promise.resolve()
+		presentAfterRotation(
+			vc,
+			from: presenter,
+			waitingForLandscape: config.ui.orientationLock == "landscape",
+			promise: promise
+		)
+	}
+
+	/// The JS coordinator locks the window to landscape (expo-screen-orientation)
+	/// right before calling present, which starts rotating the whole app.
+	/// Presenting while that rotation is in flight makes UIKit run a second
+	/// rotation pass for the incoming landscape-only VC (a visible double
+	/// rotate) and can leave the overlay laid out with portrait safe-area
+	/// insets (top bar sitting too low). Wait until the scene reports
+	/// landscape, then one extra beat for the rotation animation to finish,
+	/// and present into a settled window.
+	private func presentAfterRotation(
+		_ vc: NativePlayerViewController,
+		from presenter: UIViewController,
+		waitingForLandscape: Bool,
+		promise: Promise
+	) {
+		let scene = presenter.view.window?.windowScene
+		guard waitingForLandscape, let scene, !scene.interfaceOrientation.isLandscape else {
+			presenter.present(vc, animated: true) {
+				promise.resolve()
+			}
+			return
 		}
+
+		// ~1.5s at 30Hz before giving up and presenting anyway (the VC's own
+		// landscape mask then rotates as part of the presentation, as before).
+		var attemptsLeft = 45
+		func poll() {
+			if scene.interfaceOrientation.isLandscape || attemptsLeft <= 0 {
+				// interfaceOrientation flips at the START of the rotation
+				// animation — the beat lets the animation land first.
+				DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+					// The session can die during the wait (load error, app
+					// reload) — presenting then would put a zombie player over
+					// a shut-down engine.
+					guard let self, !self.isDismissing, self.viewController === vc else {
+						promise.resolve()
+						return
+					}
+					presenter.present(vc, animated: true) {
+						promise.resolve()
+					}
+				}
+			} else {
+				attemptsLeft -= 1
+				DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 / 30.0) {
+					poll()
+				}
+			}
+		}
+		poll()
 	}
 
 	/// In-place stream swap while presented: track/bitrate re-negotiation and
