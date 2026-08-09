@@ -4,7 +4,7 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { OrientationLock } from "expo-screen-orientation";
+import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
 import { BITRATES } from "@/components/BitrateSelector";
 import type {
@@ -15,6 +15,7 @@ import type {
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
+import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
 import { getActivePlayerType } from "@/utils/atoms/settings";
@@ -111,7 +112,7 @@ const resolveStartTicks = (
 };
 
 const mapOrientationLock = (
-  lock: OrientationLock | undefined,
+  lock: OrientationLockType | undefined,
 ): "landscape" | "none" => {
   switch (lock) {
     case OrientationLock.PORTRAIT:
