@@ -91,6 +91,8 @@ interface Props {
     import("@jellyfin/sdk/lib/generated-client").MediaStream[]
   >;
   addSubtitleFile?: (path: string) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
   getTechnicalInfo?: () => Promise<TechnicalInfo>;
@@ -217,6 +219,8 @@ export const Controls: FC<Props> = ({
   goToNextItem: goToNextItemProp,
   onRefreshSubtitleTracks,
   addSubtitleFile,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   showTechnicalInfo,
   onToggleTechnicalInfo,
   getTechnicalInfo,
@@ -639,6 +643,8 @@ export const Controls: FC<Props> = ({
       mediaSourceId: mediaSource?.Id,
       subtitleTracks: tracksWithoutDisable,
       currentSubtitleIndex: subtitleIndex ?? -1,
+      subtitleDelay,
+      onSubtitleDelayChange,
       // In-player selection can navigate (replacePlayer for burn-in switches);
       // apply it after the modal route is dismissed so it isn't swallowed.
       deferApplyUntilDismissed: true,
@@ -662,6 +668,8 @@ export const Controls: FC<Props> = ({
     mediaSource?.Id,
     videoContextSubtitleTracks,
     subtitleIndex,
+    subtitleDelay,
+    onSubtitleDelayChange,
     onSubtitleIndexChange,
     handleLocalSubtitleDownloaded,
     onRefreshSubtitleTracks,

@@ -706,6 +706,10 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun setSubtitleScale(scale: Double) {
         mpv?.setPropertyDouble("sub-scale", scale)
     }
+
+    fun setSubtitleDelay(seconds: Double) {
+        mpv?.setPropertyDouble("sub-delay", seconds)
+    }
     
     fun setSubtitleMarginY(margin: Int) {
         mpv?.setPropertyInt("sub-margin-y", margin)

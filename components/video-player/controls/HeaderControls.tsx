@@ -34,6 +34,8 @@ interface HeaderControlsProps {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   // Technical info props
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
@@ -55,6 +57,8 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   onZoomToggle,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
 }) => {
@@ -114,6 +118,8 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
             <DropdownView
               playbackSpeed={playbackSpeed}
               setPlaybackSpeed={setPlaybackSpeed}
+              subtitleDelay={subtitleDelay}
+              onSubtitleDelayChange={onSubtitleDelayChange}
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
             />

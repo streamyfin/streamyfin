@@ -129,6 +129,7 @@ export default function DirectPlayerPage() {
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
+  const [subtitleDelay, setSubtitleDelay] = useState(0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
   // TV audio/subtitle selection state (tracks current selection for dynamic changes)
@@ -263,6 +264,8 @@ export default function DirectPlayerPage() {
     setCurrentSubtitleIndex(subtitleIndex);
   }, [subtitleIndex]);
 
+  useEffect(() => setSubtitleDelay(0), [itemId]);
+
   // Get the playback speed for this item based on settings
   const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
     item,
@@ -287,6 +290,11 @@ export default function DirectPlayerPage() {
     },
     [item, settings, updateSettings],
   );
+
+  const subtitleDelaySupported = getActivePlayerType(settings) === "mpv";
+  const handleSubtitleDelayChange = useCallback((seconds: number) => {
+    setSubtitleDelay(Math.round(seconds * 100) / 100);
+  }, []);
 
   /** Gets the initial playback position from the URL. */
   // const getInitialPlaybackTicks = useCallback((): number => {
@@ -1567,6 +1575,11 @@ export default function DirectPlayerPage() {
     applyInitialPlaybackSpeed();
   }, [isVideoLoaded, initialPlaybackSpeed]);
 
+  useEffect(() => {
+    if (!isVideoLoaded || !subtitleDelaySupported) return;
+    void videoRef.current?.setSubtitleDelay?.(subtitleDelay);
+  }, [isVideoLoaded, subtitleDelay, subtitleDelaySupported]);
+
   // TV only: Pre-load locally downloaded subtitles when video loads
   // This adds them to MPV's track list without auto-selecting them
   useEffect(() => {
@@ -1724,6 +1737,12 @@ export default function DirectPlayerPage() {
                   playMethod={playMethod}
                   transcodeReasons={transcodeReasons}
                   downloadedFiles={downloadedFiles}
+                  subtitleDelay={subtitleDelay}
+                  onSubtitleDelayChange={
+                    subtitleDelaySupported
+                      ? handleSubtitleDelayChange
+                      : undefined
+                  }
                 />
               ) : (
                 <Controls
@@ -1749,6 +1768,12 @@ export default function DirectPlayerPage() {
                   downloadedFiles={downloadedFiles}
                   playbackSpeed={currentPlaybackSpeed}
                   setPlaybackSpeed={handleSetPlaybackSpeed}
+                  subtitleDelay={subtitleDelay}
+                  onSubtitleDelayChange={
+                    subtitleDelaySupported
+                      ? handleSubtitleDelayChange
+                      : undefined
+                  }
                   showTechnicalInfo={showTechnicalInfo}
                   onToggleTechnicalInfo={handleToggleTechnicalInfo}
                   getTechnicalInfo={getTechnicalInfo}

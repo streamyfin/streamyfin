@@ -127,6 +127,8 @@ export interface MpvPlayerViewRef {
   // Subtitle positioning
   setSubtitlePosition: (position: number) => Promise<void>;
   setSubtitleScale: (scale: number) => Promise<void>;
+  /** MPV-only subtitle timing offset in seconds; positive delays subtitles. */
+  setSubtitleDelay?: (seconds: number) => Promise<void>;
   setSubtitleMarginY: (margin: number) => Promise<void>;
   setSubtitleAlignX: (alignment: "left" | "center" | "right") => Promise<void>;
   setSubtitleAlignY: (alignment: "top" | "center" | "bottom") => Promise<void>;

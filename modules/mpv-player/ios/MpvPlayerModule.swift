@@ -193,6 +193,10 @@ public class MpvPlayerModule: Module {
       AsyncFunction("setSubtitleScale") { (view: MpvPlayerView, scale: Double) in
         view.setSubtitleScale(scale)
       }
+
+      AsyncFunction("setSubtitleDelay") { (view: MpvPlayerView, seconds: Double) in
+        view.setSubtitleDelay(seconds)
+      }
       
       AsyncFunction("setSubtitleMarginY") { (view: MpvPlayerView, margin: Int) in
         view.setSubtitleMarginY(margin)

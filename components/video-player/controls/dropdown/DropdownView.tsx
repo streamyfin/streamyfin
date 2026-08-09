@@ -24,6 +24,8 @@ import { usePlayerContext } from "../contexts/PlayerContext";
 import { useVideoContext } from "../contexts/VideoContext";
 import { PlaybackSpeedScope } from "../utils/playback-speed-settings";
 
+const SUBTITLE_SYNC_OFFSETS = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5];
+
 const SubtitleScaleControl = () => {
   const { t } = useTranslation();
   const { settings, updateSettings, pluginSettings } = useSettings();
@@ -56,6 +58,8 @@ const SubtitleScaleControl = () => {
 interface DropdownViewProps {
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  subtitleDelay?: number;
+  onSubtitleDelayChange?: (seconds: number) => void;
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
 }
@@ -63,6 +67,8 @@ interface DropdownViewProps {
 const DropdownView = ({
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  subtitleDelay = 0,
+  onSubtitleDelayChange,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
 }: DropdownViewProps) => {
@@ -197,6 +203,19 @@ const DropdownView = ({
       ],
     });
 
+    if (onSubtitleDelayChange) {
+      groups.push({
+        title: t("player.subtitle_sync"),
+        options: SUBTITLE_SYNC_OFFSETS.map((seconds) => ({
+          type: "radio" as const,
+          label: `${seconds > 0 ? "+" : ""}${seconds} s`,
+          value: seconds.toString(),
+          selected: subtitleDelay === seconds,
+          onPress: () => onSubtitleDelayChange(seconds),
+        })),
+      });
+    }
+
     // Audio Section
     if (audioTracks && audioTracks.length > 0) {
       groups.push({
@@ -256,6 +275,8 @@ const DropdownView = ({
     openSubtitleScale,
     playbackSpeed,
     setPlaybackSpeed,
+    subtitleDelay,
+    onSubtitleDelayChange,
     showTechnicalInfo,
     onToggleTechnicalInfo,
     // Note: subtitleTracks and audioTracks are intentionally excluded

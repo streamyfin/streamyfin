@@ -441,6 +441,10 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         renderer?.setSubtitleScale(scale)
     }
 
+    fun setSubtitleDelay(seconds: Double) {
+        renderer?.setSubtitleDelay(seconds)
+    }
+
     fun setSubtitleMarginY(margin: Int) {
         renderer?.setSubtitleMarginY(margin)
     }

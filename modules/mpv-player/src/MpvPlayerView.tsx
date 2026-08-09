@@ -89,6 +89,9 @@ export default React.forwardRef<MpvPlayerViewRef, MpvPlayerViewProps>(
       setSubtitleScale: async (scale: number) => {
         await nativeRef.current?.setSubtitleScale(scale);
       },
+      setSubtitleDelay: async (seconds: number) => {
+        await nativeRef.current?.setSubtitleDelay(seconds);
+      },
       setSubtitleMarginY: async (margin: number) => {
         await nativeRef.current?.setSubtitleMarginY(margin);
       },

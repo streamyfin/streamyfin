@@ -250,6 +250,10 @@ class MpvPlayerView: ExpoView {
 		engine.setSubtitleScale(scale)
 	}
 
+	func setSubtitleDelay(_ seconds: Double) {
+		engine.setSubtitleDelay(seconds)
+	}
+
 	func setSubtitleMarginY(_ margin: Int) {
 		engine.setSubtitleMarginY(margin)
 	}
