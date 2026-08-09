@@ -363,6 +363,7 @@ export type Settings = {
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   enableHoldToSpeed: boolean;
+  holdToSpeedRate: number;
   enablePinchToZoom: boolean;
   enableDoubleTapToSeek: boolean;
   hideVolumeSlider: boolean;
@@ -483,6 +484,7 @@ export const defaultValues: Settings = {
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   enableHoldToSpeed: true,
+  holdToSpeedRate: 2.0,
   enablePinchToZoom: true,
   enableDoubleTapToSeek: false,
   hideVolumeSlider: false,

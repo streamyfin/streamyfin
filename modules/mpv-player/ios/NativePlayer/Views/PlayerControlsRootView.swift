@@ -121,12 +121,12 @@ struct PlayerControlsRootView: View {
 				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
 			}
 
-			// Hold-for-2× feedback pill; lives outside controlsVisible so it
+			// Hold-to-speed feedback pill; lives outside controlsVisible so it
 			// shows over clean video too.
 			if viewModel.isHoldSpeedActive {
 				VStack {
 					HStack(spacing: 5) {
-						Text("2×")
+						Text(viewModel.holdSpeedLabel)
 							.font(.footnote.weight(.bold).monospacedDigit())
 						Image(systemName: "forward.fill")
 							.font(.system(size: 11, weight: .semibold))

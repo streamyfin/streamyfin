@@ -159,6 +159,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var showVolumeSlider = true
 	private(set) var showBrightnessSlider = true
 	private(set) var holdToSpeedEnabled = true
+	private(set) var holdToSpeedRate: Double = 2.0
 	private(set) var pinchToZoomEnabled = true
 	private(set) var doubleTapToSeekEnabled = false
 	private(set) var subtitleSearchEnabled = false
@@ -329,6 +330,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
 		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
+		holdToSpeedRate = config.ui.holdToSpeedRate
 		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
 		doubleTapToSeekEnabled = config.ui.doubleTapToSeekEnabled
 		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
@@ -962,19 +964,28 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	// MARK: Press-and-hold 2×
 
-	/// YouTube-style hold-for-2×: engages on a long press over empty video
+	/// The held rate as it appears in the feedback pill, trimming a trailing
+	/// zero so 2.0 reads "2×" and 1.5 reads "1.5×".
+	var holdSpeedLabel: String {
+		let trimmed = holdToSpeedRate.truncatingRemainder(dividingBy: 1) == 0
+			? String(Int(holdToSpeedRate))
+			: String(holdToSpeedRate)
+		return "\(trimmed)×"
+	}
+
+	/// YouTube-style hold-to-speed: engages on a long press over empty video
 	/// area, releases back to the pre-hold speed. Deliberately does NOT emit
-	/// onSpeedChange — the transient 2× must never be persisted as the user's
-	/// speed preference.
+	/// onSpeedChange — the transient rate must never be persisted as the
+	/// user's speed preference.
 	func beginHoldSpeed() {
-		guard holdToSpeedEnabled, !isHoldSpeedActive, isPlaying,
-			!controlsLocked, !showStillWatching, errorMessage == nil
+		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
+			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
 		else { return }
 		speedBeforeHold = speed
 		isHoldSpeedActive = true
 		haptic()
-		speed = 2.0
-		engine?.setSpeed(speed: 2.0)
+		speed = holdToSpeedRate
+		engine?.setSpeed(speed: holdToSpeedRate)
 	}
 
 	func endHoldSpeed() {

@@ -224,6 +224,7 @@ export type NativePlayerUIOptions = {
   showBrightnessSlider?: boolean;
   /** false disables press-and-hold for 2× speed (settings.enableHoldToSpeed). */
   holdToSpeedEnabled?: boolean;
+  holdToSpeedRate?: number;
   /** false disables pinch to zoom-to-fill (settings.enablePinchToZoom). */
   pinchToZoomEnabled?: boolean;
   /** true enables double tap on the video halves to seek (settings.enableDoubleTapToSeek). */

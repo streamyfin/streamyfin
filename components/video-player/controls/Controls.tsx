@@ -70,6 +70,8 @@ interface Props {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  onHoldSpeedStart?: () => void;
+  onHoldSpeedEnd?: () => void;
   // Technical info props
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
@@ -77,6 +79,18 @@ interface Props {
   playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
   transcodeReasons?: string[];
 }
+
+const CONTROLS_ANIMATION_CONFIG = {
+  duration: 300,
+  easing: Easing.out(Easing.quad),
+};
+
+// Shares its duration with the scrim dim in GestureOverlay so both halves
+// of the speed boost dim together
+const HOLD_SPEED_DIM_CONFIG = {
+  duration: CONTROLS_CONSTANTS.HOLD_SPEED_DIM_DURATION,
+  easing: Easing.out(Easing.quad),
+};
 
 export const Controls: FC<Props> = ({
   item,
@@ -100,6 +114,8 @@ export const Controls: FC<Props> = ({
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  onHoldSpeedStart,
+  onHoldSpeedEnd,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
   getTechnicalInfo,
@@ -143,18 +159,51 @@ export const Controls: FC<Props> = ({
 
   // Animate controls visibility
   useEffect(() => {
-    const animationConfig = {
-      duration: 300,
-      easing: Easing.out(Easing.quad),
-    };
-
-    controlsOpacity.value = withTiming(showControls ? 1 : 0, animationConfig);
+    controlsOpacity.value = withTiming(
+      showControls ? 1 : 0,
+      CONTROLS_ANIMATION_CONFIG,
+    );
     headerTranslateY.value = withTiming(
       showControls ? 0 : -10,
-      animationConfig,
+      CONTROLS_ANIMATION_CONFIG,
     );
-    bottomTranslateY.value = withTiming(showControls ? 0 : 10, animationConfig);
+    bottomTranslateY.value = withTiming(
+      showControls ? 0 : 10,
+      CONTROLS_ANIMATION_CONFIG,
+    );
   }, [showControls, controlsOpacity, headerTranslateY, bottomTranslateY]);
+
+  // Dim the controls while a speed boost is held so the video stays readable
+  const handleHoldSpeedStart = useCallback(() => {
+    if (showControls) {
+      controlsOpacity.value = withTiming(
+        CONTROLS_CONSTANTS.HOLD_SPEED_DIM_OPACITY,
+        HOLD_SPEED_DIM_CONFIG,
+      );
+    }
+    onHoldSpeedStart?.();
+  }, [showControls, controlsOpacity, onHoldSpeedStart]);
+
+  const handleHoldSpeedEnd = useCallback(() => {
+    if (showControls) {
+      controlsOpacity.value = withTiming(1, HOLD_SPEED_DIM_CONFIG);
+    }
+    onHoldSpeedEnd?.();
+  }, [showControls, controlsOpacity, onHoldSpeedEnd]);
+
+  // Top edge of the rendered video, so overlays sit inside the frame
+  // instead of in the letterbox bars
+  const videoTopOffset = useMemo(() => {
+    if (isZoomedToFill) return 0;
+    const videoStream = mediaSource?.MediaStreams?.find(
+      (s) => s.Type === "Video",
+    );
+    if (!videoStream?.Width || !videoStream?.Height) return 0;
+    const videoAspect = videoStream.Width / videoStream.Height;
+    const screenAspect = screenWidth / screenHeight;
+    if (screenAspect >= videoAspect) return 0;
+    return (screenHeight - screenWidth / videoAspect) / 2;
+  }, [isZoomedToFill, mediaSource, screenWidth, screenHeight]);
 
   // Create animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -543,6 +592,10 @@ export const Controls: FC<Props> = ({
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
+            onHoldSpeedStart={handleHoldSpeedStart}
+            onHoldSpeedEnd={handleHoldSpeedEnd}
+            isPlaying={isPlaying}
+            videoTopOffset={videoTopOffset}
           />
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
