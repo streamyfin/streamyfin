@@ -37,6 +37,9 @@ struct TVControlsRow: View {
 	@State private var revealed = false
 	@State private var pendingTarget: TVControl?
 
+	/// Mirror of the iOS speed menu entries (PlayerTopBar.speedMenuEntries).
+	private static let speedOptions: [Double] = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+
 	/// The control that should own default focus when the row (re)appears:
 	/// the remembered one when it still exists, play/pause otherwise. The
 	/// preference carries the memory — a programmatic FocusState write alone
