@@ -37,9 +37,6 @@ struct TVControlsRow: View {
 	@State private var revealed = false
 	@State private var pendingTarget: TVControl?
 
-	/// Mirror of the iOS speed menu entries (PlayerTopBar.speedMenuEntries).
-	private static let speedOptions: [Double] = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
-
 	/// The control that should own default focus when the row (re)appears:
 	/// the remembered one when it still exists, play/pause otherwise. The
 	/// preference carries the memory — a programmatic FocusState write alone
@@ -185,7 +182,11 @@ struct TVControlsRow: View {
 
 	private var qualityMenu: some View {
 		Menu {
-			trackPicker(viewModel.qualityMenu) { viewModel.selectQuality($0) }
+			ForEach(Array(viewModel.qualityMenu.enumerated()), id: \.offset) { _, item in
+				menuRow(label: item.label, selected: item.selected) {
+					viewModel.selectQuality(item)
+				}
+			}
 		} label: {
 			icon("speedometer")
 		}
@@ -198,7 +199,7 @@ struct TVControlsRow: View {
 
 	private var audioMenu: some View {
 		Menu {
-			trackPicker(viewModel.audioMenu) { viewModel.selectAudio($0) }
+			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
 			Menu {
 				ForEach(PlayerViewModel.syncOffsetPresets, id: \.self) { offset in
 					menuRow(
@@ -236,16 +237,16 @@ struct TVControlsRow: View {
 	/// Subtitle track picker plus the nested size submenu (iOS parity).
 	private var subtitlesMenu: some View {
 		Menu {
-			trackPicker(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
+			trackMenuItems(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
 			Menu {
-				Picker("", selection: subtitleScaleSelection) {
-					ForEach(
-						Array(PlayerViewModel.subtitleScalePresets.enumerated()), id: \.offset
-					) { index, preset in
-						Text(scaleText(preset)).tag(index)
+				ForEach(PlayerViewModel.subtitleScalePresets, id: \.self) { preset in
+					menuRow(
+						label: "\(Int((preset * 100).rounded()))%",
+						selected: abs(viewModel.subtitleScale - preset) < 0.001
+					) {
+						viewModel.setSubtitleScale(preset)
 					}
 				}
-				.labelsHidden()
 			} label: {
 				Text(viewModel.str("subtitleSize", "Subtitle size"))
 			}
@@ -271,30 +272,16 @@ struct TVControlsRow: View {
 		.accessibilityLabel(viewModel.str("subtitles", "Subtitles"))
 	}
 
-	private var speedSelection: Binding<Int> {
-		Binding<Int>(
-			get: {
-				Self.speedOptions.firstIndex(where: { abs(viewModel.speed - $0) < 0.001 }) ?? -1
-			},
-			set: { (index: Int) in
-				guard Self.speedOptions.indices.contains(index) else { return }
-				viewModel.setSpeed(Self.speedOptions[index])
-			}
-		)
-	}
-
-	private func speedText(_ option: Double) -> String {
-		option == 1.0 ? "1×" : String(format: "%g×", option)
-	}
-
 	private var speedMenu: some View {
 		Menu {
-			Picker("", selection: speedSelection) {
-				ForEach(Array(Self.speedOptions.enumerated()), id: \.offset) { index, option in
-					Text(speedText(option)).tag(index)
+			ForEach([0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { option in
+				menuRow(
+					label: option == 1.0 ? "1×" : String(format: "%g×", option),
+					selected: abs(viewModel.speed - option) < 0.001
+				) {
+					viewModel.setSpeed(option)
 				}
 			}
-			.labelsHidden()
 		} label: {
 			icon("timer")
 		}
@@ -326,54 +313,15 @@ struct TVControlsRow: View {
 		offset == 0 ? "0 s" : String(format: "%+g s", offset)
 	}
 
-	/// Single-choice track list as a system Picker: the menu gets real
-	/// selection semantics (system checkmark, and the system may anchor
-	/// focus to the selection) instead of look-alike Button rows. The
-	/// binding re-reads item.selected from the shared display model, so
-	/// requiresReload items still never checkmark optimistically — JS
-	/// pushes the truth via updateTrackMenus after applying.
-	private var subtitleScaleSelection: Binding<Int> {
-		Binding<Int>(
-			get: {
-				PlayerViewModel.subtitleScalePresets.firstIndex(where: {
-					abs(viewModel.subtitleScale - $0) < 0.001
-				}) ?? -1
-			},
-			set: { (index: Int) in
-				guard PlayerViewModel.subtitleScalePresets.indices.contains(index)
-				else { return }
-				viewModel.setSubtitleScale(PlayerViewModel.subtitleScalePresets[index])
-			}
-		)
-	}
-
-	private func scaleText(_ preset: Double) -> String {
-		"\(Int((preset * 100).rounded()))%"
-	}
-
-	private func trackSelection(
-		_ items: [TrackMenuItemRecord],
-		onSelect: @escaping (TrackMenuItemRecord) -> Void
-	) -> Binding<Int> {
-		Binding<Int>(
-			get: { items.firstIndex(where: { $0.selected }) ?? -1 },
-			set: { (index: Int) in
-				guard items.indices.contains(index) else { return }
-				onSelect(items[index])
-			}
-		)
-	}
-
-	private func trackPicker(
+	private func trackMenuItems(
 		_ items: [TrackMenuItemRecord],
 		onSelect: @escaping (TrackMenuItemRecord) -> Void
 	) -> some View {
-		Picker("", selection: trackSelection(items, onSelect: onSelect)) {
-			ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-				Text(item.label).tag(index)
+		ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+			menuRow(label: item.label, selected: item.selected) {
+				onSelect(item)
 			}
 		}
-		.labelsHidden()
 	}
 
 	private func menuRow(
