@@ -182,11 +182,7 @@ struct TVControlsRow: View {
 
 	private var qualityMenu: some View {
 		Menu {
-			ForEach(Array(viewModel.qualityMenu.enumerated()), id: \.offset) { _, item in
-				menuRow(label: item.label, selected: item.selected) {
-					viewModel.selectQuality(item)
-				}
-			}
+			trackPicker(viewModel.qualityMenu) { viewModel.selectQuality($0) }
 		} label: {
 			icon("speedometer")
 		}
@@ -199,7 +195,7 @@ struct TVControlsRow: View {
 
 	private var audioMenu: some View {
 		Menu {
-			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
+			trackPicker(viewModel.audioMenu) { viewModel.selectAudio($0) }
 			Menu {
 				ForEach(PlayerViewModel.syncOffsetPresets, id: \.self) { offset in
 					menuRow(
@@ -237,16 +233,31 @@ struct TVControlsRow: View {
 	/// Subtitle track picker plus the nested size submenu (iOS parity).
 	private var subtitlesMenu: some View {
 		Menu {
-			trackMenuItems(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
+			trackPicker(viewModel.subtitleMenu) { viewModel.selectSubtitle($0) }
 			Menu {
-				ForEach(PlayerViewModel.subtitleScalePresets, id: \.self) { preset in
-					menuRow(
-						label: "\(Int((preset * 100).rounded()))%",
-						selected: abs(viewModel.subtitleScale - preset) < 0.001
-					) {
-						viewModel.setSubtitleScale(preset)
+				Picker(
+					"",
+					selection: Binding(
+						get: {
+							PlayerViewModel.subtitleScalePresets.firstIndex {
+								abs(viewModel.subtitleScale - $0) < 0.001
+							} ?? -1
+						},
+						set: { index in
+							guard PlayerViewModel.subtitleScalePresets.indices.contains(index)
+							else { return }
+							viewModel.setSubtitleScale(
+								PlayerViewModel.subtitleScalePresets[index])
+						}
+					)
+				) {
+					ForEach(
+						Array(PlayerViewModel.subtitleScalePresets.enumerated()), id: \.offset
+					) { index, preset in
+						Text("\(Int((preset * 100).rounded()))%").tag(index)
 					}
 				}
+				.labelsHidden()
 			} label: {
 				Text(viewModel.str("subtitleSize", "Subtitle size"))
 			}
@@ -274,14 +285,23 @@ struct TVControlsRow: View {
 
 	private var speedMenu: some View {
 		Menu {
-			ForEach([0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { option in
-				menuRow(
-					label: option == 1.0 ? "1×" : String(format: "%g×", option),
-					selected: abs(viewModel.speed - option) < 0.001
-				) {
-					viewModel.setSpeed(option)
+			Picker(
+				"",
+				selection: Binding(
+					get: {
+						Self.speedOptions.firstIndex { abs(viewModel.speed - $0) < 0.001 } ?? -1
+					},
+					set: { index in
+						guard Self.speedOptions.indices.contains(index) else { return }
+						viewModel.setSpeed(Self.speedOptions[index])
+					}
+				)
+			) {
+				ForEach(Array(Self.speedOptions.enumerated()), id: \.offset) { index, option in
+					Text(option == 1.0 ? "1×" : String(format: "%g×", option)).tag(index)
 				}
 			}
+			.labelsHidden()
 		} label: {
 			icon("timer")
 		}
@@ -313,15 +333,31 @@ struct TVControlsRow: View {
 		offset == 0 ? "0 s" : String(format: "%+g s", offset)
 	}
 
-	private func trackMenuItems(
+	/// Single-choice track list as a system Picker: the menu gets real
+	/// selection semantics (system checkmark, and the system may anchor
+	/// focus to the selection) instead of look-alike Button rows. The
+	/// binding re-reads item.selected from the shared display model, so
+	/// requiresReload items still never checkmark optimistically — JS
+	/// pushes the truth via updateTrackMenus after applying.
+	private func trackPicker(
 		_ items: [TrackMenuItemRecord],
 		onSelect: @escaping (TrackMenuItemRecord) -> Void
 	) -> some View {
-		ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-			menuRow(label: item.label, selected: item.selected) {
-				onSelect(item)
+		Picker(
+			"",
+			selection: Binding(
+				get: { items.firstIndex { $0.selected } ?? -1 },
+				set: { index in
+					guard items.indices.contains(index) else { return }
+					onSelect(items[index])
+				}
+			)
+		) {
+			ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+				Text(item.label).tag(index)
 			}
 		}
+		.labelsHidden()
 	}
 
 	private func menuRow(
