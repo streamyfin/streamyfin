@@ -268,6 +268,7 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
+        checkError(mpv_set_option_string(mpv, "sub-vsfilter-bidi-compat", "yes"))
 
         // Initialize mpv
         let initStatus = mpv_initialize(handle)

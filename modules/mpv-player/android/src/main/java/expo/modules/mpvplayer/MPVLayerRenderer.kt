@@ -247,6 +247,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             mpv?.setOptionString("sub-use-margins", "no")
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
+            mpv?.setOptionString("sub-vsfilter-bidi-compat", "yes")
             
             // Important: Start with force-window=no, will be set to yes when surface is attached
             mpv?.setOptionString("force-window", "no")
