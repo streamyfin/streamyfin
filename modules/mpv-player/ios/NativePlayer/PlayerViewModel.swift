@@ -1107,6 +1107,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 				guard !Task.isCancelled, let self else { return }
 				let done: Bool = await MainActor.run {
 					guard let remaining = self.countdownRemaining else { return true }
+					// Paused playback freezes the countdown: EOF (the real
+					// episode switch) can't arrive while paused, so ticking on
+					// would swap the episode out from under a paused screen.
+					guard self.isPlaying else { return false }
 					let next = remaining - 1
 					if next <= 0 {
 						self.countdownRemaining = nil

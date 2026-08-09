@@ -313,8 +313,8 @@ final class NativePlayerViewController: UIViewController {
 		// handler is panel-aware; the panel's onExitCommand is the backup.
 		addPressRecognizer(
 			for: .menu, action: #selector(handleMenuPress), disabledWhilePanelOpen: false)
-		// Play/Pause stays live even in focus mode: it doubles as the
-		// skip/play-now shortcut while a pill or countdown is showing.
+		// Play/Pause stays live even in focus mode: pause must work while
+		// the chrome is up without hunting for the focused pause button.
 		addPressRecognizer(
 			for: .playPause, action: #selector(handlePlayPausePress),
 			disabledWhilePanelOpen: false)
@@ -380,12 +380,14 @@ final class NativePlayerViewController: UIViewController {
 			viewModel.closeSubtitleSearch()
 		} else if viewModel.showEpisodeList {
 			viewModel.showEpisodeList = false
-		} else if viewModel.countdownRemaining != nil {
-			viewModel.cancelCountdown()
 		} else if viewModel.isScrubbing {
 			viewModel.cancelScrub()
 		} else if viewModel.controlsVisible {
 			viewModel.toggleControls()
+		} else if viewModel.countdownRemaining != nil {
+			// Below the chrome/scrub branches: the card hides while either is
+			// up, and Menu must dismiss what's on screen, not invisible state.
+			viewModel.cancelCountdown()
 		} else if viewModel.seekFeedbackVisible {
 			viewModel.hideSeekFeedback()
 		} else {
@@ -394,9 +396,7 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handlePlayPausePress() {
-		if viewModel.countdownRemaining != nil {
-			viewModel.playNextEpisode()
-		} else if viewModel.isScrubbing {
+		if viewModel.isScrubbing {
 			// An armed scrub outranks an active segment: a scrub armed inside
 			// an intro must commit its target, not skip the intro.
 			// Play/Pause on an armed scrub means "jump there and play" even
@@ -406,9 +406,9 @@ final class NativePlayerViewController: UIViewController {
 				engine.play()
 			}
 		} else {
-			// Never skips a segment: Play/Pause is playback only. Skipping
-			// is Select's job — the pill with the chrome hidden, the focused
-			// row button in the full chrome.
+			// Never skips a segment or fires the next-episode card:
+			// Play/Pause is playback only. Acting on pills/cards is Select's
+			// job — pausing on the countdown card freezes its timer instead.
 			viewModel.togglePlayPause()
 		}
 	}

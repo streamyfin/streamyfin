@@ -26,8 +26,9 @@ struct TVSkipPill: View {
 	}
 }
 
-/// Next-episode countdown card. Select / Play-Pause = play now (VC
-/// recognizers), Menu = cancel. Mirrors NextEpisodeCountdownView content.
+/// Next-episode countdown card. Select = play now, Menu = cancel (VC
+/// recognizers); Play/Pause stays playback-only and pausing freezes the
+/// countdown. Mirrors NextEpisodeCountdownView content.
 @available(tvOS 26.0, *)
 struct TVCountdownCard: View {
 	@ObservedObject var viewModel: PlayerViewModel
