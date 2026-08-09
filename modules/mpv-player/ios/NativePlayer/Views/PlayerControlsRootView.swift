@@ -203,6 +203,9 @@ struct PlayerControlsRootView: View {
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
 		}
+		.sheet(isPresented: $viewModel.showSubtitleSearch) {
+			SubtitleSearchView(viewModel: viewModel)
+		}
 	}
 
 	// MARK: - Surface gestures

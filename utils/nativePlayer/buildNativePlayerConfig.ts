@@ -32,6 +32,7 @@ import {
   getMpvAudioId,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
@@ -90,6 +91,9 @@ export const buildNativePlayerStrings = (
   lockControls: t("player.lock_controls"),
   sleepTimer: t("player.sleep_timer"),
   sleepTimerOff: t("player.sleep_timer_off"),
+  searchSubtitles: t("player.search_subtitles"),
+  searchFailed: t("player.search_failed"),
+  noSubtitlesFound: t("player.no_subtitles_found"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),
@@ -217,6 +221,14 @@ export const buildTrickplayDescriptor = (
 };
 
 /**
+ * Sentinel jellyfinIndex for a client-side downloaded sidecar subtitle
+ * (OpenSubtitles fallback). It exists only on the mpv handle, not in the
+ * Jellyfin media source — the coordinator maps this index back to the local
+ * file instead of a server stream.
+ */
+export const LOCAL_SUBTITLE_MENU_INDEX = -1000;
+
+/**
  * Menu display models for the native track menus. Selection stays in JS —
  * these only carry labels, Jellyfin indices and the requiresReload flag
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
@@ -230,6 +242,8 @@ export const buildTrackMenus = (options: {
   offLabel: string;
   /** Current max streaming bitrate (undefined = Max). */
   bitrateValue?: number;
+  /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
+  localSubtitle?: { label: string; selected: boolean };
 }): NativePlayerTrackMenus => {
   const isTranscoding = Boolean(options.mediaSource.TranscodingUrl);
   const streams = options.mediaSource.MediaStreams ?? [];
@@ -252,6 +266,13 @@ export const buildTrackMenus = (options: {
         requiresReload: isTranscoding && isImageBasedSubtitle(s),
       })),
   ];
+  if (options.localSubtitle) {
+    subtitleItems.push({
+      label: options.localSubtitle.label,
+      jellyfinIndex: LOCAL_SUBTITLE_MENU_INDEX,
+      selected: options.localSubtitle.selected,
+    });
+  }
 
   // A transcoded stream (and a transcoded download) only carries the audio
   // track that was encoded into it — other tracks require re-negotiation
@@ -465,6 +486,15 @@ export async function buildNativePlayerConfig(params: {
       showBrightnessSlider: !settings.hideBrightnessSlider,
       holdToSpeedEnabled: settings.enableHoldToSpeed,
       pinchToZoomEnabled: settings.enablePinchToZoom,
+      // Server search needs connectivity; the OpenSubtitles fallback needs
+      // the network either way — offline sessions hide the entry.
+      subtitleSearchEnabled: !offline && !!api,
+      subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
+        code: l.code,
+        name: l.name,
+      })),
+      subtitleSearchDefaultLanguage:
+        settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? "eng",
       strings,
     },
   };

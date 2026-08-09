@@ -30,6 +30,10 @@ import {
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOrientation } from "@/hooks/useOrientation";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
+import {
+  type SubtitleSearchResult,
+  useRemoteSubtitles,
+} from "@/hooks/useRemoteSubtitles";
 import { useInvalidatePlaybackProgressCache } from "@/hooks/useRevalidatePlaybackProgressCache";
 import {
   addNativePlayerListener,
@@ -40,6 +44,8 @@ import {
   type NativePlayerEpisodeListItem,
   type NativePlayerNextEpisode,
   type NativePlayerSegment,
+  type NativePlayerSubtitleSearchResult,
+  nativePlayerAddExternalSubtitle,
   nativePlayerDisableSubtitles,
   nativePlayerGetSubtitleTracks,
   nativePlayerPause,
@@ -51,6 +57,7 @@ import {
   updateNativePlayerEpisodeList,
   updateNativePlayerNextEpisode,
   updateNativePlayerSegments,
+  updateNativePlayerSubtitleSearch,
   updateNativePlayerTrackMenus,
 } from "@/modules/mpv-player";
 import { OrientationLock } from "@/packages/expo-screen-orientation";
@@ -77,6 +84,7 @@ import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
   buildTrackMenus,
+  LOCAL_SUBTITLE_MENU_INDEX,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import {
@@ -111,6 +119,14 @@ interface NativeSession extends NativePlayerSessionSeed {
    */
   awaitingLoad: boolean;
   lastProgressReportAt: number;
+  /** Results of the last remote-subtitle search — download taps key into it. */
+  subtitleSearchResults: SubtitleSearchResult[] | null;
+  /**
+   * Client-side downloaded sidecar subtitle (OpenSubtitles fallback). It only
+   * exists on the live mpv handle, never in the Jellyfin media source; while
+   * active, the server-facing subtitle index reports -1.
+   */
+  localSubtitle: { path: string; label: string; active: boolean } | null;
 }
 
 interface NativePlayerContextValue {
@@ -238,6 +254,18 @@ const NativePlayerProviderInner: React.FC<{
     settingsRef.current = settings;
     userRef.current = user;
     isConnectedRef.current = isConnected;
+  });
+
+  // Remote subtitle search/download for the native search sheet (Jellyfin
+  // server plugin first, client-side OpenSubtitles fallback when an API key
+  // is configured — same backend logic as the TV subtitle modal).
+  const remoteSubtitles = useRemoteSubtitles({
+    itemId: activeItem?.Id ?? "",
+    item: activeItem ?? ({} as BaseItemDto),
+  });
+  const remoteSubtitlesRef = useRef(remoteSubtitles);
+  useEffect(() => {
+    remoteSubtitlesRef.current = remoteSubtitles;
   });
 
   // MARK: - Session reporting
@@ -504,6 +532,8 @@ const NativePlayerProviderInner: React.FC<{
         reportedStopKey: null,
         awaitingLoad: true,
         lastProgressReportAt: 0,
+        subtitleSearchResults: null,
+        localSubtitle: null,
       };
 
       if (token !== playRequestTokenRef.current) {
@@ -714,15 +744,44 @@ const NativePlayerProviderInner: React.FC<{
         buildTrackMenus({
           mediaSource: session.stream.mediaSource,
           audioIndex: session.currentAudioIndex,
-          subtitleIndex: session.currentSubtitleIndex,
+          // While the local sidecar is active no server stream (nor "Off")
+          // may show a checkmark — the sentinel matches nothing.
+          subtitleIndex: session.localSubtitle?.active
+            ? LOCAL_SUBTITLE_MENU_INDEX
+            : session.currentSubtitleIndex,
           offline: session.offline,
           downloadedItem: session.downloadedItem,
           offLabel: buildNativePlayerStrings(t).off ?? "None",
           bitrateValue: session.bitrateValue,
+          localSubtitle: session.localSubtitle
+            ? {
+                label: session.localSubtitle.label,
+                selected: session.localSubtitle.active,
+              }
+            : undefined,
         }),
       );
     },
     [t],
+  );
+
+  /** Select the client-side downloaded sidecar on the mpv handle by filename. */
+  const applyLocalSubtitleSelection = useCallback(
+    async (session: NativeSession) => {
+      const local = session.localSubtitle;
+      if (!local) return;
+      const tracks = await nativePlayerGetSubtitleTracks();
+      const fileName = local.path.split("/").pop();
+      const track = tracks.find(
+        (candidate) =>
+          candidate.external &&
+          typeof candidate.externalFilename === "string" &&
+          (candidate.externalFilename === local.path ||
+            (!!fileName && candidate.externalFilename.endsWith(fileName))),
+      );
+      if (track) await nativePlayerSetSubtitleTrack(track.id);
+    },
+    [],
   );
 
   const handleAudioSelection = useCallback(
@@ -761,6 +820,21 @@ const NativePlayerProviderInner: React.FC<{
       jellyfinIndex: number,
       positionSec: number,
     ) => {
+      if (jellyfinIndex === LOCAL_SUBTITLE_MENU_INDEX) {
+        // Re-activating the client-side sidecar — an mpv-only selection.
+        if (session.localSubtitle) {
+          session.localSubtitle.active = true;
+          session.currentSubtitleIndex = -1;
+          await applyLocalSubtitleSelection(session);
+          pushTrackMenus(session);
+        }
+        return;
+      }
+      if (session.localSubtitle) {
+        // Any server track (or Off) deactivates the sidecar; it stays in the
+        // menu for switching back.
+        session.localSubtitle.active = false;
+      }
       const subs = session.stream.mediaSource.MediaStreams?.filter(
         (s) => s.Type === "Subtitle",
       );
@@ -794,7 +868,153 @@ const NativePlayerProviderInner: React.FC<{
       }
       pushTrackMenus(session);
     },
-    [applySubtitleSelection, replaceStream, pushTrackMenus],
+    [
+      applySubtitleSelection,
+      applyLocalSubtitleSelection,
+      replaceStream,
+      pushTrackMenus,
+    ],
+  );
+
+  // MARK: - Remote subtitle search/download (native search sheet)
+
+  const handleSubtitleSearch = useCallback(
+    async (session: NativeSession, language: string) => {
+      try {
+        const results = await remoteSubtitlesRef.current.searchAsync({
+          language,
+        });
+        if (sessionRef.current !== session) return;
+        session.subtitleSearchResults = results;
+        const mapped: NativePlayerSubtitleSearchResult[] = results.map((r) => ({
+          id: r.id,
+          name: r.name,
+          providerName: r.providerName,
+          format: r.format,
+          language: r.language,
+          communityRating: r.communityRating,
+          downloadCount: r.downloadCount,
+          isHashMatch: r.isHashMatch,
+          hearingImpaired: r.hearingImpaired,
+          aiTranslated: r.aiTranslated,
+        }));
+        await updateNativePlayerSubtitleSearch({
+          status: "results",
+          results: mapped,
+        });
+      } catch (error) {
+        if (sessionRef.current !== session) return;
+        // Mirror the TV modal: a failed server search without a client-side
+        // key most likely means no provider plugin on the server.
+        const message = remoteSubtitlesRef.current.hasOpenSubtitlesApiKey
+          ? error instanceof Error
+            ? error.message
+            : String(error)
+          : t("player.no_subtitle_provider");
+        void updateNativePlayerSubtitleSearch({
+          status: "error",
+          results: [],
+          errorMessage: message,
+        });
+      }
+    },
+    [t],
+  );
+
+  /**
+   * A server-side download saves the file next to the media and refreshes the
+   * item asynchronously — poll until a subtitle stream that wasn't in the
+   * pre-download set appears, so the stream reload can select it.
+   */
+  const waitForNewServerSubtitle = useCallback(
+    async (
+      session: NativeSession,
+      result: SubtitleSearchResult,
+    ): Promise<number | undefined> => {
+      const before = new Set(
+        session.stream.mediaSource.MediaStreams?.filter(
+          (s) => s.Type === "Subtitle",
+        ).map((s) => s.Index),
+      );
+      for (let attempt = 0; attempt < 8; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (sessionRef.current !== session || !apiRef.current) return undefined;
+        const res = await getUserLibraryApi(apiRef.current)
+          .getItem({ itemId: session.item.Id!, userId: userRef.current?.Id })
+          .catch(() => null);
+        const source =
+          res?.data?.MediaSources?.find(
+            (s) => s.Id === session.mediaSourceId,
+          ) ?? res?.data?.MediaSources?.[0];
+        const fresh = source?.MediaStreams?.filter(
+          (s) => s.Type === "Subtitle" && !before.has(s.Index),
+        );
+        if (fresh?.length) {
+          const match =
+            fresh.find((s) => s.Language === result.language) ?? fresh[0];
+          return match.Index ?? undefined;
+        }
+      }
+      return undefined;
+    },
+    [],
+  );
+
+  const handleSubtitleDownload = useCallback(
+    async (session: NativeSession, resultId: string) => {
+      const result = session.subtitleSearchResults?.find(
+        (r) => r.id === resultId,
+      );
+      if (!result) {
+        void updateNativePlayerSubtitleSearch({ status: "idle", results: [] });
+        return;
+      }
+      try {
+        const downloaded =
+          await remoteSubtitlesRef.current.downloadAsync(result);
+        if (sessionRef.current !== session) return;
+        if (downloaded.type === "server") {
+          // The subtitle now lives in the server library — re-negotiate the
+          // stream so the fresh PlaybackInfo carries it, selected when found.
+          // Resume from the live position: playback kept running while the
+          // download and the poll were in flight.
+          const newIndex = await waitForNewServerSubtitle(session, result);
+          if (sessionRef.current !== session) return;
+          await replaceStream(session, {
+            subtitleIndex: newIndex ?? session.currentSubtitleIndex,
+            positionTicks: msToTicks(session.positionMs),
+          });
+          void updateNativePlayerSubtitleSearch({
+            status: "applied",
+            results: [],
+          });
+        } else if (downloaded.type === "local" && downloaded.path) {
+          // Client-side OpenSubtitles file: attach the sidecar to the live
+          // mpv handle — no stream re-negotiation. The server never learns
+          // about it, so the reported subtitle index drops to "off".
+          session.localSubtitle = {
+            path: downloaded.path,
+            label: result.name,
+            active: true,
+          };
+          session.currentSubtitleIndex = -1;
+          await nativePlayerAddExternalSubtitle(downloaded.path);
+          pushTrackMenus(session);
+          void updateNativePlayerSubtitleSearch({
+            status: "applied",
+            results: [],
+          });
+        }
+      } catch (error) {
+        if (sessionRef.current !== session) return;
+        void updateNativePlayerSubtitleSearch({
+          status: "error",
+          results: [],
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+    [replaceStream, waitForNewServerSubtitle, pushTrackMenus],
   );
 
   // MARK: - Native event listeners
@@ -844,7 +1064,25 @@ const NativePlayerProviderInner: React.FC<{
         if (!session || session.awaitingLoad) return;
         // Re-apply the current selection on every fire — it fires again after
         // each external sub-add and the identity re-apply is idempotent.
-        void applySubtitleSelection(session, session.currentSubtitleIndex);
+        if (session.localSubtitle?.active) {
+          // The active selection is the client-side sidecar, which the
+          // Jellyfin-index resolver knows nothing about.
+          void applyLocalSubtitleSelection(session);
+        } else {
+          void applySubtitleSelection(session, session.currentSubtitleIndex);
+        }
+      }),
+
+      addNativePlayerListener("onSubtitleSearchRequested", (payload) => {
+        const session = sessionRef.current;
+        if (!session || session.awaitingLoad) return;
+        void handleSubtitleSearch(session, payload.language);
+      }),
+
+      addNativePlayerListener("onSubtitleDownloadRequested", (payload) => {
+        const session = sessionRef.current;
+        if (!session || session.awaitingLoad) return;
+        void handleSubtitleDownload(session, payload.resultId);
       }),
 
       addNativePlayerListener("onTrackSelectionRequested", (payload) => {
@@ -1002,8 +1240,11 @@ const NativePlayerProviderInner: React.FC<{
   }, [
     buildProgressInfo,
     applySubtitleSelection,
+    applyLocalSubtitleSelection,
     handleAudioSelection,
     handleSubtitleSelection,
+    handleSubtitleSearch,
+    handleSubtitleDownload,
     playAdjacentItem,
     replaceStream,
     teardownSession,

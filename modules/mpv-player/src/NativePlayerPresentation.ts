@@ -13,6 +13,7 @@ import type {
   NativePlayerMetadata,
   NativePlayerNextEpisode,
   NativePlayerSegment,
+  NativePlayerSubtitleSearchState,
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "./NativePlayerPresentation.types";
@@ -29,6 +30,8 @@ declare class NativePlayerModuleType extends NativeModule<NativePlayerEvents> {
   updateTrackMenus(menus: NativePlayerTrackMenus): Promise<void>;
   updateMetadata(metadata: NativePlayerMetadata): Promise<void>;
   updateEpisodeList(episodes: NativePlayerEpisodeListItem[]): Promise<void>;
+  updateSubtitleSearch(state: NativePlayerSubtitleSearchState): Promise<void>;
+  addExternalSubtitle(url: string): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   seekTo(positionSec: number): Promise<void>;
@@ -132,6 +135,15 @@ export const updateNativePlayerEpisodeList = (
   episodes: NativePlayerEpisodeListItem[],
 ): Promise<void> =>
   NativePlayerNativeModule?.updateEpisodeList(episodes) ?? Promise.resolve();
+
+export const updateNativePlayerSubtitleSearch = (
+  state: NativePlayerSubtitleSearchState,
+): Promise<void> =>
+  NativePlayerNativeModule?.updateSubtitleSearch(state) ?? Promise.resolve();
+
+/** Adds a client-side downloaded sidecar subtitle to the live stream and selects it. */
+export const nativePlayerAddExternalSubtitle = (url: string): Promise<void> =>
+  NativePlayerNativeModule?.addExternalSubtitle(url) ?? Promise.resolve();
 
 export const nativePlayerPlay = (): Promise<void> =>
   NativePlayerNativeModule?.play() ?? Promise.resolve();

@@ -94,6 +94,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var scrubPosition: Double = 0
 	@Published var showTechnicalInfo = false
 	@Published var showEpisodeList = false
+	@Published var showSubtitleSearch = false
 
 	// MARK: - Content state
 
@@ -110,6 +111,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var subtitleMenu: [TrackMenuItemRecord] = []
 	@Published var audioMenu: [TrackMenuItemRecord] = []
 	@Published var qualityMenu: [TrackMenuItemRecord] = []
+	// Subtitle search sheet state — driven by JS via updateSubtitleSearch.
+	@Published var subtitleSearchStatus = "idle"
+	@Published var subtitleSearchResults: [SubtitleSearchResultRecord] = []
+	@Published var subtitleSearchError: String?
+	@Published var subtitleSearchLanguage = "eng"
+	/// Result id a download is in flight for (row spinner).
+	@Published var downloadingResultId: String?
 	@Published var episodeList: [EpisodeListItemRecord] = []
 	@Published var trickplay: TrickplayProvider?
 	/// Active sleep-timer preset (nil = off). Only the selection is published —
@@ -131,6 +139,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var showBrightnessSlider = true
 	private(set) var holdToSpeedEnabled = true
 	private(set) var pinchToZoomEnabled = true
+	private(set) var subtitleSearchEnabled = false
+	private(set) var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
 	private(set) var videoWidth: Int?
 	private(set) var videoHeight: Int?
 	private(set) var uiStrings: [String: String] = [:]
@@ -229,6 +239,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			audioDelay = 0
 			volumeBoostPercent = 100
 			dialogueBoostEnabled = false
+			// A new item invalidates the previous item's search results.
+			subtitleSearchStatus = "idle"
+			subtitleSearchResults = []
+			subtitleSearchError = nil
+			downloadingResultId = nil
+			subtitleSearchLanguage = config.ui.subtitleSearchDefaultLanguage
 		}
 		currentItemId = newItemId
 		metadata = config.metadata
@@ -254,6 +270,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		showBrightnessSlider = config.ui.showBrightnessSlider
 		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
 		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
+		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
+		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
@@ -280,6 +298,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		countdownRemaining = nil
 		showStillWatching = false
 		showEpisodeList = false
+		// A server-side subtitle download lands via this reload path — the
+		// sheet's job is done.
+		showSubtitleSearch = false
+		downloadingResultId = nil
 		errorMessage = nil
 	}
 
@@ -732,6 +754,57 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			"positionSec": displayPosition,
 		])
 		scheduleAutoHide()
+	}
+
+	// MARK: Subtitle search
+
+	/// Open the sheet; kick off an initial search when there is nothing to
+	/// show yet (fresh item or a previous error).
+	func openSubtitleSearch() {
+		haptic()
+		showSubtitleSearch = true
+		scheduleAutoHide()
+		if subtitleSearchStatus == "idle" || subtitleSearchStatus == "error" {
+			requestSubtitleSearch(language: subtitleSearchLanguage)
+		}
+	}
+
+	func requestSubtitleSearch(language: String) {
+		subtitleSearchLanguage = language
+		subtitleSearchStatus = "searching"
+		subtitleSearchResults = []
+		subtitleSearchError = nil
+		emit?("onSubtitleSearchRequested", ["language": language])
+	}
+
+	func downloadSubtitleResult(_ result: SubtitleSearchResultRecord) {
+		// One download at a time — the flow ends in a stream swap or a pushed
+		// terminal state either way.
+		guard downloadingResultId == nil else { return }
+		haptic()
+		downloadingResultId = result.id
+		subtitleSearchStatus = "downloading"
+		emit?("onSubtitleDownloadRequested", [
+			"resultId": result.id,
+			"positionSec": displayPosition,
+		])
+	}
+
+	/// JS pushes search/download progress; "applied" closes the sheet and
+	/// resets so the next open searches fresh (the track list changed).
+	func updateSubtitleSearch(_ state: SubtitleSearchStateRecord) {
+		subtitleSearchError = state.errorMessage
+		if state.status != "downloading" {
+			downloadingResultId = nil
+		}
+		if state.status == "applied" {
+			showSubtitleSearch = false
+			subtitleSearchStatus = "idle"
+			subtitleSearchResults = []
+		} else {
+			subtitleSearchStatus = state.status
+			subtitleSearchResults = state.results
+		}
 	}
 
 	private func setSelected(index: Int, in menu: inout [TrackMenuItemRecord]) {
