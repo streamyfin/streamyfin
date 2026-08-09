@@ -86,6 +86,8 @@ export const buildNativePlayerStrings = (
   volumeBoost: t("player.volume_boost"),
   rotate: t("player.rotate"),
   lockControls: t("player.lock_controls"),
+  sleepTimer: t("player.sleep_timer"),
+  sleepTimerOff: t("player.sleep_timer_off"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),

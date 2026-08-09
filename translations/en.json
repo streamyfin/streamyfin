@@ -702,6 +702,8 @@
     "rotate": "Rotate",
     "lock_controls": "Lock controls",
     "unlock": "Unlock",
+    "sleep_timer": "Sleep timer",
+    "sleep_timer_off": "Turn off",
     "search_subtitles": "Search subtitles",
     "subtitle_tracks": "Tracks",
     "subtitle_search": "Search & download",
