@@ -250,6 +250,18 @@ struct TVControlsRow: View {
 			} label: {
 				Text(viewModel.str("volumeBoost", "Volume boost"))
 			}
+			menuRow(
+				label: viewModel.str("dialogueBoost", "Dialogue boost"),
+				selected: viewModel.dialogueBoostEnabled
+			) {
+				viewModel.toggleDialogueBoost()
+			}
+			menuRow(
+				label: viewModel.str("monoAudio", "Mono audio"),
+				selected: viewModel.monoAudioEnabled
+			) {
+				viewModel.toggleMonoAudio()
+			}
 		} label: {
 			icon("speaker.wave.2.fill")
 		}

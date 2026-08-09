@@ -322,6 +322,8 @@ export type Settings = {
   defaultSubtitleLanguage: CultureDto | null;
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
+  /** Native player: auto-enable a text subtitle while the volume is at zero. */
+  subtitlesOnMute: boolean;
   showHomeTitles: boolean;
   defaultVideoOrientation: (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock];
   forwardSkipTime: number;
@@ -435,6 +437,7 @@ export const defaultValues: Settings = {
   defaultSubtitleLanguage: null,
   subtitleMode: SubtitlePlaybackMode.Default,
   rememberSubtitleSelections: true,
+  subtitlesOnMute: false,
   showHomeTitles: true,
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,

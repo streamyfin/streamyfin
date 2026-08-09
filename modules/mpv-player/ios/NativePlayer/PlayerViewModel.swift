@@ -77,6 +77,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Speech-clarity EQ (bass cut + presence lift). Session-scoped like the
 	/// sync offsets: reset when the item changes, re-applied on stream swaps.
 	@Published var dialogueBoostEnabled = false
+	/// Accessibility mono downmix. Same session-scoped lifecycle as the
+	/// dialogue boost.
+	@Published var monoAudioEnabled = false
 
 	// MARK: - UI state
 
@@ -229,8 +232,37 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		volumeController.onExternalChange = { [weak self] in
 			self?.revealVolumeSliderTransiently()
 		}
+		// Mute transitions (hardware buttons or the in-player slider hitting
+		// zero) surface to JS, which may auto-enable subtitles while muted
+		// (subtitlesOnMute setting) and revert when sound returns. iOS-only:
+		// tvOS volume lives in the TV/receiver (remote/HDMI-CEC) and is
+		// invisible to the app, so no mute event can ever fire there.
+		muteDetectionCancellable = volumeController.$volume
+			.removeDuplicates()
+			.sink { [weak self] value in
+				self?.detectMuteTransition(volume: value)
+			}
 		#endif
 	}
+
+	#if os(iOS)
+	private var muteDetectionCancellable: AnyCancellable?
+	private var lastVolumeForMuteDetection: Double?
+
+	private func detectMuteTransition(volume: Double) {
+		defer { lastVolumeForMuteDetection = volume }
+		// The first sink delivery is the current volume at init — seed only,
+		// so a player opened while already muted doesn't fire an event.
+		guard let previous = lastVolumeForMuteDetection else { return }
+		let muted = volume <= 0.0001
+		let wasMuted = previous <= 0.0001
+		guard muted != wasMuted else { return }
+		emit?("onMuteStateChanged", [
+			"muted": muted,
+			"positionSec": displayPosition,
+		])
+	}
+	#endif
 
 	/// Light impact on control interactions; disabled via settings
 	/// (disableHapticFeedback → ui.hapticsEnabled=false).
@@ -258,6 +290,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			audioDelay = 0
 			volumeBoostPercent = 100
 			dialogueBoostEnabled = false
+			monoAudioEnabled = false
 			// A new item invalidates the previous item's search results.
 			subtitleSearchStatus = "idle"
 			subtitleSearchResults = []
@@ -554,6 +587,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		haptic()
 		dialogueBoostEnabled.toggle()
 		engine?.setDialogueBoost(dialogueBoostEnabled)
+		scheduleAutoHide()
+	}
+
+	func toggleMonoAudio() {
+		haptic()
+		monoAudioEnabled.toggle()
+		engine?.setMonoDownmix(monoAudioEnabled)
 		scheduleAutoHide()
 	}
 
