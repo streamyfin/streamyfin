@@ -28,10 +28,8 @@ final class NativePlayerViewController: UIViewController {
 	private var cancellables: Set<AnyCancellable> = []
 	private var isViewVisible = false
 	#if os(tvOS)
-	/// Remote-scrub pan state: fraction the current pan started from, and
-	/// whether this particular pan gesture is driving the scrub (a pan that
+	/// Whether the current pan gesture is driving the scrub (a pan that
 	/// merely revealed hidden chrome must not).
-	private var panStartFraction: Double = 0
 	private var panIsScrubbing = false
 	/// All transport recognizers — disabled while the options panel is open
 	/// so SwiftUI focus owns the remote (a recognizer that fires on .select
@@ -340,6 +338,8 @@ final class NativePlayerViewController: UIViewController {
 			viewModel.cancelScrub()
 		} else if viewModel.controlsVisible {
 			viewModel.toggleControls()
+		} else if viewModel.seekFeedbackVisible {
+			viewModel.hideSeekFeedback()
 		} else {
 			presentExitConfirmation()
 		}
@@ -363,8 +363,10 @@ final class NativePlayerViewController: UIViewController {
 	}
 
 	@objc private func handleSelectPress() {
-		// Only reachable with the chrome hidden (focus mode disables this
-		// recognizer): commit an armed scrub, otherwise summon the chrome.
+		// Reachable with the chrome hidden or while any scrub is armed (the
+		// idle full chrome disables this recognizer, and the bar disables
+		// itself mid-scrub so this is Select's sole owner): commit an armed
+		// scrub, otherwise summon the chrome.
 		if viewModel.countdownRemaining != nil {
 			viewModel.playNextEpisode()
 		} else if viewModel.activeSegment != nil {
@@ -385,6 +387,7 @@ final class NativePlayerViewController: UIViewController {
 			nudgeScrub(by: -viewModel.seekBackwardSec)
 		} else {
 			viewModel.seekBackward()
+			viewModel.flashSeekFeedback()
 		}
 	}
 
@@ -393,6 +396,7 @@ final class NativePlayerViewController: UIViewController {
 			nudgeScrub(by: viewModel.seekForwardSec)
 		} else {
 			viewModel.seekForward()
+			viewModel.flashSeekFeedback()
 		}
 	}
 
@@ -407,8 +411,14 @@ final class NativePlayerViewController: UIViewController {
 	// Select/Play to commit, Menu to abandon — viewModel.beginScrub already
 	// pauses, endScrub seeks and resumes)
 
-	/// Fraction of the duration covered by one full-screen-width pan.
-	private static let panFullWidthFraction: Double = 1.0
+	/// Seconds moved per pan point at rest — a slow drag gives fine control.
+	private static let panBaseSecondsPerPoint: Double = 0.05
+	/// Finger velocity (points/sec) at which acceleration reaches 2x base.
+	private static let panAccelerationReferenceVelocity: Double = 1000
+	/// Curve exponent: >1 keeps slow drags fine and rewards hard flicks.
+	private static let panAccelerationPower: Double = 1.5
+	/// Acceleration ceiling so a violent flick can't cross a whole film.
+	private static let panMaxSecondsPerPoint: Double = 1.0
 
 	@objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
 		switch gesture.state {
@@ -434,13 +444,19 @@ final class NativePlayerViewController: UIViewController {
 			if !viewModel.isScrubbing {
 				viewModel.beginScrub()
 			}
-			panStartFraction = viewModel.scrubPosition / viewModel.duration
+			gesture.setTranslation(.zero, in: view)
 		case .changed:
-			guard panIsScrubbing else { return }
-			let translation = gesture.translation(in: view).x
-			let deltaFraction =
-				Double(translation / max(view.bounds.width, 1)) * Self.panFullWidthFraction
-			viewModel.updateScrub(fraction: panStartFraction + deltaFraction)
+			guard panIsScrubbing, viewModel.duration > 0 else { return }
+			// Incremental deltas scaled by finger velocity (system-player
+			// feel): the same physical distance covers seconds when dragged
+			// slowly and minutes when flicked.
+			let dx = Double(gesture.translation(in: view).x)
+			gesture.setTranslation(.zero, in: view)
+			let speed = abs(Double(gesture.velocity(in: view).x))
+			let boost = pow(speed / Self.panAccelerationReferenceVelocity, Self.panAccelerationPower)
+			let rate = min(Self.panBaseSecondsPerPoint * (1 + boost), Self.panMaxSecondsPerPoint)
+			viewModel.updateScrub(
+				fraction: (viewModel.scrubPosition + dx * rate) / viewModel.duration)
 		case .ended, .cancelled, .failed:
 			// Lifting the finger keeps the scrub armed; consecutive pans
 			// accumulate from the armed position.

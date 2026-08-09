@@ -90,6 +90,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var scrubPosition: Double = 0
 	@Published var showTechnicalInfo = false
 	@Published var showEpisodeList = false
+	#if os(tvOS)
+	/// Transient transport-bar reveal after a blind arrow jump with the
+	/// chrome hidden (see flashSeekFeedback()).
+	@Published var seekFeedbackVisible = false
+	private var seekFeedbackTask: Task<Void, Never>?
+	#endif
 
 	// MARK: - Content state
 
@@ -447,6 +453,29 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			engine?.play()
 		}
 	}
+
+	#if os(tvOS)
+	/// A blind left/right jump with the chrome hidden flashes the transport
+	/// bar so the user sees where the jump landed — WITHOUT entering focus
+	/// mode: controlsVisible stays false, so the VC recognizers stay live
+	/// and repeated presses keep jumping instead of moving button focus.
+	func flashSeekFeedback() {
+		seekFeedbackVisible = true
+		seekFeedbackTask?.cancel()
+		seekFeedbackTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.seekFeedbackVisible = false }
+		}
+	}
+
+	/// Menu while the feedback bar is up peels it away instead of asking to
+	/// exit playback.
+	func hideSeekFeedback() {
+		seekFeedbackTask?.cancel()
+		seekFeedbackVisible = false
+	}
+	#endif
 
 	/// tvOS: the pan-then-click model separates choosing a position from
 	/// committing it, so Menu while a scrub is armed abandons it without
