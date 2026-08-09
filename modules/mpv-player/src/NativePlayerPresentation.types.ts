@@ -122,6 +122,34 @@ export type NativePlayerEpisodeListItem = {
   isCurrent?: boolean;
 };
 
+/** One remote subtitle hit (display model; logic stays in the coordinator). */
+export type NativePlayerSubtitleSearchResult = {
+  id: string;
+  name: string;
+  providerName: string;
+  format?: string;
+  language?: string;
+  communityRating?: number;
+  downloadCount?: number;
+  isHashMatch?: boolean;
+  hearingImpaired?: boolean;
+  aiTranslated?: boolean;
+};
+
+/** Pushed via updateSubtitleSearch to drive the native search sheet. */
+export type NativePlayerSubtitleSearchState = {
+  status:
+    | "idle"
+    | "searching"
+    | "results"
+    | "error"
+    | "downloading"
+    | "applied";
+  results?: NativePlayerSubtitleSearchResult[];
+  /** Localized by JS; native only displays it. */
+  errorMessage?: string;
+};
+
 export type NativePlayerSubtitleStyle = {
   fontSize?: number;
   scale?: number;
@@ -159,6 +187,7 @@ export type NativePlayerStrings = Partial<
     | "subtitleSync"
     | "audioSync"
     | "volumeBoost"
+    | "dialogueBoost"
     | "rotate"
     | "lockControls"
     | "unlock"
@@ -172,7 +201,10 @@ export type NativePlayerStrings = Partial<
     | "stopPlayingTitle"
     | "stopPlayingConfirm"
     | "sleepTimer"
-    | "sleepTimerOff",
+    | "sleepTimerOff"
+    | "searchSubtitles"
+    | "searchFailed"
+    | "noSubtitlesFound",
     string
   >
 >;
@@ -189,6 +221,15 @@ export type NativePlayerUIOptions = {
   showVolumeSlider?: boolean;
   /** false hides the left-edge brightness slider (settings.hideBrightnessSlider). */
   showBrightnessSlider?: boolean;
+  /** false disables press-and-hold for 2× speed (settings.enableHoldToSpeed). */
+  holdToSpeedEnabled?: boolean;
+  /** false disables pinch to zoom-to-fill (settings.enablePinchToZoom). */
+  pinchToZoomEnabled?: boolean;
+  /** Remote subtitle search entry in the subtitles menu (online only). */
+  subtitleSearchEnabled?: boolean;
+  /** ISO 639-2 codes + localized display names for the language picker. */
+  subtitleSearchLanguages?: { code: string; name: string }[];
+  subtitleSearchDefaultLanguage?: string;
   strings?: NativePlayerStrings;
 };
 
@@ -283,4 +324,11 @@ export type NativePlayerEvents = {
   /** EOF with no next episode configured; native auto-dismisses after this. */
   onPlaybackEnded: (payload: { positionSec: number }) => void;
   onDismiss: (payload: NativePlayerDismissPayload) => void;
+  /** Search sheet opened / language changed; answer via updateSubtitleSearch. */
+  onSubtitleSearchRequested: (payload: { language: string }) => void;
+  /** A result row was tapped; resultId keys into the last pushed results. */
+  onSubtitleDownloadRequested: (payload: {
+    resultId: string;
+    positionSec: number;
+  }) => void;
 };

@@ -106,7 +106,8 @@ struct PlayerTopBar: View {
 		}
 	}
 
-	/// Audio track picker plus a nested sync-offset submenu (mpv audio-delay).
+	/// Audio track picker plus nested sync-offset (mpv audio-delay), volume
+	/// boost, and dialogue boost entries.
 	private var audioTracksMenu: some View {
 		Menu {
 			trackMenuItems(viewModel.audioMenu) { viewModel.selectAudio($0) }
@@ -116,6 +117,8 @@ struct PlayerTopBar: View {
 			} label: {
 				Label(viewModel.str("audioSync", "Audio sync"), systemImage: "clock.arrow.2.circlepath")
 			}
+			volumeBoostMenu
+			dialogueBoostButton
 		} label: {
 			barIcon(systemName: "waveform")
 		}
@@ -143,6 +146,36 @@ struct PlayerTopBar: View {
 
 	private func offsetLabel(_ offset: Double) -> String {
 		offset == 0 ? "0 s" : String(format: "%+g s", offset)
+	}
+
+	private var volumeBoostMenu: some View {
+		Menu {
+			ForEach(PlayerViewModel.volumeBoostPresets, id: \.self) { percent in
+				Button {
+					viewModel.setVolumeBoost(percent)
+				} label: {
+					if viewModel.volumeBoostPercent == percent {
+						Label(boostLabel(percent), systemImage: "checkmark")
+					} else {
+						Text(boostLabel(percent))
+					}
+				}
+			}
+		} label: {
+			Label(viewModel.str("volumeBoost", "Volume boost"), systemImage: "speaker.wave.3")
+		}
+	}
+
+	private var dialogueBoostButton: some View {
+		Button {
+			viewModel.toggleDialogueBoost()
+		} label: {
+			if viewModel.dialogueBoostEnabled {
+				Label(viewModel.str("dialogueBoost", "Dialogue boost"), systemImage: "checkmark")
+			} else {
+				Label(viewModel.str("dialogueBoost", "Dialogue boost"), systemImage: "speaker.wave.2")
+			}
+		}
 	}
 
 	private func trackMenuItems(
@@ -187,6 +220,13 @@ struct PlayerTopBar: View {
 				syncOffsetEntries(current: viewModel.subtitleDelay) { viewModel.setSubtitleDelay($0) }
 			} label: {
 				Label(viewModel.str("subtitleSync", "Subtitle sync"), systemImage: "clock.arrow.2.circlepath")
+			}
+			if viewModel.subtitleSearchEnabled {
+				Button {
+					viewModel.openSubtitleSearch()
+				} label: {
+					Label(viewModel.str("searchSubtitles", "Search subtitles"), systemImage: "magnifyingglass")
+				}
 			}
 		} label: {
 			barIcon(systemName: "captions.bubble")
@@ -237,21 +277,6 @@ struct PlayerTopBar: View {
 				} label: {
 					Label(viewModel.str("chapters", "Chapters"), systemImage: "bookmark")
 				}
-			}
-			Menu {
-				ForEach(PlayerViewModel.volumeBoostPresets, id: \.self) { percent in
-					Button {
-						viewModel.setVolumeBoost(percent)
-					} label: {
-						if viewModel.volumeBoostPercent == percent {
-							Label(boostLabel(percent), systemImage: "checkmark")
-						} else {
-							Text(boostLabel(percent))
-						}
-					}
-				}
-			} label: {
-				Label(viewModel.str("volumeBoost", "Volume boost"), systemImage: "speaker.wave.3")
 			}
 			sleepTimerMenu
 			Button {

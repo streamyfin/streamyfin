@@ -60,6 +60,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		set { time.cacheSeconds = newValue }
 	}
 	@Published var speed: Double = 1.0
+	/// Press-and-hold 2× is engaged. Purely transient: the pre-hold speed is
+	/// restored on release and never persisted (no onSpeedChange emit).
+	@Published var isHoldSpeedActive = false
 	@Published var isPipActive = false
 	@Published var errorMessage: String?
 	@Published var isZoomedToFill = false
@@ -71,6 +74,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var subtitleDelay: Double = 0
 	@Published var audioDelay: Double = 0
 	@Published var volumeBoostPercent = 100
+	/// Speech-clarity EQ (bass cut + presence lift). Session-scoped like the
+	/// sync offsets: reset when the item changes, re-applied on stream swaps.
+	@Published var dialogueBoostEnabled = false
 
 	// MARK: - UI state
 
@@ -96,6 +102,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var seekFeedbackVisible = false
 	private var seekFeedbackTask: Task<Void, Never>?
 	#endif
+	@Published var showSubtitleSearch = false
 
 	// MARK: - Content state
 
@@ -112,6 +119,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var subtitleMenu: [TrackMenuItemRecord] = []
 	@Published var audioMenu: [TrackMenuItemRecord] = []
 	@Published var qualityMenu: [TrackMenuItemRecord] = []
+	// Subtitle search sheet state — driven by JS via updateSubtitleSearch.
+	@Published var subtitleSearchStatus = "idle"
+	@Published var subtitleSearchResults: [SubtitleSearchResultRecord] = []
+	@Published var subtitleSearchError: String?
+	@Published var subtitleSearchLanguage = "eng"
+	/// Result id a download is in flight for (row spinner).
+	@Published var downloadingResultId: String?
 	@Published var episodeList: [EpisodeListItemRecord] = []
 	@Published var trickplay: TrickplayProvider?
 	/// Active sleep-timer preset (nil = off). Only the selection is published —
@@ -134,6 +148,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var hapticsEnabled = true
 	private(set) var showVolumeSlider = true
 	private(set) var showBrightnessSlider = true
+	private(set) var holdToSpeedEnabled = true
+	private(set) var pinchToZoomEnabled = true
+	private(set) var subtitleSearchEnabled = false
+	private(set) var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
 	private(set) var videoWidth: Int?
 	private(set) var videoHeight: Int?
 	private(set) var uiStrings: [String: String] = [:]
@@ -179,6 +197,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Set on every user/remote seek; the next progress tick reports
 	/// didSeek=true so the JS coordinator sends an immediate progress report.
 	private var pendingSeekReport = false
+	/// Speed to restore when the press-and-hold 2× gesture releases.
+	private var speedBeforeHold: Double?
 	/// Item the current config belongs to — gates the countdownCanceled reset.
 	private var currentItemId: String?
 	private var isTearingDown = false
@@ -237,6 +257,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			subtitleDelay = 0
 			audioDelay = 0
 			volumeBoostPercent = 100
+			dialogueBoostEnabled = false
+			// A new item invalidates the previous item's search results.
+			subtitleSearchStatus = "idle"
+			subtitleSearchResults = []
+			subtitleSearchError = nil
+			downloadingResultId = nil
+			subtitleSearchLanguage = config.ui.subtitleSearchDefaultLanguage
 		}
 		currentItemId = newItemId
 		metadata = config.metadata
@@ -260,6 +287,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		hapticsEnabled = config.ui.hapticsEnabled
 		showVolumeSlider = config.ui.showVolumeSlider
 		showBrightnessSlider = config.ui.showBrightnessSlider
+		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
+		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
+		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
+		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
 		uiStrings = config.ui.strings
 		position = config.stream.startPositionSec ?? 0
@@ -271,6 +302,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Reset transient state before an in-place stream swap (re-negotiation
 	/// or episode change) — the view controller stays presented.
 	func prepareForReload() {
+		// Drop before the swap: startStream rewrites the engine speed from the
+		// new config, and a release after that must not restore a stale one.
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
 		isBuffering = true
 		isReadyToSeek = false
 		isScrubbing = false
@@ -282,6 +317,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		countdownRemaining = nil
 		showStillWatching = false
 		showEpisodeList = false
+		// A server-side subtitle download lands via this reload path — the
+		// sheet's job is done.
+		showSubtitleSearch = false
+		downloadingResultId = nil
 		errorMessage = nil
 	}
 
@@ -477,9 +516,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 	#endif
 
-	/// tvOS: the pan-then-click model separates choosing a position from
-	/// committing it, so Menu while a scrub is armed abandons it without
-	/// seeking (resuming only if playback was running before the scrub).
+	/// Abandon an in-flight scrub WITHOUT seeking. iOS: a pinch starting
+	/// mid-drag means the horizontal movement was finger spread, not a scrub
+	/// intent. tvOS: Menu while a scrub is armed abandons it (resuming only
+	/// if playback was running before the scrub).
 	func cancelScrub() {
 		guard isScrubbing else { return }
 		isScrubbing = false
@@ -507,6 +547,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func setVolumeBoost(_ percent: Int) {
 		volumeBoostPercent = percent
 		engine?.setVolumeBoost(percent)
+		scheduleAutoHide()
+	}
+
+	func toggleDialogueBoost() {
+		haptic()
+		dialogueBoostEnabled.toggle()
+		engine?.setDialogueBoost(dialogueBoostEnabled)
 		scheduleAutoHide()
 	}
 
@@ -628,6 +675,44 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		scheduleAutoHide()
 	}
 
+	// MARK: Pinch to zoom
+
+	/// True while a two-finger pinch is in flight (UIPinchGestureRecognizer on
+	/// the VC's view). Read by the SwiftUI surface drag to stand down — a
+	/// pinch's finger spread would otherwise start a scrub or yank
+	/// volume/brightness. Not @Published on purpose: no view renders it.
+	private(set) var isPinching = false
+	/// One zoom flip per pinch — crossing the threshold repeatedly within a
+	/// single continuous pinch must not toggle back and forth.
+	private var pinchActionTaken = false
+
+	func pinchBegan() {
+		guard pinchToZoomEnabled, !controlsLocked, !showStillWatching,
+			errorMessage == nil
+		else { return }
+		isPinching = true
+		pinchActionTaken = false
+		// The second finger usually lands after the first already moved —
+		// abandon a scrub the spread may have started.
+		cancelScrub()
+	}
+
+	func pinchChanged(scale: Double) {
+		guard isPinching, !pinchActionTaken else { return }
+		if scale > 1.12, !isZoomedToFill {
+			pinchActionTaken = true
+			toggleZoomToFill()
+		} else if scale < 0.88, isZoomedToFill {
+			pinchActionTaken = true
+			toggleZoomToFill()
+		}
+	}
+
+	func pinchEnded() {
+		isPinching = false
+		pinchActionTaken = false
+	}
+
 	/// Applies the zoom mode + burned-in-subtitle position compensation to the
 	/// engine (mirror of direct-player.tsx handleZoomToggle). Also called after
 	/// an in-place stream swap so a persisted zoom compensates for the NEW
@@ -717,6 +802,61 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		scheduleAutoHide()
 	}
 
+	// MARK: Subtitle search
+
+	/// Open the sheet; kick off an initial search when there is nothing to
+	/// show yet (fresh item or a previous error).
+	func openSubtitleSearch() {
+		haptic()
+		showSubtitleSearch = true
+		scheduleAutoHide()
+		if subtitleSearchStatus == "idle" || subtitleSearchStatus == "error" {
+			requestSubtitleSearch(language: subtitleSearchLanguage)
+		}
+	}
+
+	func requestSubtitleSearch(language: String) {
+		// No language switches mid-download — the search answer would clear
+		// the downloading state and re-enable the rows under an in-flight
+		// download.
+		guard downloadingResultId == nil else { return }
+		subtitleSearchLanguage = language
+		subtitleSearchStatus = "searching"
+		subtitleSearchResults = []
+		subtitleSearchError = nil
+		emit?("onSubtitleSearchRequested", ["language": language])
+	}
+
+	func downloadSubtitleResult(_ result: SubtitleSearchResultRecord) {
+		// One download at a time — the flow ends in a stream swap or a pushed
+		// terminal state either way.
+		guard downloadingResultId == nil else { return }
+		haptic()
+		downloadingResultId = result.id
+		subtitleSearchStatus = "downloading"
+		emit?("onSubtitleDownloadRequested", [
+			"resultId": result.id,
+			"positionSec": displayPosition,
+		])
+	}
+
+	/// JS pushes search/download progress; "applied" closes the sheet and
+	/// resets so the next open searches fresh (the track list changed).
+	func updateSubtitleSearch(_ state: SubtitleSearchStateRecord) {
+		subtitleSearchError = state.errorMessage
+		if state.status != "downloading" {
+			downloadingResultId = nil
+		}
+		if state.status == "applied" {
+			showSubtitleSearch = false
+			subtitleSearchStatus = "idle"
+			subtitleSearchResults = []
+		} else {
+			subtitleSearchStatus = state.status
+			subtitleSearchResults = state.results
+		}
+	}
+
 	private func setSelected(index: Int, in menu: inout [TrackMenuItemRecord]) {
 		// Expo's @Field wrapper is a class, so mutating `selected` changes a
 		// shared box without changing the struct — @Published can't see it.
@@ -729,10 +869,39 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	func setSpeed(_ newSpeed: Double) {
+		// A deliberate speed choice (menu / remote) wins over a transient hold.
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
 		speed = newSpeed
 		engine?.setSpeed(speed: newSpeed)
 		emit?("onSpeedChange", ["speed": newSpeed])
 		scheduleAutoHide()
+	}
+
+	// MARK: Press-and-hold 2×
+
+	/// YouTube-style hold-for-2×: engages on a long press over empty video
+	/// area, releases back to the pre-hold speed. Deliberately does NOT emit
+	/// onSpeedChange — the transient 2× must never be persisted as the user's
+	/// speed preference.
+	func beginHoldSpeed() {
+		guard holdToSpeedEnabled, !isHoldSpeedActive, isPlaying,
+			!controlsLocked, !showStillWatching, errorMessage == nil
+		else { return }
+		speedBeforeHold = speed
+		isHoldSpeedActive = true
+		haptic()
+		speed = 2.0
+		engine?.setSpeed(speed: 2.0)
+	}
+
+	func endHoldSpeed() {
+		guard isHoldSpeedActive else { return }
+		isHoldSpeedActive = false
+		let restore = speedBeforeHold ?? 1.0
+		speedBeforeHold = nil
+		speed = restore
+		engine?.setSpeed(speed: restore)
 	}
 
 	/// Bitrate change always re-negotiates the stream in JS — no optimistic
@@ -864,6 +1033,8 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func willTeardown() {
 		isTearingDown = true
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
 		autoHideTask?.cancel()
 		cancelCountdownTask()
 		sleepTimerTask?.cancel()

@@ -183,6 +183,20 @@ final class NativePlayerViewController: UIViewController {
 		if viewModel.showVolumeSlider {
 			view.addSubview(viewModel.volumeController.volumeView)
 		}
+		// Pinch to zoom-to-fill. UIKit-level (not a SwiftUI gesture) so the
+		// two-finger pinch can be observed without entering the SwiftUI gesture
+		// arena, where it would fight the surface drag for the same touches.
+		// The recognizer is always attached — enable/lock state is re-checked
+		// per pinch in the view model, so config swaps need no re-wiring.
+		let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+		pinch.cancelsTouchesInView = false
+		// Without a delegate, whichever gesture begins first excludes the other
+		// for the whole touch sequence — the overlay's 12pt surface drag usually
+		// wins (first finger moves before the second lands) and the pinch is
+		// silently starved. Simultaneous recognition lets the pinch always fire;
+		// the overlay stands down via isPinching once it does.
+		pinch.delegate = self
+		view.addGestureRecognizer(pinch)
 		#endif
 
 		#if os(tvOS)
@@ -203,6 +217,21 @@ final class NativePlayerViewController: UIViewController {
 		}
 		#endif
 	}
+
+	#if os(iOS)
+	@objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+		switch recognizer.state {
+		case .began:
+			viewModel.pinchBegan()
+		case .changed:
+			viewModel.pinchChanged(scale: Double(recognizer.scale))
+		case .ended, .cancelled, .failed:
+			viewModel.pinchEnded()
+		default:
+			break
+		}
+	}
+	#endif
 
 	override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
@@ -584,3 +613,16 @@ final class NativePlayerViewController: UIViewController {
 	}
 	#endif
 }
+#if os(iOS)
+// Simultaneous recognition for the pinch (see setup). iOS-only: the tvOS
+// press/pan recognizers never set a delegate and must keep default
+// exclusivity.
+extension NativePlayerViewController: UIGestureRecognizerDelegate {
+	func gestureRecognizer(
+		_ gestureRecognizer: UIGestureRecognizer,
+		shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+	) -> Bool {
+		true
+	}
+}
+#endif

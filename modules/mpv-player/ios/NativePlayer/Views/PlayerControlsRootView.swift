@@ -1,5 +1,7 @@
 #if os(iOS)
+import Combine
 import SwiftUI
+import UIKit
 
 /// Root overlay for the presented native player. Flat dark look modeled on
 /// the iOS system player: white SF Symbols, gradient scrims, monospaced-digit
@@ -17,6 +19,11 @@ struct PlayerControlsRootView: View {
 	@State private var dragOnLeftHalf = false
 	@State private var dragStartFraction: Double = 0
 	@State private var dragStartLevel: Double = 0
+	/// A pinch or an engaged 2× hold took over this touch sequence — the drag
+	/// must stay dead until the fingers lift, or its accumulated translation
+	/// (finger spread / hold drift) would scrub or yank the sliders against a
+	/// stale baseline.
+	@State private var dragSuppressed = false
 
 	/// Points of vertical travel for a full 0→1 volume/brightness swing.
 	private let verticalDragRange: CGFloat = 280
@@ -39,6 +46,7 @@ struct PlayerControlsRootView: View {
 				.contentShape(Rectangle())
 				.onTapGesture { viewModel.toggleControls() }
 				.gesture(surfaceDragGesture(size: size))
+				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
 				scrims
@@ -115,6 +123,27 @@ struct PlayerControlsRootView: View {
 				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
 			}
 
+			// Hold-for-2× feedback pill; lives outside controlsVisible so it
+			// shows over clean video too.
+			if viewModel.isHoldSpeedActive {
+				VStack {
+					HStack(spacing: 5) {
+						Text("2×")
+							.font(.footnote.weight(.bold).monospacedDigit())
+						Image(systemName: "forward.fill")
+							.font(.system(size: 11, weight: .semibold))
+					}
+					.foregroundStyle(.white)
+					.padding(.horizontal, 14)
+					.padding(.vertical, 8)
+					.background(.black.opacity(0.55), in: Capsule())
+					Spacer()
+				}
+				.padding(.top, 24)
+				.transition(.opacity)
+				.allowsHitTesting(false)
+			}
+
 			// Lock mode: taps only toggle this transient unlock pill.
 			if viewModel.controlsLocked && viewModel.unlockButtonRevealed {
 				VStack {
@@ -177,12 +206,44 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.brightnessSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
+		.animation(.easeInOut(duration: 0.15), value: viewModel.isHoldSpeedActive)
+		// SwiftUI never delivers onEnded when the SYSTEM cancels the touch
+		// (incoming call, Control Center edge swipe, backgrounding) — release
+		// an engaged hold here or playback stays stuck at 2×.
+		.onReceive(
+			NotificationCenter.default.publisher(
+				for: UIApplication.willResignActiveNotification
+			)
+		) { _ in
+			viewModel.endHoldSpeed()
+		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
+		}
+		.sheet(isPresented: $viewModel.showSubtitleSearch) {
+			SubtitleSearchView(viewModel: viewModel)
 		}
 	}
 
 	// MARK: - Surface gestures
+
+	/// Press-and-hold anywhere on empty video = 2× until release. The long
+	/// press alone ends the moment its duration elapses, so it sequences into
+	/// a zero-distance drag that keeps the composite alive until the finger
+	/// lifts — onEnded is the release. beginHoldSpeed re-entry-guards itself,
+	/// so the repeated onChanged ticks during the drag phase are harmless.
+	private var holdSpeedGesture: some Gesture {
+		LongPressGesture(minimumDuration: 0.5)
+			.sequenced(before: DragGesture(minimumDistance: 0))
+			.onChanged { value in
+				if case .second = value {
+					viewModel.beginHoldSpeed()
+				}
+			}
+			.onEnded { _ in
+				viewModel.endHoldSpeed()
+			}
+	}
 
 	/// Horizontal drag anywhere = scrub (Apple TV app style, through the same
 	/// beginScrub/updateScrub/endScrub path as the scrubber, so trickplay,
@@ -196,6 +257,26 @@ struct PlayerControlsRootView: View {
 					!viewModel.showStillWatching,
 					viewModel.errorMessage == nil
 				else { return }
+
+				// A two-finger pinch or an engaged 2× hold owns this touch
+				// sequence — abandon any in-flight drag and ignore the rest of
+				// the sequence. Resuming later would apply the accumulated
+				// translation (finger spread / hold drift) against a stale
+				// baseline and make volume/brightness or the scrubber jump.
+				if viewModel.isPinching || viewModel.isHoldSpeedActive || dragSuppressed {
+					if !dragSuppressed {
+						dragSuppressed = true
+						if dragAxis == .vertical {
+							if dragOnLeftHalf {
+								viewModel.brightnessController.isUserInteracting = false
+							} else {
+								viewModel.volumeController.isUserInteracting = false
+							}
+						}
+						dragAxis = nil
+					}
+					return
+				}
 
 				if dragAxis == nil {
 					if abs(value.translation.width) >= abs(value.translation.height) {
@@ -238,6 +319,7 @@ struct PlayerControlsRootView: View {
 				}
 			}
 			.onEnded { _ in
+				dragSuppressed = false
 				if dragAxis == .horizontal, viewModel.isScrubbing {
 					viewModel.endScrub()
 				}
