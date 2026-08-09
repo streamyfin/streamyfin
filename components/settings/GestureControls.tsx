@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import type { ViewProps } from "react-native";
+import { Platform, type ViewProps } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
@@ -80,37 +80,43 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           />
         </ListItem>
 
-        <ListItem
-          title={t("home.settings.gesture_controls.hold_to_speed")}
-          subtitle={t(
-            "home.settings.gesture_controls.hold_to_speed_description",
-          )}
-          disabled={pluginSettings?.enableHoldToSpeed?.locked}
-        >
-          <SettingSwitch
-            value={settings.enableHoldToSpeed}
-            disabled={pluginSettings?.enableHoldToSpeed?.locked}
-            onValueChange={(enableHoldToSpeed) =>
-              updateSettings({ enableHoldToSpeed })
-            }
-          />
-        </ListItem>
+        {/* Hold-for-2x and pinch-to-zoom only exist in the iOS native
+            player — showing dead toggles on Android would be misleading. */}
+        {Platform.OS === "ios" && !Platform.isTV && (
+          <>
+            <ListItem
+              title={t("home.settings.gesture_controls.hold_to_speed")}
+              subtitle={t(
+                "home.settings.gesture_controls.hold_to_speed_description",
+              )}
+              disabled={pluginSettings?.enableHoldToSpeed?.locked}
+            >
+              <SettingSwitch
+                value={settings.enableHoldToSpeed}
+                disabled={pluginSettings?.enableHoldToSpeed?.locked}
+                onValueChange={(enableHoldToSpeed) =>
+                  updateSettings({ enableHoldToSpeed })
+                }
+              />
+            </ListItem>
 
-        <ListItem
-          title={t("home.settings.gesture_controls.pinch_to_zoom")}
-          subtitle={t(
-            "home.settings.gesture_controls.pinch_to_zoom_description",
-          )}
-          disabled={pluginSettings?.enablePinchToZoom?.locked}
-        >
-          <SettingSwitch
-            value={settings.enablePinchToZoom}
-            disabled={pluginSettings?.enablePinchToZoom?.locked}
-            onValueChange={(enablePinchToZoom) =>
-              updateSettings({ enablePinchToZoom })
-            }
-          />
-        </ListItem>
+            <ListItem
+              title={t("home.settings.gesture_controls.pinch_to_zoom")}
+              subtitle={t(
+                "home.settings.gesture_controls.pinch_to_zoom_description",
+              )}
+              disabled={pluginSettings?.enablePinchToZoom?.locked}
+            >
+              <SettingSwitch
+                value={settings.enablePinchToZoom}
+                disabled={pluginSettings?.enablePinchToZoom?.locked}
+                onValueChange={(enablePinchToZoom) =>
+                  updateSettings({ enablePinchToZoom })
+                }
+              />
+            </ListItem>
+          </>
+        )}
 
         <ListItem
           title={t("home.settings.gesture_controls.hide_volume_slider")}
