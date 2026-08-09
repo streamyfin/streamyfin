@@ -257,14 +257,10 @@ final class NativePlayerViewController: UIViewController {
 			for recognizer in self.remoteRecognizers {
 				recognizer.isEnabled = !focusMode
 			}
-			if focusMode {
-				// Kick the focus engine a tick later so the freshly mounted
-				// buttons are focusable targets.
-				DispatchQueue.main.async {
-					self.setNeedsFocusUpdate()
-					self.updateFocusIfNeeded()
-				}
-			}
+			// No forced focus-engine kick here: SwiftUI requests focus itself
+			// when focusable content mounts, and a UIKit-level update would
+			// resolve to the left-most button, stomping the row's remembered
+			// default (prefersDefaultFocus/FocusState restore).
 		}
 		.store(in: &cancellables)
 	}

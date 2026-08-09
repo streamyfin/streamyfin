@@ -142,12 +142,19 @@ struct TVControlsRow: View {
 			}
 		}
 		.onAppear {
-			// Re-evaluate default focus AFTER the VC's post-mount focus kick,
-			// so the scope's preference (the remembered control) wins over
-			// the engine's left-most pick.
-			DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+			// Steer focus to the remembered control (fallback play/pause).
+			// Two attempts: right after mount, and again a beat later in case
+			// the focus engine's own initial update lands in between.
+			let target = defaultFocusTarget
+			DispatchQueue.main.async {
 				resetFocus(in: focusNamespace)
-				focusedControl = defaultFocusTarget
+				focusedControl = target
+			}
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+				if focusedControl != target {
+					resetFocus(in: focusNamespace)
+					focusedControl = target
+				}
 			}
 		}
 	}
