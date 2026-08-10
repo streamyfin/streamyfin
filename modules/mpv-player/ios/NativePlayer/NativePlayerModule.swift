@@ -135,17 +135,13 @@ public class NativePlayerModule: Module {
 		}.runOnQueue(.main)
 
 		AsyncFunction("updateSubtitleSearch") { (state: SubtitleSearchStateRecord) in
-			#if os(iOS)
 			self.session?.viewModel.updateSubtitleSearch(state)
-			#endif
 		}.runOnQueue(.main)
 
 		// Adds a sidecar subtitle to the live mpv handle and selects it
 		// (client-side downloaded subtitle file, e.g. OpenSubtitles fallback).
 		AsyncFunction("addExternalSubtitle") { (url: String) in
-			#if os(iOS)
 			self.session?.engine.addSubtitleFile(url: url, select: true)
-			#endif
 		}.runOnQueue(.main)
 
 		// MARK: - Transport (driven by the JS coordinator: WebSocket remote
