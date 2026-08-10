@@ -74,7 +74,7 @@ export const SubtitlePreview = React.memo(() => {
     );
 
     const commands: Array<() => Promise<void>> = [
-      () => player.setSubtitleScale(effectiveScale),
+      () => player.setSubtitleScale(effectiveScale * 2),
       () =>
         player.setSubtitleStyle({
           color: settings.subtitleColor,
