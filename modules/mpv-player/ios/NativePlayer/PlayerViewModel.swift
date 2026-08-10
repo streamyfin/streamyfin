@@ -105,6 +105,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var seekFeedbackVisible = false
 	private var seekFeedbackTask: Task<Void, Never>?
 	#endif
+	#if os(iOS)
+	/// Direction of the last double-tap jump (true = forward) while its
+	/// feedback pill is showing; nil once the pill has faded. Lives outside
+	/// controlsVisible so the pill shows over clean video too.
+	@Published var doubleTapSeekForward: Bool?
+	private var doubleTapSeekFeedbackTask: Task<Void, Never>?
+	#endif
 	@Published var showSubtitleSearch = false
 
 	// MARK: - Content state
@@ -153,6 +160,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var showBrightnessSlider = true
 	private(set) var holdToSpeedEnabled = true
 	private(set) var pinchToZoomEnabled = true
+	private(set) var doubleTapToSeekEnabled = false
 	private(set) var subtitleSearchEnabled = false
 	private(set) var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
 	private(set) var videoWidth: Int?
@@ -322,6 +330,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		showBrightnessSlider = config.ui.showBrightnessSlider
 		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
 		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
+		doubleTapToSeekEnabled = config.ui.doubleTapToSeekEnabled
 		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
 		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
@@ -483,6 +492,29 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		haptic()
 		seek(to: displayPosition - seekBackwardSec)
 	}
+
+	#if os(iOS)
+	/// Double tap on empty video: right half jumps forward, left half back
+	/// (settings.enableDoubleTapToSeek). Same guards as the surface drag —
+	/// lock mode and end-of-playback overlays swallow the gesture.
+	func doubleTapSeek(forward: Bool) {
+		guard doubleTapToSeekEnabled, !controlsLocked, !showStillWatching,
+			errorMessage == nil, duration > 0
+		else { return }
+		if forward {
+			seekForward()
+		} else {
+			seekBackward()
+		}
+		doubleTapSeekForward = forward
+		doubleTapSeekFeedbackTask?.cancel()
+		doubleTapSeekFeedbackTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 800_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.doubleTapSeekForward = nil }
+		}
+	}
+	#endif
 
 	// MARK: Scrubbing
 
