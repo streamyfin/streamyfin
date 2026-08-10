@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BlurView } from "expo-blur";
 import { File } from "expo-file-system";
 import { Image } from "expo-image";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import React, {
   useCallback,
   useEffect,
@@ -48,6 +48,7 @@ import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
@@ -56,7 +57,6 @@ import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
 import { useSettings } from "@/utils/atoms/settings";
-import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
@@ -163,29 +163,31 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       defaultMediaSource,
     ]);
 
-    const clearShuffleQueue = useSetAtom(shuffleQueueAtom);
+    const playMedia = usePlayMedia();
 
     const navigateToPlayer = useCallback(
       (playbackPosition: string) => {
         if (!item || !selectedOptions) return;
 
-        // Starting a normal play cancels any active shuffle queue so a stale
-        // queue can't hijack the next-episode order.
-        clearShuffleQueue(null);
-
-        const queryParams = new URLSearchParams({
-          itemId: item.Id!,
-          audioIndex: selectedOptions.audioIndex?.toString() ?? "",
-          subtitleIndex: selectedOptions.subtitleIndex?.toString() ?? "",
-          mediaSourceId: selectedOptions.mediaSource?.Id ?? "",
-          bitrateValue: selectedOptions.bitrate?.value?.toString() ?? "",
-          playbackPosition,
-          offline: isOffline ? "true" : "false",
-        });
-
-        router.push(`/player/direct-player?${queryParams.toString()}`);
+        // The chooser clears the shuffle queue, resets the auto-play chain
+        // and routes to the native player (Apple TV opt-in) or the JS route.
+        const positionTicks = Number(playbackPosition);
+        void playMedia(
+          {
+            itemId: item.Id!,
+            audioIndex: selectedOptions.audioIndex,
+            subtitleIndex: selectedOptions.subtitleIndex,
+            mediaSourceId: selectedOptions.mediaSource?.Id ?? undefined,
+            bitrateValue: selectedOptions.bitrate?.value ?? undefined,
+            offline: isOffline,
+            playbackPositionTicks: Number.isFinite(positionTicks)
+              ? positionTicks
+              : 0,
+          },
+          { item },
+        );
       },
-      [item, selectedOptions, isOffline, router, clearShuffleQueue],
+      [item, selectedOptions, isOffline, playMedia],
     );
 
     const handlePlay = () => {

@@ -350,8 +350,11 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Subtitle Controls
 
-	func getSubtitleTracks() -> [[String: Any]] {
-		return renderer?.getSubtitleTracks() ?? []
+	/// Completion fires on the renderer's mpv work queue; hop to main before
+	/// touching UI state.
+	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) {
+		guard let renderer else { return completion([]) }
+		renderer.getSubtitleTracks(completion: completion)
 	}
 
 	func setSubtitleTrack(_ trackId: Int) {
@@ -362,8 +365,9 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.disableSubtitles()
 	}
 
-	func getCurrentSubtitleTrack() -> Int {
-		return renderer?.getCurrentSubtitleTrack() ?? 0
+	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
+		guard let renderer else { return completion(0) }
+		renderer.getCurrentSubtitleTrack(completion: completion)
 	}
 
 	func addSubtitleFile(url: String, select: Bool = true) {
@@ -372,16 +376,19 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Audio Track Controls
 
-	func getAudioTracks() -> [[String: Any]] {
-		return renderer?.getAudioTracks() ?? []
+	/// Completion fires on the renderer's mpv work queue (see getSubtitleTracks).
+	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) {
+		guard let renderer else { return completion([]) }
+		renderer.getAudioTracks(completion: completion)
 	}
 
 	func setAudioTrack(_ trackId: Int) {
 		renderer?.setAudioTrack(trackId)
 	}
 
-	func getCurrentAudioTrack() -> Int {
-		return renderer?.getCurrentAudioTrack() ?? 0
+	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
+		guard let renderer else { return completion(0) }
+		renderer.getCurrentAudioTrack(completion: completion)
 	}
 
 	// MARK: - Subtitle Positioning
@@ -410,6 +417,11 @@ final class MPVPlayerEngine: NSObject {
 	/// Speech-clarity EQ toggle (bass cut + presence boost via mpv af/lavfi).
 	func setDialogueBoost(_ enabled: Bool) {
 		renderer?.setDialogueBoost(enabled)
+	}
+
+	/// Accessibility mono downmix (mpv audio-channels).
+	func setMonoDownmix(_ enabled: Bool) {
+		renderer?.setMonoDownmix(enabled)
 	}
 
 	func setSubtitleMarginY(_ margin: Int) {
@@ -457,8 +469,10 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Technical Info
 
-	func getTechnicalInfo() -> [String: Any] {
-		return renderer?.getTechnicalInfo() ?? [:]
+	/// Completion fires on the renderer's mpv work queue (see getSubtitleTracks).
+	func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) {
+		guard let renderer else { return completion([:]) }
+		renderer.getTechnicalInfo(completion: completion)
 	}
 }
 

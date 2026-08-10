@@ -1,4 +1,3 @@
-#if os(iOS)
 import Combine
 import Foundation
 import QuartzCore
@@ -32,6 +31,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	var onDismissRequested: ((PlayerDismissReason) -> Void)?
 	/// Set by the view controller — it owns the orientation mask.
 	var onRotateRequested: (() -> Void)?
+	/// tvOS: set by the view controller — it owns the window's
+	/// AVDisplayManager (HDR display criteria).
+	var onHDRModeDetected: ((HDRMode, Double) -> Void)?
 
 	// MARK: - Playback state
 
@@ -76,6 +78,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Speech-clarity EQ (bass cut + presence lift). Session-scoped like the
 	/// sync offsets: reset when the item changes, re-applied on stream swaps.
 	@Published var dialogueBoostEnabled = false
+	/// Accessibility mono downmix. Same session-scoped lifecycle as the
+	/// dialogue boost.
+	@Published var monoAudioEnabled = false
 
 	// MARK: - UI state
 
@@ -96,6 +101,19 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var showTechnicalInfo = false
 	@Published var showEpisodeList = false
 	@Published var showSubtitleScaleControl = false
+	#if os(tvOS)
+	/// Transient transport-bar reveal after a blind arrow jump with the
+	/// chrome hidden (see flashSeekFeedback()).
+	@Published var seekFeedbackVisible = false
+	private var seekFeedbackTask: Task<Void, Never>?
+	#endif
+	#if os(iOS)
+	/// Direction of the last double-tap jump (true = forward) while its
+	/// feedback pill is showing; nil once the pill has faded. Lives outside
+	/// controlsVisible so the pill shows over clean video too.
+	@Published var doubleTapSeekForward: Bool?
+	private var doubleTapSeekFeedbackTask: Task<Void, Never>?
+	#endif
 	@Published var showSubtitleSearch = false
 
 	// MARK: - Content state
@@ -127,10 +145,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// menu-bearing bar while a menu is open.
 	@Published private(set) var sleepTimerMinutes: Int?
 
+	#if os(iOS)
 	/// System volume/brightness for the side sliders. The controllers exist
-	/// unconditionally (cheap); the show* flags gate the UI.
+	/// unconditionally (cheap); the show* flags gate the UI. iOS-only: tvOS
+	/// has no writable volume/brightness (remote/HDMI-CEC own them).
 	let volumeController = SystemVolumeController()
 	let brightnessController = SystemBrightnessController()
+	#endif
 
 	private(set) var playMethod: String?
 	private(set) var transcodeReasons: [String] = []
@@ -141,6 +162,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private(set) var showBrightnessSlider = true
 	private(set) var holdToSpeedEnabled = true
 	private(set) var pinchToZoomEnabled = true
+	private(set) var doubleTapToSeekEnabled = false
 	private(set) var subtitleSearchEnabled = false
 	private(set) var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
 	private(set) var videoWidth: Int?
@@ -169,7 +191,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// Chapter under the thumb during a scrub — a haptic tick fires when it
 	/// changes (crossing a chapter mark).
 	private var lastScrubChapterIndex: Int?
+	#if os(iOS)
 	private lazy var selectionGenerator = UISelectionFeedbackGenerator()
+	#endif
 	private var displayLink: CADisplayLink?
 	private var lastTickTimestamp: CFTimeInterval = 0
 	/// mpv reports "unpaused" while the stream is still loading — without this
@@ -193,7 +217,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	private var isTearingDown = false
 	/// Scrubbing pauses playback; resume on release only if it was playing.
 	private var wasPlayingBeforeScrub = false
+	#if os(iOS)
 	private lazy var impactGenerator = UIImpactFeedbackGenerator(style: .light)
+	#endif
 
 	private let autoHideDelay: TimeInterval = 4
 	/// Menus render as UIMenu whose open state SwiftUI cannot observe, so
@@ -215,16 +241,49 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	override init() {
 		super.init()
+		#if os(iOS)
 		volumeController.onExternalChange = { [weak self] in
 			self?.revealVolumeSliderTransiently()
 		}
+		// Mute transitions (hardware buttons or the in-player slider hitting
+		// zero) surface to JS, which may auto-enable subtitles while muted
+		// (subtitlesOnMute setting) and revert when sound returns. iOS-only:
+		// tvOS volume lives in the TV/receiver (remote/HDMI-CEC) and is
+		// invisible to the app, so no mute event can ever fire there.
+		muteDetectionCancellable = volumeController.$volume
+			.removeDuplicates()
+			.sink { [weak self] value in
+				self?.detectMuteTransition(volume: value)
+			}
+		#endif
 	}
+
+	#if os(iOS)
+	private var muteDetectionCancellable: AnyCancellable?
+	private var lastVolumeForMuteDetection: Double?
+
+	private func detectMuteTransition(volume: Double) {
+		defer { lastVolumeForMuteDetection = volume }
+		// The first sink delivery is the current volume at init — seed only,
+		// so a player opened while already muted doesn't fire an event.
+		guard let previous = lastVolumeForMuteDetection else { return }
+		let muted = volume <= 0.0001
+		let wasMuted = previous <= 0.0001
+		guard muted != wasMuted else { return }
+		emit?("onMuteStateChanged", [
+			"muted": muted,
+			"positionSec": displayPosition,
+		])
+	}
+	#endif
 
 	/// Light impact on control interactions; disabled via settings
 	/// (disableHapticFeedback → ui.hapticsEnabled=false).
 	func haptic() {
+		#if os(iOS)
 		guard hapticsEnabled else { return }
 		impactGenerator.impactOccurred()
+		#endif
 	}
 
 	// MARK: - Config application
@@ -244,6 +303,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			audioDelay = 0
 			volumeBoostPercent = 100
 			dialogueBoostEnabled = false
+			monoAudioEnabled = false
 			// A new item invalidates the previous item's search results.
 			subtitleSearchStatus = "idle"
 			subtitleSearchResults = []
@@ -275,6 +335,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		showBrightnessSlider = config.ui.showBrightnessSlider
 		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
 		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
+		doubleTapToSeekEnabled = config.ui.doubleTapToSeekEnabled
 		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
 		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
 		subtitleScale = config.subtitleStyle?.scale ?? 1.0
@@ -439,6 +500,29 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		seek(to: displayPosition - seekBackwardSec)
 	}
 
+	#if os(iOS)
+	/// Double tap on empty video: right half jumps forward, left half back
+	/// (settings.enableDoubleTapToSeek). Same guards as the surface drag —
+	/// lock mode and end-of-playback overlays swallow the gesture.
+	func doubleTapSeek(forward: Bool) {
+		guard doubleTapToSeekEnabled, !controlsLocked, !showStillWatching,
+			errorMessage == nil, duration > 0
+		else { return }
+		if forward {
+			seekForward()
+		} else {
+			seekBackward()
+		}
+		doubleTapSeekForward = forward
+		doubleTapSeekFeedbackTask?.cancel()
+		doubleTapSeekFeedbackTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 800_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.doubleTapSeekForward = nil }
+		}
+	}
+	#endif
+
 	// MARK: Scrubbing
 
 	func beginScrub() {
@@ -459,6 +543,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		// scrubPosition and SwiftUI frame math unclamped.
 		guard duration > 0, fraction.isFinite else { return }
 		scrubPosition = min(max(fraction, 0), 1) * duration
+		#if os(iOS)
 		// Haptic tick when the thumb crosses a chapter mark.
 		if hapticsEnabled, !chapters.isEmpty {
 			let index = chapterIndex(at: scrubPosition)
@@ -467,6 +552,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 				selectionGenerator.selectionChanged()
 			}
 		}
+		#endif
 	}
 
 	func endScrub() {
@@ -479,8 +565,33 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
-	/// Abandon an in-flight scrub WITHOUT seeking — a pinch starting mid-drag
-	/// means the horizontal movement was finger spread, not a scrub intent.
+	#if os(tvOS)
+	/// A blind left/right jump with the chrome hidden flashes the transport
+	/// bar so the user sees where the jump landed — WITHOUT entering focus
+	/// mode: controlsVisible stays false, so the VC recognizers stay live
+	/// and repeated presses keep jumping instead of moving button focus.
+	func flashSeekFeedback() {
+		seekFeedbackVisible = true
+		seekFeedbackTask?.cancel()
+		seekFeedbackTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.seekFeedbackVisible = false }
+		}
+	}
+
+	/// Menu while the feedback bar is up peels it away instead of asking to
+	/// exit playback.
+	func hideSeekFeedback() {
+		seekFeedbackTask?.cancel()
+		seekFeedbackVisible = false
+	}
+	#endif
+
+	/// Abandon an in-flight scrub WITHOUT seeking. iOS: a pinch starting
+	/// mid-drag means the horizontal movement was finger spread, not a scrub
+	/// intent. tvOS: Menu while a scrub is armed abandons it (resuming only
+	/// if playback was running before the scrub).
 	func cancelScrub() {
 		guard isScrubbing else { return }
 		isScrubbing = false
@@ -515,6 +626,13 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		haptic()
 		dialogueBoostEnabled.toggle()
 		engine?.setDialogueBoost(dialogueBoostEnabled)
+		scheduleAutoHide()
+	}
+
+	func toggleMonoAudio() {
+		haptic()
+		monoAudioEnabled.toggle()
+		engine?.setMonoDownmix(monoAudioEnabled)
 		scheduleAutoHide()
 	}
 
@@ -704,6 +822,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// video into a smaller display, capped at the shared 3× boost.
 	func applySubtitleScale() {
 		guard let engine else { return }
+		#if os(iOS)
 		var effectiveScale = subtitleScale * subtitleScaleMultiplier
 		if let videoWidth, let videoHeight, videoWidth > 0, videoHeight > 0 {
 			let surface = playerSurfaceSize
@@ -718,6 +837,9 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			}
 		}
 		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)
+		#else
+		engine.setSubtitleScale(subtitleScale)
+		#endif
 	}
 
 	private var playerSurfaceSize: CGSize {
@@ -798,6 +920,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			requestSubtitleSearch(language: subtitleSearchLanguage)
 		}
 	}
+
+	#if os(tvOS)
+	/// Close the TV panel and hand the remote back to the chrome — the panel
+	/// opens with the chrome hidden, so plain dismissal would leave the user
+	/// staring at bare video after an explicit "back out of this" press.
+	func closeSubtitleSearch() {
+		showSubtitleSearch = false
+		showControls()
+	}
+	#endif
 
 	func requestSubtitleSearch(language: String) {
 		// No language switches mid-download — the search answer would clear
@@ -1042,6 +1174,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 				guard !Task.isCancelled, let self else { return }
 				let done: Bool = await MainActor.run {
 					guard let remaining = self.countdownRemaining else { return true }
+					// Paused playback freezes the countdown: EOF (the real
+					// episode switch) can't arrive while paused, so ticking on
+					// would swap the episode out from under a paused screen.
+					guard self.isPlaying else { return false }
 					let next = remaining - 1
 					if next <= 0 {
 						self.countdownRemaining = nil
@@ -1268,7 +1404,8 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 	}
 
 	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
-		// tvOS-only concern (AVDisplayCriteria); nothing to do on iOS.
+		// tvOS applies AVDisplayCriteria via the view controller; no-op on iOS.
+		onHDRModeDetected?(mode, fps)
 	}
 
 	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
@@ -1298,4 +1435,3 @@ extension PlayerViewModel: MPVPlayerEngineDelegate {
 		}
 	}
 }
-#endif

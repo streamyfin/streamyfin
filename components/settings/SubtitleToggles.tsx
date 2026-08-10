@@ -485,6 +485,17 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           </View>
         </ListItem>
 
+        {Platform.OS === "ios" && !Platform.isTV && (
+          <ListItem title={t("home.settings.subtitles.subtitles_on_mute")}>
+            <SettingSwitch
+              value={settings.subtitlesOnMute}
+              onValueChange={(value) =>
+                updateSettings({ subtitlesOnMute: value })
+              }
+            />
+          </ListItem>
+        )}
+
         <ListItem
           title={t("home.settings.subtitles.subtitle_size")}
           disabled={pluginSettings?.subtitleSize?.locked}

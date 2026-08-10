@@ -165,8 +165,11 @@ public class MpvPlayerModule: Module {
       }
       
       // Subtitle functions
-      AsyncFunction("getSubtitleTracks") { (view: MpvPlayerView) -> [[String: Any]] in
-        return view.getSubtitleTracks()
+      // Track/info getters resolve via completion so the blocking mpv reads
+      // never run on the main thread (vo_create deadlock → watchdog kill;
+      // see MPVLayerRenderer.onQueue).
+      AsyncFunction("getSubtitleTracks") { (view: MpvPlayerView, promise: Promise) in
+        view.getSubtitleTracks { promise.resolve($0) }
       }
       
       AsyncFunction("setSubtitleTrack") { (view: MpvPlayerView, trackId: Int) in
@@ -177,8 +180,8 @@ public class MpvPlayerModule: Module {
         view.disableSubtitles()
       }
       
-      AsyncFunction("getCurrentSubtitleTrack") { (view: MpvPlayerView) -> Int in
-        return view.getCurrentSubtitleTrack()
+      AsyncFunction("getCurrentSubtitleTrack") { (view: MpvPlayerView, promise: Promise) in
+        view.getCurrentSubtitleTrack { promise.resolve($0) }
       }
       
       AsyncFunction("addSubtitleFile") { (view: MpvPlayerView, url: String, select: Bool) in
@@ -231,16 +234,16 @@ public class MpvPlayerModule: Module {
       }
 
       // Audio track functions
-      AsyncFunction("getAudioTracks") { (view: MpvPlayerView) -> [[String: Any]] in
-        return view.getAudioTracks()
+      AsyncFunction("getAudioTracks") { (view: MpvPlayerView, promise: Promise) in
+        view.getAudioTracks { promise.resolve($0) }
       }
       
       AsyncFunction("setAudioTrack") { (view: MpvPlayerView, trackId: Int) in
         view.setAudioTrack(trackId)
       }
       
-      AsyncFunction("getCurrentAudioTrack") { (view: MpvPlayerView) -> Int in
-        return view.getCurrentAudioTrack()
+      AsyncFunction("getCurrentAudioTrack") { (view: MpvPlayerView, promise: Promise) in
+        view.getCurrentAudioTrack { promise.resolve($0) }
       }
 
       // Video scaling functions
@@ -253,8 +256,8 @@ public class MpvPlayerModule: Module {
       }
 
       // Technical info function
-      AsyncFunction("getTechnicalInfo") { (view: MpvPlayerView) -> [String: Any] in
-        return view.getTechnicalInfo()
+      AsyncFunction("getTechnicalInfo") { (view: MpvPlayerView, promise: Promise) in
+        view.getTechnicalInfo { promise.resolve($0) }
       }
 
       // Defines events that the view can send to JavaScript

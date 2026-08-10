@@ -165,7 +165,8 @@ export type NativePlayerSubtitleStyle = {
 
 /**
  * Localized labels handed to the native UI; English fallbacks apply.
- * endsAt carries a literal %TIME% placeholder the native side substitutes.
+ * endsAt carries a literal %TIME% placeholder and stopPlayingTitle a literal
+ * %TITLE% placeholder — the native side substitutes both.
  */
 export type NativePlayerStrings = Partial<
   Record<
@@ -189,6 +190,7 @@ export type NativePlayerStrings = Partial<
     | "audioSync"
     | "volumeBoost"
     | "dialogueBoost"
+    | "monoAudio"
     | "rotate"
     | "lockControls"
     | "unlock"
@@ -197,6 +199,10 @@ export type NativePlayerStrings = Partial<
     | "goBack"
     | "endsAt"
     | "zoomToFill"
+    | "stop"
+    | "stopPlayback"
+    | "stopPlayingTitle"
+    | "stopPlayingConfirm"
     | "sleepTimer"
     | "sleepTimerOff"
     | "searchSubtitles"
@@ -222,6 +228,8 @@ export type NativePlayerUIOptions = {
   holdToSpeedEnabled?: boolean;
   /** false disables pinch to zoom-to-fill (settings.enablePinchToZoom). */
   pinchToZoomEnabled?: boolean;
+  /** true enables double tap on the video halves to seek (settings.enableDoubleTapToSeek). */
+  doubleTapToSeekEnabled?: boolean;
   /** Remote subtitle search entry in the subtitles menu (online only). */
   subtitleSearchEnabled?: boolean;
   /** ISO 639-2 codes + localized display names for the language picker. */
@@ -326,6 +334,14 @@ export type NativePlayerEvents = {
   /** A result row was tapped; resultId keys into the last pushed results. */
   onSubtitleDownloadRequested: (payload: {
     resultId: string;
+    positionSec: number;
+  }) => void;
+  /**
+   * System volume crossed zero (either direction). JS may auto-enable
+   * subtitles while muted (settings.subtitlesOnMute) and revert on unmute.
+   */
+  onMuteStateChanged: (payload: {
+    muted: boolean;
     positionSec: number;
   }) => void;
 };

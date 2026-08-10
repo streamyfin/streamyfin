@@ -155,6 +155,7 @@ struct UIOptionsRecord: Record {
 	@Field var showBrightnessSlider: Bool = true
 	@Field var holdToSpeedEnabled: Bool = true
 	@Field var pinchToZoomEnabled: Bool = true
+	@Field var doubleTapToSeekEnabled: Bool = false
 	/// Remote subtitle search (online sessions with an API only).
 	@Field var subtitleSearchEnabled: Bool = false
 	@Field var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
@@ -164,7 +165,9 @@ struct UIOptionsRecord: Record {
 	/// chapters, technicalInfo, playbackError, close, off, quality,
 	/// subtitleSize, subtitleSync, audioSync, volumeBoost, rotate,
 	/// lockControls, unlock, zoomToFill, stillWatching, continueWatching,
-	/// goBack, endsAt — endsAt carries a %TIME% placeholder). Native falls
+	/// goBack, endsAt, stop, stopPlayback, stopPlayingTitle,
+	/// stopPlayingConfirm — endsAt carries a %TIME% placeholder,
+	/// stopPlayingTitle a %TITLE% placeholder). Native falls
 	/// back to English for missing keys.
 	@Field var strings: [String: String] = [:]
 }

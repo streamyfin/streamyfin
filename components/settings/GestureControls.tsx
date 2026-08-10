@@ -10,6 +10,8 @@ import { ListItem } from "../list/ListItem";
 
 interface Props extends ViewProps {}
 
+const isIOSMobile = Platform.OS === "ios" && !Platform.isTV;
+
 export const GestureControls: React.FC<Props> = ({ ...props }) => {
   const { t } = useTranslation();
 
@@ -81,41 +83,61 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
         </ListItem>
 
         {/* Hold-for-2x and pinch-to-zoom only exist in the iOS native
-            player — showing dead toggles on Android would be misleading. */}
-        {Platform.OS === "ios" && !Platform.isTV && (
-          <>
-            <ListItem
-              title={t("home.settings.gesture_controls.hold_to_speed")}
-              subtitle={t(
-                "home.settings.gesture_controls.hold_to_speed_description",
-              )}
+            player — showing dead toggles on Android would be misleading.
+            Each item is gated individually: ListGroup clones its children
+            to inject separator styles, which a Fragment can't accept. */}
+        {isIOSMobile && (
+          <ListItem
+            title={t("home.settings.gesture_controls.hold_to_speed")}
+            subtitle={t(
+              "home.settings.gesture_controls.hold_to_speed_description",
+            )}
+            disabled={pluginSettings?.enableHoldToSpeed?.locked}
+          >
+            <SettingSwitch
+              value={settings.enableHoldToSpeed}
               disabled={pluginSettings?.enableHoldToSpeed?.locked}
-            >
-              <SettingSwitch
-                value={settings.enableHoldToSpeed}
-                disabled={pluginSettings?.enableHoldToSpeed?.locked}
-                onValueChange={(enableHoldToSpeed) =>
-                  updateSettings({ enableHoldToSpeed })
-                }
-              />
-            </ListItem>
+              onValueChange={(enableHoldToSpeed) =>
+                updateSettings({ enableHoldToSpeed })
+              }
+            />
+          </ListItem>
+        )}
 
-            <ListItem
-              title={t("home.settings.gesture_controls.pinch_to_zoom")}
-              subtitle={t(
-                "home.settings.gesture_controls.pinch_to_zoom_description",
-              )}
+        {isIOSMobile && (
+          <ListItem
+            title={t("home.settings.gesture_controls.pinch_to_zoom")}
+            subtitle={t(
+              "home.settings.gesture_controls.pinch_to_zoom_description",
+            )}
+            disabled={pluginSettings?.enablePinchToZoom?.locked}
+          >
+            <SettingSwitch
+              value={settings.enablePinchToZoom}
               disabled={pluginSettings?.enablePinchToZoom?.locked}
-            >
-              <SettingSwitch
-                value={settings.enablePinchToZoom}
-                disabled={pluginSettings?.enablePinchToZoom?.locked}
-                onValueChange={(enablePinchToZoom) =>
-                  updateSettings({ enablePinchToZoom })
-                }
-              />
-            </ListItem>
-          </>
+              onValueChange={(enablePinchToZoom) =>
+                updateSettings({ enablePinchToZoom })
+              }
+            />
+          </ListItem>
+        )}
+
+        {isIOSMobile && (
+          <ListItem
+            title={t("home.settings.gesture_controls.double_tap_to_seek")}
+            subtitle={t(
+              "home.settings.gesture_controls.double_tap_to_seek_description",
+            )}
+            disabled={pluginSettings?.enableDoubleTapToSeek?.locked}
+          >
+            <SettingSwitch
+              value={settings.enableDoubleTapToSeek}
+              disabled={pluginSettings?.enableDoubleTapToSeek?.locked}
+              onValueChange={(enableDoubleTapToSeek) =>
+                updateSettings({ enableDoubleTapToSeek })
+              }
+            />
+          </ListItem>
         )}
 
         <ListItem
