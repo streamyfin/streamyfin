@@ -4,6 +4,8 @@ import {
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
 import { useCallback, useEffect } from "react";
+import { useWindowDimensions } from "react-native";
+import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
 /**
@@ -17,6 +19,10 @@ import { useGlobalModal } from "@/providers/GlobalModalProvider";
  */
 export const GlobalModal = () => {
   const { hideModal, modalState, modalRef, isVisible } = useGlobalModal();
+  // Derived here rather than passed in by callers: this component re-renders on
+  // rotation, so a sheet that is already open follows the new window height.
+  const { height: windowHeight } = useWindowDimensions();
+  const maxDynamicContentSize = windowHeight * SHEET_MAX_HEIGHT_RATIO;
 
   useEffect(() => {
     if (isVisible && modalState.content) {
@@ -68,7 +74,7 @@ export const GlobalModal = () => {
           { snapPoints: modalOptions.snapPoints, enableDynamicSizing: false }
         : {
             enableDynamicSizing: modalOptions.enableDynamicSizing,
-            maxDynamicContentSize: modalOptions.maxDynamicContentSize,
+            maxDynamicContentSize,
           })}
       onChange={handleSheetChanges}
       backdropComponent={renderBackdrop}
