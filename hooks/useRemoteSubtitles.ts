@@ -103,7 +103,7 @@ export function useRemoteSubtitles({
 }: UseRemoteSubtitlesOptions) {
   const api = useAtomValue(apiAtom);
   const { settings } = useSettings();
-  const openSubtitlesApiKey = settings.openSubtitlesApiKey;
+  const openSubtitlesApiKey = settings.openSubtitlesApiKey?.trim();
 
   // Check if we can use OpenSubtitles fallback
   const hasOpenSubtitlesApiKey = Boolean(openSubtitlesApiKey);
