@@ -39,6 +39,7 @@ interface HeaderControlsProps {
   // Technical info props
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
+  onOpenSubtitleScale?: () => void;
 }
 
 export const HeaderControls: FC<HeaderControlsProps> = ({
@@ -61,6 +62,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
   onSubtitleDelayChange,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
+  onOpenSubtitleScale,
 }) => {
   const { t } = useTranslation();
   const router = useRouter();
@@ -122,6 +124,7 @@ export const HeaderControls: FC<HeaderControlsProps> = ({
               onSubtitleDelayChange={onSubtitleDelayChange}
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
+              onOpenSubtitleScale={onOpenSubtitleScale}
             />
           </View>
         )}

@@ -5,7 +5,7 @@ import {
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Modal,
@@ -37,8 +37,15 @@ const SUBTITLE_SYNC_OFFSETS = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5];
 const SUBTITLE_SCALE_MIN = 0.1;
 const SUBTITLE_SCALE_MAX = 3;
 const SUBTITLE_SCALE_STEPS = 29;
+const SUBTITLE_SCALE_TIMEOUT_MS = 5000;
 
-const SubtitleScaleControl = ({ onClose }: { onClose?: () => void }) => {
+const SubtitleScaleControl = ({
+  onClose,
+  onInteraction,
+}: {
+  onClose?: () => void;
+  onInteraction?: () => void;
+}) => {
   const { t } = useTranslation();
   const { settings, updateSettings, pluginSettings } = useSettings();
   const progress = useSharedValue(settings.subtitleSize);
@@ -55,8 +62,9 @@ const SubtitleScaleControl = ({ onClose }: { onClose?: () => void }) => {
       const subtitleSize = Math.round(value * 10) / 10;
       progress.value = subtitleSize;
       updateSettings({ subtitleSize });
+      onInteraction?.();
     },
-    [progress, updateSettings],
+    [onInteraction, progress, updateSettings],
   );
 
   return (
@@ -123,6 +131,7 @@ const SubtitleScaleControl = ({ onClose }: { onClose?: () => void }) => {
               thumbWidth={24}
               renderBubble={() => null}
               renderMark={() => null}
+              onSlidingStart={onInteraction}
               onValueChange={updateSubtitleScale}
               containerStyle={{ borderRadius: 100 }}
               theme={{
@@ -152,6 +161,51 @@ const SubtitleScaleControl = ({ onClose }: { onClose?: () => void }) => {
   );
 };
 
+export const AndroidSubtitleScaleOverlay = ({
+  visible,
+  onClose,
+  onBackgroundPress,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onBackgroundPress: () => void;
+}) => {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const resetTimeout = useCallback(() => {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(onClose, SUBTITLE_SCALE_TIMEOUT_MS);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (visible) resetTimeout();
+    return () => clearTimeout(timeoutRef.current);
+  }, [resetTimeout, visible]);
+
+  return (
+    <Modal
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      visible={visible}
+      animationType='fade'
+      onRequestClose={onClose}
+    >
+      <GestureHandlerRootView style={styles.subtitleScaleModal}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onBackgroundPress}
+        />
+        <View style={styles.subtitleScaleOverlay}>
+          <SubtitleScaleControl
+            onClose={onClose}
+            onInteraction={resetTimeout}
+          />
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+};
+
 interface DropdownViewProps {
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
@@ -159,6 +213,7 @@ interface DropdownViewProps {
   onSubtitleDelayChange?: (seconds: number) => void;
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
+  onOpenSubtitleScale?: () => void;
 }
 
 const DropdownView = ({
@@ -168,12 +223,12 @@ const DropdownView = ({
   onSubtitleDelayChange,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
+  onOpenSubtitleScale,
 }: DropdownViewProps) => {
   const { subtitleTracks, audioTracks } = useVideoContext();
   const { item, mediaSource } = usePlayerContext();
   const { settings, pluginSettings } = useSettings();
   const subtitleScaleModalRef = useRef<BottomSheetModal>(null);
-  const [isSubtitleScaleVisible, setIsSubtitleScaleVisible] = useState(false);
   const router = useRouter();
   const isOffline = useOfflineMode();
   const { t } = useTranslation();
@@ -226,11 +281,11 @@ const DropdownView = ({
 
   const openSubtitleScale = useCallback(() => {
     if (Platform.OS === "android") {
-      setIsSubtitleScaleVisible(true);
+      onOpenSubtitleScale?.();
     } else {
       subtitleScaleModalRef.current?.present();
     }
-  }, []);
+  }, [onOpenSubtitleScale]);
 
   const renderSubtitleScaleBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -396,28 +451,7 @@ const DropdownView = ({
           enablePanDownToClose: true,
         }}
       />
-      {Platform.OS === "android" ? (
-        <Modal
-          transparent
-          statusBarTranslucent
-          navigationBarTranslucent
-          visible={isSubtitleScaleVisible}
-          animationType='fade'
-          onRequestClose={() => setIsSubtitleScaleVisible(false)}
-        >
-          <GestureHandlerRootView style={styles.subtitleScaleModal}>
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={() => setIsSubtitleScaleVisible(false)}
-            />
-            <View style={styles.subtitleScaleOverlay}>
-              <SubtitleScaleControl
-                onClose={() => setIsSubtitleScaleVisible(false)}
-              />
-            </View>
-          </GestureHandlerRootView>
-        </Modal>
-      ) : (
+      {Platform.OS !== "android" && (
         <BottomSheetModal
           ref={subtitleScaleModalRef}
           enableDynamicSizing

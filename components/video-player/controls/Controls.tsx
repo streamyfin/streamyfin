@@ -32,6 +32,7 @@ import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
 import { CONTROLS_CONSTANTS } from "./constants";
+import { AndroidSubtitleScaleOverlay } from "./dropdown/DropdownView";
 import { EpisodeList } from "./EpisodeList";
 import { GestureOverlay } from "./GestureOverlay";
 import { HeaderControls } from "./HeaderControls";
@@ -117,6 +118,7 @@ export const Controls: FC<Props> = ({
 
   const [episodeView, setEpisodeView] = useState(false);
   const [showAudioSlider, setShowAudioSlider] = useState(false);
+  const [showSubtitleScale, setShowSubtitleScale] = useState(false);
 
   const { height: screenHeight, width: screenWidth } = useWindowDimensions();
   const { previousItem, nextItem } = usePlaybackManager({
@@ -513,6 +515,8 @@ export const Controls: FC<Props> = ({
     setShowControls(false);
     setShowAudioSlider(false);
   }, [setShowControls]);
+  const openSubtitleScale = useCallback(() => setShowSubtitleScale(true), []);
+  const closeSubtitleScale = useCallback(() => setShowSubtitleScale(false), []);
 
   const { handleControlsInteraction } = useControlsTimeout({
     showControls,
@@ -548,6 +552,13 @@ export const Controls: FC<Props> = ({
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
           />
+          {Platform.OS === "android" && (
+            <AndroidSubtitleScaleOverlay
+              visible={showSubtitleScale}
+              onClose={closeSubtitleScale}
+              onBackgroundPress={hideControls}
+            />
+          )}
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
             <TechnicalInfoOverlay
@@ -584,6 +595,7 @@ export const Controls: FC<Props> = ({
               onSubtitleDelayChange={onSubtitleDelayChange}
               showTechnicalInfo={showTechnicalInfo}
               onToggleTechnicalInfo={onToggleTechnicalInfo}
+              onOpenSubtitleScale={openSubtitleScale}
             />
           </Animated.View>
           <Animated.View
