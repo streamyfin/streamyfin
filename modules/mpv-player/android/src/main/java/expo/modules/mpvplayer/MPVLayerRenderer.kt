@@ -654,6 +654,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     fun addSubtitleFile(url: String, select: Boolean = true) {
         val flag = if (select) "select" else "cached"
         mpv?.command(arrayOf("sub-add", url, flag))
+        if (select) applyBidiModeFor(mpv?.getPropertyInt("sid") ?: -1)
         // Track runtime side-loads too, so they survive a resume-recovery
         // reload just like external subs passed to load().
         if (url.isNotEmpty() && url !in activeExternalSubtitles) {

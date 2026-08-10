@@ -985,6 +985,10 @@ final class MPVLayerRenderer {
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
             self.commandSync(handle, ["sub-add", url, flag])
+            guard select else { return }
+            var sid: Int64 = -1
+            _ = self.getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
+            self.applyBidiMode(forTrack: Int(sid))
         }
     }
     
