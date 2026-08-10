@@ -132,7 +132,7 @@ private struct TVBareButtonStyle: ButtonStyle {
 
 /// Bottom transport bar: play-state glyph, progress (played + buffered),
 /// position, remaining and the wall-clock finish time. While a remote scrub
-/// is armed, the playhead follows the scrub target and a trickplay bubble
+/// is armed, the playhead follows the scrub target and a trickplay card
 /// rides above it. Observes PlaybackTimeModel directly — PlayerViewModel
 /// deliberately does not publish the ~30Hz clock (see PlaybackTimeModel).
 ///
@@ -150,7 +150,8 @@ private struct TVTransportBar: View {
 	@ObservedObject var time: PlaybackTimeModel
 	@FocusState private var barFocused: Bool
 
-	private static let bubbleHeight: CGFloat = 180
+	/// Clearance between the scrub preview card and the track it rides over.
+	private static let cardGap: CGFloat = 40
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -265,7 +266,7 @@ private struct TVTransportBar: View {
 	}
 
 	/// First horizontal input on the focused bar: arm the scrub (pauses,
-	/// shows the trickplay bubble) and take the first step. Every further
+	/// shows the trickplay card) and take the first step. Every further
 	/// press/pan is handled by the VC recognizers, which re-enable the
 	/// moment isScrubbing flips.
 	private func armScrub(nudge delta: Double) {
@@ -313,29 +314,25 @@ private struct TVTransportBar: View {
 			.overlay(alignment: .topLeading) {
 				if viewModel.isScrubbing, let trickplay = viewModel.trickplay,
 					trickplay.isAvailable {
-					let chapterName = viewModel.chapterName(at: viewModel.scrubPosition)
-					TrickplayBubbleView(
+					TVTrickplayCard(
 						provider: trickplay,
-						positionSec: viewModel.scrubPosition,
-						chapterName: chapterName,
-						bubbleHeight: Self.bubbleHeight
+						positionSec: viewModel.scrubPosition
 					)
 					.offset(
-						x: bubbleOffsetX(trackWidth: width, provider: trickplay, playedFraction: playedFraction),
-						y: -Self.bubbleHeight - 90 - (chapterName != nil ? 30 : 0)
+						x: cardOffsetX(trackWidth: width, playedFraction: playedFraction),
+						y: -TVTrickplayCard.height - Self.cardGap
 					)
 				}
 			}
 		}
 	}
 
-	/// Center the bubble over the playhead, clamped to the track bounds.
-	private func bubbleOffsetX(
-		trackWidth: CGFloat, provider: TrickplayProvider, playedFraction: CGFloat
-	) -> CGFloat {
-		let bubbleWidth = Self.bubbleHeight * provider.aspectRatio
+	/// Center the card over the playhead, clamped to the track bounds.
+	private func cardOffsetX(trackWidth: CGFloat, playedFraction: CGFloat) -> CGFloat {
 		let thumbX = trackWidth * playedFraction
-		return min(max(thumbX - bubbleWidth / 2, 0), max(trackWidth - bubbleWidth, 0))
+		return min(
+			max(thumbX - TVTrickplayCard.width / 2, 0),
+			max(trackWidth - TVTrickplayCard.width, 0))
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;
