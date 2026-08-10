@@ -37,8 +37,8 @@ struct TVStatusLayerView: View {
 					}
 					Spacer()
 				}
-				.padding(.top, 60)
-				.padding(.leading, 80)
+				.padding(.top, TVChromeMetrics.insetV)
+				.padding(.leading, TVChromeMetrics.insetH)
 			}
 
 			// Skip pill / countdown card (Select acts on both) stay
@@ -63,8 +63,10 @@ struct TVStatusLayerView: View {
 						}
 					}
 				}
-				.padding(.trailing, 80)
-				.padding(.bottom, 80)
+				// Right edge on the chrome's margin, so the card/pill lines up
+				// with the controls row that replaces it when the chrome opens.
+				.padding(.trailing, TVChromeMetrics.insetH)
+				.padding(.bottom, TVChromeMetrics.floatingBottomInset)
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)

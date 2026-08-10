@@ -1,6 +1,26 @@
 #if os(tvOS)
 import SwiftUI
 
+/// Edge inset ON TOP OF the tvOS overscan safe area, which SwiftUI has
+/// already applied by the time these run: the layer hosts are pinned to the
+/// full view bounds, not the safe-area guide, so the system's ~90pt
+/// horizontal / ~60pt vertical insets are inside these. Keep them small —
+/// the old 80/60 put the transport bar ~170pt from the screen edge, far
+/// deeper than the system player.
+///
+/// EVERY layer that touches a screen edge measures from here. The layers are
+/// separate hosting controllers over identical bounds, so a literal left
+/// behind in one of them reads as that layer being misaligned against the
+/// chrome — with nothing in its own file to hint at why.
+enum TVChromeMetrics {
+	static let insetH: CGFloat = 40
+	static let insetV: CGFloat = 24
+	/// The floating skip pill / countdown card ride slightly clear of the
+	/// bottom margin: they only ever show with the chrome hidden, so nothing
+	/// anchors that edge for them the way the time row does for the chrome.
+	static let floatingBottomInset: CGFloat = insetV + 20
+}
+
 /// The chrome layer of the TV player: scrims, metadata header, the focusable
 /// controls row and the transport bar. One of the stacked layer hosts built
 /// by NativePlayerViewController — TVFocusCoordinator flips this host into
@@ -15,15 +35,6 @@ struct TVChromeLayerView: View {
 	/// Focus memory for the button row — lives here because the row unmounts
 	/// whenever the chrome hides, and should reappear on the same control.
 	@State private var lastFocusedControl: TVControl?
-
-	/// Chrome inset ON TOP OF the tvOS overscan safe area, which SwiftUI has
-	/// already applied by the time this runs: the layer hosts are pinned to
-	/// the full view bounds, not the safe-area guide, so the system's ~90pt
-	/// horizontal / ~60pt vertical insets are inside these. Keep them small —
-	/// the old 80/60 put the transport bar ~170pt from the screen edge, far
-	/// deeper than the system player.
-	private static let insetH: CGFloat = 40
-	private static let insetV: CGFloat = 24
 
 	var body: some View {
 		ZStack {
@@ -50,8 +61,8 @@ struct TVChromeLayerView: View {
 						TVTransportBar(viewModel: viewModel, time: viewModel.time)
 					}
 				}
-				.padding(.horizontal, Self.insetH)
-				.padding(.vertical, Self.insetV)
+				.padding(.horizontal, TVChromeMetrics.insetH)
+				.padding(.vertical, TVChromeMetrics.insetV)
 				.transition(.opacity)
 			}
 		}
