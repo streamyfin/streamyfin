@@ -8,7 +8,7 @@ import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 import { PlatformDropdown } from "../PlatformDropdown";
-import { useMedia } from "./MediaContext";
+import { ORIGINAL_LANGUAGE, useMedia } from "./MediaContext";
 
 interface Props extends ViewProps {}
 
@@ -29,6 +29,20 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         value: "none",
         selected: !settings?.defaultAudioLanguage,
         onPress: () => updateSettings({ defaultAudioLanguage: null }),
+      },
+      {
+        type: "radio" as const,
+        label: t("jellyseerr.original_language"), // Not related to jellyseerr, it just has the i18n key
+        value: ORIGINAL_LANGUAGE,
+        selected:
+          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
+          ORIGINAL_LANGUAGE,
+        onPress: () =>
+          updateSettings({
+            defaultAudioLanguage: {
+              ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+            },
+          }),
       },
       ...(cultures?.map((culture) => ({
         type: "radio" as const,
@@ -149,8 +163,11 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {settings?.defaultAudioLanguage?.DisplayName ||
-                    t("home.settings.audio.none")}
+                  {settings?.defaultAudioLanguage
+                    ?.ThreeLetterISOLanguageName === ORIGINAL_LANGUAGE
+                    ? t("jellyseerr.original_language")
+                    : settings?.defaultAudioLanguage?.DisplayName ||
+                      t("home.settings.audio.none")}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'

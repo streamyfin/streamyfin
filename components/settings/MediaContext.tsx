@@ -18,6 +18,8 @@ interface MediaContextType {
   cultures: CultureDto[];
 }
 
+export const ORIGINAL_LANGUAGE = "OriginalLanguage";
+
 const MediaContext = createContext<MediaContextType | undefined>(undefined);
 
 export const useMedia = () => {
@@ -113,9 +115,12 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     const subtitlePreference = cultures.find(
       (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference,
     );
-    const audioPreference = cultures.find(
-      (x) => x.ThreeLetterISOLanguageName === userAudioPreference,
-    );
+    const audioPreference =
+      userAudioPreference === ORIGINAL_LANGUAGE
+        ? { ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE }
+        : cultures.find(
+            (x) => x.ThreeLetterISOLanguageName === userAudioPreference,
+          );
 
     updateSettings({
       defaultSubtitleLanguage: subtitlePreference,
