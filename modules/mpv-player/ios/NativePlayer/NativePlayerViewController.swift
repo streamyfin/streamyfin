@@ -7,10 +7,14 @@ import CoreMedia
 #endif
 
 /// Full-screen presented player: hosts the engine's display layer and a
-/// SwiftUI controls overlay (child UIHostingController). On iOS it owns
-/// orientation, status bar, home indicator and keep-awake for the duration of
-/// playback; on tvOS it owns the Siri Remote press handling (SwiftUI focus is
-/// only used INSIDE panels/shelves in later phases).
+/// SwiftUI controls overlay. On iOS that overlay is a single child
+/// UIHostingController and the VC owns orientation, status bar, home
+/// indicator and keep-awake for the duration of playback. On tvOS the VC
+/// owns the Siri Remote press handling AND the focus orchestration: the
+/// overlay is split into stacked layer hosts (chrome, status, shelf,
+/// subtitle search, still watching, error) and TVFocusCoordinator decides
+/// which single layer the focus engine may see at any moment — SwiftUI
+/// handles focus WITHIN a layer, UIKit decides between layers.
 final class NativePlayerViewController: UIViewController {
 	private let engine: MPVPlayerEngine
 	private let viewModel: PlayerViewModel
@@ -21,7 +25,9 @@ final class NativePlayerViewController: UIViewController {
 
 	private let videoContainerView = UIView()
 	#if os(tvOS)
-	private var hostingController: UIHostingController<AnyView>?
+	/// UIKit-side focus orchestration between the stacked layer hosts —
+	/// see TVFocusCoordinator for the sequencing contract.
+	private let focusCoordinator = TVFocusCoordinator()
 	#else
 	private var hostingController: UIHostingController<PlayerControlsRootView>?
 	#endif
@@ -120,16 +126,39 @@ final class NativePlayerViewController: UIViewController {
 		// The TV chrome is tvOS 26+ by design (native glass menus etc.) —
 		// the JS chooser never routes older boxes here, so pre-26 gets a
 		// bare spinner-less surface as a defensive fallback only.
-		let tvRoot: AnyView
+		//
+		// One hosting controller per layer, stacked back-to-front. The zones
+		// (.chrome/.shelf/...) are the focusable layers; the coordinator
+		// enables exactly one of their host views at a time, which is the
+		// UIKit-level containment that used to be per-view .disabled()
+		// bookkeeping. `zone: nil` layers are display-only and never join
+		// the focus system.
 		if #available(tvOS 26.0, *) {
-			tvRoot = AnyView(TVPlayerRootView(viewModel: viewModel))
+			addOverlayLayer(
+				AnyView(
+					TVChromeLayerView(viewModel: viewModel, focusCoordinator: focusCoordinator)),
+				zone: .chrome)
+			addOverlayLayer(AnyView(TVStatusLayerView(viewModel: viewModel)), zone: nil)
+			addOverlayLayer(
+				AnyView(
+					TVShelfLayerView(viewModel: viewModel, focusCoordinator: focusCoordinator)),
+				zone: .shelf)
+			addOverlayLayer(
+				AnyView(
+					TVSubtitleSearchLayerView(
+						viewModel: viewModel, focusCoordinator: focusCoordinator)),
+				zone: .subtitleSearch)
+			addOverlayLayer(
+				AnyView(
+					TVStillWatchingLayerView(
+						viewModel: viewModel, focusCoordinator: focusCoordinator)),
+				zone: .stillWatching)
+			addOverlayLayer(AnyView(TVErrorLayerView(viewModel: viewModel)), zone: nil)
 		} else {
-			tvRoot = AnyView(EmptyView())
+			addOverlayLayer(AnyView(EmptyView()), zone: nil)
 		}
-		let hosting = UIHostingController(rootView: tvRoot)
 		#else
 		let hosting = UIHostingController(rootView: PlayerControlsRootView(viewModel: viewModel))
-		#endif
 		hosting.view.backgroundColor = .clear
 		addChild(hosting)
 		hosting.view.translatesAutoresizingMaskIntoConstraints = false
@@ -142,6 +171,7 @@ final class NativePlayerViewController: UIViewController {
 		])
 		hosting.didMove(toParent: self)
 		hostingController = hosting
+		#endif
 
 		#if os(iOS)
 		viewModel.$controlsVisible
@@ -218,6 +248,42 @@ final class NativePlayerViewController: UIViewController {
 		#endif
 	}
 
+	// MARK: - tvOS layer hosting & focus orchestration
+
+	#if os(tvOS)
+	/// Adds one full-screen SwiftUI layer as a child hosting controller.
+	/// Layers stack in call order (later = on top). A `zone` registers the
+	/// layer with the focus coordinator, which enables its host view only
+	/// while that zone is active; `zone: nil` layers are display-only and
+	/// never join the focus system.
+	private func addOverlayLayer(_ root: AnyView, zone: TVFocusZone?) {
+		let hosting = UIHostingController(rootView: root)
+		hosting.view.backgroundColor = .clear
+		hosting.view.isUserInteractionEnabled = false
+		addChild(hosting)
+		hosting.view.translatesAutoresizingMaskIntoConstraints = false
+		view.addSubview(hosting.view)
+		NSLayoutConstraint.activate([
+			hosting.view.topAnchor.constraint(equalTo: view.topAnchor),
+			hosting.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+			hosting.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+			hosting.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+		])
+		hosting.didMove(toParent: self)
+		if let zone {
+			focusCoordinator.register(hosting.view, for: zone)
+		}
+	}
+
+	/// System-driven focus updates (initial assignment when the window
+	/// attaches, restore after a UIAlertController dismisses) resolve into
+	/// whatever layer the coordinator has active.
+	override var preferredFocusEnvironments: [UIFocusEnvironment] {
+		let environments = focusCoordinator.preferredEnvironments
+		return environments.isEmpty ? super.preferredFocusEnvironments : environments
+	}
+	#endif
+
 	#if os(iOS)
 	@objc private func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
 		switch recognizer.state {
@@ -283,6 +349,12 @@ final class NativePlayerViewController: UIViewController {
 		#if os(iOS)
 		UIApplication.shared.setStatusBarHidden(!viewModel.controlsVisible, with: .none)
 		#endif
+		#if os(tvOS)
+		// The initial zone activation ran at viewDidLoad time, before the
+		// view joined a window — no focus system existed and the kick was
+		// dropped. Re-assert now that focus updates can resolve.
+		focusCoordinator.refresh()
+		#endif
 	}
 
 	override func viewWillDisappear(_ animated: Bool) {
@@ -302,10 +374,11 @@ final class NativePlayerViewController: UIViewController {
 	// MARK: - tvOS remote input
 
 	#if os(tvOS)
-	/// VC-level press recognizers own the transport gestures; SwiftUI focus is
-	/// reserved for panels/shelves (later phases). Consuming Menu here is
-	/// mandatory: an unhandled Menu press on a presented full-screen VC would
-	/// suspend the app instead of closing the player.
+	/// VC-level press recognizers own the transport gestures whenever no
+	/// focusable layer is up (zone .none); the zone sink below hands the
+	/// remote to SwiftUI focus otherwise. Consuming Menu here is mandatory:
+	/// an unhandled Menu press on a presented full-screen VC would suspend
+	/// the app instead of closing the player.
 	private func setupRemotePressRecognizers() {
 		// Menu stays enabled even while the options panel owns the remote:
 		// if focus ever fails to land inside the panel, an unhandled Menu
@@ -328,32 +401,37 @@ final class NativePlayerViewController: UIViewController {
 		view.addGestureRecognizer(pan)
 		remoteRecognizers.append(pan)
 
-		// Focus mode: whenever the button chrome is up, SwiftUI focus owns
-		// the remote and the transport recognizers go quiet (a recognizer
-		// firing on .select would eat the press before the focused Button
-		// gets it). Scrubbing keeps them live — the bar shows without
-		// focusable content in that state. The native Menu popups present in
-		// their own window, so they never see these recognizers at all.
+		// Zone routing: whenever any focusable layer is up, SwiftUI focus
+		// owns the remote and the transport recognizers go quiet (a
+		// recognizer firing on .select would eat the press before the
+		// focused Button gets it). Scrubbing keeps them live — the bar shows
+		// without focusable content in that state. The native Menu popups
+		// present in their own window, so they never see these recognizers
+		// at all. The coordinator flips host focusability and points the
+		// focus engine at the active layer AFTER SwiftUI commits — see
+		// TVFocusCoordinator for why that ordering is the whole ballgame.
 		Publishers.CombineLatest4(
 			viewModel.$controlsVisible, viewModel.$isScrubbing,
 			viewModel.$showEpisodeList, viewModel.$showStillWatching
 		)
 		.combineLatest(viewModel.$showSubtitleSearch)
-		.map { state, subtitleSearch in
+		.map { state, subtitleSearch -> TVFocusZone in
 			let (visible, scrubbing, shelf, stillWatching) = state
-			return (visible && !scrubbing) || shelf || stillWatching || subtitleSearch
+			// Top-most focusable layer wins — mirror of the hosts' z-order.
+			if stillWatching { return .stillWatching }
+			if subtitleSearch { return .subtitleSearch }
+			if shelf { return .shelf }
+			if visible && !scrubbing { return .chrome }
+			return .none
 		}
 		.removeDuplicates()
 		.receive(on: DispatchQueue.main)
-		.sink { [weak self] focusMode in
+		.sink { [weak self] zone in
 			guard let self else { return }
 			for recognizer in self.remoteRecognizers {
-				recognizer.isEnabled = !focusMode
+				recognizer.isEnabled = zone == TVFocusZone.none
 			}
-			// No forced focus-engine kick here: SwiftUI requests focus itself
-			// when focusable content mounts, and a UIKit-level update would
-			// resolve to the left-most button, stomping the row's remembered
-			// default (prefersDefaultFocus/FocusState restore).
+			self.focusCoordinator.activate(zone)
 		}
 		.store(in: &cancellables)
 	}

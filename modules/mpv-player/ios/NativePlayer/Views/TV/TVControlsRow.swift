@@ -28,20 +28,19 @@ struct TVControlsRow: View {
 	/// Owned by the root view (which outlives this row): the last focused
 	/// control, restored when the chrome reappears.
 	@Binding var lastFocused: TVControl?
-	@Namespace private var focusNamespace
+	@ObservedObject var focusCoordinator: TVFocusCoordinator
 	@FocusState private var focusedControl: TVControl?
-	@Environment(\.resetFocus) private var resetFocus
-	/// The row stays invisible until focus has settled on the remembered
-	/// control — the engine's initial left-most pick and our correction both
-	/// happen off-screen, so the row appears already focused correctly.
-	@State private var revealed = false
-	@State private var pendingTarget: TVControl?
+	/// While non-nil, every control except this one is out of the focus
+	/// graph. Held for the frame in which the chrome host joins the graph,
+	/// so the engine's geometric repair has exactly one candidate - the
+	/// remembered control - instead of the left-most button. Cleared the
+	/// moment focus lands (below), with a backstop in tvFocusZone.
+	@State private var focusGate: TVControl?
 
 	/// The control that should own default focus when the row (re)appears:
-	/// the remembered one when it still exists, play/pause otherwise. The
-	/// preference carries the memory — a programmatic FocusState write alone
-	/// loses the race against the focus-engine update the VC kicks after the
-	/// row mounts (which lands on the left-most button).
+	/// the remembered one when it still exists, play/pause otherwise. Fed to
+	/// `.defaultFocus(_:_:priority:)` below, evaluated when the scope takes
+	/// focus — which the coordinator triggers once this host is live.
 	private var defaultFocusTarget: TVControl {
 		guard let lastFocused, isAvailable(lastFocused) else { return .playPause }
 		return lastFocused
@@ -73,37 +72,37 @@ struct TVControlsRow: View {
 			if viewModel.metadata?.isEpisode == true {
 				iconButton("backward.end.fill") { viewModel.playPreviousEpisode() }
 					.focused($focusedControl, equals: .previousEpisode)
-				.prefersDefaultFocus(defaultFocusTarget == .previousEpisode, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.previousEpisode)
 			}
 			iconButton(skipSymbol("gobackward", viewModel.seekBackwardSec)) {
 				viewModel.seekBackward()
 			}
 			.focused($focusedControl, equals: .skipBack)
-				.prefersDefaultFocus(defaultFocusTarget == .skipBack, in: focusNamespace)
+			.tvFocusGated(focusGate, TVControl.skipBack)
 			if !viewModel.chapters.isEmpty {
 				iconButton("backward.fill") { viewModel.goToPreviousChapter() }
 					.focused($focusedControl, equals: .previousChapter)
-				.prefersDefaultFocus(defaultFocusTarget == .previousChapter, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.previousChapter)
 			}
 			iconButton(viewModel.isPlaying ? "pause.fill" : "play.fill") {
 				viewModel.togglePlayPause()
 			}
 			.focused($focusedControl, equals: .playPause)
-				.prefersDefaultFocus(defaultFocusTarget == .playPause, in: focusNamespace)
+			.tvFocusGated(focusGate, TVControl.playPause)
 			if !viewModel.chapters.isEmpty {
 				iconButton("forward.fill") { viewModel.goToNextChapter() }
 					.focused($focusedControl, equals: .nextChapter)
-				.prefersDefaultFocus(defaultFocusTarget == .nextChapter, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.nextChapter)
 			}
 			iconButton(skipSymbol("goforward", viewModel.seekForwardSec)) {
 				viewModel.seekForward()
 			}
 			.focused($focusedControl, equals: .skipForward)
-				.prefersDefaultFocus(defaultFocusTarget == .skipForward, in: focusNamespace)
+			.tvFocusGated(focusGate, TVControl.skipForward)
 			if viewModel.metadata?.isEpisode == true {
 				iconButton("forward.end.fill") { viewModel.playNextEpisode() }
 					.focused($focusedControl, equals: .nextEpisode)
-				.prefersDefaultFocus(defaultFocusTarget == .nextEpisode, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.nextEpisode)
 			}
 			// Focus-mode counterpart of TVSkipPill: while the row owns the
 			// remote the pill would just be a non-focusable impostor, so the
@@ -120,12 +119,12 @@ struct TVControlsRow: View {
 							? viewModel.str("skipIntro", "Skip Intro")
 							: viewModel.str("skipCredits", "Skip Credits")
 					)
-					.font(.system(size: 26, weight: .semibold))
-					.frame(height: 40)
+					.font(.system(size: 22, weight: .semibold))
+					.frame(height: 34)
 				}
 				.buttonStyle(.glass)
 				.focused($focusedControl, equals: .skipSegment)
-				.prefersDefaultFocus(defaultFocusTarget == .skipSegment, in: focusNamespace)
+				.tvFocusGated(focusGate, TVControl.skipSegment)
 			}
 
 			Spacer(minLength: 12)
@@ -135,73 +134,73 @@ struct TVControlsRow: View {
 					viewModel.showEpisodeList = true
 				}
 				.focused($focusedControl, equals: .episodes)
-				.prefersDefaultFocus(defaultFocusTarget == .episodes, in: focusNamespace)
+				.tvFocusGated(focusGate, TVControl.episodes)
 			}
 			if !viewModel.chapters.isEmpty {
 				chaptersMenu
 					.focused($focusedControl, equals: .chapters)
-				.prefersDefaultFocus(defaultFocusTarget == .chapters, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.chapters)
 			}
 			if !viewModel.qualityMenu.isEmpty {
 				qualityMenu
 					.focused($focusedControl, equals: .quality)
-				.prefersDefaultFocus(defaultFocusTarget == .quality, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.quality)
 			}
 			if !viewModel.audioMenu.isEmpty {
 				audioMenu
 					.focused($focusedControl, equals: .audio)
-				.prefersDefaultFocus(defaultFocusTarget == .audio, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.audio)
 			}
 			// Also mounted with no subtitle tracks when remote search is
 			// available — the search entry is then the way to get some.
 			if !viewModel.subtitleMenu.isEmpty || viewModel.subtitleSearchEnabled {
 				subtitlesMenu
 					.focused($focusedControl, equals: .subtitles)
-				.prefersDefaultFocus(defaultFocusTarget == .subtitles, in: focusNamespace)
+					.tvFocusGated(focusGate, TVControl.subtitles)
 			}
 			speedMenu
 				.focused($focusedControl, equals: .speed)
-				.prefersDefaultFocus(defaultFocusTarget == .speed, in: focusNamespace)
+				.tvFocusGated(focusGate, TVControl.speed)
 			moreMenu
 				.focused($focusedControl, equals: .more)
-				.prefersDefaultFocus(defaultFocusTarget == .more, in: focusNamespace)
+				.tvFocusGated(focusGate, TVControl.more)
 		}
-		.focusScope(focusNamespace)
-		.opacity(revealed ? 1 : 0.02)
-		.animation(.easeInOut(duration: 0.15), value: revealed)
+		// The row's focus memory. `.userInitiated` is load-bearing: at the
+		// default priority the engine's automatic choice (the LEFT-MOST
+		// control) wins and focus visibly slides from there to the
+		// remembered button on every summon. This is also why the older
+		// `prefersDefaultFocus(_:in:)` was dropped — for a FocusState-driven
+		// row it never took effect at all, with or without resetFocus.
+		//
+		// ORDER IS LOAD-BEARING: the grouping modifier must come AFTER
+		// defaultFocus. Reversed, the grouping wins and the preference is
+		// silently ignored — Swiftfin shipped exactly that bug on tvOS
+		// (jellyfin/Swiftfin #2178/#2180) and fixed it by this reordering.
+		.defaultFocus($focusedControl, defaultFocusTarget, priority: .userInitiated)
+		.focusSection()
 		.onChange(of: focusedControl) { newValue in
 			if let newValue {
+				TVFocusLog.log.info(
+					"row focus -> \(String(describing: newValue), privacy: .public)")
 				lastFocused = newValue
-				if newValue == pendingTarget {
-					revealed = true
-				}
+				// Focus has landed: let the rest of the row back into the
+				// focus graph. Adding focusable siblings does not move an
+				// already-held focus, so this is invisible.
+				focusGate = nil
 				// Navigating the row counts as interaction — keep the chrome
 				// up while the user is moving between buttons.
 				viewModel.scheduleAutoHide()
 			}
 		}
-		.onAppear {
-			// Steer focus to the remembered control (fallback play/pause)
-			// while still invisible; reveal as soon as it lands (onChange),
-			// with a worst-case reveal at 300ms so the row can never stay
-			// hidden if the engine refuses the target.
-			let target = defaultFocusTarget
-			pendingTarget = target
-			DispatchQueue.main.async {
-				resetFocus(in: focusNamespace)
-				focusedControl = target
-			}
-			DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-				if focusedControl != target {
-					focusedControl = target
-				}
-				// Reveal on the NEXT tick so the assignment above resolves
-				// while the row is still in its focusable (0.02) state.
-				DispatchQueue.main.async {
-					revealed = true
-				}
-			}
-		}
+		// Backstop for `.defaultFocus` above, which Apple documents as
+		// evaluated "when the window first appears" - this row remounts per
+		// summon, which is outside that guarantee. The coordinator now
+		// publishes this BEFORE it touches the focus engine, so in the good
+		// case the write below is the engine's first and only instruction and
+		// there is no left-most pick to slide away from.
+		.tvFocusZone(
+			.chrome, coordinator: focusCoordinator, focus: $focusedControl,
+			gate: $focusGate, target: { defaultFocusTarget })
 	}
 
 	// MARK: - Native menus (mirror of PlayerTopBar)
@@ -431,8 +430,8 @@ struct TVControlsRow: View {
 
 	private func icon(_ systemName: String) -> some View {
 		Image(systemName: systemName)
-			.font(.system(size: 26, weight: .semibold))
-			.frame(width: 40, height: 40)
+			.font(.system(size: 22, weight: .semibold))
+			.frame(width: 34, height: 34)
 	}
 
 	/// "gobackward.30"-style symbol when SF Symbols has the exact count.
