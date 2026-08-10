@@ -13,3 +13,13 @@ func formatTime(_ seconds: Double) -> String {
 	}
 	return String(format: "%d:%02d", minutes, secs)
 }
+
+/// SF Symbols only ship numbered seek glyphs for specific intervals. Shared
+/// by the center transport buttons and the double-tap seek feedback pill.
+func seekSymbol(prefix: String, seconds: Double) -> String {
+	let supported: Set<Int> = [5, 10, 15, 30, 45, 60, 75, 90]
+	// Int(_: Double) traps on non-finite input; this runs in body, so a
+	// bad persisted skip-time setting must degrade, not crash.
+	guard let rounded = Int(exactly: seconds.rounded()) else { return prefix }
+	return supported.contains(rounded) ? "\(prefix).\(rounded)" : prefix
+}

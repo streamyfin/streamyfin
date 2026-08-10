@@ -262,6 +262,8 @@
         "hold_to_speed_description": "Press and hold the video to play at 2× speed until released",
         "pinch_to_zoom": "Pinch to zoom",
         "pinch_to_zoom_description": "Pinch out to fill the screen, pinch in to fit",
+        "double_tap_to_seek": "Double tap to seek",
+        "double_tap_to_seek_description": "Double tap the left or right side of the video to skip backward or forward",
         "hide_volume_slider": "Hide volume slider",
         "hide_volume_slider_description": "Hide the volume slider in the video player",
         "hide_brightness_slider": "Hide brightness slider",

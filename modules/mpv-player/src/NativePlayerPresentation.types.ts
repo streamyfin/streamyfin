@@ -226,6 +226,8 @@ export type NativePlayerUIOptions = {
   holdToSpeedEnabled?: boolean;
   /** false disables pinch to zoom-to-fill (settings.enablePinchToZoom). */
   pinchToZoomEnabled?: boolean;
+  /** true enables double tap on the video halves to seek (settings.enableDoubleTapToSeek). */
+  doubleTapToSeekEnabled?: boolean;
   /** Remote subtitle search entry in the subtitles menu (online only). */
   subtitleSearchEnabled?: boolean;
   /** ISO 639-2 codes + localized display names for the language picker. */
