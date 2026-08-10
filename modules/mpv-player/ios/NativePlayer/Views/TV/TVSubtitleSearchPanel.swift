@@ -10,7 +10,16 @@ import SwiftUI
 /// panel from the JS side, straight back to the video.
 @available(tvOS 26.0, *)
 struct TVSubtitleSearchPanel: View {
+	/// The panel's two focusable regions. Results are addressed by index so
+	/// the coordinator can name one — see the tvFocusZone call below.
+	private enum PanelFocus: Hashable {
+		case language
+		case result(Int)
+	}
+
 	@ObservedObject var viewModel: PlayerViewModel
+	let focusCoordinator: TVFocusCoordinator
+	@FocusState private var focusedElement: PanelFocus?
 
 	var body: some View {
 		ZStack {
@@ -29,6 +38,20 @@ struct TVSubtitleSearchPanel: View {
 		// Backup for the VC's always-live Menu recognizer (same pattern as
 		// the episode shelf) — whichever fires, closing twice is harmless.
 		.onExitCommand { viewModel.closeSubtitleSearch() }
+		// Results arrive from JS after the panel is already up, so opening
+		// lands on the language picker; the first batch then takes focus,
+		// which is also what you want after switching language.
+		.onChange(of: viewModel.subtitleSearchResults.count) { count in
+			if count > 0, focusedElement == .language {
+				focusedElement = .result(0)
+			}
+		}
+		.tvFocusZone(
+			.subtitleSearch, coordinator: focusCoordinator, focus: $focusedElement,
+			target: {
+				viewModel.subtitleSearchResults.isEmpty
+					? PanelFocus.language : PanelFocus.result(0)
+			})
 	}
 
 	private var header: some View {
@@ -98,8 +121,9 @@ struct TVSubtitleSearchPanel: View {
 				LazyVStack(spacing: 14) {
 					ForEach(
 						Array(viewModel.subtitleSearchResults.enumerated()), id: \.offset
-					) { _, result in
+					) { index, result in
 						resultRow(result)
+							.focused($focusedElement, equals: .result(index))
 					}
 				}
 				// Headroom for the focus scale so rows don't clip at the
@@ -187,6 +211,7 @@ struct TVSubtitleSearchPanel: View {
 		}
 		.menuOrder(.fixed)
 		.buttonStyle(.glass)
+		.focused($focusedElement, equals: .language)
 	}
 
 	private var currentLanguageName: String {

@@ -69,10 +69,15 @@ struct TVCountdownCard: View {
 }
 
 /// "Are you still watching?" — focusable card (the VC hands the remote to
-/// SwiftUI focus while it is up). Same actions as the iOS overlay.
+/// SwiftUI focus while it is up). Same actions as the iOS overlay. The
+/// affirmative answer owns default focus so one Select continues playback.
 @available(tvOS 26.0, *)
 struct TVStillWatchingCard: View {
+	private enum Choice: Hashable { case continueWatching, goBack }
+
 	@ObservedObject var viewModel: PlayerViewModel
+	let focusCoordinator: TVFocusCoordinator
+	@FocusState private var focusedButton: Choice?
 
 	var body: some View {
 		VStack(spacing: 28) {
@@ -83,37 +88,43 @@ struct TVStillWatchingCard: View {
 				Button(viewModel.str("continueWatching", "Continue watching")) {
 					viewModel.continueWatchingTapped()
 				}
+				.focused($focusedButton, equals: .continueWatching)
 				Button(viewModel.str("goBack", "Go back")) {
 					viewModel.stillWatchingCloseTapped()
 				}
+				.focused($focusedButton, equals: .goBack)
 			}
 		}
 		.padding(48)
 		.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 24))
-	}
-}
-
-/// Focus style for shelf cards: no platter, just scale + shadow on the
-/// whole label (image and text together). Every built-in tvOS style draws
-/// its own focus decor (.card/.plain add a platter around the label,
-/// .borderless lifts only the image), so the bare look needs this.
-@available(tvOS 26.0, *)
-private struct TVShelfCardButtonStyle: ButtonStyle {
-	@Environment(\.isFocused) private var isFocused
-
-	func makeBody(configuration: Configuration) -> some View {
-		configuration.label
-			.scaleEffect(isFocused ? 1.1 : 1.0)
-			.shadow(color: .black.opacity(isFocused ? 0.5 : 0), radius: 18, y: 10)
-			.animation(.easeOut(duration: 0.15), value: isFocused)
+		.defaultFocus($focusedButton, .continueWatching, priority: .userInitiated)
+		.focusSection()
+		.tvFocusZone(
+			.stillWatching, coordinator: focusCoordinator, focus: $focusedButton,
+			target: { Choice.continueWatching })
 	}
 }
 
 /// Horizontal episode shelf (bottom third). Focusable cards; Select fires
-/// the existing onEpisodeSelected intent via viewModel.selectEpisode.
+/// the existing onEpisodeSelected intent via viewModel.selectEpisode. The
+/// card of the CURRENTLY PLAYING episode owns default focus — the engine
+/// scrolls it into view on its first pick (the coordinator only points
+/// focus here after the shelf has committed), so the shelf opens oriented
+/// on where you are instead of at episode 1.
 @available(tvOS 26.0, *)
 struct TVEpisodeShelf: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	let focusCoordinator: TVFocusCoordinator
+	@FocusState private var focusedEpisode: Int?
+	/// See TVControlsRow.focusGate. It matters more here: the shelf's
+	/// target is almost never the left-most card, so the engine's repair
+	/// had no chance of guessing it.
+	@State private var focusGate: Int?
+
+	/// Index of the episode that should take focus when the shelf opens.
+	private var defaultFocusIndex: Int {
+		viewModel.episodeList.firstIndex { $0.isCurrent } ?? 0
+	}
 
 	var body: some View {
 		VStack(alignment: .leading, spacing: 16) {
@@ -123,14 +134,21 @@ struct TVEpisodeShelf: View {
 				.padding(.horizontal, 80)
 			ScrollView(.horizontal, showsIndicators: false) {
 				HStack(spacing: 28) {
-					ForEach(Array(viewModel.episodeList.enumerated()), id: \.offset) { _, episode in
-						episodeCard(episode)
+					ForEach(Array(viewModel.episodeList.enumerated()), id: \.offset) {
+						index, episode in
+						// Focus modifiers live on the artwork Button inside, not
+						// out here: the lockup's VStack is not the focusable
+						// element any more, only the card is.
+						episodeCard(episode, index: index)
 					}
 				}
 				.padding(.horizontal, 80)
 				.padding(.vertical, 30)
 			}
 		}
+		// Grouping AFTER defaultFocus — see the note in TVControlsRow.
+		.defaultFocus($focusedEpisode, defaultFocusIndex, priority: .userInitiated)
+		.focusSection()
 		.padding(.vertical, 30)
 		.frame(maxWidth: .infinity, alignment: .leading)
 		.background(
@@ -149,55 +167,115 @@ struct TVEpisodeShelf: View {
 			.ignoresSafeArea()
 		)
 		.onExitCommand { viewModel.showEpisodeList = false }
+		// The shelf MUST assert its target itself. `.defaultFocus` above is
+		// inert here twice over: it is documented as evaluated when the window
+		// first appears (the shelf mounts per opening), and inside a ScrollView
+		// it is ignored outright (Apple FB706321 - focus goes to the first card
+		// visible on the left). Naming the index through @FocusState is what
+		// actually scrolls the playing episode into view and focuses it.
+		.onChange(of: focusedEpisode) { newValue in
+			// Focus landed - let the other cards back in so the shelf scrolls.
+			if newValue != nil { focusGate = nil }
+		}
+		.tvFocusZone(
+			.shelf, coordinator: focusCoordinator, focus: $focusedEpisode,
+			gate: $focusGate, target: { defaultFocusIndex })
 	}
 
-	private func episodeCard(_ episode: EpisodeListItemRecord) -> some View {
+	/// Everything lives INSIDE the card - title and progress overlay the
+	/// artwork rather than sitting under it, which is how the TV app's
+	/// in-player episode shelf is built. `.card` is what carries the tvOS
+	/// focus float (the layer tilts toward your thumb and a specular
+	/// highlight tracks across it); it wraps whatever it is given, and here
+	/// what it is given is the whole card, so there is nothing left over for
+	/// it to draw a platter around.
+	private func episodeCard(_ episode: EpisodeListItemRecord, index: Int) -> some View {
 		Button {
 			viewModel.selectEpisode(episode)
 		} label: {
-			VStack(alignment: .leading, spacing: 8) {
-				ZStack(alignment: .bottomLeading) {
-					if let imageUrl = episode.imageUrl, let url = URL(string: imageUrl) {
-						AsyncImage(url: url) { image in
-							image.resizable().aspectRatio(contentMode: .fill)
-						} placeholder: {
-							Color.white.opacity(0.1)
-						}
-					} else {
+			ZStack(alignment: .bottomLeading) {
+				if let imageUrl = episode.imageUrl, let url = URL(string: imageUrl) {
+					AsyncImage(url: url) { image in
+						image.resizable().aspectRatio(contentMode: .fill)
+					} placeholder: {
 						Color.white.opacity(0.1)
 					}
+				} else {
+					Color.white.opacity(0.1)
+				}
+				// Frosted gradient rather than a flat black band: a material
+				// masked to fade in toward the bottom keeps the artwork visible
+				// through it while still grounding the title. The black
+				// underlay carries the contrast the material alone cannot
+				// guarantee over a bright frame.
+				LinearGradient(
+					colors: [.black.opacity(0), .black.opacity(0.55)],
+					startPoint: .top, endPoint: .bottom
+				)
+				.frame(height: 110)
+				.frame(maxHeight: .infinity, alignment: .bottom)
+				Rectangle()
+					.fill(.ultraThinMaterial)
+					.mask(
+						LinearGradient(
+							stops: [
+								.init(color: .clear, location: 0),
+								.init(color: .black.opacity(0.65), location: 0.5),
+								.init(color: .black, location: 1),
+							],
+							startPoint: .top, endPoint: .bottom
+						)
+					)
+					.frame(height: 110)
+					.frame(maxHeight: .infinity, alignment: .bottom)
+				VStack(alignment: .leading, spacing: 8) {
+					Text(
+						episode.indexNumber.map { "\($0). \(episode.title)" } ?? episode.title
+					)
+					.font(.system(size: 20, weight: .medium))
+					.foregroundStyle(.white)
+					.lineLimit(1)
 					if episode.progressPercent > 0 {
 						GeometryReader { geometry in
-							VStack {
-								Spacer()
-								Rectangle().fill(.white.opacity(0.3)).frame(height: 5)
-									.overlay(alignment: .leading) {
-										Rectangle().fill(.white)
-											.frame(
-												width: geometry.size.width
-													* CGFloat(min(max(episode.progressPercent / 100, 0), 1)),
-												height: 5)
-									}
-							}
+							Capsule().fill(.white.opacity(0.3))
+								.overlay(alignment: .leading) {
+									Capsule().fill(.white)
+										.frame(
+											width: geometry.size.width
+												* CGFloat(min(max(episode.progressPercent / 100, 0), 1)))
+								}
 						}
+						.frame(height: 4)
 					}
 				}
-				.frame(width: 300, height: 168)
-				.clipShape(RoundedRectangle(cornerRadius: 12))
-				.overlay(
-					RoundedRectangle(cornerRadius: 12)
-						.stroke(episode.isCurrent ? .white : .clear, lineWidth: 3)
-				)
-				Text(
-					episode.indexNumber.map { "\($0). \(episode.title)" } ?? episode.title
-				)
-				.font(.caption)
-				.foregroundStyle(.white.opacity(0.9))
-				.lineLimit(1)
-				.frame(maxWidth: 300, alignment: .leading)
+				.padding(.horizontal, 14)
+				.padding(.bottom, 12)
 			}
+			.frame(width: 300, height: 168)
+			.overlay(alignment: .topLeading) {
+				// Matches the app's existing badge (TVPosterCard.tsx): solid
+				// white, black content, radius 8, top-left. Replaces the white
+				// border, which competed with the focus ring and read as a
+				// second focus state. Inside the clip so it rounds with the card.
+				if episode.isCurrent {
+					HStack(spacing: 6) {
+						Image(systemName: "play.fill")
+							.font(.system(size: 13, weight: .bold))
+						Text(viewModel.str("nowPlaying", "Now Playing"))
+							.font(.system(size: 15, weight: .bold))
+					}
+					.foregroundStyle(.black)
+					.padding(.horizontal, 10)
+					.padding(.vertical, 6)
+					.background(.white, in: RoundedRectangle(cornerRadius: 8))
+					.padding(10)
+				}
+			}
+			.clipShape(RoundedRectangle(cornerRadius: 12))
 		}
-		.buttonStyle(TVShelfCardButtonStyle())
+		.buttonStyle(.card)
+		.focused($focusedEpisode, equals: index)
+		.tvFocusGated(focusGate, index)
 	}
 }
 #endif
