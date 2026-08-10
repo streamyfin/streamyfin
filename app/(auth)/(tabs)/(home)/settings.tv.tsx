@@ -61,7 +61,8 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 function TVAudioLanguageSetting() {
   const { t } = useTranslation();
-  const { settings, updateSettings, cultures } = useMedia();
+  const { settings, supportsOriginalAudioLanguage, updateSettings, cultures } =
+    useMedia();
   const { showOptions } = useTVOptionModal();
   const selectedLanguage =
     settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName;
@@ -73,11 +74,15 @@ function TVAudioLanguageSetting() {
         value: null,
         selected: !selectedLanguage,
       },
-      {
-        label: t("jellyseerr.original_language"),
-        value: { ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE },
-        selected: selectedLanguage === ORIGINAL_LANGUAGE,
-      },
+      ...(supportsOriginalAudioLanguage
+        ? [
+            {
+              label: t("jellyseerr.original_language"),
+              value: { ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE },
+              selected: selectedLanguage === ORIGINAL_LANGUAGE,
+            },
+          ]
+        : []),
       ...cultures.map((culture) => ({
         label:
           culture.DisplayName ||
@@ -87,7 +92,7 @@ function TVAudioLanguageSetting() {
         selected: culture.ThreeLetterISOLanguageName === selectedLanguage,
       })),
     ],
-    [cultures, selectedLanguage, t],
+    [cultures, selectedLanguage, supportsOriginalAudioLanguage, t],
   );
 
   const selectedLabel =

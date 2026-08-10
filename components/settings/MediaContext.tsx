@@ -1,21 +1,28 @@
 import type {
   CultureDto,
+  PublicSystemInfo,
   UserConfiguration,
   UserDto,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
+import {
+  getLocalizationApi,
+  getSystemApi,
+  getUserApi,
+} from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { createContext, type ReactNode, useContext, useEffect } from "react";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { type Settings, useSettings } from "@/utils/atoms/settings";
+import { supportsOriginalAudioLanguage } from "@/utils/jellyfin/serverVersion";
 
 interface MediaContextType {
   settings: Settings | null;
   updateSettings: (update: Partial<Settings>) => void;
   user: UserDto | undefined;
   cultures: CultureDto[];
+  supportsOriginalAudioLanguage: boolean;
 }
 
 export const ORIGINAL_LANGUAGE = "OriginalLanguage";
@@ -36,6 +43,15 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useNetworkAwareQueryClient();
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
+    if (
+      update.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
+      ORIGINAL_LANGUAGE
+    ) {
+      update = { ...update, playDefaultAudioTrack: false };
+    } else if (update.defaultAudioLanguage === null) {
+      update = { ...update, playDefaultAudioTrack: true };
+    }
+
     const updateUserConfiguration = async (
       update: Partial<UserConfiguration>,
     ) => {
@@ -48,6 +64,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
             },
           });
           queryClient.invalidateQueries({ queryKey: ["authUser"] });
+          queryClient.invalidateQueries({ queryKey: ["item"] });
         } catch (_error) {}
       }
     };
@@ -93,6 +110,19 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     staleTime: 0,
   });
 
+  const { data: serverInfo, isFetched: isServerInfoFetched } = useQuery({
+    queryKey: ["jellyfin", "serverInfo"],
+    queryFn: async (): Promise<PublicSystemInfo> => {
+      if (!api) return {};
+      return (await getSystemApi(api).getPublicSystemInfo()).data;
+    },
+    enabled: !!api,
+    staleTime: 43200000,
+  });
+  const supportsOriginalLanguage = supportsOriginalAudioLanguage(
+    serverInfo?.Version,
+  );
+
   const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
     queryKey: ["cultures"],
     queryFn: async () => {
@@ -107,7 +137,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
   // Set default settings from user configuration.s
   useEffect(() => {
-    if (!user || cultures.length === 0) return;
+    if (!user || cultures.length === 0 || !isServerInfoFetched) return;
     const userSubtitlePreference =
       user?.Configuration?.SubtitleLanguagePreference;
     const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
@@ -116,11 +146,20 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       (x) => x.ThreeLetterISOLanguageName === userSubtitlePreference,
     );
     const audioPreference =
-      userAudioPreference === ORIGINAL_LANGUAGE
+      userAudioPreference === ORIGINAL_LANGUAGE && supportsOriginalLanguage
         ? { ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE }
         : cultures.find(
             (x) => x.ThreeLetterISOLanguageName === userAudioPreference,
           );
+
+    if (
+      supportsOriginalLanguage &&
+      userAudioPreference === ORIGINAL_LANGUAGE &&
+      user.Configuration?.PlayDefaultAudioTrack
+    ) {
+      updateSetingsWrapper({ defaultAudioLanguage: audioPreference });
+      return;
+    }
 
     updateSettings({
       defaultSubtitleLanguage: subtitlePreference,
@@ -131,7 +170,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       rememberSubtitleSelections:
         user?.Configuration?.RememberSubtitleSelections,
     });
-  }, [user, isCulturesFetched]);
+  }, [user, isCulturesFetched, isServerInfoFetched, supportsOriginalLanguage]);
 
   if (!api) return null;
 
@@ -142,6 +181,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         updateSettings: updateSetingsWrapper,
         user,
         cultures,
+        supportsOriginalAudioLanguage: supportsOriginalLanguage,
       }}
     >
       {children}

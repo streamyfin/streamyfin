@@ -17,7 +17,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
 
   const media = useMedia();
   const { pluginSettings } = useSettings();
-  const { settings, updateSettings } = media;
+  const { settings, supportsOriginalAudioLanguage, updateSettings } = media;
   const cultures = media.cultures;
   const { t } = useTranslation();
 
@@ -30,20 +30,24 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         selected: !settings?.defaultAudioLanguage,
         onPress: () => updateSettings({ defaultAudioLanguage: null }),
       },
-      {
-        type: "radio" as const,
-        label: t("jellyseerr.original_language"), // Not related to jellyseerr, it just has the i18n key
-        value: ORIGINAL_LANGUAGE,
-        selected:
-          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
-          ORIGINAL_LANGUAGE,
-        onPress: () =>
-          updateSettings({
-            defaultAudioLanguage: {
-              ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+      ...(supportsOriginalAudioLanguage
+        ? [
+            {
+              type: "radio" as const,
+              label: t("jellyseerr.original_language"), // Not related to jellyseerr, it just has the i18n key
+              value: ORIGINAL_LANGUAGE,
+              selected:
+                settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
+                ORIGINAL_LANGUAGE,
+              onPress: () =>
+                updateSettings({
+                  defaultAudioLanguage: {
+                    ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+                  },
+                }),
             },
-          }),
-      },
+          ]
+        : []),
       ...(cultures?.map((culture) => ({
         type: "radio" as const,
         label:
@@ -66,7 +70,13 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         options,
       },
     ];
-  }, [cultures, settings?.defaultAudioLanguage, t, updateSettings]);
+  }, [
+    cultures,
+    settings?.defaultAudioLanguage,
+    supportsOriginalAudioLanguage,
+    t,
+    updateSettings,
+  ]);
 
   const audioTranscodeModeLabels: Record<AudioTranscodeMode, string> = {
     [AudioTranscodeMode.Auto]: t("home.settings.audio.transcode_mode.auto"),
@@ -163,8 +173,9 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {settings?.defaultAudioLanguage
-                    ?.ThreeLetterISOLanguageName === ORIGINAL_LANGUAGE
+                  {supportsOriginalAudioLanguage &&
+                  settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
+                    ORIGINAL_LANGUAGE
                     ? t("jellyseerr.original_language")
                     : settings?.defaultAudioLanguage?.DisplayName ||
                       t("home.settings.audio.none")}
