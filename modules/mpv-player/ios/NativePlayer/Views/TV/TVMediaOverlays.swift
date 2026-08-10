@@ -131,7 +131,7 @@ struct TVEpisodeShelf: View {
 			Text(viewModel.str("episodes", "Episodes"))
 				.font(.title3.weight(.semibold))
 				.foregroundStyle(.white)
-				.padding(.horizontal, 80)
+				.padding(.horizontal, TVChromeMetrics.insetH)
 			ScrollView(.horizontal, showsIndicators: false) {
 				HStack(spacing: 28) {
 					ForEach(Array(viewModel.episodeList.enumerated()), id: \.offset) {
@@ -142,7 +142,7 @@ struct TVEpisodeShelf: View {
 						episodeCard(episode, index: index)
 					}
 				}
-				.padding(.horizontal, 80)
+				.padding(.horizontal, TVChromeMetrics.insetH)
 				.padding(.vertical, 30)
 			}
 		}
