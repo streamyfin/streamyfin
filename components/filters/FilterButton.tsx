@@ -1,7 +1,13 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { TouchableOpacity, View, type ViewProps } from "react-native";
+import {
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+  type ViewProps,
+} from "react-native";
 import { Text } from "@/components/common/Text";
+import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 import { FilterSheetContent } from "./FilterSheetContent";
 
@@ -30,6 +36,11 @@ export const FilterButton = <T,>({
   ...props
 }: FilterButtonProps<T>) => {
   const { showModal, hideModal } = useGlobalModal();
+  const { height: windowHeight } = useWindowDimensions();
+  // The sheet grows with its options instead of always taking the same slice
+  // of the screen: a two-entry sort order should not open a near full height
+  // panel with an empty bottom half.
+  const maxSheetHeight = windowHeight * SHEET_MAX_HEIGHT_RATIO;
 
   const { data: filters } = useQuery<T[]>({
     queryKey: ["filters", title, queryKey, id],
@@ -50,7 +61,7 @@ export const FilterButton = <T,>({
         multiple={multiple}
         onClose={hideModal}
       />,
-      { snapPoints: ["85%"] },
+      { maxDynamicContentSize: maxSheetHeight },
     );
   };
 

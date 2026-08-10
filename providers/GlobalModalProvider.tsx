@@ -14,6 +14,8 @@ import { BackHandler, Platform } from "react-native";
 
 interface ModalOptions {
   enableDynamicSizing?: boolean;
+  /** Ceiling for dynamic sizing, in pixels. Ignored when snapPoints are set. */
+  maxDynamicContentSize?: number;
   snapPoints?: (string | number)[];
   enablePanDownToClose?: boolean;
   backgroundStyle?: object;

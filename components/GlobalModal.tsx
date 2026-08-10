@@ -62,8 +62,14 @@ export const GlobalModal = () => {
     <BottomSheetModal
       ref={modalRef}
       {...(modalOptions.snapPoints
-        ? { snapPoints: modalOptions.snapPoints }
-        : { enableDynamicSizing: modalOptions.enableDynamicSizing })}
+        ? // Dynamic sizing is on by default and would add a content-height
+          // detent next to the requested snap points, so turn it off for
+          // callers that ask for fixed heights.
+          { snapPoints: modalOptions.snapPoints, enableDynamicSizing: false }
+        : {
+            enableDynamicSizing: modalOptions.enableDynamicSizing,
+            maxDynamicContentSize: modalOptions.maxDynamicContentSize,
+          })}
       onChange={handleSheetChanges}
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={modalOptions.handleIndicatorStyle}

@@ -2,9 +2,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
+import { SHEET_MAX_HEIGHT_RATIO } from "@/constants/Values";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
 // @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
@@ -212,6 +219,7 @@ const PlatformDropdownComponent = ({
 }: PlatformDropdownProps) => {
   const { t } = useTranslation();
   const { showModal, hideModal, isVisible } = useGlobalModal();
+  const { height: windowHeight } = useWindowDimensions();
 
   // Handle controlled open state for Android
   useEffect(() => {
@@ -227,7 +235,8 @@ const PlatformDropdownComponent = ({
           }}
         />,
         {
-          snapPoints: ["90%"],
+          // Sized to its options, so a two-entry dropdown opens small.
+          maxDynamicContentSize: windowHeight * SHEET_MAX_HEIGHT_RATIO,
           enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
         },
       );
@@ -374,7 +383,8 @@ const PlatformDropdownComponent = ({
         onClose={hideModal}
       />,
       {
-        snapPoints: ["90%"],
+        // Sized to its options, so a two-entry dropdown opens small.
+        maxDynamicContentSize: windowHeight * SHEET_MAX_HEIGHT_RATIO,
         enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
       },
     );
