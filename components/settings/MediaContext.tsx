@@ -38,11 +38,19 @@ export const useMedia = () => {
 };
 
 export const MediaProvider = ({ children }: { children: ReactNode }) => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, pluginSettings } = useSettings();
   const api = useAtomValue(apiAtom);
   const queryClient = useNetworkAwareQueryClient();
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
+    if (
+      !user ||
+      ("defaultAudioLanguage" in update &&
+        (pluginSettings?.defaultAudioLanguage?.locked ||
+          pluginSettings?.playDefaultAudioTrack?.locked))
+    )
+      return;
+
     if (
       update.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
       ORIGINAL_LANGUAGE
@@ -110,7 +118,11 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     staleTime: 0,
   });
 
-  const { data: serverInfo, isFetched: isServerInfoFetched } = useQuery({
+  const {
+    data: serverInfo,
+    isFetched: isServerInfoFetched,
+    isSuccess: isServerInfoAvailable,
+  } = useQuery({
     queryKey: ["jellyfin", "serverInfo"],
     queryFn: async (): Promise<PublicSystemInfo> => {
       if (!api) return {};
@@ -119,9 +131,8 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     enabled: !!api,
     staleTime: 43200000,
   });
-  const supportsOriginalLanguage = supportsOriginalAudioLanguage(
-    serverInfo?.Version,
-  );
+  const supportsOriginalLanguage =
+    isServerInfoAvailable && supportsOriginalAudioLanguage(serverInfo?.Version);
 
   const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
     queryKey: ["cultures"],

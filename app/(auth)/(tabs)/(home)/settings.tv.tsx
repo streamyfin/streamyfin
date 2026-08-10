@@ -61,8 +61,14 @@ import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 function TVAudioLanguageSetting() {
   const { t } = useTranslation();
-  const { settings, supportsOriginalAudioLanguage, updateSettings, cultures } =
-    useMedia();
+  const {
+    settings,
+    supportsOriginalAudioLanguage,
+    updateSettings,
+    cultures,
+    user,
+  } = useMedia();
+  const { pluginSettings } = useSettings();
   const { showOptions } = useTVOptionModal();
   const selectedLanguage =
     settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName;
@@ -103,6 +109,11 @@ function TVAudioLanguageSetting() {
     <TVSettingsOptionButton
       label={t("home.settings.audio.audio_language")}
       value={selectedLabel}
+      disabled={
+        !user ||
+        pluginSettings?.defaultAudioLanguage?.locked ||
+        pluginSettings?.playDefaultAudioTrack?.locked
+      }
       onPress={() =>
         showOptions({
           title: t("home.settings.audio.language"),
