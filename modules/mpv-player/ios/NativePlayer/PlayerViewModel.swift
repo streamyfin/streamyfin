@@ -1052,7 +1052,12 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	// MARK: PiP / close
 
 	func togglePictureInPicture() {
-		guard let engine else { return }
+		guard let engine else {
+			Logger.shared.log("PiP: button pressed but engine is nil", type: "Error")
+			return
+		}
+		Logger.shared.log(
+			"PiP: button pressed (active=\(engine.isPictureInPictureActive()))", type: "Info")
 		if engine.isPictureInPictureActive() {
 			engine.stopPictureInPicture()
 		} else {
