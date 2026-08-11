@@ -120,31 +120,53 @@ export function useMediaPreferences(): MediaPreferences {
   const isReady = !!user && isServerInfoAvailable && areCulturesAvailable;
 
   /**
+   * Our running belief about what the server's configuration holds.
+   *
+   * Jellyfin replaces the whole configuration on write, so each PATCH has to
+   * merge onto a baseline. Reading that baseline straight off `user` is wrong:
+   * `user` only refreshes once the invalidation round-trips, so two edits inside
+   * that window both merge onto the same pre-edit snapshot and the second
+   * silently reverts the first — toggle two settings quickly and one of them
+   * comes back on its own. Folding each write into the baseline keeps a burst of
+   * edits additive.
+   */
+  const serverConfigRef = useRef<UserConfiguration | undefined>(undefined);
+  useEffect(() => {
+    if (user?.Configuration) serverConfigRef.current = user.Configuration;
+  }, [user]);
+
+  /**
    * Apply a partial configuration on top of the server's own copy, so
    * preferences this client did not touch are never overwritten.
+   *
+   * Resolves true when the server accepted the write.
    */
   const updateUserConfiguration = useCallback(
     async (
       configuration: Partial<UserConfiguration>,
       { invalidateItems = false }: { invalidateItems?: boolean } = {},
-    ) => {
-      if (!api || !user) return;
+    ): Promise<boolean> => {
+      if (!api) return false;
+      const merged = { ...serverConfigRef.current, ...configuration };
       try {
         await getUserApi(api).updateUserConfiguration({
-          userConfiguration: { ...user.Configuration, ...configuration },
+          userConfiguration: merged,
         });
+        serverConfigRef.current = merged;
         queryClient.invalidateQueries({ queryKey: ["authUser"] });
         if (invalidateItems) {
           // Audio/subtitle preferences feed the server-computed
           // DefaultAudio/SubtitleStreamIndex carried by each item's MediaSources.
           queryClient.invalidateQueries({ queryKey: ["item"] });
         }
+        return true;
       } catch {
         // Offline or a server that rejects the write: the local copy still
         // applies, and the next mount re-seeds from whatever the server has.
+        return false;
       }
     },
-    [api, user, queryClient],
+    [api, queryClient],
   );
 
   const updateMediaSettings = useCallback(
@@ -217,18 +239,22 @@ export function useMediaPreferences(): MediaPreferences {
   // snaps back, which is indistinguishable from a dead control. Seeding is a
   // session-start concern, so it keys off the user's identity instead.
   //
-  // The lock state is part of the key because unlocking `playDefaultAudioTrack`
-  // is what makes the original-language correction below permissible: without it
-  // an admin unlocking the key mid-session would leave the server uncorrected
-  // until the next launch.
+  // The server-side correction below is deliberately NOT under that guard. The
+  // two are separate concerns with separate lifetimes: seeding is once per
+  // session, while the correction is a convergence step whose own condition is
+  // self-extinguishing — once the server is fixed, `PlayDefaultAudioTrack` reads
+  // false and it stops matching. Gating both on one key means widening that key
+  // by hand for every input the correction reads, and missing one silently
+  // disables the correction: keyed on the admin lock alone, a `serverInfo`
+  // refetch that flips `supportsOriginalLanguage` on — which any of the five
+  // other consumers of that query key can trigger — would re-run this effect,
+  // hit the unchanged key, and return before the correction was even evaluated.
   const playDefaultAudioTrackLocked =
     pluginSettings?.playDefaultAudioTrack?.locked;
-  const seededFor = useRef<string | null>(null);
+  const seededForUserId = useRef<string | null>(null);
+  const correctedForUserId = useRef<string | null>(null);
   useEffect(() => {
     if (!isReady || !user?.Id) return;
-    const seedKey = `${user.Id}:${playDefaultAudioTrackLocked ?? false}`;
-    if (seededFor.current === seedKey) return;
-    seededFor.current = seedKey;
 
     const config = user.Configuration;
     const userAudioPreference = config?.AudioLanguagePreference;
@@ -247,45 +273,67 @@ export function useMediaPreferences(): MediaPreferences {
       config?.PlayDefaultAudioTrack === true &&
       !playDefaultAudioTrackLocked;
 
-    // Only keys the server actually sent. Spreading an absent field in as
-    // `undefined` would blank a perfectly good local value — and a toggle whose
-    // value is `undefined` renders off and refuses to stay on.
-    const seed: Partial<Settings> = {};
-    if (config?.SubtitleLanguagePreference !== undefined) {
-      seed.defaultSubtitleLanguage = findCulture(
-        config.SubtitleLanguagePreference,
-      );
-    }
-    if (userAudioPreference !== undefined) {
-      // The original-language sentinel is not an ISO code and so is absent from
-      // the cultures list — it has to be carried through as-is.
-      seed.defaultAudioLanguage =
-        userAudioPreference === ORIGINAL_LANGUAGE && supportsOriginalLanguage
-          ? ({ ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE } as CultureDto)
-          : findCulture(userAudioPreference);
-    }
-    if (config?.SubtitleMode !== undefined) {
-      seed.subtitleMode = config.SubtitleMode;
-    }
-    if (config?.PlayDefaultAudioTrack !== undefined) {
-      seed.playDefaultAudioTrack = correctsPlayDefaultAudioTrack
-        ? false
-        : config.PlayDefaultAudioTrack;
-    }
-    if (config?.RememberAudioSelections !== undefined) {
-      seed.rememberAudioSelections = config.RememberAudioSelections;
-    }
-    if (config?.RememberSubtitleSelections !== undefined) {
-      seed.rememberSubtitleSelections = config.RememberSubtitleSelections;
+    if (seededForUserId.current !== user.Id) {
+      seededForUserId.current = user.Id;
+
+      // Only keys the server actually sent. Spreading an absent field in as
+      // `undefined` would blank a perfectly good local value — and a toggle
+      // whose value is `undefined` renders off and refuses to stay on.
+      const seed: Partial<Settings> = {};
+      if (config?.SubtitleLanguagePreference !== undefined) {
+        seed.defaultSubtitleLanguage = findCulture(
+          config.SubtitleLanguagePreference,
+        );
+      }
+      if (userAudioPreference !== undefined) {
+        // The original-language sentinel is not an ISO code and so is absent
+        // from the cultures list — it has to be carried through as-is.
+        seed.defaultAudioLanguage =
+          userAudioPreference === ORIGINAL_LANGUAGE && supportsOriginalLanguage
+            ? ({ ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE } as CultureDto)
+            : findCulture(userAudioPreference);
+      }
+      if (config?.SubtitleMode !== undefined) {
+        seed.subtitleMode = config.SubtitleMode;
+      }
+      if (config?.PlayDefaultAudioTrack !== undefined) {
+        // Seeded from the correction decision, not the raw server field: track
+        // resolution reads this local copy and cannot wait for the round trip,
+        // so seeding the uncorrected `true` would pick the default-flagged
+        // stream for as long as the PATCH is in flight.
+        seed.playDefaultAudioTrack = correctsPlayDefaultAudioTrack
+          ? false
+          : config.PlayDefaultAudioTrack;
+      }
+      if (config?.RememberAudioSelections !== undefined) {
+        seed.rememberAudioSelections = config.RememberAudioSelections;
+      }
+      if (config?.RememberSubtitleSelections !== undefined) {
+        seed.rememberSubtitleSelections = config.RememberSubtitleSelections;
+      }
+
+      if (Object.keys(seed).length > 0) updateSettings(seed);
     }
 
-    if (Object.keys(seed).length > 0) updateSettings(seed);
-
-    if (correctsPlayDefaultAudioTrack) {
+    // Runs on any pass, not just the seeding one — an admin unlock or a server
+    // version that only now reports support both surface here. The ref is a
+    // de-duplicator, not a lifetime guard: the write is fire-and-forget, so
+    // without it a re-run before the refetch lands would PATCH twice. Cleared
+    // on failure so a rejected write is retried rather than lost.
+    if (
+      correctsPlayDefaultAudioTrack &&
+      correctedForUserId.current !== user.Id
+    ) {
+      correctedForUserId.current = user.Id;
+      // Keep the local copy in step immediately, for the same reason the seed
+      // above does — the round trip is not something track resolution can wait on.
+      updateSettings({ playDefaultAudioTrack: false });
       void updateUserConfiguration(
         { PlayDefaultAudioTrack: false },
         { invalidateItems: true },
-      );
+      ).then((ok) => {
+        if (!ok) correctedForUserId.current = null;
+      });
     }
     // updateSettings is intentionally omitted: it is recreated on every settings
     // write, and depending on it would re-run this effect on our own writes.
