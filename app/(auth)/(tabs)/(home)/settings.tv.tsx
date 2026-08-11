@@ -1,4 +1,7 @@
-import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
+import {
+  type CultureDto,
+  SubtitlePlaybackMode,
+} from "@jellyfin/sdk/lib/generated-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
@@ -10,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
+import { MediaProvider, useMedia } from "@/components/settings/MediaContext";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVLogoutButton,
@@ -42,6 +46,7 @@ import {
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
 import { scaleSize } from "@/utils/scaleSize";
 import {
@@ -50,6 +55,82 @@ import {
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
+
+function TVAudioLanguageSetting() {
+  const { t } = useTranslation();
+  const {
+    settings,
+    supportsOriginalAudioLanguage,
+    updateSettings,
+    cultures,
+    isReady,
+  } = useMedia();
+  const { pluginSettings } = useSettings();
+  const { showOptions } = useTVOptionModal();
+  const selectedLanguage =
+    settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName;
+
+  const options = useMemo<TVOptionItem<CultureDto | null>[]>(
+    () => [
+      {
+        label: t("home.settings.audio.none"),
+        value: null,
+        selected: !selectedLanguage,
+      },
+      ...(supportsOriginalAudioLanguage
+        ? [
+            {
+              label: t("home.settings.audio.original_language"),
+              value: { ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE },
+              selected: selectedLanguage === ORIGINAL_LANGUAGE,
+            },
+          ]
+        : []),
+      ...cultures.map((culture) => ({
+        label:
+          culture.DisplayName ||
+          culture.ThreeLetterISOLanguageName ||
+          "Unknown",
+        value: culture,
+        selected: culture.ThreeLetterISOLanguageName === selectedLanguage,
+      })),
+    ],
+    [cultures, selectedLanguage, supportsOriginalAudioLanguage, t],
+  );
+
+  // Derived from the stored value rather than from the option list, so it stays
+  // accurate while the cultures query is still loading.
+  const selectedLabel = useMemo(() => {
+    const language = settings?.defaultAudioLanguage;
+    if (language?.ThreeLetterISOLanguageName === ORIGINAL_LANGUAGE)
+      return t("home.settings.audio.original_language");
+    if (!language) return t("home.settings.audio.none");
+    return (
+      language.DisplayName ||
+      language.ThreeLetterISOLanguageName ||
+      t("home.settings.audio.none")
+    );
+  }, [settings?.defaultAudioLanguage, t]);
+
+  return (
+    <TVSettingsOptionButton
+      label={t("home.settings.audio.audio_language")}
+      value={selectedLabel}
+      disabled={
+        !isReady ||
+        pluginSettings?.defaultAudioLanguage?.locked ||
+        pluginSettings?.playDefaultAudioTrack?.locked
+      }
+      onPress={() =>
+        showOptions({
+          title: t("home.settings.audio.language"),
+          options,
+          onSelect: (value) => updateSettings({ defaultAudioLanguage: value }),
+        })
+      }
+    />
+  );
+}
 
 export default function SettingsTV() {
   const { t } = useTranslation();
@@ -644,6 +725,9 @@ export default function SettingsTV() {
 
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
+          <MediaProvider>
+            <TVAudioLanguageSetting />
+          </MediaProvider>
 
           {/* Video Player selector — Android TV only */}
           {isAndroidTv && (

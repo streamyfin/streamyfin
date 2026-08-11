@@ -275,6 +275,7 @@
         "audio_language": "Audio language",
         "audio_hint": "Choose a default audio language.",
         "none": "None",
+        "original_language": "Original language",
         "language": "Language",
         "transcode_mode": {
           "title": "Audio transcoding",
