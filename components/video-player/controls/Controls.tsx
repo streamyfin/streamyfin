@@ -396,15 +396,10 @@ export const Controls: FC<Props> = ({
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(
-        item,
-        settings,
-        {
-          indexes: previousIndexes,
-          source: mediaSource ?? undefined,
-        },
-        { applyLanguagePreferences: true },
-      );
+      } = getDefaultPlaySettings(item, settings, {
+        indexes: previousIndexes,
+        source: mediaSource ?? undefined,
+      });
 
       // Use setParams instead of replace to avoid unmounting/remounting the player,
       // which would create a new MPV native view and crash with "mp_initialize already initialized".
