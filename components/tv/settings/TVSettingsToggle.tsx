@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Animated, Pressable, View } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
@@ -11,6 +12,12 @@ export interface TVSettingsToggleProps {
   onToggle: (value: boolean) => void;
   isFirst?: boolean;
   disabled?: boolean;
+  /**
+   * Locked by the Streamyfin plugin. Distinct from `disabled` because the row
+   * has to say *why*: an admin-locked setting is dropped on write and overridden
+   * on read, so without a visible reason it just looks like a broken toggle.
+   */
+  disabledByAdmin?: boolean;
 }
 
 export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
@@ -19,7 +26,10 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
   onToggle,
   isFirst,
   disabled,
+  disabledByAdmin,
 }) => {
+  const { t } = useTranslation();
+  const isDisabled = disabled || disabledByAdmin;
   const typography = useScaledTVTypography();
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.02 });
@@ -29,9 +39,9 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
       onPress={() => onToggle(!value)}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      hasTVPreferredFocus={isFirst && !disabled}
-      disabled={disabled}
-      focusable={!disabled}
+      hasTVPreferredFocus={isFirst && !isDisabled}
+      disabled={isDisabled}
+      focusable={!isDisabled}
     >
       <Animated.View
         style={[
@@ -47,12 +57,26 @@ export const TVSettingsToggle: React.FC<TVSettingsToggleProps> = ({
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
+            opacity: isDisabled ? 0.4 : 1,
           },
         ]}
       >
-        <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
-          {label}
-        </Text>
+        <View>
+          <Text style={{ fontSize: typography.body, color: "#FFFFFF" }}>
+            {label}
+          </Text>
+          {disabledByAdmin && (
+            <Text
+              style={{
+                fontSize: typography.callout,
+                color: "#EF4444",
+                marginTop: scaleSize(2),
+              }}
+            >
+              {t("home.settings.disabled_by_admin")}
+            </Text>
+          )}
+        </View>
         <View
           style={{
             width: scaleSize(56),
