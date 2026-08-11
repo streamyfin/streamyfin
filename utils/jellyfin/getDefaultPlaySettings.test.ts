@@ -213,6 +213,42 @@ describe("subtitle mode", () => {
     );
     expect(result.subtitleIndex).toBe(0);
   });
+
+  test("Smart disables subtitles when 639-1 audio (sv) matches 639-2/T subtitle preference (swe)", () => {
+    const svAudioStreams = [sub(0, "swe"), audio(1, "sv")];
+    const result = getDefaultPlaySettings(
+      episode(source(svAudioStreams, { audio: 1 })),
+      settingsWith({
+        subtitleMode: "Smart" as never,
+        defaultSubtitleLanguage: lang("swe"),
+      }),
+    );
+    expect(result.subtitleIndex).toBe(-1);
+  });
+
+  test("Smart disables subtitles when 639-2/B audio (ger) matches 639-2/T subtitle preference (deu)", () => {
+    const gerAudioStreams = [sub(0, "deu"), audio(1, "ger")];
+    const result = getDefaultPlaySettings(
+      episode(source(gerAudioStreams, { audio: 1 })),
+      settingsWith({
+        subtitleMode: "Smart" as never,
+        defaultSubtitleLanguage: lang("deu"),
+      }),
+    );
+    expect(result.subtitleIndex).toBe(-1);
+  });
+
+  test("Smart does not disable subtitles for Swahili (swa) audio when subtitle preference is Swedish (swe)", () => {
+    const swaAudioStreams = [sub(0, "swe"), audio(1, "swa")];
+    const result = getDefaultPlaySettings(
+      episode(source(swaAudioStreams, { audio: 1 })),
+      settingsWith({
+        subtitleMode: "Smart" as never,
+        defaultSubtitleLanguage: lang("swe"),
+      }),
+    );
+    expect(result.subtitleIndex).toBe(0);
+  });
 });
 
 describe("precedence", () => {

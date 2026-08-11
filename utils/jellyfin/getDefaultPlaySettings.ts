@@ -124,14 +124,8 @@ function applySubtitleMode(
     case SubtitlePlaybackMode.Smart: {
       // Enable subtitles only when audio language differs from subtitle preference
       if (audioLanguage && subtitleLanguageCode) {
-        const audioLang = audioLanguage.toLowerCase();
-        const subLang = subtitleLanguageCode.toLowerCase();
         // If audio matches subtitle preference, disable subtitles
-        if (
-          audioLang === subLang ||
-          audioLang.startsWith(subLang.substring(0, 2)) ||
-          subLang.startsWith(audioLang.substring(0, 2))
-        ) {
+        if (langEq(audioLanguage, subtitleLanguageCode)) {
           return -1;
         }
       }
