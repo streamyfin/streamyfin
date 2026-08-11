@@ -275,6 +275,7 @@
         "audio_language": "Ljudspråk",
         "audio_hint": "Välj ett standardspråk för ljud.",
         "none": "Inga",
+        "original_language": "Originalspråk",
         "language": "Språk",
         "transcode_mode": {
           "title": "Omkodning av ljud",
