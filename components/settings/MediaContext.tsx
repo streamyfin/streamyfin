@@ -239,7 +239,13 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         { invalidateItems: true },
       );
     }
-  }, [user, isReady, cultures, supportsOriginalLanguage]);
+  }, [
+    user,
+    isReady,
+    cultures,
+    supportsOriginalLanguage,
+    pluginSettings?.playDefaultAudioTrack?.locked,
+  ]);
 
   if (!api) return null;
 
