@@ -38,6 +38,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import { localSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
@@ -262,12 +263,12 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
 };
 
 /**
- * Sentinel jellyfinIndex for a client-side downloaded sidecar subtitle
- * (OpenSubtitles fallback). It exists only on the mpv handle, not in the
- * Jellyfin media source — the coordinator maps this index back to the local
- * file instead of a server stream.
+ * The native session carries at most one client-side sidecar at a time
+ * (`session.localSubtitle` is singular), so it always occupies position 0 of the
+ * shared sidecar block. Encoded rather than hard-coded so a second sidecar can
+ * be added later without inventing another sentinel.
  */
-export const LOCAL_SUBTITLE_MENU_INDEX = -1000;
+const NATIVE_LOCAL_SUBTITLE_INDEX = localSubtitleIndex(0);
 
 /**
  * Menu display models for the native track menus. Selection stays in JS —
@@ -310,7 +311,7 @@ export const buildTrackMenus = (options: {
   if (options.localSubtitle) {
     subtitleItems.push({
       label: options.localSubtitle.label,
-      jellyfinIndex: LOCAL_SUBTITLE_MENU_INDEX,
+      jellyfinIndex: NATIVE_LOCAL_SUBTITLE_INDEX,
       selected: options.localSubtitle.selected,
     });
   }

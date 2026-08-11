@@ -40,10 +40,7 @@ import {
   TVSeriesNavigation,
   TVTechnicalDetails,
 } from "@/components/tv";
-import {
-  LOCAL_SUBTITLE_INDEX_START,
-  type Track,
-} from "@/components/video-player/controls/types";
+import type { Track } from "@/components/video-player/controls/types";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
 import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
@@ -61,6 +58,10 @@ import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getLogoImageUrlById } from "@/utils/jellyfin/image/getLogoImageUrlById";
 import { getPrimaryImageUrlById } from "@/utils/jellyfin/image/getPrimaryImageUrlById";
 import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
+import {
+  isLocalSubtitleIndex,
+  localSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
 import { formatDuration, runtimeTicksToMinutes } from "@/utils/time";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -126,22 +127,12 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       SelectedOptions | undefined
     >(undefined);
 
-    // Enable language preference application for TV
-    const playSettingsOptions = useMemo(
-      () => ({ applyLanguagePreferences: true }),
-      [],
-    );
-
     const {
       defaultAudioIndex,
       defaultBitrate,
       defaultMediaSource,
       defaultSubtitleIndex,
-    } = useDefaultPlaySettings(
-      itemWithSources ?? item,
-      settings,
-      playSettingsOptions,
-    );
+    } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
     const logoUrl = useMemo(
       () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -286,7 +277,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             continue;
           }
 
-          const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
+          const localIndex = localSubtitleIndex(localIdx);
           tracks.push({
             name: localSub.name,
             index: localIndex,
@@ -449,7 +440,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
             const subtitleFile = new File(localSub.filePath);
             if (!subtitleFile.exists) continue;
 
-            const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
+            const localIndex = localSubtitleIndex(localIdx);
             tracks.push({
               name: localSub.name,
               index: localIndex,
@@ -482,11 +473,7 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       if (selectedOptions?.subtitleIndex === -1)
         return t("item_card.subtitles.none");
 
-      // Check if it's a local subtitle (negative index starting at -100)
-      if (
-        selectedOptions?.subtitleIndex !== undefined &&
-        selectedOptions.subtitleIndex <= LOCAL_SUBTITLE_INDEX_START
-      ) {
+      if (isLocalSubtitleIndex(selectedOptions?.subtitleIndex)) {
         const localTrack = subtitleTracksForModal.find(
           (t) => t.index === selectedOptions.subtitleIndex,
         );

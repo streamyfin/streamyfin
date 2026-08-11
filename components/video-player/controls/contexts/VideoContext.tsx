@@ -67,7 +67,11 @@ import {
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { LOCAL_SUBTITLE_INDEX_START, type Track } from "../types";
+import {
+  isLocalSubtitleIndex,
+  localSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
+import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
 interface VideoContextProps {
@@ -129,10 +133,11 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     // The URL param can hold a local-sub sentinel (selected via setParams) that
     // only exists in the dying player — the server must get "none" (-1) instead.
     // NaN (missing/blank param) fails the comparison and passes through as-is.
-    const fallbackSubtitleIndex =
-      Number.parseInt(subtitleIndex, 10) <= LOCAL_SUBTITLE_INDEX_START
-        ? "-1"
-        : subtitleIndex;
+    const fallbackSubtitleIndex = isLocalSubtitleIndex(
+      Number.parseInt(subtitleIndex, 10),
+    )
+      ? "-1"
+      : subtitleIndex;
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
       audioIndex: params.audioIndex ?? audioIndex,
@@ -356,7 +361,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
             continue;
           }
 
-          const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
+          const localIndex = localSubtitleIndex(localIdx);
           subs.push({
             name: localSub.name,
             index: localIndex,
