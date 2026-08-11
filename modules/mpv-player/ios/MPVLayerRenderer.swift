@@ -969,6 +969,7 @@ final class MPVLayerRenderer {
 
     func disableSubtitles() {
         setProperty(name: "sid", value: "no")
+        applyBidiMode(forTrack: -1)
     }
     
     func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {

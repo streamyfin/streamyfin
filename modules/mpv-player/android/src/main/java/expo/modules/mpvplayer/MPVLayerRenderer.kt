@@ -645,6 +645,7 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
     
     fun disableSubtitles() {
         mpv?.setPropertyString("sid", "no")
+        applyBidiModeFor(-1)
     }
     
     fun getCurrentSubtitleTrack(): Int {
