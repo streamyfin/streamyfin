@@ -1,6 +1,26 @@
 #if os(tvOS)
 import SwiftUI
 
+/// Edge inset ON TOP OF the tvOS overscan safe area, which SwiftUI has
+/// already applied by the time these run: the layer hosts are pinned to the
+/// full view bounds, not the safe-area guide, so the system's ~90pt
+/// horizontal / ~60pt vertical insets are inside these. Keep them small —
+/// the old 80/60 put the transport bar ~170pt from the screen edge, far
+/// deeper than the system player.
+///
+/// EVERY layer that touches a screen edge measures from here. The layers are
+/// separate hosting controllers over identical bounds, so a literal left
+/// behind in one of them reads as that layer being misaligned against the
+/// chrome — with nothing in its own file to hint at why.
+enum TVChromeMetrics {
+	static let insetH: CGFloat = 40
+	static let insetV: CGFloat = 24
+	/// The floating skip pill / countdown card ride slightly clear of the
+	/// bottom margin: they only ever show with the chrome hidden, so nothing
+	/// anchors that edge for them the way the time row does for the chrome.
+	static let floatingBottomInset: CGFloat = insetV + 20
+}
+
 /// The chrome layer of the TV player: scrims, metadata header, the focusable
 /// controls row and the transport bar. One of the stacked layer hosts built
 /// by NativePlayerViewController — TVFocusCoordinator flips this host into
@@ -15,15 +35,6 @@ struct TVChromeLayerView: View {
 	/// Focus memory for the button row — lives here because the row unmounts
 	/// whenever the chrome hides, and should reappear on the same control.
 	@State private var lastFocusedControl: TVControl?
-
-	/// Chrome inset ON TOP OF the tvOS overscan safe area, which SwiftUI has
-	/// already applied by the time this runs: the layer hosts are pinned to
-	/// the full view bounds, not the safe-area guide, so the system's ~90pt
-	/// horizontal / ~60pt vertical insets are inside these. Keep them small —
-	/// the old 80/60 put the transport bar ~170pt from the screen edge, far
-	/// deeper than the system player.
-	private static let insetH: CGFloat = 40
-	private static let insetV: CGFloat = 24
 
 	var body: some View {
 		ZStack {
@@ -50,8 +61,8 @@ struct TVChromeLayerView: View {
 						TVTransportBar(viewModel: viewModel, time: viewModel.time)
 					}
 				}
-				.padding(.horizontal, Self.insetH)
-				.padding(.vertical, Self.insetV)
+				.padding(.horizontal, TVChromeMetrics.insetH)
+				.padding(.vertical, TVChromeMetrics.insetV)
 				.transition(.opacity)
 			}
 		}
@@ -121,7 +132,7 @@ private struct TVBareButtonStyle: ButtonStyle {
 
 /// Bottom transport bar: play-state glyph, progress (played + buffered),
 /// position, remaining and the wall-clock finish time. While a remote scrub
-/// is armed, the playhead follows the scrub target and a trickplay bubble
+/// is armed, the playhead follows the scrub target and a trickplay card
 /// rides above it. Observes PlaybackTimeModel directly — PlayerViewModel
 /// deliberately does not publish the ~30Hz clock (see PlaybackTimeModel).
 ///
@@ -139,7 +150,8 @@ private struct TVTransportBar: View {
 	@ObservedObject var time: PlaybackTimeModel
 	@FocusState private var barFocused: Bool
 
-	private static let bubbleHeight: CGFloat = 180
+	/// Clearance between the scrub preview card and the track it rides over.
+	private static let cardGap: CGFloat = 40
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -254,7 +266,7 @@ private struct TVTransportBar: View {
 	}
 
 	/// First horizontal input on the focused bar: arm the scrub (pauses,
-	/// shows the trickplay bubble) and take the first step. Every further
+	/// shows the trickplay card) and take the first step. Every further
 	/// press/pan is handled by the VC recognizers, which re-enable the
 	/// moment isScrubbing flips.
 	private func armScrub(nudge delta: Double) {
@@ -302,29 +314,25 @@ private struct TVTransportBar: View {
 			.overlay(alignment: .topLeading) {
 				if viewModel.isScrubbing, let trickplay = viewModel.trickplay,
 					trickplay.isAvailable {
-					let chapterName = viewModel.chapterName(at: viewModel.scrubPosition)
-					TrickplayBubbleView(
+					TVTrickplayCard(
 						provider: trickplay,
-						positionSec: viewModel.scrubPosition,
-						chapterName: chapterName,
-						bubbleHeight: Self.bubbleHeight
+						positionSec: viewModel.scrubPosition
 					)
 					.offset(
-						x: bubbleOffsetX(trackWidth: width, provider: trickplay, playedFraction: playedFraction),
-						y: -Self.bubbleHeight - 90 - (chapterName != nil ? 30 : 0)
+						x: cardOffsetX(trackWidth: width, playedFraction: playedFraction),
+						y: -TVTrickplayCard.height - Self.cardGap
 					)
 				}
 			}
 		}
 	}
 
-	/// Center the bubble over the playhead, clamped to the track bounds.
-	private func bubbleOffsetX(
-		trackWidth: CGFloat, provider: TrickplayProvider, playedFraction: CGFloat
-	) -> CGFloat {
-		let bubbleWidth = Self.bubbleHeight * provider.aspectRatio
+	/// Center the card over the playhead, clamped to the track bounds.
+	private func cardOffsetX(trackWidth: CGFloat, playedFraction: CGFloat) -> CGFloat {
 		let thumbX = trackWidth * playedFraction
-		return min(max(thumbX - bubbleWidth / 2, 0), max(trackWidth - bubbleWidth, 0))
+		return min(
+			max(thumbX - TVTrickplayCard.width / 2, 0),
+			max(trackWidth - TVTrickplayCard.width, 0))
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;

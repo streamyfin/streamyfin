@@ -1,6 +1,52 @@
 #if os(tvOS)
 import SwiftUI
 
+/// The 16:9 poster of the TV player chrome. The episode shelf cards and the
+/// trickplay scrub preview are deliberately the same object — same size, same
+/// corner, same frosted band under the text — so both draw through here
+/// instead of carrying their own copies of these numbers.
+enum TVPoster {
+	static let width: CGFloat = 300
+	static let height: CGFloat = 168
+	static let cornerRadius: CGFloat = 12
+	/// Depth of the frosted band that grounds the text.
+	static let scrimHeight: CGFloat = 110
+	/// Text inset inside the band.
+	static let textInsetH: CGFloat = 14
+	static let textInsetV: CGFloat = 12
+}
+
+/// Frosted gradient rather than a flat black band: a material masked to fade
+/// in toward the bottom keeps the artwork visible through it while still
+/// grounding the text. The black underlay carries the contrast the material
+/// alone cannot guarantee over a bright frame. Stack it over the artwork,
+/// under the text; it aligns itself to the bottom of whatever it is in.
+@available(tvOS 26.0, *)
+struct TVPosterScrim: View {
+	var body: some View {
+		ZStack {
+			LinearGradient(
+				colors: [.black.opacity(0), .black.opacity(0.55)],
+				startPoint: .top, endPoint: .bottom
+			)
+			Rectangle()
+				.fill(.ultraThinMaterial)
+				.mask(
+					LinearGradient(
+						stops: [
+							.init(color: .clear, location: 0),
+							.init(color: .black.opacity(0.65), location: 0.5),
+							.init(color: .black, location: 1),
+						],
+						startPoint: .top, endPoint: .bottom
+					)
+				)
+		}
+		.frame(height: TVPoster.scrimHeight)
+		.frame(maxHeight: .infinity, alignment: .bottom)
+	}
+}
+
 /// Skip intro/credits pill — non-focusable on purpose, and shown only while
 /// the chrome is hidden: Select triggers the skip via the VC recognizers
 /// (Play/Pause stays playback-only). In the full chrome the controls row
@@ -131,7 +177,7 @@ struct TVEpisodeShelf: View {
 			Text(viewModel.str("episodes", "Episodes"))
 				.font(.title3.weight(.semibold))
 				.foregroundStyle(.white)
-				.padding(.horizontal, 80)
+				.padding(.horizontal, TVChromeMetrics.insetH)
 			ScrollView(.horizontal, showsIndicators: false) {
 				HStack(spacing: 28) {
 					ForEach(Array(viewModel.episodeList.enumerated()), id: \.offset) {
@@ -142,7 +188,7 @@ struct TVEpisodeShelf: View {
 						episodeCard(episode, index: index)
 					}
 				}
-				.padding(.horizontal, 80)
+				.padding(.horizontal, TVChromeMetrics.insetH)
 				.padding(.vertical, 30)
 			}
 		}
@@ -203,31 +249,7 @@ struct TVEpisodeShelf: View {
 				} else {
 					Color.white.opacity(0.1)
 				}
-				// Frosted gradient rather than a flat black band: a material
-				// masked to fade in toward the bottom keeps the artwork visible
-				// through it while still grounding the title. The black
-				// underlay carries the contrast the material alone cannot
-				// guarantee over a bright frame.
-				LinearGradient(
-					colors: [.black.opacity(0), .black.opacity(0.55)],
-					startPoint: .top, endPoint: .bottom
-				)
-				.frame(height: 110)
-				.frame(maxHeight: .infinity, alignment: .bottom)
-				Rectangle()
-					.fill(.ultraThinMaterial)
-					.mask(
-						LinearGradient(
-							stops: [
-								.init(color: .clear, location: 0),
-								.init(color: .black.opacity(0.65), location: 0.5),
-								.init(color: .black, location: 1),
-							],
-							startPoint: .top, endPoint: .bottom
-						)
-					)
-					.frame(height: 110)
-					.frame(maxHeight: .infinity, alignment: .bottom)
+				TVPosterScrim()
 				VStack(alignment: .leading, spacing: 8) {
 					Text(
 						episode.indexNumber.map { "\($0). \(episode.title)" } ?? episode.title
@@ -248,10 +270,10 @@ struct TVEpisodeShelf: View {
 						.frame(height: 4)
 					}
 				}
-				.padding(.horizontal, 14)
-				.padding(.bottom, 12)
+				.padding(.horizontal, TVPoster.textInsetH)
+				.padding(.bottom, TVPoster.textInsetV)
 			}
-			.frame(width: 300, height: 168)
+			.frame(width: TVPoster.width, height: TVPoster.height)
 			.overlay(alignment: .topLeading) {
 				// Matches the app's existing badge (TVPosterCard.tsx): solid
 				// white, black content, radius 8, top-left. Replaces the white
@@ -271,7 +293,7 @@ struct TVEpisodeShelf: View {
 					.padding(10)
 				}
 			}
-			.clipShape(RoundedRectangle(cornerRadius: 12))
+			.clipShape(RoundedRectangle(cornerRadius: TVPoster.cornerRadius))
 		}
 		.buttonStyle(.card)
 		.focused($focusedEpisode, equals: index)
