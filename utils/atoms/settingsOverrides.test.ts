@@ -63,6 +63,55 @@ describe("resolveEffectiveSettings", () => {
     );
     expect(effective.rememberSubtitleSelections).toBe(true);
   });
+
+  test("an unlocked plugin value fills a key the user has nothing for", () => {
+    // Regression: the Streamystats watchlists tab is gated on
+    // streamyStatsServerUrl, which only the plugin supplies. Requiring a plugin
+    // refresh to seed it first made the tab vanish after a reload.
+    const effective = resolveEffectiveSettings(
+      {},
+      plugin({
+        streamyStatsServerUrl: {
+          locked: false,
+          value: "https://stats.example",
+        },
+      }),
+      defaults,
+      identity,
+    );
+    expect((effective as Record<string, unknown>).streamyStatsServerUrl).toBe(
+      "https://stats.example",
+    );
+  });
+
+  test("a user's own value still beats the unlocked fallback", () => {
+    const effective = resolveEffectiveSettings(
+      { streamyStatsServerUrl: "https://mine.example" } as Partial<Settings>,
+      plugin({
+        streamyStatsServerUrl: {
+          locked: false,
+          value: "https://admin.example",
+        },
+      }),
+      defaults,
+      identity,
+    );
+    expect((effective as Record<string, unknown>).streamyStatsServerUrl).toBe(
+      "https://mine.example",
+    );
+  });
+
+  test("false counts as a value, so the fallback cannot re-enable a toggle", () => {
+    // The original bug in one line: a stored `false` must not be read as
+    // "nothing here" and replaced by the plugin's `true`.
+    const effective = resolveEffectiveSettings(
+      { rememberAudioSelections: false },
+      plugin({ rememberAudioSelections: { locked: false, value: true } }),
+      defaults,
+      identity,
+    );
+    expect(effective.rememberAudioSelections).toBe(false);
+  });
 });
 
 describe("pendingPluginDefaults", () => {

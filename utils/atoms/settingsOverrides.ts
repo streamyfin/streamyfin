@@ -22,17 +22,27 @@ export const hasMeaningfulSettingValue = (value: unknown): boolean =>
   value !== undefined && value !== null && value !== "";
 
 /**
- * Effective settings = app defaults, then the user's stored values, then any
- * admin-**locked** plugin values pinned on top.
+ * Effective settings, in precedence order:
  *
- * Unlocked plugin values are deliberately absent. They used to be applied here,
- * guarded by a "did the user diverge from the app default" heuristic — but
- * `updateSettings` backfills every default into storage on the first write, so
- * that heuristic could not tell "the user chose this" from "never touched". Any
- * setting whose plugin value differed from the app default became permanently
- * unchangeable despite being unlocked: the displayed value came from the
- * plugin, so pressing a toggle wrote the value already in storage, and the
- * write was discarded as a no-op.
+ *   app defaults → unlocked plugin values (fallback only) → the user's stored
+ *   values → admin-**locked** plugin values (pinned on top)
+ *
+ * An unlocked plugin value may only *fill a gap*. It applies when the user has
+ * nothing meaningful of their own for that key — an admin-supplied server URL
+ * has to work before the user has ever touched it — but it must never win over
+ * a value the user holds, or the setting is unlocked in name only.
+ *
+ * The rule used to be "unlocked wins unless the user diverged from the app
+ * default", which could not work: `updateSettings` backfills every default into
+ * storage on the first write, so it could not tell "the user chose this" from
+ * "never touched". Any setting whose plugin value differed from the app default
+ * became permanently unchangeable — the displayed value came from the plugin,
+ * so pressing a toggle wrote the value already in storage and the write was
+ * discarded as a no-op.
+ *
+ * Briefly it was "unlocked never applies at read time", which broke the other
+ * way: a plugin-supplied value was invisible until a plugin refresh seeded it,
+ * so the Streamystats watchlists tab disappeared after a reload.
  */
 export const resolveEffectiveSettings = (
   raw: Partial<Settings> | null,
@@ -40,13 +50,26 @@ export const resolveEffectiveSettings = (
   defaults: Settings,
   normalize: NormalizePluginValue,
 ): Settings => {
+  const merged = { ...defaults, ...raw } as Record<string, unknown>;
+  const unlockedFallbacks: Record<string, unknown> = {};
   const lockedOverrides: Record<string, unknown> = {};
+
   for (const [key, setting] of Object.entries(plugin ?? {})) {
-    if (!setting?.locked) continue;
+    if (!setting) continue;
     const settingsKey = key as keyof Settings;
-    lockedOverrides[key] = normalize(settingsKey, setting.value);
+    const value = normalize(settingsKey, setting.value);
+
+    if (setting.locked) {
+      lockedOverrides[key] = value;
+    } else if (
+      !hasMeaningfulSettingValue(merged[key]) &&
+      hasMeaningfulSettingValue(value)
+    ) {
+      unlockedFallbacks[key] = value;
+    }
   }
-  return { ...defaults, ...raw, ...lockedOverrides } as Settings;
+
+  return { ...merged, ...unlockedFallbacks, ...lockedOverrides } as Settings;
 };
 
 /**
