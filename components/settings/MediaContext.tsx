@@ -165,6 +165,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       const picksOriginal =
         update.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
         ORIGINAL_LANGUAGE;
+      const clearsPreference = update.defaultAudioLanguage === null;
       const leavesOriginal =
         !picksOriginal &&
         supportsOriginalLanguage &&
@@ -173,11 +174,14 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
       // Jellyfin short-circuits to the default-flagged stream when
       // PlayDefaultAudioTrack is set, which defeats the original-language pick
-      // (MediaStreamSelector.GetDefaultAudioStreamIndex). Toggle it only when
-      // entering or leaving that mode, never on an unrelated change.
+      // (MediaStreamSelector.GetDefaultAudioStreamIndex).
       if (picksOriginal) {
         nextUpdate = { ...update, playDefaultAudioTrack: false };
-      } else if (leavesOriginal) {
+      } else if (leavesOriginal && clearsPreference) {
+        // Restore the Jellyfin default only when the preference is cleared for
+        // good. Switching straight to a real language keeps the flag off, since
+        // turning it back on would send the server back to the default-flagged
+        // stream and ignore the language that was just picked.
         nextUpdate = { ...update, playDefaultAudioTrack: true };
       }
     }
