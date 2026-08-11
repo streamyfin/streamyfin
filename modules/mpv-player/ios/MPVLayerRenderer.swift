@@ -268,6 +268,7 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
+        checkError(mpv_set_option_string(mpv, "sub-vsfilter-bidi-compat", "yes"))
 
         // Initialize mpv
         let initStatus = mpv_initialize(handle)
@@ -937,10 +938,38 @@ final class MPVLayerRenderer {
         } else {
             setProperty(name: "sid", value: String(trackId))
         }
+        applyBidiMode(forTrack: trackId)
     }
-    
+
+    private func applyBidiMode(forTrack trackId: Int) {
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            let codec = trackId >= 0
+                ? self.subtitleCodec(handle: handle, trackId: Int64(trackId))
+                : nil
+            let isAss = codec == "ass" || codec == "ssa"
+            mpv_set_property_string(
+                handle, "sub-ass-style-overrides", isAss ? "Encoding=-1" : ""
+            )
+        }
+    }
+
+    private func subtitleCodec(handle: OpaquePointer, trackId: Int64) -> String? {
+        var trackCount: Int64 = 0
+        getProperty(handle: handle, name: "track-list/count", format: MPV_FORMAT_INT64, value: &trackCount)
+        for i in 0..<trackCount {
+            guard getStringProperty(handle: handle, name: "track-list/\(i)/type") == "sub" else { continue }
+            var id: Int64 = 0
+            guard getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &id) >= 0,
+                  id == trackId else { continue }
+            return getStringProperty(handle: handle, name: "track-list/\(i)/codec")
+        }
+        return nil
+    }
+
     func disableSubtitles() {
         setProperty(name: "sid", value: "no")
+        applyBidiMode(forTrack: -1)
     }
     
     func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
@@ -957,6 +986,10 @@ final class MPVLayerRenderer {
         onQueue { [weak self] in
             guard let self, let handle = self.mpv else { return }
             self.commandSync(handle, ["sub-add", url, flag])
+            guard select else { return }
+            var sid: Int64 = -1
+            _ = self.getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
+            self.applyBidiMode(forTrack: Int(sid))
         }
     }
     
@@ -1034,9 +1067,7 @@ final class MPVLayerRenderer {
     }
 
     func setSubtitleAssOverride(_ mode: String) {
-        // Controls whether to override ASS subtitle styles
-        // "no" = keep ASS styles, "force" = override with user settings
-        setProperty(name: "sub-ass-override", value: mode)
+        setProperty(name: "sub-ass-override", value: mode == "no" ? "scale" : mode)
     }
 
     // MARK: - Audio Track Controls
