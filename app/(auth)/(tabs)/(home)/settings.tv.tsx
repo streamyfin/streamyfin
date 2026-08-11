@@ -13,11 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { TVPasswordEntryModal } from "@/components/login/TVPasswordEntryModal";
 import { TVPINEntryModal } from "@/components/login/TVPINEntryModal";
-import {
-  MediaProvider,
-  ORIGINAL_LANGUAGE,
-  useMedia,
-} from "@/components/settings/MediaContext";
+import { MediaProvider, useMedia } from "@/components/settings/MediaContext";
 import type { TVOptionItem } from "@/components/tv";
 import {
   TVLogoutButton,
@@ -50,6 +46,7 @@ import {
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
 import { scaleSize } from "@/utils/scaleSize";
 import {
@@ -83,7 +80,7 @@ function TVAudioLanguageSetting() {
       ...(supportsOriginalAudioLanguage
         ? [
             {
-              label: t("jellyseerr.original_language"),
+              label: t("home.settings.audio.original_language"),
               value: { ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE },
               selected: selectedLanguage === ORIGINAL_LANGUAGE,
             },
@@ -101,9 +98,19 @@ function TVAudioLanguageSetting() {
     [cultures, selectedLanguage, supportsOriginalAudioLanguage, t],
   );
 
-  const selectedLabel =
-    options.find((option) => option.selected)?.label ??
-    t("home.settings.audio.none");
+  // Derived from the stored value rather than from the option list, so it stays
+  // accurate while the cultures query is still loading.
+  const selectedLabel = useMemo(() => {
+    const language = settings?.defaultAudioLanguage;
+    if (language?.ThreeLetterISOLanguageName === ORIGINAL_LANGUAGE)
+      return t("home.settings.audio.original_language");
+    if (!language) return t("home.settings.audio.none");
+    return (
+      language.DisplayName ||
+      language.ThreeLetterISOLanguageName ||
+      t("home.settings.audio.none")
+    );
+  }, [settings?.defaultAudioLanguage, t]);
 
   return (
     <TVSettingsOptionButton

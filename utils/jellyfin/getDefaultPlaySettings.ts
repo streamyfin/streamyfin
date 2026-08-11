@@ -23,6 +23,7 @@ import {
   StreamRanker,
   SubtitleStreamRanker,
 } from "../streamRanker";
+import { ORIGINAL_LANGUAGE } from "./serverVersion";
 
 export interface PlaySettings {
   item: BaseItemDto;
@@ -282,8 +283,15 @@ export function getDefaultPlaySettings(
 
   // Apply language preferences when enabled (TV) and no previous selection matched
   if (options?.applyLanguagePreferences && settings) {
-    const audioLanguageCode =
+    const preferredAudioLanguage =
       settings.defaultAudioLanguage?.ThreeLetterISOLanguageName ?? undefined;
+    // The original-language preference is not an ISO code: the server already
+    // resolved it into DefaultAudioStreamIndex, so leave that choice alone
+    // instead of matching the sentinel against the stream languages.
+    const audioLanguageCode =
+      preferredAudioLanguage === ORIGINAL_LANGUAGE
+        ? undefined
+        : preferredAudioLanguage;
     const subtitleLanguageCode =
       settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? undefined;
 
