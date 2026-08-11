@@ -50,6 +50,7 @@ import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVSubtitleModal } from "@/hooks/useTVSubtitleModal";
 import { useTVThemeMusic } from "@/hooks/useTVThemeMusic";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
@@ -88,6 +89,14 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
     const [api] = useAtom(apiAtom);
     const [user] = useAtom(userAtom);
     const isOffline = useOfflineMode();
+    const { getDownloadedItemById } = useDownload();
+    // A download pins the tracks it was pulled with, and only the record knows
+    // them: resolving against the server media source hands back an index for a
+    // stream the local file may not contain.
+    const downloadedTracks =
+      isOffline && item?.Id
+        ? getDownloadedItemById(item.Id)?.userData
+        : undefined;
     const { settings } = useSettings();
     const insets = useSafeAreaInsets();
     const router = useRouter();
@@ -146,14 +155,16 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
       setSelectedOptions(() => ({
         bitrate: defaultBitrate,
         mediaSource: defaultMediaSource ?? undefined,
-        subtitleIndex: defaultSubtitleIndex ?? -1,
-        audioIndex: defaultAudioIndex,
+        subtitleIndex:
+          downloadedTracks?.subtitleStreamIndex ?? defaultSubtitleIndex ?? -1,
+        audioIndex: downloadedTracks?.audioStreamIndex ?? defaultAudioIndex,
       }));
     }, [
       defaultAudioIndex,
       defaultBitrate,
       defaultSubtitleIndex,
       defaultMediaSource,
+      downloadedTracks,
     ]);
 
     const playMedia = usePlayMedia();

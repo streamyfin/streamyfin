@@ -44,6 +44,7 @@ import {
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
+import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
 export interface NativePlayerStreamSeed {
   url: string;
@@ -404,10 +405,22 @@ export async function buildNativePlayerConfig(params: {
   if (!item?.Id) return null;
 
   const startTicks = resolveStartTicks(req.playbackPositionTicks, item);
-  const audioIndex =
-    req.audioIndex ??
-    (offline ? downloadedItem?.userData?.audioStreamIndex : undefined);
-  const subtitleIndex = req.subtitleIndex ?? -1;
+  // Callers that already resolved tracks (the item pages) pass them in; the
+  // ones that can't — top shelf, WebSocket Play commands, any bare
+  // playMedia({ itemId }) — would otherwise fall through to the server's
+  // defaults, silently bypassing the per-series memory and the language
+  // preferences. Offline, the download record outranks any such resolution.
+  const { audioIndex, subtitleIndex } = resolveTrackIndexes({
+    item,
+    settings,
+    offline,
+    downloaded: downloadedItem?.userData,
+    requested: {
+      audioIndex: req.audioIndex,
+      subtitleIndex: req.subtitleIndex,
+      mediaSourceId: req.mediaSourceId,
+    },
+  });
   const bitrateValue = req.bitrateValue ?? BITRATES[0].value;
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
