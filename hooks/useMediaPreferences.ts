@@ -19,6 +19,7 @@ import {
   ORIGINAL_LANGUAGE,
   supportsOriginalAudioLanguage,
 } from "@/utils/jellyfin/serverVersion";
+import { buildUserConfigurationPayload } from "@/utils/jellyfin/userConfiguration";
 
 /**
  * The settings that are not really Streamyfin's own: they mirror fields of the
@@ -45,34 +46,6 @@ const SERVER_BACKED_KEYS = [
 ] as const;
 
 export type ServerBackedSetting = (typeof SERVER_BACKED_KEYS)[number];
-
-/**
- * Translate a settings update into the matching `UserConfiguration` fields.
- *
- * Only the keys actually present in the update are carried: everything else is
- * left to the server copy the caller merges on top of. Rebuilding the whole
- * configuration from local state would let an unrelated write clear a
- * preference the app never had a value for.
- */
-export function buildUserConfigurationPayload(
-  update: Partial<Settings>,
-): Partial<UserConfiguration> {
-  const configuration: Partial<UserConfiguration> = {};
-  if ("subtitleMode" in update) configuration.SubtitleMode = update.subtitleMode;
-  if ("playDefaultAudioTrack" in update)
-    configuration.PlayDefaultAudioTrack = update.playDefaultAudioTrack;
-  if ("rememberAudioSelections" in update)
-    configuration.RememberAudioSelections = update.rememberAudioSelections;
-  if ("rememberSubtitleSelections" in update)
-    configuration.RememberSubtitleSelections = update.rememberSubtitleSelections;
-  if ("defaultAudioLanguage" in update)
-    configuration.AudioLanguagePreference =
-      update.defaultAudioLanguage?.ThreeLetterISOLanguageName ?? "";
-  if ("defaultSubtitleLanguage" in update)
-    configuration.SubtitleLanguagePreference =
-      update.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? "";
-  return configuration;
-}
 
 // Stable reference so a pending cultures query does not churn effect deps.
 const EMPTY_CULTURES: CultureDto[] = [];
@@ -220,7 +193,7 @@ export function useMediaPreferences(): MediaPreferences {
 
       updateSettings(nextUpdate);
 
-      const configuration = buildUserConfigurationPayload(nextUpdate);
+      const configuration = buildUserConfigurationPayload(nextUpdate, settings);
       if (Object.keys(configuration).length === 0) return;
       void updateUserConfiguration(configuration, { invalidateItems: true });
     },
@@ -228,7 +201,7 @@ export function useMediaPreferences(): MediaPreferences {
       isReady,
       pluginSettings?.defaultAudioLanguage?.locked,
       pluginSettings?.playDefaultAudioTrack?.locked,
-      settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName,
+      settings,
       supportsOriginalLanguage,
       updateSettings,
       updateUserConfiguration,
