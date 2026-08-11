@@ -30,17 +30,32 @@ interface MediaContextType {
 }
 
 /**
- * Settings mirrored to the Jellyfin `UserConfiguration`. Anything else in the
- * atom is client-only and must never trigger a server write.
+ * Translate a settings update into the matching `UserConfiguration` fields.
+ *
+ * Only the keys actually present in the update are carried: everything else is
+ * left to the server copy the caller merges on top of. Rebuilding the whole
+ * configuration from local state would let an unrelated write clear a
+ * preference the app never had a value for.
  */
-const SERVER_MIRRORED_SETTINGS: readonly (keyof Settings)[] = [
-  "defaultAudioLanguage",
-  "defaultSubtitleLanguage",
-  "subtitleMode",
-  "playDefaultAudioTrack",
-  "rememberAudioSelections",
-  "rememberSubtitleSelections",
-];
+const toUserConfiguration = (update: Partial<Settings>) => {
+  const configuration: Partial<UserConfiguration> = {};
+  if ("subtitleMode" in update)
+    configuration.SubtitleMode = update.subtitleMode;
+  if ("playDefaultAudioTrack" in update)
+    configuration.PlayDefaultAudioTrack = update.playDefaultAudioTrack;
+  if ("rememberAudioSelections" in update)
+    configuration.RememberAudioSelections = update.rememberAudioSelections;
+  if ("rememberSubtitleSelections" in update)
+    configuration.RememberSubtitleSelections =
+      update.rememberSubtitleSelections;
+  if ("defaultAudioLanguage" in update)
+    configuration.AudioLanguagePreference =
+      update.defaultAudioLanguage?.ThreeLetterISOLanguageName ?? "";
+  if ("defaultSubtitleLanguage" in update)
+    configuration.SubtitleLanguagePreference =
+      update.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? "";
+  return configuration;
+};
 
 // Stable reference so a pending cultures query does not churn effect deps.
 const EMPTY_CULTURES: CultureDto[] = [];
@@ -85,19 +100,23 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
   const supportsOriginalLanguage =
     isServerInfoAvailable && supportsOriginalAudioLanguage(serverInfo?.Version);
 
-  const { data: cultures = EMPTY_CULTURES } = useQuery({
-    queryKey: ["cultures"],
-    queryFn: async () => {
-      if (!api) return EMPTY_CULTURES;
-      const localizationApi = await getLocalizationApi(api).getCultures();
-      const cultures = localizationApi.data;
-      return cultures;
-    },
-    enabled: !!api,
-    staleTime: 43200000, // 12 hours
-  });
+  const { data: cultures = EMPTY_CULTURES, isSuccess: areCulturesAvailable } =
+    useQuery({
+      queryKey: ["cultures"],
+      queryFn: async () => {
+        if (!api) return EMPTY_CULTURES;
+        const localizationApi = await getLocalizationApi(api).getCultures();
+        const cultures = localizationApi.data;
+        return cultures;
+      },
+      enabled: !!api,
+      staleTime: 43200000, // 12 hours
+    });
 
-  const isReady = !!user && isServerInfoAvailable && cultures.length > 0;
+  // Keyed on the queries having answered, not on the payload being non-empty:
+  // a server legitimately returning no culture would otherwise pin the audio
+  // settings in their loading state forever.
+  const isReady = !!user && isServerInfoAvailable && areCulturesAvailable;
 
   /**
    * Apply a partial configuration on top of the server's own copy, so
@@ -124,7 +143,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     } catch (_error) {}
   };
 
-  const updateSetingsWrapper = (update: Partial<Settings>) => {
+  const updateSettingsWrapper = (update: Partial<Settings>) => {
     // Admin-locked audio keys must reach neither local storage nor the server.
     if (
       ("defaultAudioLanguage" in update &&
@@ -165,34 +184,10 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
     updateSettings(nextUpdate);
 
-    if (!SERVER_MIRRORED_SETTINGS.some((key) => key in nextUpdate)) return;
+    const configuration = toUserConfiguration(nextUpdate);
+    if (Object.keys(configuration).length === 0) return;
 
-    const updatePayload = {
-      SubtitleMode: nextUpdate.subtitleMode ?? settings?.subtitleMode,
-      PlayDefaultAudioTrack:
-        nextUpdate.playDefaultAudioTrack ?? settings?.playDefaultAudioTrack,
-      RememberAudioSelections:
-        nextUpdate.rememberAudioSelections ?? settings?.rememberAudioSelections,
-      RememberSubtitleSelections:
-        nextUpdate.rememberSubtitleSelections ??
-        settings?.rememberSubtitleSelections,
-    } as Partial<UserConfiguration>;
-
-    updatePayload.AudioLanguagePreference =
-      nextUpdate.defaultAudioLanguage === null
-        ? ""
-        : nextUpdate.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
-          settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
-          "";
-
-    updatePayload.SubtitleLanguagePreference =
-      nextUpdate.defaultSubtitleLanguage === null
-        ? ""
-        : nextUpdate.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
-          settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
-          "";
-
-    updateUserConfiguration(updatePayload, { invalidateItems: true });
+    updateUserConfiguration(configuration, { invalidateItems: true });
   };
 
   // Seed the local settings from the server-side user configuration.
@@ -248,7 +243,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     <MediaContext.Provider
       value={{
         settings,
-        updateSettings: updateSetingsWrapper,
+        updateSettings: updateSettingsWrapper,
         user,
         cultures,
         supportsOriginalAudioLanguage: supportsOriginalLanguage,

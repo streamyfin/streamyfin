@@ -14,6 +14,13 @@ export const ORIGINAL_LANGUAGE = "OriginalLanguage";
 const ORIGINAL_LANGUAGE_MIN_MAJOR = 12;
 
 /**
+ * Major version of a Jellyfin version string, `12.0.0` or `12.0.0-rc5` style.
+ * Anything that is not a plain numeric major is rejected rather than truncated
+ * the way `parseInt` would.
+ */
+const VERSION_MAJOR = /^(\d+)(?:[.\-+].*)?$/;
+
+/**
  * Whether the server understands the original-language audio preference.
  *
  * Added in Jellyfin 12 (jellyfin/jellyfin#12579); 10.11 and older ignore the
@@ -21,5 +28,7 @@ const ORIGINAL_LANGUAGE_MIN_MAJOR = 12;
  * unparseable version is treated as unsupported, so the option stays hidden
  * instead of persisting a preference the server cannot honour.
  */
-export const supportsOriginalAudioLanguage = (version?: string | null) =>
-  Number.parseInt(version ?? "", 10) >= ORIGINAL_LANGUAGE_MIN_MAJOR;
+export const supportsOriginalAudioLanguage = (version?: string | null) => {
+  const major = VERSION_MAJOR.exec(version ?? "")?.[1];
+  return major !== undefined && Number(major) >= ORIGINAL_LANGUAGE_MIN_MAJOR;
+};

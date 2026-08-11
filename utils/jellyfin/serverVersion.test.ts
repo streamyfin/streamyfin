@@ -16,3 +16,10 @@ test("treats an unknown version as unsupported", () => {
   expect(supportsOriginalAudioLanguage(null)).toBe(false);
   expect(supportsOriginalAudioLanguage("unknown")).toBe(false);
 });
+
+test("rejects a malformed version instead of truncating it", () => {
+  expect(supportsOriginalAudioLanguage("12invalid")).toBe(false);
+  expect(supportsOriginalAudioLanguage("v12.0.0")).toBe(false);
+  expect(supportsOriginalAudioLanguage(" 12.0.0")).toBe(false);
+  expect(supportsOriginalAudioLanguage("12")).toBe(true);
+});

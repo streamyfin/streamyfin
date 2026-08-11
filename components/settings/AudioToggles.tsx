@@ -101,6 +101,13 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
     </View>
   );
 
+  // Same condition as the TV control: MediaContext discards a locked write, so
+  // an active selector here would look functional while doing nothing.
+  const canChangeAudioLanguage =
+    isReady &&
+    !pluginSettings?.defaultAudioLanguage?.locked &&
+    !pluginSettings?.playDefaultAudioTrack?.locked;
+
   const audioTranscodeModeLabels: Record<AudioTranscodeMode, string> = {
     [AudioTranscodeMode.Auto]: t("home.settings.audio.transcode_mode.auto"),
     [AudioTranscodeMode.ForceStereo]: t(
@@ -192,11 +199,15 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         </ListItem>
         <ListItem
           title={t("home.settings.audio.audio_language")}
-          disabled={!isReady}
+          disabled={!canChangeAudioLanguage}
+          disabledByAdmin={
+            pluginSettings?.defaultAudioLanguage?.locked ||
+            pluginSettings?.playDefaultAudioTrack?.locked
+          }
         >
           {/* The option list needs the cultures and the server version gate;
               show the stored value but stay inert until they resolved. */}
-          {isReady ? (
+          {canChangeAudioLanguage ? (
             <PlatformDropdown
               groups={optionGroups}
               trigger={audioLanguageTrigger}
