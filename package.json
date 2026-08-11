@@ -24,7 +24,8 @@
     "doctor": "expo-doctor",
     "i18n:check": "bun scripts/check-i18n-keys.ts",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
-    "test": "bun run typecheck && bun run lint && bun run format && bun run i18n:check && bun run doctor"
+    "test:unit": "bun test",
+    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor"
   },
   "overrides": {
     "uuid": "11.1.1"

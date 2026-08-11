@@ -52,8 +52,13 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
+import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
-import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
@@ -283,7 +288,10 @@ export const Controls: FC<Props> = ({
   // Ref for the invisible focus-stealing overlay (prevents hidden buttons from receiving select events)
   const focusOverlayRef = useRef<View>(null);
 
-  const audioOptions: TVOptionItem<number>[] = useMemo(
+  // The row travels as the option value (same shape the TV item page uses) so
+  // the selection handler can persist the pick without re-deriving its language
+  // from a stream list that may have been refetched since the menu was built.
+  const audioOptions: TVOptionItem<TrackMenuRow>[] = useMemo(
     () =>
       buildAudioMenu(mediaSource?.MediaStreams, {
         selectedIndex: audioIndex,
@@ -292,17 +300,18 @@ export const Controls: FC<Props> = ({
           s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
       }).map((row) => ({
         label: row.label,
-        value: row.index,
+        value: row,
         selected: row.selected,
       })),
     [mediaSource, audioIndex],
   );
 
   const handleAudioChange = useCallback(
-    (index: number) => {
-      onAudioIndexChange?.(index);
+    (row: TrackMenuRow) => {
+      rememberSeriesTrackFromRow({ item, kind: "audio", row, settings });
+      onAudioIndexChange?.(row.index);
     },
-    [onAudioIndexChange],
+    [onAudioIndexChange, item, settings],
   );
 
   // Quality options mirror the mobile menu: value is the max bitrate as a
@@ -321,13 +330,6 @@ export const Controls: FC<Props> = ({
       onBitrateChange?.(value ? Number.parseInt(value, 10) : undefined);
     },
     [onBitrateChange],
-  );
-
-  const _handleSubtitleChange = useCallback(
-    (index: number) => {
-      onSubtitleIndexChange?.(index);
-    },
-    [onSubtitleIndexChange],
   );
 
   // Re-fetch subtitle streams from the server (e.g. after a server-side
@@ -350,12 +352,22 @@ export const Controls: FC<Props> = ({
         .map((row) => ({
           name: row.label,
           index: row.index,
-          setTrack: () => onSubtitleIndexChange?.(row.index),
+          setTrack: () => {
+            // These rows are built here rather than in VideoContext, so they do
+            // not pass through the write it performs — persist them directly.
+            rememberSeriesTrackFromRow({
+              item,
+              kind: "subtitle",
+              row,
+              settings,
+            });
+            onSubtitleIndexChange?.(row.index);
+          },
         }));
     } catch {
       return [];
     }
-  }, [onRefreshSubtitleTracks, onSubtitleIndexChange]);
+  }, [onRefreshSubtitleTracks, onSubtitleIndexChange, item, settings]);
 
   const {
     trickPlayUrl,

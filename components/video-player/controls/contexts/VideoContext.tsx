@@ -53,6 +53,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Platform } from "react-native";
@@ -61,16 +62,22 @@ import type { MpvAudioTrack } from "@/modules";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   applyMpvSubtitleSelection,
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
 import {
   isLocalSubtitleIndex,
   SUBTITLES_OFF,
 } from "@/utils/subtitles/subtitleIndex";
-import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
@@ -87,11 +94,28 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, downloadedItem } = usePlayerContext();
+  const { tracksReady, mediaSource, downloadedItem, item } = usePlayerContext();
   const playerControls = usePlayerControls();
   const offline = useOfflineMode();
   const api = useAtomValue(apiAtom);
   const router = useRouter();
+  const { settings } = useSettings();
+
+  /**
+   * Persist a deliberate pick as the series preference, exactly as the native
+   * player and the item pages do — a menu that changes the track but remembers
+   * nothing is why the next episode used to come back on the server's default.
+   *
+   * Held in a ref rather than read directly by the effect below: `settings` gets
+   * a new identity on every settings write, and depending on it would re-run the
+   * whole track fetch (an async bridge round-trip) and briefly blank the menus
+   * every time an unrelated toggle moved.
+   */
+  const rememberRef = useRef<
+    (kind: "audio" | "subtitle", row: TrackMenuRow) => void
+  >(() => {});
+  rememberRef.current = (kind, row) =>
+    rememberSeriesTrackFromRow({ item, kind, row, settings });
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
@@ -234,6 +258,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
             // Inert by construction — the row exists only to show what is
             // baked into the file.
             if (row.kind === "burnedIn") return;
+            rememberRef.current("subtitle", row);
             if (row.kind === "off") {
               playerControls.setSubtitleTrack(-1);
               router.setParams({ subtitleIndex: "-1" });
@@ -276,6 +301,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
         isLocal: row.kind === "sidecar",
         localPath: row.localPath,
         setTrack: () => {
+          rememberRef.current("subtitle", row);
           if (row.kind === "sidecar" && row.localPath) {
             playerControls.addSubtitleFile(row.localPath, true);
             router.setParams({ subtitleIndex: String(row.index) });
@@ -328,6 +354,7 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           index: row.index,
           mpvIndex: mpvId,
           setTrack: () => {
+            rememberRef.current("audio", row);
             if (row.requiresReload) {
               replacePlayer({ audioIndex: String(row.index) });
               return;
