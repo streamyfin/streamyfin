@@ -66,7 +66,7 @@ function TVAudioLanguageSetting() {
     supportsOriginalAudioLanguage,
     updateSettings,
     cultures,
-    user,
+    isReady,
   } = useMedia();
   const { pluginSettings } = useSettings();
   const { showOptions } = useTVOptionModal();
@@ -110,7 +110,7 @@ function TVAudioLanguageSetting() {
       label={t("home.settings.audio.audio_language")}
       value={selectedLabel}
       disabled={
-        !user ||
+        !isReady ||
         pluginSettings?.defaultAudioLanguage?.locked ||
         pluginSettings?.playDefaultAudioTrack?.locked
       }

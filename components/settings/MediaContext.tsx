@@ -23,6 +23,7 @@ interface MediaContextType {
   user: UserDto | undefined;
   cultures: CultureDto[];
   supportsOriginalAudioLanguage: boolean;
+  isReady: boolean;
 }
 
 export const ORIGINAL_LANGUAGE = "OriginalLanguage";
@@ -44,10 +45,12 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSetingsWrapper = (update: Partial<Settings>) => {
     if (
-      !user ||
+      !isReady ||
       ("defaultAudioLanguage" in update &&
         (pluginSettings?.defaultAudioLanguage?.locked ||
-          pluginSettings?.playDefaultAudioTrack?.locked))
+          pluginSettings?.playDefaultAudioTrack?.locked)) ||
+      ("playDefaultAudioTrack" in update &&
+        pluginSettings?.playDefaultAudioTrack?.locked)
     )
       return;
 
@@ -118,11 +121,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     staleTime: 0,
   });
 
-  const {
-    data: serverInfo,
-    isFetched: isServerInfoFetched,
-    isSuccess: isServerInfoAvailable,
-  } = useQuery({
+  const { data: serverInfo, isSuccess: isServerInfoAvailable } = useQuery({
     queryKey: ["jellyfin", "serverInfo"],
     queryFn: async (): Promise<PublicSystemInfo> => {
       if (!api) return {};
@@ -134,7 +133,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
   const supportsOriginalLanguage =
     isServerInfoAvailable && supportsOriginalAudioLanguage(serverInfo?.Version);
 
-  const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
+  const { data: cultures = [] } = useQuery({
     queryKey: ["cultures"],
     queryFn: async () => {
       if (!api) return [];
@@ -146,9 +145,11 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
     staleTime: 43200000, // 12 hours
   });
 
+  const isReady = !!user && isServerInfoAvailable && cultures.length > 0;
+
   // Set default settings from user configuration.s
   useEffect(() => {
-    if (!user || cultures.length === 0 || !isServerInfoFetched) return;
+    if (!isReady) return;
     const userSubtitlePreference =
       user?.Configuration?.SubtitleLanguagePreference;
     const userAudioPreference = user?.Configuration?.AudioLanguagePreference;
@@ -181,7 +182,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
       rememberSubtitleSelections:
         user?.Configuration?.RememberSubtitleSelections,
     });
-  }, [user, isCulturesFetched, isServerInfoFetched, supportsOriginalLanguage]);
+  }, [user, isReady, cultures, supportsOriginalLanguage]);
 
   if (!api) return null;
 
@@ -193,6 +194,7 @@ export const MediaProvider = ({ children }: { children: ReactNode }) => {
         user,
         cultures,
         supportsOriginalAudioLanguage: supportsOriginalLanguage,
+        isReady,
       }}
     >
       {children}
