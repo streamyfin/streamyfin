@@ -11,7 +11,6 @@ import { BITRATES } from "@/components/BitrateSelector";
 import type {
   NativePlayerConfig,
   NativePlayerStrings,
-  NativePlayerSubtitleStyle,
   NativePlayerTrackMenuItem,
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
@@ -36,6 +35,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import { buildSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
 import {
   buildAudioMenu,
   buildSubtitleMenu,
@@ -146,31 +146,6 @@ const mapOrientationLock = (
       // video playback defaults to landscape like the JS player route.
       return "landscape";
   }
-};
-
-/** Mirror of the subtitle-style effect at direct-player.tsx (mpvSubtitle*). */
-const buildSubtitleStyle = (settings: Settings): NativePlayerSubtitleStyle => {
-  const style: NativePlayerSubtitleStyle = {
-    scale: settings.mpvSubtitleScale,
-    marginY: settings.mpvSubtitleMarginY,
-    alignX: settings.mpvSubtitleAlignX,
-    alignY: settings.mpvSubtitleAlignY,
-  };
-  if (settings.mpvSubtitleBackgroundEnabled) {
-    const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
-    const alphaHex = Math.round((opacity / 100) * 255)
-      .toString(16)
-      .padStart(2, "0")
-      .toUpperCase();
-    style.borderStyle = "background-box";
-    style.backgroundColor = `#000000${alphaHex}`;
-    style.assOverride = "force";
-  } else {
-    style.borderStyle = "outline-and-shadow";
-    style.backgroundColor = "#00000000";
-    style.assOverride = "no";
-  }
-  return style;
 };
 
 /** Mirror of hooks/usePlaybackSpeed.ts (media > series > default). */

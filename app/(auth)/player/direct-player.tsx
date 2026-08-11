@@ -73,6 +73,10 @@ import {
   localSubtitleIndex,
   toServerSubtitleIndex,
 } from "@/utils/subtitles/subtitleIndex";
+import {
+  applySubtitleStyle,
+  buildSubtitleStyle,
+} from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
@@ -1451,47 +1455,7 @@ export default function DirectPlayerPage() {
   // Apply subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
-
-    const applySubtitleSettings = async () => {
-      if (settings.mpvSubtitleScale !== undefined) {
-        await videoRef.current?.setSubtitleScale?.(settings.mpvSubtitleScale);
-      }
-      if (settings.mpvSubtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY?.(
-          settings.mpvSubtitleMarginY,
-        );
-      }
-      if (settings.mpvSubtitleAlignX !== undefined) {
-        await videoRef.current?.setSubtitleAlignX?.(settings.mpvSubtitleAlignX);
-      }
-      if (settings.mpvSubtitleAlignY !== undefined) {
-        await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
-      }
-      // Apply subtitle background (iOS only - doesn't work on tvOS due to composite OSD limitation)
-      // mpv uses #RRGGBBAA format (alpha last, same as CSS)
-      if (settings.mpvSubtitleBackgroundEnabled) {
-        const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
-        const alphaHex = Math.round((opacity / 100) * 255)
-          .toString(16)
-          .padStart(2, "0")
-          .toUpperCase();
-        // Enable background-box mode (required for sub-back-color to work)
-        await videoRef.current?.setSubtitleBorderStyle?.("background-box");
-        await videoRef.current?.setSubtitleBackgroundColor?.(
-          `#000000${alphaHex}`,
-        );
-        // Force override ASS subtitle styles so background shows on styled subtitles
-        await videoRef.current?.setSubtitleAssOverride?.("force");
-      } else {
-        // Restore default outline-and-shadow style
-        await videoRef.current?.setSubtitleBorderStyle?.("outline-and-shadow");
-        await videoRef.current?.setSubtitleBackgroundColor?.("#00000000");
-        // Restore default ASS behavior (keep original styles)
-        await videoRef.current?.setSubtitleAssOverride?.("no");
-      }
-    };
-
-    applySubtitleSettings();
+    applySubtitleStyle(videoRef.current, buildSubtitleStyle(settings));
   }, [isVideoLoaded, settings]);
 
   // Apply initial playback speed when video loads

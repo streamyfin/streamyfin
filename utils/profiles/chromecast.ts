@@ -1,4 +1,5 @@
 import type { DeviceProfile } from "@jellyfin/sdk/lib/generated-client/models";
+import { getSubtitleProfiles } from "./subtitles";
 
 export const chromecast: DeviceProfile = {
   Name: "Chromecast Video Profile",
@@ -79,14 +80,5 @@ export const chromecast: DeviceProfile = {
       MaxAudioChannels: "2",
     },
   ],
-  SubtitleProfiles: [
-    {
-      Format: "vtt",
-      Method: "Encode",
-    },
-    {
-      Format: "vtt",
-      Method: "Encode",
-    },
-  ],
+  SubtitleProfiles: getSubtitleProfiles({ target: "chromecast" }),
 };
