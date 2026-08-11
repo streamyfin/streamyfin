@@ -52,7 +52,8 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { compareTracksForMenu } from "@/utils/jellyfin/subtitleUtils";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
 import { formatTimeString, msToTicks, ticksToMs } from "@/utils/time";
 import { CONTROLS_CONSTANTS } from "./constants";
 import { useVideoContext } from "./contexts/VideoContext";
@@ -282,24 +283,20 @@ export const Controls: FC<Props> = ({
   // Ref for the invisible focus-stealing overlay (prevents hidden buttons from receiving select events)
   const focusOverlayRef = useRef<View>(null);
 
-  const audioTracks = useMemo(() => {
-    return mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") ?? [];
-  }, [mediaSource]);
-
-  const _subtitleTracks = useMemo(() => {
-    return (
-      mediaSource?.MediaStreams?.filter((s) => s.Type === "Subtitle") ?? []
-    );
-  }, [mediaSource]);
-
-  const audioOptions: TVOptionItem<number>[] = useMemo(() => {
-    return audioTracks.map((track) => ({
-      label:
-        track.DisplayTitle || `${track.Language || "Unknown"} (${track.Codec})`,
-      value: track.Index!,
-      selected: track.Index === audioIndex,
-    }));
-  }, [audioTracks, audioIndex]);
+  const audioOptions: TVOptionItem<number>[] = useMemo(
+    () =>
+      buildAudioMenu(mediaSource?.MediaStreams, {
+        selectedIndex: audioIndex,
+        isTranscoding: Boolean(mediaSource?.TranscodingUrl),
+        formatLabel: (s) =>
+          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+      }).map((row) => ({
+        label: row.label,
+        value: row.index,
+        selected: row.selected,
+      })),
+    [mediaSource, audioIndex],
+  );
 
   const handleAudioChange = useCallback(
     (index: number) => {
@@ -339,22 +336,22 @@ export const Controls: FC<Props> = ({
   const refreshSubtitleTracks = useCallback(async (): Promise<Track[]> => {
     try {
       const streams = (await onRefreshSubtitleTracks?.()) ?? [];
-      // Skip streams without a real index: `?? -1` would alias them to the
-      // "disable subtitles" sentinel and mis-route selection. Order like
-      // jellyfin-web (embedded first, externals last, forced/default up).
-      return [...streams]
-        .sort(compareTracksForMenu)
-        .filter((stream) => typeof stream.Index === "number")
-        .map((stream) => {
-          const index = stream.Index as number;
-          return {
-            name:
-              stream.DisplayTitle ||
-              `${stream.Language || "Unknown"} (${stream.Codec})`,
-            index,
-            setTrack: () => onSubtitleIndexChange?.(index),
-          };
-        });
+      // Streams with no Index are dropped by the builder rather than aliased
+      // onto the "disable subtitles" sentinel. The modal supplies its own
+      // "None", so the off row is left out here.
+      return buildSubtitleMenu(streams, {
+        selectedIndex: subtitleIndex ?? SUBTITLES_OFF,
+        offLabel: "",
+        isTranscoding: Boolean(mediaSource?.TranscodingUrl),
+        formatLabel: (s) =>
+          s.DisplayTitle || `${s.Language || "Unknown"} (${s.Codec})`,
+      })
+        .filter((row) => row.kind !== "off")
+        .map((row) => ({
+          name: row.label,
+          index: row.index,
+          setTrack: () => onSubtitleIndexChange?.(row.index),
+        }));
     } catch {
       return [];
     }

@@ -31,14 +31,16 @@ import {
   parseTranscodeReasons,
 } from "@/utils/jellyfin/playMethod";
 import {
-  compareTracksForMenu,
   getExternalSubtitleUrl,
   getMpvAudioId,
-  isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
-import { localSubtitleIndex } from "@/utils/subtitles/subtitleIndex";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
@@ -263,18 +265,17 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
 };
 
 /**
- * The native session carries at most one client-side sidecar at a time
- * (`session.localSubtitle` is singular), so it always occupies position 0 of the
- * shared sidecar block. Encoded rather than hard-coded so a second sidecar can
- * be added later without inventing another sentinel.
- */
-const NATIVE_LOCAL_SUBTITLE_INDEX = localSubtitleIndex(0);
-
-/**
  * Menu display models for the native track menus. Selection stays in JS —
  * these only carry labels, Jellyfin indices and the requiresReload flag
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
  */
+/** Native menu labels: DisplayTitle, else language, else the raw index. */
+const nativeLabel = (s: {
+  DisplayTitle?: string | null;
+  Language?: string | null;
+  Index?: number | null;
+}) => s.DisplayTitle ?? s.Language ?? `#${s.Index}`;
+
 export const buildTrackMenus = (options: {
   mediaSource: MediaSourceInfo;
   audioIndex: number | undefined;
@@ -290,46 +291,42 @@ export const buildTrackMenus = (options: {
   const isTranscoding = Boolean(options.mediaSource.TranscodingUrl);
   const streams = options.mediaSource.MediaStreams ?? [];
 
-  const subtitleItems: NativePlayerTrackMenuItem[] = [
-    {
-      label: options.offLabel,
-      jellyfinIndex: -1,
-      selected: options.subtitleIndex === -1,
-    },
-    ...streams
-      .filter((s) => s.Type === "Subtitle")
-      .sort(compareTracksForMenu)
-      .map((s) => ({
-        label: s.DisplayTitle ?? s.Language ?? `#${s.Index}`,
-        jellyfinIndex: s.Index ?? -1,
-        selected: s.Index === options.subtitleIndex,
-        // Burned-in image subs are pixels, not tracks: switching to (or away
-        // from) one while transcoding re-processes the stream server-side.
-        requiresReload: isTranscoding && isImageBasedSubtitle(s),
-      })),
-  ];
-  if (options.localSubtitle) {
-    subtitleItems.push({
-      label: options.localSubtitle.label,
-      jellyfinIndex: NATIVE_LOCAL_SUBTITLE_INDEX,
-      selected: options.localSubtitle.selected,
-    });
-  }
-
   // A transcoded stream (and a transcoded download) only carries the audio
   // track that was encoded into it — other tracks require re-negotiation
   // (online) or simply don't exist (offline download).
   const offlineTranscoded =
     options.offline && options.downloadedItem?.userData?.isTranscoded === true;
-  const audioItems: NativePlayerTrackMenuItem[] = streams
-    .filter((s) => s.Type === "Audio")
-    .filter((s) => !offlineTranscoded || s.Index === options.audioIndex)
-    .map((s) => ({
-      label: s.DisplayTitle ?? s.Language ?? `#${s.Index}`,
-      jellyfinIndex: s.Index ?? -1,
-      selected: s.Index === options.audioIndex,
-      requiresReload: isTranscoding,
-    }));
+
+  const toMenuItem = (row: TrackMenuRow): NativePlayerTrackMenuItem => ({
+    label: row.label,
+    jellyfinIndex: row.index,
+    selected: row.selected,
+    requiresReload: row.requiresReload,
+  });
+
+  const subtitleItems: NativePlayerTrackMenuItem[] = buildSubtitleMenu(
+    streams,
+    {
+      selectedIndex: options.subtitleIndex,
+      offLabel: options.offLabel,
+      isTranscoding,
+      formatLabel: nativeLabel,
+      localSubs: options.localSubtitle
+        ? // The native session carries at most one sidecar, so it always occupies
+          // position 0 of the shared block. The path is unused here — selection
+          // comes back over the bridge as an index and the coordinator owns the
+          // file — so an empty string keeps the row shape honest.
+          [{ name: options.localSubtitle.label, filePath: "" }]
+        : undefined,
+    },
+  ).map(toMenuItem);
+
+  const audioItems: NativePlayerTrackMenuItem[] = buildAudioMenu(streams, {
+    selectedIndex: options.audioIndex,
+    isTranscoding,
+    offlineTranscoded,
+    formatLabel: nativeLabel,
+  }).map(toMenuItem);
 
   // Quality/bitrate menu (JS DropdownView parity): online only; changing it
   // always re-negotiates the stream, so every entry is requiresReload.
