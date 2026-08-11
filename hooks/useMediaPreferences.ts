@@ -193,7 +193,7 @@ export function useMediaPreferences(): MediaPreferences {
 
       updateSettings(nextUpdate);
 
-      const configuration = buildUserConfigurationPayload(nextUpdate, settings);
+      const configuration = buildUserConfigurationPayload(nextUpdate);
       if (Object.keys(configuration).length === 0) return;
       void updateUserConfiguration(configuration, { invalidateItems: true });
     },

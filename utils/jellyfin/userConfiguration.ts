@@ -12,41 +12,45 @@ import type { Settings } from "@/utils/atoms/settings";
  * Translate a Streamyfin settings patch into a Jellyfin user-configuration
  * patch.
  *
- * Every write sends all six mirrored fields, so a key absent from `update`
- * falls back to the user's current value rather than being cleared. The one
- * exception is an explicit `null` language — the picker's "None" row — which
- * must be sent as `""`; letting it fall through would make "no preference"
- * impossible to express.
+ * Only fields present in `update` are emitted in the payload. Omitted keys
+ * are left out so spreading the payload onto `user.Configuration` preserves
+ * existing server values — avoiding wiping preferences if an edit occurs
+ * before local seeding completes.
+ *
+ * An explicit `null` language (the picker's "None" row) is mapped to `""`
+ * to clear the preference on the server.
  */
 export function buildUserConfigurationPayload(
   update: Partial<Settings>,
-  settings: Settings | null,
 ): Partial<UserConfiguration> {
-  const payload: Partial<UserConfiguration> = {
-    SubtitleMode: update?.subtitleMode ?? settings?.subtitleMode,
-    PlayDefaultAudioTrack:
-      update?.playDefaultAudioTrack ?? settings?.playDefaultAudioTrack,
-    // `??` not `||`: turning a remember toggle off must survive the round trip.
-    RememberAudioSelections:
-      update?.rememberAudioSelections ?? settings?.rememberAudioSelections,
-    RememberSubtitleSelections:
-      update?.rememberSubtitleSelections ??
-      settings?.rememberSubtitleSelections,
-  };
+  const payload: Partial<UserConfiguration> = {};
 
-  payload.AudioLanguagePreference =
-    update?.defaultAudioLanguage === null
-      ? ""
-      : update?.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
-        settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ||
-        "";
+  if (update?.subtitleMode !== undefined) {
+    payload.SubtitleMode = update.subtitleMode;
+  }
+  if (update?.playDefaultAudioTrack !== undefined) {
+    payload.PlayDefaultAudioTrack = update.playDefaultAudioTrack;
+  }
+  if (update?.rememberAudioSelections !== undefined) {
+    payload.RememberAudioSelections = update.rememberAudioSelections;
+  }
+  if (update?.rememberSubtitleSelections !== undefined) {
+    payload.RememberSubtitleSelections = update.rememberSubtitleSelections;
+  }
 
-  payload.SubtitleLanguagePreference =
-    update?.defaultSubtitleLanguage === null
-      ? ""
-      : update?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
-        settings?.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ||
-        "";
+  if (update?.defaultAudioLanguage !== undefined) {
+    payload.AudioLanguagePreference =
+      update.defaultAudioLanguage === null
+        ? ""
+        : (update.defaultAudioLanguage?.ThreeLetterISOLanguageName ?? "");
+  }
+
+  if (update?.defaultSubtitleLanguage !== undefined) {
+    payload.SubtitleLanguagePreference =
+      update.defaultSubtitleLanguage === null
+        ? ""
+        : (update.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? "");
+  }
 
   return payload;
 }
