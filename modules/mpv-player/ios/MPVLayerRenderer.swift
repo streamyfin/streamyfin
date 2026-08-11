@@ -269,6 +269,17 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
 
+        // Reconnect mpv's ffmpeg http/https backend on dropped connections
+        // (proxy idle-timeout, cellular handover, etc) instead of silently
+        // stalling playback. reconnect_at_eof stays off — see
+        // NETWORK_RESILIENCE.md for the full rationale and verification.
+        checkError(mpv_set_option_string(handle, "network-timeout", "10"))
+        checkError(mpv_set_option_string(
+            handle,
+            "stream-lavf-o",
+            "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5"
+        ))
+
         // Initialize mpv
         let initStatus = mpv_initialize(handle)
         guard initStatus >= 0 else {

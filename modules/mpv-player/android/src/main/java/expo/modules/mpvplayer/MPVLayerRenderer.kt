@@ -247,7 +247,17 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             mpv?.setOptionString("sub-use-margins", "no")
             mpv?.setOptionString("subs-match-os-language", "yes")
             mpv?.setOptionString("subs-fallback", "yes")
-            
+
+            // Reconnect mpv's ffmpeg http/https backend on dropped connections
+            // (proxy idle-timeout, cellular handover, etc) instead of silently
+            // stalling playback. reconnect_at_eof stays off — see
+            // NETWORK_RESILIENCE.md for the full rationale and verification.
+            mpv?.setOptionString("network-timeout", "10")
+            mpv?.setOptionString(
+                "stream-lavf-o",
+                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=5"
+            )
+
             // Important: Start with force-window=no, will be set to yes when surface is attached
             mpv?.setOptionString("force-window", "no")
             mpv?.setOptionString("keep-open", "always")

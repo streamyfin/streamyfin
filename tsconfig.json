@@ -41,6 +41,12 @@
     "node_modules",
     "babel.config.js",
     "metro.config.js",
-    "utils/jellyseerr/**/*"
+    "utils/jellyseerr/**/*",
+    // bun:test has no type declarations in this project. Only this one
+    // file needs excluding: it's the sole *.test.ts under an included
+    // root (modules/**/*) — utils/**/* (home to the other two suites)
+    // isn't included at all. Scoped to this path, not a blanket
+    // **/*.test.ts, so future tests elsewhere still get typechecked.
+    "modules/mpv-player/networkResilience.test.ts"
   ]
 }
