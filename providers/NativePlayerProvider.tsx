@@ -87,7 +87,6 @@ import {
   buildNativePlayerConfig,
   buildNativePlayerStrings,
   buildTrackMenus,
-  LOCAL_SUBTITLE_MENU_INDEX,
   type NativePlayerSessionSeed,
 } from "@/utils/nativePlayer/buildNativePlayerConfig";
 import {
@@ -96,6 +95,10 @@ import {
 } from "@/utils/nativePlayer/playRequest";
 import { fetchAndParseSegments, getSegmentsForItem } from "@/utils/segments";
 import { rememberSeriesTrack } from "@/utils/seriesTrackMemory";
+import {
+  isLocalSubtitleIndex,
+  localSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 
 const PROGRESS_REPORT_INTERVAL = 10_000;
@@ -187,7 +190,9 @@ const rememberSeriesSelection = (
 ) => {
   const item = session.item;
   if (item?.Type !== "Episode" || !item.SeriesId) return;
-  if (jellyfinIndex === LOCAL_SUBTITLE_MENU_INDEX) return;
+  // A sidecar has no server-side stream to read a language off, so there is
+  // nothing to remember for the next episode.
+  if (isLocalSubtitleIndex(jellyfinIndex)) return;
   const streams = session.stream.mediaSource.MediaStreams;
   if (kind === "audio") {
     if (!settings?.rememberAudioSelections) return;
@@ -837,9 +842,9 @@ const NativePlayerProviderInner: React.FC<{
           mediaSource: session.stream.mediaSource,
           audioIndex: session.currentAudioIndex,
           // While the local sidecar is active no server stream (nor "Off")
-          // may show a checkmark — the sentinel matches nothing.
+          // may show a checkmark — a sidecar index matches no server row.
           subtitleIndex: session.localSubtitle?.active
-            ? LOCAL_SUBTITLE_MENU_INDEX
+            ? localSubtitleIndex(0)
             : session.currentSubtitleIndex,
           offline: session.offline,
           downloadedItem: session.downloadedItem,
@@ -931,7 +936,7 @@ const NativePlayerProviderInner: React.FC<{
       jellyfinIndex: number,
       positionSec: number,
     ) => {
-      if (jellyfinIndex === LOCAL_SUBTITLE_MENU_INDEX) {
+      if (isLocalSubtitleIndex(jellyfinIndex)) {
         // Re-activating the client-side sidecar — an mpv-only selection.
         if (session.localSubtitle) {
           session.localSubtitle.active = true;

@@ -25,6 +25,7 @@ import useDefaultPlaySettings from "@/hooks/useDefaultPlaySettings";
 import { useImageColorsReturn } from "@/hooks/useImageColorsReturn";
 import { useOrientation } from "@/hooks/useOrientation";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
+import { useDownload } from "@/providers/DownloadProvider";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
@@ -60,6 +61,14 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
 }) => {
   const [api] = useAtom(apiAtom);
   const isOffline = useOfflineMode();
+  const { getDownloadedItemById } = useDownload();
+  // A download pins the tracks it was pulled with, and only the record knows
+  // them: resolving against the server media source hands back an index for a
+  // stream the local file may not contain.
+  const downloadedTracks =
+    isOffline && item?.Id
+      ? getDownloadedItemById(item.Id)?.userData
+      : undefined;
   const { settings } = useSettings();
   const { orientation } = useOrientation();
   const navigation = useNavigation();
@@ -76,20 +85,12 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
   >(undefined);
 
   // Use itemWithSources for play settings since it has MediaSources data
-  const playSettingsOptions = useMemo(
-    () => ({ applyLanguagePreferences: true }),
-    [],
-  );
   const {
     defaultAudioIndex,
     defaultBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
-  } = useDefaultPlaySettings(
-    itemWithSources ?? item,
-    settings,
-    playSettingsOptions,
-  );
+  } = useDefaultPlaySettings(itemWithSources ?? item, settings);
 
   const logoUrl = useMemo(
     () => (item ? getLogoImageUrlById({ api, item }) : null),
@@ -109,14 +110,16 @@ const ItemContentMobile: React.FC<ItemContentProps> = ({
     setSelectedOptions(() => ({
       bitrate: defaultBitrate,
       mediaSource: defaultMediaSource ?? undefined,
-      subtitleIndex: defaultSubtitleIndex ?? -1,
-      audioIndex: defaultAudioIndex,
+      subtitleIndex:
+        downloadedTracks?.subtitleStreamIndex ?? defaultSubtitleIndex ?? -1,
+      audioIndex: downloadedTracks?.audioStreamIndex ?? defaultAudioIndex,
     }));
   }, [
     defaultAudioIndex,
     defaultBitrate,
     defaultSubtitleIndex,
     defaultMediaSource,
+    downloadedTracks,
   ]);
 
   useEffect(() => {

@@ -287,12 +287,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
       ],
       // Text-only subtitles for direct play. PGS delivered as Encode
       // (burn-in) because Media3's PGS support is inconsistent.
-      SubtitleProfiles: [
-        { Format: "srt", Method: "External" },
-        { Format: "vtt", Method: "External" },
-        { Format: "ttml", Method: "External" },
-        { Format: "pgssub", Method: "Encode" },
-      ],
+      SubtitleProfiles: getSubtitleProfiles({ target: "exoplayer" }),
     } satisfies DeviceProfile;
   }
 
@@ -362,7 +357,7 @@ export const generateDeviceProfile = (options: ProfileOptions = {}) => {
         MaxAudioChannels: "2",
       },
     ],
-    SubtitleProfiles: getSubtitleProfiles(),
+    SubtitleProfiles: getSubtitleProfiles({ target: "mpv" }),
   } satisfies DeviceProfile;
 
   return profile;

@@ -262,6 +262,8 @@
         "hold_to_speed_description": "Tryck och håll på videon för att spela i 2× hastighet tills du släpper",
         "pinch_to_zoom": "Nyp för att zooma",
         "pinch_to_zoom_description": "Nyp utåt för att fylla skärmen, nyp inåt för att anpassa",
+        "double_tap_to_seek": "Dubbeltryck för att hoppa",
+        "double_tap_to_seek_description": "Dubbeltryck på vänster eller höger sida av videon för att hoppa bakåt eller framåt",
         "hide_volume_slider": "Dölj volymreglage",
         "hide_volume_slider_description": "Dölj volymreglaget i videospelaren",
         "hide_brightness_slider": "Dölj ljusstyrkeglage",
@@ -273,6 +275,7 @@
         "audio_language": "Ljudspråk",
         "audio_hint": "Välj ett standardspråk för ljud.",
         "none": "Inga",
+        "original_language": "Originalspråk",
         "language": "Språk",
         "transcode_mode": {
           "title": "Omkodning av ljud",

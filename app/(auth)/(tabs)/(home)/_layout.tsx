@@ -19,6 +19,30 @@ import { useAtom } from "jotai";
 import { useSessions, type useSessionsProps } from "@/hooks/useSessions";
 import { userAtom } from "@/providers/JellyfinProvider";
 
+// Keeps cold boot on the Home tab.
+//
+// Every tab group holds an `index` route, so all of them match the launch URL
+// `/` equally well — a bare launch has no deep link, so Expo Router resolves
+// `/`. It breaks that tie by first preferring a route that is its own group's
+// anchor (`isInitial` in the getStateFromPath config sorter), and only then by
+// group order, which is alphabetical because Metro sorts the `require.context`
+// keys. When #1928 gave `(libraries)` and `(watchlists)` an `anchor` for their
+// deep-entry back button, it also promoted them above the unanchored `(home)`,
+// and `(libraries)` won that pair alphabetically — so the app booted into the
+// library. Anchoring `(home)` puts it back in the running, ahead of
+// `(libraries)`.
+//
+// So: do NOT add `anchor` to a tab group that sorts before `(home)` —
+// `(custom-links)` or `(favorites)` — or the app boots into that tab instead.
+// An `anchor` on the `(tabs)` layout itself does not help: it only seeds the
+// tab underneath whichever tab the URL resolved to.
+//
+// The anchor is right on its own merits too: a deep link into a home sub-page
+// (`/(auth)/(tabs)/(home)/settings`) now seeds the home list underneath, so
+// the native stack renders a back button — the same reasoning as the comments
+// in the `(libraries)` and `(watchlists)` layouts.
+export const unstable_settings = { anchor: "index" };
+
 export default function IndexLayout() {
   const [user] = useAtom(userAtom);
   const { t } = useTranslation();
