@@ -232,7 +232,8 @@ const PlatformDropdownComponent = ({
           }}
         />,
         {
-          snapPoints: ["90%"],
+          // No snap points: sized to its options, so a two-entry dropdown
+          // opens small and a long one stops at the shared ceiling.
           enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
         },
       );
@@ -383,7 +384,8 @@ const PlatformDropdownComponent = ({
         onClose={hideModal}
       />,
       {
-        snapPoints: ["90%"],
+        // No snap points: sized to its options, so a two-entry dropdown opens
+        // small and a long one stops at the shared ceiling.
         enablePanDownToClose: bottomSheetConfig?.enablePanDownToClose ?? true,
       },
     );

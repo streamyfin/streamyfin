@@ -10,10 +10,14 @@ import {
 } from "@jellyfin/sdk/lib/utils/api";
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+} from "expo-router";
 import { useAtom } from "jotai";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FlatList, Platform, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -131,21 +135,38 @@ const page: React.FC = () => {
     enabled: Platform.isTV && !!api && !!user?.Id && !!collectionId,
   });
 
-  useEffect(() => {
-    navigation.setOptions({ title: collection?.Name || "" });
-    setSortOrder([SortOrderOption.Ascending]);
+  // On focus rather than on mount: the filter atoms are global, so a library
+  // opened on top of this screen overwrites them while it stays mounted.
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({ title: collection?.Name || "" });
+      setSortOrder([SortOrderOption.Ascending]);
+      // A collection opens on a clean slate: without this the last library's
+      // selection bleeds in (libraries keep their own per-library memory).
+      setSelectedGenres([]);
+      setSelectedYears([]);
+      setSelectedTags([]);
 
-    if (!collection) return;
+      if (!collection) return;
 
-    // Convert the DisplayOrder to SortByOption
-    const displayOrder = collection.DisplayOrder as ItemSortBy;
-    const sortByOption = displayOrder
-      ? SortByOption[displayOrder as keyof typeof SortByOption] ||
-        SortByOption.PremiereDate
-      : SortByOption.PremiereDate;
+      // Convert the DisplayOrder to SortByOption
+      const displayOrder = collection.DisplayOrder as ItemSortBy;
+      const sortByOption = displayOrder
+        ? SortByOption[displayOrder as keyof typeof SortByOption] ||
+          SortByOption.PremiereDate
+        : SortByOption.PremiereDate;
 
-    setSortBy([sortByOption]);
-  }, [navigation, collection]);
+      setSortBy([sortByOption]);
+    }, [
+      navigation,
+      collection,
+      setSortOrder,
+      setSortBy,
+      setSelectedGenres,
+      setSelectedYears,
+      setSelectedTags,
+    ]),
+  );
 
   // Calculate columns for TV grid
   const nrOfCols = useMemo(() => {
@@ -204,40 +225,39 @@ const page: React.FC = () => {
     ],
   );
 
-  const { data, isFetching, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteQuery({
-      queryKey: [
-        "collection-items",
-        collectionId,
-        selectedGenres,
-        selectedYears,
-        selectedTags,
-        sortBy,
-        sortOrder,
-      ],
-      queryFn: fetchItems,
-      getNextPageParam: (lastPage, pages) => {
-        if (
-          !lastPage?.Items ||
-          !lastPage?.TotalRecordCount ||
-          lastPage?.TotalRecordCount === 0
-        )
-          return undefined;
-
-        const totalItems = lastPage.TotalRecordCount;
-        const accumulatedItems = pages.reduce(
-          (acc, curr) => acc + (curr?.Items?.length || 0),
-          0,
-        );
-
-        if (accumulatedItems < totalItems) {
-          return lastPage?.Items?.length * pages.length;
-        }
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
+    queryKey: [
+      "collection-items",
+      collectionId,
+      selectedGenres,
+      selectedYears,
+      selectedTags,
+      sortBy,
+      sortOrder,
+    ],
+    queryFn: fetchItems,
+    getNextPageParam: (lastPage, pages) => {
+      if (
+        !lastPage?.Items ||
+        !lastPage?.TotalRecordCount ||
+        lastPage?.TotalRecordCount === 0
+      )
         return undefined;
-      },
-      initialPageParam: 0,
-      enabled: !!api && !!user?.Id && !!collection,
-    });
+
+      const totalItems = lastPage.TotalRecordCount;
+      const accumulatedItems = pages.reduce(
+        (acc, curr) => acc + (curr?.Items?.length || 0),
+        0,
+      );
+
+      if (accumulatedItems < totalItems) {
+        return lastPage?.Items?.length * pages.length;
+      }
+      return undefined;
+    },
+    initialPageParam: 0,
+    enabled: !!api && !!user?.Id && !!collection,
+  });
 
   const flatData = useMemo(() => {
     return (
@@ -326,7 +346,7 @@ const page: React.FC = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton />,
+            component: <ResetFiltersButton libraryId={collectionId} />,
           },
           {
             key: "genre",
@@ -453,7 +473,6 @@ const page: React.FC = () => {
       setSortBy,
       sortOrder,
       setSortOrder,
-      isFetching,
     ],
   );
 
