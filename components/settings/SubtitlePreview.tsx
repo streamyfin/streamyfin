@@ -55,7 +55,7 @@ export const SubtitlePreview = React.memo(() => {
     const player = playerRef.current;
     if (!player || !playerReady) return;
 
-    const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
+    const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 60);
     const opacity = Math.min(
       Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 40, 0),
       100,

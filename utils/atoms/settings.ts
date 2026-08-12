@@ -460,7 +460,7 @@ export const defaultValues: Settings = {
   disableHapticFeedback: false,
   subtitleSize: 1.0,
   subtitleBackground: false,
-  subtitleBackgroundOpacity: 40,
+  subtitleBackgroundOpacity: 60,
   subtitleBackgroundPadding: 8,
   subtitleFont: "System",
   subtitleColor: "#FFFFFF",

@@ -35,9 +35,9 @@ export const buildSubtitleStyle = (
     marginY?: number;
   } = {},
 ): NativePlayerSubtitleStyle => {
-  const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
+  const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 60);
   const opacity = Math.min(
-    Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 40, 0),
+    Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 60, 0),
     100,
   );
   const alpha = Math.round((opacity / 100) * 255)

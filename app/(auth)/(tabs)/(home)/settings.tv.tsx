@@ -1015,19 +1015,19 @@ export default function SettingsTV() {
           {settings.subtitleBackground && (
             <TVSettingsStepper
               label={t("home.settings.subtitles.subtitle_background_opacity")}
-              value={settings.subtitleBackgroundOpacity ?? 40}
+              value={settings.subtitleBackgroundOpacity ?? 60}
               disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
               onDecrease={() => {
                 const newValue = Math.max(
                   0,
-                  (settings.subtitleBackgroundOpacity ?? 40) - 5,
+                  (settings.subtitleBackgroundOpacity ?? 60) - 5,
                 );
                 updateSettings({ subtitleBackgroundOpacity: newValue });
               }}
               onIncrease={() => {
                 const newValue = Math.min(
                   100,
-                  (settings.subtitleBackgroundOpacity ?? 40) + 5,
+                  (settings.subtitleBackgroundOpacity ?? 60) + 5,
                 );
                 updateSettings({ subtitleBackgroundOpacity: newValue });
               }}

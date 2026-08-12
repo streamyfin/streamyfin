@@ -612,7 +612,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
           >
             <Stepper
-              value={settings.subtitleBackgroundOpacity ?? 40}
+              value={settings.subtitleBackgroundOpacity ?? 60}
               disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
               step={5}
               min={0}

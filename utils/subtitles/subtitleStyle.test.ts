@@ -9,7 +9,7 @@ import {
 const baseSettings = {
   subtitleSize: 1,
   subtitleBackground: false,
-  subtitleBackgroundOpacity: 40,
+  subtitleBackgroundOpacity: 60,
   subtitleBackgroundPadding: 8,
   subtitleFont: "System",
   subtitleColor: "#FFFFFF",
@@ -79,7 +79,7 @@ describe("applySubtitleStyle", () => {
       "margin:25",
       "x:center",
       "y:bottom",
-      "style:#66000000",
+      "style:#99000000",
       "ass:force",
     ]);
   });
