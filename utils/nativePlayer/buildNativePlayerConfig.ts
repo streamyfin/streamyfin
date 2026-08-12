@@ -517,6 +517,7 @@ export async function buildNativePlayerConfig(params: {
       showBrightnessSlider: !Platform.isTV && !settings.hideBrightnessSlider,
       // Touch gestures — no equivalent on the Siri remote.
       holdToSpeedEnabled: !Platform.isTV && settings.enableHoldToSpeed,
+      holdToSpeedRate: settings.holdToSpeedRate,
       pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,
       doubleTapToSeekEnabled: !Platform.isTV && settings.enableDoubleTapToSeek,
       // Server search needs connectivity; the OpenSubtitles fallback needs

@@ -1,10 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, type ViewProps } from "react-native";
+import { Platform, View, type ViewProps } from "react-native";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
+import { PlatformDropdown } from "@/components/PlatformDropdown";
+import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
 import { useSettings } from "@/utils/atoms/settings";
+import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
 
@@ -22,9 +26,28 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
       pluginSettings?.enableHorizontalSwipeSkip?.locked === true &&
       pluginSettings?.enableLeftSideBrightnessSwipe?.locked === true &&
       pluginSettings?.enableRightSideVolumeSwipe?.locked === true &&
+      pluginSettings?.enableHoldToSpeed?.locked === true &&
+      pluginSettings?.holdToSpeedRate?.locked === true &&
+      pluginSettings?.enablePinchToZoom?.locked === true &&
+      pluginSettings?.enableDoubleTapToSeek?.locked === true &&
       pluginSettings?.hideVolumeSlider?.locked === true &&
       pluginSettings?.hideBrightnessSlider?.locked === true,
     [pluginSettings],
+  );
+
+  const holdToSpeedRateOptions = useMemo(
+    () => [
+      {
+        options: PLAYBACK_SPEEDS.map((speed) => ({
+          type: "radio" as const,
+          label: speed.label,
+          value: speed.value,
+          selected: speed.value === settings?.holdToSpeedRate,
+          onPress: () => updateSettings({ holdToSpeedRate: speed.value }),
+        })),
+      },
+    ],
+    [settings?.holdToSpeedRate, updateSettings],
   );
 
   if (!settings) return null;
@@ -82,11 +105,12 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           />
         </ListItem>
 
-        {/* Hold-for-2x and pinch-to-zoom only exist in the iOS native
-            player — showing dead toggles on Android would be misleading.
-            Each item is gated individually: ListGroup clones its children
-            to inject separator styles, which a Fragment can't accept. */}
-        {isIOSMobile && (
+        {/* Hold-to-speed also exists in the JS player, so it is not
+            iOS-only, but it is still a touch gesture with no Siri remote
+            equivalent. Each item is gated individually: ListGroup clones
+            its children to inject separator styles, which a Fragment
+            can't accept. */}
+        {!Platform.isTV && (
           <ListItem
             title={t("home.settings.gesture_controls.hold_to_speed")}
             subtitle={t(
@@ -104,6 +128,42 @@ export const GestureControls: React.FC<Props> = ({ ...props }) => {
           </ListItem>
         )}
 
+        {!Platform.isTV && (
+          <DisabledSetting
+            disabled={
+              !settings.enableHoldToSpeed ||
+              pluginSettings?.holdToSpeedRate?.locked === true
+            }
+            showText={false}
+          >
+            <ListItem
+              title={t("home.settings.gesture_controls.hold_to_speed_rate")}
+              disabled={pluginSettings?.holdToSpeedRate?.locked}
+            >
+              <PlatformDropdown
+                groups={holdToSpeedRateOptions}
+                trigger={
+                  <View className='flex flex-row items-center justify-between pl-3 py-1.5'>
+                    <Text className='mr-1 text-[#8E8D91]'>
+                      {PLAYBACK_SPEEDS.find(
+                        (s) => s.value === settings.holdToSpeedRate,
+                      )?.label ?? "2x"}
+                    </Text>
+                    <Ionicons
+                      name='chevron-expand-sharp'
+                      size={18}
+                      color='#5A5960'
+                    />
+                  </View>
+                }
+                title={t("home.settings.gesture_controls.hold_to_speed_rate")}
+              />
+            </ListItem>
+          </DisabledSetting>
+        )}
+
+        {/* Pinch-to-zoom and double-tap-to-seek only exist in the iOS
+            native player. */}
         {isIOSMobile && (
           <ListItem
             title={t("home.settings.gesture_controls.pinch_to_zoom")}

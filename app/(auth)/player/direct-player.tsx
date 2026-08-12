@@ -263,9 +263,16 @@ export default function DirectPlayerPage() {
     settings,
   );
 
+  // Speed held during a long press. Applied to the player only, so it is
+  // never written to the per media or per show settings
+  const speedBeforeHoldRef = useRef<number | null>(null);
+
   // Handler for changing playback speed
   const handleSetPlaybackSpeed = useCallback(
     async (speed: number, scope: PlaybackSpeedScope) => {
+      // A deliberate speed choice wins over a transient hold
+      speedBeforeHoldRef.current = null;
+
       // Update settings based on scope
       updatePlaybackSpeedSettings(
         speed,
@@ -281,6 +288,25 @@ export default function DirectPlayerPage() {
     },
     [item, settings, updateSettings],
   );
+
+  const handleHoldSpeedStart = useCallback(async () => {
+    if (speedBeforeHoldRef.current !== null) return;
+    speedBeforeHoldRef.current = currentPlaybackSpeed;
+    await videoRef.current?.setSpeed?.(settings?.holdToSpeedRate ?? 2.0);
+  }, [currentPlaybackSpeed, settings?.holdToSpeedRate]);
+
+  const handleHoldSpeedEnd = useCallback(async () => {
+    const previousSpeed = speedBeforeHoldRef.current;
+    if (previousSpeed === null) return;
+    speedBeforeHoldRef.current = null;
+    await videoRef.current?.setSpeed?.(previousSpeed);
+  }, []);
+
+  // A new item applies its own speed, so a release afterwards must not
+  // restore the previous item's
+  useEffect(() => {
+    speedBeforeHoldRef.current = null;
+  }, [item?.Id]);
 
   /** Gets the initial playback position from the URL. */
   // const getInitialPlaybackTicks = useCallback((): number => {
@@ -1651,6 +1677,8 @@ export default function DirectPlayerPage() {
                   downloadedFiles={downloadedFiles}
                   playbackSpeed={currentPlaybackSpeed}
                   setPlaybackSpeed={handleSetPlaybackSpeed}
+                  onHoldSpeedStart={handleHoldSpeedStart}
+                  onHoldSpeedEnd={handleHoldSpeedEnd}
                   showTechnicalInfo={showTechnicalInfo}
                   onToggleTechnicalInfo={handleToggleTechnicalInfo}
                   getTechnicalInfo={getTechnicalInfo}
