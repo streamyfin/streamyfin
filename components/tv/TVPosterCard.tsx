@@ -245,11 +245,8 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       // item without RunTimeTicks does not silently drop its episode name.
       // Without a SeriesName the title already falls back to the episode name,
       // so drop the trailing copy rather than printing the same name twice.
-      const trailingText = displayShowName
-        ? item.SeriesName
-          ? item.Name
-          : null
-        : duration;
+      const episodeNameSlot = item.SeriesName ? item.Name : null;
+      const trailingText = displayShowName ? episodeNameSlot : duration;
 
       return (
         <View
