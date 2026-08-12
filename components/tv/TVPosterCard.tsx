@@ -243,7 +243,13 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
       // When the show name is the title, the episode name takes the slot the
       // duration usually occupies. Gate on what is actually rendered, so an
       // item without RunTimeTicks does not silently drop its episode name.
-      const trailingText = displayShowName ? item.Name : duration;
+      // Without a SeriesName the title already falls back to the episode name,
+      // so drop the trailing copy rather than printing the same name twice.
+      const trailingText = displayShowName
+        ? item.SeriesName
+          ? item.Name
+          : null
+        : duration;
 
       return (
         <View
@@ -504,10 +510,9 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
     // Episode: show episode name as title
     if (item.Type === "Episode") {
-      // SeriesName is absent on some episode payloads; keep a title either way.
-      const title = displayShowName
-        ? (item.SeriesName ?? item.Name)
-        : item.Name;
+      // SeriesName is absent, or empty, on some episode payloads; keep a title
+      // either way.
+      const title = displayShowName ? item.SeriesName || item.Name : item.Name;
       return (
         <Text
           numberOfLines={displayShowName ? 1 : 2}
