@@ -53,6 +53,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Platform } from "react-native";
@@ -61,13 +62,23 @@ import type { MpvAudioTrack } from "@/modules";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { getSubtitlesForItem } from "@/utils/atoms/downloadedSubtitles";
+import { useSettings } from "@/utils/atoms/settings";
 import {
   applyMpvSubtitleSelection,
-  compareTracksForMenu,
   getExternalSubtitleUrl,
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
-import { LOCAL_SUBTITLE_INDEX_START, type Track } from "../types";
+import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
+import {
+  isLocalSubtitleIndex,
+  SUBTITLES_OFF,
+} from "@/utils/subtitles/subtitleIndex";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
+import type { Track } from "../types";
 import { usePlayerContext, usePlayerControls } from "./PlayerContext";
 
 interface VideoContextProps {
@@ -83,11 +94,28 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
   const [subtitleTracks, setSubtitleTracks] = useState<Track[] | null>(null);
   const [audioTracks, setAudioTracks] = useState<Track[] | null>(null);
 
-  const { tracksReady, mediaSource, downloadedItem } = usePlayerContext();
+  const { tracksReady, mediaSource, downloadedItem, item } = usePlayerContext();
   const playerControls = usePlayerControls();
   const offline = useOfflineMode();
   const api = useAtomValue(apiAtom);
   const router = useRouter();
+  const { settings } = useSettings();
+
+  /**
+   * Persist a deliberate pick as the series preference, exactly as the native
+   * player and the item pages do — a menu that changes the track but remembers
+   * nothing is why the next episode used to come back on the server's default.
+   *
+   * Held in a ref rather than read directly by the effect below: `settings` gets
+   * a new identity on every settings write, and depending on it would re-run the
+   * whole track fetch (an async bridge round-trip) and briefly blank the menus
+   * every time an unrelated toggle moved.
+   */
+  const rememberRef = useRef<
+    (kind: "audio" | "subtitle", row: TrackMenuRow) => void
+  >(() => {});
+  rememberRef.current = (kind, row) =>
+    rememberSeriesTrackFromRow({ item, kind, row, settings });
 
   const { itemId, audioIndex, bitrateValue, subtitleIndex, playbackPosition } =
     useLocalSearchParams<{
@@ -105,6 +133,23 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     mediaSource?.MediaStreams?.filter((s) => s.Type === "Audio") || [];
 
   const isTranscoding = Boolean(mediaSource?.TranscodingUrl);
+
+  // Route params are strings; a missing/blank one parses to NaN, which must not
+  // be read as a real selection.
+  const asIndex = (raw: string | undefined): number | undefined => {
+    const parsed = Number.parseInt(raw ?? "", 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+  const currentSubtitleIndex = asIndex(subtitleIndex) ?? SUBTITLES_OFF;
+  const currentAudioIndex = asIndex(audioIndex);
+
+  /** Client-side downloads that still exist on disk (the cache may be cleared). */
+  const localSubFiles = useMemo(() => {
+    if (!Platform.isTV || !itemId) return [];
+    return getSubtitlesForItem(itemId)
+      .filter((s) => new File(s.filePath).exists)
+      .map((s) => ({ name: s.name, filePath: s.filePath }));
+  }, [itemId]);
 
   /**
    * Check if the currently selected subtitle is image-based.
@@ -129,10 +174,11 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     // The URL param can hold a local-sub sentinel (selected via setParams) that
     // only exists in the dying player — the server must get "none" (-1) instead.
     // NaN (missing/blank param) fails the comparison and passes through as-is.
-    const fallbackSubtitleIndex =
-      Number.parseInt(subtitleIndex, 10) <= LOCAL_SUBTITLE_INDEX_START
-        ? "-1"
-        : subtitleIndex;
+    const fallbackSubtitleIndex = isLocalSubtitleIndex(
+      Number.parseInt(subtitleIndex, 10),
+    )
+      ? "-1"
+      : subtitleIndex;
     const queryParams = new URLSearchParams({
       itemId: itemId ?? "",
       audioIndex: params.audioIndex ?? audioIndex,
@@ -192,69 +238,41 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
           commitAudioTracks([]);
         }
 
-        // For subtitles in transcoded offline content:
-        // - Text-based subs may still be embedded
-        // - Image-based subs were burned in during transcoding
-        const downloadedSubtitleIndex =
-          downloadedItem.userData.subtitleStreamIndex;
-        const subs: Track[] = [];
-
-        // If an IMAGE subtitle was burned into the transcoded download it's in the
-        // video pixels — it can't be turned off or swapped. Show only that entry
-        // instead of advertising "Disable"/text controls that can't affect it.
-        const burnedInSub = allSubs.find(
-          (s) => s.Index === downloadedSubtitleIndex,
-        );
-        if (burnedInSub && isImageBasedSubtitle(burnedInSub)) {
-          commitSubtitleTracks([
-            {
-              name: `${burnedInSub.DisplayTitle || "Unknown"} (burned in)`,
-              index: burnedInSub.Index ?? -1,
-              mpvIndex: -1,
-              setTrack: () => {},
-            },
-          ]);
-          return;
-        }
-
-        // Add "Disable" option
-        subs.push({
-          name: "Disable",
-          index: -1,
+        // A transcoded download carries only text subs; an image sub chosen at
+        // download time was burned into the video and is inert — the builder
+        // returns it as the sole row rather than advertising "Disable" and
+        // alternatives that cannot affect pixels.
+        const subs: Track[] = buildSubtitleMenu(allSubs, {
+          selectedIndex: currentSubtitleIndex,
+          offLabel: "Disable",
+          isTranscoding: false,
+          offlineTranscoded: {
+            burnedInIndex: downloadedItem.userData.subtitleStreamIndex,
+          },
+          formatLabel: (s) => s.DisplayTitle || "Unknown",
+        }).map((row) => ({
+          name: row.label,
+          index: row.index,
           mpvIndex: -1,
           setTrack: () => {
-            playerControls.setSubtitleTrack(-1);
-            router.setParams({ subtitleIndex: "-1" });
-          },
-        });
-
-        // Text subs are muxed into the transcoded file and switchable; resolve by
-        // identity against MPV's real track list (same as online). Order matches web.
-        // Image subs aren't in the transcoded file (only the burned one was, handled
-        // above), so skip them here.
-        for (const sub of [...allSubs].sort(compareTracksForMenu)) {
-          if (!isImageBasedSubtitle(sub)) {
-            subs.push({
-              name: sub.DisplayTitle || "Unknown",
-              index: sub.Index ?? -1,
-              mpvIndex: -1,
-              setTrack: () => {
-                router.setParams({ subtitleIndex: String(sub.Index) });
-                void applyMpvSubtitleSelection(playerControls, {
-                  subtitleStreams: allSubs,
-                  jellyfinSubtitleIndex: sub.Index ?? -1,
-                  getExpectedExternalUrl: (s) => {
-                    if (!s.DeliveryUrl) return undefined;
-                    if (offline) return s.DeliveryUrl;
-                    return api?.basePath
-                      ? `${api.basePath}${s.DeliveryUrl}`
-                      : undefined;
-                  },
-                });
-              },
+            // Inert by construction — the row exists only to show what is
+            // baked into the file.
+            if (row.kind === "burnedIn") return;
+            rememberRef.current("subtitle", row);
+            if (row.kind === "off") {
+              playerControls.setSubtitleTrack(-1);
+              router.setParams({ subtitleIndex: "-1" });
+              return;
+            }
+            router.setParams({ subtitleIndex: String(row.index) });
+            void applyMpvSubtitleSelection(playerControls, {
+              subtitleStreams: allSubs,
+              jellyfinSubtitleIndex: row.index,
+              getExpectedExternalUrl: (s) =>
+                getExternalSubtitleUrl(s, { offline, basePath: api?.basePath }),
             });
-          }
-        }
+          },
+        }));
 
         commitSubtitleTracks(subs);
         return;
@@ -265,116 +283,88 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
       if (cancelled) return;
       const playerAudio = (audioData as MpvAudioTrack[]) ?? [];
 
-      const subs: Track[] = [];
-
-      // Process all Jellyfin subtitles. Selection resolves against MPV's real
-      // track list by identity (applyMpvSubtitleSelection) — never positional
-      // index math, which mis-selects across external/embedded reordering and
-      // server-hidden embedded subs (#954/#1690/#618/#1467/#976/#1451).
-      // Order matches jellyfin-web (embedded first, externals last, forced/default up).
-      for (const sub of [...allSubs].sort(compareTracksForMenu)) {
-        // Image-based subs during transcoding are burned into the video by the
-        // server; both switching TO one and switching AWAY from a currently
-        // active one require a player refresh (re-transcode), not a track change.
-        const needsReplace =
-          isTranscoding &&
-          (isImageBasedSubtitle(sub) || isCurrentSubImageBased);
-
-        subs.push({
-          name: sub.DisplayTitle || "Unknown",
-          index: sub.Index ?? -1,
-          mpvIndex: -1,
-          setTrack: () => {
-            if (needsReplace) {
-              replacePlayer({ subtitleIndex: String(sub.Index) });
-              return;
-            }
-            router.setParams({ subtitleIndex: String(sub.Index) });
-            void applyMpvSubtitleSelection(playerControls, {
-              subtitleStreams: allSubs,
-              jellyfinSubtitleIndex: sub.Index ?? -1,
-              // Mirror how external subs are loaded into MPV (online: basePath +
-              // DeliveryUrl, offline: local DeliveryUrl) so identity matching by
-              // external-filename lines up.
-              getExpectedExternalUrl: (s) =>
-                getExternalSubtitleUrl(s, { offline, basePath: api?.basePath }),
-            }).then((result) => {
-              // Safety net: a menu-listed sub the player can't select (server-
-              // burned Encode, sidecar never sub-added) only shows up after the
-              // server re-processes the stream with it.
-              if (result.kind === "notFound" || result.kind === "burnedIn") {
-                replacePlayer({ subtitleIndex: String(sub.Index) });
-              }
-            });
-          },
-        });
-      }
-
-      // Add "Disable" option at the beginning
-      subs.unshift({
-        name: "Disable",
-        index: -1,
+      // Selection resolves against MPV's real track list by identity
+      // (applyMpvSubtitleSelection) — never positional index math, which
+      // mis-selects across external/embedded reordering and server-hidden
+      // embedded subs (#954/#1690/#618/#1467/#976/#1451).
+      const subs: Track[] = buildSubtitleMenu(allSubs, {
+        selectedIndex: currentSubtitleIndex,
+        offLabel: "Disable",
+        isTranscoding,
+        // TV is the only surface that can download a sidecar mid-playback.
+        localSubs: Platform.isTV ? localSubFiles : undefined,
+        formatLabel: (s) => s.DisplayTitle || "Unknown",
+      }).map((row) => ({
+        name: row.label,
+        index: row.index,
         mpvIndex: -1,
+        isLocal: row.kind === "sidecar",
+        localPath: row.localPath,
         setTrack: () => {
-          if (isTranscoding && isCurrentSubImageBased) {
-            replacePlayer({ subtitleIndex: "-1" });
-          } else {
+          rememberRef.current("subtitle", row);
+          if (row.kind === "sidecar" && row.localPath) {
+            playerControls.addSubtitleFile(row.localPath, true);
+            router.setParams({ subtitleIndex: String(row.index) });
+            return;
+          }
+          // Burned-in image subs are pixels: switching to one, and switching
+          // away from an active one, both need the server to re-process.
+          if (row.requiresReload) {
+            replacePlayer({ subtitleIndex: String(row.index) });
+            return;
+          }
+          if (row.kind === "off") {
             playerControls.setSubtitleTrack(-1);
             router.setParams({ subtitleIndex: "-1" });
+            return;
           }
+          router.setParams({ subtitleIndex: String(row.index) });
+          void applyMpvSubtitleSelection(playerControls, {
+            subtitleStreams: allSubs,
+            jellyfinSubtitleIndex: row.index,
+            // Mirror how external subs are loaded into MPV (online: basePath +
+            // DeliveryUrl, offline: local DeliveryUrl) so identity matching by
+            // external-filename lines up.
+            getExpectedExternalUrl: (s) =>
+              getExternalSubtitleUrl(s, { offline, basePath: api?.basePath }),
+          }).then((result) => {
+            // Safety net: a menu-listed sub the player can't select (server-
+            // burned Encode, sidecar never sub-added) only shows up after the
+            // server re-processes the stream with it.
+            if (result.kind === "notFound" || result.kind === "burnedIn") {
+              replacePlayer({ subtitleIndex: String(row.index) });
+            }
+          });
         },
-      });
+      }));
 
-      // Process audio tracks
-      const audio: Track[] = allAudio.map((a, idx) => {
-        const playerTrack = playerAudio[idx];
-        const mpvId = playerTrack?.id ?? idx + 1;
+      const audio: Track[] = buildAudioMenu(allAudio, {
+        selectedIndex: currentAudioIndex,
+        isTranscoding,
+        formatLabel: (a) => a.DisplayTitle || "Unknown",
+      }).map((row) => {
+        // mpv ids come from the player's own enumeration, so position against
+        // the unfiltered stream list — not the row list, which drops streams
+        // with no Index and would shift every id below the gap.
+        const position = allAudio.findIndex((a) => a.Index === row.index);
+        const mpvId = playerAudio[position]?.id ?? position + 1;
 
         return {
-          name: a.DisplayTitle || "Unknown",
-          index: a.Index ?? -1,
+          name: row.label,
+          index: row.index,
           mpvIndex: mpvId,
           setTrack: () => {
-            if (isTranscoding) {
-              replacePlayer({ audioIndex: String(a.Index) });
+            rememberRef.current("audio", row);
+            if (row.requiresReload) {
+              replacePlayer({ audioIndex: String(row.index) });
               return;
             }
             playerControls.setAudioTrack(mpvId);
-            router.setParams({ audioIndex: String(a.Index) });
+            router.setParams({ audioIndex: String(row.index) });
           },
         };
       });
 
-      // TV only: Merge locally downloaded subtitles (from OpenSubtitles)
-      if (Platform.isTV && itemId) {
-        const localSubs = getSubtitlesForItem(itemId);
-        let localIdx = 0;
-        for (const localSub of localSubs) {
-          // Verify file still exists (cache may have been cleared)
-          const subtitleFile = new File(localSub.filePath);
-          if (!subtitleFile.exists) {
-            continue;
-          }
-
-          const localIndex = LOCAL_SUBTITLE_INDEX_START - localIdx;
-          subs.push({
-            name: localSub.name,
-            index: localIndex,
-            mpvIndex: -1, // Will be loaded dynamically via addSubtitleFile
-            isLocal: true,
-            localPath: localSub.filePath,
-            setTrack: () => {
-              // Add the subtitle file to MPV and select it
-              playerControls.addSubtitleFile(localSub.filePath, true);
-              router.setParams({ subtitleIndex: String(localIndex) });
-            },
-          });
-          localIdx++;
-        }
-      }
-
-      // Already in jellyfin-web order (sorted iteration above); "Disable" stays
-      // at the front (unshifted), local downloaded subs at the end.
       commitSubtitleTracks(subs);
       commitAudioTracks(audio);
     };
@@ -395,6 +385,9 @@ export const VideoProvider: React.FC<{ children: ReactNode }> = ({
     itemId,
     api?.basePath,
     isCurrentSubImageBased,
+    localSubFiles,
+    currentSubtitleIndex,
+    currentAudioIndex,
   ]);
 
   return (

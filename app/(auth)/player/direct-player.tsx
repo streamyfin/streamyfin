@@ -27,10 +27,6 @@ import { Controls as TVControls } from "@/components/video-player/controls/Contr
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
 import {
-  LOCAL_SUBTITLE_INDEX_START,
-  toServerSubtitleIndex,
-} from "@/components/video-player/controls/types";
-import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
 } from "@/components/video-player/controls/utils/playback-speed-settings";
@@ -72,6 +68,15 @@ import {
   isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { writeToLog } from "@/utils/log";
+import {
+  isLocalSubtitleIndex,
+  localSubtitleIndex,
+  toServerSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
+import {
+  applySubtitleStyle,
+  buildSubtitleStyle,
+} from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
@@ -258,9 +263,16 @@ export default function DirectPlayerPage() {
     settings,
   );
 
+  // Speed held during a long press. Applied to the player only, so it is
+  // never written to the per media or per show settings
+  const speedBeforeHoldRef = useRef<number | null>(null);
+
   // Handler for changing playback speed
   const handleSetPlaybackSpeed = useCallback(
     async (speed: number, scope: PlaybackSpeedScope) => {
+      // A deliberate speed choice wins over a transient hold
+      speedBeforeHoldRef.current = null;
+
       // Update settings based on scope
       updatePlaybackSpeedSettings(
         speed,
@@ -276,6 +288,25 @@ export default function DirectPlayerPage() {
     },
     [item, settings, updateSettings],
   );
+
+  const handleHoldSpeedStart = useCallback(async () => {
+    if (speedBeforeHoldRef.current !== null) return;
+    speedBeforeHoldRef.current = currentPlaybackSpeed;
+    await videoRef.current?.setSpeed?.(settings?.holdToSpeedRate ?? 2.0);
+  }, [currentPlaybackSpeed, settings?.holdToSpeedRate]);
+
+  const handleHoldSpeedEnd = useCallback(async () => {
+    const previousSpeed = speedBeforeHoldRef.current;
+    if (previousSpeed === null) return;
+    speedBeforeHoldRef.current = null;
+    await videoRef.current?.setSpeed?.(previousSpeed);
+  }, []);
+
+  // A new item applies its own speed, so a release afterwards must not
+  // restore the previous item's
+  useEffect(() => {
+    speedBeforeHoldRef.current = null;
+  }, [item?.Id]);
 
   /** Gets the initial playback position from the URL. */
   // const getInitialPlaybackTicks = useCallback((): number => {
@@ -1216,7 +1247,7 @@ export default function DirectPlayerPage() {
     async (index: number) => {
       // Local (client-downloaded) subs are loaded via addSubtitleFile, not
       // resolvable against server streams — just track the live index.
-      if (index <= LOCAL_SUBTITLE_INDEX_START) {
+      if (isLocalSubtitleIndex(index)) {
         setCurrentSubtitleIndex(index);
         return;
       }
@@ -1359,18 +1390,15 @@ export default function DirectPlayerPage() {
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
   const addSubtitleFile = useCallback(
     async (path: string) => {
-      // Set the live index to the new local sub's REAL index BEFORE the add.
-      // Local subs are keyed LOCAL_SUBTITLE_INDEX_START - position, so use the
-      // downloaded path's position (not a blanket sentinel, which would collide
-      // with the first local sub at -100 and mis-record the selection). Any
-      // local index resolves to notFound on the onTracksReady re-apply, so it
-      // still doesn't clobber the freshly selected track; carry-over now keeps
-      // the correct local sub.
+      // Set the live index to the new local sub's REAL index BEFORE the add:
+      // encode the downloaded path's position, not a blanket sentinel, which
+      // would collide with the first local sub and mis-record the selection.
+      // Any local index resolves to notFound on the onTracksReady re-apply, so
+      // it still doesn't clobber the freshly selected track; carry-over now
+      // keeps the correct local sub.
       const locals = itemId ? getSubtitlesForItem(itemId) : [];
       const pos = locals.findIndex((s) => s.filePath === path);
-      setCurrentSubtitleIndex(
-        LOCAL_SUBTITLE_INDEX_START - (pos >= 0 ? pos : 0),
-      );
+      setCurrentSubtitleIndex(localSubtitleIndex(pos >= 0 ? pos : 0));
       await videoRef.current?.addSubtitleFile?.(path, true);
     },
     [itemId],
@@ -1453,47 +1481,7 @@ export default function DirectPlayerPage() {
   // Apply subtitle settings when video loads
   useEffect(() => {
     if (!isVideoLoaded || !videoRef.current) return;
-
-    const applySubtitleSettings = async () => {
-      if (settings.mpvSubtitleScale !== undefined) {
-        await videoRef.current?.setSubtitleScale?.(settings.mpvSubtitleScale);
-      }
-      if (settings.mpvSubtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY?.(
-          settings.mpvSubtitleMarginY,
-        );
-      }
-      if (settings.mpvSubtitleAlignX !== undefined) {
-        await videoRef.current?.setSubtitleAlignX?.(settings.mpvSubtitleAlignX);
-      }
-      if (settings.mpvSubtitleAlignY !== undefined) {
-        await videoRef.current?.setSubtitleAlignY?.(settings.mpvSubtitleAlignY);
-      }
-      // Apply subtitle background (iOS only - doesn't work on tvOS due to composite OSD limitation)
-      // mpv uses #RRGGBBAA format (alpha last, same as CSS)
-      if (settings.mpvSubtitleBackgroundEnabled) {
-        const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
-        const alphaHex = Math.round((opacity / 100) * 255)
-          .toString(16)
-          .padStart(2, "0")
-          .toUpperCase();
-        // Enable background-box mode (required for sub-back-color to work)
-        await videoRef.current?.setSubtitleBorderStyle?.("background-box");
-        await videoRef.current?.setSubtitleBackgroundColor?.(
-          `#000000${alphaHex}`,
-        );
-        // Force override ASS subtitle styles so background shows on styled subtitles
-        await videoRef.current?.setSubtitleAssOverride?.("force");
-      } else {
-        // Restore default outline-and-shadow style
-        await videoRef.current?.setSubtitleBorderStyle?.("outline-and-shadow");
-        await videoRef.current?.setSubtitleBackgroundColor?.("#00000000");
-        // Restore default ASS behavior (keep original styles)
-        await videoRef.current?.setSubtitleAssOverride?.("no");
-      }
-    };
-
-    applySubtitleSettings();
+    applySubtitleStyle(videoRef.current, buildSubtitleStyle(settings));
   }, [isVideoLoaded, settings]);
 
   // Apply initial playback speed when video loads
@@ -1689,6 +1677,8 @@ export default function DirectPlayerPage() {
                   downloadedFiles={downloadedFiles}
                   playbackSpeed={currentPlaybackSpeed}
                   setPlaybackSpeed={handleSetPlaybackSpeed}
+                  onHoldSpeedStart={handleHoldSpeedStart}
+                  onHoldSpeedEnd={handleHoldSpeedEnd}
                   showTechnicalInfo={showTechnicalInfo}
                   onToggleTechnicalInfo={handleToggleTechnicalInfo}
                   getTechnicalInfo={getTechnicalInfo}

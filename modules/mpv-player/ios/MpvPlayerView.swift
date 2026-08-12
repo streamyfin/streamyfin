@@ -67,8 +67,6 @@ class MpvPlayerView: ExpoView {
 	let onTracksReady = EventDispatcher()
 	let onPictureInPictureChange = EventDispatcher()
 
-	private var appStateObserver: NSObjectProtocol?
-
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
 		setupView()
@@ -100,17 +98,8 @@ class MpvPlayerView: ExpoView {
 		} catch {
 			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
 		}
-
-		// Pause playback when app enters background on tvOS
-		#if os(tvOS)
-		appStateObserver = NotificationCenter.default.addObserver(
-			forName: UIApplication.didEnterBackgroundNotification,
-			object: nil,
-			queue: .main
-		) { [weak self] _ in
-			self?.pause()
-		}
-		#endif
+		// Pause-on-background for tvOS now lives in MPVPlayerEngine so the
+		// presented native player gets it too.
 	}
 
 	override func layoutSubviews() {
@@ -201,8 +190,10 @@ class MpvPlayerView: ExpoView {
 
 	// MARK: - Subtitle Controls
 
-	func getSubtitleTracks() -> [[String: Any]] {
-		return engine.getSubtitleTracks()
+	/// Completion fires on the mpv work queue (see MPVLayerRenderer.onQueue —
+	/// the blocking reads must never run on this view's main thread).
+	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) {
+		engine.getSubtitleTracks(completion: completion)
 	}
 
 	func setSubtitleTrack(_ trackId: Int) {
@@ -213,8 +204,8 @@ class MpvPlayerView: ExpoView {
 		engine.disableSubtitles()
 	}
 
-	func getCurrentSubtitleTrack() -> Int {
-		return engine.getCurrentSubtitleTrack()
+	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
+		engine.getCurrentSubtitleTrack(completion: completion)
 	}
 
 	func addSubtitleFile(url: String, select: Bool = true) {
@@ -223,16 +214,17 @@ class MpvPlayerView: ExpoView {
 
 	// MARK: - Audio Track Controls
 
-	func getAudioTracks() -> [[String: Any]] {
-		return engine.getAudioTracks()
+	/// Completion fires on the mpv work queue (see getSubtitleTracks).
+	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) {
+		engine.getAudioTracks(completion: completion)
 	}
 
 	func setAudioTrack(_ trackId: Int) {
 		engine.setAudioTrack(trackId)
 	}
 
-	func getCurrentAudioTrack() -> Int {
-		return engine.getCurrentAudioTrack()
+	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
+		engine.getCurrentAudioTrack(completion: completion)
 	}
 
 	// MARK: - Subtitle Positioning
@@ -285,14 +277,12 @@ class MpvPlayerView: ExpoView {
 
 	// MARK: - Technical Info
 
-	func getTechnicalInfo() -> [String: Any] {
-		return engine.getTechnicalInfo()
+	/// Completion fires on the mpv work queue (see getSubtitleTracks).
+	func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) {
+		engine.getTechnicalInfo(completion: completion)
 	}
 
 	deinit {
-		if let observer = appStateObserver {
-			NotificationCenter.default.removeObserver(observer)
-		}
 		#if os(tvOS)
 		resetDisplayCriteria()
 		#endif

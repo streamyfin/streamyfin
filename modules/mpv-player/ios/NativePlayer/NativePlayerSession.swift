@@ -1,4 +1,3 @@
-#if os(iOS)
 import ExpoModulesCore
 import UIKit
 
@@ -9,7 +8,7 @@ enum PlayerDismissReason: String {
 	case error
 }
 
-internal final class NoPresenterException: Exception {
+internal final class NoPresenterException: Exception, @unchecked Sendable {
 	override var reason: String {
 		"Could not find a view controller to present the native player from"
 	}
@@ -63,16 +62,79 @@ final class NativePlayerSession {
 		)
 		vc.modalPresentationStyle = .fullScreen
 		vc.modalTransitionStyle = .crossDissolve
+		#if os(iOS)
 		vc.modalPresentationCapturesStatusBarAppearance = true
+		#endif
 		viewController = vc
 
-		// Kick the stream load off immediately so it races the presentation
-		// fade instead of waiting for it.
+		// Kick the stream load off immediately so it races the rotation wait
+		// and the presentation fade instead of waiting for them.
 		startStream(config: config)
 
+		presentAfterRotation(
+			vc,
+			from: presenter,
+			waitingForLandscape: config.ui.orientationLock == "landscape",
+			promise: promise
+		)
+	}
+
+	/// The JS coordinator locks the window to landscape (expo-screen-orientation)
+	/// right before calling present, which starts rotating the whole app.
+	/// Presenting while that rotation is in flight makes UIKit run a second
+	/// rotation pass for the incoming landscape-only VC (a visible double
+	/// rotate) and can leave the overlay laid out with portrait safe-area
+	/// insets (top bar sitting too low). Wait until the scene reports
+	/// landscape, then one extra beat for the rotation animation to finish,
+	/// and present into a settled window.
+	private func presentAfterRotation(
+		_ vc: NativePlayerViewController,
+		from presenter: UIViewController,
+		waitingForLandscape: Bool,
+		promise: Promise
+	) {
+		#if os(tvOS)
+		// No interface orientation on tvOS — present immediately.
 		presenter.present(vc, animated: true) {
 			promise.resolve()
 		}
+		#else
+		let scene = presenter.view.window?.windowScene
+		guard waitingForLandscape, let scene, !scene.interfaceOrientation.isLandscape else {
+			presenter.present(vc, animated: true) {
+				promise.resolve()
+			}
+			return
+		}
+
+		// ~1.5s at 30Hz before giving up and presenting anyway (the VC's own
+		// landscape mask then rotates as part of the presentation, as before).
+		var attemptsLeft = 45
+		func poll() {
+			if scene.interfaceOrientation.isLandscape || attemptsLeft <= 0 {
+				// interfaceOrientation flips at the START of the rotation
+				// animation — the beat lets the animation land first.
+				DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+					// The session can die during the wait (load error, app
+					// reload) — presenting then would put a zombie player over
+					// a shut-down engine.
+					guard let self, !self.isDismissing, self.viewController === vc else {
+						promise.resolve()
+						return
+					}
+					presenter.present(vc, animated: true) {
+						promise.resolve()
+					}
+				}
+			} else {
+				attemptsLeft -= 1
+				DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 / 30.0) {
+					poll()
+				}
+			}
+		}
+		poll()
+		#endif
 	}
 
 	/// In-place stream swap while presented: track/bitrate re-negotiation and
@@ -99,6 +161,8 @@ final class NativePlayerSession {
 		engine.setSubtitleDelay(viewModel.subtitleDelay)
 		engine.setAudioDelay(viewModel.audioDelay)
 		engine.setVolumeBoost(viewModel.volumeBoostPercent)
+		engine.setDialogueBoost(viewModel.dialogueBoostEnabled)
+		engine.setMonoDownmix(viewModel.monoAudioEnabled)
 		if let style = config.subtitleStyle {
 			applySubtitleStyle(style)
 		}
@@ -196,7 +260,9 @@ final class NativePlayerSession {
 				// re-evaluation resolves against our landscape mask. Without
 				// this the app stays stuck in landscape until some navigation
 				// forces a re-evaluation.
+				#if os(iOS)
 				presenter.setNeedsUpdateOfSupportedInterfaceOrientations()
+				#endif
 				finish()
 			}
 		} else {
@@ -212,9 +278,10 @@ final class NativePlayerSession {
 		viewModel.willTeardown()
 		let presenter = viewController?.presentingViewController
 		presenter?.dismiss(animated: false)
+		#if os(iOS)
 		presenter?.setNeedsUpdateOfSupportedInterfaceOrientations()
+		#endif
 		engine.shutdown()
 		viewController = nil
 	}
 }
-#endif

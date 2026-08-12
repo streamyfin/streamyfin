@@ -1,8 +1,8 @@
-#if os(iOS)
 import SwiftUI
 
 /// Stats-for-nerds overlay: play method + transcode reasons from the config,
-/// live values polled from the engine once per second.
+/// live values polled from the engine once per second. Shared by the iOS
+/// touch chrome and the tvOS panel (which scales it up for viewing distance).
 struct TechnicalInfoOverlay: View {
 	@ObservedObject var viewModel: PlayerViewModel
 
@@ -33,7 +33,10 @@ struct TechnicalInfoOverlay: View {
 	}
 
 	private func refresh() {
-		info = viewModel.engine?.getTechnicalInfo() ?? [:]
+		// Completion arrives on the mpv work queue — hop back for @State.
+		viewModel.engine?.getTechnicalInfo { latest in
+			DispatchQueue.main.async { info = latest }
+		}
 	}
 
 	private func line(_ key: String, _ value: String) -> some View {
@@ -45,4 +48,3 @@ struct TechnicalInfoOverlay: View {
 		}
 	}
 }
-#endif

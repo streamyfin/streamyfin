@@ -4,17 +4,21 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client";
 import { getUserLibraryApi } from "@jellyfin/sdk/lib/utils/api";
-import { OrientationLock } from "expo-screen-orientation";
+import type { OrientationLock as OrientationLockType } from "expo-screen-orientation";
 import type { TFunction } from "i18next";
+import { Platform } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
 import type {
   NativePlayerConfig,
   NativePlayerStrings,
-  NativePlayerSubtitleStyle,
   NativePlayerTrackMenuItem,
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
 } from "@/modules/mpv-player";
+// The TV-safe wrapper, NOT expo-screen-orientation directly: the native
+// module is absent from TV binaries and a top-level value import crashes on
+// launch (the type-only import above is erased at build time).
+import { OrientationLock } from "@/packages/expo-screen-orientation";
 import type { DownloadedItem } from "@/providers/Downloads/types";
 import type { Settings } from "@/utils/atoms/settings";
 import { getActivePlayerType } from "@/utils/atoms/settings";
@@ -26,15 +30,21 @@ import {
   parseTranscodeReasons,
 } from "@/utils/jellyfin/playMethod";
 import {
-  compareTracksForMenu,
   getExternalSubtitleUrl,
   getMpvAudioId,
-  isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
+import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import { buildSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
+import {
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
+import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
 export interface NativePlayerStreamSeed {
   url: string;
@@ -84,8 +94,15 @@ export const buildNativePlayerStrings = (
   subtitleSync: t("player.subtitle_sync"),
   audioSync: t("player.audio_sync"),
   volumeBoost: t("player.volume_boost"),
+  dialogueBoost: t("player.dialogue_boost"),
+  monoAudio: t("player.mono_audio"),
   rotate: t("player.rotate"),
   lockControls: t("player.lock_controls"),
+  sleepTimer: t("player.sleep_timer"),
+  sleepTimerOff: t("player.sleep_timer_off"),
+  searchSubtitles: t("player.search_subtitles"),
+  searchFailed: t("player.search_failed"),
+  noSubtitlesFound: t("player.no_subtitles_found"),
   unlock: t("player.unlock"),
   stillWatching: t("player.still_watching"),
   continueWatching: t("player.continue_watching"),
@@ -93,6 +110,12 @@ export const buildNativePlayerStrings = (
   // Native substitutes %TIME% (appends the time when a translation lacks
   // the placeholder, e.g. sv "slutar").
   endsAt: t("player.ends_at", { time: "%TIME%" }),
+  // Exit confirmation (TV Menu press — mirror of useRemoteControl's alert).
+  // Native substitutes %TITLE% with the current item's title.
+  stop: t("common.stop"),
+  stopPlayback: t("player.stopPlayback"),
+  stopPlayingTitle: t("player.stopPlayingTitle", { title: "%TITLE%" }),
+  stopPlayingConfirm: t("player.stopPlayingConfirm"),
 });
 
 /**
@@ -109,7 +132,7 @@ const resolveStartTicks = (
 };
 
 const mapOrientationLock = (
-  lock: OrientationLock | undefined,
+  lock: OrientationLockType | undefined,
 ): "landscape" | "none" => {
   switch (lock) {
     case OrientationLock.PORTRAIT:
@@ -123,31 +146,6 @@ const mapOrientationLock = (
       // video playback defaults to landscape like the JS player route.
       return "landscape";
   }
-};
-
-/** Mirror of the subtitle-style effect at direct-player.tsx (mpvSubtitle*). */
-const buildSubtitleStyle = (settings: Settings): NativePlayerSubtitleStyle => {
-  const style: NativePlayerSubtitleStyle = {
-    scale: settings.mpvSubtitleScale,
-    marginY: settings.mpvSubtitleMarginY,
-    alignX: settings.mpvSubtitleAlignX,
-    alignY: settings.mpvSubtitleAlignY,
-  };
-  if (settings.mpvSubtitleBackgroundEnabled) {
-    const opacity = settings.mpvSubtitleBackgroundOpacity ?? 75;
-    const alphaHex = Math.round((opacity / 100) * 255)
-      .toString(16)
-      .padStart(2, "0")
-      .toUpperCase();
-    style.borderStyle = "background-box";
-    style.backgroundColor = `#000000${alphaHex}`;
-    style.assOverride = "force";
-  } else {
-    style.borderStyle = "outline-and-shadow";
-    style.backgroundColor = "#00000000";
-    style.assOverride = "no";
-  }
-  return style;
 };
 
 /** Mirror of hooks/usePlaybackSpeed.ts (media > series > default). */
@@ -213,10 +211,47 @@ export const buildTrickplayDescriptor = (
 };
 
 /**
+ * ISO 639-2/T → /B. Jellyfin's CultureDto.ThreeLetterISOLanguageName carries
+ * .NET-style /T codes ("fra", "deu"), while COMMON_SUBTITLE_LANGUAGES and the
+ * OpenSubtitles 3→2 mapping use /B codes ("fre", "ger") — an unmapped /T code
+ * matches neither the picker nor the fallback search. ron maps to the app
+ * list's existing "rom" entry rather than the standard "rum".
+ */
+const ISO_639_2_T_TO_B: Record<string, string> = {
+  bod: "tib",
+  ces: "cze",
+  cym: "wel",
+  deu: "ger",
+  ell: "gre",
+  eus: "baq",
+  fas: "per",
+  fra: "fre",
+  hye: "arm",
+  isl: "ice",
+  kat: "geo",
+  mkd: "mac",
+  mri: "mao",
+  msa: "may",
+  mya: "bur",
+  nld: "dut",
+  ron: "rom",
+  slk: "slo",
+  sqi: "alb",
+  zho: "chi",
+};
+
+/**
  * Menu display models for the native track menus. Selection stays in JS —
  * these only carry labels, Jellyfin indices and the requiresReload flag
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
  */
+/** Native menu labels: DisplayTitle, else language, else the raw index. */
+const nativeLabel = (s: {
+  DisplayTitle?: string | null;
+  Language?: string | null;
+  Index?: number | null;
+}) => s.DisplayTitle ?? s.Language ?? `#${s.Index}`;
+
 export const buildTrackMenus = (options: {
   mediaSource: MediaSourceInfo;
   audioIndex: number | undefined;
@@ -226,43 +261,48 @@ export const buildTrackMenus = (options: {
   offLabel: string;
   /** Current max streaming bitrate (undefined = Max). */
   bitrateValue?: number;
+  /** Client-side downloaded sidecar subtitle, listed after the server tracks. */
+  localSubtitle?: { label: string; selected: boolean };
 }): NativePlayerTrackMenus => {
   const isTranscoding = Boolean(options.mediaSource.TranscodingUrl);
   const streams = options.mediaSource.MediaStreams ?? [];
-
-  const subtitleItems: NativePlayerTrackMenuItem[] = [
-    {
-      label: options.offLabel,
-      jellyfinIndex: -1,
-      selected: options.subtitleIndex === -1,
-    },
-    ...streams
-      .filter((s) => s.Type === "Subtitle")
-      .sort(compareTracksForMenu)
-      .map((s) => ({
-        label: s.DisplayTitle ?? s.Language ?? `#${s.Index}`,
-        jellyfinIndex: s.Index ?? -1,
-        selected: s.Index === options.subtitleIndex,
-        // Burned-in image subs are pixels, not tracks: switching to (or away
-        // from) one while transcoding re-processes the stream server-side.
-        requiresReload: isTranscoding && isImageBasedSubtitle(s),
-      })),
-  ];
 
   // A transcoded stream (and a transcoded download) only carries the audio
   // track that was encoded into it — other tracks require re-negotiation
   // (online) or simply don't exist (offline download).
   const offlineTranscoded =
     options.offline && options.downloadedItem?.userData?.isTranscoded === true;
-  const audioItems: NativePlayerTrackMenuItem[] = streams
-    .filter((s) => s.Type === "Audio")
-    .filter((s) => !offlineTranscoded || s.Index === options.audioIndex)
-    .map((s) => ({
-      label: s.DisplayTitle ?? s.Language ?? `#${s.Index}`,
-      jellyfinIndex: s.Index ?? -1,
-      selected: s.Index === options.audioIndex,
-      requiresReload: isTranscoding,
-    }));
+
+  const toMenuItem = (row: TrackMenuRow): NativePlayerTrackMenuItem => ({
+    label: row.label,
+    jellyfinIndex: row.index,
+    selected: row.selected,
+    requiresReload: row.requiresReload,
+  });
+
+  const subtitleItems: NativePlayerTrackMenuItem[] = buildSubtitleMenu(
+    streams,
+    {
+      selectedIndex: options.subtitleIndex,
+      offLabel: options.offLabel,
+      isTranscoding,
+      formatLabel: nativeLabel,
+      localSubs: options.localSubtitle
+        ? // The native session carries at most one sidecar, so it always occupies
+          // position 0 of the shared block. The path is unused here — selection
+          // comes back over the bridge as an index and the coordinator owns the
+          // file — so an empty string keeps the row shape honest.
+          [{ name: options.localSubtitle.label, filePath: "" }]
+        : undefined,
+    },
+  ).map(toMenuItem);
+
+  const audioItems: NativePlayerTrackMenuItem[] = buildAudioMenu(streams, {
+    selectedIndex: options.audioIndex,
+    isTranscoding,
+    offlineTranscoded,
+    formatLabel: nativeLabel,
+  }).map(toMenuItem);
 
   // Quality/bitrate menu (JS DropdownView parity): online only; changing it
   // always re-negotiates the stream, so every entry is requiresReload.
@@ -340,10 +380,22 @@ export async function buildNativePlayerConfig(params: {
   if (!item?.Id) return null;
 
   const startTicks = resolveStartTicks(req.playbackPositionTicks, item);
-  const audioIndex =
-    req.audioIndex ??
-    (offline ? downloadedItem?.userData?.audioStreamIndex : undefined);
-  const subtitleIndex = req.subtitleIndex ?? -1;
+  // Callers that already resolved tracks (the item pages) pass them in; the
+  // ones that can't — top shelf, WebSocket Play commands, any bare
+  // playMedia({ itemId }) — would otherwise fall through to the server's
+  // defaults, silently bypassing the per-series memory and the language
+  // preferences. Offline, the download record outranks any such resolution.
+  const { audioIndex, subtitleIndex } = resolveTrackIndexes({
+    item,
+    settings,
+    offline,
+    downloaded: downloadedItem?.userData,
+    requested: {
+      audioIndex: req.audioIndex,
+      subtitleIndex: req.subtitleIndex,
+      mediaSourceId: req.mediaSourceId,
+    },
+  });
   const bitrateValue = req.bitrateValue ?? BITRATES[0].value;
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
@@ -451,14 +503,36 @@ export async function buildNativePlayerConfig(params: {
     }),
     subtitleStyle: buildSubtitleStyle(settings),
     ui: {
-      orientationLock: mapOrientationLock(settings.defaultVideoOrientation),
-      allowPip: true,
+      // TV: no orientation, no PiP (v1), no haptics, and volume/brightness
+      // belong to the remote/HDMI-CEC — the phone-only chrome stays off.
+      orientationLock: Platform.isTV
+        ? "none"
+        : mapOrientationLock(settings.defaultVideoOrientation),
+      allowPip: !Platform.isTV,
       seekForwardSec: settings.forwardSkipTime,
       seekBackwardSec: settings.rewindSkipTime,
       initialPlaybackSpeed: resolveInitialPlaybackSpeed(item, settings),
-      hapticsEnabled: !settings.disableHapticFeedback,
-      showVolumeSlider: !settings.hideVolumeSlider,
-      showBrightnessSlider: !settings.hideBrightnessSlider,
+      hapticsEnabled: !Platform.isTV && !settings.disableHapticFeedback,
+      showVolumeSlider: !Platform.isTV && !settings.hideVolumeSlider,
+      showBrightnessSlider: !Platform.isTV && !settings.hideBrightnessSlider,
+      // Touch gestures — no equivalent on the Siri remote.
+      holdToSpeedEnabled: !Platform.isTV && settings.enableHoldToSpeed,
+      holdToSpeedRate: settings.holdToSpeedRate,
+      pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,
+      doubleTapToSeekEnabled: !Platform.isTV && settings.enableDoubleTapToSeek,
+      // Server search needs connectivity; the OpenSubtitles fallback needs
+      // the network either way — offline sessions hide the entry.
+      subtitleSearchEnabled: !offline && !!api,
+      subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
+        code: l.code,
+        name: l.name,
+      })),
+      subtitleSearchDefaultLanguage: (() => {
+        const raw =
+          settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName?.toLowerCase();
+        if (!raw) return "eng";
+        return ISO_639_2_T_TO_B[raw] ?? raw;
+      })(),
       strings,
     },
   };

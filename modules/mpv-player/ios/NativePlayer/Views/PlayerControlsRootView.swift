@@ -1,5 +1,7 @@
 #if os(iOS)
+import Combine
 import SwiftUI
+import UIKit
 
 /// Root overlay for the presented native player. Flat dark look modeled on
 /// the iOS system player: white SF Symbols, gradient scrims, monospaced-digit
@@ -17,6 +19,11 @@ struct PlayerControlsRootView: View {
 	@State private var dragOnLeftHalf = false
 	@State private var dragStartFraction: Double = 0
 	@State private var dragStartLevel: Double = 0
+	/// A pinch or an engaged 2× hold took over this touch sequence — the drag
+	/// must stay dead until the fingers lift, or its accumulated translation
+	/// (finger spread / hold drift) would scrub or yank the sliders against a
+	/// stale baseline.
+	@State private var dragSuppressed = false
 
 	/// Points of vertical travel for a full 0→1 volume/brightness swing.
 	private let verticalDragRange: CGFloat = 280
@@ -35,10 +42,9 @@ struct PlayerControlsRootView: View {
 			// Tap-to-toggle catcher behind everything interactive; also the
 			// gesture surface — controls layered above receive their own
 			// touches first, so drags here only start on empty video area.
-			Color.clear
-				.contentShape(Rectangle())
-				.onTapGesture { viewModel.toggleControls() }
+			tapSurface(size: size)
 				.gesture(surfaceDragGesture(size: size))
+				.gesture(holdSpeedGesture)
 
 			if viewModel.controlsVisible {
 				scrims
@@ -115,6 +121,52 @@ struct PlayerControlsRootView: View {
 				.padding(.bottom, viewModel.controlsVisible ? 124 : 32)
 			}
 
+			// Hold-to-speed feedback pill; lives outside controlsVisible so it
+			// shows over clean video too.
+			if viewModel.isHoldSpeedActive {
+				VStack {
+					HStack(spacing: 5) {
+						Text(viewModel.holdSpeedLabel)
+							.font(.footnote.weight(.bold).monospacedDigit())
+						Image(systemName: "forward.fill")
+							.font(.system(size: 11, weight: .semibold))
+					}
+					.foregroundStyle(.white)
+					.padding(.horizontal, 14)
+					.padding(.vertical, 8)
+					.background(.black.opacity(0.55), in: Capsule())
+					Spacer()
+				}
+				.padding(.top, 24)
+				.transition(.opacity)
+				.allowsHitTesting(false)
+			}
+
+			// Double-tap seek feedback: the numbered seek glyph flashes on the
+			// tapped half; lives outside controlsVisible so it shows over
+			// clean video too. id(forward) swaps sides via a crossfade instead
+			// of sliding the pill across the screen.
+			if let forward = viewModel.doubleTapSeekForward {
+				HStack {
+					if forward { Spacer() }
+					Image(
+						systemName: seekSymbol(
+							prefix: forward ? "goforward" : "gobackward",
+							seconds: forward ? viewModel.seekForwardSec : viewModel.seekBackwardSec
+						)
+					)
+					.font(.system(size: 28, weight: .semibold))
+					.foregroundStyle(.white)
+					.padding(18)
+					.background(.black.opacity(0.55), in: Circle())
+					if !forward { Spacer() }
+				}
+				.id(forward)
+				.padding(.horizontal, 48)
+				.transition(.opacity)
+				.allowsHitTesting(false)
+			}
+
 			// Lock mode: taps only toggle this transient unlock pill.
 			if viewModel.controlsLocked && viewModel.unlockButtonRevealed {
 				VStack {
@@ -163,6 +215,13 @@ struct PlayerControlsRootView: View {
 					.zIndex(3)
 			}
 		}
+		// Any touch-down anywhere on the overlay (buttons included — the
+		// gesture is simultaneous, so it never steals their taps) re-arms the
+		// auto-hide so the chrome can't vanish mid-press.
+		.simultaneousGesture(
+			DragGesture(minimumDistance: 0)
+				.onChanged { _ in viewModel.touchInteractionOccurred() }
+		)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.showStillWatching)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
@@ -170,12 +229,68 @@ struct PlayerControlsRootView: View {
 		.animation(.easeInOut(duration: 0.2), value: viewModel.volumeSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.brightnessSliderRevealed)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.unlockButtonRevealed)
+		.animation(.easeInOut(duration: 0.15), value: viewModel.isHoldSpeedActive)
+		.animation(.easeInOut(duration: 0.15), value: viewModel.doubleTapSeekForward)
+		// SwiftUI never delivers onEnded when the SYSTEM cancels the touch
+		// (incoming call, Control Center edge swipe, backgrounding) — release
+		// an engaged hold here or playback stays stuck at 2×.
+		.onReceive(
+			NotificationCenter.default.publisher(
+				for: UIApplication.willResignActiveNotification
+			)
+		) { _ in
+			viewModel.endHoldSpeed()
+		}
 		.sheet(isPresented: $viewModel.showEpisodeList) {
 			EpisodeListView(viewModel: viewModel)
+		}
+		.sheet(isPresented: $viewModel.showSubtitleSearch) {
+			SubtitleSearchView(viewModel: viewModel)
 		}
 	}
 
 	// MARK: - Surface gestures
+
+	/// The tap catcher. With double-tap-to-seek on, the double tap is
+	/// composed exclusively before the single tap, so the toggle waits out
+	/// the double-tap window; when off (the default, and in lock mode where
+	/// taps must keep revealing the unlock pill instantly) no double tap is
+	/// attached at all and the toggle stays immediate.
+	@ViewBuilder
+	private func tapSurface(size: CGSize) -> some View {
+		let surface = Color.clear.contentShape(Rectangle())
+		if viewModel.doubleTapToSeekEnabled && !viewModel.controlsLocked {
+			surface.gesture(
+				SpatialTapGesture(count: 2)
+					.onEnded { value in
+						viewModel.doubleTapSeek(forward: value.location.x >= size.width / 2)
+					}
+					.exclusively(
+						before: TapGesture().onEnded { viewModel.toggleControls() }
+					)
+			)
+		} else {
+			surface.onTapGesture { viewModel.toggleControls() }
+		}
+	}
+
+	/// Press-and-hold anywhere on empty video = 2× until release. The long
+	/// press alone ends the moment its duration elapses, so it sequences into
+	/// a zero-distance drag that keeps the composite alive until the finger
+	/// lifts — onEnded is the release. beginHoldSpeed re-entry-guards itself,
+	/// so the repeated onChanged ticks during the drag phase are harmless.
+	private var holdSpeedGesture: some Gesture {
+		LongPressGesture(minimumDuration: 0.5)
+			.sequenced(before: DragGesture(minimumDistance: 0))
+			.onChanged { value in
+				if case .second = value {
+					viewModel.beginHoldSpeed()
+				}
+			}
+			.onEnded { _ in
+				viewModel.endHoldSpeed()
+			}
+	}
 
 	/// Horizontal drag anywhere = scrub (Apple TV app style, through the same
 	/// beginScrub/updateScrub/endScrub path as the scrubber, so trickplay,
@@ -189,6 +304,26 @@ struct PlayerControlsRootView: View {
 					!viewModel.showStillWatching,
 					viewModel.errorMessage == nil
 				else { return }
+
+				// A two-finger pinch or an engaged 2× hold owns this touch
+				// sequence — abandon any in-flight drag and ignore the rest of
+				// the sequence. Resuming later would apply the accumulated
+				// translation (finger spread / hold drift) against a stale
+				// baseline and make volume/brightness or the scrubber jump.
+				if viewModel.isPinching || viewModel.isHoldSpeedActive || dragSuppressed {
+					if !dragSuppressed {
+						dragSuppressed = true
+						if dragAxis == .vertical {
+							if dragOnLeftHalf {
+								viewModel.brightnessController.isUserInteracting = false
+							} else {
+								viewModel.volumeController.isUserInteracting = false
+							}
+						}
+						dragAxis = nil
+					}
+					return
+				}
 
 				if dragAxis == nil {
 					if abs(value.translation.width) >= abs(value.translation.height) {
@@ -231,6 +366,7 @@ struct PlayerControlsRootView: View {
 				}
 			}
 			.onEnded { _ in
+				dragSuppressed = false
 				if dragAxis == .horizontal, viewModel.isScrubbing {
 					viewModel.endScrub()
 				}
@@ -339,6 +475,20 @@ struct PlayerBottomBar: View {
 							.font(.system(size: 10).monospacedDigit())
 							.foregroundStyle(.white.opacity(0.55))
 					}
+					if viewModel.sleepTimerMinutes != nil, let end = viewModel.sleepTimerEndDate {
+						// TimelineView ticks the label on its own — the
+						// countdown must keep moving while paused, when the
+						// display-link clock driving this bar is frozen.
+						TimelineView(.periodic(from: .now, by: 1)) { context in
+							HStack(spacing: 3) {
+								Image(systemName: "moon.zzz.fill")
+									.font(.system(size: 9))
+								Text(formatTime(max(0, end.timeIntervalSince(context.date))))
+									.font(.system(size: 10).monospacedDigit())
+							}
+							.foregroundStyle(.white.opacity(0.55))
+						}
+					}
 				}
 			}
 			.font(.footnote.monospacedDigit())
@@ -360,16 +510,5 @@ struct PlayerBottomBar: View {
 	}
 }
 
-/// "H:MM:SS" over an hour, "M:SS" under.
-func formatTime(_ seconds: Double) -> String {
-	guard seconds.isFinite, seconds >= 0 else { return "0:00" }
-	let total = Int(seconds.rounded())
-	let hours = total / 3600
-	let minutes = (total % 3600) / 60
-	let secs = total % 60
-	if hours > 0 {
-		return String(format: "%d:%02d:%02d", hours, minutes, secs)
-	}
-	return String(format: "%d:%02d", minutes, secs)
-}
+// formatTime lives in Views/TimeFormatting.swift (shared with the tvOS UI).
 #endif

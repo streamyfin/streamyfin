@@ -268,6 +268,7 @@ final class MPVLayerRenderer {
         checkError(mpv_set_option_string(mpv, "sub-use-margins", "no"))
         checkError(mpv_set_option_string(mpv, "subs-match-os-language", "yes"))
         checkError(mpv_set_option_string(mpv, "subs-fallback", "yes"))
+        checkError(mpv_set_option_string(mpv, "sub-vsfilter-bidi-compat", "yes"))
 
         // Initialize mpv
         let initStatus = mpv_initialize(handle)
@@ -300,30 +301,23 @@ final class MPVLayerRenderer {
         // Clear wakeup callback first to stop event processing
         if let handle = mpv {
             mpv_set_wakeup_callback(handle, nil, nil)
-
-            // Send quit command and drain events on the mpv queue
-            queue.sync { [weak self] in
-                guard let self, let handle = self.mpv else { return }
-                self.commandSync(handle, ["quit"])
-
-                // Drain any remaining events after quit
-                var drainCount = 0
-                let maxDrain = 100
-                while drainCount < maxDrain, let event = mpv_wait_event(handle, 0.1)?.pointee {
-                    if event.event_id == MPV_EVENT_NONE || event.event_id == MPV_EVENT_SHUTDOWN {
-                        break
-                    }
-                    drainCount += 1
-                }
-            }
-
-            // Call mpv_terminate_destroy on a background thread to avoid blocking main
-            // mpv_terminate_destroy may need main thread for AVFoundation cleanup,
-            // so we can't call it while blocking main with queue.sync
-            let handleToDestroy = handle
             mpv = nil  // Clear immediately so nothing else uses it
-            DispatchQueue.global(qos: .userInitiated).async {
-                mpv_terminate_destroy(handleToDestroy)
+
+            // Quit + drain + destroy on the mpv queue WITHOUT blocking the
+            // caller: stop() runs on main (dismiss/deinit), and a queue.sync
+            // here can wedge behind a client call that is itself waiting out
+            // vo_create — the exact watchdog cycle onQueue() documents. The
+            // block deliberately captures only the raw handle, never self
+            // (stop() may run from deinit). Ordering on the serial queue
+            // guarantees the drain runs after any still-pending client calls
+            // against this handle, and terminate runs after the drain.
+            queue.async {
+                Self.quitAndDrain(handle)
+                // mpv_terminate_destroy may need the main thread for
+                // AVFoundation cleanup, so keep it off this queue too.
+                DispatchQueue.global(qos: .userInitiated).async {
+                    mpv_terminate_destroy(handle)
+                }
             }
         }
 
@@ -355,11 +349,15 @@ final class MPVLayerRenderer {
         currentPreset = preset
         currentURL = url
         currentHeaders = headers
-        pendingExternalSubtitles = externalSubtitles ?? []
-        self.initialSubtitleId = initialSubtitleId
-        self.initialAudioId = initialAudioId
         queue.async { [weak self] in
             guard let self else { return }
+            // Assigned on the queue, not the caller's thread: these three are
+            // read AND cleared by the FILE_LOADED handler, which also runs on
+            // this queue. A caller-thread write racing that handler is an
+            // unsynchronized Array/Optional swap (over-release ⇒ crash).
+            self.pendingExternalSubtitles = externalSubtitles ?? []
+            self.initialSubtitleId = initialSubtitleId
+            self.initialAudioId = initialAudioId
             self.isLoading = true
             self.isReadyToSeek = false
             // Fresh file, fresh recovery budget (see performDecoderReset)
@@ -430,25 +428,47 @@ final class MPVLayerRenderer {
     }
     
     // MARK: - Property Helpers
-    
+
+    private var isOnQueue: Bool {
+        DispatchQueue.getSpecific(key: Self.queueKey) == true
+    }
+
+    /// Runs `work` on the serial mpv work queue without ever blocking the
+    /// caller. Blocking libmpv client calls (mpv_get_property /
+    /// mpv_set_property / mpv_command) wait on the core's dispatch lock, and
+    /// during vo_create the core rendezvouses with the vo thread, whose
+    /// avfoundation preinit dispatch_syncs onto the MAIN queue. A blocking
+    /// client call made from main in that window therefore deadlocks
+    /// main ⇄ core ⇄ vo until the 10s scene-update watchdog kills the app
+    /// (0x8BADF00D). Every public mpv-touching entry point hops through here;
+    /// callers already on the queue (event handlers, the load block) run
+    /// inline so their ordering is unchanged.
+    private func onQueue(_ work: @escaping () -> Void) {
+        if isOnQueue { work() } else { queue.async(execute: work) }
+    }
+
     private func setOption(name: String, value: String) {
         guard let handle = mpv else { return }
         checkError(mpv_set_option_string(handle, name, value))
     }
-    
+
     private func setProperty(name: String, value: String) {
-        guard let handle = mpv else { return }
-        let status = mpv_set_property_string(handle, name, value)
-        if status < 0 {
-            Logger.shared.log("Failed to set property \(name)=\(value) (\(status))", type: "Warn")
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            let status = mpv_set_property_string(handle, name, value)
+            if status < 0 {
+                Logger.shared.log("Failed to set property \(name)=\(value) (\(status))", type: "Warn")
+            }
         }
     }
-    
+
     private func clearProperty(name: String) {
-        guard let handle = mpv else { return }
-        let status = mpv_set_property(handle, name, MPV_FORMAT_NONE, nil)
-        if status < 0 {
-            Logger.shared.log("Failed to clear property \(name) (\(status))", type: "Warn")
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            let status = mpv_set_property(handle, name, MPV_FORMAT_NONE, nil)
+            if status < 0 {
+                Logger.shared.log("Failed to clear property \(name) (\(status))", type: "Warn")
+            }
         }
     }
     
@@ -499,6 +519,26 @@ final class MPVLayerRenderer {
         guard !args.isEmpty else { return -1 }
         return withCStringArray(args) { pointer in
             mpv_command(handle, pointer)
+        }
+    }
+
+    /// Teardown helper for stop(): sends "quit" and drains pending events.
+    /// Static so the teardown block never captures self (stop() can run from
+    /// deinit, where escaping self is unsafe).
+    private static func quitAndDrain(_ handle: OpaquePointer) {
+        "quit".withCString { quit in
+            var args: [UnsafePointer<CChar>?] = [quit, nil]
+            args.withUnsafeMutableBufferPointer { buffer in
+                _ = mpv_command(handle, buffer.baseAddress)
+            }
+        }
+        var drainCount = 0
+        let maxDrain = 100
+        while drainCount < maxDrain, let event = mpv_wait_event(handle, 0.1)?.pointee {
+            if event.event_id == MPV_EVENT_NONE || event.event_id == MPV_EVENT_SHUTDOWN {
+                break
+            }
+            drainCount += 1
         }
     }
     
@@ -776,19 +816,25 @@ final class MPVLayerRenderer {
     }
     
     func seek(to seconds: Double) {
-        guard let handle = mpv else { return }
+        guard mpv != nil else { return }
         let clamped = max(0, seconds)
         cachedPosition = clamped
-        commandSync(handle, ["seek", String(clamped), "absolute"])
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            self.commandSync(handle, ["seek", String(clamped), "absolute"])
+        }
     }
 
 
 
     func seek(by seconds: Double) {
-        guard let handle = mpv else { return }
+        guard mpv != nil else { return }
         let newPosition = max(0, cachedPosition + seconds)
         cachedPosition = newPosition
-        commandSync(handle, ["seek", String(seconds), "relative"])
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            self.commandSync(handle, ["seek", String(seconds), "relative"])
+        }
     }
     
     /// Sync timebase - no-op for vo_avfoundation (mpv handles timing)
@@ -802,15 +848,24 @@ final class MPVLayerRenderer {
     }
     
     func getSpeed() -> Double {
-        guard let handle = mpv else { return 1.0 }
-        var speed: Double = 1.0
-        getProperty(handle: handle, name: "speed", format: MPV_FORMAT_DOUBLE, value: &speed)
-        return speed
+        // Cached mirror, not a live mpv read: speed only changes through
+        // setSpeed(), and a blocking mpv_get_property here may run on the
+        // main thread (see onQueue).
+        return playbackSpeed
     }
     
     // MARK: - Subtitle Controls
-    
-    func getSubtitleTracks() -> [[String: Any]] {
+
+    /// Non-blocking track enumeration; the completion fires on the mpv work
+    /// queue. The blocking property reads must never run on the caller's
+    /// thread (see onQueue).
+    func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) {
+        onQueue { [weak self] in
+            completion(self?.getSubtitleTracksOnQueue() ?? [])
+        }
+    }
+
+    private func getSubtitleTracksOnQueue() -> [[String: Any]] {
         guard let handle = mpv else {
             Logger.shared.log("getSubtitleTracks: mpv handle is nil", type: "Warn")
             return []
@@ -883,23 +938,59 @@ final class MPVLayerRenderer {
         } else {
             setProperty(name: "sid", value: String(trackId))
         }
+        applyBidiMode(forTrack: trackId)
     }
-    
+
+    private func applyBidiMode(forTrack trackId: Int) {
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            let codec = trackId >= 0
+                ? self.subtitleCodec(handle: handle, trackId: Int64(trackId))
+                : nil
+            let isAss = codec == "ass" || codec == "ssa"
+            mpv_set_property_string(
+                handle, "sub-ass-style-overrides", isAss ? "Encoding=-1" : ""
+            )
+        }
+    }
+
+    private func subtitleCodec(handle: OpaquePointer, trackId: Int64) -> String? {
+        var trackCount: Int64 = 0
+        getProperty(handle: handle, name: "track-list/count", format: MPV_FORMAT_INT64, value: &trackCount)
+        for i in 0..<trackCount {
+            guard getStringProperty(handle: handle, name: "track-list/\(i)/type") == "sub" else { continue }
+            var id: Int64 = 0
+            guard getProperty(handle: handle, name: "track-list/\(i)/id", format: MPV_FORMAT_INT64, value: &id) >= 0,
+                  id == trackId else { continue }
+            return getStringProperty(handle: handle, name: "track-list/\(i)/codec")
+        }
+        return nil
+    }
+
     func disableSubtitles() {
         setProperty(name: "sid", value: "no")
+        applyBidiMode(forTrack: -1)
     }
     
-    func getCurrentSubtitleTrack() -> Int {
-        guard let handle = mpv else { return 0 }
-        var sid: Int64 = 0
-        getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
-        return Int(sid)
+    func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return completion(0) }
+            var sid: Int64 = 0
+            self.getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
+            completion(Int(sid))
+        }
     }
     
     func addSubtitleFile(url: String, select: Bool = true) {
-        guard let handle = mpv else { return }
         let flag = select ? "select" : "cached"
-        commandSync(handle, ["sub-add", url, flag])
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return }
+            self.commandSync(handle, ["sub-add", url, flag])
+            guard select else { return }
+            var sid: Int64 = -1
+            _ = self.getProperty(handle: handle, name: "sid", format: MPV_FORMAT_INT64, value: &sid)
+            self.applyBidiMode(forTrack: Int(sid))
+        }
     }
     
     // MARK: - Subtitle Positioning
@@ -925,6 +1016,29 @@ final class MPVLayerRenderer {
         // to 130, so lift the ceiling first or 150/200% writes get clamped.
         setProperty(name: "volume-max", value: "200")
         setProperty(name: "volume", value: String(percent))
+    }
+
+    /// Speech-clarity EQ ("dialogue boost"): cut the low rumble where scores
+    /// and explosions live, lift the 2-3kHz presence band where consonants
+    /// live. EQ rather than a compressor because MPVKit's trimmed FFmpeg
+    /// build ships no dynaudnorm/loudnorm/acompressor — `equalizer` (lavfi)
+    /// is available. Gains are modest and net-neutral-ish so the float path
+    /// cannot clip.
+    func setDialogueBoost(_ enabled: Bool) {
+        if enabled {
+            setProperty(
+                name: "af",
+                value: "lavfi=[equalizer=f=100:t=q:w=1.2:g=-6,equalizer=f=2800:t=q:w=1.2:g=5]"
+            )
+        } else {
+            setProperty(name: "af", value: "")
+        }
+    }
+
+    /// Accessibility mono downmix — collapses all channels to a single one so
+    /// both ears hear the full mix. "auto-safe" is mpv's default layout pick.
+    func setMonoDownmix(_ enabled: Bool) {
+        setProperty(name: "audio-channels", value: enabled ? "mono" : "auto-safe")
     }
     
     func setSubtitleMarginY(_ margin: Int) {
@@ -953,14 +1067,20 @@ final class MPVLayerRenderer {
     }
 
     func setSubtitleAssOverride(_ mode: String) {
-        // Controls whether to override ASS subtitle styles
-        // "no" = keep ASS styles, "force" = override with user settings
-        setProperty(name: "sub-ass-override", value: mode)
+        setProperty(name: "sub-ass-override", value: mode == "no" ? "scale" : mode)
     }
 
     // MARK: - Audio Track Controls
-    
-    func getAudioTracks() -> [[String: Any]] {
+
+    /// Non-blocking track enumeration; the completion fires on the mpv work
+    /// queue (see getSubtitleTracks).
+    func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) {
+        onQueue { [weak self] in
+            completion(self?.getAudioTracksOnQueue() ?? [])
+        }
+    }
+
+    private func getAudioTracksOnQueue() -> [[String: Any]] {
         guard let handle = mpv else {
             Logger.shared.log("getAudioTracks: mpv handle is nil", type: "Warn")
             return []
@@ -1018,11 +1138,13 @@ final class MPVLayerRenderer {
         setProperty(name: "aid", value: String(trackId))
     }
     
-    func getCurrentAudioTrack() -> Int {
-        guard let handle = mpv else { return 0 }
-        var aid: Int64 = 0
-        getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
-        return Int(aid)
+    func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
+        onQueue { [weak self] in
+            guard let self, let handle = self.mpv else { return completion(0) }
+            var aid: Int64 = 0
+            self.getProperty(handle: handle, name: "aid", format: MPV_FORMAT_INT64, value: &aid)
+            completion(Int(aid))
+        }
     }
 
     // MARK: - HDR Detection
@@ -1074,7 +1196,15 @@ final class MPVLayerRenderer {
 
     // MARK: - Technical Info
 
-    func getTechnicalInfo() -> [String: Any] {
+    /// Non-blocking stats snapshot; the completion fires on the mpv work
+    /// queue (see getSubtitleTracks).
+    func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) {
+        onQueue { [weak self] in
+            completion(self?.getTechnicalInfoOnQueue() ?? [:])
+        }
+    }
+
+    private func getTechnicalInfoOnQueue() -> [String: Any] {
         guard let handle = mpv else { return [:] }
 
         var info: [String: Any] = [:]

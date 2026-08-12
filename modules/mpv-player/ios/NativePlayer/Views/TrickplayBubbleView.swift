@@ -2,6 +2,8 @@
 import SwiftUI
 
 /// Preview thumbnail bubble shown above the scrubber thumb while dragging.
+/// The tvOS chrome has its own preview (TVTrickplayCard), built as an episode
+/// poster, so this one stays phone-shaped.
 /// Loads are keyed on the bucketed tile index, so scrubbing across one tile
 /// issues exactly one fetch — .task(id:) naturally debounces.
 struct TrickplayBubbleView: View {

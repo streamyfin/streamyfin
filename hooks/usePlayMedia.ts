@@ -26,9 +26,10 @@ interface PlayMediaOptions {
 }
 
 /**
- * Single entry point for starting video playback on mobile. Routes to the
- * presented native player (iPhone default) or the JS player route based on
- * the videoPlayer setting; any native decline (unsupported platform, Live TV,
+ * Single entry point for starting video playback on mobile and TV. Routes to
+ * the presented native player (iPhone default; Apple TV via the
+ * nativeVideoPlayerTV opt-in — both resolved by getActiveVideoPlayer) or the
+ * JS player route; any native decline (unsupported platform, Live TV,
  * config/present failure) falls through to the route, so a broken native
  * path can never block playback.
  */

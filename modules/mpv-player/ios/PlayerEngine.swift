@@ -62,7 +62,33 @@ final class MPVPlayerEngine: NSObject {
 		NotificationCenter.default.addObserver(
 			self, selector: #selector(handleAudioSessionInterruption),
 			name: AVAudioSession.interruptionNotification, object: nil)
+
+		// tvOS has no windowed/minimized state: leaving the app backgrounds it
+		// outright. The `audio` background mode keeps our `.playback` session
+		// alive across that, so mpv would go on decoding audio behind the Home
+		// screen with nothing on screen to stop it. Pause instead. Owned here
+		// rather than by the host so BOTH hosts (RN-embedded view and presented
+		// native player) inherit it.
+		#if os(tvOS)
+		NotificationCenter.default.addObserver(
+			self, selector: #selector(handleDidEnterBackground),
+			name: UIApplication.didEnterBackgroundNotification, object: nil)
+		#endif
 	}
+
+	#if os(tvOS)
+	/// PiP would be the one way playback is *meant* to outlive the foreground
+	/// app, so it opts out. Today that guard never fires on tvOS: AVKit never
+	/// engages PiP for an AVSampleBufferDisplayLayer content source there (it
+	/// reports isPictureInPictureSupported() == true but leaves
+	/// isPictureInPicturePossible false forever and never calls the sample
+	/// buffer playback delegate), and mpv has no AVPlayerLayer to offer
+	/// instead. Kept so this stays correct if Apple ever ships the fix.
+	@objc private func handleDidEnterBackground() {
+		guard !isPictureInPictureActive() else { return }
+		pause()
+	}
+	#endif
 
 	func start() throws {
 		try renderer?.start()
@@ -327,8 +353,9 @@ final class MPVPlayerEngine: NSObject {
 	}
 
 	func startPictureInPicture() {
-		print("🎬 MPVPlayerEngine: startPictureInPicture called")
-		print("🎬 Duration: \(getDuration()), IsPlaying: \(!isPaused())")
+		Logger.shared.log(
+			"PiP: engine asked to start (duration=\(getDuration()) playing=\(!isPaused()))",
+			type: "Info")
 		pipController?.startPictureInPicture()
 	}
 
@@ -346,8 +373,11 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Subtitle Controls
 
-	func getSubtitleTracks() -> [[String: Any]] {
-		return renderer?.getSubtitleTracks() ?? []
+	/// Completion fires on the renderer's mpv work queue; hop to main before
+	/// touching UI state.
+	func getSubtitleTracks(completion: @escaping ([[String: Any]]) -> Void) {
+		guard let renderer else { return completion([]) }
+		renderer.getSubtitleTracks(completion: completion)
 	}
 
 	func setSubtitleTrack(_ trackId: Int) {
@@ -358,8 +388,9 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.disableSubtitles()
 	}
 
-	func getCurrentSubtitleTrack() -> Int {
-		return renderer?.getCurrentSubtitleTrack() ?? 0
+	func getCurrentSubtitleTrack(completion: @escaping (Int) -> Void) {
+		guard let renderer else { return completion(0) }
+		renderer.getCurrentSubtitleTrack(completion: completion)
 	}
 
 	func addSubtitleFile(url: String, select: Bool = true) {
@@ -368,16 +399,19 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Audio Track Controls
 
-	func getAudioTracks() -> [[String: Any]] {
-		return renderer?.getAudioTracks() ?? []
+	/// Completion fires on the renderer's mpv work queue (see getSubtitleTracks).
+	func getAudioTracks(completion: @escaping ([[String: Any]]) -> Void) {
+		guard let renderer else { return completion([]) }
+		renderer.getAudioTracks(completion: completion)
 	}
 
 	func setAudioTrack(_ trackId: Int) {
 		renderer?.setAudioTrack(trackId)
 	}
 
-	func getCurrentAudioTrack() -> Int {
-		return renderer?.getCurrentAudioTrack() ?? 0
+	func getCurrentAudioTrack(completion: @escaping (Int) -> Void) {
+		guard let renderer else { return completion(0) }
+		renderer.getCurrentAudioTrack(completion: completion)
 	}
 
 	// MARK: - Subtitle Positioning
@@ -401,6 +435,16 @@ final class MPVPlayerEngine: NSObject {
 	/// Software gain in percent: 100 = neutral, above amplifies (mpv softvol).
 	func setVolumeBoost(_ percent: Int) {
 		renderer?.setVolumeBoost(percent)
+	}
+
+	/// Speech-clarity EQ toggle (bass cut + presence boost via mpv af/lavfi).
+	func setDialogueBoost(_ enabled: Bool) {
+		renderer?.setDialogueBoost(enabled)
+	}
+
+	/// Accessibility mono downmix (mpv audio-channels).
+	func setMonoDownmix(_ enabled: Bool) {
+		renderer?.setMonoDownmix(enabled)
 	}
 
 	func setSubtitleMarginY(_ margin: Int) {
@@ -444,8 +488,10 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Technical Info
 
-	func getTechnicalInfo() -> [String: Any] {
-		return renderer?.getTechnicalInfo() ?? [:]
+	/// Completion fires on the renderer's mpv work queue (see getSubtitleTracks).
+	func getTechnicalInfo(completion: @escaping ([String: Any]) -> Void) {
+		guard let renderer else { return completion([:]) }
+		renderer.getTechnicalInfo(completion: completion)
 	}
 }
 
@@ -527,7 +573,7 @@ extension MPVPlayerEngine: MPVLayerRendererDelegate {
 
 extension MPVPlayerEngine: PiPControllerDelegate {
 	func pipController(_ controller: PiPController, willStartPictureInPicture: Bool) {
-		print("PiP will start")
+		Logger.shared.log("PiP: will start", type: "Info")
 		// Sync timebase before PiP starts for smooth transition
 		renderer?.syncTimebase()
 		// Set current time for PiP progress bar
@@ -540,7 +586,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 	}
 
 	func pipController(_ controller: PiPController, didStartPictureInPicture: Bool) {
-		print("PiP did start: \(didStartPictureInPicture)")
+		Logger.shared.log("PiP: did start = \(didStartPictureInPicture)", type: "Info")
 		// Ensure current time is synced when PiP starts
 		pipController?.setCurrentTimeFromSeconds(cachedPosition, duration: cachedDuration)
 		// Notify the host of the actual PiP active state. `didStartPictureInPicture`
@@ -549,13 +595,13 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 	}
 
 	func pipController(_ controller: PiPController, willStopPictureInPicture: Bool) {
-		print("PiP will stop")
+		Logger.shared.log("PiP: will stop", type: "Info")
 		// Sync timebase before returning from PiP
 		renderer?.syncTimebase()
 	}
 
 	func pipController(_ controller: PiPController, didStopPictureInPicture: Bool) {
-		print("PiP did stop")
+		Logger.shared.log("PiP: did stop", type: "Info")
 		// Ensure timebase is synced after PiP ends
 		renderer?.syncTimebase()
 		pipController?.updatePlaybackState()
@@ -570,7 +616,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 	}
 
 	func pipController(_ controller: PiPController, restoreUserInterfaceForPictureInPictureStop completionHandler: @escaping (Bool) -> Void) {
-		print("PiP restore user interface")
+		Logger.shared.log("PiP: restore user interface requested", type: "Info")
 		completionHandler(true)
 	}
 

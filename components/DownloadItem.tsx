@@ -95,16 +95,12 @@ export const DownloadItems: React.FC<DownloadProps> = ({
     SelectedOptions | undefined
   >(undefined);
 
-  const playSettingsOptions = useMemo(
-    () => ({ applyLanguagePreferences: true }),
-    [],
-  );
   const {
     defaultAudioIndex,
     defaultBitrate,
     defaultMediaSource,
     defaultSubtitleIndex,
-  } = useDefaultPlaySettings(items[0], settings, playSettingsOptions);
+  } = useDefaultPlaySettings(items[0], settings);
 
   const userCanDownload = useMemo(
     () => user?.Policy?.EnableContentDownloading,
