@@ -77,10 +77,9 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
         if (item.ParentBackdropItemId && parentBackdropTag) {
           return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=400&quality=80&tag=${parentBackdropTag}`;
         }
-        // Reaching here means the series has no Thumb, since Jellyfin would have
-        // set ParentThumbImageTag above otherwise, so the tagless series request
-        // below can only 404. Try the episode's own image first, like the poster
-        // cards do, rather than leaving the hero blank.
+        // Neither parent pair resolved. The tagless series request below is a
+        // 404 whenever the series has no Thumb, which leaves the hero blank, so
+        // try the episode's own image first like the poster cards do.
         if (item.ImageTags?.Primary) {
           return `${api.basePath}/Items/${item.Id}/Images/Primary?fillHeight=400&quality=80&tag=${item.ImageTags.Primary}`;
         }
