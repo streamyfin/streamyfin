@@ -240,6 +240,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
         ? runtimeTicksToMinutes(item.RunTimeTicks)
         : null;
       const textColor = displayShowName ? "#9CA3AF" : "#FFFFFF";
+      // When the show name is the title, the episode name takes the slot the
+      // duration usually occupies. Gate on what is actually rendered, so an
+      // item without RunTimeTicks does not silently drop its episode name.
+      const trailingText = displayShowName ? item.Name : duration;
 
       return (
         <View
@@ -260,7 +264,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
               {episodeLabel}
             </Text>
           )}
-          {duration && (
+          {trailingText && (
             <>
               <Text style={{ fontSize: typography.callout, color: textColor }}>
                 •
@@ -273,7 +277,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
                   flexShrink: 1,
                 }}
               >
-                {displayShowName ? item.Name : duration}
+                {trailingText}
               </Text>
             </>
           )}
@@ -500,6 +504,10 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
 
     // Episode: show episode name as title
     if (item.Type === "Episode") {
+      // SeriesName is absent on some episode payloads; keep a title either way.
+      const title = displayShowName
+        ? (item.SeriesName ?? item.Name)
+        : item.Name;
       return (
         <Text
           numberOfLines={displayShowName ? 1 : 2}
@@ -510,7 +518,7 @@ export const TVPosterCard: React.FC<TVPosterCardProps> = ({
             fontWeight: "500",
           }}
         >
-          {displayShowName ? item.SeriesName : item.Name}
+          {title}
         </Text>
       );
     }
