@@ -149,6 +149,8 @@
       },
       "appearance": {
         "title": "Appearance",
+        "download_live_activity": "Live Activity",
+        "download_live_activity_hint": "Show download progress on the Lock Screen and in the Dynamic Island.",
         "merge_next_up_continue_watching": "Merge Continue watching & Next up",
         "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
         "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
@@ -224,8 +226,13 @@
         "title": "Video player",
         "exoplayer": "ExoPlayer",
         "mpv": "MPV",
+        "native": "Native (recommended)",
+        "classic": "Classic",
+        "native_note": "Both options use the same MPV engine, this only changes the player controls. The native player uses iOS system controls and opens instantly. Switch back if you run into playback issues.",
         "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
-        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output."
+        "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
+        "native_tv": "Native player (experimental)",
+        "native_tv_note": "Opt into the new fully-native Apple TV player. Turn it off to use the current player if you run into playback issues."
       },
       "buffer": {
         "title": "Buffer settings",
@@ -251,6 +258,13 @@
         "left_side_brightness_description": "Swipe up/down on the left side to adjust brightness",
         "right_side_volume": "Right side volume control",
         "right_side_volume_description": "Swipe up/down on the right side to adjust volume",
+        "hold_to_speed": "Hold to change speed",
+        "hold_to_speed_description": "Press and hold the video to play at the speed below until released",
+        "hold_to_speed_rate": "Hold speed",
+        "pinch_to_zoom": "Pinch to zoom",
+        "pinch_to_zoom_description": "Pinch out to fill the screen, pinch in to fit",
+        "double_tap_to_seek": "Double tap to seek",
+        "double_tap_to_seek_description": "Double tap the left or right side of the video to skip backward or forward",
         "hide_volume_slider": "Hide volume slider",
         "hide_volume_slider_description": "Hide the volume slider in the video player",
         "hide_brightness_slider": "Hide brightness slider",
@@ -262,6 +276,7 @@
         "audio_language": "Audio language",
         "audio_hint": "Choose a default audio language.",
         "none": "None",
+        "original_language": "Original language",
         "language": "Language",
         "transcode_mode": {
           "title": "Audio transcoding",
@@ -278,6 +293,7 @@
         "subtitle_language": "Subtitle language",
         "subtitle_mode": "Subtitle mode",
         "set_subtitle_track": "Set subtitle track from previous item",
+        "subtitles_on_mute": "Turn on subtitles when muted",
         "subtitle_size": "Subtitle size",
         "none": "None",
         "language": "Language",
@@ -499,6 +515,12 @@
       "something_went_wrong": "Something went wrong",
       "could_not_get_stream_url_from_jellyfin": "Could not get the stream URL from Jellyfin",
       "eta": "ETA {{eta}}",
+      "live_activity": {
+        "downloading": "Downloading",
+        "completed": "Downloaded",
+        "failed": "Download failed",
+        "queued": "Queued"
+      },
       "toasts": {
         "you_are_not_allowed_to_download_files": "You are not allowed to download files.",
         "deleted_all_movies_successfully": "Deleted all movies successfully!",
@@ -547,7 +569,8 @@
     "episodes": "Episodes",
     "movies": "Movies",
     "loading": "Loading...",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "close": "Close"
   },
   "search": {
     "search": "Search...",
@@ -683,6 +706,17 @@
     "downloaded_file_cancel": "Cancel",
     "swipe_down_settings": "Swipe down for settings",
     "ends_at": "Ends at {{time}}",
+    "zoom_to_fill": "Zoom to fill",
+    "subtitle_sync": "Subtitle sync",
+    "audio_sync": "Audio sync",
+    "volume_boost": "Volume boost",
+    "dialogue_boost": "Dialogue boost",
+    "mono_audio": "Mono audio",
+    "rotate": "Rotate",
+    "lock_controls": "Lock controls",
+    "unlock": "Unlock",
+    "sleep_timer": "Sleep timer",
+    "sleep_timer_off": "Turn off",
     "search_subtitles": "Search subtitles",
     "subtitle_tracks": "Tracks",
     "subtitle_search": "Search & download",
@@ -694,6 +728,7 @@
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
+    "subtitle_apply_failed": "The subtitle was downloaded but couldn't be applied",
     "add_opensubtitles_key_hint": "Add OpenSubtitles API key in settings for client-side fallback",
     "settings": "Settings",
     "skip_intro": "Skip intro",

@@ -1,12 +1,17 @@
 name: 🚀 Release (EAS build + submit)
 
-# On merge to main (gated by the `production` GitHub Environment approval),
-# build all targets on EAS in parallel via custom bun build configs:
-#   1. iOS phone        → App Store (auto-submit)
-#   2. tvOS             → App Store (auto-submit)
-#   3. Android AAB      → Google Play (auto-submit)
-#   4. Android phone APK→ downloadable artifact
-#   5. Android TV APK   → downloadable artifact
+# On merge to main, build all targets on EAS in parallel via custom bun
+# build configs. Each target is gated by its OWN GitHub Environment approval,
+# so any subset can be approved independently in "Review pending deployments"
+# (reject or ignore the rest — rejected jobs fail, ignored jobs wait up to
+# 30 days and keep the run in progress):
+#   1. iOS phone        → App Store (auto-submit)   [production-ios]
+#   2. tvOS             → App Store (auto-submit)   [production-tvos]
+#   3. Android AAB      → Google Play (auto-submit) [production-android]
+#   4. Android phone APK→ downloadable artifact     [production-android-apk]
+#   5. Android TV APK   → downloadable artifact     [production-android-tv-apk]
+# NOTE: these environments must exist with required reviewers configured —
+# GitHub auto-creates missing environments WITHOUT protection rules.
 # Note: EAS queues builds based on your plan's concurrency; parallel jobs
 # here just submit them — EAS may still run them serially.
 
@@ -22,19 +27,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  approve:
-    name: 🔐 Approve release
-    runs-on: ubuntu-26.04
-    environment: production
-    permissions: {}
-    steps:
-      - name: ✅ Release approved
-        run: echo "Release approved for ${{ github.sha }}"
-
   build:
     name: 🚀 ${{ matrix.name }}
-    needs: approve
     runs-on: ubuntu-26.04
+    # Per-target approval gate: each matrix job waits on its own environment,
+    # so individual targets can be approved/rejected independently.
+    environment: ${{ matrix.environment }}
     permissions:
       contents: read
     strategy:
@@ -45,24 +43,29 @@ jobs:
             platform: ios
             profile: production
             submit: true
+            environment: production-ios
           - name: 📺 tvOS
             platform: ios
             profile: production_tv
             submit: true
+            environment: production-tvos
           - name: 🤖 Android AAB
             platform: android
             profile: production
             submit: true
+            environment: production-android
           - name: 🤖 Android APK
             platform: android
             profile: production-apk
             submit: false
             artifact_name: streamyfin-android-phone-apk
+            environment: production-android-apk
           - name: 📺 Android TV APK
             platform: android
             profile: production-apk-tv
             submit: false
             artifact_name: streamyfin-android-tv-apk
+            environment: production-android-tv-apk
 
     steps:
       - parallel:
@@ -192,19 +195,27 @@ jobs:
           fetch-depth: 0
           show-progress: false
 
+      # Downloads are best-effort: with per-target approval an APK job may
+      # have been rejected/skipped, so its artifact won't exist on this run.
       - name: 📦 Download APK artifacts from this run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p apks
-          gh run download ${{ github.run_id }} --name streamyfin-android-phone-apk --dir apks
-          gh run download ${{ github.run_id }} --name streamyfin-android-tv-apk --dir apks
+          gh run download ${{ github.run_id }} --name streamyfin-android-phone-apk --dir apks \
+            || echo "::notice::phone APK not built this run — skipping"
+          gh run download ${{ github.run_id }} --name streamyfin-android-tv-apk --dir apks \
+            || echo "::notice::Android TV APK not built this run — skipping"
           ls -la apks
 
       - name: 📝 Draft release (tag = app.json version, not auto-bumped)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if ! ls apks/*.apk >/dev/null 2>&1; then
+            echo "No APKs were built this run — skipping GitHub release"
+            exit 0
+          fi
           VERSION=$(node -e "console.log(require('./app.json').expo.version)")
           TAG="v$VERSION"
           echo "Release tag from merged app version: $TAG"

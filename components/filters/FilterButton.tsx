@@ -50,7 +50,8 @@ export const FilterButton = <T,>({
         multiple={multiple}
         onClose={hideModal}
       />,
-      { snapPoints: ["85%"] },
+      // No snap points: the sheet grows with its options and stops at the
+      // shared ceiling, so a two-entry sort order opens small.
     );
   };
 

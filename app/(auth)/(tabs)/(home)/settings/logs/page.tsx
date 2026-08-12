@@ -9,6 +9,7 @@ import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import Collapsible from "react-native-collapsible";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { FilterButton } from "@/components/filters/FilterButton";
 import { Loader } from "@/components/Loader";
@@ -102,9 +103,9 @@ export default function Page() {
         loading ? (
           <Loader />
         ) : (
-          <TouchableOpacity onPress={share} className='px-2'>
+          <HeaderButton variant='text' onPress={share}>
             <Text>{t("home.settings.logs.export_logs")}</Text>
-          </TouchableOpacity>
+          </HeaderButton>
         ),
     });
   }, [share, loading]);

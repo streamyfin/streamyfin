@@ -50,7 +50,9 @@ function TVTabLayout() {
   const router = useRouter();
 
   const currentTab = segments.find(isTabRoute);
-  const lastSegment = segments[segments.length - 1] ?? "";
+  // The generated segment union varies with the route tree (TV vs mobile
+  // typegen), so compare as a plain string.
+  const lastSegment: string = segments[segments.length - 1] ?? "";
   const atTabRoot = isTabRoute(lastSegment) || lastSegment === "index";
 
   const tabs: TVNavBarTab[] = useMemo(

@@ -359,13 +359,21 @@ const LANG_CANONICAL: Record<string, string> = {
 };
 
 /** Canonicalize a language tag: lowercase, primary subtag ("en-US" → "en"), 639-2/B. */
-const canonicalLang = (raw: string): string => {
+export const canonicalLang = (raw: string): string => {
   const primary = raw.trim().toLowerCase().split("-")[0];
   return LANG_CANONICAL[primary] ?? primary;
 };
 
-/** Language-tag comparison across ISO 639-1 / 639-2 B/T / IETF variants. */
-const langEq = (a?: string | null, b?: string | null): boolean =>
+/**
+ * Language-tag comparison across ISO 639-1 / 639-2 B/T / IETF variants.
+ *
+ * Exported because track *selection* needs the same comparison as track
+ * *identity*: the user's stored preference comes from Jellyfin's CultureDto,
+ * which carries .NET-style 639-2/T codes ("deu", "fra"), while MediaStreams are
+ * tagged 639-2/B ("ger", "fre"). Anything comparing those two by string
+ * equality — or by truncating to two letters — silently never matches.
+ */
+export const langEq = (a?: string | null, b?: string | null): boolean =>
   !!a && !!b && canonicalLang(a) === canonicalLang(b);
 
 /** Match an embedded player track to a Jellyfin stream by language/title (codec-agnostic). */
