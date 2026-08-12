@@ -73,8 +73,9 @@ const HeroCard: React.FC<HeroCardProps> = React.memo(
         }
         // Series without a Thumb: fall back to its backdrop, like other Jellyfin
         // clients do. The tagless Thumb request below 404s in that case.
-        if (item.ParentBackdropItemId && item.ParentBackdropImageTags?.length) {
-          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=400&quality=80&tag=${item.ParentBackdropImageTags[0]}`;
+        const parentBackdropTag = item.ParentBackdropImageTags?.[0];
+        if (item.ParentBackdropItemId && parentBackdropTag) {
+          return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=400&quality=80&tag=${parentBackdropTag}`;
         }
         if (item.SeriesId) {
           return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=400&quality=80`;
