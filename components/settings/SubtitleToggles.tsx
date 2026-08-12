@@ -11,6 +11,7 @@ import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Stepper } from "@/components/inputs/Stepper";
 import { SubtitlePreview } from "@/components/settings/SubtitlePreview";
 import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
+import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -36,6 +37,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
   const { pluginSettings } = useSettings();
   const { settings, updateSettings } = media;
   const cultures = media.cultures;
+  const { supportsOriginalAudioLanguage, isReady } = media;
   const { t } = useTranslation();
 
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -65,6 +67,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     locked: boolean,
     labelFor: (culture: CultureDto) => string,
     select: (culture: CultureDto | null) => void,
+    extra: CultureDto[] = [],
   ) => {
     const selectedLanguage = selectedCulture?.ThreeLetterISOLanguageName;
     return [
@@ -78,7 +81,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
             disabled: locked,
             onPress: () => select(null),
           },
-          ...(cultures?.map((culture) => ({
+          ...[...extra, ...(cultures ?? [])].map((culture) => ({
             type: "radio" as const,
             label: labelFor(culture),
             value:
@@ -90,7 +93,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
               culture.ThreeLetterISOLanguageName === selectedLanguage,
             disabled: locked,
             onPress: () => select(culture),
-          })) || []),
+          })),
         ],
       },
     ];
@@ -106,6 +109,14 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
       culture.ThreeLetterISOLanguageName ||
       unknownLanguage,
     (culture) => updateSettings({ defaultAudioLanguage: culture }),
+    supportsOriginalAudioLanguage
+      ? [
+          {
+            DisplayName: t("home.settings.audio.original_language"),
+            ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+          },
+        ]
+      : [],
   );
   const subtitleLanguageOptionGroups = buildLanguageOptions(
     t("home.settings.subtitles.none"),
@@ -273,15 +284,18 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
 
         <ListItem
           title={t("home.settings.audio.audio_language")}
-          disabled={pluginSettings?.defaultAudioLanguage?.locked}
+          disabled={pluginSettings?.defaultAudioLanguage?.locked || !isReady}
         >
           <PlatformDropdown
             groups={audioLanguageOptionGroups}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
-                  {settings?.defaultAudioLanguage?.DisplayName ||
-                    t("home.settings.audio.none")}
+                  {settings?.defaultAudioLanguage
+                    ?.ThreeLetterISOLanguageName === ORIGINAL_LANGUAGE
+                    ? t("home.settings.audio.original_language")
+                    : settings?.defaultAudioLanguage?.DisplayName ||
+                      t("home.settings.audio.none")}
                 </Text>
                 <Ionicons
                   name='chevron-expand-sharp'

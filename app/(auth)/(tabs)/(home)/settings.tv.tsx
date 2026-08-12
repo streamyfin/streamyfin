@@ -1,14 +1,12 @@
 import {
   type CultureDto,
   SubtitlePlaybackMode,
-  type UserConfiguration,
 } from "@jellyfin/sdk/lib/generated-client";
-import { getLocalizationApi, getUserApi } from "@jellyfin/sdk/lib/utils/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Directory, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { useAtom } from "jotai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,6 +24,7 @@ import {
   TVSettingsToggle,
 } from "@/components/tv";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { useTVOptionModal } from "@/hooks/useTVOptionModal";
 import { useTVUserSwitchModal } from "@/hooks/useTVUserSwitchModal";
 import { APP_LANGUAGES } from "@/i18n";
@@ -43,11 +42,11 @@ import {
   isNativePlayerSupportedTV,
   type MpvCacheMode,
   type MpvVoDriver,
-  type Settings,
   TVTypographyScale,
   useSettings,
   VideoPlayer,
 } from "@/utils/atoms/settings";
+import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { storage } from "@/utils/mmkv";
 import { scaleSize } from "@/utils/scaleSize";
 import {
@@ -66,132 +65,15 @@ export default function SettingsTV() {
   const [api] = useAtom(apiAtom);
   const [, setCacheVersion] = useAtom(cacheVersionAtom);
   const { showOptions } = useTVOptionModal();
+  const {
+    updateMediaSettings,
+    cultures,
+    supportsOriginalAudioLanguage,
+    isReady,
+  } = useMediaPreferences();
   const { showUserSwitchModal } = useTVUserSwitchModal();
   const typography = useScaledTVTypography();
   const queryClient = useQueryClient();
-  const settingsRef = useRef(settings);
-  const mediaUpdateQueueRef = useRef<Promise<void>>(Promise.resolve());
-
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
-
-  const stripLocked = (update: Partial<Settings>) =>
-    Object.fromEntries(
-      Object.entries(update).filter(
-        ([key, value]) =>
-          value !== undefined &&
-          pluginSettings?.[key as keyof Settings]?.locked !== true,
-      ),
-    ) as Partial<Settings>;
-
-  const { data: cultures = [], isFetched: isCulturesFetched } = useQuery({
-    queryKey: ["cultures"],
-    queryFn: async () => {
-      if (!api) return [];
-      const localizationApi = getLocalizationApi(api);
-      return localizationApi.getCultures().then(({ data }) => data ?? []);
-    },
-    enabled: !!api,
-    staleTime: 43200000, // 12 hours
-  });
-
-  useEffect(() => {
-    if (!user || cultures.length === 0 || !isCulturesFetched) return;
-
-    const userSubtitlePreference =
-      user.Configuration?.SubtitleLanguagePreference;
-    const userAudioPreference = user.Configuration?.AudioLanguagePreference;
-
-    const subtitlePreference = cultures.find(
-      (culture) =>
-        culture.ThreeLetterISOLanguageName === userSubtitlePreference,
-    );
-    const audioPreference = cultures.find(
-      (culture) => culture.ThreeLetterISOLanguageName === userAudioPreference,
-    );
-
-    const syncedSettings = stripLocked({
-      defaultSubtitleLanguage: subtitlePreference ?? null,
-      defaultAudioLanguage: audioPreference ?? null,
-      subtitleMode: user.Configuration?.SubtitleMode,
-      playDefaultAudioTrack: user.Configuration?.PlayDefaultAudioTrack,
-      rememberAudioSelections: user.Configuration?.RememberAudioSelections,
-      rememberSubtitleSelections:
-        user.Configuration?.RememberSubtitleSelections,
-    });
-
-    if (Object.keys(syncedSettings).length > 0) {
-      settingsRef.current = { ...settingsRef.current, ...syncedSettings };
-      updateSettings(syncedSettings, false);
-    }
-  }, [user, cultures, isCulturesFetched, pluginSettings]);
-
-  const updateMediaSettings = (update: Partial<Settings>) => {
-    const sanitizedUpdate = stripLocked(update);
-
-    if (Object.keys(sanitizedUpdate).length === 0) return;
-
-    const previousValues = Object.fromEntries(
-      Object.keys(sanitizedUpdate).map((key) => [
-        key,
-        settingsRef.current[key as keyof Settings],
-      ]),
-    ) as Partial<Settings>;
-
-    settingsRef.current = { ...settingsRef.current, ...sanitizedUpdate };
-    updateSettings(sanitizedUpdate);
-
-    if (!api || !user) return;
-
-    const pendingUpdate = mediaUpdateQueueRef.current.then(async () => {
-      const currentSettings = settingsRef.current;
-      const updatePayload = {
-        SubtitleMode: currentSettings.subtitleMode,
-        PlayDefaultAudioTrack: currentSettings.playDefaultAudioTrack,
-        RememberAudioSelections: currentSettings.rememberAudioSelections,
-        RememberSubtitleSelections: currentSettings.rememberSubtitleSelections,
-        AudioLanguagePreference:
-          currentSettings.defaultAudioLanguage?.ThreeLetterISOLanguageName ??
-          "",
-        SubtitleLanguagePreference:
-          currentSettings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ??
-          "",
-      } as Partial<UserConfiguration>;
-
-      await getUserApi(api).updateUserConfiguration(
-        {
-          userConfiguration: {
-            ...user.Configuration,
-            ...updatePayload,
-          },
-        },
-        { timeout: 10_000 },
-      );
-      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
-    });
-
-    mediaUpdateQueueRef.current = pendingUpdate.catch((error: unknown) => {
-      console.error("Failed to update Jellyfin media settings:", error);
-
-      const rollback = Object.fromEntries(
-        Object.keys(sanitizedUpdate).flatMap((key) => {
-          const settingsKey = key as keyof Settings;
-          return Object.is(
-            settingsRef.current[settingsKey],
-            sanitizedUpdate[settingsKey],
-          )
-            ? [[key, previousValues[settingsKey]]]
-            : [];
-        }),
-      ) as Partial<Settings>;
-
-      if (Object.keys(rollback).length > 0) {
-        settingsRef.current = { ...settingsRef.current, ...rollback };
-        updateSettings(rollback, false);
-      }
-    });
-  };
 
   // Local state for OpenSubtitles API key (only commit on blur)
   const [openSubtitlesApiKey, setOpenSubtitlesApiKey] = useState(
@@ -457,6 +339,17 @@ export default function SettingsTV() {
           value: null,
           selected: !settings.defaultAudioLanguage,
         },
+        ...(supportsOriginalAudioLanguage
+          ? [
+              {
+                label: t("home.settings.audio.original_language"),
+                value: {
+                  ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+                } as CultureDto,
+                selected: selectedLanguage === ORIGINAL_LANGUAGE,
+              },
+            ]
+          : []),
         ...cultures.map((culture) => ({
           label: languageName(culture),
           value: culture,
@@ -465,7 +358,12 @@ export default function SettingsTV() {
             culture.ThreeLetterISOLanguageName === selectedLanguage,
         })),
       ];
-    }, [cultures, settings.defaultAudioLanguage, t]);
+    }, [
+      cultures,
+      settings.defaultAudioLanguage,
+      supportsOriginalAudioLanguage,
+      t,
+    ]);
 
   const subtitleLanguageOptions: TVOptionItem<CultureDto | null>[] =
     useMemo(() => {
@@ -931,7 +829,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.audio.audio_language")}
             value={audioLanguageLabel}
-            disabled={pluginSettings?.defaultAudioLanguage?.locked}
+            disabled={pluginSettings?.defaultAudioLanguage?.locked || !isReady}
             onPress={() =>
               showOptions({
                 title: t("home.settings.audio.language"),

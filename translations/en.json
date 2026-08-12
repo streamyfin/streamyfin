@@ -275,6 +275,7 @@
         "set_audio_track": "Set audio track from previous item",
         "audio_language": "Audio language",
         "none": "None",
+        "original_language": "Original language",
         "language": "Language",
         "transcode_mode": {
           "title": "Audio transcoding",

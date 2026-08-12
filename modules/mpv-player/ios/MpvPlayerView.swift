@@ -70,8 +70,6 @@ class MpvPlayerView: ExpoView {
 	let onTracksReady = EventDispatcher()
 	let onPictureInPictureChange = EventDispatcher()
 
-	private var appStateObserver: NSObjectProtocol?
-
 	required init(appContext: AppContext? = nil) {
 		super.init(appContext: appContext)
 		setupView()
@@ -104,17 +102,8 @@ class MpvPlayerView: ExpoView {
 		} catch {
 			onError(["error": "Failed to start renderer: \(error.localizedDescription)"])
 		}
-
-		// Pause playback when app enters background on tvOS
-		#if os(tvOS)
-		appStateObserver = NotificationCenter.default.addObserver(
-			forName: UIApplication.didEnterBackgroundNotification,
-			object: nil,
-			queue: .main
-		) { [weak self] _ in
-			self?.pause()
-		}
-		#endif
+		// Pause-on-background for tvOS now lives in MPVPlayerEngine so the
+		// presented native player gets it too.
 	}
 
 	override func layoutSubviews() {
@@ -307,9 +296,6 @@ class MpvPlayerView: ExpoView {
 	}
 
 	deinit {
-		if let observer = appStateObserver {
-			NotificationCenter.default.removeObserver(observer)
-		}
 		#if os(tvOS)
 		resetDisplayCriteria()
 		#endif

@@ -1,14 +1,37 @@
 #if os(tvOS)
 import SwiftUI
 
-/// tvOS root overlay. Phase 2: show/hide chrome with a bottom transport bar
-/// (progress + times + ends-at) and a top-left metadata header. Nothing here
-/// is focusable — all transport input arrives through the hosting view
-/// controller's press recognizers, so Menu reliably reaches the VC. SwiftUI
-/// focus enters only with the panels/shelves of later phases.
+/// Edge inset ON TOP OF the tvOS overscan safe area, which SwiftUI has
+/// already applied by the time these run: the layer hosts are pinned to the
+/// full view bounds, not the safe-area guide, so the system's ~90pt
+/// horizontal / ~60pt vertical insets are inside these. Keep them small —
+/// the old 80/60 put the transport bar ~170pt from the screen edge, far
+/// deeper than the system player.
+///
+/// EVERY layer that touches a screen edge measures from here. The layers are
+/// separate hosting controllers over identical bounds, so a literal left
+/// behind in one of them reads as that layer being misaligned against the
+/// chrome — with nothing in its own file to hint at why.
+enum TVChromeMetrics {
+	static let insetH: CGFloat = 40
+	static let insetV: CGFloat = 24
+	/// The floating skip pill / countdown card ride slightly clear of the
+	/// bottom margin: they only ever show with the chrome hidden, so nothing
+	/// anchors that edge for them the way the time row does for the chrome.
+	static let floatingBottomInset: CGFloat = insetV + 20
+}
+
+/// The chrome layer of the TV player: scrims, metadata header, the focusable
+/// controls row and the transport bar. One of the stacked layer hosts built
+/// by NativePlayerViewController — TVFocusCoordinator flips this host into
+/// the focus system when the zone is .chrome and points the engine at it
+/// after SwiftUI commits, so the row's prefersDefaultFocus memory is honored
+/// on the engine's first pick. The status/shelf/subtitle-search/
+/// still-watching/error layers live in TVOverlayLayers.swift.
 @available(tvOS 26.0, *)
-struct TVPlayerRootView: View {
+struct TVChromeLayerView: View {
 	@ObservedObject var viewModel: PlayerViewModel
+	let focusCoordinator: TVFocusCoordinator
 	/// Focus memory for the button row — lives here because the row unmounts
 	/// whenever the chrome hides, and should reappear on the same control.
 	@State private var lastFocusedControl: TVControl?
@@ -24,101 +47,29 @@ struct TVPlayerRootView: View {
 				VStack {
 					TVMetadataHeader(viewModel: viewModel)
 					Spacer()
-					VStack(alignment: .leading, spacing: 30) {
+					// Tight: nothing sits between the button row and the track
+					// now that the chapter label moved down under the elapsed
+					// time, so the row can sit close to the bar it drives.
+					VStack(alignment: .leading, spacing: 16) {
 						if viewModel.controlsVisible, !viewModel.isScrubbing {
 							TVControlsRow(
 								viewModel: viewModel,
-								lastFocused: $lastFocusedControl
+								lastFocused: $lastFocusedControl,
+								focusCoordinator: focusCoordinator
 							)
 						}
 						TVTransportBar(viewModel: viewModel, time: viewModel.time)
 					}
 				}
-				.padding(.horizontal, 80)
-				.padding(.vertical, 60)
+				.padding(.horizontal, TVChromeMetrics.insetH)
+				.padding(.vertical, TVChromeMetrics.insetV)
 				.transition(.opacity)
-			}
-
-			if viewModel.isBuffering && viewModel.errorMessage == nil {
-				ProgressView()
-					.progressViewStyle(.circular)
-					.tint(.white)
-					.scaleEffect(1.6)
-			}
-
-			// Stats for nerds — independent of the chrome, like on iOS. The
-			// shared overlay is phone-sized; scale it up for viewing distance.
-			if viewModel.showTechnicalInfo {
-				VStack {
-					HStack {
-						TechnicalInfoOverlay(viewModel: viewModel)
-							.scaleEffect(1.5, anchor: .topLeading)
-						Spacer()
-					}
-					Spacer()
-				}
-				.padding(.top, 60)
-				.padding(.leading, 80)
-			}
-
-			// Skip pill / countdown card (Select acts on both) stay
-			// actionable while the chrome is hidden, via the VC recognizers.
-			// In the full chrome both yield to the row's focusable Skip /
-			// Next-episode buttons — focus owns the remote there, so a
-			// non-focusable card next to focusable glass buttons reads as a
-			// control that focus can never reach.
-			if !viewModel.controlsVisible, !viewModel.showEpisodeList,
-				!viewModel.showSubtitleSearch {
-				VStack {
-					Spacer()
-					HStack {
-						Spacer()
-						if let countdown = viewModel.countdownRemaining,
-							let next = viewModel.nextEpisode {
-							TVCountdownCard(
-								viewModel: viewModel, next: next, remaining: countdown)
-						} else if let segment = viewModel.activeSegment,
-							!viewModel.isScrubbing {
-							TVSkipPill(viewModel: viewModel, segment: segment)
-						}
-					}
-				}
-				.padding(.trailing, 80)
-				.padding(.bottom, 80)
-			}
-
-			if viewModel.showEpisodeList {
-				VStack {
-					Spacer()
-					TVEpisodeShelf(viewModel: viewModel)
-				}
-				.transition(.move(edge: .bottom).combined(with: .opacity))
-				.zIndex(3)
-			}
-
-			if viewModel.showSubtitleSearch {
-				TVSubtitleSearchPanel(viewModel: viewModel)
-					.transition(.opacity)
-					.zIndex(4)
-			}
-
-			if viewModel.showStillWatching {
-				TVStillWatchingCard(viewModel: viewModel)
-					.zIndex(5)
-			}
-
-			if let message = viewModel.errorMessage {
-				errorOverlay(message: message)
 			}
 		}
 		.frame(maxWidth: .infinity, maxHeight: .infinity)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.controlsVisible)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.isScrubbing)
 		.animation(.easeInOut(duration: 0.2), value: viewModel.seekFeedbackVisible)
-		.animation(.easeInOut(duration: 0.2), value: viewModel.activeSegment?.startSec)
-		.animation(.easeInOut(duration: 0.2), value: viewModel.countdownRemaining != nil)
-		.animation(.easeInOut(duration: 0.25), value: viewModel.showEpisodeList)
-		.animation(.easeInOut(duration: 0.2), value: viewModel.showSubtitleSearch)
 	}
 
 	/// Subtitles are burned into the video frames by mpv, so the scrims and
@@ -139,26 +90,6 @@ struct TVPlayerRootView: View {
 		}
 		.ignoresSafeArea()
 		.allowsHitTesting(false)
-	}
-
-	/// No Close button on TV — Menu owns dismissal (VC recognizer).
-	private func errorOverlay(message: String) -> some View {
-		VStack(spacing: 20) {
-			Image(systemName: "exclamationmark.triangle.fill")
-				.font(.system(size: 56))
-				.foregroundStyle(.yellow)
-			Text(viewModel.str("playbackError", "Playback error"))
-				.font(.title3)
-				.foregroundStyle(.white)
-			Text(message)
-				.font(.body)
-				.foregroundStyle(.white.opacity(0.8))
-				.multilineTextAlignment(.center)
-				.lineLimit(4)
-		}
-		.padding(48)
-		.frame(maxWidth: 720)
-		.background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 24))
 	}
 }
 
@@ -190,8 +121,8 @@ private struct TVMetadataHeader: View {
 }
 
 /// Bare style for the focusable transport bar: the bar draws its own focus
-/// treatment (thicker track + glow), so the style must add none of the
-/// system decor.
+/// treatment (the track thickens), so the style must add none of the system
+/// decor — every built-in style puts a platter around a progress track.
 @available(tvOS 26.0, *)
 private struct TVBareButtonStyle: ButtonStyle {
 	func makeBody(configuration: Configuration) -> some View {
@@ -201,7 +132,7 @@ private struct TVBareButtonStyle: ButtonStyle {
 
 /// Bottom transport bar: play-state glyph, progress (played + buffered),
 /// position, remaining and the wall-clock finish time. While a remote scrub
-/// is armed, the playhead follows the scrub target and a trickplay bubble
+/// is armed, the playhead follows the scrub target and a trickplay card
 /// rides above it. Observes PlaybackTimeModel directly — PlayerViewModel
 /// deliberately does not publish the ~30Hz clock (see PlaybackTimeModel).
 ///
@@ -219,7 +150,8 @@ private struct TVTransportBar: View {
 	@ObservedObject var time: PlaybackTimeModel
 	@FocusState private var barFocused: Bool
 
-	private static let bubbleHeight: CGFloat = 180
+	/// Clearance between the scrub preview card and the track it rides over.
+	private static let cardGap: CGFloat = 40
 
 	private static let endsAtFormatter: DateFormatter = {
 		let formatter = DateFormatter()
@@ -235,13 +167,6 @@ private struct TVTransportBar: View {
 		let remaining = max(0, duration - position)
 
 		VStack(alignment: .leading, spacing: 12) {
-			if let chapterName = viewModel.chapterName(at: position) {
-				Text(chapterName)
-					.font(.caption)
-					.foregroundStyle(.white.opacity(0.7))
-					.lineLimit(1)
-			}
-
 			Button {
 				// Select with the bar focused mirrors the system player:
 				// toggle play/pause. While a scrub is armed (or the chrome is
@@ -257,7 +182,6 @@ private struct TVTransportBar: View {
 
 					progressBar(position: position, duration: duration)
 						.frame(height: barHeight)
-						.shadow(color: .white.opacity(barFocused ? 0.45 : 0), radius: 8)
 				}
 			}
 			.buttonStyle(TVBareButtonStyle())
@@ -283,7 +207,18 @@ private struct TVTransportBar: View {
 			}
 
 			HStack(alignment: .top) {
-				Text(formatTime(position))
+				// Chapter sits under the elapsed time, mirroring the ends-at
+				// line under the remaining time on the right — same size and
+				// opacity, so the two secondary lines read as a pair.
+				VStack(alignment: .leading, spacing: 2) {
+					Text(formatTime(position))
+					if let chapterName = viewModel.chapterName(at: position) {
+						Text(chapterName)
+							.font(.system(size: 20))
+							.foregroundStyle(.white.opacity(0.55))
+							.lineLimit(1)
+					}
+				}
 				Spacer()
 				VStack(alignment: .trailing, spacing: 2) {
 					Text("-" + formatTime(remaining))
@@ -331,7 +266,7 @@ private struct TVTransportBar: View {
 	}
 
 	/// First horizontal input on the focused bar: arm the scrub (pauses,
-	/// shows the trickplay bubble) and take the first step. Every further
+	/// shows the trickplay card) and take the first step. Every further
 	/// press/pan is handled by the VC recognizers, which re-enable the
 	/// moment isScrubbing flips.
 	private func armScrub(nudge delta: Double) {
@@ -353,7 +288,11 @@ private struct TVTransportBar: View {
 				: 0
 
 			ZStack(alignment: .leading) {
-				Capsule().fill(.white.opacity(0.25))
+				// Unplayed track: Liquid Glass, same material as the buttons
+				// above it. It samples the video behind the bar, so the
+				// specular highlight travels with the picture instead of being
+				// a painted-on tint.
+				Color.clear.glassEffect(.regular, in: Capsule())
 				Capsule()
 					.fill(.white.opacity(0.35))
 					.frame(width: width * bufferedFraction)
@@ -375,29 +314,25 @@ private struct TVTransportBar: View {
 			.overlay(alignment: .topLeading) {
 				if viewModel.isScrubbing, let trickplay = viewModel.trickplay,
 					trickplay.isAvailable {
-					let chapterName = viewModel.chapterName(at: viewModel.scrubPosition)
-					TrickplayBubbleView(
+					TVTrickplayCard(
 						provider: trickplay,
-						positionSec: viewModel.scrubPosition,
-						chapterName: chapterName,
-						bubbleHeight: Self.bubbleHeight
+						positionSec: viewModel.scrubPosition
 					)
 					.offset(
-						x: bubbleOffsetX(trackWidth: width, provider: trickplay, playedFraction: playedFraction),
-						y: -Self.bubbleHeight - 90 - (chapterName != nil ? 30 : 0)
+						x: cardOffsetX(trackWidth: width, playedFraction: playedFraction),
+						y: -TVTrickplayCard.height - Self.cardGap
 					)
 				}
 			}
 		}
 	}
 
-	/// Center the bubble over the playhead, clamped to the track bounds.
-	private func bubbleOffsetX(
-		trackWidth: CGFloat, provider: TrickplayProvider, playedFraction: CGFloat
-	) -> CGFloat {
-		let bubbleWidth = Self.bubbleHeight * provider.aspectRatio
+	/// Center the card over the playhead, clamped to the track bounds.
+	private func cardOffsetX(trackWidth: CGFloat, playedFraction: CGFloat) -> CGFloat {
 		let thumbX = trackWidth * playedFraction
-		return min(max(thumbX - bubbleWidth / 2, 0), max(trackWidth - bubbleWidth, 0))
+		return min(
+			max(thumbX - TVTrickplayCard.width / 2, 0),
+			max(trackWidth - TVTrickplayCard.width, 0))
 	}
 
 	/// Wall-clock finish time. The i18n template carries a %TIME% placeholder;

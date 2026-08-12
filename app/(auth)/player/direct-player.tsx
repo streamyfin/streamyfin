@@ -17,13 +17,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Alert,
-  PixelRatio,
-  Platform,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Alert, Platform, useWindowDimensions, View } from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
@@ -32,10 +26,6 @@ import { Controls } from "@/components/video-player/controls/Controls";
 import { Controls as TVControls } from "@/components/video-player/controls/Controls.tv";
 import { PlayerProvider } from "@/components/video-player/controls/contexts/PlayerContext";
 import { VideoProvider } from "@/components/video-player/controls/contexts/VideoContext";
-import {
-  LOCAL_SUBTITLE_INDEX_START,
-  toServerSubtitleIndex,
-} from "@/components/video-player/controls/types";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -81,8 +71,16 @@ import { writeToLog } from "@/utils/log";
 import {
   getEffectiveSubtitleMarginY,
   getEffectiveSubtitleScale,
-  hasCustomSubtitleStyle,
 } from "@/utils/subtitles";
+import {
+  isLocalSubtitleIndex,
+  localSubtitleIndex,
+  toServerSubtitleIndex,
+} from "@/utils/subtitles/subtitleIndex";
+import {
+  applySubtitleStyle,
+  buildSubtitleStyle,
+} from "@/utils/subtitles/subtitleStyle";
 import { msToTicks, ticksToSeconds } from "@/utils/time";
 import { generateDeviceProfile } from "../../../utils/profiles/native";
 
@@ -129,7 +127,6 @@ export default function DirectPlayerPage() {
   const [tracksReady, setTracksReady] = useState(false);
   const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const [currentPlaybackSpeed, setCurrentPlaybackSpeed] = useState(1.0);
-  const [subtitleDelay, setSubtitleDelay] = useState(0);
   const [showTechnicalInfo, setShowTechnicalInfo] = useState(false);
 
   // TV audio/subtitle selection state (tracks current selection for dynamic changes)
@@ -264,8 +261,6 @@ export default function DirectPlayerPage() {
     setCurrentSubtitleIndex(subtitleIndex);
   }, [subtitleIndex]);
 
-  useEffect(() => setSubtitleDelay(0), [itemId]);
-
   // Get the playback speed for this item based on settings
   const { playbackSpeed: initialPlaybackSpeed } = usePlaybackSpeed(
     item,
@@ -290,11 +285,6 @@ export default function DirectPlayerPage() {
     },
     [item, settings, updateSettings],
   );
-
-  const subtitleDelaySupported = getActivePlayerType(settings) === "mpv";
-  const handleSubtitleDelayChange = useCallback((seconds: number) => {
-    setSubtitleDelay(Math.round(seconds * 100) / 100);
-  }, []);
 
   /** Gets the initial playback position from the URL. */
   // const getInitialPlaybackTicks = useCallback((): number => {
@@ -353,7 +343,6 @@ export default function DirectPlayerPage() {
       setDownloadedItem(null);
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
-      setTracksReady(false);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -509,7 +498,6 @@ export default function DirectPlayerPage() {
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
-        setTracksReady(false);
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
         return result;
@@ -962,28 +950,6 @@ export default function DirectPlayerPage() {
     settings.mpvVoDriver,
   ]);
 
-  const effectiveSubtitleScale = useMemo(() => {
-    const videoStream = stream?.mediaSource?.MediaStreams?.find(
-      (mediaStream) => mediaStream.Type === "Video",
-    );
-    return getEffectiveSubtitleScale(
-      settings.subtitleSize ?? 1,
-      videoStream?.Width,
-      videoStream?.Height,
-      screenWidth * PixelRatio.get(),
-      screenHeight * PixelRatio.get(),
-      isZoomedToFill ? "cover" : "contain",
-      getActivePlayerType(settings),
-    );
-  }, [
-    settings.subtitleSize,
-    stream?.mediaSource,
-    screenWidth,
-    screenHeight,
-    isZoomedToFill,
-    settings.videoPlayer,
-  ]);
-
   const volumeUpCb = useCallback(async () => {
     if (Platform.isTV) return;
 
@@ -1259,7 +1225,7 @@ export default function DirectPlayerPage() {
     async (index: number) => {
       // Local (client-downloaded) subs are loaded via addSubtitleFile, not
       // resolvable against server streams — just track the live index.
-      if (index <= LOCAL_SUBTITLE_INDEX_START) {
+      if (isLocalSubtitleIndex(index)) {
         setCurrentSubtitleIndex(index);
         return;
       }
@@ -1397,24 +1363,20 @@ export default function DirectPlayerPage() {
     stream?.mediaSource,
     bitrateValue,
     router,
-    videoRef,
   ]);
 
   // TV: Add subtitle file to player (for client-side downloaded subtitles)
   const addSubtitleFile = useCallback(
     async (path: string) => {
-      // Set the live index to the new local sub's REAL index BEFORE the add.
-      // Local subs are keyed LOCAL_SUBTITLE_INDEX_START - position, so use the
-      // downloaded path's position (not a blanket sentinel, which would collide
-      // with the first local sub at -100 and mis-record the selection). Any
-      // local index resolves to notFound on the onTracksReady re-apply, so it
-      // still doesn't clobber the freshly selected track; carry-over now keeps
-      // the correct local sub.
+      // Set the live index to the new local sub's REAL index BEFORE the add:
+      // encode the downloaded path's position, not a blanket sentinel, which
+      // would collide with the first local sub and mis-record the selection.
+      // Any local index resolves to notFound on the onTracksReady re-apply, so
+      // it still doesn't clobber the freshly selected track; carry-over now
+      // keeps the correct local sub.
       const locals = itemId ? getSubtitlesForItem(itemId) : [];
       const pos = locals.findIndex((s) => s.filePath === path);
-      setCurrentSubtitleIndex(
-        LOCAL_SUBTITLE_INDEX_START - (pos >= 0 ? pos : 0),
-      );
+      setCurrentSubtitleIndex(localSubtitleIndex(pos >= 0 ? pos : 0));
       await videoRef.current?.addSubtitleFile?.(path, true);
     },
     [itemId],
@@ -1434,7 +1396,6 @@ export default function DirectPlayerPage() {
     if (!isMounted) return [];
 
     if (newStream) {
-      setTracksReady(false);
       setStream(newStream);
       return (
         newStream.mediaSource?.MediaStreams?.filter(
@@ -1495,71 +1456,41 @@ export default function DirectPlayerPage() {
     videoRef,
   ]);
 
-  // Apply subtitle settings once MPV has enumerated tracks. `onLoad` fires
-  // before track-list/count is ready, so ASS override/alignment commands can be
-  // dropped if they are sent there (notably on Android).
+  // Apply subtitle settings after MPV has enumerated tracks; applying them on
+  // load is too early for ASS override/alignment on Android.
   useEffect(() => {
     if (!tracksReady || !videoRef.current) return;
-
-    let cancelled = false;
-
-    const applySubtitleSettings = async () => {
-      await videoRef.current?.setSubtitleScale?.(effectiveSubtitleScale);
-      if (cancelled) return;
-
-      if (settings.subtitleMarginY !== undefined) {
-        await videoRef.current?.setSubtitleMarginY?.(
-          getEffectiveSubtitleMarginY(settings.subtitleMarginY),
-        );
-        if (cancelled) return;
-      }
-      if (settings.subtitleAlignX !== undefined) {
-        await videoRef.current?.setSubtitleAlignX?.(settings.subtitleAlignX);
-        if (cancelled) return;
-      }
-      if (settings.subtitleAlignY !== undefined) {
-        await videoRef.current?.setSubtitleAlignY?.(settings.subtitleAlignY);
-        if (cancelled) return;
-      }
-      const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
-      const opacity = Math.min(
-        Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 40, 0),
-        100,
-      );
-      const alpha = Math.round((opacity / 100) * 255)
-        .toString(16)
-        .padStart(2, "0")
-        .toUpperCase();
-
-      await videoRef.current?.setSubtitleStyle?.({
-        color: settings.subtitleColor,
-        font: settings.subtitleFont,
-        background: settings.subtitleBackground ? `#${alpha}000000` : "",
-        backgroundPadding: settings.subtitleBackgroundPadding ?? 8,
-      });
-      if (cancelled) return;
-
-      // ASS subtitles define their own styles, including alignment/margins.
-      // Force overrides whenever the effective subtitle appearance or
-      // positioning differs from app defaults; otherwise leave authored ASS
-      // styling untouched.
-      if (hasCustomSubtitleStyle(settings)) {
-        await videoRef.current?.setSubtitleAssOverride?.("force");
-      } else {
-        await videoRef.current?.setSubtitleAssOverride?.("no");
-      }
-    };
-
-    void applySubtitleSettings().catch((error: unknown) => {
-      if (!cancelled) {
-        console.error("Failed to apply subtitle settings:", error);
-      }
+    const videoStream = stream?.mediaSource?.MediaStreams?.find(
+      (mediaStream) => mediaStream.Type === "Video",
+    );
+    const effectiveScale = getEffectiveSubtitleScale(
+      settings.subtitleSize,
+      videoStream?.Width,
+      videoStream?.Height,
+      screenWidth,
+      screenHeight,
+      isZoomedToFill ? "cover" : "contain",
+    );
+    void applySubtitleStyle(
+      videoRef.current,
+      buildSubtitleStyle(settings, {
+        scale: effectiveScale,
+        marginY:
+          settings.subtitleMarginY === undefined
+            ? undefined
+            : getEffectiveSubtitleMarginY(settings.subtitleMarginY),
+      }),
+    ).catch((error: unknown) => {
+      console.error("Failed to apply subtitle settings:", error);
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tracksReady, settings, effectiveSubtitleScale]);
+  }, [
+    tracksReady,
+    settings,
+    stream?.mediaSource,
+    screenWidth,
+    screenHeight,
+    isZoomedToFill,
+  ]);
 
   // Apply initial playback speed when video loads
   useEffect(() => {
@@ -1574,11 +1505,6 @@ export default function DirectPlayerPage() {
 
     applyInitialPlaybackSpeed();
   }, [isVideoLoaded, initialPlaybackSpeed]);
-
-  useEffect(() => {
-    if (!isVideoLoaded || !subtitleDelaySupported) return;
-    void videoRef.current?.setSubtitleDelay?.(subtitleDelay);
-  }, [isVideoLoaded, subtitleDelay, subtitleDelaySupported]);
 
   // TV only: Pre-load locally downloaded subtitles when video loads
   // This adds them to MPV's track list without auto-selecting them
@@ -1665,10 +1591,7 @@ export default function DirectPlayerPage() {
                 onProgress={onProgress}
                 onPlaybackStateChange={onPlaybackStateChanged}
                 onPictureInPictureChange={_onPictureInPictureChange}
-                onLoad={() => {
-                  setIsVideoLoaded(true);
-                  setTracksReady(false);
-                }}
+                onLoad={() => setIsVideoLoaded(true)}
                 onError={(e: { nativeEvent: MpvOnErrorEventPayload }) => {
                   console.error("Video Error:", e.nativeEvent);
                   Alert.alert(
@@ -1737,12 +1660,6 @@ export default function DirectPlayerPage() {
                   playMethod={playMethod}
                   transcodeReasons={transcodeReasons}
                   downloadedFiles={downloadedFiles}
-                  subtitleDelay={subtitleDelay}
-                  onSubtitleDelayChange={
-                    subtitleDelaySupported
-                      ? handleSubtitleDelayChange
-                      : undefined
-                  }
                 />
               ) : (
                 <Controls
@@ -1768,12 +1685,6 @@ export default function DirectPlayerPage() {
                   downloadedFiles={downloadedFiles}
                   playbackSpeed={currentPlaybackSpeed}
                   setPlaybackSpeed={handleSetPlaybackSpeed}
-                  subtitleDelay={subtitleDelay}
-                  onSubtitleDelayChange={
-                    subtitleDelaySupported
-                      ? handleSubtitleDelayChange
-                      : undefined
-                  }
                   showTechnicalInfo={showTechnicalInfo}
                   onToggleTechnicalInfo={handleToggleTechnicalInfo}
                   getTechnicalInfo={getTechnicalInfo}

@@ -11,7 +11,6 @@ import { BITRATES } from "@/components/BitrateSelector";
 import type {
   NativePlayerConfig,
   NativePlayerStrings,
-  NativePlayerSubtitleStyle,
   NativePlayerTrackMenuItem,
   NativePlayerTrackMenus,
   NativePlayerTrickplay,
@@ -31,20 +30,22 @@ import {
   parseTranscodeReasons,
 } from "@/utils/jellyfin/playMethod";
 import {
-  compareTracksForMenu,
   getExternalSubtitleUrl,
   getMpvAudioId,
-  isImageBasedSubtitle,
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import { getEffectiveSubtitleMarginY } from "@/utils/subtitles";
+import { buildSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
 import {
-  getEffectiveSubtitleMarginY,
-  hasCustomSubtitleStyle,
-} from "@/utils/subtitles";
+  buildAudioMenu,
+  buildSubtitleMenu,
+  type TrackMenuRow,
+} from "@/utils/subtitles/trackMenu";
 import { ticksToSeconds } from "@/utils/time";
 import { getTrickplayInfo } from "@/utils/trickplay";
 import type { PlayRequest } from "./playRequest";
+import { resolveTrackIndexes } from "./resolveTrackIndexes";
 
 export interface NativePlayerStreamSeed {
   url: string;
@@ -148,38 +149,6 @@ const mapOrientationLock = (
   }
 };
 
-/** Mirror of the subtitle-style effect at direct-player.tsx. */
-const buildSubtitleStyle = (
-  settings: Settings,
-  scaleLocked: boolean,
-): NativePlayerSubtitleStyle => {
-  const rawOpacity = Number(settings.subtitleBackgroundOpacity ?? 40);
-  const opacity = Math.min(
-    Math.max(Number.isFinite(rawOpacity) ? rawOpacity : 40, 0),
-    100,
-  );
-  const alpha = Math.round((opacity / 100) * 255)
-    .toString(16)
-    .padStart(2, "0")
-    .toUpperCase();
-
-  return {
-    scale: settings.subtitleSize,
-    scaleLocked,
-    marginY:
-      settings.subtitleMarginY === undefined
-        ? undefined
-        : getEffectiveSubtitleMarginY(settings.subtitleMarginY),
-    alignX: settings.subtitleAlignX,
-    alignY: settings.subtitleAlignY,
-    color: settings.subtitleColor,
-    font: settings.subtitleFont,
-    background: settings.subtitleBackground ? `#${alpha}000000` : "",
-    backgroundPadding: settings.subtitleBackgroundPadding ?? 8,
-    assOverride: hasCustomSubtitleStyle(settings) ? "force" : "no",
-  };
-};
-
 /** Mirror of hooks/usePlaybackSpeed.ts (media > series > default). */
 const resolveInitialPlaybackSpeed = (
   item: BaseItemDto,
@@ -273,18 +242,17 @@ const ISO_639_2_T_TO_B: Record<string, string> = {
 };
 
 /**
- * Sentinel jellyfinIndex for a client-side downloaded sidecar subtitle
- * (OpenSubtitles fallback). It exists only on the mpv handle, not in the
- * Jellyfin media source — the coordinator maps this index back to the local
- * file instead of a server stream.
- */
-export const LOCAL_SUBTITLE_MENU_INDEX = -1000;
-
-/**
  * Menu display models for the native track menus. Selection stays in JS —
  * these only carry labels, Jellyfin indices and the requiresReload flag
  * (burned-in subtitle / audio-under-transcode → stream re-negotiation).
  */
+/** Native menu labels: DisplayTitle, else language, else the raw index. */
+const nativeLabel = (s: {
+  DisplayTitle?: string | null;
+  Language?: string | null;
+  Index?: number | null;
+}) => s.DisplayTitle ?? s.Language ?? `#${s.Index}`;
+
 export const buildTrackMenus = (options: {
   mediaSource: MediaSourceInfo;
   audioIndex: number | undefined;
@@ -300,46 +268,42 @@ export const buildTrackMenus = (options: {
   const isTranscoding = Boolean(options.mediaSource.TranscodingUrl);
   const streams = options.mediaSource.MediaStreams ?? [];
 
-  const subtitleItems: NativePlayerTrackMenuItem[] = [
-    {
-      label: options.offLabel,
-      jellyfinIndex: -1,
-      selected: options.subtitleIndex === -1,
-    },
-    ...streams
-      .filter((s) => s.Type === "Subtitle")
-      .sort(compareTracksForMenu)
-      .map((s) => ({
-        label: s.DisplayTitle ?? s.Language ?? `#${s.Index}`,
-        jellyfinIndex: s.Index ?? -1,
-        selected: s.Index === options.subtitleIndex,
-        // Burned-in image subs are pixels, not tracks: switching to (or away
-        // from) one while transcoding re-processes the stream server-side.
-        requiresReload: isTranscoding && isImageBasedSubtitle(s),
-      })),
-  ];
-  if (options.localSubtitle) {
-    subtitleItems.push({
-      label: options.localSubtitle.label,
-      jellyfinIndex: LOCAL_SUBTITLE_MENU_INDEX,
-      selected: options.localSubtitle.selected,
-    });
-  }
-
   // A transcoded stream (and a transcoded download) only carries the audio
   // track that was encoded into it — other tracks require re-negotiation
   // (online) or simply don't exist (offline download).
   const offlineTranscoded =
     options.offline && options.downloadedItem?.userData?.isTranscoded === true;
-  const audioItems: NativePlayerTrackMenuItem[] = streams
-    .filter((s) => s.Type === "Audio")
-    .filter((s) => !offlineTranscoded || s.Index === options.audioIndex)
-    .map((s) => ({
-      label: s.DisplayTitle ?? s.Language ?? `#${s.Index}`,
-      jellyfinIndex: s.Index ?? -1,
-      selected: s.Index === options.audioIndex,
-      requiresReload: isTranscoding,
-    }));
+
+  const toMenuItem = (row: TrackMenuRow): NativePlayerTrackMenuItem => ({
+    label: row.label,
+    jellyfinIndex: row.index,
+    selected: row.selected,
+    requiresReload: row.requiresReload,
+  });
+
+  const subtitleItems: NativePlayerTrackMenuItem[] = buildSubtitleMenu(
+    streams,
+    {
+      selectedIndex: options.subtitleIndex,
+      offLabel: options.offLabel,
+      isTranscoding,
+      formatLabel: nativeLabel,
+      localSubs: options.localSubtitle
+        ? // The native session carries at most one sidecar, so it always occupies
+          // position 0 of the shared block. The path is unused here — selection
+          // comes back over the bridge as an index and the coordinator owns the
+          // file — so an empty string keeps the row shape honest.
+          [{ name: options.localSubtitle.label, filePath: "" }]
+        : undefined,
+    },
+  ).map(toMenuItem);
+
+  const audioItems: NativePlayerTrackMenuItem[] = buildAudioMenu(streams, {
+    selectedIndex: options.audioIndex,
+    isTranscoding,
+    offlineTranscoded,
+    formatLabel: nativeLabel,
+  }).map(toMenuItem);
 
   // Quality/bitrate menu (JS DropdownView parity): online only; changing it
   // always re-negotiates the stream, so every entry is requiresReload.
@@ -418,10 +382,22 @@ export async function buildNativePlayerConfig(params: {
   if (!item?.Id) return null;
 
   const startTicks = resolveStartTicks(req.playbackPositionTicks, item);
-  const audioIndex =
-    req.audioIndex ??
-    (offline ? downloadedItem?.userData?.audioStreamIndex : undefined);
-  const subtitleIndex = req.subtitleIndex ?? -1;
+  // Callers that already resolved tracks (the item pages) pass them in; the
+  // ones that can't — top shelf, WebSocket Play commands, any bare
+  // playMedia({ itemId }) — would otherwise fall through to the server's
+  // defaults, silently bypassing the per-series memory and the language
+  // preferences. Offline, the download record outranks any such resolution.
+  const { audioIndex, subtitleIndex } = resolveTrackIndexes({
+    item,
+    settings,
+    offline,
+    downloaded: downloadedItem?.userData,
+    requested: {
+      audioIndex: req.audioIndex,
+      subtitleIndex: req.subtitleIndex,
+      mediaSourceId: req.mediaSourceId,
+    },
+  });
   const bitrateValue = req.bitrateValue ?? BITRATES[0].value;
 
   // 2. Stream (offline: local file; online: PlaybackInfo negotiation with the
@@ -527,10 +503,13 @@ export async function buildNativePlayerConfig(params: {
       offLabel: strings.off ?? "None",
       bitrateValue,
     }),
-    subtitleStyle: buildSubtitleStyle(
-      settings,
-      params.subtitleSizeLocked === true,
-    ),
+    subtitleStyle: buildSubtitleStyle(settings, {
+      scaleLocked: params.subtitleSizeLocked === true,
+      marginY:
+        settings.subtitleMarginY === undefined
+          ? undefined
+          : getEffectiveSubtitleMarginY(settings.subtitleMarginY),
+    }),
     ui: {
       // TV: no orientation, no PiP (v1), no haptics, and volume/brightness
       // belong to the remote/HDMI-CEC — the phone-only chrome stays off.
@@ -548,8 +527,9 @@ export async function buildNativePlayerConfig(params: {
       holdToSpeedEnabled: !Platform.isTV && settings.enableHoldToSpeed,
       pinchToZoomEnabled: !Platform.isTV && settings.enablePinchToZoom,
       doubleTapToSeekEnabled: !Platform.isTV && settings.enableDoubleTapToSeek,
-      subtitleSearchEnabled:
-        !offline && !!api && !!settings.openSubtitlesApiKey?.trim(),
+      // Server search needs connectivity; the OpenSubtitles fallback needs
+      // the network either way — offline sessions hide the entry.
+      subtitleSearchEnabled: !offline && !!api,
       subtitleSearchLanguages: COMMON_SUBTITLE_LANGUAGES.map((l) => ({
         code: l.code,
         name: l.name,

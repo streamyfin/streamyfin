@@ -16,6 +16,7 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { BITRATES } from "@/components/BitrateSelector";
+import { langEq } from "@/utils/jellyfin/subtitleUtils";
 import { getSeriesTrackMemory } from "@/utils/seriesTrackMemory";
 import { type Settings } from "../atoms/settings";
 import {
@@ -23,6 +24,7 @@ import {
   StreamRanker,
   SubtitleStreamRanker,
 } from "../streamRanker";
+import { ORIGINAL_LANGUAGE } from "./serverVersion";
 
 export interface PlaySettings {
   item: BaseItemDto;
@@ -37,19 +39,17 @@ export interface PreviousIndexes {
   subtitleIndex?: number;
 }
 
-export interface PlaySettingsOptions {
-  /** Apply language preferences from settings (used on TV) */
-  applyLanguagePreferences?: boolean;
-}
-
 /**
  * Find a track by language code.
  *
- * @param streams - Available media streams
- * @param languageCode - ISO 639-2 three-letter language code (e.g., "eng", "swe")
- * @param streamType - Type of stream to search ("Audio" or "Subtitle")
+ * Comparison goes through {@link langEq} rather than string equality: the stored
+ * preference is a Jellyfin CultureDto code (.NET-style 639-2/T — "deu", "fra",
+ * "swe") while MediaStreams carry 639-2/B ("ger", "fre") or bare 639-1 ("de",
+ * "sv"). The previous `substring(0, 2)` fallback was not a language mapping at
+ * all — it turned "swe" into "sw", which is Swahili, so a Swedish preference
+ * matched Swahili tracks and missed "sv"-tagged Swedish ones.
+ *
  * @param forcedOnly - If true, only match forced subtitles
- * @returns The stream index if found, undefined otherwise
  */
 function findTrackByLanguage(
   streams: MediaStream[],
@@ -62,12 +62,7 @@ function findTrackByLanguage(
   const candidates = streams.filter((s) => {
     if (s.Type !== streamType) return false;
     if (forcedOnly && !s.IsForced) return false;
-    // Match on ThreeLetterISOLanguageName (ISO 639-2)
-    return (
-      s.Language?.toLowerCase() === languageCode.toLowerCase() ||
-      // Fallback: some Jellyfin servers use two-letter codes in Language field
-      s.Language?.toLowerCase() === languageCode.substring(0, 2).toLowerCase()
-    );
+    return langEq(s.Language, languageCode);
   });
 
   // Prefer default track if multiple match
@@ -129,14 +124,8 @@ function applySubtitleMode(
     case SubtitlePlaybackMode.Smart: {
       // Enable subtitles only when audio language differs from subtitle preference
       if (audioLanguage && subtitleLanguageCode) {
-        const audioLang = audioLanguage.toLowerCase();
-        const subLang = subtitleLanguageCode.toLowerCase();
         // If audio matches subtitle preference, disable subtitles
-        if (
-          audioLang === subLang ||
-          audioLang.startsWith(subLang.substring(0, 2)) ||
-          subLang.startsWith(audioLang.substring(0, 2))
-        ) {
+        if (langEq(audioLanguage, subtitleLanguageCode)) {
           return -1;
         }
       }
@@ -168,13 +157,11 @@ function applySubtitleMode(
  * @param item - The media item to play
  * @param settings - User settings (language preferences, bitrate, etc.)
  * @param previous - Optional previous track selections to carry over (for sequential play)
- * @param options - Optional flags to control behavior (e.g., applyLanguagePreferences for TV)
  */
 export function getDefaultPlaySettings(
   item: BaseItemDto | null | undefined,
   settings: Settings | null,
   previous?: { indexes?: PreviousIndexes; source?: MediaSourceInfo },
-  options?: PlaySettingsOptions,
 ): PlaySettings {
   const bitrate = settings?.defaultBitrate ?? BITRATES[0];
 
@@ -280,10 +267,29 @@ export function getDefaultPlaySettings(
     }
   }
 
-  // Apply language preferences when enabled (TV) and no previous selection matched
-  if (options?.applyLanguagePreferences && settings) {
-    const audioLanguageCode =
+  // Language preferences + subtitle mode, applied on every path.
+  //
+  // This used to be opt-in per caller, and the callers disagreed: the item pages
+  // and the mobile next-episode handler passed the flag while every TV and
+  // native-player next-episode handler did not. The result was that advancing an
+  // episode on Apple TV kept the *server's* DefaultSubtitleStreamIndex — which
+  // comes from the server-side user profile, a different setting the user likely
+  // never touched — and could land on a track in an unrelated language while the
+  // same show on the phone resolved correctly.
+  //
+  // Unconditional is safe: with no preference set and subtitleMode Default, both
+  // blocks below are no-ops, so only users who configured a preference see any
+  // change. The carry-over still wins where it matched (the matched* guards).
+  if (settings) {
+    const preferredAudioLanguage =
       settings.defaultAudioLanguage?.ThreeLetterISOLanguageName ?? undefined;
+    // The original-language preference is not an ISO code: the server already
+    // resolved it into DefaultAudioStreamIndex, so leave that choice alone
+    // instead of matching the sentinel against the stream languages.
+    const audioLanguageCode =
+      preferredAudioLanguage === ORIGINAL_LANGUAGE
+        ? undefined
+        : preferredAudioLanguage;
     const subtitleLanguageCode =
       settings.defaultSubtitleLanguage?.ThreeLetterISOLanguageName ?? undefined;
 

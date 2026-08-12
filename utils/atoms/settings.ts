@@ -15,10 +15,15 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
+import {
+  type AppliedPluginDefaults,
+  pendingPluginDefaults,
+  resolveEffectiveSettings,
+} from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
-const EXPLICIT_PLUGIN_SETTING_OVERRIDES = "EXPLICIT_PLUGIN_SETTING_OVERRIDES";
+const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
 
 export type DownloadQuality = "original" | "high" | "low";
 
@@ -646,20 +651,13 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
-const hasMeaningfulSettingValue = (value: unknown) =>
-  value !== undefined && value !== null && value !== "";
-
-const loadExplicitPluginSettingOverrides = (): Set<keyof Settings> => {
+const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
-    const value = storage.getString(EXPLICIT_PLUGIN_SETTING_OVERRIDES);
-    return new Set(value ? JSON.parse(value) : []);
-  } catch (error) {
-    console.error("Failed to load explicit plugin setting overrides:", error);
-    return new Set();
+    return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+  } catch {
+    return {};
   }
 };
-
-const explicitPluginSettingOverrides = loadExplicitPluginSettingOverrides();
 
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
@@ -694,26 +692,36 @@ export const useSettings = () => {
     );
     setPluginSettings(newPluginSettings);
 
-    // Locked/unlocked values are handled by the settings memo, which
-    // applies locked values at runtime without overwriting user storage.
-    // We only handle auto-enabling Streamystats here.
     if (newPluginSettings && _settings) {
-      const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
-      if (streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats") {
+      const applied = loadAppliedPluginDefaults();
+      const pending = pendingPluginDefaults(
+        newPluginSettings,
+        applied,
+        normalizePluginValue,
+      );
+      const enableStreamystats =
+        newPluginSettings.streamyStatsServerUrl?.value &&
+        _settings.searchEngine !== "Streamystats";
+
+      if (Object.keys(pending).length > 0 || enableStreamystats) {
         const newSettings = {
           ...defaultValues,
           ..._settings,
-          searchEngine: "Streamystats",
+          ...pending,
+          ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
         } as Settings;
         setSettings(newSettings);
         saveSettings(newSettings);
+        if (Object.keys(pending).length > 0) {
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
+        }
       }
     }
 
     return newPluginSettings;
   }, [api, _settings]);
 
-  const updateSettings = (update: Partial<Settings>, markAsExplicit = true) => {
+  const updateSettings = (update: Partial<Settings>) => {
     // Admin-locked settings are enforced at write time too: a control that
     // isn't disabled in the UI must not persist a value the admin pinned.
     // The read memo already overrides locked keys, but without this guard the
@@ -735,33 +743,7 @@ export const useSettings = () => {
       const changedKeys = requestedKeys.filter(
         (key) => !Object.is(currentSettings[key], sanitizedUpdate[key]),
       );
-      // Compare explicit choices with the effective values displayed by this
-      // render; changedKeys uses live persisted state to merge same-tick writes.
-      const explicitKeys = markAsExplicit
-        ? requestedKeys.filter(
-            (key) =>
-              pluginSettings?.[key] !== undefined &&
-              pluginSettings[key]?.locked !== true &&
-              !explicitPluginSettingOverrides.has(key) &&
-              !Object.is(settings[key], sanitizedUpdate[key]),
-          )
-        : [];
-
-      if (changedKeys.length === 0 && explicitKeys.length === 0) {
-        return currentSettings;
-      }
-
-      if (explicitKeys.length > 0) {
-        for (const key of explicitKeys) {
-          explicitPluginSettingOverrides.add(key);
-        }
-        storage.set(
-          EXPLICIT_PLUGIN_SETTING_OVERRIDES,
-          JSON.stringify([...explicitPluginSettingOverrides]),
-        );
-      }
-
-      if (changedKeys.length === 0) return { ...currentSettings };
+      if (changedKeys.length === 0) return currentSettings;
 
       const newSettings = {
         ...defaultValues,
@@ -773,49 +755,16 @@ export const useSettings = () => {
     });
   };
 
-  // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
-  // If admin sets locked to false but provides a value,
-  // use persisted settings first, then app defaults, and only fallback on the
-  // plugin value when neither provides a meaningful value.
-  const settings: Settings = useMemo(() => {
-    const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
-      Partial<Settings>
-    >((acc, [key, setting]) => {
-      if (setting) {
-        let { value } = setting;
-        const { locked } = setting;
-        const settingsKey = key as keyof Settings;
-
-        // Normalize object-typed settings from plugin (plain primitive → { key, value })
-        value = normalizePluginValue(settingsKey, value);
-
-        // When unlocked, keep a value that diverges from the app default or
-        // that the user explicitly selected. Tracking explicit selections is
-        // necessary because choosing the app default (for example subtitle
-        // scale 1.0) must not immediately snap back to the plugin default.
-        const userValue = _settings?.[settingsKey];
-        const userDiverged =
-          hasMeaningfulSettingValue(userValue) &&
-          (userValue !== defaultValues[settingsKey] ||
-            explicitPluginSettingOverrides.has(settingsKey));
-
-        (acc as any)[settingsKey] = locked
-          ? value
-          : userDiverged
-            ? userValue
-            : hasMeaningfulSettingValue(value)
-              ? value
-              : defaultValues[settingsKey];
-      }
-      return acc;
-    }, {});
-
-    return {
-      ...defaultValues,
-      ..._settings,
-      ...overrideSettings,
-    };
-  }, [_settings, pluginSettings]);
+  const settings: Settings = useMemo(
+    () =>
+      resolveEffectiveSettings(
+        _settings,
+        pluginSettings,
+        defaultValues,
+        normalizePluginValue,
+      ),
+    [_settings, pluginSettings],
+  );
 
   return {
     settings,
