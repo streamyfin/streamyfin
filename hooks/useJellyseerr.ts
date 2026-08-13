@@ -48,6 +48,7 @@ import type {
   TvDetails,
 } from "@/utils/jellyseerr/server/models/Tv";
 import { writeErrorLog } from "@/utils/log";
+import { isVersionBelow } from "@/utils/serverUrl/semver";
 
 interface SearchParams {
   query: string;
@@ -141,9 +142,12 @@ export class JellyseerrApi {
       .then((response) => {
         const { status, headers, data } = response;
         if (inRange(status, 200, 299)) {
-          if (data.version < "2.0.0") {
+          if (data.version && isVersionBelow(data.version, "2.0.0")) {
             const error = t(
-              "jellyseerr.toasts.jellyseer_does_not_meet_requirements",
+              "jellyseerr.toasts.jellyseerr_does_not_meet_requirements",
+            );
+            writeErrorLog(
+              `Jellyseerr version ${data.version} is below the required 2.0.0`,
             );
             toast.error(error);
             throw Error(error);

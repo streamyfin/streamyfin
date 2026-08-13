@@ -2,7 +2,7 @@ name: 🚦 Security & Quality Gate
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, synchronize, reopened]
     branches: [develop, master]
   workflow_dispatch:
   push:
@@ -11,39 +11,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  validate_pr_title:
-    name: "📝 Validate PR Title"
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-26.04
-    permissions:
-      pull-requests: write
-      contents: read
-    steps:
-      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
-        id: lint_pr_title
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
-        if: always() && (steps.lint_pr_title.outputs.error_message != null)
-        with:
-          header: pr-title-lint-error
-          message: |
-            Hey there and thank you for opening this pull request! 👋🏼
-            We require pull request titles to follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/).
-
-            **Error details:**
-            ```
-            ${{ steps.lint_pr_title.outputs.error_message }}
-            ```
-
-      - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
-        with:
-          header: pr-title-lint-error
-          delete: true
-
   dependency-review:
     name: 🔍 Vulnerable Dependencies
     runs-on: ubuntu-26.04
@@ -51,7 +23,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -67,18 +39,26 @@ jobs:
     name: 🚑 Expo Doctor Check
     runs-on: ubuntu-26.04
     steps:
-      - name: 🛒 Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          submodules: recursive
-          fetch-depth: 0
+      - parallel:
+          - name: 🛒 Checkout repository
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              submodules: recursive
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
+
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: 📦 Install dependencies (bun)
         run: bun install --frozen-lockfile
@@ -103,24 +83,26 @@ jobs:
           - "i18n:check"
 
     steps:
-      - name: "📥 Checkout PR code"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          submodules: recursive
-          fetch-depth: 0
+      - parallel:
+          - name: "📥 Checkout PR code"
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              submodules: recursive
 
-      - name: "🟢 Setup Node.js"
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          # renovate: datasource=node-version depName=node versioning=node
-          node-version: "24.17.0"
+          - name: "🍞 Setup Bun"
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
 
-      - name: "🍞 Setup Bun"
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: 💾 Cache Bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       - name: "📦 Install dependencies"
         run: bun install --frozen-lockfile

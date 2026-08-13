@@ -3,8 +3,8 @@ import { SubtitlePlaybackMode } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View, type ViewProps } from "react-native";
-import { Switch } from "react-native-gesture-handler";
 import { Input } from "@/components/common/Input";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Stepper } from "@/components/inputs/Stepper";
 import { useSettings } from "@/utils/atoms/settings";
 import { Text } from "../common/Text";
@@ -98,6 +98,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
   return (
     <View {...props}>
       <ListGroup
+        className='mb-4'
         title={t("home.settings.subtitles.subtitle_title")}
         description={
           <Text className='text-[#8E8D91] text-xs'>
@@ -152,7 +153,7 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
           title={t("home.settings.subtitles.set_subtitle_track")}
           disabled={pluginSettings?.rememberSubtitleSelections?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.rememberSubtitleSelections}
             disabled={pluginSettings?.rememberSubtitleSelections?.locked}
             onValueChange={(value) =>
@@ -160,6 +161,17 @@ export const SubtitleToggles: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
+
+        {Platform.OS === "ios" && !Platform.isTV && (
+          <ListItem title={t("home.settings.subtitles.subtitles_on_mute")}>
+            <SettingSwitch
+              value={settings.subtitlesOnMute}
+              onValueChange={(value) =>
+                updateSettings({ subtitlesOnMute: value })
+              }
+            />
+          </ListItem>
+        )}
 
         <ListItem
           title={t("home.settings.subtitles.subtitle_size")}

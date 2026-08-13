@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -18,6 +19,7 @@ interface ServerUrlContextValue {
   effectiveServerUrl: string | null;
   isUsingLocalUrl: boolean;
   currentSSID: string | null;
+  connectedToWifi: boolean;
   refreshUrlState: () => void;
 }
 
@@ -32,7 +34,7 @@ interface Props {
 export function ServerUrlProvider({ children }: Props): React.ReactElement {
   const api = useAtomValue(apiAtom);
   const { switchServerUrl } = useJellyfin();
-  const { ssid, permissionStatus } = useWifiSSID();
+  const { ssid, connectedToWifi, permissionStatus } = useWifiSSID();
 
   const [isUsingLocalUrl, setIsUsingLocalUrl] = useState(false);
   const [effectiveServerUrl, setEffectiveServerUrl] = useState<string | null>(
@@ -101,15 +103,25 @@ export function ServerUrlProvider({ children }: Props): React.ReactElement {
     };
   }, [ssid, permissionStatus, evaluateAndSwitchUrl]);
 
+  const value = useMemo(
+    () => ({
+      effectiveServerUrl,
+      isUsingLocalUrl,
+      currentSSID: ssid,
+      connectedToWifi,
+      refreshUrlState,
+    }),
+    [
+      effectiveServerUrl,
+      isUsingLocalUrl,
+      ssid,
+      connectedToWifi,
+      refreshUrlState,
+    ],
+  );
+
   return (
-    <ServerUrlContext.Provider
-      value={{
-        effectiveServerUrl,
-        isUsingLocalUrl,
-        currentSSID: ssid,
-        refreshUrlState,
-      }}
-    >
+    <ServerUrlContext.Provider value={value}>
       {children}
     </ServerUrlContext.Provider>
   );

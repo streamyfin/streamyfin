@@ -1,9 +1,9 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { PublicSystemInfo } from "@jellyfin/sdk/lib/generated-client";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { t } from "i18next";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -17,17 +17,21 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/Button";
+import { HeaderButton } from "@/components/common/HeaderButton";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { Input } from "@/components/common/Input";
 import { Text } from "@/components/common/Text";
 import JellyfinServerDiscovery from "@/components/JellyfinServerDiscovery";
+import { QuickConnectCodeModal } from "@/components/login/QuickConnectCodeModal";
 import { PreviousServersList } from "@/components/PreviousServersList";
-import { SaveAccountModal } from "@/components/SaveAccountModal";
 import { Colors } from "@/constants/Colors";
-import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
-import type {
-  AccountSecurityType,
-  SavedServer,
-} from "@/utils/secureCredentials";
+import {
+  apiAtom,
+  pendingAccountSaveAtom,
+  useJellyfin,
+  userAtom,
+} from "@/providers/JellyfinProvider";
+import type { SavedServer } from "@/utils/secureCredentials";
 
 const CredentialsSchema = z.object({
   username: z.string().min(1, t("login.username_required")),
@@ -35,6 +39,7 @@ const CredentialsSchema = z.object({
 
 export const Login: React.FC = () => {
   const api = useAtomValue(apiAtom);
+  const user = useAtomValue(userAtom);
   const navigation = useNavigation();
   const params = useLocalSearchParams();
   const {
@@ -42,9 +47,11 @@ export const Login: React.FC = () => {
     login,
     removeServer,
     initiateQuickConnect,
+    stopQuickConnectPolling,
     loginWithSavedCredential,
     loginWithPassword,
   } = useJellyfin();
+  const setPendingAccountSave = useSetAtom(pendingAccountSaveAtom);
 
   const {
     apiUrl: _apiUrl,
@@ -64,13 +71,50 @@ export const Login: React.FC = () => {
     password: _password || "",
   });
 
-  // Save account state
+  // Quick Connect code shown in the in-app sheet while polling for authorization
+  const [quickConnectCode, setQuickConnectCode] = useState<string | null>(null);
+
+  // Close the code sheet as soon as the session is authorized — the native
+  // Alert used before had no programmatic dismiss and stayed open after login.
+  useEffect(() => {
+    if (user) setQuickConnectCode(null);
+  }, [user]);
+
+  // Stop Quick Connect polling when leaving the login page (parity with TVLogin)
+  useEffect(() => {
+    return () => {
+      stopQuickConnectPolling();
+    };
+  }, [stopQuickConnectPolling]);
+
+  // Going back to server selection keeps this component mounted (same screen,
+  // different state), so the unmount cleanup above doesn't run. Without this a
+  // code authorized after leaving would silently log the user in later.
+  useEffect(() => {
+    if (!api?.basePath) {
+      stopQuickConnectPolling();
+      setQuickConnectCode(null);
+    }
+  }, [api?.basePath, stopQuickConnectPolling]);
+
+  // Save account state — only the intent lives here; the protection picker is
+  // the global PendingAccountSaveModal, shown after the login succeeds.
   const [saveAccount, setSaveAccount] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [pendingLogin, setPendingLogin] = useState<{
-    username: string;
-    password: string;
-  } | null>(null);
+
+  // Tracks an in-flight Quick Connect attempt (code issued, provider polling).
+  const [quickConnectActive, setQuickConnectActive] = useState(false);
+
+  // A Quick Connect login with "save account" on flags the post-login save:
+  // the protection picker shows globally once the session exists (this screen
+  // unmounts on login, so it can't host the modal).
+  useEffect(() => {
+    if (user) {
+      if (quickConnectActive && saveAccount) {
+        setPendingAccountSave({ serverName });
+      }
+      setQuickConnectActive(false);
+    }
+  }, [user]);
 
   // Handle URL params for server connection
   useEffect(() => {
@@ -96,17 +140,17 @@ export const Login: React.FC = () => {
       headerTitle: serverName,
       headerLeft: () =>
         api?.basePath ? (
-          <TouchableOpacity
+          <HeaderButton
+            placement='left'
+            variant='text'
             onPress={() => {
               removeServer();
             }}
-            className='flex flex-row items-center pr-2 pl-1'
+            style={{ flexDirection: "row", gap: 4 }}
           >
-            <Ionicons name='chevron-back' size={18} color={Colors.primary} />
-            <Text className=' ml-1 text-purple-600'>
-              {t("login.change_server")}
-            </Text>
-          </TouchableOpacity>
+            <HeaderIcon name='back' tintColor={Colors.primary} size={18} />
+            <Text className='text-purple-600'>{t("login.change_server")}</Text>
+          </HeaderButton>
         ) : null,
     });
   }, [serverName, navigation, api?.basePath]);
@@ -117,55 +161,34 @@ export const Login: React.FC = () => {
     const result = CredentialsSchema.safeParse(credentials);
     if (!result.success) return;
 
-    if (saveAccount) {
-      setPendingLogin({
-        username: credentials.username,
-        password: credentials.password,
-      });
-      setShowSaveModal(true);
-    } else {
-      await performLogin(credentials.username, credentials.password);
+    const ok = await performLogin(credentials.username, credentials.password);
+    // The protection picker shows AFTER a successful login (global modal) —
+    // never for a failed one.
+    if (ok && saveAccount) {
+      setPendingAccountSave({ serverName });
     }
   };
 
   const performLogin = async (
     username: string,
     password: string,
-    options?: {
-      saveAccount?: boolean;
-      securityType?: AccountSecurityType;
-      pinCode?: string;
-    },
-  ) => {
+  ): Promise<boolean> => {
     setLoading(true);
     try {
-      await login(username, password, serverName, options);
+      await login(username, password, serverName);
+      return true;
     } catch (error) {
       if (error instanceof Error) {
         Alert.alert(t("login.connection_failed"), error.message);
       } else {
         Alert.alert(
           t("login.connection_failed"),
-          t("login.an_unexpected_error_occured"),
+          t("login.an_unexpected_error_occurred"),
         );
       }
+      return false;
     } finally {
       setLoading(false);
-      setPendingLogin(null);
-    }
-  };
-
-  const handleSaveAccountConfirm = async (
-    securityType: AccountSecurityType,
-    pinCode?: string,
-  ) => {
-    setShowSaveModal(false);
-    if (pendingLogin) {
-      await performLogin(pendingLogin.username, pendingLogin.password, {
-        saveAccount: true,
-        securityType,
-        pinCode,
-      });
     }
   };
 
@@ -259,15 +282,8 @@ export const Login: React.FC = () => {
     try {
       const code = await initiateQuickConnect();
       if (code) {
-        Alert.alert(
-          t("login.quick_connect"),
-          t("login.enter_code_to_login", { code: code }),
-          [
-            {
-              text: t("login.got_it"),
-            },
-          ],
-        );
+        setQuickConnectActive(true);
+        setQuickConnectCode(code);
       }
     } catch (_error) {
       Alert.alert(
@@ -402,7 +418,7 @@ export const Login: React.FC = () => {
                 {t("server.enter_url_to_jellyfin_server")}
               </Text>
               <Input
-                aria-label='Server URL'
+                aria-label={t("server.server_url")}
                 placeholder={t("server.server_url_placeholder")}
                 onChangeText={setServerURL}
                 value={serverURL}
@@ -444,14 +460,11 @@ export const Login: React.FC = () => {
         )}
       </KeyboardAvoidingView>
 
-      <SaveAccountModal
-        visible={showSaveModal}
-        onClose={() => {
-          setShowSaveModal(false);
-          setPendingLogin(null);
-        }}
-        onSave={handleSaveAccountConfirm}
-        username={pendingLogin?.username || credentials.username}
+      {/* Dismissing only hides the code — polling continues so the login still
+          completes if the code is authorized from another device afterwards. */}
+      <QuickConnectCodeModal
+        code={quickConnectCode}
+        onClose={() => setQuickConnectCode(null)}
       />
     </SafeAreaView>
   );

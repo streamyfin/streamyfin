@@ -50,9 +50,15 @@ export interface TVSkipSegmentCardProps {
   playButtonRef?: View | null;
 }
 
-// Position constants - same as TVNextEpisodeCountdown (they're mutually exclusive)
-const BOTTOM_WITH_CONTROLS = 300;
-const BOTTOM_WITHOUT_CONTROLS = 120;
+// Position constants — kept in sync with TVNextEpisodeCountdown (the two
+// are mutually exclusive). Scaled to the screen so 4K TVs don't get a
+// card that floats far above the controls.
+//
+// BOTTOM_WITH_CONTROLS is tuned to sit just above the bottom controls bar
+// (metadata + seekbar + buttons ≈ 200px on 1080p). Previously 300, which
+// left the card hovering ~100px above the controls.
+const BOTTOM_WITH_CONTROLS = scaleSize(220);
+const BOTTOM_WITHOUT_CONTROLS = scaleSize(120);
 
 export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
   show,

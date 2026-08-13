@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Імʼя користувача необхідне",
     "error_title": "Помилка",
@@ -12,18 +19,21 @@
     "login_button": "Вхід",
     "quick_connect": "Швидке Зʼєднання",
     "enter_code_to_login": "Введіть код {{code}} для входу",
+    "quick_connect_instructions": "Введіть цей код на пристрої, на якому ви вже увійшли в акаунт. Вхід відбудеться автоматично.",
+    "tap_code_to_copy": "Торкніться коду, щоб скопіювати його",
+    "code_copied": "Код скопійовано",
     "failed_to_initiate_quick_connect": "Не вдалося ініціалізувати Швидке Зʼєднання",
     "got_it": "Готово",
     "connection_failed": "Помилка зʼєднання",
     "could_not_connect_to_server": "Неможливо підʼєднатися до серверу. Будь ласка перевірте URL і ваше зʼєднання з мережею",
-    "an_unexpected_error_occured": "Сталася несподівана помилка",
+    "an_unexpected_error_occurred": "Сталася несподівана помилка",
     "change_server": "Змінити сервер",
     "invalid_username_or_password": "Неправильні імʼя користувача або пароль",
     "user_does_not_have_permission_to_log_in": "Користувач не маю дозволу на вхід",
     "server_is_taking_too_long_to_respond_try_again_later": "Сервер відповідає занадто довго, будь-ласка спробуйте пізніше",
     "server_received_too_many_requests_try_again_later": "Сервер отримав забагато запитів, будь ласка спробуйте пізніше.",
     "there_is_a_server_error": "Відбулася помилка на стороні сервера",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Відбулася несподівана помилка. Чи введений URL сервера правильний?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "Відбулася несподівана помилка. Чи введений URL сервера правильний?",
     "too_old_server_text": "Unsupported Jellyfin Server Discovered",
     "too_old_server_description": "Please update Jellyfin to the latest version"
   },
@@ -33,6 +43,7 @@
     "connect_button": "Підʼєднатися",
     "previous_servers": "попередні сервери",
     "clear_button": "Очистити",
+    "server_url": "URL сервера",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Пошук локальних серверів",
     "searching": "Пошук...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "Обліковий запис не збережено",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Вітаємо у Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Вільний і open-source клієнт для Jellyfin.",
       "features_title": "Функції",
-      "features_description": "Streamyfin має безліч функцій та інтегрується з широким спектром програмного забезпечення, яке ви можете знайти в меню налаштувань, зокрема:",
+      "features_description": "Streamyfin має безліч функцій і працює з іншим програмним забезпеченням. Ви знайдете їх у меню налаштувань:",
       "jellyseerr_feature_description": "Підключіться до вашого екземпляру Jellyseerr і запитуватуйте фільми безпосередньо в застосунку.",
       "downloads_feature_title": "Завантаження",
       "downloads_feature_description": "Завантажуйте фільми і серіали для перегляду офлайн. Використовуйте або метод за замовчуванням або встановіть оптимізований сервер для завантаження файлів у фоні.",
       "chromecast_feature_description": "Транслюйте фільми і серіали на ваші Chromecast прилади.",
       "centralised_settings_plugin_title": "Centralised Settings Plugin",
-      "centralised_settings_plugin_description": "Налаштуйте параметри з централізованої локації на вашому сервері Jellyfin. Всі налаштування клієнтів для всіх користувачів будуть синхронізовані автоматично.",
+      "centralised_settings_plugin_description": "Налаштуйте параметри централізовано на вашому сервері Jellyfin. Клієнтські налаштування кожного користувача синхронізуються автоматично.",
       "done_button": "Готово",
       "go_to_settings_button": "Перейти до параметрів",
       "read_more": "Прочитати більше"
     },
     "settings": {
       "settings_title": "Параметри",
+      "disabled_by_admin": "Вимкнено адміністратором",
       "log_out_button": "Вихід",
       "switch_user": {
         "title": "Switch User",
@@ -137,7 +150,11 @@
       "appearance": {
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
+        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide Remote Session Button",
+        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic Home Backdrop",
         "show_hero_carousel": "Hero Carousel",
         "show_series_poster_on_episode": "Show Series Poster on Episodes",
@@ -174,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID приховано",
+        "location_off_description": "Підключено до Wi-Fi, але назва мережі прихована. Увімкніть служби геолокації на пристрої та надайте застосунку дозвіл на доступ до геолокації, щоб її визначити.",
+        "open_location_settings": "Відкрити налаштування геолокації"
       },
       "user_info": {
         "user_info_title": "Інформація користувача",
@@ -188,16 +208,24 @@
         "authorize_button": "Авторизуйте Швидке Зʼєднання",
         "enter_the_quick_connect_code": "Введіть код для швидкого зʼєднання...",
         "success": "Успіх",
-        "quick_connect_autorized": "Швидке Зʼєднання авторизовано",
+        "quick_connect_authorized": "Швидке Зʼєднання авторизовано",
         "error": "Помилка",
         "invalid_code": "Не правильний код",
-        "authorize": "Авторизувати"
+        "authorize": "Авторизувати",
+        "paste_code": "Вставити код"
       },
       "media_controls": {
         "media_controls_title": "Керування Медіа",
         "forward_skip_length": "Довжина перемотування вперед",
         "rewind_length": "Довжина перемотування назад",
         "seconds_unit": "с"
+      },
+      "video_player": {
+        "title": "Відеоплеєр",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer не підтримує розширене оформлення субтитрів ASS/SSA або горизонтальне вирівнювання субтитрів. Перемкніться на MPV, якщо це потрібно.",
+        "mpv_note": "MPV на ТБ наразі не передає метадані HDR на екран, тому контент HDR10/HDR10+ перетворюється в SDR (тональне відображення). Перемкніться на ExoPlayer для виведення HDR."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -270,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "Налаштування субтитрів MPV",
+        "mpv_settings_description": "Розширене налаштування субтитрів для плеєра MPV",
+        "opaque_background": "Непрозорий фон",
+        "background_opacity": "Непрозорість фону",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -296,9 +328,10 @@
         },
         "safe_area_in_controls": "Безпечна зона в елементах керування",
         "show_custom_menu_links": "Показати користувацькі посилання меню",
+        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Сховати медіатеки",
-        "select_liraries_you_want_to_hide": "Виберіть медіатеки, що бажаєте приховати з вкладки Медіатека і з секції на головній сторінці.",
+        "select_libraries_you_want_to_hide": "Виберіть медіатеки, що бажаєте приховати з вкладки Медіатека і з секції на головній сторінці.",
         "disable_haptic_feedback": "Вимкнути тактильний зворотний зв'язок",
         "default_quality": "Якість за замовченням",
         "default_playback_speed": "Default Playback Speed",
@@ -312,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "Наступні пісні з черги зберігаються заздалегідь. Найстаріші з них видаляються після досягнення ліміту розміру.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -370,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Не вдалося оновити налаштування з сервера",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -384,8 +418,10 @@
         "device_usage": "Гаджет {{availableSpace}}%",
         "size_used": "{{used}} з {{total}} використано",
         "delete_all_downloaded_files": "Видалити усі завантаженні файли",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Пісні кешуються автоматично під час відтворення. Очищення кешу звільняє місце і не впливає на завантажені пісні.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -408,7 +444,9 @@
         "click_for_more_info": "Click for more info",
         "level": "Level",
         "no_logs_available": "Нема доступних журналів",
-        "delete_all_logs": "Видалити усі журнали"
+        "delete_all_logs": "Видалити усі журнали",
+        "copy": "Копіювати",
+        "copied": "Скопійовано в буфер обміну"
       },
       "languages": {
         "title": "Мова",
@@ -435,10 +473,13 @@
     },
     "sessions": {
       "title": "Сесії",
-      "no_active_sessions": "Нема активних сесій"
+      "no_active_sessions": "Нема активних сесій",
+      "select_session": "Вибрати сесію",
+      "now_playing": "Зараз грає:"
     },
     "downloads": {
       "downloads_title": "Завантаження",
+      "transcoding": "Транскодування",
       "series": "ТБ-Серіали",
       "movies": "Фільми",
       "other_media": "Other media",
@@ -484,7 +525,6 @@
   },
   "common": {
     "no_results": "No Results",
-    "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Video",
     "audio": "Audio",
@@ -495,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Стоп",
+    "open_menu": "Відкрити меню",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -589,17 +631,45 @@
     "boxsets": "Бокс-сети",
     "playlists": "Плейлісти",
     "noDataTitle": "Поки що нема обраного",
-    "noData": "Відмітьте як улюблене що би побачити це тут в швидкому доступі."
+    "noData": "Елементи, які ви позначаєте як улюблені, з'являються тут."
   },
   "custom_links": {
     "no_links": "Немає посилань"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Перемішати",
+    "entire_series": "Увесь серіал",
+    "episode_count": "{{count}} епізодів",
+    "menu": {
+      "quality": "Якість",
+      "subtitles": "Субтитри",
+      "subtitle_scale": "Масштаб субтитрів",
+      "audio": "Аудіо",
+      "speed": "Швидкість",
+      "playback_options": "Параметри відтворення",
+      "show_technical_info": "Показати технічну інформацію",
+      "hide_technical_info": "Приховати технічну інформацію"
+    },
+    "technical_info": {
+      "video": "Відео:",
+      "audio": "Аудіо:",
+      "subtitle": "Субтитри:",
+      "bitrate": "Бітрейт:",
+      "source_bitrate": "Файл:",
+      "buffer_seconds": "Буфер: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Пропущено: {{count}} кадрів",
+      "loading": "Завантаження..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Співвідношення сторін",
+    "aspect_ratio_original": "Оригінальне",
+    "hash_match": "Збіг хешу",
+    "still_watching": "Ви все ще дивитесь?",
     "error": "Помилка",
     "failed_to_get_stream_url": "Не вдалося отримати URL-адресу потоку",
-    "an_error_occured_while_playing_the_video": "Під час відтворення відео сталася помилка. Перевірте журнал в налаштуваннях.",
+    "an_error_occurred_while_playing_the_video": "Під час відтворення відео сталася помилка. Перевірте журнал в налаштуваннях.",
     "client_error": "Помилка клієнту",
     "could_not_create_stream_for_chromecast": "Не вдалося створити потік для Chromecast",
     "message_from_server": "Повідомлення від серверу: {{message}}",
@@ -621,7 +691,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -697,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Телебачення наживо",
     "next": "Наступний",
     "previous": "Попередній",
     "coming_soon": "Скоро",
@@ -768,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Версія Jellyseerr не відповідає мінімальним вимогам! Будь ласка, оновіться принаймні до 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Версія Jellyseerr не відповідає мінімальним вимогам! Будь ласка, оновіться принаймні до 2.0.0",
       "jellyseerr_test_failed": "Тест Jellyseerr завершився невдало. Спробуйте ще раз.",
       "failed_to_test_jellyseerr_server_url": "Не вдалося перевірити URL-адресу сервера jellyseerr",
       "issue_submitted": "Звіт про проблему відправлено",
@@ -781,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "Кнопка відтворення",
+    "play_hint": "Торкніться, щоб відтворити медіа",
+    "toggle_orientation": "Перемкнути орієнтацію екрана",
+    "toggle_orientation_hint": "Перемикає орієнтацію екрана між портретною та альбомною"
+  },
+  "not_found": {
+    "title": "Цього екрана не існує.",
+    "go_home": "Перейти на головний екран!"
+  },
   "tabs": {
     "home": "Головна",
     "search": "Пошук",
@@ -791,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "Жоден трек не відтворюється",
+    "queue_empty": "Черга порожня",
+    "playing_from_queue": "Відтворення з черги",
+    "up_next": "Далі",
+    "now_playing": "Зараз грає",
+    "missing_library_id": "Відсутній ID музичної медіатеки.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -874,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Створіть список перегляду, щоб зібрати в одному місці все, що ви хочете подивитися",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

@@ -9,14 +9,19 @@ import {
   getItemsApi,
   getUserLibraryApi,
 } from "@jellyfin/sdk/lib/utils/api";
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+} from "expo-router";
 import { useAtom } from "jotai";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  BackHandler,
   FlatList,
   Platform,
   ScrollView,
@@ -39,6 +44,7 @@ import { TVPosterCard } from "@/components/tv/TVPosterCard";
 import { useScaledTVPosterSizes } from "@/constants/TVPosterSizes";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import useRouter from "@/hooks/useAppRouter";
+import { useFilterReset } from "@/hooks/useFilterReset";
 import { useOrientation } from "@/hooks/useOrientation";
 import { useRefreshLibraryOnFocus } from "@/hooks/useRefreshLibraryOnFocus";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
@@ -50,7 +56,9 @@ import {
   FilterByPreferenceAtom,
   filterByAtom,
   genreFilterAtom,
+  genrePreferenceAtom,
   getFilterByPreference,
+  getMultiFilterPreference,
   getSortByPreference,
   getSortOrderPreference,
   SortByOption,
@@ -61,11 +69,12 @@ import {
   sortOrderAtom,
   sortOrderOptions,
   sortOrderPreferenceAtom,
+  tagPreferenceAtom,
   tagsFilterAtom,
   useFilterOptions,
   yearFilterAtom,
+  yearPreferenceAtom,
 } from "@/utils/atoms/filters";
-import { useSettings } from "@/utils/atoms/settings";
 import type { TVOptionItem } from "@/utils/atoms/tvOptionModal";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 
@@ -80,8 +89,9 @@ const Page = () => {
     sortBy?: string;
     sortOrder?: string;
     filterBy?: string;
+    fromSeeAll?: string;
   };
-  const { libraryId } = searchParams;
+  const { libraryId, fromSeeAll } = searchParams;
 
   const typography = useScaledTVTypography();
   const posterSizes = useScaledTVPosterSizes();
@@ -102,6 +112,9 @@ const Page = () => {
   const [sortOrderPreference, setOrderByPreference] = useAtom(
     sortOrderPreferenceAtom,
   );
+  const [genrePreference, setGenrePreference] = useAtom(genrePreferenceAtom);
+  const [yearPreference, setYearPreference] = useAtom(yearPreferenceAtom);
+  const [tagPreference, setTagPreference] = useAtom(tagPreferenceAtom);
 
   const { orientation } = useOrientation();
 
@@ -112,6 +125,22 @@ const Page = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const { showOptions } = useTVOptionModal();
+
+  // When this library detail was opened from the home "See All" button, its
+  // libraries stack is just [detail], so the default TV Back would exit to home.
+  // Intercept Back (scoped to while this screen is focused via useFocusEffect) and
+  // route to the library list instead, so the user can switch libraries. Normal
+  // entries from the list keep their native pop-to-list behavior.
+  useFocusEffect(
+    useCallback(() => {
+      if (!Platform.isTV || fromSeeAll !== "true") return;
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        router.replace("/(auth)/(tabs)/(libraries)");
+        return true;
+      });
+      return () => sub.remove();
+    }, [fromSeeAll, router]),
+  );
   const { showItemActions } = useTVItemActionModal();
 
   // TV Filter queries
@@ -154,47 +183,83 @@ const Page = () => {
     enabled: Platform.isTV && !!api && !!user?.Id && !!libraryId,
   });
 
-  useEffect(() => {
-    // Check for URL params first (from "See All" navigation)
-    const urlSortBy = searchParams.sortBy as SortByOption | undefined;
-    const urlSortOrder = searchParams.sortOrder as SortOrderOption | undefined;
-    const urlFilterBy = searchParams.filterBy as FilterByOption | undefined;
+  // The "See All" params describe how to open the screen, not a state to hold:
+  // once applied, a reset (or any later run of this effect) has to be free to
+  // move away from them, so they only win on the run that first sees them.
+  const appliedUrlParamsRef = useRef<string | null>(null);
 
-    // Apply sortOrder: URL param > saved preference > default
-    if (urlSortOrder && Object.values(SortOrderOption).includes(urlSortOrder)) {
-      _setSortOrder([urlSortOrder]);
-    } else {
-      const sop = getSortOrderPreference(libraryId, sortOrderPreference);
-      _setSortOrder([sop || SortOrderOption.Ascending]);
-    }
+  // Restoring on focus rather than on mount: every filter atom is global and
+  // shared by all library screens, so a sibling library that mounts on top
+  // overwrites them. The stack keeps this screen mounted, so a mount effect
+  // never runs again and the wrong library's filters stay applied.
+  useFocusEffect(
+    useCallback(() => {
+      const urlParamsKey = `${searchParams.sortBy ?? ""}|${
+        searchParams.sortOrder ?? ""
+      }|${searchParams.filterBy ?? ""}`;
+      const urlParamsAreNew = appliedUrlParamsRef.current !== urlParamsKey;
+      appliedUrlParamsRef.current = urlParamsKey;
 
-    // Apply sortBy: URL param > saved preference > default
-    if (urlSortBy && Object.values(SortByOption).includes(urlSortBy)) {
-      _setSortBy([urlSortBy]);
-    } else {
-      const obp = getSortByPreference(libraryId, sortByPreference);
-      _setSortBy([obp || SortByOption.SortName]);
-    }
+      const urlSortBy = urlParamsAreNew
+        ? (searchParams.sortBy as SortByOption | undefined)
+        : undefined;
+      const urlSortOrder = urlParamsAreNew
+        ? (searchParams.sortOrder as SortOrderOption | undefined)
+        : undefined;
+      const urlFilterBy = urlParamsAreNew
+        ? (searchParams.filterBy as FilterByOption | undefined)
+        : undefined;
 
-    // Apply filterBy: URL param > saved preference > default
-    if (urlFilterBy && Object.values(FilterByOption).includes(urlFilterBy)) {
-      _setFilterBy([urlFilterBy]);
-    } else {
-      const fp = getFilterByPreference(libraryId, filterByPreference);
-      _setFilterBy(fp ? [fp] : []);
-    }
-  }, [
-    libraryId,
-    sortOrderPreference,
-    sortByPreference,
-    _setSortOrder,
-    _setSortBy,
-    filterByPreference,
-    _setFilterBy,
-    searchParams.sortBy,
-    searchParams.sortOrder,
-    searchParams.filterBy,
-  ]);
+      // Apply sortOrder: URL param > saved preference > default
+      if (
+        urlSortOrder &&
+        Object.values(SortOrderOption).includes(urlSortOrder)
+      ) {
+        _setSortOrder([urlSortOrder]);
+      } else {
+        const sop = getSortOrderPreference(libraryId, sortOrderPreference);
+        _setSortOrder([sop || SortOrderOption.Ascending]);
+      }
+
+      // Apply sortBy: URL param > saved preference > default
+      if (urlSortBy && Object.values(SortByOption).includes(urlSortBy)) {
+        _setSortBy([urlSortBy]);
+      } else {
+        const obp = getSortByPreference(libraryId, sortByPreference);
+        _setSortBy([obp || SortByOption.SortName]);
+      }
+
+      // Apply filterBy: URL param > saved preference > default
+      if (urlFilterBy && Object.values(FilterByOption).includes(urlFilterBy)) {
+        _setFilterBy([urlFilterBy]);
+      } else {
+        const fp = getFilterByPreference(libraryId, filterByPreference);
+        _setFilterBy(fp ? [fp] : []);
+      }
+
+      // Genres / years / tags have no URL params, only the per-library memory.
+      setSelectedGenres(getMultiFilterPreference(libraryId, genrePreference));
+      setSelectedYears(getMultiFilterPreference(libraryId, yearPreference));
+      setSelectedTags(getMultiFilterPreference(libraryId, tagPreference));
+    }, [
+      libraryId,
+      sortOrderPreference,
+      sortByPreference,
+      _setSortOrder,
+      _setSortBy,
+      filterByPreference,
+      _setFilterBy,
+      genrePreference,
+      yearPreference,
+      tagPreference,
+      setSelectedGenres,
+      setSelectedYears,
+      setSelectedTags,
+      searchParams.sortBy,
+      searchParams.sortOrder,
+      searchParams.filterBy,
+    ]),
+  );
 
   const setSortBy = useCallback(
     (sortBy: SortByOption[]) => {
@@ -235,6 +300,33 @@ const Page = () => {
     [libraryId, filterByPreference, setFilterByPreference, _setFilterBy],
   );
 
+  // Genres / years / tags: save the per-library memory then update the active
+  // atom (mirrors setSortBy, and avoids a save-effect that would write the
+  // outgoing library's selection onto the incoming one).
+  const setGenres = useCallback(
+    (genres: string[]) => {
+      setGenrePreference({ ...genrePreference, [libraryId]: genres });
+      setSelectedGenres(genres);
+    },
+    [libraryId, genrePreference, setGenrePreference, setSelectedGenres],
+  );
+
+  const setYears = useCallback(
+    (years: string[]) => {
+      setYearPreference({ ...yearPreference, [libraryId]: years });
+      setSelectedYears(years);
+    },
+    [libraryId, yearPreference, setYearPreference, setSelectedYears],
+  );
+
+  const setTags = useCallback(
+    (tags: string[]) => {
+      setTagPreference({ ...tagPreference, [libraryId]: tags });
+      setSelectedTags(tags);
+    },
+    [libraryId, tagPreference, setTagPreference, setSelectedTags],
+  );
+
   const nrOfCols = useMemo(() => {
     if (Platform.isTV) {
       // TV uses flexWrap, so nrOfCols is just for mobile
@@ -268,6 +360,23 @@ const Page = () => {
       title: library?.Name || "",
     });
   }, [library]);
+
+  // If this See-All detail was deep-linked on top of the libraries index, collapse
+  // the libraries stack to just this screen. Otherwise the stack is [index, detail],
+  // which the native bottom tab reliably auto-pops back to the index (the detail
+  // "bounces" to the library list ~0.5s after opening). With [detail] alone it stays
+  // put, and Back is handled explicitly by the fromSeeAll interceptor above.
+  const didCollapseRef = useRef(false);
+  useEffect(() => {
+    if (!Platform.isTV || fromSeeAll !== "true" || didCollapseRef.current)
+      return;
+    const state = navigation.getState();
+    if (state?.routes && state.routes.length > 1) {
+      didCollapseRef.current = true;
+      const top = state.routes[state.routes.length - 1];
+      navigation.reset({ index: 0, routes: [top] } as any);
+    }
+  }, [navigation, fromSeeAll]);
 
   const fetchItems = useCallback(
     async ({
@@ -375,6 +484,37 @@ const Page = () => {
       []
     );
   }, [data]);
+
+  const flashListRef = useRef<FlashListRef<BaseItemDto>>(null);
+
+  // Jump the grid back to the top when the filters or the sort change, reset
+  // included, instead of staying deep in the previous result set.
+  const filterSignature = [
+    selectedGenres.join(","),
+    selectedYears.join(","),
+    selectedTags.join(","),
+    sortBy[0],
+    sortOrder[0],
+    filterBy.join(","),
+  ].join("|");
+  const pendingScrollTopRef = useRef(false);
+
+  // Instant feedback: pin to the top as soon as the filters change, without
+  // waiting for the new fetch, and flag a re-pin for once it settles.
+  useEffect(() => {
+    flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    pendingScrollTopRef.current = true;
+  }, [filterSignature]);
+
+  // Safety net: FlashList can restore the previous offset as the filtered list
+  // grows, so re-pin once the fetch settles. Pagination keeps the same
+  // signature, so it never re-pins.
+  useEffect(() => {
+    if (pendingScrollTopRef.current && !isFetching) {
+      pendingScrollTopRef.current = false;
+      flashListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [isFetching, flatData]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: BaseItemDto; index: number }) => (
@@ -491,7 +631,6 @@ const Page = () => {
 
   const keyExtractor = useCallback((item: BaseItemDto) => item.Id || "", []);
   const generalFilters = useFilterOptions();
-  const settings = useSettings();
   const ListHeaderComponent = useCallback(
     () => (
       <FlatList
@@ -506,7 +645,7 @@ const Page = () => {
         data={[
           {
             key: "reset",
-            component: <ResetFiltersButton />,
+            component: <ResetFiltersButton libraryId={libraryId} />,
           },
           {
             key: "genre",
@@ -525,13 +664,10 @@ const Page = () => {
                   });
                   return response.data.Genres || [];
                 }}
-                set={setSelectedGenres}
+                set={setGenres}
                 values={selectedGenres}
                 title={t("library.filters.genres")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -552,11 +688,10 @@ const Page = () => {
                   });
                   return response.data.Years || [];
                 }}
-                set={setSelectedYears}
+                set={setYears}
                 values={selectedYears}
                 title={t("library.filters.years")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) => item.includes(search)}
               />
             ),
           },
@@ -577,13 +712,10 @@ const Page = () => {
                   });
                   return response.data.Tags || [];
                 }}
-                set={setSelectedTags}
+                set={setTags}
                 values={selectedTags}
                 title={t("library.filters.tags")}
                 renderItemLabel={(item) => item.toString()}
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -600,9 +732,6 @@ const Page = () => {
                 title={t("library.filters.sort_by")}
                 renderItemLabel={(item) =>
                   sortOptions.find((i) => i.key === item)?.value || ""
-                }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
                 }
               />
             ),
@@ -621,9 +750,6 @@ const Page = () => {
                 renderItemLabel={(item) =>
                   sortOrderOptions.find((i) => i.key === item)?.value || ""
                 }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -641,9 +767,6 @@ const Page = () => {
                 renderItemLabel={(item) =>
                   generalFilters.find((i) => i.key === item)?.value || ""
                 }
-                searchFilter={(item, search) =>
-                  item.toLowerCase().includes(search.toLowerCase())
-                }
               />
             ),
           },
@@ -657,35 +780,25 @@ const Page = () => {
       api,
       user?.Id,
       selectedGenres,
-      setSelectedGenres,
+      setGenres,
       selectedYears,
-      setSelectedYears,
+      setYears,
       selectedTags,
-      setSelectedTags,
+      setTags,
       sortBy,
       setSortBy,
       sortOrder,
       setSortOrder,
-      isFetching,
       filterBy,
       setFilter,
-      settings,
+      generalFilters,
     ],
   );
 
-  // TV Filter bar header
-  const hasActiveFilters =
-    selectedGenres.length > 0 ||
-    selectedYears.length > 0 ||
-    selectedTags.length > 0 ||
-    filterBy.length > 0;
-
-  const resetAllFilters = useCallback(() => {
-    setSelectedGenres([]);
-    setSelectedYears([]);
-    setSelectedTags([]);
-    _setFilterBy([]);
-  }, [setSelectedGenres, setSelectedYears, setSelectedTags, _setFilterBy]);
+  // Filter bar reset and its visibility, shared with the mobile
+  // ResetFiltersButton so sort and order can't be forgotten on one path (they
+  // used to be reset on neither).
+  const { hasActiveFilters, resetAllFilters } = useFilterReset(libraryId);
 
   // TV Filter options - with "All" option for clearable filters
   const tvGenreFilterOptions = useMemo(
@@ -779,15 +892,15 @@ const Page = () => {
       options: tvGenreFilterOptions,
       onSelect: (value: string) => {
         if (value === "__all__") {
-          setSelectedGenres([]);
+          setGenres([]);
         } else if (selectedGenres.includes(value)) {
-          setSelectedGenres(selectedGenres.filter((g) => g !== value));
+          setGenres(selectedGenres.filter((g) => g !== value));
         } else {
-          setSelectedGenres([...selectedGenres, value]);
+          setGenres([...selectedGenres, value]);
         }
       },
     });
-  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setSelectedGenres]);
+  }, [showOptions, t, tvGenreFilterOptions, selectedGenres, setGenres]);
 
   const handleShowYearFilter = useCallback(() => {
     showOptions({
@@ -795,15 +908,15 @@ const Page = () => {
       options: tvYearFilterOptions,
       onSelect: (value: string) => {
         if (value === "__all__") {
-          setSelectedYears([]);
+          setYears([]);
         } else if (selectedYears.includes(value)) {
-          setSelectedYears(selectedYears.filter((y) => y !== value));
+          setYears(selectedYears.filter((y) => y !== value));
         } else {
-          setSelectedYears([...selectedYears, value]);
+          setYears([...selectedYears, value]);
         }
       },
     });
-  }, [showOptions, t, tvYearFilterOptions, selectedYears, setSelectedYears]);
+  }, [showOptions, t, tvYearFilterOptions, selectedYears, setYears]);
 
   const handleShowTagFilter = useCallback(() => {
     showOptions({
@@ -811,15 +924,15 @@ const Page = () => {
       options: tvTagFilterOptions,
       onSelect: (value: string) => {
         if (value === "__all__") {
-          setSelectedTags([]);
+          setTags([]);
         } else if (selectedTags.includes(value)) {
-          setSelectedTags(selectedTags.filter((tag) => tag !== value));
+          setTags(selectedTags.filter((tag) => tag !== value));
         } else {
-          setSelectedTags([...selectedTags, value]);
+          setTags([...selectedTags, value]);
         }
       },
     });
-  }, [showOptions, t, tvTagFilterOptions, selectedTags, setSelectedTags]);
+  }, [showOptions, t, tvTagFilterOptions, selectedTags, setTags]);
 
   const handleShowSortByFilter = useCallback(() => {
     showOptions({
@@ -868,6 +981,7 @@ const Page = () => {
   if (!Platform.isTV) {
     return (
       <FlashList
+        ref={flashListRef}
         key={orientation}
         ListEmptyComponent={
           <View className='flex flex-col items-center justify-center h-full'>

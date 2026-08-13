@@ -2,7 +2,8 @@ import { getUserViewsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { useTranslation } from "react-i18next";
-import { Switch, View } from "react-native";
+import { View } from "react-native";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { Loader } from "@/components/Loader";
 import { ListGroup } from "@/components/list/ListGroup";
@@ -46,7 +47,7 @@ export default function HideLibrariesPage() {
       <ListGroup>
         {data?.map((view) => (
           <ListItem key={view.Id} title={view.Name} onPress={() => {}}>
-            <Switch
+            <SettingSwitch
               value={settings.hiddenLibraries?.includes(view.Id!) || false}
               onValueChange={(value) => {
                 updateSettings({
@@ -60,7 +61,7 @@ export default function HideLibrariesPage() {
         ))}
       </ListGroup>
       <Text className='px-4 text-xs text-neutral-500 mt-1'>
-        {t("home.settings.other.select_liraries_you_want_to_hide")}
+        {t("home.settings.other.select_libraries_you_want_to_hide")}
       </Text>
     </DisabledSetting>
   );

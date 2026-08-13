@@ -22,7 +22,6 @@ import { TVJellyseerrSearchResults } from "./TVJellyseerrSearchResults";
 import { TVSearchSection } from "./TVSearchSection";
 import { TVSearchTabBadges } from "./TVSearchTabBadges";
 
-const HORIZONTAL_PADDING = 60;
 const TOP_PADDING = 100;
 // Height of the native search bar itself. The tvOS grid keyboard presents as
 // its own overlay when the field is focused, so we only reserve the bar height
@@ -163,6 +162,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
   discoverSliders,
 }) => {
   const typography = useScaledTVTypography();
+  const sizes = useScaledTVSizes();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [api] = useAtom(apiAtom);
@@ -251,7 +251,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
         ) : (
           <View
             style={{
-              marginHorizontal: HORIZONTAL_PADDING,
+              marginHorizontal: sizes.padding.horizontal,
               marginBottom: 24,
             }}
           >
@@ -285,7 +285,7 @@ export const TVSearchPage: React.FC<TVSearchPageProps> = ({
       >
         {/* Search Type Tab Badges */}
         {showDiscover && (
-          <View style={{ marginHorizontal: HORIZONTAL_PADDING }}>
+          <View style={{ marginHorizontal: sizes.padding.horizontal }}>
             <TVSearchTabBadges
               searchType={searchType}
               setSearchType={setSearchType}

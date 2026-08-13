@@ -2,8 +2,9 @@ import { useNavigation } from "expo-router";
 import { t } from "i18next";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
-import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HeaderButton } from "@/components/common/HeaderButton";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
@@ -28,15 +29,16 @@ function SettingsMobile() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
+        <HeaderButton
+          variant='text'
           onPress={() => {
             logout();
           }}
         >
-          <Text className='text-red-600 px-2'>
+          <Text className='text-red-600'>
             {t("home.settings.log_out_button")}
           </Text>
-        </TouchableOpacity>
+        </HeaderButton>
       ),
     });
   }, []);

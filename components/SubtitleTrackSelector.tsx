@@ -2,6 +2,8 @@ import type { MediaSourceInfo } from "@jellyfin/sdk/lib/generated-client/models"
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, TouchableOpacity, View } from "react-native";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import { buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
 import { tc } from "@/utils/textTools";
 import { Text } from "./common/Text";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
@@ -21,55 +23,42 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  const subtitleStreams = useMemo(() => {
-    return source?.MediaStreams?.filter((x) => x.Type === "Subtitle");
-  }, [source]);
-
-  const selectedSubtitleSteam = useMemo(
-    () => subtitleStreams?.find((x) => x.Index === selected),
-    [subtitleStreams, selected],
+  const rows = useMemo(
+    () =>
+      buildSubtitleMenu(source?.MediaStreams, {
+        selectedIndex: selected ?? SUBTITLES_OFF,
+        offLabel: t("item_card.none"),
+        isTranscoding: Boolean(source?.TranscodingUrl),
+        formatLabel: (s) => s.DisplayTitle || `Subtitle Stream ${s.Index}`,
+      }),
+    [source, selected, t],
   );
 
-  const optionGroups: OptionGroup[] = useMemo(() => {
-    const options = [
-      {
-        type: "radio" as const,
-        label: t("item_card.none"),
-        value: -1,
-        selected: selected === -1,
-        onPress: () => onChange(-1),
-      },
-      ...(subtitleStreams?.map((subtitle, idx) => ({
-        type: "radio" as const,
-        label: subtitle.DisplayTitle || `Subtitle Stream ${idx + 1}`,
-        value: subtitle.Index,
-        selected: subtitle.Index === selected,
-        onPress: () => onChange(subtitle.Index ?? -1),
-      })) || []),
-    ];
+  const selectedRow = useMemo(
+    () => rows.find((r) => r.kind === "server" && r.selected),
+    [rows],
+  );
 
-    return [
+  const optionGroups: OptionGroup[] = useMemo(
+    () => [
       {
-        options,
+        options: rows.map((row) => ({
+          type: "radio" as const,
+          label: row.label,
+          value: row.index,
+          selected: row.selected,
+          onPress: () => onChange(row.index),
+        })),
       },
-    ];
-  }, [subtitleStreams, selected, t, onChange]);
+    ],
+    [rows, onChange],
+  );
 
+  // Row indexes are the identity, so the id round-trips without the old
+  // `Index || idx` fallback — which collapsed index 0 onto the array position.
   const handleOptionSelect = (optionId: string) => {
-    if (optionId === "none") {
-      onChange(-1);
-    } else {
-      const selectedStream = subtitleStreams?.find(
-        (subtitle, idx) => `${subtitle.Index || idx}` === optionId,
-      );
-      if (
-        selectedStream &&
-        selectedStream.Index !== undefined &&
-        selectedStream.Index !== null
-      ) {
-        onChange(selectedStream.Index);
-      }
-    }
+    const row = rows.find((r) => String(r.index) === optionId);
+    if (row) onChange(row.index);
     setOpen(false);
   };
 
@@ -83,15 +72,14 @@ export const SubtitleTrackSelector: React.FC<Props> = ({
         onPress={() => setOpen(true)}
       >
         <Text>
-          {selectedSubtitleSteam
-            ? tc(selectedSubtitleSteam?.DisplayTitle, 7)
-            : t("item_card.none")}
+          {selectedRow ? tc(selectedRow.label, 7) : t("item_card.none")}
         </Text>
       </TouchableOpacity>
     </View>
   );
 
-  if (Platform.isTV || subtitleStreams?.length === 0) return null;
+  // "Off" is always present, so emptiness is about the server tracks.
+  if (Platform.isTV || !rows.some((r) => r.kind === "server")) return null;
 
   return (
     <PlatformDropdown

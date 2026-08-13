@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Animated,
@@ -28,6 +29,7 @@ export const TVSubtitleResultCard = React.forwardRef<
   const styles = createStyles(typography);
   const { focused, handleFocus, handleBlur, animatedStyle } =
     useTVFocusAnimation({ scaleAmount: 1.03 });
+  const { t } = useTranslation();
 
   return (
     <Pressable
@@ -152,7 +154,7 @@ export const TVSubtitleResultCard = React.forwardRef<
                 },
               ]}
             >
-              <Text style={styles.flagText}>Hash Match</Text>
+              <Text style={styles.flagText}>{t("player.hash_match")}</Text>
             </View>
           )}
           {result.hearingImpaired && (

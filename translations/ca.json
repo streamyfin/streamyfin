@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Nom d'usuari requerit",
     "error_title": "Error",
@@ -12,18 +19,21 @@
     "login_button": "Inicia sessió",
     "quick_connect": "Connexió ràpida",
     "enter_code_to_login": "Introdueix el codi {{code}} per iniciar sessió",
+    "quick_connect_instructions": "Introdueix aquest codi en un dispositiu amb la sessió iniciada. Iniciaràs sessió automàticament.",
+    "tap_code_to_copy": "Toca el codi per copiar-lo",
+    "code_copied": "Codi copiat",
     "failed_to_initiate_quick_connect": "No s'ha pogut iniciar la connexió ràpida",
     "got_it": "Entesos",
     "connection_failed": "Ha fallat la connexió",
     "could_not_connect_to_server": "No s'ha pogut connectar amb el servidor. Comproveu l'URL i la connexió de xarxa.",
-    "an_unexpected_error_occured": "S'ha produït un error inesperat",
+    "an_unexpected_error_occurred": "S'ha produït un error inesperat",
     "change_server": "Canvia el servidor",
     "invalid_username_or_password": "Nom d'usuari o contrasenya incorrectes",
     "user_does_not_have_permission_to_log_in": "L'usuari no té permís per iniciar sessió",
     "server_is_taking_too_long_to_respond_try_again_later": "El servidor triga massa a respondre, torneu-ho a provar més tard",
     "server_received_too_many_requests_try_again_later": "El servidor ha rebut massa sol·licituds, torneu-ho a provar més tard.",
     "there_is_a_server_error": "Error del servidor",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "S'ha produït un error inesperat. Heu introduït correctament l'URL del servidor?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "S'ha produït un error inesperat. Heu introduït correctament l'URL del servidor?",
     "too_old_server_text": "Unsupported Jellyfin Server Discovered",
     "too_old_server_description": "Please update Jellyfin to the latest version"
   },
@@ -33,6 +43,7 @@
     "connect_button": "Connecta",
     "previous_servers": "servidors anteriors",
     "clear_button": "Esborra",
+    "server_url": "URL del servidor",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Cercar servidors locals",
     "searching": "Cercant...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "No s'ha desat el compte",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Benvingut a Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Un client gratuït i de codi obert per a Jellyfin.",
       "features_title": "Funcionalitats",
-      "features_description": "Streamyfin té moltes funcionalitats i s'integra amb una gran varietat de programari que podeu trobar al menú de configuració, això inclou:",
+      "features_description": "Streamyfin té moltes funcionalitats i funciona amb altre programari. Les trobareu al menú de configuració:",
       "jellyseerr_feature_description": "Connecteu-vos a la vostra instància de Jellyseerr i sol·liciteu pel·lícules directament des de l'aplicació.",
       "downloads_feature_title": "Descàrregues",
       "downloads_feature_description": "Descarregueu pel·lícules i sèries per veure-les sense connexió. Utilitzeu el mètode per defecte o instal·leu el servidor optimitzat per descarregar fitxers en segon pla.",
       "chromecast_feature_description": "Envieu pel·lícules i sèries als vostres dispositius Chromecast.",
       "centralised_settings_plugin_title": "Plugin de configuració centralitzada",
-      "centralised_settings_plugin_description": "Configureu els ajustos des d'una ubicació centralitzada al vostre servidor Jellyfin. Tots els ajustos del client per a tots els usuaris se sincronitzaran automàticament.",
+      "centralised_settings_plugin_description": "Configureu els ajustos de manera centralitzada al vostre servidor Jellyfin. Els ajustos de client de cada usuari se sincronitzen automàticament.",
       "done_button": "Fet",
       "go_to_settings_button": "Ves a la configuració",
       "read_more": "Mostra més"
     },
     "settings": {
       "settings_title": "Configuració",
+      "disabled_by_admin": "Desactivat per l'administrador",
       "log_out_button": "Tanca sessió",
       "switch_user": {
         "title": "Switch User",
@@ -137,7 +150,11 @@
       "appearance": {
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
+        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide Remote Session Button",
+        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic Home Backdrop",
         "show_hero_carousel": "Hero Carousel",
         "show_series_poster_on_episode": "Show Series Poster on Episodes",
@@ -174,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID ocult",
+        "location_off_description": "Connectat a la Wi-Fi, però el nom de la xarxa està ocult. Activa els serveis d'ubicació del dispositiu i concedeix permís d'ubicació a l'aplicació per detectar-lo.",
+        "open_location_settings": "Obre la configuració d'ubicació"
       },
       "user_info": {
         "user_info_title": "Informació de l'usuari",
@@ -188,16 +208,24 @@
         "authorize_button": "Autoritza connexió ràpida",
         "enter_the_quick_connect_code": "Introdueix el codi de connexió ràpida...",
         "success": "Èxit",
-        "quick_connect_autorized": "Connexió ràpida autoritzada",
+        "quick_connect_authorized": "Connexió ràpida autoritzada",
         "error": "Error",
         "invalid_code": "Codi invàlid",
-        "authorize": "Autoritza"
+        "authorize": "Autoritza",
+        "paste_code": "Enganxa el codi"
       },
       "media_controls": {
         "media_controls_title": "Controls multimèdia",
         "forward_skip_length": "Durada del salt endavant",
         "rewind_length": "Durada del rebobinat",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Reproductor de vídeo",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer no admet estils avançats de subtítols ASS/SSA ni l'alineació horitzontal de subtítols. Canvia a MPV si els necessites.",
+        "mpv_note": "MPV a la TV actualment no transmet les metadades HDR a la pantalla, per la qual cosa el contingut HDR10/HDR10+ es converteix a SDR. Canvia a ExoPlayer per obtenir sortida HDR."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -270,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "Configuració de subtítols de MPV",
+        "mpv_settings_description": "Personalització avançada de subtítols per al reproductor MPV",
+        "opaque_background": "Fons opac",
+        "background_opacity": "Opacitat del fons",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -296,9 +328,10 @@
         },
         "safe_area_in_controls": "Àrea segura als controls",
         "show_custom_menu_links": "Mostrar enllaços del menú personalitzats",
+        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Oculta biblioteques",
-        "select_liraries_you_want_to_hide": "Seleccioneu les biblioteques que voleu ocultar de la pestanya Biblioteca i de les seccions de la pàgina d'inici.",
+        "select_libraries_you_want_to_hide": "Seleccioneu les biblioteques que voleu ocultar de la pestanya Biblioteca i de les seccions de la pàgina d'inici.",
         "disable_haptic_feedback": "Desactiva la resposta hàptica",
         "default_quality": "Qualitat per defecte",
         "default_playback_speed": "Default Playback Speed",
@@ -312,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "Desa per endavant les properes cançons de la cua. Les més antigues s'eliminen quan s'arriba al límit de mida.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -370,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "No s'ha pogut actualitzar la configuració des del servidor",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -384,8 +418,10 @@
         "device_usage": "Dispositiu {{availableSpace}}%",
         "size_used": "{{used}} de {{total}} utilitzat",
         "delete_all_downloaded_files": "Suprimeix tots els fitxers descarregats",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Les cançons es guarden automàticament a la memòria cau durant la reproducció. Buidar-la allibera espai sense afectar les vostres cançons descarregades.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -408,7 +444,9 @@
         "click_for_more_info": "Feu clic per obtenir més informació",
         "level": "Nivell",
         "no_logs_available": "No hi ha registres disponibles",
-        "delete_all_logs": "Suprimeix tots els registres"
+        "delete_all_logs": "Suprimeix tots els registres",
+        "copy": "Copia",
+        "copied": "Copiat al porta-retalls"
       },
       "languages": {
         "title": "Idiomes",
@@ -435,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessions",
-      "no_active_sessions": "No hi ha sessions actives"
+      "no_active_sessions": "No hi ha sessions actives",
+      "select_session": "Selecciona la sessió",
+      "now_playing": "Reproduint:"
     },
     "downloads": {
       "downloads_title": "Descàrregues",
+      "transcoding": "Transcodificant",
       "series": "Sèries",
       "movies": "Pel·lícules",
       "other_media": "Other media",
@@ -484,7 +525,6 @@
   },
   "common": {
     "no_results": "No Results",
-    "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Vídeo",
     "audio": "Àudio",
@@ -495,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Atura",
+    "open_menu": "Obre el menú",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -589,17 +631,45 @@
     "boxsets": "Col·leccions",
     "playlists": "Llistes de reproducció",
     "noDataTitle": "Encara no hi ha preferits",
-    "noData": "Marqueu elements com a preferits per veure'ls aparèixer aquí per a un accés ràpid."
+    "noData": "Els elements que marqueu com a preferits apareixen aquí."
   },
   "custom_links": {
     "no_links": "No hi ha enllaços"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Aleatori",
+    "entire_series": "Sèrie sencera",
+    "episode_count": "{{count}} episodis",
+    "menu": {
+      "quality": "Qualitat",
+      "subtitles": "Subtítols",
+      "subtitle_scale": "Escala de subtítols",
+      "audio": "Àudio",
+      "speed": "Velocitat",
+      "playback_options": "Opcions de reproducció",
+      "show_technical_info": "Mostra informació tècnica",
+      "hide_technical_info": "Oculta informació tècnica"
+    },
+    "technical_info": {
+      "video": "Vídeo:",
+      "audio": "Àudio:",
+      "subtitle": "Subtítol:",
+      "bitrate": "Taxa de bits:",
+      "source_bitrate": "Fitxer:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Perduts: {{count}} fotogrames",
+      "loading": "Carregant..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Relació d'aspecte",
+    "aspect_ratio_original": "Original",
+    "hash_match": "Coincidència de hash",
+    "still_watching": "Encara hi ets?",
     "error": "Error",
     "failed_to_get_stream_url": "No s'ha pogut obtenir l'URL del flux",
-    "an_error_occured_while_playing_the_video": "S'ha produït un error en reproduir el vídeo. Consulteu els registres a la configuració.",
+    "an_error_occurred_while_playing_the_video": "S'ha produït un error en reproduir el vídeo. Consulteu els registres a la configuració.",
     "client_error": "Error del client",
     "could_not_create_stream_for_chromecast": "No s'ha pogut crear un flux per a Chromecast",
     "message_from_server": "Missatge del servidor: {{message}}",
@@ -621,7 +691,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -697,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "TV en directe",
     "next": "Següent",
     "previous": "Anterior",
     "coming_soon": "Pròximament",
@@ -768,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "El servidor Jellyseerr no compleix els requisits mínims de versió! Actualitzeu-lo almenys a la versió 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "El servidor Jellyseerr no compleix els requisits mínims de versió! Actualitzeu-lo almenys a la versió 2.0.0",
       "jellyseerr_test_failed": "Ha fallat la prova de Jellyseerr. Torneu-ho a provar.",
       "failed_to_test_jellyseerr_server_url": "No s'ha pogut provar l'URL del servidor de Jellyseerr",
       "issue_submitted": "Incidència enviada!",
@@ -781,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "Botó de reproducció",
+    "play_hint": "Toca per reproduir el contingut",
+    "toggle_orientation": "Canvia l'orientació de la pantalla",
+    "toggle_orientation_hint": "Canvia l'orientació de la pantalla entre vertical i horitzontal"
+  },
+  "not_found": {
+    "title": "Aquesta pantalla no existeix.",
+    "go_home": "Vés a la pantalla d'inici!"
+  },
   "tabs": {
     "home": "Inici",
     "search": "Cercar",
@@ -791,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "No s'està reproduint cap pista",
+    "queue_empty": "La cua és buida",
+    "playing_from_queue": "Reproduint des de la cua",
+    "up_next": "A continuació",
+    "now_playing": "Reproduint",
+    "missing_library_id": "Falta l'identificador de la biblioteca de música.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -874,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Creeu una llista de seguiment per agrupar allò que voleu veure",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

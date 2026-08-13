@@ -7,14 +7,29 @@ export type {
   DownloadStartedEvent,
 } from "./background-downloader";
 export { default as BackgroundDownloader } from "./background-downloader";
+// ExoPlayer (Android TV)
+export { ExoPlayerView } from "./exoplayer-player";
 // Glass Poster (tvOS 26+)
 export type { GlassPosterViewProps } from "./glass-poster";
 export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
 // MPV Player (iOS + Android)
+// Presented native player (iOS only)
 export type {
   AudioTrack as MpvAudioTrack,
   MpvPlayerViewProps,
   MpvPlayerViewRef,
+  NativePlayerConfig,
+  NativePlayerDismissPayload,
+  NativePlayerEpisodeListItem,
+  NativePlayerEvents,
+  NativePlayerNextEpisode,
+  NativePlayerProgressPayload,
+  NativePlayerSegment,
+  NativePlayerStateChangePayload,
+  NativePlayerTrackMenuItem,
+  NativePlayerTrackMenus,
+  NativePlayerTrackSelectionRequest,
+  NativePlayerTrickplay,
   OnErrorEventPayload as MpvOnErrorEventPayload,
   OnLoadEventPayload as MpvOnLoadEventPayload,
   OnPlaybackStateChangePayload as MpvOnPlaybackStateChangePayload,
@@ -23,7 +38,25 @@ export type {
   SubtitleTrack as MpvSubtitleTrack,
   VideoSource as MpvVideoSource,
 } from "./mpv-player";
-export { MpvPlayerView } from "./mpv-player";
+export {
+  addNativePlayerListener,
+  dismissNativePlayer,
+  isNativePlayerModuleAvailable,
+  isNativePlayerPresented,
+  loadNativePlayerStream,
+  MpvPlayerView,
+  nativePlayerGetAudioTracks,
+  nativePlayerGetSubtitleTracks,
+  nativePlayerPause,
+  nativePlayerPlay,
+  nativePlayerSeekTo,
+  nativePlayerSetSpeed,
+  presentNativePlayer,
+  updateNativePlayerEpisodeList,
+  updateNativePlayerNextEpisode,
+  updateNativePlayerSegments,
+  updateNativePlayerTrackMenus,
+} from "./mpv-player";
 // Top Shelf cache (tvOS)
 export type {
   TopShelfCacheItem,

@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Uživatelské jméno je vyžadováno",
     "error_title": "Chyba",
@@ -12,18 +19,21 @@
     "login_button": "Přihlásit se",
     "quick_connect": "Rychlé připojení",
     "enter_code_to_login": "Zadejte kód {{code}} pro přihlášení",
+    "quick_connect_instructions": "Zadejte tento kód na zařízení, na kterém jste již přihlášeni. Přihlášení proběhne automaticky.",
+    "tap_code_to_copy": "Klepnutím na kód jej zkopírujete",
+    "code_copied": "Kód zkopírován",
     "failed_to_initiate_quick_connect": "Nepodařilo se spustit rychlé připojení",
     "got_it": "Rozumím",
     "connection_failed": "Připojení se nezdařilo",
     "could_not_connect_to_server": "Nelze se připojit k serveru. Zkontrolujte adresu URL a síťové připojení.",
-    "an_unexpected_error_occured": "Došlo k neočekávané chybě",
+    "an_unexpected_error_occurred": "Došlo k neočekávané chybě",
     "change_server": "Změnit server",
     "invalid_username_or_password": "Neplatné uživatelské jméno nebo heslo",
     "user_does_not_have_permission_to_log_in": "Uživatel nemá oprávnění k přihlášení",
     "server_is_taking_too_long_to_respond_try_again_later": "Reakce na server trvá příliš dlouho, zkuste to znovu později",
     "server_received_too_many_requests_try_again_later": "Server obdržel příliš mnoho požadavků, opakujte akci později.",
     "there_is_a_server_error": "Došlo k chybě serveru",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "Došlo k neočekávané chybě. Vložili jste adresu URL serveru?",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "Došlo k neočekávané chybě. Vložili jste adresu URL serveru?",
     "too_old_server_text": "Objeven nepodporovaný Jellyfin server",
     "too_old_server_description": "Prosím aktualizujte Jellyfin na nejnovější verzi"
   },
@@ -33,6 +43,7 @@
     "connect_button": "Připojit",
     "previous_servers": "Předchozí servery",
     "clear_button": "Clear all",
+    "server_url": "URL serveru",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Hledat místní servery",
     "searching": "Vyhledávání...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "Účet nebyl uložen",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Vítejte v Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "Volný a Open-Source klient pro Jellyfin.",
       "features_title": "Vlastnosti",
-      "features_description": "Streamyfin má spoustu funkcí a integruje širokou škálu softwarů, které můžete najít v nabídce nastavení, mezi něž patří:",
+      "features_description": "Streamyfin má spoustu funkcí a spolupracuje s dalším softwarem. Najdete je v nabídce nastavení:",
       "jellyseerr_feature_description": "Připojte se k instanci Seerr a požádejte filmy přímo v aplikaci.",
       "downloads_feature_title": "Stahování",
       "downloads_feature_description": "Stáhněte si filmy a tv-show pro zobrazení v režimu offline. Použijte buď výchozí metodu nebo nainstalujte optimalizovaný server ke stažení souborů na pozadí.",
       "chromecast_feature_description": "Přenášejte filmy a tv-show do vašich zařízení Chromecast.",
       "centralised_settings_plugin_title": "Centralizovaný plugin nastavení",
-      "centralised_settings_plugin_description": "Konfigurace nastavení z centralizovaného umístění na serveru Jellyfin. Všechna klientská nastavení pro všechny uživatele budou automaticky synchronizována.",
+      "centralised_settings_plugin_description": "Nakonfigurujte nastavení centrálně na serveru Jellyfin. Klientská nastavení každého uživatele se synchronizují automaticky.",
       "done_button": "Hotovo",
       "go_to_settings_button": "Přejít do nastavení",
       "read_more": "Číst více"
     },
     "settings": {
       "settings_title": "Nastavení",
+      "disabled_by_admin": "Zakázáno administrátorem",
       "log_out_button": "Odhlásit se",
       "switch_user": {
         "title": "Switch User",
@@ -137,7 +150,11 @@
       "appearance": {
         "title": "Appearance",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
+        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide Remote Session Button",
+        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic Home Backdrop",
         "show_hero_carousel": "Hero Carousel",
         "show_series_poster_on_episode": "Show Series Poster on Episodes",
@@ -174,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID skryto",
+        "location_off_description": "Připojeno k Wi-Fi, ale název sítě je skrytý. Povolte službu určování polohy v zařízení a udělte aplikaci oprávnění k poloze, aby ho mohla zjistit.",
+        "open_location_settings": "Otevřít nastavení polohy"
       },
       "user_info": {
         "user_info_title": "Informace o uživateli",
@@ -188,16 +208,24 @@
         "authorize_button": "Autorizovat rychlé připojení",
         "enter_the_quick_connect_code": "Zadejte kód rychlého připojení...",
         "success": "Úspěšně",
-        "quick_connect_autorized": "Oprávněné Rychlé připojení",
+        "quick_connect_authorized": "Oprávněné Rychlé připojení",
         "error": "Chyba",
         "invalid_code": "Neplatný kód",
-        "authorize": "Autorizovat"
+        "authorize": "Autorizovat",
+        "paste_code": "Vložit kód"
       },
       "media_controls": {
         "media_controls_title": "Ovládání médií",
         "forward_skip_length": "Délka přeskočení vpřed",
         "rewind_length": "Délka zpětného větru",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "Videopřehrávač",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer nepodporuje pokročilé stylování titulků ASS/SSA ani jejich vodorovné zarovnání. Pokud to potřebujete, přepněte na MPV.",
+        "mpv_note": "MPV na TV v současnosti nepředává metadata HDR do zobrazovacího zařízení, takže obsah HDR10/HDR10+ je tónově mapován na SDR. Pro výstup HDR přepněte na ExoPlayer."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -270,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "Nastavení titulků MPV",
+        "mpv_settings_description": "Pokročilé přizpůsobení titulků pro přehrávač MPV",
+        "opaque_background": "Neprůhledné pozadí",
+        "background_opacity": "Neprůhlednost pozadí",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -296,9 +328,10 @@
         },
         "safe_area_in_controls": "Bezpečná oblast v ovládání",
         "show_custom_menu_links": "Zobrazit vlastní Menu odkazy",
+        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
         "show_large_home_carousel": "Zobrazit velký přehled (beta)",
         "hide_libraries": "Skrýt knihovny",
-        "select_liraries_you_want_to_hide": "Vyberte knihovny, které chcete skrýt v záložce Knihovna a v sekcích domovské stránky.",
+        "select_libraries_you_want_to_hide": "Vyberte knihovny, které chcete skrýt v záložce Knihovna a v sekcích domovské stránky.",
         "disable_haptic_feedback": "Zakázat Haptickou zpětnou vazbu",
         "default_quality": "Výchozí kvalita",
         "default_playback_speed": "Default Playback Speed",
@@ -312,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "Nadcházející skladby z fronty se ukládají předem. Nejstarší z nich se odstraní po dosažení limitu velikosti.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -370,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "Nepodařilo se obnovit nastavení ze serveru",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -384,8 +418,10 @@
         "device_usage": "Zařízení {{availableSpace}}%",
         "size_used": "{{used}} z {{total}} využito",
         "delete_all_downloaded_files": "Odstranit všechny stažené soubory",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "Skladby se během přehrávání automaticky ukládají do mezipaměti. Jejich vymazáním uvolníte místo, aniž by to ovlivnilo vaše stažené skladby.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -408,7 +444,9 @@
         "click_for_more_info": "Klikněte pro více informací",
         "level": "Úrovně",
         "no_logs_available": "Žádné protokoly nejsou k dispozici",
-        "delete_all_logs": "Odstranit všechny logy"
+        "delete_all_logs": "Odstranit všechny logy",
+        "copy": "Kopírovat",
+        "copied": "Zkopírováno do schránky"
       },
       "languages": {
         "title": "Jazyky",
@@ -435,10 +473,13 @@
     },
     "sessions": {
       "title": "Relace",
-      "no_active_sessions": "Žádné aktivní relace"
+      "no_active_sessions": "Žádné aktivní relace",
+      "select_session": "Vybrat relaci",
+      "now_playing": "Přehrává se:"
     },
     "downloads": {
       "downloads_title": "Stahování",
+      "transcoding": "Transkódování",
       "series": "Televizní série",
       "movies": "Filmy",
       "other_media": "Ostatní média",
@@ -484,7 +525,6 @@
   },
   "common": {
     "no_results": "No Results",
-    "select": "Vybrat",
     "no_trailer_available": "Přípojné vozidlo není k dispozici",
     "video": "Video",
     "audio": "Zvuk",
@@ -495,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "Stop",
+    "open_menu": "Otevřít nabídku",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -589,17 +631,45 @@
     "boxsets": "Sada boxů",
     "playlists": "Seznamy stop",
     "noDataTitle": "Zatím žádné oblíbené",
-    "noData": "Označit položky jako oblíbené a zobrazit je zde pro rychlý přístup."
+    "noData": "Položky, které označíte jako oblíbené, se zde zobrazí."
   },
   "custom_links": {
     "no_links": "Žádné odkazy"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "Náhodně",
+    "entire_series": "Celá série",
+    "episode_count": "{{count}} epizod",
+    "menu": {
+      "quality": "Kvalita",
+      "subtitles": "Titulky",
+      "subtitle_scale": "Měřítko titulků",
+      "audio": "Zvuk",
+      "speed": "Rychlost",
+      "playback_options": "Možnosti přehrávání",
+      "show_technical_info": "Zobrazit technické informace",
+      "hide_technical_info": "Skrýt technické informace"
+    },
+    "technical_info": {
+      "video": "Video:",
+      "audio": "Zvuk:",
+      "subtitle": "Titulky:",
+      "bitrate": "Datový tok:",
+      "source_bitrate": "Soubor:",
+      "buffer_seconds": "Buffer: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "Zahozeno: {{count}} snímků",
+      "loading": "Načítání..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "Poměr stran",
+    "aspect_ratio_original": "Původní",
+    "hash_match": "Shoda hash",
+    "still_watching": "Ještě se díváte?",
     "error": "Chyba",
     "failed_to_get_stream_url": "Nepodařilo se získat URL streamu",
-    "an_error_occured_while_playing_the_video": "Při přehrávání videa došlo k chybě. Zkontrolujte logy v nastavení.",
+    "an_error_occurred_while_playing_the_video": "Při přehrávání videa došlo k chybě. Zkontrolujte logy v nastavení.",
     "client_error": "Chyba klienta",
     "could_not_create_stream_for_chromecast": "Nelze vytvořit stream pro Chromecast",
     "message_from_server": "Zpráva od serveru: {{message}}",
@@ -621,7 +691,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -697,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "Živé vysílání",
     "next": "Další",
     "previous": "Předchozí",
     "coming_soon": "Již brzy",
@@ -768,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server nesplňuje minimální požadavky na verzi! Aktualizujte prosím alespoň na 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server nesplňuje minimální požadavky na verzi! Aktualizujte prosím alespoň na 2.0.0",
       "jellyseerr_test_failed": "Seerr test se nezdařil. Zkuste to prosím znovu.",
       "failed_to_test_jellyseerr_server_url": "Nepodařilo se otestovat URL serveru Seerr",
       "issue_submitted": "Úkol byl odeslán!",
@@ -781,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "Tlačítko přehrát",
+    "play_hint": "Klepnutím přehrajete médium",
+    "toggle_orientation": "Přepnout orientaci obrazovky",
+    "toggle_orientation_hint": "Přepíná orientaci obrazovky mezi režimem na výšku a na šířku"
+  },
+  "not_found": {
+    "title": "Tato obrazovka neexistuje.",
+    "go_home": "Přejít domů!"
+  },
   "tabs": {
     "home": "Domů",
     "search": "Hledat",
@@ -791,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "Nehraje žádná skladba",
+    "queue_empty": "Fronta je prázdná",
+    "playing_from_queue": "Přehrává se z fronty",
+    "up_next": "Další na řadě",
+    "now_playing": "Přehrává se",
+    "missing_library_id": "Chybí ID hudební knihovny.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -874,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "Vytvořte seznam sledování a shromážděte v něm vše, co chcete zhlédnout",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

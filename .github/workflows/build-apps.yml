@@ -11,7 +11,7 @@ on:
   push:
     branches: [develop, master]
 
-# Exposed to `expo prebuild` (app.config.js → extra.build) so Settings can show the
+# Exposed to `expo prebuild` (app.config.ts → extra.build) so Settings can show the
 # branch + commit + Actions run a CI build was made from. EAS cloud builds use
 # EAS_BUILD_* instead. The run number maps a sideloaded build back to its Actions
 # run (artifacts + logs) without needing Expo access.
@@ -30,69 +30,71 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - name: 🗑️ Free Disk Space
-        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
-        with:
-          tool-cache: false
-          mandb: true
-          android: false
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: true
-          swap-storage: false
+      - parallel:
+          - name: 🗑️ Free Disk Space
+            uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
+            with:
+              tool-cache: false
+              mandb: true
+              android: false
+              dotnet: true
+              haskell: true
+              large-packages: false
+              docker-images: true
+              swap-storage: false
 
-      - name: 📥 Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+          - name: 📥 Checkout code
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
 
-      - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-
+          - name: ☕ Set up JDK 17
+            # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
+            # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
+            # fail). Pin Temurin 17 for a deterministic Android build.
+            uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+            with:
+              distribution: temurin
+              java-version: "17"
+
+      - parallel:
+          - name: 💾 Cache Bun dependencies
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            with:
+              path: ~/.bun/install/cache
+              key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+              restore-keys: |
+                ${{ runner.os }}-${{ runner.arch }}-bun-
+
+          - name: 💾 Cache Gradle global
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            with:
+              path: |
+                ~/.gradle/caches/modules-2
+                ~/.gradle/wrapper
+              key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+              restore-keys: |
+                ${{ runner.os }}-${{ runner.arch }}-gradle-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
-      - name: ☕ Set up JDK 17
-        # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
-        # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
-        # fail). Pin Temurin 17 for a deterministic Android build.
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: 💾 Cache Gradle global
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            ~/.gradle/caches/modules-2
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-gradle-
-
       - name: 🛠️ Generate project files
         run: bun run prebuild
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/.gradle
           key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -130,69 +132,71 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - name: 🗑️ Free Disk Space
-        uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
-        with:
-          tool-cache: false
-          mandb: true
-          android: false
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: true
-          swap-storage: false
+      - parallel:
+          - name: 🗑️ Free Disk Space
+            uses: BRAINSia/free-disk-space@7048ffbf50819342ac964ef3998a51c2564a8a75 # v2.1.3
+            with:
+              tool-cache: false
+              mandb: true
+              android: false
+              dotnet: true
+              haskell: true
+              large-packages: false
+              docker-images: true
+              swap-storage: false
 
-      - name: 📥 Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+          - name: 📥 Checkout code
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
 
-      - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-bun-
+          - name: ☕ Set up JDK 17
+            # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
+            # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
+            # fail). Pin Temurin 17 for a deterministic Android build.
+            uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+            with:
+              distribution: temurin
+              java-version: "17"
+
+      - parallel:
+          - name: 💾 Cache Bun dependencies
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            with:
+              path: ~/.bun/install/cache
+              key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
+              restore-keys: |
+                ${{ runner.os }}-${{ runner.arch }}-bun-
+
+          - name: 💾 Cache Gradle global
+            uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            with:
+              path: |
+                ~/.gradle/caches/modules-2
+                ~/.gradle/wrapper
+              key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+              restore-keys: |
+                ${{ runner.os }}-${{ runner.arch }}-gradle-
 
       - name: 📦 Install dependencies and reload submodules
         run: |
           bun install --frozen-lockfile
           bun run submodule-reload
 
-      - name: ☕ Set up JDK 17
-        # ubuntu-26.04 defaults to JDK 25, which breaks the RN/AGP native build
-        # (Kotlin falls back to JVM_23, the foojay toolchain + CMake configure
-        # fail). Pin Temurin 17 for a deterministic Android build.
-        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: 💾 Cache Gradle global
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            ~/.gradle/caches/modules-2
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-${{ runner.arch }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-gradle-
-
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
 
       - name: 💾 Cache project Gradle (.gradle)
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/.gradle
           key: ${{ runner.os }}-${{ runner.arch }}-android-gradle-develop-${{ hashFiles('android/**/build.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
@@ -229,22 +233,36 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+      - parallel:
+          - name: 📥 Checkout code
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
+
+          - name: 🔧 Setup Xcode
+            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+            with:
+              # renovate: datasource=custom.xcode depName=xcode versioning=loose
+              xcode-version: "26.6"
+
+          - name: 🏗️ Setup EAS
+            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            with:
+              eas-version: latest
+              token: ${{ secrets.EXPO_TOKEN }}
+              eas-cache: true
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -258,19 +276,6 @@ jobs:
 
       - name: 🛠️ Generate project files
         run: bun run prebuild
-
-      - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.5"
-
-      - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          eas-cache: true
 
       - name: 🚀 Build iOS app
         env:
@@ -301,22 +306,29 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+      - parallel:
+          - name: 📥 Checkout code
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
+
+          - name: 🔧 Setup Xcode
+            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+            with:
+              # renovate: datasource=custom.xcode depName=xcode versioning=loose
+              xcode-version: "26.6"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -331,16 +343,10 @@ jobs:
       - name: 🛠️ Generate project files
         run: bun run prebuild
 
-      - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.5"
-
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 0
-        run: bun run ios:unsigned-build ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+        run: bun run ios:unsigned-build
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV
@@ -368,22 +374,36 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+      - parallel:
+          - name: 📥 Checkout code
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
+
+          - name: 🔧 Setup Xcode
+            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+            with:
+              # renovate: datasource=custom.xcode depName=xcode versioning=loose
+              xcode-version: "26.6"
+
+          - name: 🏗️ Setup EAS
+            uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
+            with:
+              eas-version: latest
+              token: ${{ secrets.EXPO_TOKEN }}
+              eas-cache: true
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -397,19 +417,6 @@ jobs:
 
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
-
-      - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.5"
-
-      - name: 🏗️ Setup EAS
-        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # main
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-          eas-cache: true
 
       - name: 🚀 Build iOS app
         env:
@@ -438,22 +445,29 @@ jobs:
       actions: write # dispatch artifact-comment.yml to refresh the PR comment
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          submodules: recursive
-          show-progress: false
+      - parallel:
+          - name: 📥 Checkout code
+            uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+              fetch-depth: 0
+              submodules: recursive
+              show-progress: false
 
-      - name: 🍞 Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          # renovate: datasource=npm depName=bun
-          bun-version: "1.3.14"
+          - name: 🍞 Setup Bun
+            uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+            with:
+              # renovate: datasource=npm depName=bun
+              bun-version: "1.3.14"
+
+          - name: 🔧 Setup Xcode
+            uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+            with:
+              # renovate: datasource=custom.xcode depName=xcode versioning=loose
+              xcode-version: "26.6"
 
       - name: 💾 Cache Bun dependencies
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('bun.lock') }}
@@ -468,16 +482,10 @@ jobs:
       - name: 🛠️ Generate project files
         run: bun run prebuild:tv
 
-      - name: 🔧 Setup Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          # renovate: datasource=custom.xcode depName=xcode versioning=loose
-          xcode-version: "26.5"
-
       - name: 🚀 Build iOS app
         env:
           EXPO_TV: 1
-        run: bun run ios:unsigned-build:tv ${{ github.event_name == 'pull_request' && '-- --verbose' || '' }}
+        run: bun run ios:unsigned-build:tv
 
       - name: 📅 Set date tag
         run: echo "DATE_TAG=$(date +%d-%m-%Y_%H-%M-%S)" >> $GITHUB_ENV

@@ -1,49 +1,47 @@
-import { useActionSheet } from "@expo/react-native-action-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { Image } from "expo-image";
 import type React from "react";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { DownloadSize } from "@/components/downloads/DownloadSize";
 import useRouter from "@/hooks/useAppRouter";
+import { useConfirmDelete } from "@/hooks/useConfirmDelete";
 import { useDownload } from "@/providers/DownloadProvider";
 import { storage } from "@/utils/mmkv";
 import { Text } from "../common/Text";
 
 export const SeriesCard: React.FC<{ items: BaseItemDto[] }> = ({ items }) => {
+  const { t } = useTranslation();
   const { deleteItems } = useDownload();
-  const { showActionSheetWithOptions } = useActionSheet();
+  const confirmDelete = useConfirmDelete();
   const router = useRouter();
 
+  // Keyed on SeriesId so recycled FlashList cells re-read the correct poster
+  // instead of freezing the first-rendered series' image (empty deps bug).
   const base64Image = useMemo(() => {
-    return storage.getString(items[0].SeriesId!);
-  }, []);
+    const seriesId = items[0]?.SeriesId;
+    return seriesId ? storage.getString(seriesId) : undefined;
+  }, [items[0]?.SeriesId]);
 
   const deleteSeries = useCallback(
-    async () =>
+    () =>
       deleteItems(
         items.map((item) => item.Id).filter((id) => id !== undefined),
       ),
     [items],
   );
 
-  const showActionSheet = useCallback(() => {
-    const options = ["Delete", "Cancel"];
-    const destructiveButtonIndex = 0;
-
-    showActionSheetWithOptions(
-      {
-        options,
-        destructiveButtonIndex,
-      },
-      (selectedIndex) => {
-        if (selectedIndex === destructiveButtonIndex) {
-          deleteSeries();
-        }
-      },
-    );
-  }, [showActionSheetWithOptions, deleteSeries]);
+  const showActionSheet = useCallback(
+    () =>
+      confirmDelete({
+        title: items[0]?.SeriesName ?? undefined,
+        message: t("player.episode_count", { count: items.length }),
+        onConfirm: deleteSeries,
+      }),
+    [confirmDelete, deleteSeries, items, t],
+  );
 
   return (
     <TouchableOpacity

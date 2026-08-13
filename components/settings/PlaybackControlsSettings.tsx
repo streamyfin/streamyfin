@@ -3,8 +3,9 @@ import { TFunction } from "i18next";
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Switch, View } from "react-native";
+import { View } from "react-native";
 import { BITRATES } from "@/components/BitrateSelector";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { PlatformDropdown } from "@/components/PlatformDropdown";
 import { PLAYBACK_SPEEDS } from "@/components/PlaybackSpeedSelector";
 import DisabledSetting from "@/components/settings/DisabledSetting";
@@ -117,7 +118,7 @@ export const PlaybackControlsSettings: React.FC = () => {
 
   return (
     <DisabledSetting disabled={disabled}>
-      <ListGroup title={t("home.settings.other.other_title")} className=''>
+      <ListGroup title={t("home.settings.other.other_title")} className='mb-4'>
         <ListItem
           title={t("home.settings.other.video_orientation")}
           disabled={pluginSettings?.defaultVideoOrientation?.locked}
@@ -148,7 +149,7 @@ export const PlaybackControlsSettings: React.FC = () => {
           title={t("home.settings.other.safe_area_in_controls")}
           disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.safeAreaInControlsEnabled}
             disabled={pluginSettings?.safeAreaInControlsEnabled?.locked}
             onValueChange={(value) =>
@@ -207,7 +208,7 @@ export const PlaybackControlsSettings: React.FC = () => {
           title={t("home.settings.other.disable_haptic_feedback")}
           disabled={pluginSettings?.disableHapticFeedback?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.disableHapticFeedback}
             disabled={pluginSettings?.disableHapticFeedback?.locked}
             onValueChange={(disableHapticFeedback) =>
@@ -217,10 +218,23 @@ export const PlaybackControlsSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
+          title={t("home.settings.other.resume_dialog")}
+          disabled={pluginSettings?.showResumeDialog?.locked}
+        >
+          <SettingSwitch
+            value={settings.showResumeDialog}
+            disabled={pluginSettings?.showResumeDialog?.locked}
+            onValueChange={(showResumeDialog) =>
+              updateSettings({ showResumeDialog })
+            }
+          />
+        </ListItem>
+
+        <ListItem
           title={t("home.settings.other.auto_play_next_episode")}
           disabled={pluginSettings?.autoPlayNextEpisode?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.autoPlayNextEpisode}
             disabled={pluginSettings?.autoPlayNextEpisode?.locked}
             onValueChange={(autoPlayNextEpisode) =>

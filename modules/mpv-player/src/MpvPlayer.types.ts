@@ -89,6 +89,14 @@ export type MpvPlayerViewProps = {
 export interface MpvPlayerViewRef {
   play: () => Promise<void>;
   pause: () => Promise<void>;
+  /**
+   * Synchronously destroy the mpv instance + decoder + surface buffers.
+   * Call before navigating away from the player screen so memory is
+   * freed before the next screen mounts. Safe to call multiple times.
+   */
+  destroy: () => Promise<void>;
+  // Pre-libmpv-1.0 alias (kept for source-history reference):
+  // stop: () => Promise<void>;
   seekTo: (position: number) => Promise<void>;
   seekBy: (offset: number) => Promise<void>;
   setSpeed: (speed: number) => Promise<void>;
@@ -133,6 +141,14 @@ export type SubtitleTrack = {
   id: number;
   title?: string;
   lang?: string;
+  /** Subtitle codec (mpv `codec`), e.g. "subrip", "ass", "hdmv_pgs_subtitle". */
+  codec?: string;
+  /** True if loaded from a separate file via `sub-add` (mpv `external`). */
+  external?: boolean;
+  /** For external tracks: the exact URL/path it was loaded from (mpv `external-filename`). */
+  externalFilename?: string;
+  /** FFmpeg stream index (mpv `ff-index`); not guaranteed for non-lavf demuxers. */
+  ffIndex?: number;
   selected?: boolean;
 };
 
@@ -154,9 +170,41 @@ export type TechnicalInfo = {
   videoBitrate?: number;
   audioBitrate?: number;
   cacheSeconds?: number;
+  /** Configured demuxer forward cache cap (MiB), read back from mpv */
+  demuxerMaxBytes?: number;
+  /** Configured demuxer backward cache cap (MiB), read back from mpv */
+  demuxerMaxBackBytes?: number;
+  /** Configured cache-secs floor, read back from mpv */
+  cacheSecsLimit?: number;
   droppedFrames?: number;
   /** Active video output driver (read from MPV at runtime) */
   voDriver?: string;
   /** Active hardware decoder (read from MPV at runtime) */
   hwdec?: string;
+  /** Estimated video output fps (mpv "estimated-vf-fps") */
+  estimatedVfFps?: number;
+  // ---- Extended fields (primarily ExoPlayer-backed; MPV may fill some) ----
+  /** Derived HDR format: "SDR" | "HDR10" | "HDR10+" | "HLG" | null */
+  hdrFormat?: string;
+  /** Color space, e.g. "BT.709" / "BT.2020" */
+  colorSpace?: string;
+  /** Color range: "Limited" / "Full" */
+  colorRange?: string;
+  /** Color transfer: "SDR" / "ST2084 (PQ)" / "HLG" */
+  colorTransfer?: string;
+  /** Decoder path: "hardware" (MediaCodec) or "software" (FFmpeg extension) */
+  decoderType?: string;
+  /** Instantiated decoder name, e.g. "c2.amlogic.hevc.decoder" */
+  decoderName?: string;
+  /** Active audio channel count (2 = stereo, 6 = 5.1, 8 = 7.1) */
+  audioChannels?: number;
+  /** Active audio sample rate in Hz */
+  audioSampleRate?: number;
+  /**
+   * Raw codec tag from the container, e.g. "hev1.2.4.L153.B0". Encodes
+   * profile / tier / level / constraint bytes per ISO/IEC 14496-15. Power
+   * users can decode this manually; it's how Jellyfin's HEVC level cap
+   * (153 = Level 5.1) is checked against the file.
+   */
+  videoCodecs?: string;
 };

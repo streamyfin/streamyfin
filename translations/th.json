@@ -1,4 +1,11 @@
 {
+  "server_url": {
+    "resolving": "Checking…",
+    "resolved": "→ {{url}}",
+    "unreachable": "Server unreachable",
+    "wrong_service": "Reachable, but not the expected server",
+    "invalid_url": "Enter a valid address"
+  },
   "login": {
     "username_required": "Username Is Required",
     "error_title": "Error",
@@ -12,18 +19,21 @@
     "login_button": "Log In",
     "quick_connect": "Quick Connect",
     "enter_code_to_login": "Enter code {{code}} to login",
+    "quick_connect_instructions": "ป้อนรหัสนี้บนอุปกรณ์ที่เข้าสู่ระบบอยู่แล้ว ระบบจะเข้าสู่ระบบให้คุณโดยอัตโนมัติ.",
+    "tap_code_to_copy": "แตะที่รหัสเพื่อคัดลอก",
+    "code_copied": "คัดลอกรหัสแล้ว",
     "failed_to_initiate_quick_connect": "Failed to initiate Quick Connect",
     "got_it": "Got It",
     "connection_failed": "Connection Failed",
     "could_not_connect_to_server": "Could not connect to the server. Please check the URL and your network connection.",
-    "an_unexpected_error_occured": "An Unexpected Error Occurred",
+    "an_unexpected_error_occurred": "An unexpected error occurred",
     "change_server": "Change Server",
     "invalid_username_or_password": "Invalid Username or Password",
     "user_does_not_have_permission_to_log_in": "ผู้ใช้ไม่มีสิทธิ์ในการเข้าสู่ระบบ",
     "server_is_taking_too_long_to_respond_try_again_later": "Server is taking too long to respond, try again later",
     "server_received_too_many_requests_try_again_later": "Server received too many requests, try again later.",
     "there_is_a_server_error": "There is a server error",
-    "an_unexpected_error_occured_did_you_enter_the_correct_url": "",
+    "an_unexpected_error_occurred_did_you_enter_the_correct_url": "An unexpected error occurred. Did you enter the server URL correctly?",
     "too_old_server_text": "Unsupported Jellyfin Server Discovered",
     "too_old_server_description": "Please update Jellyfin to the latest version"
   },
@@ -33,6 +43,7 @@
     "connect_button": "Connect",
     "previous_servers": "Previous Servers",
     "clear_button": "Clear all",
+    "server_url": "URL เซิร์ฟเวอร์",
     "swipe_to_remove": "Swipe to remove",
     "search_for_local_servers": "Search for Local Servers",
     "searching": "Searching...",
@@ -56,6 +67,7 @@
   "save_account": {
     "title": "Save Account",
     "save_for_later": "Save this account",
+    "not_saved": "ไม่ได้บันทึกบัญชี",
     "security_option": "Security Option",
     "no_protection": "No protection",
     "no_protection_desc": "Quick login without authentication",
@@ -105,19 +117,20 @@
       "welcome_to_streamyfin": "Welcome to Streamyfin",
       "a_free_and_open_source_client_for_jellyfin": "A Free and Open-Source Client for Jellyfin.",
       "features_title": "Features",
-      "features_description": "Streamyfin has a bunch of features and integrates with a wide array of software which you can find in the settings menu, these include:",
+      "features_description": "Streamyfin มีฟีเจอร์มากมายและทำงานร่วมกับซอฟต์แวร์อื่น ๆ ได้ คุณจะพบฟีเจอร์เหล่านี้ในเมนูการตั้งค่า:",
       "jellyseerr_feature_description": "Connect to your Seerr instance and request movies directly in the app.",
       "downloads_feature_title": "Downloads",
       "downloads_feature_description": "Download movies and tv-shows to view offline. Use either the default method or install the optimize server to download files in the background.",
       "chromecast_feature_description": "Cast movies and tv-shows to your Chromecast devices.",
       "centralised_settings_plugin_title": "Centralised Settings Plugin",
-      "centralised_settings_plugin_description": "Configure settings from a centralised location on your Jellyfin server. All client settings for all users will be synced automatically.",
+      "centralised_settings_plugin_description": "ตั้งค่าแบบรวมศูนย์บนเซิร์ฟเวอร์ Jellyfin ของคุณ การตั้งค่าไคลเอนต์ของผู้ใช้ทุกคนจะซิงค์กันโดยอัตโนมัติ.",
       "done_button": "Done",
       "go_to_settings_button": "Go to Settings",
       "read_more": "Read More"
     },
     "settings": {
       "settings_title": "Settings",
+      "disabled_by_admin": "ปิดใช้งานโดยผู้ดูแลระบบ",
       "log_out_button": "Log Out",
       "switch_user": {
         "title": "Switch User",
@@ -137,7 +150,11 @@
       "appearance": {
         "title": "ปรับแต่งลักษณะภายนอก",
         "merge_next_up_continue_watching": "Merge Continue Watching & Next Up",
+        "merge_next_up_continue_watching_hint": "Combine Continue Watching and Next Up into a single home row.",
+        "use_episode_images_next_up": "Use episode images for Next Up & Continue Watching",
+        "use_episode_images_next_up_hint": "Show each episode's own thumbnail in the Next Up and Continue Watching rows instead of the series image.",
         "hide_remote_session_button": "Hide Remote Session Button",
+        "hide_remote_session_button_hint": "Hide the remote-sessions button from the home header.",
         "show_home_backdrop": "Dynamic Home Backdrop",
         "show_hero_carousel": "Hero Carousel",
         "show_series_poster_on_episode": "Show Series Poster on Episodes",
@@ -174,7 +191,10 @@
         "network_already_added": "Network already added",
         "no_wifi_connected": "Not connected to WiFi",
         "permission_denied": "Location permission denied",
-        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings."
+        "permission_denied_explanation": "Location permission is required to detect WiFi network for auto-switching. Please enable it in Settings.",
+        "ssid_hidden": "SSID ถูกซ่อนไว้",
+        "location_off_description": "เชื่อมต่อ Wi-Fi อยู่ แต่ชื่อเครือข่ายถูกซ่อนไว้ เปิดใช้งานบริการตำแหน่งของอุปกรณ์และอนุญาตสิทธิ์ตำแหน่งให้แอปเพื่อตรวจหาชื่อเครือข่าย.",
+        "open_location_settings": "เปิดการตั้งค่าตำแหน่ง"
       },
       "user_info": {
         "user_info_title": "User Info",
@@ -188,16 +208,24 @@
         "authorize_button": "Authorize Quick Connect",
         "enter_the_quick_connect_code": "Enter the quick connect code...",
         "success": "Success",
-        "quick_connect_autorized": "Quick Connect Authorized",
+        "quick_connect_authorized": "Quick Connect authorized",
         "error": "Error",
         "invalid_code": "Invalid Code",
-        "authorize": "Authorize"
+        "authorize": "Authorize",
+        "paste_code": "วางรหัส"
       },
       "media_controls": {
         "media_controls_title": "Media Controls",
         "forward_skip_length": "Forward Skip Length",
         "rewind_length": "Rewind Length",
         "seconds_unit": "s"
+      },
+      "video_player": {
+        "title": "เครื่องเล่นวิดีโอ",
+        "exoplayer": "ExoPlayer",
+        "mpv": "MPV",
+        "exoplayer_note": "ExoPlayer ไม่รองรับการจัดรูปแบบคำบรรยาย ASS/SSA ขั้นสูงหรือการจัดตำแหน่งคำบรรยายแนวนอน หากต้องการฟีเจอร์เหล่านี้ให้เปลี่ยนไปใช้ MPV.",
+        "mpv_note": "MPV บนทีวีในขณะนี้ยังไม่ส่งข้อมูลเมตา HDR ไปยังหน้าจอ ทำให้เนื้อหา HDR10/HDR10+ ถูกแปลงลงเป็น SDR หากต้องการภาพ HDR ให้เปลี่ยนไปใช้ ExoPlayer."
       },
       "buffer": {
         "title": "Buffer Settings",
@@ -270,6 +298,10 @@
         "mpv_subtitle_margin_y": "Vertical Margin",
         "mpv_subtitle_align_x": "Horizontal Align",
         "mpv_subtitle_align_y": "Vertical Align",
+        "mpv_settings_title": "การตั้งค่าคำบรรยาย MPV",
+        "mpv_settings_description": "ปรับแต่งคำบรรยายขั้นสูงสำหรับเครื่องเล่น MPV",
+        "opaque_background": "พื้นหลังทึบแสง",
+        "background_opacity": "ความทึบของพื้นหลัง",
         "align": {
           "left": "Left",
           "center": "Center",
@@ -296,9 +328,10 @@
         },
         "safe_area_in_controls": "Safe Area in Controls",
         "show_custom_menu_links": "Show Custom Menu Links",
+        "show_custom_menu_links_hint": "Show the custom links your server administrator added in the web config.",
         "show_large_home_carousel": "Show Large Home Carousel (beta)",
         "hide_libraries": "Hide Libraries",
-        "select_liraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
+        "select_libraries_you_want_to_hide": "Select the libraries you want to hide from the Library tab and home page sections.",
         "disable_haptic_feedback": "Disable Haptic Feedback",
         "default_quality": "Default Quality",
         "default_playback_speed": "Default Playback Speed",
@@ -312,7 +345,7 @@
         "playback_description": "Configure how music is played.",
         "prefer_downloaded": "Prefer Downloaded Songs",
         "caching_title": "Caching",
-        "caching_description": "Automatically cache upcoming tracks for smoother playback.",
+        "caching_description": "เก็บเพลงถัดไปในคิวไว้เป็นแคชล่วงหน้า เพลงที่แคชไว้นานที่สุดจะถูกลบออกเมื่อถึงขีดจำกัดของขนาด.",
         "lookahead_enabled": "Enable Look-Ahead Caching",
         "lookahead_count": "Tracks to Pre-cache",
         "max_cache_size": "Max Cache Size"
@@ -370,6 +403,7 @@
           "toasts": {
             "saved": "Saved",
             "refreshed": "Settings refreshed from server",
+            "refresh_failed": "ไม่สามารถรีเฟรชการตั้งค่าจากเซิร์ฟเวอร์ได้",
             "disabled": "Streamystats disabled"
           },
           "refresh_from_server": "Refresh Settings from Server"
@@ -384,8 +418,10 @@
         "device_usage": "Device {{availableSpace}}%",
         "size_used": "{{used}} of {{total}} Used",
         "delete_all_downloaded_files": "Delete All Downloaded Files",
+        "delete_all_downloaded_files_confirm": "Delete All Downloaded Files?",
+        "delete_all_downloaded_files_confirm_desc": "Are you sure you want to delete all downloaded files? This action cannot be undone.",
         "music_cache_title": "Music Cache",
-        "music_cache_description": "Automatically cache songs as you listen for smoother playback and offline support",
+        "music_cache_description": "เพลงจะถูกแคชโดยอัตโนมัติระหว่างการเล่น การล้างแคชจะช่วยเพิ่มพื้นที่ว่างโดยไม่กระทบเพลงที่ดาวน์โหลดไว้.",
         "clear_music_cache": "Clear Music Cache",
         "music_cache_size": "{{size}} cached",
         "music_cache_cleared": "Music cache cleared",
@@ -408,7 +444,9 @@
         "click_for_more_info": "Click for More Info",
         "level": "Level",
         "no_logs_available": "No Logs Available",
-        "delete_all_logs": "Delete All Logs"
+        "delete_all_logs": "Delete All Logs",
+        "copy": "คัดลอก",
+        "copied": "คัดลอกไปยังคลิปบอร์ดแล้ว"
       },
       "languages": {
         "title": "Languages",
@@ -435,10 +473,13 @@
     },
     "sessions": {
       "title": "Sessions",
-      "no_active_sessions": "No Active Sessions"
+      "no_active_sessions": "No Active Sessions",
+      "select_session": "เลือกเซสชัน",
+      "now_playing": "กำลังเล่น:"
     },
     "downloads": {
       "downloads_title": "Downloads",
+      "transcoding": "กำลังแปลง",
       "series": "TV-Series",
       "movies": "Movies",
       "other_media": "Other media",
@@ -484,7 +525,6 @@
   },
   "common": {
     "no_results": "No Results",
-    "select": "Select",
     "no_trailer_available": "No trailer available",
     "video": "Video",
     "audio": "Audio",
@@ -495,6 +535,8 @@
     "none": "None",
     "track": "Track",
     "cancel": "Cancel",
+    "stop": "หยุด",
+    "open_menu": "เปิดเมนู",
     "delete": "Delete",
     "ok": "OK",
     "remove": "Remove",
@@ -589,17 +631,45 @@
     "boxsets": "Box Sets",
     "playlists": "Playlists",
     "noDataTitle": "No Favorites Yet",
-    "noData": "Mark items as favorites to see them appear here for quick access."
+    "noData": "สิ่งที่คุณทำเครื่องหมายเป็นรายการโปรดจะแสดงที่นี่."
   },
   "custom_links": {
     "no_links": "No Links"
   },
   "player": {
     "live": "LIVE",
+    "shuffle": "สุ่ม",
+    "entire_series": "ทั้งซีรีส์",
+    "episode_count": "{{count}} ตอน",
+    "menu": {
+      "quality": "คุณภาพ",
+      "subtitles": "คำบรรยาย",
+      "subtitle_scale": "ขนาดคำบรรยาย",
+      "audio": "เสียง",
+      "speed": "ความเร็ว",
+      "playback_options": "ตัวเลือกการเล่น",
+      "show_technical_info": "แสดงข้อมูลทางเทคนิค",
+      "hide_technical_info": "ซ่อนข้อมูลทางเทคนิค"
+    },
+    "technical_info": {
+      "video": "วิดีโอ:",
+      "audio": "เสียง:",
+      "subtitle": "คำบรรยาย:",
+      "bitrate": "บิตเรต:",
+      "source_bitrate": "ไฟล์:",
+      "buffer_seconds": "บัฟเฟอร์: {{seconds}}s",
+      "vo": "VO:",
+      "dropped_frames": "หลุด: {{count}} เฟรม",
+      "loading": "กำลังโหลด..."
+    },
     "mpv_player_title": "MPV Player",
+    "aspect_ratio": "อัตราส่วนภาพ",
+    "aspect_ratio_original": "ต้นฉบับ",
+    "hash_match": "แฮชตรงกัน",
+    "still_watching": "คุณยังรับชมอยู่หรือไม่?",
     "error": "Error",
     "failed_to_get_stream_url": "Failed to get the stream URL",
-    "an_error_occured_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
+    "an_error_occurred_while_playing_the_video": "An error occurred while playing the video. Check logs in settings.",
     "client_error": "Client Error",
     "could_not_create_stream_for_chromecast": "Could not create a stream for Chromecast",
     "message_from_server": "Message from Server: {{message}}",
@@ -621,7 +691,6 @@
     "using_jellyfin_server": "Using Jellyfin Server",
     "language": "Language",
     "results": "Results",
-    "searching": "Searching...",
     "search_failed": "Search failed",
     "no_subtitle_provider": "No subtitle provider configured on server",
     "no_subtitles_found": "No subtitles found",
@@ -697,6 +766,7 @@
     "no_data_available": "No data available"
   },
   "live_tv": {
+    "title": "ทีวีสด",
     "next": "Next",
     "previous": "Previous",
     "coming_soon": "Coming Soon",
@@ -768,7 +838,7 @@
     "request_selected": "Request Selected",
     "n_selected": "{{count}} selected",
     "toasts": {
-      "jellyseer_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
+      "jellyseerr_does_not_meet_requirements": "Seerr server does not meet minimum version requirements! Please update to at least 2.0.0",
       "jellyseerr_test_failed": "Seerr test failed. Please try again.",
       "failed_to_test_jellyseerr_server_url": "Failed to test Seerr server url",
       "issue_submitted": "Issue Submitted!",
@@ -781,6 +851,16 @@
       "failed_to_decline_request": "Failed to Decline Request"
     }
   },
+  "accessibility": {
+    "play_button": "ปุ่มเล่น",
+    "play_hint": "แตะเพื่อเล่นสื่อ",
+    "toggle_orientation": "สลับการวางแนวหน้าจอ",
+    "toggle_orientation_hint": "สลับการวางแนวหน้าจอระหว่างแนวตั้งและแนวนอน"
+  },
+  "not_found": {
+    "title": "หน้าจอนี้ไม่มีอยู่จริง.",
+    "go_home": "ไปที่หน้าหลัก!"
+  },
   "tabs": {
     "home": "Home",
     "search": "Search",
@@ -791,6 +871,12 @@
   },
   "music": {
     "title": "Music",
+    "no_track_playing": "ไม่มีเพลงที่กำลังเล่น",
+    "queue_empty": "คิวว่างเปล่า",
+    "playing_from_queue": "กำลังเล่นจากคิว",
+    "up_next": "ถัดไป",
+    "now_playing": "กำลังเล่น",
+    "missing_library_id": "ไม่พบรหัสคลังเพลง.",
     "tabs": {
       "suggestions": "Suggestions",
       "albums": "Albums",
@@ -874,7 +960,7 @@
     "allowed_type_label": "Content Type",
     "sort_order_label": "Default Sort Order",
     "empty_title": "No Watchlists",
-    "empty_description": "Create your first watchlist to start organizing your media",
+    "empty_description": "สร้างรายการที่ต้องการดูเพื่อรวบรวมสิ่งที่คุณอยากดู",
     "empty_watchlist": "This watchlist is empty",
     "empty_watchlist_hint": "Add items from your library to this watchlist",
     "not_configured_title": "Streamystats Not Configured",

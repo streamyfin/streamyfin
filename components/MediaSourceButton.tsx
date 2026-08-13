@@ -2,12 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import type {
   BaseItemDto,
   MediaSourceInfo,
+  MediaStream,
 } from "@jellyfin/sdk/lib/generated-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, TouchableOpacity, View } from "react-native";
 import type { ThemeColors } from "@/hooks/useImageColorsReturn";
-import { BITRATES } from "./BitRateSheet";
+import { useSettings } from "@/utils/atoms/settings";
+import { rememberSeriesTrackFromRow } from "@/utils/seriesTrackMemory";
+import { SUBTITLES_OFF } from "@/utils/subtitles/subtitleIndex";
+import { buildAudioMenu, buildSubtitleMenu } from "@/utils/subtitles/trackMenu";
+import { BITRATES } from "./BitrateSelector";
 import type { SelectedOptions } from "./ItemContent";
 import { type OptionGroup, PlatformDropdown } from "./PlatformDropdown";
 
@@ -27,6 +32,7 @@ export const MediaSourceButton: React.FC<Props> = ({
   colors,
 }: Props) => {
   const { t } = useTranslation();
+  const { settings } = useSettings();
   const [open, setOpen] = useState(false);
 
   const effectiveColors = colors || {
@@ -53,20 +59,30 @@ export const MediaSourceButton: React.FC<Props> = ({
     return `Source ${source.Id}`;
   }, []);
 
-  const audioStreams = useMemo(
-    () =>
-      selectedOptions.mediaSource?.MediaStreams?.filter(
-        (x) => x.Type === "Audio",
-      ) || [],
-    [selectedOptions.mediaSource],
+  const trackLabel = useCallback(
+    (s: MediaStream) => s.DisplayTitle || `${t("common.track")} ${s.Index}`,
+    [t],
   );
 
-  const subtitleStreams = useMemo(
+  const audioRows = useMemo(
     () =>
-      selectedOptions.mediaSource?.MediaStreams?.filter(
-        (x) => x.Type === "Subtitle",
-      ) || [],
-    [selectedOptions.mediaSource],
+      buildAudioMenu(selectedOptions.mediaSource?.MediaStreams, {
+        selectedIndex: selectedOptions.audioIndex,
+        isTranscoding: Boolean(selectedOptions.mediaSource?.TranscodingUrl),
+        formatLabel: trackLabel,
+      }),
+    [selectedOptions.mediaSource, selectedOptions.audioIndex, trackLabel],
+  );
+
+  const subtitleRows = useMemo(
+    () =>
+      buildSubtitleMenu(selectedOptions.mediaSource?.MediaStreams, {
+        selectedIndex: selectedOptions.subtitleIndex ?? SUBTITLES_OFF,
+        offLabel: t("common.none"),
+        isTranscoding: Boolean(selectedOptions.mediaSource?.TranscodingUrl),
+        formatLabel: trackLabel,
+      }),
+    [selectedOptions.mediaSource, selectedOptions.subtitleIndex, trackLabel, t],
   );
 
   const optionGroups: OptionGroup[] = useMemo(() => {
@@ -102,43 +118,49 @@ export const MediaSourceButton: React.FC<Props> = ({
       });
     }
 
-    // Audio track group
-    if (audioStreams.length > 0) {
+    // A pick here is as deliberate as one made inside the player, so it feeds
+    // the per-series memory the same way — otherwise the next episode comes
+    // back on the server's default track.
+    if (audioRows.length > 0) {
       groups.push({
         title: t("item_card.audio"),
-        options: audioStreams.map((stream) => ({
+        options: audioRows.map((row) => ({
           type: "radio" as const,
-          label: stream.DisplayTitle || `${t("common.track")} ${stream.Index}`,
-          value: stream.Index,
-          selected: stream.Index === selectedOptions.audioIndex,
-          onPress: () =>
+          label: row.label,
+          value: row.index,
+          selected: row.selected,
+          onPress: () => {
             setSelectedOptions(
-              (prev) => prev && { ...prev, audioIndex: stream.Index ?? 0 },
-            ),
+              (prev) => prev && { ...prev, audioIndex: row.index },
+            );
+            rememberSeriesTrackFromRow({
+              item,
+              kind: "audio",
+              row,
+              settings,
+            });
+          },
         })),
       });
     }
 
-    // Subtitle track group (with None option)
-    if (subtitleStreams.length > 0) {
-      const noneOption = {
+    if (subtitleRows.some((r) => r.kind === "server")) {
+      const [noneOption, ...subtitleOptions] = subtitleRows.map((row) => ({
         type: "radio" as const,
-        label: t("common.none"),
-        value: -1,
-        selected: selectedOptions.subtitleIndex === -1,
-        onPress: () =>
-          setSelectedOptions((prev) => prev && { ...prev, subtitleIndex: -1 }),
-      };
-
-      const subtitleOptions = subtitleStreams.map((stream) => ({
-        type: "radio" as const,
-        label: stream.DisplayTitle || `${t("common.track")} ${stream.Index}`,
-        value: stream.Index,
-        selected: stream.Index === selectedOptions.subtitleIndex,
-        onPress: () =>
+        label: row.label,
+        value: row.index,
+        selected: row.selected,
+        onPress: () => {
           setSelectedOptions(
-            (prev) => prev && { ...prev, subtitleIndex: stream.Index ?? -1 },
-          ),
+            (prev) => prev && { ...prev, subtitleIndex: row.index },
+          );
+          rememberSeriesTrackFromRow({
+            item,
+            kind: "subtitle",
+            row,
+            settings,
+          });
+        },
       }));
 
       groups.push({
@@ -151,11 +173,12 @@ export const MediaSourceButton: React.FC<Props> = ({
   }, [
     item,
     selectedOptions,
-    audioStreams,
-    subtitleStreams,
+    audioRows,
+    subtitleRows,
     getMediaSourceDisplayName,
     t,
     setSelectedOptions,
+    settings,
   ]);
 
   const trigger = (

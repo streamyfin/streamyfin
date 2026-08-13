@@ -12,6 +12,7 @@ interface ShowOptionsParams<T> {
   onSelect: (value: T) => void;
   cardWidth?: number;
   cardHeight?: number;
+  deferApplyUntilDismissed?: boolean;
 }
 
 export const useTVOptionModal = () => {
@@ -26,6 +27,7 @@ export const useTVOptionModal = () => {
         onSelect: params.onSelect,
         cardWidth: params.cardWidth,
         cardHeight: params.cardHeight,
+        deferApplyUntilDismissed: params.deferApplyUntilDismissed,
       });
       router.push("/(auth)/tv-option-modal");
     },

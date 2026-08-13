@@ -51,6 +51,15 @@ export const chapterMarkers = (
     .map((ms) => ({ positionMs: ms, percent: (ms / durationMs) * 100 }));
 };
 
+/**
+ * Single gate for all chapter UI (ticks, list, bookmark icon, skip-overlay
+ * shift): at least two real markers within the duration.
+ */
+export const hasChapterMarkers = (
+  chapters: ChapterInfo[] | null | undefined,
+  durationMs: number,
+): boolean => chapterMarkers(chapters, durationMs).length > 1;
+
 /** Index of the chapter containing `positionMs`, or -1 if before the first. */
 export const currentChapterIndex = (
   positionMs: number,

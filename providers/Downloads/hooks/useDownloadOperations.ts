@@ -3,7 +3,6 @@ import type {
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { File, Paths } from "expo-file-system";
-import type { MutableRefObject } from "react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import DeviceInfo from "react-native-device-info";
@@ -12,7 +11,7 @@ import type { Bitrate } from "@/components/BitrateSelector";
 import useImageStorage from "@/hooks/useImageStorage";
 import { BackgroundDownloader } from "@/modules";
 import { getOrSetDeviceId } from "@/utils/device";
-import useDownloadHelper from "@/utils/download";
+import useDownloadHelper, { estimateDownloadSize } from "@/utils/download";
 import { downloadAdditionalAssets } from "../additionalDownloads";
 import {
   clearAllDownloadedItems,
@@ -23,11 +22,17 @@ import {
   calculateTotalDownloadedSize,
   deleteAllAssociatedFiles,
 } from "../fileOperations";
+import { buildDownloadActivityMetadata } from "../liveActivity";
+import {
+  getPendingDownload,
+  removePendingDownload,
+  savePendingDownload,
+  updatePendingDownload,
+} from "../pendingDownloads";
 import type { JobStatus } from "../types";
 import { generateFilename, uriToFilePath } from "../utils";
 
 interface UseDownloadOperationsProps {
-  taskMapRef: MutableRefObject<Map<number | string, string>>;
   processes: JobStatus[];
   setProcesses: (updater: (prev: JobStatus[]) => JobStatus[]) => void;
   removeProcess: (id: string) => void;
@@ -40,7 +45,6 @@ interface UseDownloadOperationsProps {
  * Hook providing download operation functions (start, cancel, delete)
  */
 export function useDownloadOperations({
-  taskMapRef,
   processes,
   setProcesses,
   removeProcess,
@@ -70,9 +74,9 @@ export function useDownloadOperations({
         const deviceId = getOrSetDeviceId();
         const processId = item.Id;
 
-        // Check if already downloading
+        // Check if already downloading — in-memory process or persisted pending record
         const existingProcess = processes.find((p) => p.id === processId);
-        if (existingProcess) {
+        if (existingProcess || getPendingDownload(processId)) {
           toast.info(
             t("home.downloads.toasts.item_already_downloading", {
               item: item.Name,
@@ -125,25 +129,71 @@ export function useDownloadOperations({
 
         // Generate destination path
         const filename = generateFilename(item);
-        const videoFile = new File(Paths.document, `${filename}.mp4`);
+        const videoFileName = `${filename}.mp4`;
+        const videoFile = new File(Paths.document, videoFileName);
         const destinationPath = uriToFilePath(videoFile.uri);
 
         console.log(`[DOWNLOAD] Starting video: ${item.Name}`);
         console.log(`[DOWNLOAD] Download URL: ${downloadUrl}`);
 
+        // Download metadata for native: drives the iOS Live Activity, and its itemId is echoed
+        // back in every download event on both platforms — it is how events find their way back
+        // here without any taskId bookkeeping. Poster staging can fail; itemId must not, so a
+        // minimal payload is always produced.
+        let activityMetadata: Awaited<
+          ReturnType<typeof buildDownloadActivityMetadata>
+        >;
+        try {
+          activityMetadata = await buildDownloadActivityMetadata({
+            item,
+            api,
+            t,
+            estimatedTotalBytes: maxBitrate.value
+              ? estimateDownloadSize(maxBitrate.value, item.RunTimeTicks)
+              : undefined,
+          });
+        } catch (error) {
+          console.warn("[DOWNLOAD] Live Activity metadata failed:", error);
+        }
+        activityMetadata ??= {
+          itemId: item.Id,
+          title: item.Name ?? "",
+          subtitle: "",
+          labels: {},
+        };
+
+        // Persist the pending record BEFORE handing the download to native, so there is no window
+        // where a transfer exists that a later app session cannot account for.
+        savePendingDownload({
+          itemId: processId,
+          status: "queued",
+          enqueuedAt: new Date().toISOString(),
+          inputUrl: downloadUrl,
+          videoFileName,
+          item,
+          mediaSource: additionalAssets.updatedMediaSource,
+          maxBitrate,
+          deviceId,
+          trickPlayData: additionalAssets.trickPlayData,
+          introSegments: additionalAssets.introSegments,
+          creditSegments: additionalAssets.creditSegments,
+          audioStreamIndex,
+          subtitleStreamIndex,
+          activityMetadata,
+        });
+
         // Start the download using enqueueDownload for sequential processing
         const taskId = await BackgroundDownloader.enqueueDownload(
           downloadUrl,
           destinationPath,
+          activityMetadata,
         );
 
-        // Map task ID or URL for later cancellation
         if (taskId !== -1) {
-          taskMapRef.current.set(taskId, processId);
-        } else {
-          // For queued downloads, store a negative mapping using URL hash
-          // This allows us to cancel queued downloads by URL
-          taskMapRef.current.set(downloadUrl, processId);
+          updatePendingDownload(processId, {
+            status: "downloading",
+            taskId,
+          });
         }
 
         toast.success(
@@ -153,45 +203,36 @@ export function useDownloadOperations({
         );
       } catch (error) {
         console.error("Failed to start download:", error);
+        if (item.Id) {
+          removePendingDownload(item.Id);
+          removeProcess(item.Id);
+        }
         toast.error(t("home.downloads.toasts.failed_to_start_download"), {
           description: error instanceof Error ? error.message : "Unknown error",
         });
         throw error;
       }
     },
-    [api, authHeader, processes, setProcesses, taskMapRef, t],
+    [api, authHeader, processes, setProcesses, removeProcess, t],
   );
 
   const cancelDownload = useCallback(
     async (id: string) => {
-      // Find the task ID or URL for this process
-      let taskId: number | undefined;
-      let downloadUrl: string | undefined;
+      const record = getPendingDownload(id);
 
-      taskMapRef.current.forEach((pId, key) => {
-        if (pId === id) {
-          if (typeof key === "number") {
-            taskId = key;
-          } else {
-            downloadUrl = key as string;
-          }
-        }
-      });
-
-      if (taskId !== undefined) {
+      if (record?.status === "downloading" && record.taskId !== undefined) {
         // Cancel active download by taskId
-        BackgroundDownloader.cancelDownload(taskId);
-        taskMapRef.current.delete(taskId);
-      } else if (downloadUrl !== undefined) {
-        // Cancel queued download by URL
-        BackgroundDownloader.cancelQueuedDownload(downloadUrl);
-        taskMapRef.current.delete(downloadUrl);
+        BackgroundDownloader.cancelDownload(record.taskId);
+      } else if (record) {
+        // Still queued natively — cancel by URL
+        BackgroundDownloader.cancelQueuedDownload(record.inputUrl);
       }
 
+      removePendingDownload(id);
       removeProcess(id);
       toast.info(t("home.downloads.toasts.download_cancelled"));
     },
-    [taskMapRef, removeProcess, t],
+    [removeProcess, t],
   );
 
   const deleteFile = useCallback(
@@ -289,7 +330,24 @@ export function useDownloadOperations({
   );
 
   const appSizeUsage = useCallback(async () => {
-    const totalSize = calculateTotalDownloadedSize();
+    let totalSize = calculateTotalDownloadedSize();
+
+    // Also count in-progress downloads (they write straight to their final
+    // path) so the growing file shows up as app usage instead of drifting
+    // into the generic device share until completion.
+    for (const process of processes) {
+      try {
+        const file = new File(
+          Paths.document,
+          `${generateFilename(process.item)}.mp4`,
+        );
+        if (file.exists) {
+          totalSize += file.size ?? 0;
+        }
+      } catch {
+        // File not created yet — ignore.
+      }
+    }
 
     try {
       const [freeDiskStorage, totalDiskCapacity] = await Promise.all([
@@ -310,7 +368,7 @@ export function useDownloadOperations({
         appSize: totalSize,
       };
     }
-  }, []);
+  }, [processes]);
 
   return {
     startBackgroundDownload,

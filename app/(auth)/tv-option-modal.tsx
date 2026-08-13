@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  FlatList,
+  InteractionManager,
   ScrollView,
   StyleSheet,
   TVFocusGuideView,
@@ -17,6 +19,15 @@ import { useTVBackPress } from "@/hooks/useTVBackPress";
 import { tvOptionModalAtom } from "@/utils/atoms/tvOptionModal";
 import { scaleSize } from "@/utils/scaleSize";
 import { store } from "@/utils/store";
+
+/**
+ * Above this many options the card strip virtualizes; below it, it doesn't.
+ *
+ * Set well clear of the app-language list (28 entries) so only the Jellyfin
+ * culture lists (~200) take the windowed path — adding a translation should not
+ * silently change how an unrelated sheet mounts.
+ */
+const VIRTUALIZE_ABOVE = 60;
 
 export default function TVOptionModal() {
   const router = useRouter();
@@ -75,6 +86,20 @@ export default function TVOptionModal() {
   }, [isReady]);
 
   const handleSelect = (value: any) => {
+    if (modalState?.deferApplyUntilDismissed) {
+      // onSelect navigates (the transcode audio switch replacing the player);
+      // a router.replace fired while this modal is the active route would be
+      // swallowed. Close FIRST, apply after dismissal.
+      const onSelect = modalState.onSelect;
+      store.set(tvOptionModalAtom, null);
+      router.back();
+      InteractionManager.runAfterInteractions(() => onSelect?.(value));
+      return;
+    }
+    // State-only callers (detail page, library filters, settings): run before
+    // closing so the re-render happens while the modal is up. Deferring it until
+    // after dismissal re-renders the page after focus returns and yanks TV
+    // focus, leaving navigation stuck.
     modalState?.onSelect(value);
     store.set(tvOptionModalAtom, null);
     router.back();
@@ -99,6 +124,13 @@ export default function TVOptionModal() {
   const { title, options } = modalState;
   const scaledCardWidth = scaleSize(160);
   const scaledCardHeight = scaleSize(75);
+  const cardGap = scaleSize(12);
+  // Every sheet is the same card strip. Past a few dozen options the plain
+  // ScrollView becomes the problem — it mounts a Pressable and a focus
+  // animation per option, and the language pickers carry the whole Jellyfin
+  // culture list — so those render through a virtualized list instead. Same
+  // cards, same layout; only the mounting strategy differs.
+  const shouldVirtualize = options.length > VIRTUALIZE_ABOVE;
 
   return (
     <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
@@ -120,30 +152,72 @@ export default function TVOptionModal() {
             <Text style={[styles.title, { fontSize: typography.callout }]}>
               {title}
             </Text>
-            {isReady && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-              >
-                {options.map((option, index) => (
-                  <TVOptionCard
-                    key={index}
-                    ref={
-                      index === initialSelectedIndex ? firstCardRef : undefined
-                    }
-                    label={option.label}
-                    sublabel={option.sublabel}
-                    selected={option.selected}
-                    hasTVPreferredFocus={index === initialSelectedIndex}
-                    onPress={() => handleSelect(option.value)}
-                    width={scaledCardWidth}
-                    height={scaledCardHeight}
-                  />
-                ))}
-              </ScrollView>
-            )}
+            {isReady &&
+              (shouldVirtualize ? (
+                <FlatList
+                  horizontal
+                  data={options}
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.scrollContent}
+                  keyExtractor={(_, index) => String(index)}
+                  showsHorizontalScrollIndicator={false}
+                  initialScrollIndex={initialSelectedIndex}
+                  // Fixed card metrics, so this is exact rather than estimated —
+                  // and initialScrollIndex needs it to open on the current pick.
+                  getItemLayout={(_, index) => ({
+                    length: scaledCardWidth + cardGap,
+                    offset: (scaledCardWidth + cardGap) * index,
+                    index,
+                  })}
+                  // Render a generous buffer either side of the viewport: TV
+                  // focus moves card by card, and focus landing on a card the
+                  // windowing has not mounted yet drops it to the overlay.
+                  initialNumToRender={24}
+                  windowSize={11}
+                  removeClippedSubviews={false}
+                  renderItem={({ item, index }) => (
+                    <TVOptionCard
+                      ref={
+                        index === initialSelectedIndex
+                          ? firstCardRef
+                          : undefined
+                      }
+                      label={item.label}
+                      sublabel={item.sublabel}
+                      selected={item.selected}
+                      hasTVPreferredFocus={index === initialSelectedIndex}
+                      onPress={() => handleSelect(item.value)}
+                      width={scaledCardWidth}
+                      height={scaledCardHeight}
+                    />
+                  )}
+                />
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.scrollView}
+                  contentContainerStyle={styles.scrollContent}
+                >
+                  {options.map((option, index) => (
+                    <TVOptionCard
+                      key={index}
+                      ref={
+                        index === initialSelectedIndex
+                          ? firstCardRef
+                          : undefined
+                      }
+                      label={option.label}
+                      sublabel={option.sublabel}
+                      selected={option.selected}
+                      hasTVPreferredFocus={index === initialSelectedIndex}
+                      onPress={() => handleSelect(option.value)}
+                      width={scaledCardWidth}
+                      height={scaledCardHeight}
+                    />
+                  ))}
+                </ScrollView>
+              ))}
           </TVFocusGuideView>
         </BlurView>
       </Animated.View>

@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { useDownload } from "@/providers/DownloadProvider";
 import { DownloadedItem } from "@/providers/Downloads/types";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
+import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { useNetworkStatus } from "./useNetworkStatus";
 
 interface PlaybackManagerProps {
@@ -68,6 +69,7 @@ export const usePlaybackManager = ({
 }: PlaybackManagerProps = {}) => {
   const api = useAtomValue(apiAtom);
   const user = useAtomValue(userAtom);
+  const shuffleQueue = useAtomValue(shuffleQueueAtom);
   const { isConnected } = useNetworkStatus();
   const queryClient = useQueryClient();
   const { getDownloadedItemById, updateDownloadedItem, getDownloadedItems } =
@@ -110,6 +112,19 @@ export const usePlaybackManager = ({
   });
 
   /**
+   * When a shuffle queue is active for the current series and contains the
+   * current item, prev/next come from the shuffled order instead of the
+   * sequential adjacent-episode order. The guard is intentionally strict
+   * (series match AND current item present) so an unrelated episode opened
+   * while a stale queue is set falls back to the adjacent-items path cleanly.
+   */
+  const shuffleActive =
+    !!shuffleQueue &&
+    !!item?.SeriesId &&
+    shuffleQueue.seriesId === item.SeriesId &&
+    shuffleQueue.items.some((e) => e.Id === item.Id);
+
+  /**
    * Derive prev/next from the current item's real position in the adjacent
    * list rather than from the array length. `getEpisodes({ adjacentTo })` does
    * not guarantee a fixed [prev, current, next] shape — at the first/last
@@ -121,23 +136,56 @@ export const usePlaybackManager = ({
     [adjacentItems, item],
   );
 
+  /** Index of the current item within the shuffle queue (or -1). */
+  const shuffleIndex = useMemo(
+    () =>
+      shuffleActive
+        ? (shuffleQueue?.items.findIndex((e) => e.Id === item?.Id) ?? -1)
+        : -1,
+    [shuffleActive, shuffleQueue, item],
+  );
+
   /** A neighbour is only navigable if it has an actual media file (not a
    * "Virtual"/missing episode placeholder, e.g. an absent Special). */
   const isNavigable = (episode?: BaseItemDto | null): episode is BaseItemDto =>
     !!episode && episode.Id !== item?.Id && episode.LocationType !== "Virtual";
 
   const previousItem = useMemo(() => {
+    if (shuffleActive) {
+      if (shuffleIndex <= 0) return null;
+      const candidate = shuffleQueue?.items[shuffleIndex - 1];
+      return isNavigable(candidate) ? candidate : null;
+    }
     if (!adjacentItems || currentIndex <= 0) return null;
     const candidate = adjacentItems[currentIndex - 1];
     return isNavigable(candidate) ? candidate : null;
-  }, [adjacentItems, currentIndex, item]);
+  }, [
+    shuffleActive,
+    shuffleQueue,
+    shuffleIndex,
+    adjacentItems,
+    currentIndex,
+    item,
+  ]);
 
   /** The next item in the series */
   const nextItem = useMemo(() => {
+    if (shuffleActive) {
+      if (shuffleIndex < 0) return null;
+      const candidate = shuffleQueue?.items[shuffleIndex + 1];
+      return isNavigable(candidate) ? candidate : null;
+    }
     if (!adjacentItems || currentIndex < 0) return null;
     const candidate = adjacentItems[currentIndex + 1];
     return isNavigable(candidate) ? candidate : null;
-  }, [adjacentItems, currentIndex, item]);
+  }, [
+    shuffleActive,
+    shuffleQueue,
+    shuffleIndex,
+    adjacentItems,
+    currentIndex,
+    item,
+  ]);
 
   /**
    * Reports playback progress.

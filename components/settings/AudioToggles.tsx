@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, View, type ViewProps } from "react-native";
-import { Switch } from "react-native-gesture-handler";
+import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
+import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
 import { ListItem } from "../list/ListItem";
@@ -17,7 +18,8 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
 
   const media = useMedia();
   const { pluginSettings } = useSettings();
-  const { settings, updateSettings } = media;
+  const { settings, supportsOriginalAudioLanguage, updateSettings, isReady } =
+    media;
   const cultures = media.cultures;
   const { t } = useTranslation();
 
@@ -30,6 +32,24 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         selected: !settings?.defaultAudioLanguage,
         onPress: () => updateSettings({ defaultAudioLanguage: null }),
       },
+      ...(supportsOriginalAudioLanguage
+        ? [
+            {
+              type: "radio" as const,
+              label: t("home.settings.audio.original_language"),
+              value: ORIGINAL_LANGUAGE,
+              selected:
+                settings?.defaultAudioLanguage?.ThreeLetterISOLanguageName ===
+                ORIGINAL_LANGUAGE,
+              onPress: () =>
+                updateSettings({
+                  defaultAudioLanguage: {
+                    ThreeLetterISOLanguageName: ORIGINAL_LANGUAGE,
+                  },
+                }),
+            },
+          ]
+        : []),
       ...(cultures?.map((culture) => ({
         type: "radio" as const,
         label:
@@ -52,7 +72,41 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
         options,
       },
     ];
-  }, [cultures, settings?.defaultAudioLanguage, t, updateSettings]);
+  }, [
+    cultures,
+    settings?.defaultAudioLanguage,
+    supportsOriginalAudioLanguage,
+    t,
+    updateSettings,
+  ]);
+
+  // Derived from the stored value rather than from the option list, so it stays
+  // accurate while the cultures query is still loading.
+  const audioLanguageLabel = useMemo(() => {
+    const language = settings?.defaultAudioLanguage;
+    if (language?.ThreeLetterISOLanguageName === ORIGINAL_LANGUAGE)
+      return t("home.settings.audio.original_language");
+    if (!language) return t("home.settings.audio.none");
+    return (
+      language.DisplayName ||
+      language.ThreeLetterISOLanguageName ||
+      t("home.settings.audio.none")
+    );
+  }, [settings?.defaultAudioLanguage, t]);
+
+  const audioLanguageTrigger = (
+    <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
+      <Text className='mr-1 text-[#8E8D91]'>{audioLanguageLabel}</Text>
+      <Ionicons name='chevron-expand-sharp' size={18} color='#5A5960' />
+    </View>
+  );
+
+  // Same condition as the TV control: MediaContext discards a locked write, so
+  // an active selector here would look functional while doing nothing.
+  const canChangeAudioLanguage =
+    isReady &&
+    !pluginSettings?.defaultAudioLanguage?.locked &&
+    !pluginSettings?.playDefaultAudioTrack?.locked;
 
   const audioTranscodeModeLabels: Record<AudioTranscodeMode, string> = {
     [AudioTranscodeMode.Auto]: t("home.settings.audio.transcode_mode.auto"),
@@ -135,7 +189,7 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
           title={t("home.settings.audio.set_audio_track")}
           disabled={pluginSettings?.rememberAudioSelections?.locked}
         >
-          <Switch
+          <SettingSwitch
             value={settings.rememberAudioSelections}
             disabled={pluginSettings?.rememberAudioSelections?.locked}
             onValueChange={(value) =>
@@ -143,24 +197,25 @@ export const AudioToggles: React.FC<Props> = ({ ...props }) => {
             }
           />
         </ListItem>
-        <ListItem title={t("home.settings.audio.audio_language")}>
-          <PlatformDropdown
-            groups={optionGroups}
-            trigger={
-              <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
-                <Text className='mr-1 text-[#8E8D91]'>
-                  {settings?.defaultAudioLanguage?.DisplayName ||
-                    t("home.settings.audio.none")}
-                </Text>
-                <Ionicons
-                  name='chevron-expand-sharp'
-                  size={18}
-                  color='#5A5960'
-                />
-              </View>
-            }
-            title={t("home.settings.audio.language")}
-          />
+        <ListItem
+          title={t("home.settings.audio.audio_language")}
+          disabled={!canChangeAudioLanguage}
+          disabledByAdmin={
+            pluginSettings?.defaultAudioLanguage?.locked ||
+            pluginSettings?.playDefaultAudioTrack?.locked
+          }
+        >
+          {/* The option list needs the cultures and the server version gate;
+              show the stored value but stay inert until they resolved. */}
+          {canChangeAudioLanguage ? (
+            <PlatformDropdown
+              groups={optionGroups}
+              trigger={audioLanguageTrigger}
+              title={t("home.settings.audio.language")}
+            />
+          ) : (
+            audioLanguageTrigger
+          )}
         </ListItem>
         <ListItem
           title={t("home.settings.audio.transcode_mode.title")}

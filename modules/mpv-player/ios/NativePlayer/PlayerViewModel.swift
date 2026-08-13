@@ -1,0 +1,1418 @@
+import Combine
+import Foundation
+import QuartzCore
+import UIKit
+
+/// Fast-ticking playback clock, deliberately isolated from PlayerViewModel.
+/// The display link writes ~30Hz while playing; if those writes fired
+/// PlayerViewModel.objectWillChange, every observing view would rebuild each
+/// frame — and rebuilding the button behind a presented UIMenu makes iOS
+/// gray out its items and drop their actions. Only views that render
+/// time/progress observe this object; the menu-bearing bars observe
+/// PlayerViewModel alone and must never take a dependency on it.
+final class PlaybackTimeModel: ObservableObject {
+	/// Interpolated position for smooth scrubber/time-label motion between
+	/// the renderer's 1Hz ticks, seconds. Never weaken the renderer's
+	/// progress throttle instead — it is battery-critical.
+	@Published var displayPosition: Double = 0
+	@Published var cacheSeconds: Double = 0
+}
+
+/// Bridges MPVPlayerEngine callbacks into SwiftUI state and dual-emits every
+/// engine event to the JS coordinator via `emit`. Also owns pure-UI behavior:
+/// auto-hide, scrubbing state, display-position interpolation between the
+/// renderer's 1Hz ticks, segment pills and the next-episode countdown.
+///
+/// All engine callbacks arrive on the main thread (the engine dispatches
+/// them), and all UI intents come from SwiftUI — so no locking is needed.
+final class PlayerViewModel: NSObject, ObservableObject {
+	weak var engine: MPVPlayerEngine?
+	var emit: ((String, [String: Any]) -> Void)?
+	var onDismissRequested: ((PlayerDismissReason) -> Void)?
+	/// Set by the view controller — it owns the orientation mask.
+	var onRotateRequested: (() -> Void)?
+	/// tvOS: set by the view controller — it owns the window's
+	/// AVDisplayManager (HDR display criteria).
+	var onHDRModeDetected: ((HDRMode, Double) -> Void)?
+
+	// MARK: - Playback state
+
+	@Published var isPlaying = false
+	@Published var isBuffering = true
+	@Published var isReadyToSeek = false
+	/// Authoritative position from the renderer (~1Hz), seconds. Not
+	/// published on purpose — no view renders it, and publishing would fire
+	/// objectWillChange once per second for every observer.
+	private(set) var position: Double = 0
+	@Published var duration: Double = 0
+	/// The ticking values live here, not on this object — see
+	/// PlaybackTimeModel. Views that render them observe `time` explicitly.
+	let time = PlaybackTimeModel()
+
+	/// Proxies so internal logic keeps reading/writing the clock naturally.
+	/// Views must NOT rely on these for updates — observe `time`.
+	var displayPosition: Double {
+		get { time.displayPosition }
+		set { time.displayPosition = newValue }
+	}
+	var cacheSeconds: Double {
+		get { time.cacheSeconds }
+		set { time.cacheSeconds = newValue }
+	}
+	@Published var speed: Double = 1.0
+	/// Press-and-hold 2× is engaged. Purely transient: the pre-hold speed is
+	/// restored on release and never persisted (no onSpeedChange emit).
+	@Published var isHoldSpeedActive = false
+	@Published var isPipActive = false
+	@Published var errorMessage: String?
+	@Published var isZoomedToFill = false
+	@Published var subtitleScale: Double = 1.0
+	/// Session-scoped A/V sync offsets (seconds) and softvol gain (percent).
+	/// Reset to neutral when the played item changes; re-applied to the
+	/// engine on every stream swap because mpv properties persist on the
+	/// handle across loadfile.
+	@Published var subtitleDelay: Double = 0
+	@Published var audioDelay: Double = 0
+	@Published var volumeBoostPercent = 100
+	/// Speech-clarity EQ (bass cut + presence lift). Session-scoped like the
+	/// sync offsets: reset when the item changes, re-applied on stream swaps.
+	@Published var dialogueBoostEnabled = false
+	/// Accessibility mono downmix. Same session-scoped lifecycle as the
+	/// dialogue boost.
+	@Published var monoAudioEnabled = false
+
+	// MARK: - UI state
+
+	@Published var controlsVisible = true
+	/// VLC-style lock mode: chrome hidden and taps ignored except for a
+	/// transient unlock pill. Survives episode changes on purpose — it's a
+	/// hands-off viewing mode.
+	@Published var controlsLocked = false
+	@Published var unlockButtonRevealed = false
+	/// Hardware volume press while the chrome is hidden briefly shows just the
+	/// volume slider (mirror of the JS AudioSlider auto-reveal).
+	@Published var volumeSliderRevealed = false
+	/// Vertical brightness drag while the chrome is hidden shows just the
+	/// brightness slider as feedback.
+	@Published var brightnessSliderRevealed = false
+	@Published var isScrubbing = false
+	@Published var scrubPosition: Double = 0
+	@Published var showTechnicalInfo = false
+	@Published var showEpisodeList = false
+	#if os(tvOS)
+	/// Transient transport-bar reveal after a blind arrow jump with the
+	/// chrome hidden (see flashSeekFeedback()).
+	@Published var seekFeedbackVisible = false
+	private var seekFeedbackTask: Task<Void, Never>?
+	#endif
+	#if os(iOS)
+	/// Direction of the last double-tap jump (true = forward) while its
+	/// feedback pill is showing; nil once the pill has faded. Lives outside
+	/// controlsVisible so the pill shows over clean video too.
+	@Published var doubleTapSeekForward: Bool?
+	private var doubleTapSeekFeedbackTask: Task<Void, Never>?
+	#endif
+	@Published var showSubtitleSearch = false
+
+	// MARK: - Content state
+
+	@Published var metadata: MetadataRecord?
+	@Published var chapters: [ChapterRecord] = []
+	@Published var segments: [MediaSegmentRecord] = []
+	@Published var activeSegment: MediaSegmentRecord?
+	@Published var nextEpisode: NextEpisodeRecord?
+	/// Non-nil while the next-episode countdown card is up.
+	@Published var countdownRemaining: Double?
+	/// The "Are you still watching?" card, shown at EOF when the autoplay
+	/// episode cap is reached (nextEpisode.stillWatchingRequired).
+	@Published var showStillWatching = false
+	@Published var subtitleMenu: [TrackMenuItemRecord] = []
+	@Published var audioMenu: [TrackMenuItemRecord] = []
+	@Published var qualityMenu: [TrackMenuItemRecord] = []
+	// Subtitle search sheet state — driven by JS via updateSubtitleSearch.
+	@Published var subtitleSearchStatus = "idle"
+	@Published var subtitleSearchResults: [SubtitleSearchResultRecord] = []
+	@Published var subtitleSearchError: String?
+	@Published var subtitleSearchLanguage = "eng"
+	/// Result id a download is in flight for (row spinner).
+	@Published var downloadingResultId: String?
+	@Published var episodeList: [EpisodeListItemRecord] = []
+	@Published var trickplay: TrickplayProvider?
+	/// Active sleep-timer preset (nil = off). Only the selection is published —
+	/// the countdown itself is a wall-clock deadline, so nothing rebuilds the
+	/// menu-bearing bar while a menu is open.
+	@Published private(set) var sleepTimerMinutes: Int?
+
+	#if os(iOS)
+	/// System volume/brightness for the side sliders. The controllers exist
+	/// unconditionally (cheap); the show* flags gate the UI. iOS-only: tvOS
+	/// has no writable volume/brightness (remote/HDMI-CEC own them).
+	let volumeController = SystemVolumeController()
+	let brightnessController = SystemBrightnessController()
+	#endif
+
+	private(set) var playMethod: String?
+	private(set) var transcodeReasons: [String] = []
+	private(set) var seekForwardSec: Double = 10
+	private(set) var seekBackwardSec: Double = 10
+	private(set) var hapticsEnabled = true
+	private(set) var showVolumeSlider = true
+	private(set) var showBrightnessSlider = true
+	private(set) var holdToSpeedEnabled = true
+	private(set) var holdToSpeedRate: Double = 2.0
+	private(set) var pinchToZoomEnabled = true
+	private(set) var doubleTapToSeekEnabled = false
+	private(set) var subtitleSearchEnabled = false
+	private(set) var subtitleSearchLanguages: [SubtitleSearchLanguageRecord] = []
+	private(set) var videoWidth: Int?
+	private(set) var videoHeight: Int?
+	private(set) var uiStrings: [String: String] = [:]
+
+	/// Localized label from JS i18n with an English fallback.
+	func str(_ key: String, _ fallback: String) -> String {
+		let value = uiStrings[key]
+		return (value?.isEmpty == false) ? value! : fallback
+	}
+
+	// MARK: - Internals
+
+	private var autoHideTask: Task<Void, Never>?
+	private var countdownTask: Task<Void, Never>?
+	private var volumeRevealTask: Task<Void, Never>?
+	private var brightnessRevealTask: Task<Void, Never>?
+	private var unlockRevealTask: Task<Void, Never>?
+	private var sleepTimerTask: Task<Void, Never>?
+	/// Read by the bottom bar's countdown label at render time — deliberately
+	/// not @Published (a 1Hz tick would rebuild menu-bearing views).
+	private(set) var sleepTimerEndDate: Date?
+	/// Throttle for touchInteractionOccurred.
+	private var lastTouchResetTime: CFTimeInterval = 0
+	/// Chapter under the thumb during a scrub — a haptic tick fires when it
+	/// changes (crossing a chapter mark).
+	private var lastScrubChapterIndex: Int?
+	#if os(iOS)
+	private lazy var selectionGenerator = UISelectionFeedbackGenerator()
+	#endif
+	private var displayLink: CADisplayLink?
+	private var lastTickTimestamp: CFTimeInterval = 0
+	/// mpv reports "unpaused" while the stream is still loading — without this
+	/// gate the interpolation clock counts up from the seed position and then
+	/// snaps back on the first real progress tick.
+	private var hasAuthoritativePosition = false
+	/// User canceled the countdown — stays canceled until the next load().
+	private var countdownCanceled = false
+	/// An episode-change request was already emitted for this item (countdown
+	/// fire or explicit tap/selection) — without this latch the arm condition
+	/// re-triggers on the next progress tick (JS is still negotiating the next
+	/// stream) and a second onNextEpisodeRequested fires mid-swap.
+	private var countdownFired = false
+	/// Set on every user/remote seek; the next progress tick reports
+	/// didSeek=true so the JS coordinator sends an immediate progress report.
+	private var pendingSeekReport = false
+	/// Speed to restore when the press-and-hold 2× gesture releases.
+	private var speedBeforeHold: Double?
+	/// Item the current config belongs to — gates the countdownCanceled reset.
+	private var currentItemId: String?
+	private var isTearingDown = false
+	/// Scrubbing pauses playback; resume on release only if it was playing.
+	private var wasPlayingBeforeScrub = false
+	#if os(iOS)
+	private lazy var impactGenerator = UIImpactFeedbackGenerator(style: .light)
+	#endif
+
+	private let autoHideDelay: TimeInterval = 4
+	/// Menus render as UIMenu whose open state SwiftUI cannot observe, so
+	/// opening one grants a longer auto-hide grace period instead. Hiding
+	/// unmounts the bar, which grays out an open menu — so err long.
+	private let menuAutoHideDelay: TimeInterval = 15
+	/// More than this far into a chapter, "previous chapter" restarts it.
+	private let chapterRestartThreshold: Double = 3
+
+	static let subtitleScalePresets: [Double] = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0]
+	/// Sync offsets in seconds; positive delays the track. Presets rather
+	/// than a stepper so both fit the existing UIMenu-based UI.
+	static let syncOffsetPresets: [Double] = [-5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5]
+	static let volumeBoostPresets: [Int] = [100, 125, 150, 200]
+	static let sleepTimerPresetMinutes: [Int] = [15, 30, 45, 60, 90, 120]
+
+	override init() {
+		super.init()
+		#if os(iOS)
+		volumeController.onExternalChange = { [weak self] in
+			self?.revealVolumeSliderTransiently()
+		}
+		// Mute transitions (hardware buttons or the in-player slider hitting
+		// zero) surface to JS, which may auto-enable subtitles while muted
+		// (subtitlesOnMute setting) and revert when sound returns. iOS-only:
+		// tvOS volume lives in the TV/receiver (remote/HDMI-CEC) and is
+		// invisible to the app, so no mute event can ever fire there.
+		muteDetectionCancellable = volumeController.$volume
+			.removeDuplicates()
+			.sink { [weak self] value in
+				self?.detectMuteTransition(volume: value)
+			}
+		#endif
+	}
+
+	#if os(iOS)
+	private var muteDetectionCancellable: AnyCancellable?
+	private var lastVolumeForMuteDetection: Double?
+
+	private func detectMuteTransition(volume: Double) {
+		defer { lastVolumeForMuteDetection = volume }
+		// The first sink delivery is the current volume at init — seed only,
+		// so a player opened while already muted doesn't fire an event.
+		guard let previous = lastVolumeForMuteDetection else { return }
+		let muted = volume <= 0.0001
+		let wasMuted = previous <= 0.0001
+		guard muted != wasMuted else { return }
+		emit?("onMuteStateChanged", [
+			"muted": muted,
+			"positionSec": displayPosition,
+		])
+	}
+	#endif
+
+	/// Light impact on control interactions; disabled via settings
+	/// (disableHapticFeedback → ui.hapticsEnabled=false).
+	func haptic() {
+		#if os(iOS)
+		guard hapticsEnabled else { return }
+		impactGenerator.impactOccurred()
+		#endif
+	}
+
+	// MARK: - Config application
+
+	func apply(config: PlayerPresentConfigRecord) {
+		// The sticky countdown cancel survives same-item swaps (track/bitrate
+		// re-negotiation goes through load() too) and resets only when the
+		// played item actually changes.
+		let newItemId = config.metadata?.itemId
+		if newItemId == nil || newItemId != currentItemId {
+			countdownCanceled = false
+			countdownFired = false
+			// Sync offsets and gain are per-item compensations — a same-item
+			// swap (track/bitrate renegotiation) keeps them, a new item
+			// starts neutral.
+			subtitleDelay = 0
+			audioDelay = 0
+			volumeBoostPercent = 100
+			dialogueBoostEnabled = false
+			monoAudioEnabled = false
+			// A new item invalidates the previous item's search results.
+			subtitleSearchStatus = "idle"
+			subtitleSearchResults = []
+			subtitleSearchError = nil
+			downloadingResultId = nil
+			subtitleSearchLanguage = config.ui.subtitleSearchDefaultLanguage
+		}
+		currentItemId = newItemId
+		metadata = config.metadata
+		chapters = config.chapters.sorted { $0.startSec < $1.startSec }
+		segments = config.segments
+		nextEpisode = config.nextEpisode
+		episodeList = config.episodeList
+		subtitleMenu = config.tracks?.subtitles ?? []
+		audioMenu = config.tracks?.audio ?? []
+		qualityMenu = config.tracks?.quality ?? []
+		trickplay = config.trickplay.map { TrickplayProvider(config: $0) }
+		playMethod = config.stream.playMethod
+		transcodeReasons = config.stream.transcodeReasons
+		videoWidth = config.stream.videoWidth
+		videoHeight = config.stream.videoHeight
+		// Skip times are persisted settings that arrive unvalidated; a
+		// non-finite value would trap in seekSymbol's Int() and poison
+		// seek targets.
+		seekForwardSec = config.ui.seekForwardSec.isFinite ? max(1, config.ui.seekForwardSec) : 10
+		seekBackwardSec = config.ui.seekBackwardSec.isFinite ? max(1, config.ui.seekBackwardSec) : 10
+		hapticsEnabled = config.ui.hapticsEnabled
+		showVolumeSlider = config.ui.showVolumeSlider
+		showBrightnessSlider = config.ui.showBrightnessSlider
+		holdToSpeedEnabled = config.ui.holdToSpeedEnabled
+		holdToSpeedRate = config.ui.holdToSpeedRate
+		pinchToZoomEnabled = config.ui.pinchToZoomEnabled
+		doubleTapToSeekEnabled = config.ui.doubleTapToSeekEnabled
+		subtitleSearchEnabled = config.ui.subtitleSearchEnabled
+		subtitleSearchLanguages = config.ui.subtitleSearchLanguages
+		subtitleScale = config.subtitleStyle?.scale ?? 1.0
+		uiStrings = config.ui.strings
+		position = config.stream.startPositionSec ?? 0
+		displayPosition = position
+		hasAuthoritativePosition = false
+		showControls()
+	}
+
+	/// Reset transient state before an in-place stream swap (re-negotiation
+	/// or episode change) — the view controller stays presented.
+	func prepareForReload() {
+		// Drop before the swap: startStream rewrites the engine speed from the
+		// new config, and a release after that must not restore a stale one.
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
+		isBuffering = true
+		isReadyToSeek = false
+		isScrubbing = false
+		scrubPosition = 0
+		duration = 0
+		cacheSeconds = 0
+		activeSegment = nil
+		cancelCountdownTask()
+		countdownRemaining = nil
+		showStillWatching = false
+		showEpisodeList = false
+		// A server-side subtitle download lands via this reload path — the
+		// sheet's job is done.
+		showSubtitleSearch = false
+		downloadingResultId = nil
+		errorMessage = nil
+	}
+
+	// MARK: - Late-arriving data pushes (from JS)
+
+	func updateSegments(_ newSegments: [MediaSegmentRecord]) {
+		segments = newSegments
+	}
+
+	func updateNextEpisode(_ next: NextEpisodeRecord?) {
+		nextEpisode = next
+	}
+
+	func updateChapters(_ newChapters: [ChapterRecord]) {
+		chapters = newChapters.sorted { $0.startSec < $1.startSec }
+	}
+
+	func updateTrickplay(_ config: TrickplayRecord?) {
+		trickplay = config.map { TrickplayProvider(config: $0) }
+	}
+
+	func updateTrackMenus(_ menus: TrackMenusRecord) {
+		subtitleMenu = menus.subtitles
+		audioMenu = menus.audio
+		qualityMenu = menus.quality
+	}
+
+	func updateMetadata(_ newMetadata: MetadataRecord) {
+		metadata = newMetadata
+	}
+
+	func updateEpisodeList(_ episodes: [EpisodeListItemRecord]) {
+		episodeList = episodes
+	}
+
+	// MARK: - User intents
+
+	func toggleControls() {
+		if controlsLocked {
+			// Locked chrome swallows taps; they only toggle the unlock pill.
+			if unlockButtonRevealed {
+				unlockRevealTask?.cancel()
+				unlockButtonRevealed = false
+			} else {
+				revealUnlockButton()
+			}
+			return
+		}
+		if controlsVisible {
+			controlsVisible = false
+			autoHideTask?.cancel()
+		} else {
+			showControls()
+		}
+	}
+
+	func showControls() {
+		controlsVisible = true
+		scheduleAutoHide()
+	}
+
+	/// Every control interaction calls this to keep the overlay up.
+	func scheduleAutoHide(delay: TimeInterval? = nil) {
+		autoHideTask?.cancel()
+		let effectiveDelay = delay ?? autoHideDelay
+		autoHideTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: UInt64(effectiveDelay * 1_000_000_000))
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run {
+				if self.canAutoHide {
+					self.controlsVisible = false
+				} else {
+					// Re-check once conditions may have changed.
+					self.scheduleAutoHide()
+				}
+			}
+		}
+	}
+
+	private var canAutoHide: Bool {
+		isPlaying && !isScrubbing && !isBuffering && !showEpisodeList && !showTechnicalInfo && errorMessage == nil
+	}
+
+	func menuInteractionStarted() {
+		scheduleAutoHide(delay: menuAutoHideDelay)
+	}
+
+	/// Blanket reset on any touch-down over the overlay. The per-action
+	/// scheduleAutoHide calls fire on touch-UP, so a press landing near the
+	/// end of the 4s window could watch the chrome vanish mid-press — this
+	/// re-arms at press START instead. Throttled: continuous drags stream
+	/// touch events every frame and shouldn't churn a Task each one.
+	func touchInteractionOccurred() {
+		guard controlsVisible, !controlsLocked else { return }
+		let now = CACurrentMediaTime()
+		guard now - lastTouchResetTime > 0.5 else { return }
+		lastTouchResetTime = now
+		scheduleAutoHide()
+	}
+
+	func togglePlayPause() {
+		guard let engine else { return }
+		haptic()
+		if engine.isPaused() {
+			engine.play()
+		} else {
+			engine.pause()
+		}
+		scheduleAutoHide()
+	}
+
+	func seek(to target: Double) {
+		let clamped = max(0, duration > 0 ? min(target, duration) : target)
+		pendingSeekReport = true
+		position = clamped
+		displayPosition = clamped
+		engine?.seekTo(position: clamped)
+		scheduleAutoHide()
+	}
+
+	func seekForward() {
+		haptic()
+		seek(to: displayPosition + seekForwardSec)
+	}
+
+	func seekBackward() {
+		haptic()
+		seek(to: displayPosition - seekBackwardSec)
+	}
+
+	#if os(iOS)
+	/// Double tap on empty video: right half jumps forward, left half back
+	/// (settings.enableDoubleTapToSeek). Same guards as the surface drag —
+	/// lock mode and end-of-playback overlays swallow the gesture.
+	func doubleTapSeek(forward: Bool) {
+		guard doubleTapToSeekEnabled, !controlsLocked, !showStillWatching,
+			errorMessage == nil, duration > 0
+		else { return }
+		if forward {
+			seekForward()
+		} else {
+			seekBackward()
+		}
+		doubleTapSeekForward = forward
+		doubleTapSeekFeedbackTask?.cancel()
+		doubleTapSeekFeedbackTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 800_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.doubleTapSeekForward = nil }
+		}
+	}
+	#endif
+
+	// MARK: Scrubbing
+
+	func beginScrub() {
+		isScrubbing = true
+		scrubPosition = displayPosition
+		lastScrubChapterIndex = chapters.isEmpty ? nil : chapterIndex(at: scrubPosition)
+		// Pause while scrubbing; endScrub resumes only if it was playing
+		// (mirror of the JS player's useVideoSlider).
+		wasPlayingBeforeScrub = isPlaying
+		if wasPlayingBeforeScrub {
+			engine?.pause()
+		}
+		autoHideTask?.cancel()
+	}
+
+	func updateScrub(fraction: Double) {
+		// min/max propagate NaN, so a non-finite fraction would reach
+		// scrubPosition and SwiftUI frame math unclamped.
+		guard duration > 0, fraction.isFinite else { return }
+		scrubPosition = min(max(fraction, 0), 1) * duration
+		#if os(iOS)
+		// Haptic tick when the thumb crosses a chapter mark.
+		if hapticsEnabled, !chapters.isEmpty {
+			let index = chapterIndex(at: scrubPosition)
+			if index != lastScrubChapterIndex {
+				lastScrubChapterIndex = index
+				selectionGenerator.selectionChanged()
+			}
+		}
+		#endif
+	}
+
+	func endScrub() {
+		let target = scrubPosition
+		isScrubbing = false
+		seek(to: target)
+		if wasPlayingBeforeScrub {
+			wasPlayingBeforeScrub = false
+			engine?.play()
+		}
+	}
+
+	#if os(tvOS)
+	/// A blind left/right jump with the chrome hidden flashes the transport
+	/// bar so the user sees where the jump landed — WITHOUT entering focus
+	/// mode: controlsVisible stays false, so the VC recognizers stay live
+	/// and repeated presses keep jumping instead of moving button focus.
+	func flashSeekFeedback() {
+		seekFeedbackVisible = true
+		seekFeedbackTask?.cancel()
+		seekFeedbackTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.seekFeedbackVisible = false }
+		}
+	}
+
+	/// Menu while the feedback bar is up peels it away instead of asking to
+	/// exit playback.
+	func hideSeekFeedback() {
+		seekFeedbackTask?.cancel()
+		seekFeedbackVisible = false
+	}
+	#endif
+
+	/// Abandon an in-flight scrub WITHOUT seeking. iOS: a pinch starting
+	/// mid-drag means the horizontal movement was finger spread, not a scrub
+	/// intent. tvOS: Menu while a scrub is armed abandons it (resuming only
+	/// if playback was running before the scrub).
+	func cancelScrub() {
+		guard isScrubbing else { return }
+		isScrubbing = false
+		if wasPlayingBeforeScrub {
+			wasPlayingBeforeScrub = false
+			engine?.play()
+		}
+		scheduleAutoHide()
+	}
+
+	// MARK: - Sync offsets, volume boost, rotation
+
+	func setSubtitleDelay(_ seconds: Double) {
+		subtitleDelay = seconds
+		engine?.setSubtitleDelay(seconds)
+		scheduleAutoHide()
+	}
+
+	func setAudioDelay(_ seconds: Double) {
+		audioDelay = seconds
+		engine?.setAudioDelay(seconds)
+		scheduleAutoHide()
+	}
+
+	func setVolumeBoost(_ percent: Int) {
+		volumeBoostPercent = percent
+		engine?.setVolumeBoost(percent)
+		scheduleAutoHide()
+	}
+
+	func toggleDialogueBoost() {
+		haptic()
+		dialogueBoostEnabled.toggle()
+		engine?.setDialogueBoost(dialogueBoostEnabled)
+		scheduleAutoHide()
+	}
+
+	func toggleMonoAudio() {
+		haptic()
+		monoAudioEnabled.toggle()
+		engine?.setMonoDownmix(monoAudioEnabled)
+		scheduleAutoHide()
+	}
+
+	func requestRotate() {
+		haptic()
+		onRotateRequested?()
+		scheduleAutoHide()
+	}
+
+	// MARK: - Still watching?
+
+	/// Advance to the next episode. Emitted as a user tap so the JS
+	/// coordinator resets the autoplay chain counter before advancing.
+	func continueWatchingTapped() {
+		haptic()
+		showStillWatching = false
+		emit?("onNextEpisodeRequested", [
+			"reason": "userTap",
+			"positionSec": displayPosition,
+		])
+	}
+
+	func stillWatchingCloseTapped() {
+		haptic()
+		showStillWatching = false
+		onDismissRequested?(.playbackEnded)
+	}
+
+	// MARK: - Lock mode
+
+	func lockControls() {
+		haptic()
+		controlsLocked = true
+		controlsVisible = false
+		autoHideTask?.cancel()
+		// Brief confirmation so the lock doesn't look like a plain hide.
+		revealUnlockButton()
+	}
+
+	func unlockControls() {
+		haptic()
+		unlockRevealTask?.cancel()
+		unlockButtonRevealed = false
+		controlsLocked = false
+		showControls()
+	}
+
+	private func revealUnlockButton() {
+		unlockButtonRevealed = true
+		unlockRevealTask?.cancel()
+		unlockRevealTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 2_500_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.unlockButtonRevealed = false }
+		}
+	}
+
+	// MARK: Chapters
+
+	/// Index of the chapter containing `position` (largest startSec <= it).
+	func chapterIndex(at position: Double) -> Int {
+		var index = -1
+		for (i, chapter) in chapters.enumerated() {
+			if chapter.startSec <= position {
+				index = i
+			} else {
+				break
+			}
+		}
+		return index
+	}
+
+	func chapterName(at position: Double) -> String? {
+		let idx = chapterIndex(at: position)
+		guard idx >= 0, idx < chapters.count else { return nil }
+		let name = chapters[idx].name
+		return (name?.isEmpty == false) ? name : nil
+	}
+
+	var currentChapterIndex: Int { chapterIndex(at: displayPosition) }
+
+	var currentChapterName: String? { chapterName(at: displayPosition) }
+
+	var hasPreviousChapter: Bool { !chapters.isEmpty && currentChapterIndex >= 0 }
+
+	var hasNextChapter: Bool {
+		!chapters.isEmpty && currentChapterIndex < chapters.count - 1
+	}
+
+	func goToNextChapter() {
+		let idx = currentChapterIndex
+		guard idx < chapters.count - 1 else { return }
+		haptic()
+		seek(to: chapters[idx + 1].startSec)
+	}
+
+	/// More than 3s into the current chapter restarts it; otherwise jumps to
+	/// the previous one (mirror of useChapterNavigation.ts).
+	func goToPreviousChapter() {
+		let idx = currentChapterIndex
+		guard idx >= 0 else { return }
+		haptic()
+		let chapterStart = chapters[idx].startSec
+		if displayPosition - chapterStart > chapterRestartThreshold {
+			seek(to: chapterStart)
+		} else if idx > 0 {
+			seek(to: chapters[idx - 1].startSec)
+		} else {
+			seek(to: chapterStart)
+		}
+	}
+
+	// MARK: Zoom to fill
+
+	func toggleZoomToFill() {
+		haptic()
+		isZoomedToFill.toggle()
+		applyZoomState()
+		scheduleAutoHide()
+	}
+
+	// MARK: Pinch to zoom
+
+	/// True while a two-finger pinch is in flight (UIPinchGestureRecognizer on
+	/// the VC's view). Read by the SwiftUI surface drag to stand down — a
+	/// pinch's finger spread would otherwise start a scrub or yank
+	/// volume/brightness. Not @Published on purpose: no view renders it.
+	private(set) var isPinching = false
+	/// One zoom flip per pinch — crossing the threshold repeatedly within a
+	/// single continuous pinch must not toggle back and forth.
+	private var pinchActionTaken = false
+
+	func pinchBegan() {
+		guard pinchToZoomEnabled, !controlsLocked, !showStillWatching,
+			errorMessage == nil
+		else { return }
+		isPinching = true
+		pinchActionTaken = false
+		// The second finger usually lands after the first already moved —
+		// abandon a scrub the spread may have started.
+		cancelScrub()
+	}
+
+	func pinchChanged(scale: Double) {
+		guard isPinching, !pinchActionTaken else { return }
+		if scale > 1.12, !isZoomedToFill {
+			pinchActionTaken = true
+			toggleZoomToFill()
+		} else if scale < 0.88, isZoomedToFill {
+			pinchActionTaken = true
+			toggleZoomToFill()
+		}
+	}
+
+	func pinchEnded() {
+		isPinching = false
+		pinchActionTaken = false
+	}
+
+	/// Applies the zoom mode + burned-in-subtitle position compensation to the
+	/// engine (mirror of direct-player.tsx handleZoomToggle). Also called after
+	/// an in-place stream swap so a persisted zoom compensates for the NEW
+	/// video's aspect ratio.
+	func applyZoomState() {
+		guard let engine else { return }
+		engine.setZoomedToFill(isZoomedToFill)
+		guard isZoomedToFill else {
+			engine.setSubtitlePosition(100)
+			return
+		}
+		let videoAR = Double(videoWidth ?? 1920) / Double(max(videoHeight ?? 1080, 1))
+		let layerSize = engine.displayLayer.bounds.size
+		let screenSize = (layerSize.width > 0 && layerSize.height > 0)
+			? layerSize
+			: UIScreen.main.bounds.size
+		let screenAR = Double(screenSize.width) / Double(max(screenSize.height, 1))
+		if screenAR > videoAR {
+			// Screen wider than video: filling crops top/bottom. Raise the
+			// subtitles by 70% of the bottom crop so they stay visible (the
+			// remaining 30% keeps a comfortable margin from the edge).
+			let bottomCropPercent = 50.0 * (1.0 - videoAR / screenAR)
+			engine.setSubtitlePosition(Int((100.0 - bottomCropPercent * 0.7).rounded()))
+		} else {
+			// Sides are cropped but the bottom stays visible — no adjustment.
+			engine.setSubtitlePosition(100)
+		}
+	}
+
+	// MARK: Volume slider reveal
+
+	/// Hardware volume press (or a drag on the transiently revealed pill)
+	/// while the chrome is hidden: show just the volume slider for a second.
+	/// The system HUD is suppressed by the hidden MPVolumeView, so without
+	/// this the press would have no visible feedback.
+	func revealVolumeSliderTransiently() {
+		guard showVolumeSlider, !controlsVisible, !isTearingDown else { return }
+		volumeSliderRevealed = true
+		volumeRevealTask?.cancel()
+		volumeRevealTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 1_000_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.volumeSliderRevealed = false }
+		}
+	}
+
+	/// Same as the volume reveal, for the brightness gesture: the vertical
+	/// drag needs its pill as feedback while the chrome is hidden.
+	func revealBrightnessSliderTransiently() {
+		guard showBrightnessSlider, !controlsVisible, !isTearingDown else { return }
+		brightnessSliderRevealed = true
+		brightnessRevealTask?.cancel()
+		brightnessRevealTask = Task { [weak self] in
+			try? await Task.sleep(nanoseconds: 1_000_000_000)
+			guard !Task.isCancelled, let self else { return }
+			await MainActor.run { self.brightnessSliderRevealed = false }
+		}
+	}
+
+	// MARK: Tracks / speed
+
+	func selectSubtitle(_ item: TrackMenuItemRecord) {
+		// Selection semantics live in JS (identity resolution / stream
+		// re-negotiation). Optimistically checkmark only items that do not
+		// force a reload; JS pushes updateTrackMenus with the truth after
+		// applying either way.
+		if !item.requiresReload {
+			setSelected(index: item.jellyfinIndex, in: &subtitleMenu)
+		}
+		emit?("onTrackSelectionRequested", [
+			"kind": "subtitle",
+			"jellyfinIndex": item.jellyfinIndex,
+			"positionSec": displayPosition,
+		])
+		scheduleAutoHide()
+	}
+
+	func selectAudio(_ item: TrackMenuItemRecord) {
+		if !item.requiresReload {
+			setSelected(index: item.jellyfinIndex, in: &audioMenu)
+		}
+		emit?("onTrackSelectionRequested", [
+			"kind": "audio",
+			"jellyfinIndex": item.jellyfinIndex,
+			"positionSec": displayPosition,
+		])
+		scheduleAutoHide()
+	}
+
+	// MARK: Subtitle search
+
+	/// Open the sheet; kick off an initial search when there is nothing to
+	/// show yet (fresh item or a previous error).
+	func openSubtitleSearch() {
+		haptic()
+		showSubtitleSearch = true
+		scheduleAutoHide()
+		if subtitleSearchStatus == "idle" || subtitleSearchStatus == "error" {
+			requestSubtitleSearch(language: subtitleSearchLanguage)
+		}
+	}
+
+	#if os(tvOS)
+	/// Close the TV panel and hand the remote back to the chrome — the panel
+	/// opens with the chrome hidden, so plain dismissal would leave the user
+	/// staring at bare video after an explicit "back out of this" press.
+	func closeSubtitleSearch() {
+		showSubtitleSearch = false
+		showControls()
+	}
+	#endif
+
+	func requestSubtitleSearch(language: String) {
+		// No language switches mid-download — the search answer would clear
+		// the downloading state and re-enable the rows under an in-flight
+		// download.
+		guard downloadingResultId == nil else { return }
+		subtitleSearchLanguage = language
+		subtitleSearchStatus = "searching"
+		subtitleSearchResults = []
+		subtitleSearchError = nil
+		emit?("onSubtitleSearchRequested", ["language": language])
+	}
+
+	func downloadSubtitleResult(_ result: SubtitleSearchResultRecord) {
+		// One download at a time — the flow ends in a stream swap or a pushed
+		// terminal state either way.
+		guard downloadingResultId == nil else { return }
+		haptic()
+		downloadingResultId = result.id
+		subtitleSearchStatus = "downloading"
+		emit?("onSubtitleDownloadRequested", [
+			"resultId": result.id,
+			"positionSec": displayPosition,
+		])
+	}
+
+	/// JS pushes search/download progress; "applied" closes the sheet and
+	/// resets so the next open searches fresh (the track list changed).
+	func updateSubtitleSearch(_ state: SubtitleSearchStateRecord) {
+		subtitleSearchError = state.errorMessage
+		if state.status != "downloading" {
+			downloadingResultId = nil
+		}
+		if state.status == "applied" {
+			showSubtitleSearch = false
+			subtitleSearchStatus = "idle"
+			subtitleSearchResults = []
+		} else {
+			subtitleSearchStatus = state.status
+			subtitleSearchResults = state.results
+		}
+	}
+
+	private func setSelected(index: Int, in menu: inout [TrackMenuItemRecord]) {
+		// Expo's @Field wrapper is a class, so mutating `selected` changes a
+		// shared box without changing the struct — @Published can't see it.
+		// Announce the change manually; JS pushes authoritative menus right
+		// after anyway (updateTrackMenus).
+		objectWillChange.send()
+		for i in menu.indices {
+			menu[i].selected = menu[i].jellyfinIndex == index
+		}
+	}
+
+	func setSpeed(_ newSpeed: Double) {
+		// A deliberate speed choice (menu / remote) wins over a transient hold.
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
+		speed = newSpeed
+		engine?.setSpeed(speed: newSpeed)
+		emit?("onSpeedChange", ["speed": newSpeed])
+		scheduleAutoHide()
+	}
+
+	// MARK: Press-and-hold 2×
+
+	/// The held rate as it appears in the feedback pill, trimming a trailing
+	/// zero so 2.0 reads "2×" and 1.5 reads "1.5×".
+	var holdSpeedLabel: String {
+		let trimmed = holdToSpeedRate.truncatingRemainder(dividingBy: 1) == 0
+			? String(Int(holdToSpeedRate))
+			: String(holdToSpeedRate)
+		return "\(trimmed)×"
+	}
+
+	/// YouTube-style hold-to-speed: engages on a long press over empty video
+	/// area, releases back to the pre-hold speed. Deliberately does NOT emit
+	/// onSpeedChange — the transient rate must never be persisted as the
+	/// user's speed preference.
+	func beginHoldSpeed() {
+		guard holdToSpeedEnabled, holdToSpeedRate > 0, !isHoldSpeedActive,
+			isPlaying, !controlsLocked, !showStillWatching, errorMessage == nil
+		else { return }
+		speedBeforeHold = speed
+		isHoldSpeedActive = true
+		haptic()
+		speed = holdToSpeedRate
+		engine?.setSpeed(speed: holdToSpeedRate)
+	}
+
+	func endHoldSpeed() {
+		guard isHoldSpeedActive else { return }
+		isHoldSpeedActive = false
+		let restore = speedBeforeHold ?? 1.0
+		speedBeforeHold = nil
+		speed = restore
+		engine?.setSpeed(speed: restore)
+	}
+
+	/// Bitrate change always re-negotiates the stream in JS — no optimistic
+	/// checkmark; the fresh config carries the new selection.
+	func selectQuality(_ item: TrackMenuItemRecord) {
+		emit?("onQualitySelected", [
+			"bitrateValue": item.jellyfinIndex,
+			"positionSec": displayPosition,
+		])
+		scheduleAutoHide()
+	}
+
+	/// Applies live on the engine and notifies JS, which persists the global
+	/// mpvSubtitleScale setting (mirror of the JS in-player subtitle scale).
+	func setSubtitleScale(_ scale: Double) {
+		subtitleScale = scale
+		engine?.setSubtitleScale(scale)
+		emit?("onSubtitleScaleChange", ["scale": scale])
+		scheduleAutoHide()
+	}
+
+	// MARK: Segments / episodes
+
+	func skipActiveSegment() {
+		guard let segment = activeSegment else { return }
+		haptic()
+		if segment.type == "Outro" {
+			cancelCountdown()
+		}
+		seek(to: segment.endSec)
+	}
+
+	func playNextEpisode() {
+		disarmCountdownForEpisodeChange()
+		emit?("onNextEpisodeRequested", [
+			"reason": "userTap",
+			"positionSec": displayPosition,
+		])
+	}
+
+	func playPreviousEpisode() {
+		disarmCountdownForEpisodeChange()
+		emit?("onPreviousEpisodeRequested", [
+			"positionSec": displayPosition,
+		])
+	}
+
+	/// Sticky until the next load() — the countdown must not re-arm while
+	/// the user keeps watching the credits they explicitly chose to watch.
+	func cancelCountdown() {
+		countdownCanceled = true
+		cancelCountdownTask()
+		countdownRemaining = nil
+	}
+
+	func selectEpisode(_ episode: EpisodeListItemRecord) {
+		showEpisodeList = false
+		guard !episode.isCurrent else { return }
+		disarmCountdownForEpisodeChange()
+		emit?("onEpisodeSelected", [
+			"itemId": episode.itemId,
+			"positionSec": displayPosition,
+		])
+	}
+
+	// MARK: PiP / close
+
+	func togglePictureInPicture() {
+		guard let engine else {
+			Logger.shared.log("PiP: button pressed but engine is nil", type: "Error")
+			return
+		}
+		Logger.shared.log(
+			"PiP: button pressed (active=\(engine.isPictureInPictureActive()))", type: "Info")
+		if engine.isPictureInPictureActive() {
+			engine.stopPictureInPicture()
+		} else {
+			engine.startPictureInPicture()
+		}
+		scheduleAutoHide()
+	}
+
+	func close() {
+		haptic()
+		onDismissRequested?(.closeButton)
+	}
+
+	func dismissError() {
+		onDismissRequested?(.error)
+	}
+
+	// MARK: - Sleep timer
+
+	/// Deliberately survives apply()/in-place swaps — falling asleep during
+	/// next-episode autoplay is the main use case. The deadline is wall-clock,
+	/// checked in 1s slices, so a stint suspended in the background fires on
+	/// resume instead of drifting.
+	func setSleepTimer(minutes: Int) {
+		haptic()
+		sleepTimerTask?.cancel()
+		sleepTimerMinutes = minutes
+		sleepTimerEndDate = Date().addingTimeInterval(TimeInterval(minutes) * 60)
+		sleepTimerTask = Task { [weak self] in
+			while !Task.isCancelled {
+				try? await Task.sleep(nanoseconds: 1_000_000_000)
+				guard !Task.isCancelled, let self else { return }
+				let fired: Bool = await MainActor.run {
+					guard let end = self.sleepTimerEndDate else { return true }
+					guard Date() >= end else { return false }
+					self.sleepTimerMinutes = nil
+					self.sleepTimerEndDate = nil
+					self.sleepTimerTask = nil
+					// Full dismissal (not just pause) so the idle timer
+					// re-enables and the phone can auto-lock.
+					self.onDismissRequested?(.programmatic)
+					return true
+				}
+				if fired { return }
+			}
+		}
+		scheduleAutoHide()
+	}
+
+	func cancelSleepTimer() {
+		haptic()
+		sleepTimerTask?.cancel()
+		sleepTimerTask = nil
+		sleepTimerEndDate = nil
+		sleepTimerMinutes = nil
+		scheduleAutoHide()
+	}
+
+	// MARK: - Teardown
+
+	func willTeardown() {
+		isTearingDown = true
+		isHoldSpeedActive = false
+		speedBeforeHold = nil
+		autoHideTask?.cancel()
+		cancelCountdownTask()
+		sleepTimerTask?.cancel()
+		volumeRevealTask?.cancel()
+		brightnessRevealTask?.cancel()
+		unlockRevealTask?.cancel()
+		stopDisplayLink()
+	}
+
+	// MARK: - Countdown
+
+	private func startCountdown(seconds: Double) {
+		guard countdownTask == nil else { return }
+		// Deliberately does NOT reveal the chrome — the card renders outside
+		// the controlsVisible layer, so it shows on its own over clean video.
+		countdownRemaining = seconds
+		countdownTask = Task { [weak self] in
+			while !Task.isCancelled {
+				try? await Task.sleep(nanoseconds: 1_000_000_000)
+				guard !Task.isCancelled, let self else { return }
+				let done: Bool = await MainActor.run {
+					guard let remaining = self.countdownRemaining else { return true }
+					// Paused playback freezes the countdown: EOF (the real
+					// episode switch) can't arrive while paused, so ticking on
+					// would swap the episode out from under a paused screen.
+					guard self.isPlaying else { return false }
+					let next = remaining - 1
+					if next <= 0 {
+						self.countdownRemaining = nil
+						// Clear the handle so a completed countdown doesn't
+						// block startCountdown's already-running guard forever.
+						self.countdownTask = nil
+						self.countdownFired = true
+						self.emit?("onNextEpisodeRequested", [
+							"reason": "countdown",
+							"positionSec": self.displayPosition,
+						])
+						return true
+					}
+					self.countdownRemaining = next
+					return false
+				}
+				if done { break }
+			}
+		}
+	}
+
+	private func cancelCountdownTask() {
+		countdownTask?.cancel()
+		countdownTask = nil
+	}
+
+	/// An episode change was explicitly requested — stop any running countdown
+	/// and keep the auto-advance disarmed until the next item's config applies,
+	/// so a countdown firing mid-swap can't override the user's choice.
+	private func disarmCountdownForEpisodeChange() {
+		countdownFired = true
+		cancelCountdownTask()
+		countdownRemaining = nil
+	}
+
+	// MARK: - Segment tracking
+
+	private func updateActiveSegment(for currentPosition: Double) {
+		let active = segments.first { currentPosition >= $0.startSec && currentPosition < $0.endSec }
+
+		if active?.type != activeSegment?.type || active?.startSec != activeSegment?.startSec {
+			activeSegment = active
+		}
+
+		// Only credits that run to (within 5s of) the video end auto-arm the
+		// countdown — auto-advancing out of credits with a mid/post-credits
+		// scene after them would skip content (JS parity: useCreditSkipper's
+		// hasContentAfterCredits gate). The Skip Credits pill stays available
+		// in that case instead.
+		var inFinalCredits = false
+		if let active, active.type == "Outro", duration > 0 {
+			inFinalCredits = duration - active.endSec <= 5
+		}
+		// Items without credits markers still get the countdown near the end
+		// (JS parity: remainingTime < countdown length arms it too).
+		var nearEnd = false
+		if let next = nextEpisode, next.countdownSeconds > 0, duration > 0 {
+			nearEnd = currentPosition > 0 && duration - currentPosition <= next.countdownSeconds
+		}
+
+		if inFinalCredits || nearEnd,
+		   let next = nextEpisode, next.countdownSeconds > 0,
+		   !countdownCanceled, !countdownFired,
+		   countdownRemaining == nil, countdownTask == nil {
+			// Never count longer than the video has left: the nearEnd case
+			// arms with <= countdownSeconds of video remaining and EOF
+			// advances the episode regardless, so an uncapped timer would
+			// visibly lag the actual switch. In-credits arming keeps the full
+			// configured countdown (the advance intentionally cuts credits
+			// short there).
+			let remaining = max(1, duration - currentPosition)
+			startCountdown(seconds: min(next.countdownSeconds, remaining))
+		}
+
+		// Keep a running countdown honest against playback (1Hz quantization,
+		// timer drift, speed changes): it must reach 0 no later than the
+		// video ends, because EOF is what actually triggers the switch.
+		if let counting = countdownRemaining, duration > 0 {
+			let remaining = max(0, duration - currentPosition)
+			if remaining < counting {
+				countdownRemaining = remaining
+			}
+		}
+
+		// Leaving the countdown window (e.g. the user seeked back) tears the
+		// card down; a user cancel stays sticky via countdownCanceled.
+		if !inFinalCredits, !nearEnd, countdownRemaining != nil {
+			cancelCountdownTask()
+			countdownRemaining = nil
+		}
+	}
+
+	// MARK: - Display-position interpolation
+
+	private func updateDisplayLinkState() {
+		if isPlaying && !isTearingDown {
+			startDisplayLink()
+		} else {
+			stopDisplayLink()
+		}
+	}
+
+	private func startDisplayLink() {
+		guard displayLink == nil else { return }
+		let link = CADisplayLink(target: self, selector: #selector(displayLinkTick))
+		link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 30, preferred: 30)
+		link.add(to: .main, forMode: .common)
+		displayLink = link
+		lastTickTimestamp = CACurrentMediaTime()
+	}
+
+	private func stopDisplayLink() {
+		displayLink?.invalidate()
+		displayLink = nil
+	}
+
+	@objc private func displayLinkTick() {
+		// Always advance the timestamp, even while gated — otherwise the whole
+		// gated span lands in one elapsed the moment the gate opens.
+		let now = CACurrentMediaTime()
+		let elapsed = now - lastTickTimestamp
+		lastTickTimestamp = now
+		// Stand still while the stream is loading or rebuffering: the video
+		// clock isn't advancing, so interpolating here just drifts ahead and
+		// snaps back on the next authoritative tick.
+		guard isPlaying, !isScrubbing, !isBuffering, hasAuthoritativePosition else { return }
+		var next = displayPosition + elapsed * speed
+		if duration > 0 {
+			next = min(next, duration)
+		}
+		displayPosition = next
+	}
+}
+
+// MARK: - MPVPlayerEngineDelegate
+
+extension PlayerViewModel: MPVPlayerEngineDelegate {
+	func engine(_ engine: MPVPlayerEngine, didLoad url: URL) {
+		emit?("onLoad", ["url": url.absoluteString])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didUpdateProgress position: Double, duration: Double, cacheSeconds: Double) {
+		guard !isTearingDown else { return }
+		hasAuthoritativePosition = true
+		self.position = position
+		// This callback is 1Hz and duration is @Published — only assign on a
+		// real change, or every observer re-renders once per second (which
+		// grays out any open menu, see PlaybackTimeModel).
+		if self.duration != duration {
+			self.duration = duration
+		}
+		self.cacheSeconds = cacheSeconds
+		if !isScrubbing {
+			// Snap the interpolated position on every authoritative tick.
+			displayPosition = position
+			lastTickTimestamp = CACurrentMediaTime()
+		}
+		updateActiveSegment(for: position)
+
+		var payload: [String: Any] = [
+			"position": position,
+			"duration": duration,
+			"progress": duration > 0 ? position / duration : 0,
+			"cacheSeconds": cacheSeconds,
+		]
+		if pendingSeekReport {
+			pendingSeekReport = false
+			payload["didSeek"] = true
+		}
+		emit?("onProgress", payload)
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didChangePause isPaused: Bool) {
+		guard !isTearingDown else { return }
+		isPlaying = !isPaused
+		updateDisplayLinkState()
+		if isPaused {
+			// Paused: keep the controls up.
+			showControls()
+			autoHideTask?.cancel()
+		} else {
+			scheduleAutoHide()
+		}
+		emit?("onPlaybackStateChange", [
+			"isPaused": isPaused,
+			"isPlaying": !isPaused,
+		])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didChangeLoading isLoading: Bool) {
+		guard !isTearingDown else { return }
+		isBuffering = isLoading
+		emit?("onPlaybackStateChange", ["isLoading": isLoading])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didBecomeReadyToSeek ready: Bool) {
+		guard !isTearingDown else { return }
+		isReadyToSeek = ready
+		emit?("onPlaybackStateChange", ["isReadyToSeek": ready])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didBecomeTracksReady ready: Bool) {
+		guard !isTearingDown else { return }
+		emit?("onTracksReady", [:])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didChangePictureInPicture isActive: Bool) {
+		guard !isTearingDown else { return }
+		isPipActive = isActive
+		emit?("onPictureInPictureChange", ["isActive": isActive])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didFailWithError message: String) {
+		guard !isTearingDown else { return }
+		// Same keep-awake hole as the still-watching card: the error overlay
+		// waits for a tap that may never come, and mpv doesn't reliably flip
+		// pause on a fatal error — release the idle timer by hand.
+		isPlaying = false
+		updateDisplayLinkState()
+		errorMessage = message
+		showControls()
+		autoHideTask?.cancel()
+		emit?("onError", ["error": message])
+	}
+
+	func engine(_ engine: MPVPlayerEngine, didDetectHDRMode mode: HDRMode, fps: Double) {
+		// tvOS applies AVDisplayCriteria via the view controller; no-op on iOS.
+		onHDRModeDetected?(mode, fps)
+	}
+
+	func engineDidReachEnd(_ engine: MPVPlayerEngine) {
+		guard !isTearingDown else { return }
+		// A canceled countdown is a deliberate "let me watch to the end" —
+		// EOF must not auto-advance past it.
+		if let next = nextEpisode, next.countdownSeconds > 0, !countdownCanceled {
+			cancelCountdownTask()
+			countdownRemaining = nil
+			emit?("onNextEpisodeRequested", [
+				"reason": "countdown",
+				"positionSec": displayPosition,
+			])
+		} else if nextEpisode?.stillWatchingRequired == true {
+			// Autoplay episode cap reached: ask instead of advancing. The
+			// video sits on its last frame under the card.
+			// mpv never flips its pause property at EOF (no keep-open), so
+			// isPlaying must drop here by hand — the VC's keep-awake sink
+			// releases the idle timer and the display link stops while the
+			// card waits, letting the phone lock on a sleeping viewer.
+			isPlaying = false
+			updateDisplayLinkState()
+			showStillWatching = true
+		} else {
+			emit?("onPlaybackEnded", ["positionSec": displayPosition])
+			onDismissRequested?(.playbackEnded)
+		}
+	}
+}
