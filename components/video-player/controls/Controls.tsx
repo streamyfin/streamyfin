@@ -5,7 +5,14 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -428,6 +435,57 @@ export const Controls: FC<Props> = ({
     ((showSkipCreditButton && !hasContentAfterCredits) ||
       remainingTime < 10000);
 
+  // Autoplay would run at EOF but the episode cap stops it: ask "Still
+  // watching?" there instead, with playback paused — mirroring the native
+  // player's stillWatchingRequired flow. Gated on reaching the end so the
+  // prompt never covers a video that is still playing.
+  const stillWatchingRequired =
+    !!nextItem &&
+    settings.autoPlayNextEpisode !== false &&
+    settings.maxAutoPlayEpisodeCount.value !== -1 &&
+    settings.autoPlayEpisodeCount >= settings.maxAutoPlayEpisodeCount.value;
+
+  const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
+  // The cap-hitting autoplay updates the episode count synchronously while
+  // currentTime/remainingTime still hold the outgoing episode's near-zero
+  // values (the next item loads async), so "at EOF" alone would fire the
+  // prompt over the incoming episode. Only a progress tick from mid-playback
+  // of the final episode itself arms the trigger.
+  const stillWatchingArmedRef = useRef(false);
+
+  // Reset after an in-place episode switch (setParams keeps Controls mounted).
+  useEffect(() => {
+    stillWatchingArmedRef.current = false;
+    setStillWatchingVisible(false);
+  }, [item.Id]);
+
+  useEffect(() => {
+    if (!stillWatchingRequired || stillWatchingVisible || maxMs <= 0) {
+      return;
+    }
+    if (
+      currentTime > 0 &&
+      remainingTime > CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
+    ) {
+      stillWatchingArmedRef.current = true;
+      return;
+    }
+    if (
+      stillWatchingArmedRef.current &&
+      remainingTime <= CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
+    ) {
+      setStillWatchingVisible(true);
+      pause();
+    }
+  }, [
+    stillWatchingVisible,
+    stillWatchingRequired,
+    maxMs,
+    currentTime,
+    remainingTime,
+    pause,
+  ]);
+
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
       if (!item || !settings) {
@@ -694,7 +752,7 @@ export const Controls: FC<Props> = ({
           />
         </>
       )}
-      {settings.maxAutoPlayEpisodeCount.value !== -1 && (
+      {stillWatchingVisible && (
         <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
       )}
     </View>
