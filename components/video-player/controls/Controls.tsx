@@ -783,10 +783,7 @@ export const Controls: FC<Props> = ({
             controlsVisible={showControls}
             hasChapters={showsChapterIcon}
           />
-          <SegmentSkippedNotice
-            segment={skippedNotice}
-            controlsVisible={showControls}
-          />
+          <SegmentSkippedNotice segment={skippedNotice} />
         </>
       )}
       {stillWatchingVisible && (

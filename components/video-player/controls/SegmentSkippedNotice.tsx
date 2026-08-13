@@ -17,7 +17,6 @@ import type { SegmentType } from "@/hooks/useSegmentSkipper";
 interface Props {
   /** Segment an automatic skip just jumped over, or null. */
   segment: SegmentType | null;
-  controlsVisible: boolean;
 }
 
 const SEGMENT_NAME_KEY: Record<SegmentType, string> = {
@@ -29,10 +28,10 @@ const SEGMENT_NAME_KEY: Record<SegmentType, string> = {
 };
 
 const ANIM_DURATION = 200;
-// Mirrors the skip pill's offsets so the two sit on the same line, one against
-// each edge, and can never overlap.
-const HIDDEN_BOTTOM = 24;
-const VISIBLE_BOTTOM = 65;
+// Sits at the top, horizontally centred. The bottom of the player is taken on
+// both sides: the title block on the left, the skip pill and countdown on the
+// right. The top strip only holds the header icons, which hug the corners.
+const TOP_OFFSET = 16;
 
 /**
  * "Intro skipped" style notice, shown briefly after an automatic skip.
@@ -40,10 +39,7 @@ const VISIBLE_BOTTOM = 65;
  * Without it an auto-skip is silent and reads as the video jumping on its own,
  * which is the complaint every client with this feature eventually gets.
  */
-export const SegmentSkippedNotice: FC<Props> = ({
-  segment,
-  controlsVisible,
-}) => {
+export const SegmentSkippedNotice: FC<Props> = ({ segment }) => {
   const { t } = useTranslation();
   const insets = useControlsSafeAreaInsets();
   const typography = useScaledTVTypography();
@@ -73,24 +69,22 @@ export const SegmentSkippedNotice: FC<Props> = ({
       pointerEvents='none'
       style={[
         styles.container,
-        {
-          left: insets.left + 24,
-          bottom:
-            insets.bottom + (controlsVisible ? VISIBLE_BOTTOM : HIDDEN_BOTTOM),
-        },
+        { top: insets.top + TOP_OFFSET },
         animatedStyle,
       ]}
     >
       {Platform.isTV ? (
         // TV wants a blurred surface and a size that reads from the couch,
         // not the phone's translucent pill.
-        <BlurView intensity={80} tint='dark' style={styles.blur}>
+        <BlurView intensity={80} tint='dark' style={[styles.pill, styles.blur]}>
           <Text style={[styles.label, { fontSize: typography.callout }]}>
             {label}
           </Text>
         </BlurView>
       ) : (
-        <Text style={[styles.label, styles.phonePadding]}>{label}</Text>
+        <Text style={[styles.label, styles.pill, styles.phonePadding]}>
+          {label}
+        </Text>
       )}
     </Animated.View>
   );
@@ -99,10 +93,15 @@ export const SegmentSkippedNotice: FC<Props> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 15,
+  },
+  pill: {
     borderRadius: 999,
     overflow: "hidden",
     backgroundColor: Platform.isTV ? "transparent" : "rgba(0,0,0,0.6)",
-    zIndex: 15,
   },
   blur: {
     paddingHorizontal: 24,

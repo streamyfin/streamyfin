@@ -50,7 +50,12 @@ export interface UseMediaSegmentsReturn {
   skipActiveSegment: (useHaptics?: boolean) => void;
   /** Show the generic skip button: an active segment that is not the outro. */
   showSkipButton: boolean;
-  /** The active segment is the outro/credits (it gets its own button/card). */
+  /**
+   * The outro is under the playhead **and** it is waiting on the user, i.e.
+   * its mode is "ask". It drives both the credits button and the credits-based
+   * next-episode trigger, and neither applies when the outro is skipped
+   * automatically or turned off.
+   */
   isOutroActive: boolean;
   /** Skip the outro, independent of which button the priority shows. */
   skipOutro: (useHaptics?: boolean) => void;
@@ -230,12 +235,17 @@ export const useMediaSegments = ({
   }, [skippedNotice]);
 
   const isOutroActive = activeSegment?.type === "Outro";
+  // A type set to "auto" gets no button: the user asked for it to be handled
+  // for them, and the notice explains the jump. Without this the pill flashes
+  // during the arming delay, and the native player (which hides it outright)
+  // would behave differently.
+  const wantsButton = !!activeSegment && activeSegment.skipMode === "ask";
 
   return {
     activeSegment,
     skipActiveSegment: activeSegment?.skipSegment ?? noop,
-    showSkipButton: !!activeSegment && !isOutroActive,
-    isOutroActive,
+    showSkipButton: wantsButton && !isOutroActive,
+    isOutroActive: isOutroActive && wantsButton,
     skipOutro: outroSkipper.skipSegment,
     hasContentAfterCredits:
       outroSkipper.currentSegment && maxSeconds

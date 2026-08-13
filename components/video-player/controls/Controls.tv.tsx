@@ -1281,10 +1281,7 @@ export const Controls: FC<Props> = ({
         playButtonRef={showControls ? playButtonRef : null}
       />
 
-      <SegmentSkippedNotice
-        segment={skippedNotice}
-        controlsVisible={showControls}
-      />
+      <SegmentSkippedNotice segment={skippedNotice} />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}
       <TVSkipSegmentCard
