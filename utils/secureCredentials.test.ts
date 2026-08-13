@@ -31,6 +31,7 @@ const {
   saveAccountCredential,
   getAccountCredential,
   getPreviousServers,
+  recordAccountSignIn,
   updateAccountToken,
 } = await import("./secureCredentials");
 // bun's mock.module registry is shared across test files, so mmkv may be backed
@@ -161,6 +162,81 @@ describe("updateAccountToken", () => {
 
     await updateAccountToken(SERVER, "u1", "fresh-token");
 
+    expect((await getAccountCredential(SERVER, "u1"))?.deviceId).toBe(
+      "device-alice",
+    );
+  });
+});
+
+describe("recordAccountSignIn", () => {
+  const signIn = (userId: string, username: string, deviceId: string) =>
+    recordAccountSignIn({
+      serverUrl: SERVER,
+      userId,
+      username,
+      token: `token-${userId}`,
+      deviceId,
+      primaryImageTag: "tag",
+    });
+
+  test("saves an account signing in for the first time", async () => {
+    // Quick Connect has no save step, so an unknown approver would otherwise
+    // authenticate and never appear in the switcher.
+    await signIn("u1", "alice", "device-alice");
+
+    const credential = await getAccountCredential(SERVER, "u1");
+    expect(credential?.username).toBe("alice");
+    expect(credential?.deviceId).toBe("device-alice");
+    expect(accountsOf()).toHaveLength(1);
+  });
+
+  test("defaults a newly saved account to no protection", async () => {
+    // Quick Connect is itself an approval from a signed-in device.
+    await signIn("u1", "alice", "device-alice");
+
+    expect((await getAccountCredential(SERVER, "u1"))?.securityType).toBe(
+      "none",
+    );
+  });
+
+  test("refreshes a known account rather than duplicating it", async () => {
+    await seed("alice", "u1", "device-alice");
+
+    await signIn("u1", "alice", "device-alice");
+
+    expect(accountsOf()).toHaveLength(1);
+    expect((await getAccountCredential(SERVER, "u1"))?.token).toBe("token-u1");
+  });
+
+  test("preserves a known account's protection choice", async () => {
+    // Re-authenticating must not silently downgrade a PIN-protected account.
+    await saveAccountCredential({
+      serverUrl: SERVER,
+      serverName: "Test",
+      token: "old",
+      userId: "u1",
+      username: "alice",
+      savedAt: 1,
+      securityType: "pin",
+      pinHash: "hash",
+      deviceId: "device-alice",
+    });
+
+    await signIn("u1", "alice", "device-alice");
+
+    const credential = await getAccountCredential(SERVER, "u1");
+    expect(credential?.securityType).toBe("pin");
+    expect(credential?.pinHash).toBe("hash");
+  });
+
+  test("keeps accounts separate when a second user signs in", async () => {
+    await signIn("u1", "alice", "device-alice");
+    await signIn("u2", "bob", "device-bob");
+
+    expect(accountsOf()).toHaveLength(2);
+    expect((await getAccountCredential(SERVER, "u2"))?.deviceId).toBe(
+      "device-bob",
+    );
     expect((await getAccountCredential(SERVER, "u1"))?.deviceId).toBe(
       "device-alice",
     );

@@ -253,6 +253,47 @@ export async function migrateCurrentAccountDeviceId(
 }
 
 /**
+ * Persist a successful sign-in: refresh a known account's token, or save the
+ * account if this is the first time it has signed in on this device.
+ *
+ * Quick Connect has no "save this account" step — whoever approves the code
+ * decides who signs in — so without this an account added that way would
+ * authenticate but never appear in the switcher.
+ */
+export async function recordAccountSignIn(params: {
+  serverUrl: string;
+  userId: string;
+  username: string;
+  token: string;
+  deviceId: string;
+  primaryImageTag?: string;
+}): Promise<void> {
+  const existing = await getAccountCredential(params.serverUrl, params.userId);
+  if (existing) {
+    await updateAccountToken(
+      params.serverUrl,
+      params.userId,
+      params.token,
+      params.primaryImageTag,
+      params.deviceId,
+    );
+    return;
+  }
+  await saveAccountCredential({
+    serverUrl: params.serverUrl,
+    // Empty keeps whatever name the server list already holds.
+    serverName: "",
+    token: params.token,
+    userId: params.userId,
+    username: params.username,
+    savedAt: Date.now(),
+    securityType: "none",
+    primaryImageTag: params.primaryImageTag,
+    deviceId: params.deviceId,
+  });
+}
+
+/**
  * Retrieve credential for a specific account.
  */
 export async function getAccountCredential(
