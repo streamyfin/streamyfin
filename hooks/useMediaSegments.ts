@@ -12,6 +12,12 @@ const noop = () => {};
 // direct-play is always seekable so the delay is invisible there.
 const AUTO_SKIP_ARM_DELAY_MS = 1500;
 
+// Credits that stop within this many seconds of the end are treated as running
+// to the end, so the next-episode countdown still takes over. Segment ends and
+// reported durations disagree by a second or two often enough that an exact
+// comparison would suppress the countdown on ordinary episodes.
+const CONTENT_AFTER_CREDITS_BUFFER_SECONDS = 5;
+
 export interface ActiveSegment {
   type: SegmentType;
   currentSegment: MediaTimeSegment;
@@ -214,7 +220,8 @@ export const useMediaSegments = ({
     skipOutro: outroSkipper.skipSegment,
     hasContentAfterCredits:
       outroSkipper.currentSegment && maxSeconds
-        ? outroSkipper.currentSegment.endTime < maxSeconds
+        ? maxSeconds - outroSkipper.currentSegment.endTime >
+          CONTENT_AFTER_CREDITS_BUFFER_SECONDS
         : false,
   };
 };
