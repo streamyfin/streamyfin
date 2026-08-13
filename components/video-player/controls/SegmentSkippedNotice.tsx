@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import type { FC } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Platform, StyleSheet } from "react-native";
 import Animated, {
@@ -37,6 +37,12 @@ export const SegmentSkippedNotice: FC<Props> = ({ segment }) => {
   const insets = useControlsSafeAreaInsets();
   const typography = useScaledTVTypography();
   const opacity = useSharedValue(0);
+  // The node outlives `segment` by one fade-out, so reading the label from it
+  // directly would empty the pill the instant the notice starts disappearing.
+  const lastLabel = useRef("");
+
+  const label = segment ? t(SEGMENT_SKIPPED_KEY[segment]) : lastLabel.current;
+  if (segment) lastLabel.current = label;
 
   useEffect(() => {
     opacity.value = withTiming(segment ? 1 : 0, {
@@ -52,8 +58,6 @@ export const SegmentSkippedNotice: FC<Props> = ({ segment }) => {
   // Keep the node mounted through the fade-out so the text does not vanish
   // before the animation has played.
   if (!segment && opacity.value === 0) return null;
-
-  const label = segment ? t(SEGMENT_SKIPPED_KEY[segment]) : "";
 
   return (
     <Animated.View
