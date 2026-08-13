@@ -54,6 +54,15 @@ describe("buildSubtitleStyle", () => {
     expect(style.scaleLocked).toBe(true);
     expect(style.assOverride).toBe("no");
   });
+
+  it("uses defaults when optional style values are missing", () => {
+    expect(
+      buildSubtitleStyle({
+        ...baseSettings,
+        subtitleMarginY: undefined,
+      } as unknown as Settings).assOverride,
+    ).toBe("no");
+  });
 });
 
 describe("applySubtitleStyle", () => {

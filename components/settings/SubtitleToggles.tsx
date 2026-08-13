@@ -126,17 +126,19 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
     (culture) => updateSettings({ defaultSubtitleLanguage: culture }),
   );
 
+  const isSubtitleModeLocked = pluginSettings?.subtitleMode?.locked === true;
   const subtitleModeOptionGroups = useMemo(() => {
     const options = subtitleModes.map((mode) => ({
       type: "radio" as const,
       label: t(subtitleModeKeys[mode]) || String(mode),
       value: String(mode),
       selected: mode === settings?.subtitleMode,
+      disabled: isSubtitleModeLocked,
       onPress: () => updateSettings({ subtitleMode: mode }),
     }));
 
     return [{ options }];
-  }, [settings?.subtitleMode, t, updateSettings]);
+  }, [isSubtitleModeLocked, settings?.subtitleMode, t, updateSettings]);
 
   const audioTranscodeModeLabels = useMemo(
     (): Record<AudioTranscodeMode, string> => ({
@@ -288,6 +290,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         >
           <PlatformDropdown
             groups={audioLanguageOptionGroups}
+            disabled={pluginSettings?.defaultAudioLanguage?.locked || !isReady}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -372,6 +375,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         >
           <PlatformDropdown
             groups={subtitleLanguageOptionGroups}
+            disabled={pluginSettings?.defaultSubtitleLanguage?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -395,6 +399,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         >
           <PlatformDropdown
             groups={subtitleModeOptionGroups}
+            disabled={isSubtitleModeLocked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -456,6 +461,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         >
           <PlatformDropdown
             groups={fontOptionGroups}
+            disabled={pluginSettings?.subtitleFont?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -550,6 +556,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         >
           <PlatformDropdown
             groups={alignXOptionGroups}
+            disabled={pluginSettings?.subtitleAlignX?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>
@@ -574,6 +581,7 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
         >
           <PlatformDropdown
             groups={alignYOptionGroups}
+            disabled={pluginSettings?.subtitleAlignY?.locked}
             trigger={
               <View className='flex flex-row items-center justify-between py-1.5 pl-3'>
                 <Text className='mr-1 text-[#8E8D91]'>

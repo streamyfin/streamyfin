@@ -9,14 +9,16 @@ import type {
 } from "../../modules/mpv-player";
 import type { Settings } from "../atoms/settings";
 
-const hasCustomSubtitleStyle = (settings: Settings): boolean =>
-  settings.subtitleBackground ||
-  Math.abs(settings.subtitleSize - 1) > 0.001 ||
-  settings.subtitleFont !== "System" ||
-  settings.subtitleColor.toUpperCase() !== "#FFFFFF" ||
-  settings.subtitleMarginY !== 25 ||
-  settings.subtitleAlignX !== "center" ||
-  settings.subtitleAlignY !== "bottom";
+const normalizedColor = (color?: string) => (color ?? "#FFFFFF").toUpperCase();
+
+export const hasCustomSubtitleStyle = (settings: Settings): boolean =>
+  (settings.subtitleBackground ?? false) ||
+  Math.abs((settings.subtitleSize ?? 1) - 1) > 0.001 ||
+  (settings.subtitleFont ?? "System") !== "System" ||
+  normalizedColor(settings.subtitleColor) !== "#FFFFFF" ||
+  (settings.subtitleMarginY ?? 25) !== 25 ||
+  (settings.subtitleAlignX ?? "center") !== "center" ||
+  (settings.subtitleAlignY ?? "bottom") !== "bottom";
 
 export interface SubtitleStyleTarget {
   setSubtitleScale?: (scale: number) => Promise<void>;

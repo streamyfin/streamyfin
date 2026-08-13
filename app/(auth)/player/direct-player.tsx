@@ -17,7 +17,13 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  PixelRatio,
+  Platform,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { BITRATES } from "@/components/BitrateSelector";
 import { Text } from "@/components/common/Text";
@@ -1493,9 +1499,10 @@ export default function DirectPlayerPage() {
       settings.subtitleSize,
       videoStream?.Width,
       videoStream?.Height,
-      screenWidth,
-      screenHeight,
+      screenWidth * PixelRatio.get(),
+      screenHeight * PixelRatio.get(),
       isZoomedToFill ? "cover" : "contain",
+      getActivePlayerType(settings),
     );
     void applySubtitleStyle(
       videoRef.current,

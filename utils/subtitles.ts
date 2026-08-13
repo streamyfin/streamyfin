@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
-import type { Settings } from "@/utils/atoms/settings";
-import { defaultValues } from "@/utils/atoms/settings";
+
+export { hasCustomSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
 
 /**
  * Shared subtitle scaling logic.
@@ -138,26 +138,4 @@ export const getEffectiveSubtitleMarginY = (margin: number): number => {
     return Math.round(margin * MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER);
   }
   return margin;
-};
-
-const normalizedColor = (color?: string) =>
-  (color ?? defaultValues.subtitleColor).toUpperCase();
-
-export const hasCustomSubtitleStyle = (settings: Settings): boolean => {
-  const defaultSize = defaultValues.subtitleSize ?? 1;
-
-  return (
-    settings.subtitleBackground !== defaultValues.subtitleBackground ||
-    Math.abs((settings.subtitleSize ?? defaultSize) - defaultSize) > 0.001 ||
-    (settings.subtitleFont ?? defaultValues.subtitleFont) !==
-      defaultValues.subtitleFont ||
-    normalizedColor(settings.subtitleColor) !==
-      normalizedColor(defaultValues.subtitleColor) ||
-    (settings.subtitleMarginY ?? defaultValues.subtitleMarginY) !==
-      defaultValues.subtitleMarginY ||
-    (settings.subtitleAlignX ?? defaultValues.subtitleAlignX) !==
-      defaultValues.subtitleAlignX ||
-    (settings.subtitleAlignY ?? defaultValues.subtitleAlignY) !==
-      defaultValues.subtitleAlignY
-  );
 };

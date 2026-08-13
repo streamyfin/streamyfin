@@ -840,7 +840,8 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.audio.audio_language")}
             value={audioLanguageLabel}
-            disabled={pluginSettings?.defaultAudioLanguage?.locked || !isReady}
+            disabledByAdmin={pluginSettings?.defaultAudioLanguage?.locked}
+            disabled={!isReady}
             onPress={() =>
               showOptions({
                 title: t("home.settings.audio.language"),
@@ -853,7 +854,7 @@ export default function SettingsTV() {
           <TVSettingsToggle
             label={t("home.settings.audio.play_default_audio_track")}
             value={settings.playDefaultAudioTrack}
-            disabled={pluginSettings?.playDefaultAudioTrack?.locked}
+            disabledByAdmin={pluginSettings?.playDefaultAudioTrack?.locked}
             onToggle={(value) =>
               updateMediaSettings({ playDefaultAudioTrack: value })
             }
@@ -861,7 +862,7 @@ export default function SettingsTV() {
           <TVSettingsToggle
             label={t("home.settings.audio.set_audio_track")}
             value={settings.rememberAudioSelections}
-            disabled={pluginSettings?.rememberAudioSelections?.locked}
+            disabledByAdmin={pluginSettings?.rememberAudioSelections?.locked}
             onToggle={(value) =>
               updateMediaSettings({ rememberAudioSelections: value })
             }
@@ -869,7 +870,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.audio.transcode_mode.title")}
             value={audioTranscodeLabel}
-            disabled={pluginSettings?.audioTranscodeMode?.locked}
+            disabledByAdmin={pluginSettings?.audioTranscodeMode?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.audio.transcode_mode.title"),
@@ -887,7 +888,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_language")}
             value={subtitleLanguageLabel}
-            disabled={pluginSettings?.defaultSubtitleLanguage?.locked}
+            disabledByAdmin={pluginSettings?.defaultSubtitleLanguage?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.language"),
@@ -900,7 +901,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_mode")}
             value={subtitleModeLabel}
-            disabled={pluginSettings?.subtitleMode?.locked}
+            disabledByAdmin={pluginSettings?.subtitleMode?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_mode"),
@@ -913,7 +914,7 @@ export default function SettingsTV() {
           <TVSettingsToggle
             label={t("home.settings.subtitles.set_subtitle_track")}
             value={settings.rememberSubtitleSelections}
-            disabled={pluginSettings?.rememberSubtitleSelections?.locked}
+            disabledByAdmin={pluginSettings?.rememberSubtitleSelections?.locked}
             onToggle={(value) =>
               updateMediaSettings({ rememberSubtitleSelections: value })
             }
@@ -926,7 +927,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_font")}
             value={subtitleFontLabel}
-            disabled={pluginSettings?.subtitleFont?.locked}
+            disabledByAdmin={pluginSettings?.subtitleFont?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_font"),
@@ -938,7 +939,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_color")}
             value={subtitleColorLabel}
-            disabled={pluginSettings?.subtitleColor?.locked}
+            disabledByAdmin={pluginSettings?.subtitleColor?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_color"),
@@ -950,7 +951,7 @@ export default function SettingsTV() {
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_size")}
             value={settings.subtitleSize}
-            disabled={pluginSettings?.subtitleSize?.locked}
+            disabledByAdmin={pluginSettings?.subtitleSize?.locked}
             onDecrease={() => {
               const newValue = Math.max(0.1, settings.subtitleSize - 0.1);
               updateSettings({
@@ -968,7 +969,7 @@ export default function SettingsTV() {
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_margin_y")}
             value={settings.subtitleMarginY ?? 0}
-            disabled={pluginSettings?.subtitleMarginY?.locked}
+            disabledByAdmin={pluginSettings?.subtitleMarginY?.locked}
             onDecrease={() => {
               const newValue = Math.max(
                 -100,
@@ -988,7 +989,7 @@ export default function SettingsTV() {
             <TVSettingsOptionButton
               label={t("home.settings.subtitles.subtitle_align_x")}
               value={alignXLabel}
-              disabled={pluginSettings?.subtitleAlignX?.locked}
+              disabledByAdmin={pluginSettings?.subtitleAlignX?.locked}
               // ExoPlayer follows authored cue alignment; hide on ExoPlayer.
               onPress={() =>
                 showOptions({
@@ -1005,7 +1006,7 @@ export default function SettingsTV() {
           <TVSettingsOptionButton
             label={t("home.settings.subtitles.subtitle_align_y")}
             value={alignYLabel}
-            disabled={pluginSettings?.subtitleAlignY?.locked}
+            disabledByAdmin={pluginSettings?.subtitleAlignY?.locked}
             onPress={() =>
               showOptions({
                 title: t("home.settings.subtitles.subtitle_align_y"),
@@ -1020,14 +1021,16 @@ export default function SettingsTV() {
           <TVSettingsToggle
             label={t("home.settings.subtitles.subtitle_background")}
             value={settings.subtitleBackground}
-            disabled={pluginSettings?.subtitleBackground?.locked}
+            disabledByAdmin={pluginSettings?.subtitleBackground?.locked}
             onToggle={(value) => updateSettings({ subtitleBackground: value })}
           />
           {settings.subtitleBackground && (
             <TVSettingsStepper
               label={t("home.settings.subtitles.subtitle_background_opacity")}
               value={settings.subtitleBackgroundOpacity ?? 60}
-              disabled={pluginSettings?.subtitleBackgroundOpacity?.locked}
+              disabledByAdmin={
+                pluginSettings?.subtitleBackgroundOpacity?.locked
+              }
               onDecrease={() => {
                 const newValue = Math.max(
                   0,
@@ -1049,7 +1052,9 @@ export default function SettingsTV() {
             <TVSettingsStepper
               label={t("home.settings.subtitles.subtitle_background_padding")}
               value={settings.subtitleBackgroundPadding ?? 8}
-              disabled={pluginSettings?.subtitleBackgroundPadding?.locked}
+              disabledByAdmin={
+                pluginSettings?.subtitleBackgroundPadding?.locked
+              }
               onDecrease={() => {
                 const newValue = Math.max(
                   0,
