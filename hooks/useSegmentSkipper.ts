@@ -51,8 +51,10 @@ export const useSegmentSkipper = ({
   const { settings } = useSettings();
   const haptic = useHaptic();
 
+  // Mirror the declared default rather than "none": settings is only missing
+  // while it loads, and hiding the button there would contradict defaultValues.
   const skipMode: SegmentSkipMode =
-    settings?.[SEGMENT_TO_SETTING[segmentType]] ?? "none";
+    settings?.[SEGMENT_TO_SETTING[segmentType]] ?? "ask";
 
   const currentSegment = useMemo(
     () =>
@@ -87,13 +89,17 @@ export const useSegmentSkipper = ({
         target >= totalDuration
       ) {
         target = Math.max(0, totalDuration - 2);
+        // Deep inside such an outro the clamped target sits behind the
+        // playhead, and seeking there would rewind. Nothing left to skip, so
+        // let playback run into the end-of-video flow on its own.
+        if (target <= currentTime) return;
       }
 
       seekRef.current(target);
 
       if (useHaptics) hapticRef.current();
     },
-    [currentSegment, segmentType, totalDuration, skipMode],
+    [currentSegment, segmentType, totalDuration, skipMode, currentTime],
   );
 
   return {

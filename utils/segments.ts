@@ -116,9 +116,22 @@ const fetchMediaSegments = async (
     }
 
     return buckets;
-  } catch {
-    return null;
+  } catch (error) {
+    // Only fall back when the server genuinely lacks the endpoint. Treating any
+    // failure as "pre-10.11" would send a transient 500 or an expired token off
+    // to two legacy endpoints that do not exist on a modern server, turning a
+    // recoverable error into silently missing segments.
+    if (isEndpointUnavailable(error)) return null;
+    console.error("[SEGMENTS] MediaSegments request failed", error);
+    return emptyBuckets();
   }
+};
+
+/** True when the failure means "this server has no such endpoint". */
+const isEndpointUnavailable = (error: unknown): boolean => {
+  const status = (error as { response?: { status?: number } })?.response
+    ?.status;
+  return status === 404 || status === 501;
 };
 
 /** Pre-10.11 fallback: third-party intro-skipper / chapter-credits plugin endpoints. */
