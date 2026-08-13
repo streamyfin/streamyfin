@@ -51,9 +51,8 @@ function TVTabLayout() {
   const router = useRouter();
 
   const currentTab = segments.find(isTabRoute);
-  // Widened to string: once expo-router has generated typed routes, the
-  // segment union no longer includes "index" and the comparison below is
-  // rejected as non-overlapping.
+  // The generated segment union varies with the route tree (TV vs mobile
+  // typegen), so compare as a plain string.
   const lastSegment: string = segments[segments.length - 1] ?? "";
   const atTabRoot = isTabRoute(lastSegment) || lastSegment === "index";
 

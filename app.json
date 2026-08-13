@@ -20,6 +20,8 @@
           "NSAllowsArbitraryLoads": true
         },
         "UISupportsTrueScreenSizeOnMac": true,
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true,
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
         "AVInitialRouteSharingPolicy": "LongFormAudio"
@@ -142,6 +144,7 @@
       ["./plugins/withGradleProperties.ts"],
       ["./plugins/withTVOSAppIcon.ts"],
       ["./plugins/withTVOSTopShelf.ts"],
+      ["./plugins/withDownloadLiveActivity.ts"],
       ["./plugins/withTVXcodeEnv.ts"],
       [
         "./plugins/withGitPod.ts",

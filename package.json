@@ -24,7 +24,8 @@
     "doctor": "expo-doctor",
     "i18n:check": "bun scripts/check-i18n-keys.ts",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
-    "test": "bun run typecheck && bun run lint && bun run format && bun run i18n:check && bun run doctor",
+    "test:unit": "bun test",
+    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
     "build:desktop": "cross-env EXPO_TV=0 expo export --platform web --output-dir dist-web",
     "desktop": "bun run build:desktop && cd desktop && bun run start",
     "desktop:dist:win": "bun run build:desktop && cd desktop && bun run dist:win",
@@ -38,7 +39,7 @@
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
     "@expo/metro-runtime": "~57.0.8",
     "@expo/react-native-action-sheet": "^4.1.1",
-    "@expo/ui": "57.0.7",
+    "@expo/ui": "57.0.10",
     "@expo/vector-icons": "^15.1.1",
     "@gorhom/bottom-sheet": "5.2.14",
     "@jellyfin/sdk": "^0.13.0",
@@ -66,6 +67,7 @@
     "expo-dev-client": "~57.0.7",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.1",
+    "expo-glass-effect": "~57.0.1",
     "expo-haptics": "~57.0.1",
     "expo-image": "~57.0.1",
     "expo-key-event": "^1.9.0",
@@ -79,6 +81,7 @@
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.6",
     "expo-splash-screen": "~57.0.4",
+    "expo-symbols": "~57.0.1",
     "expo-task-manager": "~57.0.5",
     "expo-web-browser": "~57.0.1",
     "hls.js": "^1.6.16",
@@ -99,11 +102,10 @@
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-edge-to-edge": "1.8.1",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-glass-effect-view": "^1.0.0",
     "react-native-google-cast": "^4.9.1",
     "react-native-image-colors": "2.6.0",
     "react-native-mmkv": "4.3.2",
-    "react-native-nitro-modules": "0.36.3",
+    "react-native-nitro-modules": "0.36.5",
     "react-native-pager-view": "8.0.4",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-reanimated": "4.5.3",
@@ -128,14 +130,14 @@
     "@biomejs/biome": "2.5.6",
     "@react-native-community/cli": "20.2.0",
     "@react-native-tvos/config-tv": "0.1.6",
-    "@types/lodash": "4.17.24",
-    "@types/node": "24.13.3",
+    "@types/lodash": "4.17.25",
+    "@types/node": "26.2.0",
     "@types/react": "19.2.17",
     "cross-env": "10.1.0",
     "expo-doctor": "1.20.1",
     "husky": "9.1.7",
-    "lint-staged": "17.2.0",
-    "tsx": "4.23.1",
+    "lint-staged": "17.3.0",
+    "tsx": "4.23.5",
     "typescript": "6.0.3"
   },
   "expo": {
@@ -176,7 +178,6 @@
     "unrs-resolver"
   ],
   "patchedDependencies": {
-    "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch",
-    "@expo/ui@57.0.7": "patches/@expo%2Fui@57.0.7.patch"
+    "react-native-udp@4.1.7": "patches/react-native-udp@4.1.7.patch"
   }
 }

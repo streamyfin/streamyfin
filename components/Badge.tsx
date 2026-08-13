@@ -1,7 +1,7 @@
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View, type ViewProps } from "react-native";
-import { GlassEffectView } from "react-native-glass-effect-view";
 import { useScaledTVTypography } from "@/constants/TVTypography";
+import { GlassSurface } from "./common/GlassSurface";
 import { Text } from "./common/Text";
 
 interface Props extends ViewProps {
@@ -35,9 +35,7 @@ export const Badge: React.FC<Props> = ({
   if (Platform.OS === "ios" && !Platform.isTV) {
     return (
       <View {...props} style={[styles.container, props.style]}>
-        <GlassEffectView style={{ borderRadius: 100 }}>
-          {content}
-        </GlassEffectView>
+        <GlassSurface style={{ borderRadius: 100 }}>{content}</GlassSurface>
       </View>
     );
   }

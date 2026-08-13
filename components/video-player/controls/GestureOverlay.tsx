@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Platform, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
+import { CONTROLS_CONSTANTS } from "./constants";
 import { useGestureDetection } from "./hooks/useGestureDetection";
 import { useVolumeAndBrightness } from "./hooks/useVolumeAndBrightness";
 
@@ -14,6 +15,10 @@ interface Props {
   onToggleControls: () => void;
   onSkipForward: () => void;
   onSkipBackward: () => void;
+  onHoldSpeedStart?: () => void;
+  onHoldSpeedEnd?: () => void;
+  isPlaying?: boolean;
+  videoTopOffset?: number;
 }
 
 interface FeedbackState {
@@ -21,7 +26,10 @@ interface FeedbackState {
   icon: string;
   text: string;
   side?: "left" | "right";
+  placement?: "center" | "top";
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export const GestureOverlay = ({
   screenWidth,
@@ -30,6 +38,10 @@ export const GestureOverlay = ({
   onToggleControls,
   onSkipForward,
   onSkipBackward,
+  onHoldSpeedStart,
+  onHoldSpeedEnd,
+  isPlaying = true,
+  videoTopOffset = 0,
 }: Props) => {
   const { settings } = useSettings();
   const lightHaptic = useHaptic("light");
@@ -40,7 +52,11 @@ export const GestureOverlay = ({
     text: "",
   });
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [scrimOpacity] = useState(
+    new Animated.Value(CONTROLS_CONSTANTS.CONTROLS_SCRIM_OPACITY),
+  );
   const isDraggingRef = useRef(false);
+  const isHoldSpeedActiveRef = useRef(false);
   const hideScheduledRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
   const lastUpdateTime = useRef(0);
@@ -51,9 +67,10 @@ export const GestureOverlay = ({
       text: string,
       side?: "left" | "right",
       isDuringDrag = false,
+      placement: "center" | "top" = "center",
     ) => {
       requestAnimationFrame(() => {
-        setFeedback({ visible: true, icon, text, side });
+        setFeedback({ visible: true, icon, text, side, placement });
 
         if (!isDuringDrag) {
           hideScheduledRef.current = false;
@@ -172,6 +189,57 @@ export const GestureOverlay = ({
     showFeedback,
   ]);
 
+  const handleHoldSpeedStart = useCallback(() => {
+    if (!settings.enableHoldToSpeed) return;
+    if (!isPlaying) return;
+    if (isHoldSpeedActiveRef.current) return;
+    isHoldSpeedActiveRef.current = true;
+    lightHaptic();
+    // Defer all actions to avoid useInsertionEffect warning
+    requestAnimationFrame(() => {
+      onHoldSpeedStart?.();
+      Animated.timing(scrimOpacity, {
+        toValue: CONTROLS_CONSTANTS.HOLD_SPEED_DIM_OPACITY,
+        duration: CONTROLS_CONSTANTS.HOLD_SPEED_DIM_DURATION,
+        useNativeDriver: true,
+      }).start();
+      showFeedback(
+        "play-forward",
+        `${settings.holdToSpeedRate}x`,
+        undefined,
+        true,
+        "top",
+      );
+    });
+  }, [
+    settings.enableHoldToSpeed,
+    settings.holdToSpeedRate,
+    isPlaying,
+    lightHaptic,
+    onHoldSpeedStart,
+    showFeedback,
+    scrimOpacity,
+  ]);
+
+  const handleHoldSpeedEnd = useCallback(() => {
+    if (!isHoldSpeedActiveRef.current) return;
+    isHoldSpeedActiveRef.current = false;
+    // Defer all actions to avoid useInsertionEffect warning
+    requestAnimationFrame(() => {
+      onHoldSpeedEnd?.();
+      Animated.timing(scrimOpacity, {
+        toValue: CONTROLS_CONSTANTS.CONTROLS_SCRIM_OPACITY,
+        duration: CONTROLS_CONSTANTS.HOLD_SPEED_DIM_DURATION,
+        useNativeDriver: true,
+      }).start();
+      hideDragFeedback();
+    });
+  }, [onHoldSpeedEnd, hideDragFeedback, scrimOpacity]);
+
+  // A hold must not survive the overlay being removed, since entering
+  // picture in picture unmounts the controls mid-gesture
+  useEffect(() => handleHoldSpeedEnd, [handleHoldSpeedEnd]);
+
   const handleVerticalDragStart = useCallback(
     (side: "left" | "right", startY: number) => {
       if (side === "left" && settings.enableLeftSideBrightnessSwipe) {
@@ -231,89 +299,112 @@ export const GestureOverlay = ({
     [endBrightnessDrag, endVolumeDrag, hideDragFeedback],
   );
 
-  const { handleTouchStart, handleTouchMove, handleTouchEnd } =
-    useGestureDetection({
-      onSwipeLeft: handleSkipBackward,
-      onSwipeRight: handleSkipForward,
-      onVerticalDragStart: handleVerticalDragStart,
-      onVerticalDragMove: handleVerticalDragMove,
-      onVerticalDragEnd: handleVerticalDragEnd,
-      onTap: onToggleControls,
-      screenWidth,
-      screenHeight,
-    });
+  // Wiring the long press only while enabled keeps a disabled setting from
+  // swallowing the tap, swipe and drag gestures
+  const holdSpeedEnabled = settings.enableHoldToSpeed;
 
-  // If controls are visible, act like the old tap overlay
-  if (showControls) {
-    return (
-      <Pressable
-        onPress={onToggleControls}
-        style={{
-          position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
-          backgroundColor: "black",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          opacity: 0.75,
-        }}
-      />
-    );
-  }
+  const {
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleTouchCancel,
+  } = useGestureDetection({
+    onSwipeLeft: handleSkipBackward,
+    onSwipeRight: handleSkipForward,
+    onVerticalDragStart: handleVerticalDragStart,
+    onVerticalDragMove: handleVerticalDragMove,
+    onVerticalDragEnd: handleVerticalDragEnd,
+    onTap: onToggleControls,
+    onLongPressStart: holdSpeedEnabled ? handleHoldSpeedStart : undefined,
+    onLongPressEnd: holdSpeedEnabled ? handleHoldSpeedEnd : undefined,
+    longPressDuration: CONTROLS_CONSTANTS.HOLD_SPEED_DELAY,
+    screenWidth,
+    screenHeight,
+  });
+
+  const isTopFeedback = feedback.placement === "top";
 
   return (
     <>
-      {/* Gesture detection area.
-          The touch handlers are what drive swipe-to-seek and the brightness /
-          volume drags, but a mouse never fires them, so on desktop a click
-          with the controls hidden had nothing to land on and they could not be
-          brought back. Mouse movement is handled in Controls, at the window. */}
-      <Pressable
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onPress={Platform.OS === "web" ? onToggleControls : undefined}
-        style={{
-          position: "absolute",
-          width: screenWidth,
-          height: screenHeight,
-          backgroundColor: "transparent",
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-        }}
-      />
+      {/* Gesture detection area */}
+      {showControls ? (
+        // Controls are visible, so this acts like the old tap overlay. Long
+        // press uses Pressable directly because the swipe and drag gestures
+        // are not active here
+        <AnimatedPressable
+          onPress={onToggleControls}
+          onLongPress={holdSpeedEnabled ? handleHoldSpeedStart : undefined}
+          onPressOut={holdSpeedEnabled ? handleHoldSpeedEnd : undefined}
+          delayLongPress={CONTROLS_CONSTANTS.HOLD_SPEED_DELAY}
+          style={{
+            position: "absolute",
+            width: screenWidth,
+            height: screenHeight,
+            backgroundColor: "black",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            opacity: scrimOpacity,
+          }}
+        />
+      ) : (
+        <Pressable
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          // A cancelled touch (backgrounding, a system gesture) never
+          // delivers touchEnd, which would leave the hold engaged
+          onTouchCancel={handleTouchCancel}
+          // The touch handlers above never fire for a mouse, so on desktop a
+          // click with the controls hidden had nothing to land on and they
+          // could not be brought back. Mouse movement is handled in Controls.
+          onPress={Platform.OS === "web" ? onToggleControls : undefined}
+          style={{
+            position: "absolute",
+            width: screenWidth,
+            height: screenHeight,
+            backgroundColor: "transparent",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+          }}
+        />
+      )}
 
       {/* Feedback overlay */}
       {feedback.visible && (
         <Animated.View
           style={{
             position: "absolute",
-            top: "50%",
-            left:
-              feedback.side === "left"
+            top: isTopFeedback ? videoTopOffset + 6 : "50%",
+            left: isTopFeedback
+              ? "50%"
+              : feedback.side === "left"
                 ? "20%"
                 : feedback.side === "right"
                   ? "80%"
                   : "50%",
-            transform: [
-              { translateY: -25 },
-              {
-                translateX:
-                  feedback.side === "right"
-                    ? -50
-                    : feedback.side === "left"
-                      ? 0
-                      : -50,
-              },
-            ],
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 8,
+            transform: isTopFeedback
+              ? [{ translateX: "-50%" }]
+              : [
+                  { translateY: -25 },
+                  {
+                    translateX:
+                      feedback.side === "right"
+                        ? -50
+                        : feedback.side === "left"
+                          ? 0
+                          : -50,
+                  },
+                ],
+            backgroundColor: isTopFeedback
+              ? "rgba(0, 0, 0, 0.5)"
+              : "rgba(0, 0, 0, 0.8)",
+            paddingHorizontal: isTopFeedback ? 10 : 16,
+            paddingVertical: isTopFeedback ? 5 : 12,
+            borderRadius: isTopFeedback ? 6 : 8,
             flexDirection: "row",
             alignItems: "center",
             opacity: fadeAnim,
@@ -322,11 +413,17 @@ export const GestureOverlay = ({
         >
           <Ionicons
             name={feedback.icon as any}
-            size={24}
+            size={isTopFeedback ? 14 : 24}
             color='white'
-            style={{ marginRight: 8 }}
+            style={{ marginRight: isTopFeedback ? 5 : 8 }}
           />
-          <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
+          <Text
+            style={{
+              color: "white",
+              fontSize: isTopFeedback ? 13 : 16,
+              fontWeight: "600",
+            }}
+          >
             {feedback.text}
           </Text>
         </Animated.View>

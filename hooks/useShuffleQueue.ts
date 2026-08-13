@@ -1,7 +1,7 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client/models";
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
-import useRouter from "@/hooks/useAppRouter";
+import { usePlayMedia } from "@/hooks/usePlayMedia";
 import { useSettings } from "@/utils/atoms/settings";
 import { shuffleQueueAtom } from "@/utils/atoms/shuffleQueue";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
@@ -22,7 +22,7 @@ interface StartShuffleOptions {
  * (non-shuffle) play paths so a stale queue can't hijack a later playback.
  */
 export const useShuffleQueue = () => {
-  const router = useRouter();
+  const playMedia = usePlayMedia();
   const { settings } = useSettings();
   const setShuffleQueue = useSetAtom(shuffleQueueAtom);
 
@@ -45,24 +45,23 @@ export const useShuffleQueue = () => {
 
       const first = items[0];
       const { mediaSource, audioIndex, subtitleIndex, bitrate } =
-        getDefaultPlaySettings(first, settings, undefined, {
-          applyLanguagePreferences: true,
-        });
+        getDefaultPlaySettings(first, settings);
 
-      const queryParams = new URLSearchParams({
-        itemId: first.Id ?? "",
-        audioIndex: audioIndex?.toString() ?? "",
-        subtitleIndex: subtitleIndex?.toString() ?? "",
-        mediaSourceId: mediaSource?.Id ?? "",
-        bitrateValue: bitrate?.value?.toString() ?? "",
-        playbackPosition:
-          first.UserData?.PlaybackPositionTicks?.toString() ?? "0",
-        offline: options.isOffline ? "true" : "false",
-      });
-
-      router.push(`/player/direct-player?${queryParams.toString()}`);
+      // The queue was just set — the chooser must not clear it.
+      void playMedia(
+        {
+          itemId: first.Id ?? "",
+          audioIndex,
+          subtitleIndex,
+          mediaSourceId: mediaSource?.Id ?? undefined,
+          bitrateValue: bitrate?.value,
+          offline: options.isOffline ?? false,
+          playbackPositionTicks: first.UserData?.PlaybackPositionTicks ?? 0,
+        },
+        { preserveShuffleQueue: true, item: first },
+      );
     },
-    [router, settings, setShuffleQueue],
+    [playMedia, settings, setShuffleQueue],
   );
 
   return { startShuffle, clearShuffleQueue };

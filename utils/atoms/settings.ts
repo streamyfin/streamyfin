@@ -15,6 +15,11 @@ import * as ScreenOrientation from "@/packages/expo-screen-orientation";
 import { apiAtom } from "@/providers/JellyfinProvider";
 import { writeInfoLog } from "@/utils/log";
 import { storage } from "../mmkv";
+import {
+  type AppliedPluginDefaults,
+  pendingPluginDefaults,
+  resolveEffectiveSettings,
+} from "./settingsOverrides";
 
 const _STREAMYFIN_PLUGIN_ID = "1e9e5d386e6746158719e98a5c34f004";
 const STREAMYFIN_PLUGIN_SETTINGS = "STREAMYFIN_PLUGIN_SETTINGS";
@@ -173,9 +178,11 @@ export type HomeSectionLatestResolver = {
 
 // Video player enum. MPV is the universal default; ExoPlayer is an
 // opt-in alternative on Android TV, selectable via settings.videoPlayer.
+// Native is the fully-native iOS player (iPhone only).
 export enum VideoPlayer {
   MPV = 0,
   ExoPlayer = 1,
+  Native = 2,
 }
 
 /**
@@ -188,19 +195,57 @@ export const isExoPlayerSupported =
   Platform.OS === "android" && Platform.isTV === true;
 
 /**
+ * Whether the fully-native iOS player is available on the current platform.
+ * It only ships for iPhone/iPad (not TV); a persisted `videoPlayer: Native`
+ * preference roaming to another platform must fall back to MPV.
+ */
+export const isNativePlayerSupported =
+  Platform.OS === "ios" && Platform.isTV !== true;
+
+/**
+ * Whether the fully-native player can run on the current platform as the
+ * Apple TV variant. Like iPhone/iPad it is the default, with the
+ * `nativeVideoPlayerTV` setting as the opt-out, and it requires tvOS 26+ —
+ * the chrome is built on native glass Menus and other 26-era APIs, so older
+ * boxes keep the JS player unconditionally.
+ */
+export const isNativePlayerSupportedTV =
+  Platform.OS === "ios" &&
+  Platform.isTV === true &&
+  Number.parseInt(String(Platform.Version), 10) >= 26;
+
+/**
  * Resolve the actually-active video player for the current settings.
- * MPV is the default on every platform; users can opt into ExoPlayer on
- * Android TV via settings.videoPlayer. The Android-TV capability gate is
+ * MPV is the default on Android; users can opt into ExoPlayer on
+ * Android TV via settings.videoPlayer. On iPhone/iPad the fully-native
+ * player is the default: an unset `videoPlayer` (user never chose) or an
+ * explicit `Native` selection resolves to Native, while an explicit MPV
+ * choice is the opt-out and wins. On Apple TV (tvOS 26+) the native player
+ * is likewise the default, with the separate `nativeVideoPlayerTV` toggle
+ * as the opt-out. The platform capability gates are
  * folded in here so callers (VideoPlayerView, direct-player's device
- * profile, PlaySettingsProvider) can never advertise ExoPlayer on a
- * platform where MPV is actually rendering — that mismatch would let
- * Jellyfin pick a stream for the wrong renderer.
+ * profile, PlaySettingsProvider) can never advertise a player on a
+ * platform where another one is actually rendering — that mismatch would
+ * let Jellyfin pick a stream for the wrong renderer.
  */
 export const getActiveVideoPlayer = (
-  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+  settings:
+    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | null
+    | undefined,
 ): VideoPlayer => {
   if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
     return VideoPlayer.ExoPlayer;
+  }
+  if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV !== false) {
+    return VideoPlayer.Native;
+  }
+  if (
+    isNativePlayerSupported &&
+    (settings?.videoPlayer === undefined ||
+      settings?.videoPlayer === VideoPlayer.Native)
+  ) {
+    return VideoPlayer.Native;
   }
   return VideoPlayer.MPV;
 };
@@ -210,8 +255,13 @@ export const getActiveVideoPlayer = (
  * player-type identifier that `generateDeviceProfile` expects.
  */
 export const getActivePlayerType = (
-  settings: Pick<Settings, "videoPlayer"> | null | undefined,
+  settings:
+    | Partial<Pick<Settings, "videoPlayer" | "nativeVideoPlayerTV">>
+    | null
+    | undefined,
 ): "mpv" | "exoplayer" => {
+  // The Native player intentionally advertises the mpv device profile
+  // (it uses the MPV engine).
   return getActiveVideoPlayer(settings) === VideoPlayer.ExoPlayer
     ? "exoplayer"
     : "mpv";
@@ -267,6 +317,8 @@ export type Settings = {
   streamyStatsSeriesRecommendations?: boolean;
   streamyStatsPromotedWatchlists?: boolean;
   downloadQuality?: DownloadOption;
+  /** iOS only: show a Lock Screen / Dynamic Island Live Activity while a download runs. */
+  showDownloadLiveActivity: boolean;
   defaultBitrate?: Bitrate;
   libraryOptions: LibraryOptions;
   defaultAudioLanguage: CultureDto | null;
@@ -275,6 +327,8 @@ export type Settings = {
   defaultSubtitleLanguage: CultureDto | null;
   subtitleMode: SubtitlePlaybackMode;
   rememberSubtitleSelections: boolean;
+  /** Native player: auto-enable a text subtitle while the volume is at zero. */
+  subtitlesOnMute: boolean;
   showHomeTitles: boolean;
   defaultVideoOrientation: (typeof ScreenOrientation.OrientationLock)[keyof typeof ScreenOrientation.OrientationLock];
   forwardSkipTime: number;
@@ -290,6 +344,8 @@ export type Settings = {
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
+  /** Ask whether to resume or start over when playing an in-progress item. */
+  showResumeDialog: boolean;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -313,6 +369,10 @@ export type Settings = {
   enableHorizontalSwipeSkip: boolean;
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
+  enableHoldToSpeed: boolean;
+  holdToSpeedRate: number;
+  enablePinchToZoom: boolean;
+  enableDoubleTapToSeek: boolean;
   hideVolumeSlider: boolean;
   hideBrightnessSlider: boolean;
   usePopularPlugin: boolean;
@@ -321,6 +381,8 @@ export type Settings = {
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
+  /** Apple TV only: use the fully-native tvOS player (default on; needs tvOS 26+). */
+  nativeVideoPlayerTV: boolean;
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
   tvTypographyScale: TVTypographyScale;
@@ -337,6 +399,10 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // Optional third-party lookups. Both call a service directly from the client
+  // rather than through Jellyfin, so each can be turned off on its own.
+  wikidataAwardsEnabled: boolean;
+  openSubtitlesEnabled: boolean;
   // OpenSubtitles API key for client-side subtitle fetching
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
@@ -369,6 +435,7 @@ export const defaultValues: Settings = {
   streamyStatsSeriesRecommendations: false,
   streamyStatsPromotedWatchlists: false,
   downloadQuality: DownloadOptions[0],
+  showDownloadLiveActivity: true,
   defaultBitrate: BITRATES[0],
   libraryOptions: {
     display: "list",
@@ -383,6 +450,7 @@ export const defaultValues: Settings = {
   defaultSubtitleLanguage: null,
   subtitleMode: SubtitlePlaybackMode.Default,
   rememberSubtitleSelections: true,
+  subtitlesOnMute: false,
   showHomeTitles: true,
   defaultVideoOrientation: ScreenOrientation.OrientationLock.DEFAULT,
   forwardSkipTime: 30,
@@ -398,6 +466,7 @@ export const defaultValues: Settings = {
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
+  showResumeDialog: true,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
@@ -426,12 +495,17 @@ export const defaultValues: Settings = {
   enableHorizontalSwipeSkip: true,
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
+  enableHoldToSpeed: true,
+  holdToSpeedRate: 2.0,
+  enablePinchToZoom: true,
+  enableDoubleTapToSeek: false,
   hideVolumeSlider: false,
   hideBrightnessSlider: false,
   usePopularPlugin: true,
   mergeNextUpAndContinueWatching: false,
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
+  nativeVideoPlayerTV: true,
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,
@@ -448,6 +522,9 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // Optional third-party lookups
+  wikidataAwardsEnabled: true,
+  openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
 };
@@ -495,8 +572,15 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
-const hasMeaningfulSettingValue = (value: unknown) =>
-  value !== undefined && value !== null && value !== "";
+const PLUGIN_APPLIED_DEFAULTS = "STREAMYFIN_PLUGIN_APPLIED_DEFAULTS";
+
+const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
+  try {
+    return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
+  } catch {
+    return {};
+  }
+};
 
 export const useSettings = () => {
   const api = useAtomValue(apiAtom);
@@ -531,19 +615,34 @@ export const useSettings = () => {
     );
     setPluginSettings(newPluginSettings);
 
-    // Locked/unlocked values are handled by the settings memo, which
-    // applies locked values at runtime without overwriting user storage.
-    // We only handle auto-enabling Streamystats here.
+    // Locked values are pinned at read time by resolveEffectiveSettings and
+    // never written to storage. Unlocked values are only the admin's *default*,
+    // so they are seeded into storage once here — after which the setting
+    // behaves like any other and the user's choice sticks.
     if (newPluginSettings && _settings) {
+      const applied = loadAppliedPluginDefaults();
+      const pending = pendingPluginDefaults(
+        newPluginSettings,
+        applied,
+        normalizePluginValue,
+      );
+
       const streamyStatsUrl = newPluginSettings.streamyStatsServerUrl;
-      if (streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats") {
+      const enableStreamystats =
+        streamyStatsUrl?.value && _settings.searchEngine !== "Streamystats";
+
+      if (Object.keys(pending).length > 0 || enableStreamystats) {
         const newSettings = {
           ...defaultValues,
           ..._settings,
-          searchEngine: "Streamystats",
+          ...pending,
+          ...(enableStreamystats ? { searchEngine: "Streamystats" } : {}),
         } as Settings;
         setSettings(newSettings);
         saveSettings(newSettings);
+        if (Object.keys(pending).length > 0) {
+          storage.setAny(PLUGIN_APPLIED_DEFAULTS, { ...applied, ...pending });
+        }
       }
     }
 
@@ -580,50 +679,16 @@ export const useSettings = () => {
     }
   };
 
-  // We do not want to save over users pre-existing settings in case admin ever removes/unlocks a setting.
-  // If admin sets locked to false but provides a value,
-  // use persisted settings first, then app defaults, and only fallback on the
-  // plugin value when neither provides a meaningful value.
-  const settings: Settings = useMemo(() => {
-    const overrideSettings = Object.entries(pluginSettings ?? {}).reduce<
-      Partial<Settings>
-    >((acc, [key, setting]) => {
-      if (setting) {
-        let { value } = setting;
-        const { locked } = setting;
-        const settingsKey = key as keyof Settings;
-
-        // Normalize object-typed settings from plugin (plain primitive → { key, value })
-        value = normalizePluginValue(settingsKey, value);
-
-        // When unlocked, keep the user's value only if they explicitly diverged
-        // from the app default. Otherwise the plugin value is the admin's
-        // default and must win over the hardcoded app default — e.g. a toggle
-        // that was always locked then unlocked should reflect the plugin
-        // default, not the app's `false`. Object-typed settings compare by
-        // reference, so their behaviour is unchanged.
-        const userValue = _settings?.[settingsKey];
-        const userDiverged =
-          hasMeaningfulSettingValue(userValue) &&
-          userValue !== defaultValues[settingsKey];
-
-        (acc as any)[settingsKey] = locked
-          ? value
-          : userDiverged
-            ? userValue
-            : hasMeaningfulSettingValue(value)
-              ? value
-              : defaultValues[settingsKey];
-      }
-      return acc;
-    }, {});
-
-    return {
-      ...defaultValues,
-      ..._settings,
-      ...overrideSettings,
-    };
-  }, [_settings, pluginSettings]);
+  const settings: Settings = useMemo(
+    () =>
+      resolveEffectiveSettings(
+        _settings,
+        pluginSettings,
+        defaultValues,
+        normalizePluginValue,
+      ),
+    [_settings, pluginSettings],
+  );
 
   return {
     settings,

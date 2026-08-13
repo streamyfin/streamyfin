@@ -2,6 +2,7 @@ import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import type { FC } from "react";
 import { useCallback, useRef } from "react";
 import { View, type ViewProps } from "react-native";
+import { HeaderIcon } from "@/components/common/HeaderIcon";
 import { RoundButton } from "@/components/RoundButton";
 import {
   WatchlistSheet,
@@ -32,11 +33,9 @@ export const AddToWatchlist: FC<Props> = ({ item, ...props }) => {
 
   return (
     <View {...props}>
-      <RoundButton
-        size='large'
-        icon={isInAnyWatchlist ? "list" : "list-outline"}
-        onPress={handlePress}
-      />
+      <RoundButton size='large' onPress={handlePress}>
+        <HeaderIcon name={isInAnyWatchlist ? "watchlisted" : "watchlist"} />
+      </RoundButton>
       <WatchlistSheet ref={sheetRef} />
     </View>
   );

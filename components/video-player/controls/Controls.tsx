@@ -5,7 +5,14 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client";
 import { useKeyEventListener } from "expo-key-event";
 import { useLocalSearchParams } from "expo-router";
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {
   Easing,
@@ -70,6 +77,8 @@ interface Props {
   // Playback speed props
   playbackSpeed?: number;
   setPlaybackSpeed?: (speed: number, scope: PlaybackSpeedScope) => void;
+  onHoldSpeedStart?: () => void;
+  onHoldSpeedEnd?: () => void;
   // Technical info props
   showTechnicalInfo?: boolean;
   onToggleTechnicalInfo?: () => void;
@@ -77,6 +86,18 @@ interface Props {
   playMethod?: "DirectPlay" | "DirectStream" | "Transcode";
   transcodeReasons?: string[];
 }
+
+const CONTROLS_ANIMATION_CONFIG = {
+  duration: 300,
+  easing: Easing.out(Easing.quad),
+};
+
+// Shares its duration with the scrim dim in GestureOverlay so both halves
+// of the speed boost dim together
+const HOLD_SPEED_DIM_CONFIG = {
+  duration: CONTROLS_CONSTANTS.HOLD_SPEED_DIM_DURATION,
+  easing: Easing.out(Easing.quad),
+};
 
 export const Controls: FC<Props> = ({
   item,
@@ -100,6 +121,8 @@ export const Controls: FC<Props> = ({
   downloadedFiles = undefined,
   playbackSpeed = 1.0,
   setPlaybackSpeed,
+  onHoldSpeedStart,
+  onHoldSpeedEnd,
   showTechnicalInfo = false,
   onToggleTechnicalInfo,
   getTechnicalInfo,
@@ -143,18 +166,51 @@ export const Controls: FC<Props> = ({
 
   // Animate controls visibility
   useEffect(() => {
-    const animationConfig = {
-      duration: 300,
-      easing: Easing.out(Easing.quad),
-    };
-
-    controlsOpacity.value = withTiming(showControls ? 1 : 0, animationConfig);
+    controlsOpacity.value = withTiming(
+      showControls ? 1 : 0,
+      CONTROLS_ANIMATION_CONFIG,
+    );
     headerTranslateY.value = withTiming(
       showControls ? 0 : -10,
-      animationConfig,
+      CONTROLS_ANIMATION_CONFIG,
     );
-    bottomTranslateY.value = withTiming(showControls ? 0 : 10, animationConfig);
+    bottomTranslateY.value = withTiming(
+      showControls ? 0 : 10,
+      CONTROLS_ANIMATION_CONFIG,
+    );
   }, [showControls, controlsOpacity, headerTranslateY, bottomTranslateY]);
+
+  // Dim the controls while a speed boost is held so the video stays readable
+  const handleHoldSpeedStart = useCallback(() => {
+    if (showControls) {
+      controlsOpacity.value = withTiming(
+        CONTROLS_CONSTANTS.HOLD_SPEED_DIM_OPACITY,
+        HOLD_SPEED_DIM_CONFIG,
+      );
+    }
+    onHoldSpeedStart?.();
+  }, [showControls, controlsOpacity, onHoldSpeedStart]);
+
+  const handleHoldSpeedEnd = useCallback(() => {
+    if (showControls) {
+      controlsOpacity.value = withTiming(1, HOLD_SPEED_DIM_CONFIG);
+    }
+    onHoldSpeedEnd?.();
+  }, [showControls, controlsOpacity, onHoldSpeedEnd]);
+
+  // Top edge of the rendered video, so overlays sit inside the frame
+  // instead of in the letterbox bars
+  const videoTopOffset = useMemo(() => {
+    if (isZoomedToFill) return 0;
+    const videoStream = mediaSource?.MediaStreams?.find(
+      (s) => s.Type === "Video",
+    );
+    if (!videoStream?.Width || !videoStream?.Height) return 0;
+    const videoAspect = videoStream.Width / videoStream.Height;
+    const screenAspect = screenWidth / screenHeight;
+    if (screenAspect >= videoAspect) return 0;
+    return (screenHeight - screenWidth / videoAspect) / 2;
+  }, [isZoomedToFill, mediaSource, screenWidth, screenHeight]);
 
   // Create animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => ({
@@ -402,6 +458,57 @@ export const Controls: FC<Props> = ({
     ((showSkipCreditButton && !hasContentAfterCredits) ||
       remainingTime < 10000);
 
+  // Autoplay would run at EOF but the episode cap stops it: ask "Still
+  // watching?" there instead, with playback paused — mirroring the native
+  // player's stillWatchingRequired flow. Gated on reaching the end so the
+  // prompt never covers a video that is still playing.
+  const stillWatchingRequired =
+    !!nextItem &&
+    settings.autoPlayNextEpisode !== false &&
+    settings.maxAutoPlayEpisodeCount.value !== -1 &&
+    settings.autoPlayEpisodeCount >= settings.maxAutoPlayEpisodeCount.value;
+
+  const [stillWatchingVisible, setStillWatchingVisible] = useState(false);
+  // The cap-hitting autoplay updates the episode count synchronously while
+  // currentTime/remainingTime still hold the outgoing episode's near-zero
+  // values (the next item loads async), so "at EOF" alone would fire the
+  // prompt over the incoming episode. Only a progress tick from mid-playback
+  // of the final episode itself arms the trigger.
+  const stillWatchingArmedRef = useRef(false);
+
+  // Reset after an in-place episode switch (setParams keeps Controls mounted).
+  useEffect(() => {
+    stillWatchingArmedRef.current = false;
+    setStillWatchingVisible(false);
+  }, [item.Id]);
+
+  useEffect(() => {
+    if (!stillWatchingRequired || stillWatchingVisible || maxMs <= 0) {
+      return;
+    }
+    if (
+      currentTime > 0 &&
+      remainingTime > CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
+    ) {
+      stillWatchingArmedRef.current = true;
+      return;
+    }
+    if (
+      stillWatchingArmedRef.current &&
+      remainingTime <= CONTROLS_CONSTANTS.STILL_WATCHING_EOF_WINDOW_MS
+    ) {
+      setStillWatchingVisible(true);
+      pause();
+    }
+  }, [
+    stillWatchingVisible,
+    stillWatchingRequired,
+    maxMs,
+    currentTime,
+    remainingTime,
+    pause,
+  ]);
+
   const goToItemCommon = useCallback(
     (item: BaseItemDto) => {
       if (!item || !settings) {
@@ -419,15 +526,10 @@ export const Controls: FC<Props> = ({
         mediaSource: newMediaSource,
         audioIndex: defaultAudioIndex,
         subtitleIndex: defaultSubtitleIndex,
-      } = getDefaultPlaySettings(
-        item,
-        settings,
-        {
-          indexes: previousIndexes,
-          source: mediaSource ?? undefined,
-        },
-        { applyLanguagePreferences: true },
-      );
+      } = getDefaultPlaySettings(item, settings, {
+        indexes: previousIndexes,
+        source: mediaSource ?? undefined,
+      });
 
       // Use setParams instead of replace to avoid unmounting/remounting the player,
       // which would create a new MPV native view and crash with "mp_initialize already initialized".
@@ -566,6 +668,10 @@ export const Controls: FC<Props> = ({
             onToggleControls={toggleControls}
             onSkipForward={handleSkipForward}
             onSkipBackward={handleSkipBackward}
+            onHoldSpeedStart={handleHoldSpeedStart}
+            onHoldSpeedEnd={handleHoldSpeedEnd}
+            isPlaying={isPlaying}
+            videoTopOffset={videoTopOffset}
           />
           {/* Technical Info Overlay - rendered outside animated views to stay visible */}
           {getTechnicalInfo && (
@@ -669,7 +775,7 @@ export const Controls: FC<Props> = ({
           />
         </>
       )}
-      {settings.maxAutoPlayEpisodeCount.value !== -1 && (
+      {stillWatchingVisible && (
         <ContinueWatchingOverlay goToNextItem={handleContinueWatching} />
       )}
     </View>

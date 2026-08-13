@@ -4,8 +4,10 @@ import { AudioToggles } from "@/components/settings/AudioToggles";
 import { MediaProvider } from "@/components/settings/MediaContext";
 import { MpvSubtitleSettings } from "@/components/settings/MpvSubtitleSettings";
 import { SubtitleToggles } from "@/components/settings/SubtitleToggles";
+import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
 
 export default function AudioSubtitlesPage() {
+  useDismissKeyboardOnLeave();
   const insets = useSafeAreaInsets();
 
   return (
