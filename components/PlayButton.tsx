@@ -430,8 +430,13 @@ export const PlayButton: React.FC<Props> = ({
     lightHapticFeedback();
 
     // Same prompt the TV item page shows: an in-progress item asks whether
-    // to resume or restart instead of silently resuming.
+    // to resume or restart instead of silently resuming. Users can turn the
+    // prompt off in settings, in which case playback resumes right away.
     const progressTicks = item.UserData?.PlaybackPositionTicks ?? 0;
+    if (progressTicks > 0 && !settings.showResumeDialog) {
+      void startPlayback(progressTicks);
+      return;
+    }
     if (progressTicks > 0) {
       Alert.alert(
         t("item_card.resume_playback"),
@@ -458,7 +463,7 @@ export const PlayButton: React.FC<Props> = ({
     }
 
     void startPlayback(0);
-  }, [item, lightHapticFeedback, startPlayback, t]);
+  }, [item, lightHapticFeedback, startPlayback, t, settings.showResumeDialog]);
 
   const derivedTargetWidth = useDerivedValue(() => {
     if (!item?.RunTimeTicks) return 0;

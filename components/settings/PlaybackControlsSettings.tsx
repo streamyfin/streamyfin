@@ -216,6 +216,19 @@ export const PlaybackControlsSettings: React.FC = () => {
         </ListItem>
 
         <ListItem
+          title={t("home.settings.other.resume_dialog")}
+          disabled={pluginSettings?.showResumeDialog?.locked}
+        >
+          <SettingSwitch
+            value={settings.showResumeDialog}
+            disabled={pluginSettings?.showResumeDialog?.locked}
+            onValueChange={(showResumeDialog) =>
+              updateSettings({ showResumeDialog })
+            }
+          />
+        </ListItem>
+
+        <ListItem
           title={t("home.settings.other.auto_play_next_episode")}
           disabled={pluginSettings?.autoPlayNextEpisode?.locked}
         >
