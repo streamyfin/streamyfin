@@ -178,7 +178,7 @@ export type HomeSectionLatestResolver = {
 
 // Video player enum. MPV is the universal default; ExoPlayer is an
 // opt-in alternative on Android TV, selectable via settings.videoPlayer.
-// Native is the fully-native iOS player (iPhone only).
+// Native is the fully-native player (iOS and Android phone/tablet).
 export enum VideoPlayer {
   MPV = 0,
   ExoPlayer = 1,
@@ -195,12 +195,13 @@ export const isExoPlayerSupported =
   Platform.OS === "android" && Platform.isTV === true;
 
 /**
- * Whether the fully-native iOS player is available on the current platform.
- * It only ships for iPhone/iPad (not TV); a persisted `videoPlayer: Native`
- * preference roaming to another platform must fall back to MPV.
+ * Whether the fully-native player is available on the current platform.
+ * It ships for iPhone/iPad and Android mobile/tablet (not TV); on iOS it is
+ * the default, on Android it is currently opt-in via settings.
  */
 export const isNativePlayerSupported =
-  Platform.OS === "ios" && Platform.isTV !== true;
+  (Platform.OS === "ios" || Platform.OS === "android") &&
+  Platform.isTV !== true;
 
 /**
  * Whether the fully-native player can run on the current platform as the
@@ -217,12 +218,12 @@ export const isNativePlayerSupportedTV =
 /**
  * Resolve the actually-active video player for the current settings.
  * MPV is the default on Android; users can opt into ExoPlayer on
- * Android TV via settings.videoPlayer. On iPhone/iPad the fully-native
- * player is the default: an unset `videoPlayer` (user never chose) or an
- * explicit `Native` selection resolves to Native, while an explicit MPV
- * choice is the opt-out and wins. On Apple TV (tvOS 26+) the native player
- * is likewise the default, with the separate `nativeVideoPlayerTV` toggle
- * as the opt-out. The platform capability gates are
+ * Android TV or the Native player on Android mobile via settings.videoPlayer.
+ * On iPhone/iPad the fully-native player is the default: an unset `videoPlayer`
+ * (user never chose) or an explicit `Native` selection resolves to Native,
+ * while an explicit MPV choice is the opt-out and wins. On Apple TV (tvOS 26+)
+ * the native player is likewise the default, with the separate
+ * `nativeVideoPlayerTV` toggle as the opt-out. The platform capability gates are
  * folded in here so callers (VideoPlayerView, direct-player's device
  * profile, PlaySettingsProvider) can never advertise a player on a
  * platform where another one is actually rendering — that mismatch would
@@ -242,7 +243,7 @@ export const getActiveVideoPlayer = (
   }
   if (
     isNativePlayerSupported &&
-    (settings?.videoPlayer === undefined ||
+    ((Platform.OS === "ios" && settings?.videoPlayer === undefined) ||
       settings?.videoPlayer === VideoPlayer.Native)
   ) {
     return VideoPlayer.Native;

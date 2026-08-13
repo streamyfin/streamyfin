@@ -228,7 +228,7 @@
         "mpv": "MPV",
         "native": "Native (recommended)",
         "classic": "Classic",
-        "native_note": "Both options use the same MPV engine, this only changes the player controls. The native player uses iOS system controls and opens instantly. Switch back if you run into playback issues.",
+        "native_note": "Both options use the same MPV engine, this only changes the player controls. The native player uses native system controls and opens instantly. Switch back if you run into playback issues.",
         "exoplayer_note": "ExoPlayer does not support advanced ASS/SSA subtitle styling or horizontal subtitle alignment. Switch to MPV if you need those.",
         "mpv_note": "MPV on TV does not currently pass HDR metadata to the display, so HDR10/HDR10+ content is tone-mapped to SDR. Switch to ExoPlayer for HDR output.",
         "native_tv": "Native player (experimental)",
