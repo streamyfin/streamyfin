@@ -1052,14 +1052,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 		}
 	}
 
-	/// Human name of a segment type, used in the "… skipped" notice.
-	private func segmentName(for type: String) -> String {
+	/// "… skipped" notice for a segment type. Whole sentences rather than a
+	/// template: the agreement follows the noun, so only the translator can
+	/// write them.
+	private func skippedNotice(for type: String) -> String {
 		switch type {
-		case "Outro": return str("segmentOutro", "Outro")
-		case "Recap": return str("segmentRecap", "Recap")
-		case "Commercial": return str("segmentCommercial", "Commercial")
-		case "Preview": return str("segmentPreview", "Preview")
-		default: return str("segmentIntro", "Intro")
+		case "Outro": return str("segmentSkippedOutro", "Credits skipped")
+		case "Recap": return str("segmentSkippedRecap", "Recap skipped")
+		case "Commercial": return str("segmentSkippedCommercial", "Commercial skipped")
+		case "Preview": return str("segmentSkippedPreview", "Preview skipped")
+		default: return str("segmentSkippedIntro", "Intro skipped")
 		}
 	}
 
@@ -1086,11 +1088,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	}
 
 	private func showSkippedNotice(for type: String) {
-		let template = str("segmentSkipped", "%SEGMENT% skipped")
-		skippedSegmentNotice = template.replacingOccurrences(
-			of: "%SEGMENT%",
-			with: segmentName(for: type)
-		)
+		skippedSegmentNotice = skippedNotice(for: type)
 		noticeDismissTask?.cancel()
 		noticeDismissTask = Task { @MainActor [weak self] in
 			try? await Task.sleep(nanoseconds: 3_000_000_000)

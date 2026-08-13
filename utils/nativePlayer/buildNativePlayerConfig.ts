@@ -35,7 +35,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
-import { SEGMENT_NAME_KEY, type SegmentTypeName } from "@/utils/segments";
+import { SEGMENT_SKIP_KEY, SEGMENT_SKIPPED_KEY } from "@/utils/segments";
 import { buildSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
 import {
   buildAudioMenu,
@@ -71,27 +71,22 @@ export interface NativePlayerSessionSeed {
   playMethod: PlayMethod;
 }
 
-/** "Skip Intro", "Skip Outro", … built the way jellyfin-web builds them. */
-const skipPrompt = (t: TFunction, type: SegmentTypeName): string =>
-  t("player.segment_skip_prompt", { segment: t(SEGMENT_NAME_KEY[type]) });
-
 /** Localized labels for the native UI, built once per present. */
 export const buildNativePlayerStrings = (
   t: TFunction,
 ): NativePlayerStrings => ({
-  skipIntro: skipPrompt(t, "Intro"),
-  skipCredits: skipPrompt(t, "Outro"),
-  skipRecap: skipPrompt(t, "Recap"),
-  skipCommercial: skipPrompt(t, "Commercial"),
-  skipPreview: skipPrompt(t, "Preview"),
-  // The native side substitutes %SEGMENT%, matching how it handles %TIME%
-  // and %TITLE% elsewhere in this table.
-  segmentSkipped: t("player.segment_skipped", { segment: "%SEGMENT%" }),
-  segmentIntro: t("player.segment_intro"),
-  segmentOutro: t("player.segment_outro"),
-  segmentRecap: t("player.segment_recap"),
-  segmentCommercial: t("player.segment_commercial"),
-  segmentPreview: t("player.segment_preview"),
+  skipIntro: t(SEGMENT_SKIP_KEY.Intro),
+  skipCredits: t(SEGMENT_SKIP_KEY.Outro),
+  skipRecap: t(SEGMENT_SKIP_KEY.Recap),
+  skipCommercial: t(SEGMENT_SKIP_KEY.Commercial),
+  skipPreview: t(SEGMENT_SKIP_KEY.Preview),
+  // Whole sentences rather than a "%SEGMENT% skipped" template: the agreement
+  // follows the noun, so only the translator can write them.
+  segmentSkippedIntro: t(SEGMENT_SKIPPED_KEY.Intro),
+  segmentSkippedOutro: t(SEGMENT_SKIPPED_KEY.Outro),
+  segmentSkippedRecap: t(SEGMENT_SKIPPED_KEY.Recap),
+  segmentSkippedCommercial: t(SEGMENT_SKIPPED_KEY.Commercial),
+  segmentSkippedPreview: t(SEGMENT_SKIPPED_KEY.Preview),
   nextEpisode: t("player.next_episode"),
   playNow: t("common.play"),
   cancel: t("common.cancel"),

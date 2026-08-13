@@ -15,20 +15,31 @@ export interface SegmentBuckets {
 }
 
 /**
- * Display name per segment type, mirroring jellyfin-web's `MediaSegmentType.*`
- * strings. Every player builds its button from these plus
- * `player.segment_skip_prompt` ("Skip {{segment}}"), the same way jellyfin-web
- * composes `MediaSegmentSkipPrompt`, so no player invents its own wording.
+ * Skip-button label per segment type, shared by every player so none of them
+ * invents its own wording.
+ *
+ * One whole key per type rather than a "Skip {{type}}" template: the article
+ * and the agreement change with the noun, so a template cannot be translated
+ * correctly ("Passer l'intro" but "Passer le générique").
  */
-export const SEGMENT_NAME_KEY = {
-  Intro: "player.segment_intro",
-  Outro: "player.segment_outro",
-  Recap: "player.segment_recap",
-  Commercial: "player.segment_commercial",
-  Preview: "player.segment_preview",
+export const SEGMENT_SKIP_KEY = {
+  Intro: "player.skip_intro",
+  Outro: "player.skip_credits",
+  Recap: "player.skip_recap",
+  Commercial: "player.skip_commercial",
+  Preview: "player.skip_preview",
 } as const satisfies Record<string, string>;
 
-export type SegmentTypeName = keyof typeof SEGMENT_NAME_KEY;
+/** "… skipped" notice per segment type. Whole sentences, for the same reason. */
+export const SEGMENT_SKIPPED_KEY = {
+  Intro: "player.segment_skipped_intro",
+  Outro: "player.segment_skipped_outro",
+  Recap: "player.segment_skipped_recap",
+  Commercial: "player.segment_skipped_commercial",
+  Preview: "player.segment_skipped_preview",
+} as const satisfies Record<string, string>;
+
+export type SegmentTypeName = keyof typeof SEGMENT_SKIP_KEY;
 
 /**
  * Shape returned by the intro-skipper plugin's `GET /Episode/{id}/Timestamps`

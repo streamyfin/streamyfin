@@ -17,7 +17,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
 import { scaleSize } from "@/utils/scaleSize";
-import { SEGMENT_NAME_KEY, type SegmentTypeName } from "@/utils/segments";
+import { SEGMENT_SKIP_KEY, type SegmentTypeName } from "@/utils/segments";
 import { useTVFocusAnimation } from "./hooks/useTVFocusAnimation";
 
 export type TVSkipSegmentType =
@@ -98,9 +98,7 @@ export const TVSkipSegmentCard: FC<TVSkipSegmentCardProps> = ({
     bottom: bottomPosition.value,
   }));
 
-  const labelText = t("player.segment_skip_prompt", {
-    segment: t(SEGMENT_NAME_KEY[SEGMENT_NAME_BY_CARD_TYPE[type]]),
-  });
+  const labelText = t(SEGMENT_SKIP_KEY[SEGMENT_NAME_BY_CARD_TYPE[type]]);
 
   if (!show) return null;
 

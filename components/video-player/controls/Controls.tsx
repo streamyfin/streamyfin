@@ -28,7 +28,6 @@ import useRouter from "@/hooks/useAppRouter";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useMediaSegments } from "@/hooks/useMediaSegments";
 import { usePlaybackManager } from "@/hooks/usePlaybackManager";
-import type { SegmentType } from "@/hooks/useSegmentSkipper";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import type { TechnicalInfo } from "@/modules/mpv-player";
 import { DownloadedItem } from "@/providers/Downloads/types";
@@ -36,7 +35,7 @@ import { useOfflineMode } from "@/providers/OfflineModeProvider";
 import { useSettings } from "@/utils/atoms/settings";
 import { hasChapterMarkers } from "@/utils/chapters";
 import { getDefaultPlaySettings } from "@/utils/jellyfin/getDefaultPlaySettings";
-import { SEGMENT_NAME_KEY, useSegments } from "@/utils/segments";
+import { SEGMENT_SKIP_KEY, useSegments } from "@/utils/segments";
 import { ticksToMs } from "@/utils/time";
 import { BottomControls } from "./BottomControls";
 import { CenterControls } from "./CenterControls";
@@ -423,13 +422,10 @@ export const Controls: FC<Props> = ({
   });
 
   const { t } = useTranslation();
-  const skipPrompt = useCallback(
-    (type: SegmentType) =>
-      t("player.segment_skip_prompt", { segment: t(SEGMENT_NAME_KEY[type]) }),
-    [t],
+  const skipSegmentButtonText = t(
+    SEGMENT_SKIP_KEY[activeSegment?.type ?? "Intro"],
   );
-  const skipSegmentButtonText = skipPrompt(activeSegment?.type ?? "Intro");
-  const skipOutroButtonText = skipPrompt("Outro");
+  const skipOutroButtonText = t(SEGMENT_SKIP_KEY.Outro);
 
   // Same gate as the bookmark icon in BottomControls, so the skip overlay
   // only shifts left when the icon is actually shown.

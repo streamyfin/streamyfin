@@ -13,19 +13,12 @@ import { Text } from "@/components/common/Text";
 import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import type { SegmentType } from "@/hooks/useSegmentSkipper";
+import { SEGMENT_SKIPPED_KEY } from "@/utils/segments";
 
 interface Props {
   /** Segment an automatic skip just jumped over, or null. */
   segment: SegmentType | null;
 }
-
-const SEGMENT_NAME_KEY: Record<SegmentType, string> = {
-  Intro: "player.segment_intro",
-  Outro: "player.segment_outro",
-  Recap: "player.segment_recap",
-  Commercial: "player.segment_commercial",
-  Preview: "player.segment_preview",
-};
 
 const ANIM_DURATION = 200;
 // Sits at the top, horizontally centred. The bottom of the player is taken on
@@ -60,9 +53,7 @@ export const SegmentSkippedNotice: FC<Props> = ({ segment }) => {
   // before the animation has played.
   if (!segment && opacity.value === 0) return null;
 
-  const label = segment
-    ? t("player.segment_skipped", { segment: t(SEGMENT_NAME_KEY[segment]) })
-    : "";
+  const label = segment ? t(SEGMENT_SKIPPED_KEY[segment]) : "";
 
   return (
     <Animated.View
