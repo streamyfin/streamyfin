@@ -664,6 +664,7 @@
     "no_links": "Inga Länkar"
   },
   "player": {
+    "playing_in_picture_in_picture": "Spelas upp i bild-i-bild",
     "live": "LIVE",
     "shuffle": "Blanda",
     "entire_series": "Hela serien",
@@ -1074,5 +1075,10 @@
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
+  },
+  "desktop": {
+    "update_available": "Streamyfin {{version}} finns tillgänglig",
+    "update_now": "Uppdatera",
+    "update_later": "Senare"
   }
 }

@@ -1,15 +1,17 @@
 import { Platform, TouchableOpacity, View } from "react-native";
 import { Tag } from "@/components/GenreTags";
 
-// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
-// A static top-level import crashes the route tree on tvOS at module load.
-// Load it lazily and only off-TV; TV never renders this component.
-const { Button, Host, HStack, Spacer } = Platform.isTV
-  ? ({} as typeof import("@expo/ui/swift-ui"))
-  : require("@expo/ui/swift-ui");
-const { buttonStyle } = Platform.isTV
-  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
-  : require("@expo/ui/swift-ui/modifiers");
+// @expo/ui's SwiftUI native module (ExpoUI) exists only in non-TV iOS builds —
+// not on tvOS, and not on web (the desktop client). A static top-level import
+// crashes the route tree at module load. Load it lazily and only on iOS.
+const USES_SWIFT_UI = Platform.OS === "ios" && !Platform.isTV;
+
+const { Button, Host, HStack, Spacer } = USES_SWIFT_UI
+  ? require("@expo/ui/swift-ui")
+  : ({} as typeof import("@expo/ui/swift-ui"));
+const { buttonStyle } = USES_SWIFT_UI
+  ? require("@expo/ui/swift-ui/modifiers")
+  : ({} as typeof import("@expo/ui/swift-ui/modifiers"));
 
 type SearchType = "Library" | "Discover";
 

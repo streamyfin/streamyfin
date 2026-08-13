@@ -25,7 +25,11 @@
     "i18n:check": "bun scripts/check-i18n-keys.ts",
     "i18n:fix-unused": "bun scripts/check-i18n-keys.ts --fix-unused",
     "test:unit": "bun test",
-    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor"
+    "test": "bun run typecheck && bun run test:unit && bun run lint && bun run format && bun run i18n:check && bun run doctor",
+    "build:desktop": "cross-env EXPO_TV=0 expo export --platform web --output-dir dist-web",
+    "desktop": "bun run build:desktop && cd desktop && bun run start",
+    "desktop:dist:win": "bun run build:desktop && cd desktop && bun run dist:win",
+    "desktop:dist:linux": "bun run build:desktop && cd desktop && bun run dist:linux"
   },
   "overrides": {
     "uuid": "11.1.1"
@@ -33,7 +37,7 @@
   "dependencies": {
     "@bottom-tabs/react-navigation": "1.4.0",
     "@douglowder/expo-av-route-picker-view": "^0.0.5",
-    "@expo/metro-runtime": "~57.0.6",
+    "@expo/metro-runtime": "~57.0.8",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "57.0.10",
     "@expo/vector-icons": "^15.1.1",
@@ -80,11 +84,13 @@
     "expo-symbols": "~57.0.1",
     "expo-task-manager": "~57.0.5",
     "expo-web-browser": "~57.0.1",
+    "hls.js": "^1.6.16",
     "i18next": "26.3.6",
     "jotai": "2.20.2",
     "lodash": "4.18.1",
     "nativewind": "^2.0.11",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-i18next": "17.0.11",
     "react-native": "npm:react-native-tvos@0.86.0-2",
     "react-native-awesome-slider": "^2.9.0",
@@ -113,6 +119,7 @@
     "react-native-udp": "^4.1.7",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-volume-manager": "^2.0.8",
+    "react-native-web": "^0.21.2",
     "react-native-worklets": "0.11.3",
     "sonner-native": "0.26.4",
     "tailwindcss": "3.3.2",

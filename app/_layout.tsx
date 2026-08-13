@@ -10,6 +10,7 @@ import * as Device from "expo-device";
 import { Image } from "expo-image";
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Platform } from "react-native";
+import { DesktopUpdateBanner } from "@/components/desktop/DesktopUpdateBanner";
 import { GlobalModal } from "@/components/GlobalModal";
 import { PendingAccountSaveModal } from "@/components/PendingAccountSaveModal";
 import { enableTVMenuKeyInterception } from "@/hooks/useTVBackHandler";
@@ -41,7 +42,14 @@ import {
 } from "@/utils/log";
 import { storage } from "@/utils/mmkv";
 
-const Notifications = !Platform.isTV ? require("expo-notifications") : null;
+// expo-notifications and expo-task-manager are native-only. tvOS deliberately
+// excludes them, and the web build behind the desktop client has no
+// implementation at all — calling into either throws at runtime.
+const SUPPORTS_NOTIFICATIONS = !Platform.isTV && Platform.OS !== "web";
+
+const Notifications = SUPPORTS_NOTIFICATIONS
+  ? require("expo-notifications")
+  : null;
 
 import { getSessionApi } from "@jellyfin/sdk/lib/utils/api/session-api";
 import { getLocales } from "expo-localization";
@@ -82,7 +90,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-if (!Platform.isTV) {
+if (SUPPORTS_NOTIFICATIONS) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -93,14 +101,21 @@ if (!Platform.isTV) {
   });
 }
 
-// Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
+// Keep the splash screen visible while we fetch resources.
+//
+// Not on web (the desktop client): there is no native splash overlay, so
+// expo-router holds the tree rather than rendering behind one — and the only
+// hideAsync() call lives in JellyfinProvider, inside that held tree. Preventing
+// auto-hide on web therefore deadlocks into a permanently blank window.
+if (Platform.OS !== "web") {
+  SplashScreen.preventAutoHideAsync();
 
-// Set the animation options. This is optional.
-SplashScreen.setOptions({
-  duration: 500,
-  fade: true,
-});
+  // Set the animation options. This is optional.
+  SplashScreen.setOptions({
+    duration: 500,
+    fade: true,
+  });
+}
 
 // Cap expo-image's in-memory cache. Default is unbounded (maxMemoryCost=0),
 // which on a 2GB Android TV box leads to ~200MB of decoded backdrops/posters
@@ -122,7 +137,7 @@ function useNotificationObserver() {
   const router = useRouter();
 
   useEffect(() => {
-    if (Platform.isTV) return;
+    if (!SUPPORTS_NOTIFICATIONS) return;
 
     let isMounted = true;
 
@@ -144,7 +159,7 @@ function useNotificationObserver() {
   }, [router]);
 }
 
-if (!Platform.isTV) {
+if (SUPPORTS_NOTIFICATIONS) {
   TaskManager.defineTask(BACKGROUND_FETCH_TASK_SESSIONS, async () => {
     console.log("TaskManager ~ sessions trigger");
 
@@ -210,7 +225,9 @@ const checkAndRequestPermissions = async () => {
 };
 
 export default function RootLayout() {
-  Appearance.setColorScheme("dark");
+  // react-native-web's Appearance has no setColorScheme; the desktop build is
+  // dark-only via the `userInterfaceStyle` config and the page's own styles.
+  Appearance.setColorScheme?.("dark");
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -286,7 +303,7 @@ function Layout() {
   const responseListener = useRef<EventSubscription>(null);
 
   useEffect(() => {
-    if (!Platform.isTV && expoPushToken && api && user) {
+    if (SUPPORTS_NOTIFICATIONS && expoPushToken && api && user) {
       api
         ?.post("/Streamyfin/device", {
           token: expoPushToken.data,
@@ -322,7 +339,7 @@ function Layout() {
       return;
     }
 
-    if (!Platform.isTV && user && user.Policy?.IsAdministrator) {
+    if (SUPPORTS_NOTIFICATIONS && user?.Policy?.IsAdministrator) {
       await registerBackgroundFetchAsyncSessions();
     }
 
@@ -345,7 +362,7 @@ function Layout() {
   }, [user]);
 
   useEffect(() => {
-    if (!Platform.isTV) {
+    if (SUPPORTS_NOTIFICATIONS) {
       void registerNotifications();
 
       notificationListener.current =
@@ -557,6 +574,7 @@ function Layout() {
                                     {!Platform.isTV && (
                                       <PendingAccountSaveModal />
                                     )}
+                                    <DesktopUpdateBanner />
                                   </ThemeProvider>
                                 </IntroSheetProvider>
                               </BottomSheetModalProvider>

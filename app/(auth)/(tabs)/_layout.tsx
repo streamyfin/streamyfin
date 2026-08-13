@@ -3,14 +3,15 @@ import {
   type NativeBottomTabNavigationEventMap,
   type NativeBottomTabNavigationOptions,
 } from "@bottom-tabs/react-navigation";
-import { Stack, useSegments, withLayoutContext } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, Tabs, useSegments, withLayoutContext } from "expo-router";
 import type {
   ParamListBase,
   TabNavigationState,
 } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, View } from "react-native";
+import { type ColorValue, Platform, View } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import type { TVNavBarTab } from "@/components/tv/TVNavBar";
 import { TVNavBar } from "@/components/tv/TVNavBar";
@@ -134,12 +135,91 @@ function TVTabLayout() {
   );
 }
 
+/**
+ * Desktop (Electron) tab bar.
+ *
+ * @bottom-tabs/react-navigation drives the platform's native tab controller,
+ * which has no browser equivalent, so the web build uses expo-router's JS
+ * <Tabs> with vector icons instead of SF Symbols.
+ */
+function WebTabLayout() {
+  const { settings } = useSettings();
+  const { t } = useTranslation();
+
+  const icon =
+    (name: keyof typeof Ionicons.glyphMap) =>
+    ({ color, size }: { color: ColorValue; size: number }) => (
+      <Ionicons name={name} color={color as string} size={size} />
+    );
+
+  return (
+    <Tabs
+      // Without this the navigator starts on `index`, which renders null — the
+      // window comes up blank until a tab is tapped. `href: null` only hides
+      // the tab button; it does not stop the route being the initial one.
+      initialRouteName='(home)'
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { backgroundColor: "#121212", borderTopColor: "#262626" },
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: "#9BA1A6",
+      }}
+    >
+      {/* `redirect` is what the native layout uses to bounce the empty index
+          route onto the first real tab. Without it the window opens on
+          app/(auth)/(tabs)/index.tsx, which renders null — a blank page with a
+          tab bar until something is tapped. */}
+      <Tabs.Screen name='index' redirect options={{ href: null }} />
+      <Tabs.Screen
+        name='(home)'
+        options={{ title: t("tabs.home"), tabBarIcon: icon("home") }}
+      />
+      <Tabs.Screen
+        name='(search)'
+        options={{ title: t("tabs.search"), tabBarIcon: icon("search") }}
+      />
+      <Tabs.Screen
+        name='(favorites)'
+        options={{ title: t("tabs.favorites"), tabBarIcon: icon("heart") }}
+      />
+      <Tabs.Screen
+        name='(watchlists)'
+        options={{
+          title: t("watchlists.title"),
+          tabBarIcon: icon("list"),
+          href:
+            !settings?.streamyStatsServerUrl || settings?.hideWatchlistsTab
+              ? null
+              : undefined,
+        }}
+      />
+      <Tabs.Screen
+        name='(libraries)'
+        options={{ title: t("tabs.library"), tabBarIcon: icon("albums") }}
+      />
+      <Tabs.Screen
+        name='(custom-links)'
+        options={{
+          title: t("tabs.custom_links"),
+          tabBarIcon: icon("link"),
+          href: settings?.showCustomMenuLinks ? undefined : null,
+        }}
+      />
+      <Tabs.Screen name='(settings)' options={{ href: null }} />
+    </Tabs>
+  );
+}
+
 export default function TabLayout() {
   const { settings } = useSettings();
   const { t } = useTranslation();
 
   // Must be called before any conditional return (rules of hooks)
   useTVHomeBackHandler();
+
+  if (Platform.OS === "web") {
+    return <WebTabLayout />;
+  }
 
   if (IS_ANDROID_TV) {
     return <TVTabLayout />;

@@ -310,6 +310,29 @@ export const Controls: FC<Props> = ({
     }
   }, [showControls, setShowControls]);
 
+  // Moving the mouse is how a desktop player is expected to bring its controls
+  // back. Listening at the window rather than on the video overlay means this
+  // does not fight the tap overlay, and it only ever shows — never toggles —
+  // so a moving cursor cannot flicker the controls in and out.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    // Only listen while there is something to reveal. setShowControls fires
+    // haptic feedback on every call, so leaving this bound would buzz on every
+    // throttled tick of a moving cursor even with the controls already up.
+    if (showControls) return;
+
+    let lastShown = 0;
+    const reveal = () => {
+      const now = Date.now();
+      if (now - lastShown < 250) return;
+      lastShown = now;
+      setShowControls(true);
+    };
+
+    window.addEventListener("mousemove", reveal);
+    return () => window.removeEventListener("mousemove", reveal);
+  }, [showControls, setShowControls]);
+
   // Remote control hook
   const {
     remoteScrubProgress,

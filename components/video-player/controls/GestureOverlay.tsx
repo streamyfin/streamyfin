@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Pressable } from "react-native";
+import { Animated, Platform, Pressable } from "react-native";
 import { Text } from "@/components/common/Text";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useSettings } from "@/utils/atoms/settings";
@@ -356,6 +356,10 @@ export const GestureOverlay = ({
           // A cancelled touch (backgrounding, a system gesture) never
           // delivers touchEnd, which would leave the hold engaged
           onTouchCancel={handleTouchCancel}
+          // The touch handlers above never fire for a mouse, so on desktop a
+          // click with the controls hidden had nothing to land on and they
+          // could not be brought back. Mouse movement is handled in Controls.
+          onPress={Platform.OS === "web" ? onToggleControls : undefined}
           style={{
             position: "absolute",
             width: screenWidth,

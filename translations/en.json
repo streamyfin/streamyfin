@@ -665,6 +665,7 @@
     "no_links": "No links"
   },
   "player": {
+    "playing_in_picture_in_picture": "Playing in picture-in-picture",
     "live": "LIVE",
     "shuffle": "Shuffle",
     "entire_series": "Entire series",
@@ -1075,5 +1076,10 @@
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
+  },
+  "desktop": {
+    "update_available": "Streamyfin {{version}} is available",
+    "update_now": "Update",
+    "update_later": "Later"
   }
 }

@@ -7,21 +7,28 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/common/Text";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
 
-// @expo/ui's SwiftUI native module (ExpoUI) does not exist in tvOS builds.
-// A static top-level import evaluates requireNativeModule('ExpoUI') at module
-// load and crashes the entire route tree on tvOS (expo-router requires every
-// route file). Load it lazily and only off-TV; TV never renders these.
-const { Button, Host, Menu } = Platform.isTV
-  ? ({} as typeof import("@expo/ui/swift-ui"))
-  : require("@expo/ui/swift-ui");
-const { disabled, menuOrder } = Platform.isTV
-  ? ({} as typeof import("@expo/ui/swift-ui/modifiers"))
-  : require("@expo/ui/swift-ui/modifiers");
+// @expo/ui's SwiftUI native module (ExpoUI) exists only in non-TV iOS builds —
+// not on tvOS, and not on web (the desktop client). A static top-level import
+// evaluates requireNativeModule('ExpoUI') at module load and crashes the entire
+// route tree, because expo-router requires every route file. Load it lazily,
+// and only on the one platform that renders it (see the iOS branch below).
+const USES_SWIFT_UI = Platform.OS === "ios" && !Platform.isTV;
+// Everything without a native menu falls back to the bottom sheet. Callers that
+// drive `open` themselves need it honoured here, otherwise their trigger swallows
+// the press and nothing ever opens — which is what happened on the web build.
+const USES_BOTTOM_SHEET = Platform.OS === "android" || Platform.OS === "web";
+
+const { Button, Host, Menu } = USES_SWIFT_UI
+  ? require("@expo/ui/swift-ui")
+  : ({} as typeof import("@expo/ui/swift-ui"));
+const { disabled, menuOrder } = USES_SWIFT_UI
+  ? require("@expo/ui/swift-ui/modifiers")
+  : ({} as typeof import("@expo/ui/swift-ui/modifiers"));
 
 // UIMenu reorders items by proximity to the anchor, so a menu that opens
 // upward shows them reversed. Keep the order they were provided in.
-// Built once, and never on TV where the modifiers module is not loaded.
-const fixedOrder = Platform.isTV ? [] : [menuOrder("fixed")];
+// Built once, and only where the modifiers module is actually loaded.
+const fixedOrder = USES_SWIFT_UI ? [menuOrder("fixed")] : [];
 
 // Option types
 export type RadioOption<T = any> = {
@@ -220,7 +227,7 @@ const PlatformDropdownComponent = ({
 
   // Handle controlled open state for Android
   useEffect(() => {
-    if (Platform.OS === "android" && controlledOpen === true) {
+    if (USES_BOTTOM_SHEET && controlledOpen === true) {
       showModal(
         <BottomSheetContent
           title={title}
@@ -243,7 +250,7 @@ const PlatformDropdownComponent = ({
   // Watch for modal dismissal on Android (e.g., swipe down, backdrop tap)
   // and sync the controlled open state
   useEffect(() => {
-    if (Platform.OS === "android" && controlledOpen === true && !isVisible) {
+    if (USES_BOTTOM_SHEET && controlledOpen === true && !isVisible) {
       controlledOnOpenChange?.(false);
     }
   }, [isVisible, controlledOpen, controlledOnOpenChange]);

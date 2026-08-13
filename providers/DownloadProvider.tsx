@@ -60,9 +60,16 @@ function useDownloadProvider() {
     return api?.accessToken;
   }, [api]);
 
-  const APP_CACHE_DOWNLOAD_DIRECTORY = new Directory(
-    Paths.cache,
-    `${Application.applicationId}/Downloads/`,
+  // expo-file-system has no web implementation, and offline downloads are
+  // unavailable on desktop anyway (see modules/background-downloader). Skip
+  // constructing the Directory there — `new Directory(Paths.cache, …)` throws
+  // on web and would take the whole provider tree down with it.
+  const APP_CACHE_DOWNLOAD_DIRECTORY = useMemo(
+    () =>
+      Platform.OS === "web"
+        ? null
+        : new Directory(Paths.cache, `${Application.applicationId}/Downloads/`),
+    [],
   );
 
   const updateProcess = useCallback(
@@ -155,7 +162,7 @@ function useDownloadProvider() {
     getDownloadedItemById,
     updateDownloadedItem,
     triggerRefresh,
-    APP_CACHE_DOWNLOAD_DIRECTORY: APP_CACHE_DOWNLOAD_DIRECTORY.uri,
+    APP_CACHE_DOWNLOAD_DIRECTORY: APP_CACHE_DOWNLOAD_DIRECTORY?.uri ?? "",
     appSizeUsage,
     // Deprecated/not implemented in simple version
     startDownload: async () => {},
