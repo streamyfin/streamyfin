@@ -439,15 +439,35 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           storage.set("user", JSON.stringify(User));
 
           // Whoever approved meant to sign in, even if that is not the
-          // account we asked to re-authenticate.
+          // account we asked to re-authenticate. Save them if they are new:
+          // Quick Connect has no "save this account" step, so without this the
+          // sign-in works but the account never appears in the switcher.
           if (User?.Id) {
-            await updateAccountToken(
-              serverUrl,
-              User.Id,
-              AccessToken,
-              User.PrimaryImageTag ?? undefined,
-              quickConnectDeviceId,
-            );
+            const existing = await getAccountCredential(serverUrl, User.Id);
+            if (existing) {
+              await updateAccountToken(
+                serverUrl,
+                User.Id,
+                AccessToken,
+                User.PrimaryImageTag ?? undefined,
+                quickConnectDeviceId,
+              );
+            } else {
+              await saveAccountCredential({
+                serverUrl,
+                // Empty keeps whatever name the server list already holds.
+                serverName: "",
+                token: AccessToken,
+                userId: User.Id,
+                username: User.Name || "",
+                savedAt: Date.now(),
+                // Quick Connect is already an approval on a trusted device;
+                // demanding a second factor to switch back would be odd.
+                securityType: "none",
+                primaryImageTag: User.PrimaryImageTag ?? undefined,
+                deviceId: quickConnectDeviceId,
+              });
+            }
           }
           return true;
         }
