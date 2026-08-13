@@ -35,6 +35,7 @@ import {
 } from "@/utils/jellyfin/subtitleUtils";
 import { COMMON_SUBTITLE_LANGUAGES } from "@/utils/opensubtitles/api";
 import { generateDeviceProfile } from "@/utils/profiles/native";
+import { SEGMENT_NAME_KEY, type SegmentTypeName } from "@/utils/segments";
 import { buildSubtitleStyle } from "@/utils/subtitles/subtitleStyle";
 import {
   buildAudioMenu,
@@ -70,15 +71,19 @@ export interface NativePlayerSessionSeed {
   playMethod: PlayMethod;
 }
 
+/** "Skip Intro", "Skip Outro", … built the way jellyfin-web builds them. */
+const skipPrompt = (t: TFunction, type: SegmentTypeName): string =>
+  t("player.segment_skip_prompt", { segment: t(SEGMENT_NAME_KEY[type]) });
+
 /** Localized labels for the native UI, built once per present. */
 export const buildNativePlayerStrings = (
   t: TFunction,
 ): NativePlayerStrings => ({
-  skipIntro: t("player.skip_intro"),
-  skipCredits: t("player.skip_credits"),
-  skipRecap: t("player.skip_recap"),
-  skipCommercial: t("player.skip_commercial"),
-  skipPreview: t("player.skip_preview"),
+  skipIntro: skipPrompt(t, "Intro"),
+  skipCredits: skipPrompt(t, "Outro"),
+  skipRecap: skipPrompt(t, "Recap"),
+  skipCommercial: skipPrompt(t, "Commercial"),
+  skipPreview: skipPrompt(t, "Preview"),
   // The native side substitutes %SEGMENT%, matching how it handles %TIME%
   // and %TITLE% elsewhere in this table.
   segmentSkipped: t("player.segment_skipped", { segment: "%SEGMENT%" }),

@@ -15,6 +15,22 @@ export interface SegmentBuckets {
 }
 
 /**
+ * Display name per segment type, mirroring jellyfin-web's `MediaSegmentType.*`
+ * strings. Every player builds its button from these plus
+ * `player.segment_skip_prompt` ("Skip {{segment}}"), the same way jellyfin-web
+ * composes `MediaSegmentSkipPrompt`, so no player invents its own wording.
+ */
+export const SEGMENT_NAME_KEY = {
+  Intro: "player.segment_intro",
+  Outro: "player.segment_outro",
+  Recap: "player.segment_recap",
+  Commercial: "player.segment_commercial",
+  Preview: "player.segment_preview",
+} as const satisfies Record<string, string>;
+
+export type SegmentTypeName = keyof typeof SEGMENT_NAME_KEY;
+
+/**
  * Shape returned by the intro-skipper plugin's `GET /Episode/{id}/Timestamps`
  * (https://github.com/intro-skipper/intro-skipper). Times are in seconds from
  * the start of the file, and `Valid` is the plugin's own `End > 0` check.

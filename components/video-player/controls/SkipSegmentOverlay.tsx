@@ -140,12 +140,22 @@ export const SkipSegmentOverlay: FC<Props> = ({
       <SkipButton
         showButton={renderSkip}
         onPress={skipIntro}
-        buttonText={skipButtonText ?? t("player.skip_intro")}
+        buttonText={
+          skipButtonText ??
+          t("player.segment_skip_prompt", {
+            segment: t("player.segment_intro"),
+          })
+        }
       />
       <SkipButton
         showButton={renderCredit}
         onPress={skipCredit}
-        buttonText={skipCreditButtonText ?? t("player.skip_credits")}
+        buttonText={
+          skipCreditButtonText ??
+          t("player.segment_skip_prompt", {
+            segment: t("player.segment_outro"),
+          })
+        }
       />
       {/* Lives here (not in BottomControls) so it shares the skip buttons'
           exact position and can never overlap them. */}
