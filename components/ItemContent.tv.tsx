@@ -569,7 +569,18 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
     // Series thumb URL - used when showSeriesPosterOnEpisode setting is enabled
     const seriesThumbUrl = useMemo(() => {
-      if (item?.Type !== "Episode" || !item.SeriesId || !api) return null;
+      if (item?.Type !== "Episode" || !api) return null;
+      // No parent thumb means the series carries no Thumb image, and the tagless
+      // request below 404s. Use the series backdrop instead, like the cards do.
+      const parentBackdropTag = item.ParentBackdropImageTags?.[0];
+      if (
+        !(item.ParentThumbItemId && item.ParentThumbImageTag) &&
+        item.ParentBackdropItemId &&
+        parentBackdropTag
+      ) {
+        return `${api.basePath}/Items/${item.ParentBackdropItemId}/Images/Backdrop?fillHeight=700&quality=80&tag=${parentBackdropTag}`;
+      }
+      if (!item.SeriesId) return null;
       return `${api.basePath}/Items/${item.SeriesId}/Images/Thumb?fillHeight=700&quality=80`;
     }, [api, item]);
 
