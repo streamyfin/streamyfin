@@ -14,15 +14,27 @@ export interface SegmentBuckets {
   previewSegments: MediaTimeSegment[];
 }
 
-// Legacy endpoints (intro-skipper / chapter-credits plugins on pre-10.11 servers)
-interface IntroTimestamps {
-  IntroStart: number;
-  IntroEnd: number;
+/**
+ * Shape returned by the intro-skipper plugin's `GET /Episode/{id}/Timestamps`
+ * (https://github.com/intro-skipper/intro-skipper). Times are in seconds from
+ * the start of the file, and `Valid` is the plugin's own `End > 0` check.
+ *
+ * One call covers all five ranges. Recent plugin versions also publish into
+ * Jellyfin's MediaSegments API, so this path only matters for servers where
+ * that is off or unavailable.
+ */
+interface LegacySegment {
+  Start: number;
+  End: number;
   Valid: boolean;
 }
 
-interface CreditTimestamps {
-  Credits: { Start: number; End: number; Valid: boolean };
+interface LegacyTimestamps {
+  Introduction?: LegacySegment;
+  Credits?: LegacySegment;
+  Recap?: LegacySegment;
+  Preview?: LegacySegment;
+  Commercial?: LegacySegment;
 }
 
 const TICKS_PER_SECOND = 10_000_000;
@@ -141,31 +153,32 @@ const fetchLegacySegments = async (
 ): Promise<SegmentBuckets> => {
   const buckets = emptyBuckets();
 
-  const [introRes, creditRes] = await Promise.allSettled([
-    api.axiosInstance.get<IntroTimestamps>(
-      `${api.basePath}/Episode/${itemId}/IntroTimestamps`,
-      { headers: getAuthHeaders(api) },
-    ),
-    api.axiosInstance.get<CreditTimestamps>(
+  try {
+    const { data } = await api.axiosInstance.get<LegacyTimestamps>(
       `${api.basePath}/Episode/${itemId}/Timestamps`,
       { headers: getAuthHeaders(api) },
-    ),
-  ]);
+    );
 
-  if (introRes.status === "fulfilled" && introRes.value.data.Valid) {
-    buckets.introSegments.push({
-      startTime: introRes.value.data.IntroStart,
-      endTime: introRes.value.data.IntroEnd,
-      text: "Intro",
-    });
-  }
+    const push = (
+      segment: LegacySegment | undefined,
+      bucket: MediaTimeSegment[],
+      text: string,
+    ) => {
+      if (!segment?.Valid) return;
+      bucket.push({
+        startTime: segment.Start,
+        endTime: segment.End,
+        text,
+      });
+    };
 
-  if (creditRes.status === "fulfilled" && creditRes.value.data.Credits.Valid) {
-    buckets.creditSegments.push({
-      startTime: creditRes.value.data.Credits.Start,
-      endTime: creditRes.value.data.Credits.End,
-      text: "Outro",
-    });
+    push(data.Introduction, buckets.introSegments, "Intro");
+    push(data.Credits, buckets.creditSegments, "Outro");
+    push(data.Recap, buckets.recapSegments, "Recap");
+    push(data.Commercial, buckets.commercialSegments, "Commercial");
+    push(data.Preview, buckets.previewSegments, "Preview");
+  } catch (error) {
+    console.error("[SEGMENTS] Legacy timestamps request failed", error);
   }
 
   return buckets;
