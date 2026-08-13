@@ -14,7 +14,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -27,7 +26,11 @@ import { useInterval } from "@/hooks/useInterval";
 import { JellyseerrApi, useJellyseerr } from "@/hooks/useJellyseerr";
 import { settingsAtom, useSettings } from "@/utils/atoms/settings";
 import { getIntegrationHeaders } from "@/utils/customHeaders";
-import { getOrSetDeviceId } from "@/utils/device";
+import {
+  getOrSetDeviceId,
+  mintDeviceId,
+  setActiveDeviceId,
+} from "@/utils/device";
 import { markExpectedError } from "@/utils/errors";
 import { createApiWithCustomHeaders } from "@/utils/jellyfin/createApi";
 import {
@@ -45,7 +48,9 @@ import {
   deleteJellyseerrPassword,
   getAccountCredential,
   hashPIN,
+  migrateCurrentAccountDeviceId,
   migrateToMultiAccount,
+  resolveDeviceIdForLogin,
   saveAccountCredential,
   saveJellyseerrPassword,
   updateAccountToken,
@@ -128,6 +133,15 @@ export const pendingAccountSaveAtom = atom<{ serverName?: string } | null>(
   null,
 );
 
+/** A rejected token on a saved account. The account is kept — callers offer
+ * re-authentication instead. */
+export class SessionExpiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SessionExpiredError";
+  }
+}
+
 interface LoginOptions {
   saveAccount?: boolean;
   securityType?: AccountSecurityType;
@@ -169,26 +183,31 @@ const JellyfinContext = createContext<JellyfinContextValue | undefined>(
   undefined,
 );
 
+/**
+ * Build an SDK instance bound to `deviceId` (defaults to the active account's).
+ */
+function buildJellyfin(deviceId?: string): Jellyfin | undefined {
+  try {
+    return new Jellyfin({
+      clientInfo: { name: "Streamyfin", version: APP_VERSION },
+      deviceInfo: {
+        name: getDeviceNameSync(),
+        id: deviceId ?? getOrSetDeviceId(),
+      },
+    });
+  } catch (e) {
+    console.error("Failed to initialize Jellyfin:", e);
+    return undefined;
+  }
+}
+
 export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [jellyfin] = useState<Jellyfin | undefined>(() => {
-    try {
-      const id = getOrSetDeviceId();
-      const deviceName = getDeviceNameSync();
-      return new Jellyfin({
-        clientInfo: { name: "Streamyfin", version: APP_VERSION },
-        deviceInfo: {
-          name: deviceName,
-          id,
-        },
-      });
-    } catch (e) {
-      console.error("Failed to initialize Jellyfin synchronously in state:", e);
-      return undefined;
-    }
-  });
-  const [deviceId] = useState<string | undefined>(() => {
+  const [jellyfin, setJellyfin] = useState<Jellyfin | undefined>(() =>
+    buildJellyfin(),
+  );
+  const [deviceId, setDeviceId] = useState<string | undefined>(() => {
     try {
       return getOrSetDeviceId();
     } catch {
@@ -196,12 +215,27 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
   });
 
+  // The device id is baked into deviceInfo, so a switch needs a new instance.
+  // Returned as well as stored, because setState lands too late for the caller.
+  const adoptDeviceId = useCallback((id: string): Jellyfin | undefined => {
+    const instance = buildJellyfin(id);
+    if (!instance) return undefined;
+    setActiveDeviceId(id);
+    setDeviceId(id);
+    setJellyfin(instance);
+    return instance;
+  }, []);
+
   const { t } = useTranslation();
 
   const [api, setApi] = useAtom(apiAtom);
   const [user, setUser] = useAtom(userAtom);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [secret, setSecret] = useState<string | null>(null);
+  // Minted for the in-flight Quick Connect attempt, adopted once approved.
+  const [quickConnectDeviceId, setQuickConnectDeviceId] = useState<
+    string | null
+  >(null);
   const { settings, setPluginSettings, refreshStreamyfinPluginSettings } =
     useSettings();
   const { clearAllJellyseerData, jellyseerrUser, setJellyseerrUser } =
@@ -290,6 +324,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [setUser, setApi, setPluginSettings, clearAllJellyseerData, queryClient]);
 
+  // Drop everything scoped to the outgoing account, or it leaks into the next
+  // user's session. Jellyseerr is cleared rather than re-logged in: a token
+  // switch carries no password.
+  const clearAccountScopedState = useCallback(async () => {
+    queryClient.clear();
+    storage.remove("REACT_QUERY_OFFLINE_CACHE");
+    await clearAllJellyseerData();
+  }, [queryClient, clearAllJellyseerData]);
+
   const handleSessionExpired = useCallback(() => {
     if (sessionExpiredRef.current) return; // run once per session
     sessionExpiredRef.current = true;
@@ -317,23 +360,27 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [api, handleSessionExpired]);
 
-  const headers = useMemo(() => {
-    if (!deviceId) return {};
-    return {
+  const authHeaders = useCallback(
+    (id: string) => ({
       authorization: `MediaBrowser Client="Streamyfin", Device=${
         Platform.OS === "android" ? "Android" : "iOS"
-      }, DeviceId="${deviceId}", Version="${APP_VERSION}"`,
-    };
-  }, [deviceId]);
+      }, DeviceId="${id}", Version="${APP_VERSION}"`,
+    }),
+    [],
+  );
 
   const initiateQuickConnect = useCallback(async () => {
-    if (!api || !deviceId) return;
+    if (!api) return;
+    // Quick Connect cannot name the account upfront. Adopting this id now
+    // would strand the running session, whose token is bound to the old one.
+    const attemptDeviceId = mintDeviceId();
+    setQuickConnectDeviceId(attemptDeviceId);
     try {
       const response = await api.axiosInstance.post(
         `${api.basePath}/QuickConnect/Initiate`,
         null,
         {
-          headers,
+          headers: authHeaders(attemptDeviceId),
         },
       );
       if (response?.status === 200) {
@@ -346,16 +393,18 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       console.error(error);
       throw error;
     }
-  }, [api, deviceId, headers]);
+  }, [api, authHeaders]);
 
   const stopQuickConnectPolling = useCallback(() => {
     setIsPolling(false);
     setSecret(null);
+    setQuickConnectDeviceId(null);
   }, []);
 
   const pollQuickConnect = useCallback(async () => {
-    if (!api || !secret || !jellyfin) return;
+    if (!api || !secret || !jellyfin || !quickConnectDeviceId) return;
 
+    const serverUrl = api.basePath;
     try {
       const response = await api.axiosInstance.get(
         `${api.basePath}/QuickConnect/Connect?Secret=${secret}`,
@@ -371,17 +420,35 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               secret,
             },
             {
-              headers,
+              headers: authHeaders(quickConnectDeviceId),
             },
           );
 
           const { AccessToken, User } = authResponse.data;
+          // The token is bound to the id the request went out under.
+          const accountJellyfin = adoptDeviceId(quickConnectDeviceId);
+          if (!accountJellyfin)
+            throw new Error("Failed to create SDK instance");
+          setQuickConnectDeviceId(null);
+
           setUser(User);
           setApi(
-            createApiWithCustomHeaders(jellyfin, api.basePath, AccessToken),
+            createApiWithCustomHeaders(accountJellyfin, serverUrl, AccessToken),
           );
           storage.set("token", AccessToken);
           storage.set("user", JSON.stringify(User));
+
+          // Whoever approved meant to sign in, even if that is not the
+          // account we asked to re-authenticate.
+          if (User?.Id) {
+            await updateAccountToken(
+              serverUrl,
+              User.Id,
+              AccessToken,
+              User.PrimaryImageTag ?? undefined,
+              quickConnectDeviceId,
+            );
+          }
           return true;
         }
       }
@@ -391,6 +458,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         if (error.response?.status === 400 || error.response?.status === 404) {
           setIsPolling(false);
           setSecret(null);
+          setQuickConnectDeviceId(null);
           if (error.response?.status === 400) {
             throw new Error("The code has expired. Please try again.");
           }
@@ -400,7 +468,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Error polling Quick Connect:", error);
       throw error;
     }
-  }, [api, secret, headers, jellyfin]);
+  }, [api, secret, authHeaders, jellyfin, quickConnectDeviceId, adoptDeviceId]);
 
   useEffect(() => {
     (async () => {
@@ -492,6 +560,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         securityType,
         pinHash,
         primaryImageTag: user.PrimaryImageTag ?? undefined,
+        deviceId: getOrSetDeviceId(),
       });
     },
     [api?.basePath, user],
@@ -509,26 +578,37 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       serverName?: string;
       options?: LoginOptions;
     }) => {
-      if (!api || !jellyfin) throw new Error("API not initialized");
+      if (!api?.basePath || !jellyfin) throw new Error("API not initialized");
+
+      // Adopted only once the login succeeds, so a failed attempt cannot
+      // leave the app on a device id it never authorized.
+      const serverUrl = api.basePath;
+      const accountDeviceId = resolveDeviceIdForLogin(serverUrl, username);
+      const accountJellyfin = buildJellyfin(accountDeviceId);
+      if (!accountJellyfin) throw new Error("Failed to create SDK instance");
 
       try {
-        writeInfoLog(`Login: authenticating against ${api.basePath}`);
-        const auth = await api.authenticateUserByName(username, password);
+        writeInfoLog(`Login: authenticating against ${serverUrl}`);
+        const auth = await createApiWithCustomHeaders(
+          accountJellyfin,
+          serverUrl,
+        ).authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
+          adoptDeviceId(accountDeviceId);
           setUser(auth.data.User);
           storage.set("user", JSON.stringify(auth.data.User));
           setApi(
             createApiWithCustomHeaders(
-              jellyfin,
-              api.basePath,
-              auth.data?.AccessToken,
+              accountJellyfin,
+              serverUrl,
+              auth.data.AccessToken,
             ),
           );
           storage.set("token", auth.data?.AccessToken);
 
           // Save credentials to secure storage if requested
-          if (api.basePath && options?.saveAccount) {
+          if (options?.saveAccount) {
             const securityType = options.securityType || "none";
             let pinHash: string | undefined;
 
@@ -543,7 +623,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
               toast.error(t("save_account.not_saved"));
             } else {
               await saveAccountCredential({
-                serverUrl: api.basePath,
+                serverUrl,
                 serverName: serverName || "",
                 token: auth.data.AccessToken,
                 userId: auth.data.User.Id || "",
@@ -552,6 +632,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
                 securityType,
                 pinHash,
                 primaryImageTag: auth.data.User.PrimaryImageTag ?? undefined,
+                deviceId: accountDeviceId,
               });
             }
           }
@@ -702,9 +783,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         throw new Error("No saved credential found");
       }
 
-      // Create API instance with saved token
+      // Credentials predating device ids fall back to the active id, which
+      // after upgrading is still the one they were issued under.
+      const credentialDeviceId = credential.deviceId ?? getOrSetDeviceId();
+      const credentialJellyfin = buildJellyfin(credentialDeviceId);
+      if (!credentialJellyfin) throw new Error("Failed to create SDK instance");
+
       const apiInstance = createApiWithCustomHeaders(
-        jellyfin,
+        credentialJellyfin,
         serverUrl,
         credential.token,
       );
@@ -716,9 +802,8 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const response = await getUserApi(apiInstance).getCurrentUser();
 
-        // Clear React Query cache to prevent data from previous account lingering
-        queryClient.clear();
-        storage.remove("REACT_QUERY_OFFLINE_CACHE");
+        adoptDeviceId(credentialDeviceId);
+        await clearAccountScopedState();
 
         // Token is valid, update state
         setApi(apiInstance);
@@ -727,29 +812,30 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         storage.set("token", credential.token);
         storage.set("user", JSON.stringify(response.data));
 
-        // Update account info (in case user changed their avatar)
-        if (response.data.PrimaryImageTag !== credential.primaryImageTag) {
-          addAccountToServer(serverUrl, credential.serverName, {
-            userId: credential.userId,
-            username: credential.username,
-            securityType: credential.securityType,
-            savedAt: credential.savedAt,
-            primaryImageTag: response.data.PrimaryImageTag ?? undefined,
-          });
-        }
+        // Record the id this token is bound to, or it mints a fresh one next
+        // login and revokes itself. Also refreshes a changed avatar.
+        await updateAccountToken(
+          serverUrl,
+          credential.userId,
+          credential.token,
+          response.data.PrimaryImageTag ?? undefined,
+          credentialDeviceId,
+        );
 
         // Refresh plugin settings
         await refreshStreamyfinPluginSettings();
       } catch (error) {
         // Check for axios error
         if (axios.isAxiosError(error)) {
-          // Token is invalid/expired - remove it
+          // Token is invalid/expired. Keep the account — the caller offers
+          // re-authentication and refreshes the token in place.
           if (
             error.response?.status === 401 ||
             error.response?.status === 403
           ) {
-            await deleteAccountCredential(serverUrl, userId);
-            throw markExpectedError(new Error(t("server.session_expired")));
+            throw markExpectedError(
+              new SessionExpiredError(t("server.session_expired")),
+            );
           }
 
           // Network error - server not reachable (no response means server didn't respond)
@@ -790,8 +876,13 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }) => {
       if (!jellyfin) throw new Error("Jellyfin not initialized");
 
-      // Create API instance for the server
-      const apiInstance = createApiWithCustomHeaders(jellyfin, serverUrl);
+      // Reuse this account's own id so the refreshed token replaces its
+      // predecessor instead of revoking another account's.
+      const accountDeviceId = resolveDeviceIdForLogin(serverUrl, username);
+      const accountJellyfin = buildJellyfin(accountDeviceId);
+      if (!accountJellyfin) throw new Error("Failed to create SDK instance");
+
+      const apiInstance = createApiWithCustomHeaders(accountJellyfin, serverUrl);
       if (!apiInstance) {
         throw new Error("Failed to create API instance");
       }
@@ -812,15 +903,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         });
 
       if (auth.data.AccessToken && auth.data.User) {
-        // Clear React Query cache to prevent data from previous account lingering
-        queryClient.clear();
-        storage.remove("REACT_QUERY_OFFLINE_CACHE");
+        adoptDeviceId(accountDeviceId);
+        await clearAccountScopedState();
 
         setUser(auth.data.User);
         storage.set("user", JSON.stringify(auth.data.User));
         setApi(
           createApiWithCustomHeaders(
-            jellyfin,
+            accountJellyfin,
             serverUrl,
             auth.data.AccessToken,
           ),
@@ -834,6 +924,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           auth.data.User.Id || "",
           auth.data.AccessToken,
           auth.data.User.PrimaryImageTag ?? undefined,
+          accountDeviceId,
         );
 
         // Refresh plugin settings
@@ -887,9 +978,14 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
     }
   }, [initialLoaded]);
 
+  // `jellyfin` is re-created on every switch, so without this the stored
+  // session would be restored again on each one.
+  const restoredRef = useRef(false);
+
   useEffect(() => {
     const initializeJellyfin = async () => {
-      if (!jellyfin) return;
+      if (!jellyfin || restoredRef.current) return;
+      restoredRef.current = true;
 
       try {
         // Run migration to multi-account format (once)
@@ -898,6 +994,16 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         const token = getTokenFromStorage();
         const serverUrl = getServerUrlFromStorage();
         const storedUser = getUserFromStorage();
+
+        // The signed-in account keeps the shared id its token was issued
+        // under; regenerating would revoke the token being restored.
+        if (serverUrl && storedUser?.Id) {
+          await migrateCurrentAccountDeviceId(
+            serverUrl,
+            storedUser.Id,
+            getOrSetDeviceId(),
+          );
+        }
 
         if (serverUrl && token) {
           const apiInstance = createApiWithCustomHeaders(
@@ -941,6 +1047,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
                     savedAt: Date.now(),
                     securityType: "none",
                     primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                    deviceId: getOrSetDeviceId(),
                   });
                 } else if (
                   response.data.PrimaryImageTag !==
@@ -953,6 +1060,7 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
                     securityType: existingCredential.securityType,
                     savedAt: existingCredential.savedAt,
                     primaryImageTag: response.data.PrimaryImageTag ?? undefined,
+                    deviceId: existingCredential.deviceId,
                   });
                 }
               }

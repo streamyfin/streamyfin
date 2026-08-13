@@ -6,7 +6,11 @@ import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { Text } from "@/components/common/Text";
 import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
-import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
+import {
+  apiAtom,
+  SessionExpiredError,
+  useJellyfin,
+} from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import type { CustomHeader } from "@/utils/customHeaders";
 import {
@@ -253,6 +257,55 @@ export const TVLogin: React.FC = () => {
     }
   };
 
+  // The account survives a rejected token, so offer a way back in. Quick
+  // Connect first: typing a password on a remote is miserable.
+  const handleSavedLoginError = (
+    error: unknown,
+    account: SavedServerAccount,
+  ) => {
+    if (!(error instanceof SessionExpiredError)) {
+      Alert.alert(
+        t("login.connection_failed"),
+        error instanceof Error ? error.message : t("server.session_expired"),
+        [
+          {
+            text: t("common.ok"),
+            onPress: () => setCurrentScreen("user-selection"),
+          },
+        ],
+      );
+      return;
+    }
+
+    setSelectedAccount(account);
+    Alert.alert(t("server.session_expired"), t("server.please_login_again"), [
+      {
+        text: t("common.cancel"),
+        style: "cancel",
+        onPress: () => setCurrentScreen("user-selection"),
+      },
+      {
+        text: t("login.quick_connect"),
+        // Quick Connect posts through the api, which the user-selection screen
+        // has not created yet.
+        onPress: async () => {
+          setCurrentScreen("user-selection");
+          if (currentServer) {
+            await setServer({ address: currentServer.address });
+          }
+          await handleQuickConnect();
+        },
+      },
+      {
+        text: t("password.enter_password"),
+        onPress: () => {
+          setCurrentScreen("user-selection");
+          setPasswordModalVisible(true);
+        },
+      },
+    ]);
+  };
+
   // Handle user selection
   const handleUserSelect = async (account: SavedServerAccount) => {
     if (!currentServer) return;
@@ -264,25 +317,7 @@ export const TVLogin: React.FC = () => {
         try {
           await loginWithSavedCredential(currentServer.address, account.userId);
         } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : t("server.session_expired");
-          const isSessionExpired = errorMessage.includes(
-            t("server.session_expired"),
-          );
-          Alert.alert(
-            isSessionExpired
-              ? t("server.session_expired")
-              : t("login.connection_failed"),
-            isSessionExpired ? t("server.please_login_again") : errorMessage,
-            [
-              {
-                text: t("common.ok"),
-                onPress: () => setCurrentScreen("user-selection"),
-              },
-            ],
-          );
+          handleSavedLoginError(error, account);
         } finally {
           setLoading(false);
         }
@@ -312,23 +347,8 @@ export const TVLogin: React.FC = () => {
           selectedAccount.userId,
         );
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("server.session_expired");
-        const isSessionExpired = errorMessage.includes(
-          t("server.session_expired"),
-        );
-        Alert.alert(
-          isSessionExpired
-            ? t("server.session_expired")
-            : t("login.connection_failed"),
-          isSessionExpired ? t("server.please_login_again") : errorMessage,
-          [
-            {
-              text: t("common.ok"),
-              onPress: () => setCurrentScreen("user-selection"),
-            },
-          ],
-        );
+        handleSavedLoginError(error, selectedAccount);
+        return;
       } finally {
         setLoading(false);
       }

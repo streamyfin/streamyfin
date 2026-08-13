@@ -7,6 +7,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useMMKVString } from "react-native-mmkv";
 import { Colors } from "@/constants/Colors";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
+import { SessionExpiredError } from "@/providers/JellyfinProvider";
 import {
   deleteAccountCredential,
   getPreviousServers,
@@ -79,18 +80,16 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           try {
             await onQuickLogin(server.address, account.userId);
           } catch (error) {
-            const errorMessage =
-              error instanceof Error
-                ? error.message
-                : t("server.session_expired");
-            const isSessionExpired = errorMessage.includes(
-              t("server.session_expired"),
-            );
+            const isSessionExpired = error instanceof SessionExpiredError;
             Alert.alert(
               isSessionExpired
                 ? t("server.session_expired")
                 : t("login.connection_failed"),
-              isSessionExpired ? t("server.please_login_again") : errorMessage,
+              isSessionExpired
+                ? t("server.please_login_again")
+                : error instanceof Error
+                  ? error.message
+                  : t("server.session_expired"),
               [{ text: t("common.ok"), onPress: () => onServerSelect(server) }],
             );
           } finally {
@@ -137,16 +136,16 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
       try {
         await onQuickLogin(selectedServer.address, selectedAccount.userId);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : t("server.session_expired");
-        const isSessionExpired = errorMessage.includes(
-          t("server.session_expired"),
-        );
+        const isSessionExpired = error instanceof SessionExpiredError;
         Alert.alert(
           isSessionExpired
             ? t("server.session_expired")
             : t("login.connection_failed"),
-          isSessionExpired ? t("server.please_login_again") : errorMessage,
+          isSessionExpired
+            ? t("server.please_login_again")
+            : error instanceof Error
+              ? error.message
+              : t("server.session_expired"),
           [
             {
               text: t("common.ok"),

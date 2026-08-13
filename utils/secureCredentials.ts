@@ -7,6 +7,7 @@ import {
   secureCustomHeaderMetadata,
 } from "./customHeaders/secureValues";
 import type { CustomHeader } from "./customHeaders/types";
+import { mintDeviceId } from "./device";
 import { logAndCaptureError } from "./log";
 import { storage } from "./mmkv";
 
@@ -31,6 +32,9 @@ export interface ServerCredential {
   securityType: AccountSecurityType;
   pinHash?: string;
   primaryImageTag?: string;
+  /** Device id the token was issued under. Undefined on accounts saved before
+   * this was introduced. */
+  deviceId?: string;
 }
 
 /**
@@ -42,6 +46,9 @@ export interface SavedServerAccount {
   securityType: AccountSecurityType;
   savedAt: number;
   primaryImageTag?: string;
+  /** Mirrors ServerCredential.deviceId so a login can resolve it without
+   * touching secure storage. */
+  deviceId?: string;
 }
 
 /**
@@ -173,6 +180,20 @@ export async function verifyAccountPIN(
 }
 
 /**
+ * Project a credential onto its display-side account summary.
+ */
+function toSavedAccount(credential: ServerCredential): SavedServerAccount {
+  return {
+    userId: credential.userId,
+    username: credential.username,
+    securityType: credential.securityType,
+    savedAt: credential.savedAt,
+    primaryImageTag: credential.primaryImageTag,
+    deviceId: credential.deviceId,
+  };
+}
+
+/**
  * Save credential for a specific account.
  */
 export async function saveAccountCredential(
@@ -182,13 +203,53 @@ export async function saveAccountCredential(
   await SecureStore.setItemAsync(key, JSON.stringify(credential));
 
   // Update previousServers to include this account
-  addAccountToServer(credential.serverUrl, credential.serverName, {
-    userId: credential.userId,
-    username: credential.username,
-    securityType: credential.securityType,
-    savedAt: credential.savedAt,
-    primaryImageTag: credential.primaryImageTag,
-  });
+  addAccountToServer(
+    credential.serverUrl,
+    credential.serverName,
+    toSavedAccount(credential),
+  );
+}
+
+/**
+ * Resolve the device id to authenticate a username under. Jellyfin binds one
+ * access token per device id, so accounts must not share one: a known account
+ * reuses its own id, anyone else gets a fresh one.
+ */
+export function resolveDeviceIdForLogin(
+  serverUrl: string,
+  username: string,
+): string {
+  const server = getPreviousServers().find((s) => s.address === serverUrl);
+  // Jellyfin accepts any casing at login, so match case-insensitively — a
+  // case-only difference must not mint a second id for the same account.
+  const existing = server?.accounts.find(
+    (a) => a.username.toLowerCase() === username.toLowerCase(),
+  );
+  return existing?.deviceId || mintDeviceId();
+}
+
+/**
+ * Adopt the legacy install-wide device id for the currently signed-in account,
+ * whose token was issued under it. Regenerating instead would revoke it.
+ */
+export async function migrateCurrentAccountDeviceId(
+  serverUrl: string,
+  userId: string,
+  legacyDeviceId: string,
+): Promise<void> {
+  const credential = await getAccountCredential(serverUrl, userId);
+  if (!credential || credential.deviceId) return;
+
+  credential.deviceId = legacyDeviceId;
+  await SecureStore.setItemAsync(
+    credentialKey(serverUrl, userId),
+    JSON.stringify(credential),
+  );
+  addAccountToServer(
+    serverUrl,
+    credential.serverName,
+    toSavedAccount(credential),
+  );
 }
 
 /**
@@ -578,6 +639,7 @@ export async function updateAccountToken(
   userId: string,
   newToken: string,
   primaryImageTag?: string,
+  deviceId?: string,
 ): Promise<void> {
   const credential = await getAccountCredential(serverUrl, userId);
   if (credential) {
@@ -586,17 +648,20 @@ export async function updateAccountToken(
     if (primaryImageTag !== undefined) {
       credential.primaryImageTag = primaryImageTag;
     }
+    if (deviceId !== undefined) {
+      // The new token is bound to the id it was requested under; recording
+      // anything else would send later requests on the wrong device.
+      credential.deviceId = deviceId;
+    }
     const key = credentialKey(serverUrl, userId);
     await SecureStore.setItemAsync(key, JSON.stringify(credential));
 
     // Also update the account info in the server list
-    addAccountToServer(serverUrl, credential.serverName, {
-      userId: credential.userId,
-      username: credential.username,
-      securityType: credential.securityType,
-      savedAt: credential.savedAt,
-      primaryImageTag: credential.primaryImageTag,
-    });
+    addAccountToServer(
+      serverUrl,
+      credential.serverName,
+      toSavedAccount(credential),
+    );
   }
 }
 
