@@ -10,7 +10,11 @@ import { Input } from "@/components/common/Input";
 import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Stepper } from "@/components/inputs/Stepper";
 import { SubtitlePreview } from "@/components/settings/SubtitlePreview";
-import { AudioTranscodeMode, useSettings } from "@/utils/atoms/settings";
+import {
+  AudioTranscodeMode,
+  defaultValues,
+  useSettings,
+} from "@/utils/atoms/settings";
 import { ORIGINAL_LANGUAGE } from "@/utils/jellyfin/serverVersion";
 import { Text } from "../common/Text";
 import { ListGroup } from "../list/ListGroup";
@@ -537,7 +541,9 @@ export const SubtitleToggles: React.FC<Props> = React.memo(({ ...props }) => {
           disabled={pluginSettings?.subtitleMarginY?.locked}
         >
           <Stepper
-            value={settings.subtitleMarginY ?? 0}
+            value={
+              settings.subtitleMarginY ?? defaultValues.subtitleMarginY ?? 0
+            }
             disabled={pluginSettings?.subtitleMarginY?.locked}
             step={5}
             min={-100}

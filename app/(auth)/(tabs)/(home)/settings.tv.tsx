@@ -37,6 +37,7 @@ import {
 } from "@/providers/JellyfinProvider";
 import {
   AudioTranscodeMode,
+  defaultValues,
   getActiveVideoPlayer,
   InactivityTimeout,
   isNativePlayerSupportedTV,
@@ -968,19 +969,25 @@ export default function SettingsTV() {
           />
           <TVSettingsStepper
             label={t("home.settings.subtitles.subtitle_margin_y")}
-            value={settings.subtitleMarginY ?? 0}
+            value={
+              settings.subtitleMarginY ?? defaultValues.subtitleMarginY ?? 0
+            }
             disabledByAdmin={pluginSettings?.subtitleMarginY?.locked}
             onDecrease={() => {
               const newValue = Math.max(
                 -100,
-                (settings.subtitleMarginY ?? 0) - 5,
+                (settings.subtitleMarginY ??
+                  defaultValues.subtitleMarginY ??
+                  0) - 5,
               );
               updateSettings({ subtitleMarginY: newValue });
             }}
             onIncrease={() => {
               const newValue = Math.min(
                 100,
-                (settings.subtitleMarginY ?? 0) + 5,
+                (settings.subtitleMarginY ??
+                  defaultValues.subtitleMarginY ??
+                  0) + 5,
               );
               updateSettings({ subtitleMarginY: newValue });
             }}

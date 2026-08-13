@@ -375,6 +375,7 @@ export default function DirectPlayerPage() {
       setDownloadedItem(null);
       // Clear the previous episode's stream so the loader gate stays closed
       // until the new item's stream resolves (avoids a stale MPV source frame).
+      setTracksReady(false);
       setStream(null);
       // Scope the started flag and the position to the item being played. The
       // component is reused across an in-place item switch, and both are read
@@ -530,6 +531,7 @@ export default function DirectPlayerPage() {
           }
           result = { mediaSource, sessionId, url, requiredHttpHeaders };
         }
+        setTracksReady(false);
         setStream(result);
         setStreamStatus({ isLoading: false, isError: false });
         return result;
@@ -1421,6 +1423,7 @@ export default function DirectPlayerPage() {
   > => {
     if (!refetchStreamRef.current) return [];
 
+    setTracksReady(false);
     const newStream = await refetchStreamRef.current();
 
     // Check if component is still mounted before updating state
