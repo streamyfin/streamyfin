@@ -4,8 +4,16 @@ class PlayerStrings(private val strings: Map<String, String>) {
 
     companion object {
         private val DEFAULTS = mapOf(
-            "skipIntro" to "Skip Intro",
-            "skipCredits" to "Skip Credits",
+            "skipIntro" to "Skip intro",
+            "skipCredits" to "Skip credits",
+            "skipRecap" to "Skip recap",
+            "skipCommercial" to "Skip commercial",
+            "skipPreview" to "Skip preview",
+            "segmentSkippedIntro" to "Intro skipped",
+            "segmentSkippedOutro" to "Credits skipped",
+            "segmentSkippedRecap" to "Recap skipped",
+            "segmentSkippedCommercial" to "Commercial skipped",
+            "segmentSkippedPreview" to "Preview skipped",
             "nextEpisode" to "Next Episode",
             "playNow" to "Play Now",
             "cancel" to "Cancel",

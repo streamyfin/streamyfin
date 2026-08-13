@@ -57,9 +57,14 @@ class ChapterRecord : Record {
 }
 
 class MediaSegmentRecord : Record {
-    @Field var type: String = ""       // "Intro" | "Outro"
+    // Jellyfin's MediaSegmentType: Intro | Outro | Recap | Commercial | Preview
+    @Field var type: String = ""
     @Field var startSec: Double = 0.0
     @Field var endSec: Double = 0.0
+    // Resolved on the JS side so this player never reads settings and cannot
+    // drift from the others: "ask" shows the pill, "auto" skips on its own.
+    // "none" segments are dropped before they are sent.
+    @Field var skipMode: String = "ask"
 }
 
 class TrickplayRecord : Record {
