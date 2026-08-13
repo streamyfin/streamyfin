@@ -26,6 +26,8 @@ export function savedLoginAlertText(
   return {
     title: t("login.connection_failed"),
     message:
-      error instanceof Error ? error.message : t("server.session_expired"),
+      error instanceof Error
+        ? error.message
+        : t("login.an_unexpected_error_occurred"),
   };
 }
