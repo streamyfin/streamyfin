@@ -43,16 +43,18 @@ interface Props {
 //
 // Hidden: low, far-right — nothing else is drawn there, this is the familiar
 //         spot and was working fine.
-// Visible: shifted up (clear of the horizontal progress bar) and left (clear
-//          of the chapters icon), while staying below the vertical volume
-//          slider which sits at the vertical middle of the screen.
+// Visible: shifted up to clear the horizontal progress bar, while staying below
+//          the vertical volume slider which sits at the vertical middle of the
+//          screen. It only moves left when the chapters icon is actually
+//          rendered in that corner; with no icon there is nothing to clear and
+//          the button keeps the same right inset as when the controls are
+//          hidden, so it does not drift away from the edge.
 const HIDDEN_BOTTOM = 24;
-const HIDDEN_RIGHT = 24;
+const EDGE_RIGHT = 24;
 const VISIBLE_BOTTOM = 65;
-const VISIBLE_RIGHT = 42;
-// Extra left shift while the controls show the chapters icon in the bottom
+// Left shift used only while the controls show the chapters icon in the bottom
 // right corner, so the buttons never crowd it.
-const CHAPTERS_CLEARANCE = 10;
+const CHAPTERS_RIGHT = 52;
 const ANIM_DURATION = 250;
 
 // Keeps `value` true for `duration` ms after it turns false. SkipButton hides
@@ -128,9 +130,7 @@ export const SkipSegmentOverlay: FC<Props> = ({
     insets.bottom + (controlsVisible ? VISIBLE_BOTTOM : HIDDEN_BOTTOM);
   const right =
     insets.right +
-    (controlsVisible
-      ? VISIBLE_RIGHT + (hasChapters ? CHAPTERS_CLEARANCE : 0)
-      : HIDDEN_RIGHT);
+    (controlsVisible && hasChapters ? CHAPTERS_RIGHT : EDGE_RIGHT);
 
   return (
     <Animated.View
