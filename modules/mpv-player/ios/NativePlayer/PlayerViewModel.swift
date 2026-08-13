@@ -120,6 +120,19 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	@Published var chapters: [ChapterRecord] = []
 	@Published var segments: [MediaSegmentRecord] = []
 	@Published var activeSegment: MediaSegmentRecord?
+	/// Set for a few seconds after an automatic skip so the UI can say what it
+	/// did. Auto-skip is otherwise silent and looks like the video jumped.
+	@Published var skippedSegmentNotice: String?
+
+	/// Segments already auto-skipped, keyed by type and bounds, so a position
+	/// that bounces back inside the range cannot loop the seek. Cleared when a
+	/// new set of segments arrives.
+	private var autoSkippedSegmentIds: Set<String> = []
+	/// When playback last became genuinely stable. Auto-skip waits on this:
+	/// seeking a transcode the instant the first frame lands asks for a segment
+	/// it has not produced yet and stalls (JS parity: AUTO_SKIP_ARM_DELAY_MS).
+	private var autoSkipStableSince: Date?
+	private var noticeDismissTask: Task<Void, Never>?
 	@Published var nextEpisode: NextEpisodeRecord?
 	/// Non-nil while the next-episode countdown card is up.
 	@Published var countdownRemaining: Double?
@@ -372,6 +385,10 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 	func updateSegments(_ newSegments: [MediaSegmentRecord]) {
 		segments = newSegments
+		// A new set means a new item (or changed settings): let auto-skip run
+		// again, and make it re-earn its arming delay on the fresh timeline.
+		autoSkippedSegmentIds.removeAll()
+		autoSkipStableSince = nil
 	}
 
 	func updateNextEpisode(_ next: NextEpisodeRecord?) {
@@ -1021,10 +1038,65 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func skipActiveSegment() {
 		guard let segment = activeSegment else { return }
 		haptic()
+		skip(segment, automatic: false)
+	}
+
+	/// Localized pill label for a segment type, e.g. "Skip intro".
+	func skipLabel(for type: String) -> String {
+		switch type {
+		case "Outro": return str("skipCredits", "Skip credits")
+		case "Recap": return str("skipRecap", "Skip recap")
+		case "Commercial": return str("skipCommercial", "Skip commercial")
+		case "Preview": return str("skipPreview", "Skip preview")
+		default: return str("skipIntro", "Skip intro")
+		}
+	}
+
+	/// Human name of a segment type, used in the "… skipped" notice.
+	private func segmentName(for type: String) -> String {
+		switch type {
+		case "Outro": return str("segmentOutro", "Credits")
+		case "Recap": return str("segmentRecap", "Recap")
+		case "Commercial": return str("segmentCommercial", "Commercial")
+		case "Preview": return str("segmentPreview", "Preview")
+		default: return str("segmentIntro", "Intro")
+		}
+	}
+
+	private func skip(_ segment: MediaSegmentRecord, automatic: Bool) {
 		if segment.type == "Outro" {
 			cancelCountdown()
 		}
-		seek(to: segment.endSec)
+
+		// The reported end of an outro sometimes overshoots the file. Land two
+		// seconds short so the natural end-of-video flow still runs, and do
+		// nothing at all when that target is already behind the playhead, which
+		// would otherwise rewind (JS parity: useSegmentSkipper).
+		var target = segment.endSec
+		if segment.type == "Outro", duration > 0, target >= duration {
+			target = max(0, duration - 2)
+			if target <= displayPosition { return }
+		}
+
+		seek(to: target)
+
+		if automatic {
+			showSkippedNotice(for: segment.type)
+		}
+	}
+
+	private func showSkippedNotice(for type: String) {
+		let template = str("segmentSkipped", "%SEGMENT% skipped")
+		skippedSegmentNotice = template.replacingOccurrences(
+			of: "%SEGMENT%",
+			with: segmentName(for: type)
+		)
+		noticeDismissTask?.cancel()
+		noticeDismissTask = Task { @MainActor [weak self] in
+			try? await Task.sleep(nanoseconds: 3_000_000_000)
+			guard !Task.isCancelled else { return }
+			self?.skippedSegmentNotice = nil
+		}
 	}
 
 	func playNextEpisode() {
@@ -1201,6 +1273,27 @@ final class PlayerViewModel: NSObject, ObservableObject {
 
 		if active?.type != activeSegment?.type || active?.startSec != activeSegment?.startSec {
 			activeSegment = active
+		}
+
+		// Auto-skip, mirroring the JS driver: one segment at a time, once per
+		// segment, and only once playback has been stable for a moment so the
+		// seek lands on a timeline the source can actually serve.
+		if isPlaying, !isBuffering, !isScrubbing {
+			if autoSkipStableSince == nil { autoSkipStableSince = Date() }
+		} else {
+			autoSkipStableSince = nil
+		}
+		let autoSkipArmed = autoSkipStableSince.map {
+			Date().timeIntervalSince($0) >= 1.5
+		} ?? false
+
+		if autoSkipArmed, let active, active.skipMode == "auto" {
+			let id = "\(active.type):\(active.startSec)-\(active.endSec)"
+			if !autoSkippedSegmentIds.contains(id) {
+				autoSkippedSegmentIds.insert(id)
+				skip(active, automatic: true)
+				return
+			}
 		}
 
 		// Only credits that run to (within 5s of) the video end auto-arm the

@@ -18,6 +18,9 @@ const AUTO_SKIP_ARM_DELAY_MS = 1500;
 // comparison would suppress the countdown on ordinary episodes.
 const CONTENT_AFTER_CREDITS_BUFFER_SECONDS = 5;
 
+/** How long the "… skipped" notice stays up after an automatic skip. */
+const SKIPPED_NOTICE_MS = 3000;
+
 export interface ActiveSegment {
   type: SegmentType;
   currentSegment: MediaTimeSegment;
@@ -53,6 +56,11 @@ export interface UseMediaSegmentsReturn {
   skipOutro: (useHaptics?: boolean) => void;
   /** The outro ends before the media end, i.e. there is content after credits. */
   hasContentAfterCredits: boolean;
+  /**
+   * Type of the segment an automatic skip just jumped over, for a few seconds
+   * after it happens. Null the rest of the time.
+   */
+  skippedNotice: SegmentType | null;
 }
 
 /**
@@ -175,6 +183,7 @@ export const useMediaSegments = ({
   // so overlapping auto-enabled segments can't trigger competing seeks.
   const autoSkipTriggeredRef = useRef<string | null>(null);
   const [autoSkipArmed, setAutoSkipArmed] = useState(false);
+  const [skippedNotice, setSkippedNotice] = useState<SegmentType | null>(null);
 
   // Reset per item (its segments change): re-allow skipping and re-arm so the
   // next episode's transcode has time to become seekable. We do NOT reset the
@@ -208,7 +217,17 @@ export const useMediaSegments = ({
     if (autoSkipTriggeredRef.current === segmentId) return;
     autoSkipTriggeredRef.current = segmentId;
     activeSegment.skipSegment(false);
+    // Say what happened: an automatic skip is otherwise silent and reads as
+    // the video jumping on its own.
+    setSkippedNotice(activeSegment.type);
   }, [activeSegment, isPlaying, isBuffering, autoSkipArmed]);
+
+  // Cleared on a timer so consumers can render it as a transient notice.
+  useEffect(() => {
+    if (!skippedNotice) return;
+    const id = setTimeout(() => setSkippedNotice(null), SKIPPED_NOTICE_MS);
+    return () => clearTimeout(id);
+  }, [skippedNotice]);
 
   const isOutroActive = activeSegment?.type === "Outro";
 
@@ -223,5 +242,6 @@ export const useMediaSegments = ({
         ? maxSeconds - outroSkipper.currentSegment.endTime >
           CONTENT_AFTER_CREDITS_BUFFER_SECONDS
         : false,
+    skippedNotice,
   };
 };

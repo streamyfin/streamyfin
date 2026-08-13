@@ -76,6 +76,17 @@ export const buildNativePlayerStrings = (
 ): NativePlayerStrings => ({
   skipIntro: t("player.skip_intro"),
   skipCredits: t("player.skip_credits"),
+  skipRecap: t("player.skip_recap"),
+  skipCommercial: t("player.skip_commercial"),
+  skipPreview: t("player.skip_preview"),
+  // The native side substitutes %SEGMENT%, matching how it handles %TIME%
+  // and %TITLE% elsewhere in this table.
+  segmentSkipped: t("player.segment_skipped", { segment: "%SEGMENT%" }),
+  segmentIntro: t("player.segment_intro"),
+  segmentOutro: t("player.segment_outro"),
+  segmentRecap: t("player.segment_recap"),
+  segmentCommercial: t("player.segment_commercial"),
+  segmentPreview: t("player.segment_preview"),
   nextEpisode: t("player.next_episode"),
   playNow: t("common.play"),
   cancel: t("common.cancel"),

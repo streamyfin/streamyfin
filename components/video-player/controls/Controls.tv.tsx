@@ -66,6 +66,7 @@ import { useVideoContext } from "./contexts/VideoContext";
 import { useChapterNavigation } from "./hooks/useChapterNavigation";
 import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { TrickplayBubble } from "./TrickplayBubble";
 import type { Track } from "./types";
@@ -482,6 +483,7 @@ export const Controls: FC<Props> = ({
     isOutroActive,
     skipOutro: skipCredit,
     hasContentAfterCredits,
+    skippedNotice,
   } = useMediaSegments({
     segments,
     currentTime,
@@ -1277,6 +1279,11 @@ export const Controls: FC<Props> = ({
         refSetter={setSkipSegmentRef}
         hasTVPreferredFocus={!showControls}
         playButtonRef={showControls ? playButtonRef : null}
+      />
+
+      <SegmentSkippedNotice
+        segment={skippedNotice}
+        controlsVisible={showControls}
       />
 
       {/* Skip credits card - show when there's content after credits, OR no next episode */}

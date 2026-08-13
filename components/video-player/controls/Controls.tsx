@@ -48,6 +48,7 @@ import { useRemoteControl } from "./hooks/useRemoteControl";
 import { useVideoNavigation } from "./hooks/useVideoNavigation";
 import { useVideoSlider } from "./hooks/useVideoSlider";
 import { useVideoTime } from "./hooks/useVideoTime";
+import { SegmentSkippedNotice } from "./SegmentSkippedNotice";
 import { SkipSegmentOverlay } from "./SkipSegmentOverlay";
 import { TechnicalInfoOverlay } from "./TechnicalInfoOverlay";
 import { useControlsTimeout } from "./useControlsTimeout";
@@ -409,6 +410,7 @@ export const Controls: FC<Props> = ({
     isOutroActive: showSkipOutroButton,
     skipOutro: onSkipOutro,
     hasContentAfterCredits,
+    skippedNotice,
   } = useMediaSegments({
     segments,
     currentTime,
@@ -780,6 +782,10 @@ export const Controls: FC<Props> = ({
             onNextEpisodePress={handleNextEpisodeManual}
             controlsVisible={showControls}
             hasChapters={showsChapterIcon}
+          />
+          <SegmentSkippedNotice
+            segment={skippedNotice}
+            controlsVisible={showControls}
           />
         </>
       )}
