@@ -36,6 +36,7 @@ interface Props extends ViewProps {
   disabled?: boolean;
   queryKey: QueryKey;
   queryFn: QueryFunction<BaseItemDto[], QueryKey, number>;
+  displayShowName?: boolean;
   hideIfEmpty?: boolean;
   pageSize?: number;
   onPressSeeAll?: () => void;
@@ -118,6 +119,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
   disabled = false,
   queryFn,
   queryKey,
+  displayShowName,
   hideIfEmpty = false,
   pageSize = 10,
   enabled = true,
@@ -234,6 +236,7 @@ export const InfiniteScrollingCollectionList: React.FC<Props> = ({
             onFocus={() => handleItemFocus(item)}
             width={itemWidth}
             preferEpisodeImage={settings?.useEpisodeImagesForNextUp}
+            displayShowName={displayShowName}
           />
         </View>
       );
