@@ -1131,19 +1131,22 @@ export default function SettingsTV() {
           {SEGMENT_SKIP_ROWS.map((row, index) => {
             const current = (settings[row.key] ?? "ask") as SegmentSkipMode;
             const rowLabel = t(`home.settings.other.${row.labelKey}`);
+            const lockedByAdmin = pluginSettings?.[row.key]?.locked ?? false;
             return (
               <TVSettingsOptionButton
                 key={row.key}
                 label={rowLabel}
                 value={segmentSkipModeLabel(current)}
                 isFirst={index === 0}
-                onPress={() =>
+                disabledByAdmin={lockedByAdmin}
+                onPress={() => {
+                  if (lockedByAdmin) return;
                   showOptions({
                     title: rowLabel,
                     options: buildSegmentSkipOptions(current),
                     onSelect: (value) => updateSettings({ [row.key]: value }),
-                  })
-                }
+                  });
+                }}
               />
             );
           })}

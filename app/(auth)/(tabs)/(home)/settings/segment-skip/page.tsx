@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "expo-router";
 import { TFunction } from "i18next";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { Text } from "@/components/common/Text";
@@ -36,13 +35,6 @@ const SEGMENT_SKIP_OPTIONS = (
 export default function SegmentSkipPage() {
   const { settings, updateSettings, pluginSettings } = useSettings();
   const { t } = useTranslation();
-  const navigation = useNavigation();
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: t("home.settings.other.segment_skip_settings"),
-    });
-  }, [navigation, t]);
 
   const options = useMemo(() => SEGMENT_SKIP_OPTIONS(t), [t]);
 
