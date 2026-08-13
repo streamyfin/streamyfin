@@ -1,7 +1,6 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
 import { useMemo } from "react";
 import { View } from "react-native";
-import { AwardsBadge } from "../AwardsBadge";
 import { Text } from "../common/Text";
 import { Ratings } from "../Ratings";
 import { ItemActions } from "./SeriesActions";
@@ -59,7 +58,6 @@ export const SeriesHeader = ({ item }: Props) => {
         <Ratings item={item} className='mb-2' />
         <ItemActions item={item} />
       </View>
-      <AwardsBadge item={item} className='mb-3' />
       <Text className=''>{item?.Overview}</Text>
     </View>
   );
