@@ -23,6 +23,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { BackHandler } from "react-native";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -1682,6 +1683,18 @@ const NativePlayerProviderInner: React.FC<{
       void dismissNativePlayer();
     }
   }, [user]);
+
+  // BackHandler for Android: hardware back button dismisses presented native player
+  useEffect(() => {
+    if (!isActive) return;
+    const backSub = BackHandler.addEventListener("hardwareBackPress", () => {
+      void dismissNativePlayer();
+      return true;
+    });
+    return () => {
+      backSub.remove();
+    };
+  }, [isActive]);
 
   const contextValue = useMemo(
     () => ({ presentFromRequest, isActive }),

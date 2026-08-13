@@ -13,7 +13,7 @@ export { ExoPlayerView } from "./exoplayer-player";
 export type { GlassPosterViewProps } from "./glass-poster";
 export { GlassPosterView, isGlassEffectAvailable } from "./glass-poster";
 // MPV Player (iOS + Android)
-// Presented native player (iOS only)
+// Presented native player (iOS + Android phone/tablet)
 export type {
   AudioTrack as MpvAudioTrack,
   MpvPlayerViewProps,
