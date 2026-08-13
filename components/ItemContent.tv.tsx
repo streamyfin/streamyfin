@@ -174,7 +174,8 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
         if (!item || !selectedOptions) return;
 
         // The chooser clears the shuffle queue, resets the auto-play chain
-        // and routes to the native player (Apple TV opt-in) or the JS route.
+        // and routes to the native player (default on tvOS 26+) or the JS
+        // route.
         const positionTicks = Number(playbackPosition);
         void playMedia(
           {
@@ -199,6 +200,15 @@ export const ItemContentTV: React.FC<ItemContentTVProps> = React.memo(
 
       const hasPlaybackProgress =
         (item.UserData?.PlaybackPositionTicks ?? 0) > 0;
+
+      // With the resume dialog turned off in settings, an in-progress item
+      // resumes right away instead of asking resume-or-restart.
+      if (hasPlaybackProgress && !settings.showResumeDialog) {
+        navigateToPlayer(
+          item.UserData?.PlaybackPositionTicks?.toString() ?? "0",
+        );
+        return;
+      }
 
       if (hasPlaybackProgress) {
         Alert.alert(

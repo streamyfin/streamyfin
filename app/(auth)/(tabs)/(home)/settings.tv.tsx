@@ -722,63 +722,62 @@ export default function SettingsTV() {
           />
 
           {/* Video Player Section — which engine plays video is not an audio
-              setting. The header is conditional along with its contents so the
-              section doesn't render empty on platforms that offer neither
-              choice (Apple TV below tvOS 26, which has no native-player opt-in
-              and no ExoPlayer selector). */}
-          {(isAndroidTv || isNativePlayerSupportedTV) && (
+              setting. The resume prompt toggle applies on every TV platform,
+              so the section always has content and no longer needs the old
+              engine-availability gate. */}
+          <TVSectionHeader title={t("home.settings.video_player.title")} />
+
+          {/* Engine selector — Android TV only */}
+          {isAndroidTv && (
             <>
-              <TVSectionHeader title={t("home.settings.video_player.title")} />
-
-              {/* Engine selector — Android TV only */}
-              {isAndroidTv && (
-                <>
-                  <TVSettingsOptionButton
-                    disabledByAdmin={pluginSettings?.videoPlayer?.locked}
-                    label={t("home.settings.video_player.title")}
-                    value={videoPlayerLabel}
-                    onPress={() =>
-                      showOptions({
-                        title: t("home.settings.video_player.title"),
-                        options: videoPlayerOptions,
-                        onSelect: (value) =>
-                          updateSettings({ videoPlayer: value }),
-                      })
-                    }
-                  />
-                  {!isMpv && (
-                    <Text style={playerNoteStyle}>
-                      {t("home.settings.video_player.exoplayer_note")}
-                    </Text>
-                  )}
-                  {isMpv && (
-                    <Text style={playerNoteStyle}>
-                      {t("home.settings.video_player.mpv_note")}
-                    </Text>
-                  )}
-                </>
+              <TVSettingsOptionButton
+                disabledByAdmin={pluginSettings?.videoPlayer?.locked}
+                label={t("home.settings.video_player.title")}
+                value={videoPlayerLabel}
+                onPress={() =>
+                  showOptions({
+                    title: t("home.settings.video_player.title"),
+                    options: videoPlayerOptions,
+                    onSelect: (value) => updateSettings({ videoPlayer: value }),
+                  })
+                }
+              />
+              {!isMpv && (
+                <Text style={playerNoteStyle}>
+                  {t("home.settings.video_player.exoplayer_note")}
+                </Text>
               )}
-
-              {/* Native tvOS player opt-in — Apple TV on tvOS 26+, default off */}
-              {isNativePlayerSupportedTV && (
-                <>
-                  <TVSettingsToggle
-                    disabledByAdmin={
-                      pluginSettings?.nativeVideoPlayerTV?.locked
-                    }
-                    label={t("home.settings.video_player.native_tv")}
-                    value={settings.nativeVideoPlayerTV}
-                    onToggle={(value) =>
-                      updateSettings({ nativeVideoPlayerTV: value })
-                    }
-                  />
-                  <Text style={playerNoteStyle}>
-                    {t("home.settings.video_player.native_tv_note")}
-                  </Text>
-                </>
+              {isMpv && (
+                <Text style={playerNoteStyle}>
+                  {t("home.settings.video_player.mpv_note")}
+                </Text>
               )}
             </>
           )}
+
+          {/* Native tvOS player opt-out — Apple TV on tvOS 26+, default on */}
+          {isNativePlayerSupportedTV && (
+            <>
+              <TVSettingsToggle
+                disabledByAdmin={pluginSettings?.nativeVideoPlayerTV?.locked}
+                label={t("home.settings.video_player.native_tv")}
+                value={settings.nativeVideoPlayerTV}
+                onToggle={(value) =>
+                  updateSettings({ nativeVideoPlayerTV: value })
+                }
+              />
+              <Text style={playerNoteStyle}>
+                {t("home.settings.video_player.native_tv_note")}
+              </Text>
+            </>
+          )}
+
+          <TVSettingsToggle
+            disabledByAdmin={pluginSettings?.showResumeDialog?.locked}
+            label={t("home.settings.other.resume_dialog")}
+            value={settings.showResumeDialog}
+            onToggle={(value) => updateSettings({ showResumeDialog: value })}
+          />
 
           {/* Audio Section */}
           <TVSectionHeader title={t("home.settings.audio.audio_title")} />
