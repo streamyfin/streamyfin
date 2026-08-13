@@ -12,6 +12,7 @@ import type {
   TvResult,
 } from "@/utils/jellyseerr/server/models/Search";
 import type { TvDetails } from "@/utils/jellyseerr/server/models/Tv";
+import { AwardsBadge } from "./AwardsBadge";
 import { Badge } from "./Badge";
 
 interface Props extends ViewProps {
@@ -21,7 +22,10 @@ interface Props extends ViewProps {
 export const Ratings: React.FC<Props> = ({ item, ...props }) => {
   if (!item) return null;
   return (
-    <View className='flex flex-row items-center mt-2 space-x-2' {...props}>
+    <View
+      className='flex flex-row flex-wrap items-center mt-2 gap-2'
+      {...props}
+    >
       {item.OfficialRating && (
         <Badge text={item.OfficialRating} variant='gray' />
       )}
@@ -51,6 +55,7 @@ export const Ratings: React.FC<Props> = ({ item, ...props }) => {
           }
         />
       )}
+      <AwardsBadge item={item} />
     </View>
   );
 };

@@ -780,13 +780,14 @@ export default function SettingsTV() {
             }
           />
 
-          {/* Audio Section */}
-          <TVSectionHeader title={t("home.settings.audio.audio_title")} />
+          {/* Video Player Section */}
+          <TVSectionHeader title={t("home.settings.video_player.title")} />
 
-          {/* Video Player selector — Android TV only */}
+          {/* Engine selector — Android TV only */}
           {isAndroidTv && (
             <>
               <TVSettingsOptionButton
+                disabledByAdmin={pluginSettings?.videoPlayer?.locked}
                 label={t("home.settings.video_player.title")}
                 value={videoPlayerLabel}
                 onPress={() =>
@@ -810,10 +811,11 @@ export default function SettingsTV() {
             </>
           )}
 
-          {/* Native tvOS player opt-in — Apple TV on tvOS 26+, default off */}
+          {/* Native tvOS player — Apple TV on tvOS 26+, default on */}
           {isNativePlayerSupportedTV && (
             <>
               <TVSettingsToggle
+                disabledByAdmin={pluginSettings?.nativeVideoPlayerTV?.locked}
                 label={t("home.settings.video_player.native_tv")}
                 value={settings.nativeVideoPlayerTV}
                 onToggle={(value) =>
@@ -826,6 +828,15 @@ export default function SettingsTV() {
             </>
           )}
 
+          <TVSettingsToggle
+            disabledByAdmin={pluginSettings?.showResumeDialog?.locked}
+            label={t("home.settings.other.resume_dialog")}
+            value={settings.showResumeDialog}
+            onToggle={(value) => updateSettings({ showResumeDialog: value })}
+          />
+
+          {/* Audio Section */}
+          <TVSectionHeader title={t("home.settings.audio.audio_title")} />
           <TVSettingsOptionButton
             label={t("home.settings.audio.audio_language")}
             value={audioLanguageLabel}
@@ -1252,6 +1263,24 @@ export default function SettingsTV() {
             label={t("home.settings.appearance.theme_music")}
             value={settings.tvThemeMusicEnabled}
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
+          />
+
+          {/* Plugins Section — lookups the client makes directly, without
+              going through Jellyfin. */}
+          <TVSectionHeader title={t("home.settings.plugins.plugins_title")} />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.wikidata_awards")}
+            value={settings.wikidataAwardsEnabled}
+            onToggle={(value) =>
+              updateSettings({ wikidataAwardsEnabled: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.opensubtitles_enabled")}
+            value={settings.openSubtitlesEnabled}
+            onToggle={(value) =>
+              updateSettings({ openSubtitlesEnabled: value })
+            }
           />
 
           {/* Storage Section */}

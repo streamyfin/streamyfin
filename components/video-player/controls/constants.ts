@@ -9,7 +9,14 @@ export const CONTROLS_CONSTANTS = {
   LONG_PRESS_ACCELERATION: 1.2,
   LONG_PRESS_MAX_ACCELERATION: 4,
   LONG_PRESS_INTERVAL: 300,
+  HOLD_SPEED_DELAY: 500,
+  HOLD_SPEED_DIM_OPACITY: 0.2,
+  HOLD_SPEED_DIM_DURATION: 300,
+  CONTROLS_SCRIM_OPACITY: 0.75,
   SLIDER_DEBOUNCE_MS: 3,
+  // Progress ticks arrive at most once per second, so the last one before EOF
+  // can land anywhere inside the final second — 1.5s guarantees it's caught.
+  STILL_WATCHING_EOF_WINDOW_MS: 1500,
 } as const;
 
 export const ICON_SIZES = {

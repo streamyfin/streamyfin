@@ -224,8 +224,10 @@ export type NativePlayerUIOptions = {
   showVolumeSlider?: boolean;
   /** false hides the left-edge brightness slider (settings.hideBrightnessSlider). */
   showBrightnessSlider?: boolean;
-  /** false disables press-and-hold for 2× speed (settings.enableHoldToSpeed). */
+  /** false disables press-and-hold speed boosting (settings.enableHoldToSpeed). */
   holdToSpeedEnabled?: boolean;
+  /** Speed applied while press-and-hold is held (settings.holdToSpeedRate). */
+  holdToSpeedRate?: number;
   /** false disables pinch to zoom-to-fill (settings.enablePinchToZoom). */
   pinchToZoomEnabled?: boolean;
   /** true enables double tap on the video halves to seek (settings.enableDoubleTapToSeek). */

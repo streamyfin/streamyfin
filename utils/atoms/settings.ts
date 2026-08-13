@@ -212,10 +212,10 @@ export const isNativePlayerSupported =
 
 /**
  * Whether the fully-native player can run on the current platform as the
- * Apple TV variant. Unlike iPhone/iPad (default-on), tvOS is opt-in via the
- * `nativeVideoPlayerTV` setting while the TV UI is being built out, and it
- * requires tvOS 26+ — the chrome is built on native glass Menus and other
- * 26-era APIs, so older boxes keep the JS player unconditionally.
+ * Apple TV variant. Like iPhone/iPad it is the default, with the
+ * `nativeVideoPlayerTV` setting as the opt-out, and it requires tvOS 26+ —
+ * the chrome is built on native glass Menus and other 26-era APIs, so older
+ * boxes keep the JS player unconditionally.
  */
 export const isNativePlayerSupportedTV =
   Platform.OS === "ios" &&
@@ -224,13 +224,13 @@ export const isNativePlayerSupportedTV =
 
 /**
  * Resolve the actually-active video player for the current settings.
- * MPV is the default on Android and TV; users can opt into ExoPlayer on
+ * MPV is the default on Android; users can opt into ExoPlayer on
  * Android TV via settings.videoPlayer. On iPhone/iPad the fully-native
  * player is the default: an unset `videoPlayer` (user never chose) or an
  * explicit `Native` selection resolves to Native, while an explicit MPV
- * choice is the opt-out and wins. On Apple TV the native player is opt-in
- * via the separate `nativeVideoPlayerTV` toggle (default off — MPV stays
- * the TV default). The platform capability gates are
+ * choice is the opt-out and wins. On Apple TV (tvOS 26+) the native player
+ * is likewise the default, with the separate `nativeVideoPlayerTV` toggle
+ * as the opt-out. The platform capability gates are
  * folded in here so callers (VideoPlayerView, direct-player's device
  * profile, PlaySettingsProvider) can never advertise a player on a
  * platform where another one is actually rendering — that mismatch would
@@ -245,7 +245,7 @@ export const getActiveVideoPlayer = (
   if (isExoPlayerSupported && settings?.videoPlayer === VideoPlayer.ExoPlayer) {
     return VideoPlayer.ExoPlayer;
   }
-  if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV === true) {
+  if (isNativePlayerSupportedTV && settings?.nativeVideoPlayerTV !== false) {
     return VideoPlayer.Native;
   }
   if (
@@ -360,6 +360,8 @@ export type Settings = {
   maxAutoPlayEpisodeCount: MaxAutoPlayEpisodeCount;
   autoPlayEpisodeCount: number;
   autoPlayNextEpisode: boolean;
+  /** Ask whether to resume or start over when playing an in-progress item. */
+  showResumeDialog: boolean;
   // Playback speed settings
   defaultPlaybackSpeed: number;
   playbackSpeedPerMedia: Record<string, number>;
@@ -376,6 +378,7 @@ export type Settings = {
   enableLeftSideBrightnessSwipe: boolean;
   enableRightSideVolumeSwipe: boolean;
   enableHoldToSpeed: boolean;
+  holdToSpeedRate: number;
   enablePinchToZoom: boolean;
   enableDoubleTapToSeek: boolean;
   hideVolumeSlider: boolean;
@@ -386,7 +389,7 @@ export type Settings = {
   // "Next Up" and "Continue Watching" home rows.
   useEpisodeImagesForNextUp: boolean;
   // TV-specific settings
-  /** Apple TV only: opt into the fully-native tvOS player (default off). */
+  /** Apple TV only: use the fully-native tvOS player (default on; needs tvOS 26+). */
   nativeVideoPlayerTV: boolean;
   showHomeBackdrop: boolean;
   showTVHeroCarousel: boolean;
@@ -404,6 +407,10 @@ export type Settings = {
   preferLocalAudio: boolean;
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode;
+  // Optional third-party lookups. Both call a service directly from the client
+  // rather than through Jellyfin, so each can be turned off on its own.
+  wikidataAwardsEnabled: boolean;
+  openSubtitlesEnabled: boolean;
   // OpenSubtitles API key for client-side subtitle fetching
   openSubtitlesApiKey?: string;
   // TV-only: Inactivity timeout for auto-logout
@@ -475,6 +482,7 @@ export const defaultValues: Settings = {
   maxAutoPlayEpisodeCount: { key: "3", value: 3 },
   autoPlayEpisodeCount: 0,
   autoPlayNextEpisode: true,
+  showResumeDialog: true,
   // Playback speed defaults
   defaultPlaybackSpeed: 1.0,
   playbackSpeedPerMedia: {},
@@ -496,6 +504,7 @@ export const defaultValues: Settings = {
   enableLeftSideBrightnessSwipe: true,
   enableRightSideVolumeSwipe: true,
   enableHoldToSpeed: true,
+  holdToSpeedRate: 2.0,
   enablePinchToZoom: true,
   enableDoubleTapToSeek: false,
   hideVolumeSlider: false,
@@ -504,7 +513,7 @@ export const defaultValues: Settings = {
   mergeNextUpAndContinueWatching: false,
   useEpisodeImagesForNextUp: false,
   // TV-specific settings
-  nativeVideoPlayerTV: false,
+  nativeVideoPlayerTV: true,
   showHomeBackdrop: true,
   showTVHeroCarousel: true,
   tvTypographyScale: TVTypographyScale.Default,
@@ -521,6 +530,9 @@ export const defaultValues: Settings = {
   preferLocalAudio: true,
   // Audio transcoding mode
   audioTranscodeMode: AudioTranscodeMode.Auto,
+  // Optional third-party lookups
+  wikidataAwardsEnabled: true,
+  openSubtitlesEnabled: true,
   // TV-only: Inactivity timeout (disabled by default)
   inactivityTimeout: InactivityTimeout.Disabled,
 };

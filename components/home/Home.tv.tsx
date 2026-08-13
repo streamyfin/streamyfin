@@ -820,6 +820,7 @@ export const Home = () => {
                     queryKey={section.queryKey}
                     queryFn={section.queryFn}
                     orientation={section.orientation}
+                    displayShowName={true}
                     hideIfEmpty
                     pageSize={section.pageSize}
                     isFirstSection={isFirstSection}

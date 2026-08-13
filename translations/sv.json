@@ -232,7 +232,7 @@
         "exoplayer_note": "ExoPlayer stöder inte avancerad ASS/SSA-undertextstil eller horisontell undertextjustering. Byt till MPV om du behöver det.",
         "mpv_note": "MPV på TV skickar för närvarande inte HDR-metadata till skärmen, så HDR10-/HDR10+-innehåll konverteras till SDR. Byt till ExoPlayer för HDR-utdata.",
         "native_tv": "Inbyggd spelare (experimentell)",
-        "native_tv_note": "Aktivera den nya helt inbyggda Apple TV-spelaren. Stäng av för att använda den nuvarande spelaren om du får uppspelningsproblem."
+        "native_tv_note": "Använd den nya helt inbyggda Apple TV-spelaren. Stäng av för att använda den tidigare spelaren om du får uppspelningsproblem."
       },
       "buffer": {
         "title": "Bufferinställningar",
@@ -348,6 +348,7 @@
         "hide_libraries": "Dölj bibliotek",
         "select_libraries_you_want_to_hide": "Välj de bibliotek du vill dölja på fliken Bibliotek och på startsidan.",
         "disable_haptic_feedback": "Stäng av vibrationer",
+        "resume_dialog": "Fråga om att fortsätta eller börja om",
         "default_quality": "Förvald Kvalitet",
         "default_playback_speed": "Default Playback Speed",
         "auto_play_next_episode": "Spela upp nästa avsnitt automatiskt",
@@ -367,6 +368,10 @@
       },
       "plugins": {
         "plugins_title": "Tillägg",
+        "wikidata_awards": "Utmärkelser från Wikidata",
+        "wikidata_awards_hint": "Visa Oscars- och utmärkelsestatus på film- och seriesidor. Enheten frågar Wikidata direkt, inte din Jellyfin-server.",
+        "opensubtitles_enabled": "Sök på OpenSubtitles",
+        "opensubtitles_enabled_hint": "Låt den här enheten söka direkt hos OpenSubtitles när din Jellyfin-server saknar undertextleverantör. Om du stänger av detta sker undertextsökningar på servern och en sparad API-nyckel lämnas orörd.",
         "jellyseerr": {
           "server_url": "Serveradress",
           "server_url_hint": "Exempel: http(s)://your-host.url\n(lägg till port vid behov)",
@@ -884,6 +889,17 @@
       "failed_to_approve_request": "Misslyckades med att godkänna begäran",
       "failed_to_decline_request": "Misslyckades med att avvisa begäran"
     }
+  },
+  "awards": {
+    "won_oscar": "Vann {{count}} Oscar",
+    "won_oscars": "Vann {{count}} Oscars",
+    "nominated_for_oscar": "Nominerad till {{count}} Oscar",
+    "nominated_for_oscars": "Nominerad till {{count}} Oscars",
+    "win": "{{count}} vinst",
+    "wins": "{{count}} vinster",
+    "nomination": "{{count}} nominering",
+    "nominations": "{{count}} nomineringar",
+    "wins_and_nominations": "{{wins}} & {{nominations}}"
   },
   "accessibility": {
     "play_button": "Uppspelningsknapp",
