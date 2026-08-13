@@ -7,7 +7,6 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useMMKVString } from "react-native-mmkv";
 import { Colors } from "@/constants/Colors";
 import { useGlobalModal } from "@/providers/GlobalModalProvider";
-import { SessionExpiredError } from "@/providers/JellyfinProvider";
 import {
   deleteAccountCredential,
   getPreviousServers,
@@ -17,6 +16,7 @@ import {
   type SavedServerAccount,
   updateServerCustomHeaders,
 } from "@/utils/secureCredentials";
+import { savedLoginAlertText } from "@/utils/sessionExpired";
 import { AccountsSheet } from "./AccountsSheet";
 import { Text } from "./common/Text";
 import { ListGroup } from "./list/ListGroup";
@@ -80,18 +80,10 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
           try {
             await onQuickLogin(server.address, account.userId);
           } catch (error) {
-            const isSessionExpired = error instanceof SessionExpiredError;
-            Alert.alert(
-              isSessionExpired
-                ? t("server.session_expired")
-                : t("login.connection_failed"),
-              isSessionExpired
-                ? t("server.please_login_again")
-                : error instanceof Error
-                  ? error.message
-                  : t("server.session_expired"),
-              [{ text: t("common.ok"), onPress: () => onServerSelect(server) }],
-            );
+            const { title, message } = savedLoginAlertText(error, t);
+            Alert.alert(title, message, [
+              { text: t("common.ok"), onPress: () => onServerSelect(server) },
+            ]);
           } finally {
             setLoadingServer(null);
           }
@@ -136,23 +128,13 @@ export const PreviousServersList: React.FC<PreviousServersListProps> = ({
       try {
         await onQuickLogin(selectedServer.address, selectedAccount.userId);
       } catch (error) {
-        const isSessionExpired = error instanceof SessionExpiredError;
-        Alert.alert(
-          isSessionExpired
-            ? t("server.session_expired")
-            : t("login.connection_failed"),
-          isSessionExpired
-            ? t("server.please_login_again")
-            : error instanceof Error
-              ? error.message
-              : t("server.session_expired"),
-          [
-            {
-              text: t("common.ok"),
-              onPress: () => onServerSelect(selectedServer),
-            },
-          ],
-        );
+        const { title, message } = savedLoginAlertText(error, t);
+        Alert.alert(title, message, [
+          {
+            text: t("common.ok"),
+            onPress: () => onServerSelect(selectedServer),
+          },
+        ]);
       } finally {
         setLoadingServer(null);
         setSelectedAccount(null);

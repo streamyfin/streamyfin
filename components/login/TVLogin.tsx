@@ -6,11 +6,7 @@ import { Alert, View } from "react-native";
 import { useMMKVString } from "react-native-mmkv";
 import { Text } from "@/components/common/Text";
 import { useTVMenuKeyInterception } from "@/hooks/useTVBackPress";
-import {
-  apiAtom,
-  SessionExpiredError,
-  useJellyfin,
-} from "@/providers/JellyfinProvider";
+import { apiAtom, useJellyfin } from "@/providers/JellyfinProvider";
 import { selectedTVServerAtom } from "@/utils/atoms/selectedTVServer";
 import type { CustomHeader } from "@/utils/customHeaders";
 import {
@@ -33,6 +29,10 @@ import {
   type SavedServerAccount,
   saveAccountCredential,
 } from "@/utils/secureCredentials";
+import {
+  SessionExpiredError,
+  savedLoginAlertText,
+} from "@/utils/sessionExpired";
 import { TVAddServerForm } from "./TVAddServerForm";
 import { TVAddUserForm } from "./TVAddUserForm";
 import { TVPasswordEntryModal } from "./TVPasswordEntryModal";
@@ -263,22 +263,19 @@ export const TVLogin: React.FC = () => {
     error: unknown,
     account: SavedServerAccount,
   ) => {
+    const { title, message } = savedLoginAlertText(error, t);
     if (!(error instanceof SessionExpiredError)) {
-      Alert.alert(
-        t("login.connection_failed"),
-        error instanceof Error ? error.message : t("server.session_expired"),
-        [
-          {
-            text: t("common.ok"),
-            onPress: () => setCurrentScreen("user-selection"),
-          },
-        ],
-      );
+      Alert.alert(title, message, [
+        {
+          text: t("common.ok"),
+          onPress: () => setCurrentScreen("user-selection"),
+        },
+      ]);
       return;
     }
 
     setSelectedAccount(account);
-    Alert.alert(t("server.session_expired"), t("server.please_login_again"), [
+    Alert.alert(title, message, [
       {
         text: t("common.cancel"),
         style: "cancel",

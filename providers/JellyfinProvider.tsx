@@ -56,6 +56,7 @@ import {
   saveJellyseerrPassword,
   updateAccountToken,
 } from "@/utils/secureCredentials";
+import { SessionExpiredError } from "@/utils/sessionExpired";
 import { store } from "@/utils/store";
 import { clearTVDiscoverySafely } from "@/utils/tvDiscovery/sync";
 import { APP_VERSION } from "@/utils/version";
@@ -133,15 +134,6 @@ export const cacheVersionAtom = atom<number>(0);
 export const pendingAccountSaveAtom = atom<{ serverName?: string } | null>(
   null,
 );
-
-/** A rejected token on a saved account. The account is kept — callers offer
- * re-authentication instead. */
-export class SessionExpiredError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "SessionExpiredError";
-  }
-}
 
 interface LoginOptions {
   saveAccount?: boolean;
@@ -431,6 +423,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
           if (!accountJellyfin)
             throw new Error("Failed to create SDK instance");
           setQuickConnectDeviceId(null);
+          // Quick Connect can land on a different account than the one already
+          // signed in, so it needs the same teardown as the other paths.
+          await clearAccountScopedState();
 
           setUser(User);
           setApi(
@@ -597,6 +592,9 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         ).authenticateUserByName(username, password);
 
         if (auth.data.AccessToken && auth.data.User) {
+          // No clearAccountScopedState here: this runs from the login screen,
+          // which is only reachable after a logout that already tore the
+          // previous account's state down.
           adoptDeviceId(accountDeviceId);
           setUser(auth.data.User);
           storage.set("user", JSON.stringify(auth.data.User));
@@ -786,7 +784,11 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       // Credentials predating device ids fall back to the active id, which
-      // after upgrading is still the one they were issued under.
+      // after upgrading is still the one they were issued under. Borrowed for
+      // the request but never written back: tokens are scoped per server, so
+      // two accounts on different servers can both be live here, and
+      // persisting the borrowed id would leave them sharing one.
+      const ownsDeviceId = credential.deviceId !== undefined;
       const credentialDeviceId = credential.deviceId ?? getOrSetDeviceId();
       const credentialJellyfin = buildJellyfin(credentialDeviceId);
       if (!credentialJellyfin) throw new Error("Failed to create SDK instance");
@@ -814,14 +816,15 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
         storage.set("token", credential.token);
         storage.set("user", JSON.stringify(response.data));
 
-        // Record the id this token is bound to, or it mints a fresh one next
-        // login and revokes itself. Also refreshes a changed avatar.
+        // Refresh a changed avatar, and keep the account's own device id. An
+        // account that never had one keeps it that way, so its next password
+        // login mints an id of its own rather than inheriting this one.
         await updateAccountToken(
           serverUrl,
           credential.userId,
           credential.token,
           response.data.PrimaryImageTag ?? undefined,
-          credentialDeviceId,
+          ownsDeviceId ? credentialDeviceId : undefined,
         );
 
         // Refresh plugin settings

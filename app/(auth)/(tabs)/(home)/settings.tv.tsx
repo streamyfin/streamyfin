@@ -31,7 +31,6 @@ import { clearCache as clearAudioCache } from "@/providers/AudioStorage";
 import {
   apiAtom,
   cacheVersionAtom,
-  SessionExpiredError,
   useJellyfin,
   userAtom,
 } from "@/providers/JellyfinProvider";
@@ -55,6 +54,10 @@ import {
   type SavedServer,
   type SavedServerAccount,
 } from "@/utils/secureCredentials";
+import {
+  SessionExpiredError,
+  savedLoginAlertText,
+} from "@/utils/sessionExpired";
 import { clearTopShelfCacheSafely } from "@/utils/topshelf/cache";
 
 const buildLanguageOptions = (
@@ -131,8 +134,9 @@ export default function SettingsTV() {
   // The account survives a rejected token, so offer a password sign-in rather
   // than leaving the user tapping a card that keeps failing.
   const handleSavedLoginError = (error: unknown) => {
+    const { title, message } = savedLoginAlertText(error, t);
     if (error instanceof SessionExpiredError) {
-      Alert.alert(t("server.session_expired"), t("server.please_login_again"), [
+      Alert.alert(title, message, [
         { text: t("common.cancel"), style: "cancel" },
         {
           text: t("common.ok"),
@@ -141,10 +145,7 @@ export default function SettingsTV() {
       ]);
       return;
     }
-    Alert.alert(
-      t("login.connection_failed"),
-      error instanceof Error ? error.message : t("server.session_expired"),
-    );
+    Alert.alert(title, message);
   };
 
   // Handle account selection from modal
