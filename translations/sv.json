@@ -368,6 +368,10 @@
       },
       "plugins": {
         "plugins_title": "Tillägg",
+        "wikidata_awards": "Utmärkelser från Wikidata",
+        "wikidata_awards_hint": "Visa Oscars- och utmärkelsestatus på film- och seriesidor. Enheten frågar Wikidata direkt, inte din Jellyfin-server.",
+        "opensubtitles_enabled": "Sök på OpenSubtitles",
+        "opensubtitles_enabled_hint": "Låt den här enheten söka direkt hos OpenSubtitles när din Jellyfin-server saknar undertextleverantör. Om du stänger av detta sker undertextsökningar på servern och en sparad API-nyckel lämnas orörd.",
         "jellyseerr": {
           "server_url": "Serveradress",
           "server_url_hint": "Exempel: http(s)://your-host.url\n(lägg till port vid behov)",
@@ -885,6 +889,17 @@
       "failed_to_approve_request": "Misslyckades med att godkänna begäran",
       "failed_to_decline_request": "Misslyckades med att avvisa begäran"
     }
+  },
+  "awards": {
+    "won_oscar": "Vann {{count}} Oscar",
+    "won_oscars": "Vann {{count}} Oscars",
+    "nominated_for_oscar": "Nominerad till {{count}} Oscar",
+    "nominated_for_oscars": "Nominerad till {{count}} Oscars",
+    "win": "{{count}} vinst",
+    "wins": "{{count}} vinster",
+    "nomination": "{{count}} nominering",
+    "nominations": "{{count}} nomineringar",
+    "wins_and_nominations": "{{wins}} & {{nominations}}"
   },
   "accessibility": {
     "play_button": "Uppspelningsknapp",

@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import { useAtomValue } from "jotai";
 import React, { useMemo } from "react";
 import { Dimensions, View } from "react-native";
+import { AwardsBadge } from "@/components/AwardsBadge";
 import { Badge } from "@/components/Badge";
 import { Text } from "@/components/common/Text";
 import { GenreTags } from "@/components/GenreTags";
@@ -95,6 +96,7 @@ export const TVSeriesHeader: React.FC<TVSeriesHeaderProps> = ({ item }) => {
             iconLeft={<Ionicons name='star' size={16} color='gold' />}
           />
         )}
+        <AwardsBadge item={item} />
       </View>
 
       {/* Genres */}
