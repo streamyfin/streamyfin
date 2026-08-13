@@ -83,6 +83,14 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
       return;
     }
 
+    // Pausing freezes the fill where it stands. Without cancelling, the tween
+    // already in flight would keep creeping for up to a sample after playback
+    // stopped.
+    if (!isPlaying) {
+      cancelAnimation(progress);
+      return;
+    }
+
     // Reach for the next sample instead of jumping to it, so the fill moves
     // smoothly between two position reports. Paused playback stops moving the
     // target, which leaves the fill where it is instead of emptying it.
@@ -95,7 +103,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     return () => {
       cancelAnimation(progress);
     };
-  }, [show, target, progress]);
+  }, [show, target, progress, isPlaying]);
 
   useEffect(() => {
     if (countedItemRef.current !== itemId) {

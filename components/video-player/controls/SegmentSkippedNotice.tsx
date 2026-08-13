@@ -1,7 +1,8 @@
+import { BlurView } from "expo-blur";
 import type { FC } from "react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,6 +10,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Text } from "@/components/common/Text";
+import { useScaledTVTypography } from "@/constants/TVTypography";
 import { useControlsSafeAreaInsets } from "@/hooks/useControlsSafeAreaInsets";
 import type { SegmentType } from "@/hooks/useSegmentSkipper";
 
@@ -44,6 +46,7 @@ export const SegmentSkippedNotice: FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useControlsSafeAreaInsets();
+  const typography = useScaledTVTypography();
   const opacity = useSharedValue(0);
 
   useEffect(() => {
@@ -78,7 +81,17 @@ export const SegmentSkippedNotice: FC<Props> = ({
         animatedStyle,
       ]}
     >
-      <Text style={styles.label}>{label}</Text>
+      {Platform.isTV ? (
+        // TV wants a blurred surface and a size that reads from the couch,
+        // not the phone's translucent pill.
+        <BlurView intensity={80} tint='dark' style={styles.blur}>
+          <Text style={[styles.label, { fontSize: typography.callout }]}>
+            {label}
+          </Text>
+        </BlurView>
+      ) : (
+        <Text style={[styles.label, styles.phonePadding]}>{label}</Text>
+      )}
     </Animated.View>
   );
 };
@@ -86,11 +99,18 @@ export const SegmentSkippedNotice: FC<Props> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    backgroundColor: "rgba(0,0,0,0.6)",
     borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: Platform.isTV ? "transparent" : "rgba(0,0,0,0.6)",
+    zIndex: 15,
+  },
+  blur: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  phonePadding: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    zIndex: 15,
   },
   label: {
     color: "#FFFFFF",

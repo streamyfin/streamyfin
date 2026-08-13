@@ -466,22 +466,27 @@ const NativePlayerProviderInner: React.FC<{
       // The skip mode is resolved here rather than natively, so the native
       // player never reads settings and stays in step with the JS players.
       const currentSettings = settingsRef.current;
+      // Emitted in the same overlap priority the JS players use
+      // (Commercial > Recap > Intro > Preview > Outro). The native side picks
+      // the first segment containing the playhead, so array order IS the
+      // priority: a flat by-bucket order would resolve overlaps differently
+      // from the JS players.
       const bucketsByType: Array<
         [NativePlayerSegmentType, MediaTimeSegment[], SegmentSkipMode]
       > = [
-        ["Intro", segments.introSegments, currentSettings?.skipIntro ?? "ask"],
-        ["Outro", segments.creditSegments, currentSettings?.skipOutro ?? "ask"],
-        ["Recap", segments.recapSegments, currentSettings?.skipRecap ?? "ask"],
         [
           "Commercial",
           segments.commercialSegments,
           currentSettings?.skipCommercial ?? "ask",
         ],
+        ["Recap", segments.recapSegments, currentSettings?.skipRecap ?? "ask"],
+        ["Intro", segments.introSegments, currentSettings?.skipIntro ?? "ask"],
         [
           "Preview",
           segments.previewSegments,
           currentSettings?.skipPreview ?? "ask",
         ],
+        ["Outro", segments.creditSegments, currentSettings?.skipOutro ?? "ask"],
       ];
 
       const mapped: NativePlayerSegment[] = bucketsByType.flatMap(
