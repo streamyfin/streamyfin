@@ -167,7 +167,9 @@ fun PlayerScreen(
                     .windowInsetsPadding(
                         WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
                     )
-                    .padding(end = 24.dp, bottom = if (viewModel.controlsVisible) 90.dp else 24.dp),
+                    // Clears the bottom bar, which carries a chapter label and
+                    // an ends-at line above the scrubber (iOS parity).
+                    .padding(end = 24.dp, bottom = if (viewModel.controlsVisible) 124.dp else 32.dp),
                 contentAlignment = Alignment.BottomEnd
             ) {
                 val countdown = viewModel.countdownRemaining
@@ -219,13 +221,17 @@ fun PlayerScreen(
             }
         }
 
-        // Layer 9: Unlock Controls Pill (in lock mode)
+        // Layer 9: Unlock Controls Pill (in lock mode) — top edge, same slot as
+        // the 2× pill above (iOS PlayerControlsRootView parity).
         if (viewModel.controlsLocked && viewModel.unlockButtonRevealed) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing),
-                contentAlignment = Alignment.Center
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                    )
+                    .padding(top = 24.dp),
+                contentAlignment = Alignment.TopCenter
             ) {
                 UnlockControlsPill(viewModel = viewModel)
             }

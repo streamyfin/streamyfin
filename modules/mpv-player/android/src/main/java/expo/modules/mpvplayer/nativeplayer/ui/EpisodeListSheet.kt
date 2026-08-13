@@ -106,7 +106,7 @@ private fun EpisodeRow(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = Color.Black,
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             } else {

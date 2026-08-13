@@ -59,7 +59,7 @@ fun StillWatchingOverlay(
                 onClick = { viewModel.continueWatchingFromStillWatching() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PlayerAccentColor,
-                    contentColor = Color.Black
+                    contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(44.dp)
