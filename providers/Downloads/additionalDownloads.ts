@@ -5,9 +5,9 @@ import type {
 } from "@jellyfin/sdk/lib/generated-client/models";
 import { Directory, File, Paths } from "expo-file-system";
 import { getItemImage } from "@/utils/getItemImage";
-import { fetchAndParseSegments } from "@/utils/segments";
+import { fetchAndParseSegments, type SegmentBuckets } from "@/utils/segments";
 import { generateTrickplayUrl, getTrickplayInfo } from "@/utils/trickplay";
-import type { MediaTimeSegment, TrickPlayData } from "./types";
+import type { TrickPlayData } from "./types";
 import { generateFilename } from "./utils";
 
 /**
@@ -179,22 +179,15 @@ export async function downloadSeriesImage(
 export async function fetchSegments(
   itemId: string,
   api: Api,
-): Promise<{
-  introSegments?: MediaTimeSegment[];
-  creditSegments?: MediaTimeSegment[];
-}> {
+): Promise<Partial<SegmentBuckets>> {
   try {
-    const segments = await fetchAndParseSegments(itemId, api);
-    return {
-      introSegments: segments.introSegments,
-      creditSegments: segments.creditSegments,
-    };
+    // Persist every bucket, not just intro and outro: the player offers a skip
+    // mode per segment type, so recap, commercial and preview have to survive
+    // into offline playback too.
+    return await fetchAndParseSegments(itemId, api);
   } catch (error) {
     console.error(`[SEGMENTS] Failed to fetch segments:`, error);
-    return {
-      introSegments: undefined,
-      creditSegments: undefined,
-    };
+    return {};
   }
 }
 
@@ -208,12 +201,12 @@ export async function downloadAdditionalAssets(params: {
   api: Api;
   saveImageFn: (itemId: string, url?: string) => Promise<void>;
   saveSeriesImageFn: (item: BaseItemDto) => Promise<void>;
-}): Promise<{
-  trickPlayData?: TrickPlayData;
-  updatedMediaSource: MediaSourceInfo;
-  introSegments?: MediaTimeSegment[];
-  creditSegments?: MediaTimeSegment[];
-}> {
+}): Promise<
+  {
+    trickPlayData?: TrickPlayData;
+    updatedMediaSource: MediaSourceInfo;
+  } & Partial<SegmentBuckets>
+> {
   const { item, mediaSource, api, saveImageFn, saveSeriesImageFn } = params;
 
   // Run all downloads in parallel for speed
@@ -230,10 +223,7 @@ export async function downloadAdditionalAssets(params: {
       : downloadSubtitles(mediaSource, item, api.basePath || ""),
     item.Id
       ? fetchSegments(item.Id, api)
-      : Promise.resolve({
-          introSegments: undefined,
-          creditSegments: undefined,
-        }),
+      : Promise.resolve({} as Partial<SegmentBuckets>),
     // Cover image downloads (run but don't wait for results)
     downloadCoverImage(item, api, saveImageFn).catch((err) => {
       console.error("[COVER] Error downloading cover:", err);
@@ -248,7 +238,6 @@ export async function downloadAdditionalAssets(params: {
   return {
     trickPlayData,
     updatedMediaSource,
-    introSegments: segments.introSegments,
-    creditSegments: segments.creditSegments,
+    ...segments,
   };
 }
