@@ -369,6 +369,10 @@
       },
       "plugins": {
         "plugins_title": "Plugins",
+        "wikidata_awards": "Awards from Wikidata",
+        "wikidata_awards_hint": "Show Oscar and award status on movie and series pages. This device asks Wikidata directly, not your Jellyfin server.",
+        "opensubtitles_enabled": "Search OpenSubtitles",
+        "opensubtitles_enabled_hint": "Let this device search OpenSubtitles directly when your Jellyfin server has no subtitle provider. Turning this off keeps subtitle searches on your server and leaves any saved API key alone.",
         "jellyseerr": {
           "server_url": "Server URL",
           "server_url_hint": "Example: http(s)://your-host.url\n(add port if required)",
@@ -886,6 +890,17 @@
       "failed_to_approve_request": "Failed to approve request",
       "failed_to_decline_request": "Failed to decline request"
     }
+  },
+  "awards": {
+    "won_oscar": "Won {{count}} Oscar",
+    "won_oscars": "Won {{count}} Oscars",
+    "nominated_for_oscar": "Nominated for {{count}} Oscar",
+    "nominated_for_oscars": "Nominated for {{count}} Oscars",
+    "win": "{{count}} win",
+    "wins": "{{count}} wins",
+    "nomination": "{{count}} nomination",
+    "nominations": "{{count}} nominations",
+    "wins_and_nominations": "{{wins}} & {{nominations}}"
   },
   "accessibility": {
     "play_button": "Play button",

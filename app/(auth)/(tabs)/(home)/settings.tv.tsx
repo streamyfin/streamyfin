@@ -1158,6 +1158,24 @@ export default function SettingsTV() {
             onToggle={(value) => updateSettings({ tvThemeMusicEnabled: value })}
           />
 
+          {/* Plugins Section — lookups the client makes directly, without
+              going through Jellyfin. */}
+          <TVSectionHeader title={t("home.settings.plugins.plugins_title")} />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.wikidata_awards")}
+            value={settings.wikidataAwardsEnabled}
+            onToggle={(value) =>
+              updateSettings({ wikidataAwardsEnabled: value })
+            }
+          />
+          <TVSettingsToggle
+            label={t("home.settings.plugins.opensubtitles_enabled")}
+            value={settings.openSubtitlesEnabled}
+            onToggle={(value) =>
+              updateSettings({ openSubtitlesEnabled: value })
+            }
+          />
+
           {/* Storage Section */}
           <TVSectionHeader title={t("home.settings.storage.storage_title")} />
           <TVSettingsOptionButton
