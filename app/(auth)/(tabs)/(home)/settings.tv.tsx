@@ -1128,7 +1128,7 @@ export default function SettingsTV() {
           <TVSectionHeader
             title={t("home.settings.other.segment_skip_settings")}
           />
-          {SEGMENT_SKIP_ROWS.map((row, index) => {
+          {SEGMENT_SKIP_ROWS.map((row, _index) => {
             const current = (settings[row.key] ?? "ask") as SegmentSkipMode;
             const rowLabel = t(`home.settings.other.${row.labelKey}`);
             const lockedByAdmin = pluginSettings?.[row.key]?.locked ?? false;
@@ -1137,7 +1137,6 @@ export default function SettingsTV() {
                 key={row.key}
                 label={rowLabel}
                 value={segmentSkipModeLabel(current)}
-                isFirst={index === 0}
                 disabledByAdmin={lockedByAdmin}
                 onPress={() => {
                   if (lockedByAdmin) return;

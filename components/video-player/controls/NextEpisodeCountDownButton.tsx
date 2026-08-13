@@ -108,6 +108,11 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
   useEffect(() => {
     if (countedItemRef.current !== itemId) {
       countedItemRef.current = itemId;
+      // An in-place episode switch keeps this mounted with `show` still true,
+      // so without emptying the fill the new item would inherit the old one's
+      // while its first media-clock sample is still the outgoing episode's.
+      cancelAnimation(progress);
+      progress.value = 0;
       hasSeenItemRunningRef.current = false;
       hasAdvancedRef.current = false;
     }
@@ -124,7 +129,7 @@ const NextEpisodeCountDownButton: React.FC<NextEpisodeCountDownButtonProps> = ({
     if (!reachedEnd && !stoppedAtEnd) return;
     hasAdvancedRef.current = true;
     onFinish();
-  }, [show, autoAdvance, remainingMs, isPlaying, itemId, onFinish]);
+  }, [show, autoAdvance, remainingMs, isPlaying, itemId, onFinish, progress]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
