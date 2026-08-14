@@ -11,6 +11,10 @@ import {
   useState,
 } from "react";
 import { apiAtom } from "@/providers/JellyfinProvider";
+import {
+  customHeadersVersionAtom,
+  getJellyfinHeaders,
+} from "@/utils/customHeaders";
 import { jellyfinProbe } from "@/utils/serverUrl/probes/jellyfin";
 
 interface NetworkStatusContextType {
@@ -33,7 +37,11 @@ async function checkApiReachable(basePath?: string): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    const outcome = await jellyfinProbe(basePath, controller.signal);
+    const outcome = await jellyfinProbe(
+      basePath,
+      controller.signal,
+      getJellyfinHeaders(basePath),
+    );
     return outcome.status === "ok";
   } finally {
     clearTimeout(timer);
@@ -45,6 +53,7 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
   const [serverConnected, setServerConnected] = useState<boolean | null>(true);
   const [loading, setLoading] = useState(false);
   const [api] = useAtom(apiAtom);
+  const [customHeadersVersion] = useAtom(customHeadersVersionAtom);
   const queryClient = useQueryClient();
   const wasServerConnected = useRef<boolean | null>(null);
 
@@ -53,7 +62,8 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
     const reachable = await checkApiReachable(api.basePath);
     setServerConnected(reachable);
     return reachable;
-  }, [api?.basePath]);
+    // customHeadersVersion: re-probe with the headers the user just saved.
+  }, [api?.basePath, customHeadersVersion]);
 
   const retryCheck = useCallback(async () => {
     setLoading(true);

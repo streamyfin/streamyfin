@@ -114,8 +114,8 @@ class MpvPlayerView: ExpoView {
 
 	// MARK: - Now Playing Info
 
-	func setNowPlayingMetadata(_ metadata: [String: String]) {
-		engine.setNowPlayingMetadata(metadata)
+	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]? = nil) {
+		engine.setNowPlayingMetadata(metadata, artworkHeaders: artworkHeaders)
 	}
 
 	func loadVideo(config: VideoLoadConfig) {

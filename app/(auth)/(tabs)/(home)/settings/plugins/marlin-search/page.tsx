@@ -10,7 +10,9 @@ import { SettingSwitch } from "@/components/common/SettingSwitch";
 import { Text } from "@/components/common/Text";
 import { ListGroup } from "@/components/list/ListGroup";
 import { ListItem } from "@/components/list/ListItem";
+import { CustomHeaderSelector } from "@/components/settings/CustomHeaderSelector";
 import { useDismissKeyboardOnLeave } from "@/hooks/useDismissKeyboardOnLeave";
+import { useIntegrationHeaders } from "@/hooks/useIntegrationHeaders";
 import { useNetworkAwareQueryClient } from "@/hooks/useNetworkAwareQueryClient";
 import { useServerUrlResolver } from "@/hooks/useServerUrlResolver";
 import { useSettings } from "@/utils/atoms/settings";
@@ -25,7 +27,8 @@ export default function MarlinSearchPage() {
   const queryClient = useNetworkAwareQueryClient();
 
   const [value, setValue] = useState<string>(settings?.marlinServerUrl || "");
-  const urlResolver = useServerUrlResolver(reachabilityProbe);
+  const { resolveOptions } = useIntegrationHeaders("marlin");
+  const urlResolver = useServerUrlResolver(reachabilityProbe, resolveOptions);
 
   const searchEngineLocked = pluginSettings?.searchEngine?.locked === true;
   const marlinUrlLocked = pluginSettings?.marlinServerUrl?.locked === true;
@@ -145,6 +148,14 @@ export default function MarlinSearchPage() {
             {t("home.settings.plugins.marlin_search.read_more_about_marlin")}
           </Text>
         </Text>
+
+        <View className='px-4'>
+          <CustomHeaderSelector
+            integrationKey='marlin'
+            title={t("custom_headers.title")}
+            description={t("custom_headers.integration_description")}
+          />
+        </View>
       </View>
     </ScrollView>
   );

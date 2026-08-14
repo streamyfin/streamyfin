@@ -84,9 +84,7 @@ struct TVCountdownCard: View {
 	var body: some View {
 		HStack(spacing: 18) {
 			if let imageUrl = next.imageUrl, let url = URL(string: imageUrl) {
-				AsyncImage(url: url) { image in
-					image.resizable().aspectRatio(contentMode: .fill)
-				} placeholder: {
+				RemoteImage(url: url, headers: viewModel.imageHeaders) {
 					Color.black.opacity(0.4)
 				}
 				.frame(width: 168, height: 94)
@@ -241,9 +239,7 @@ struct TVEpisodeShelf: View {
 		} label: {
 			ZStack(alignment: .bottomLeading) {
 				if let imageUrl = episode.imageUrl, let url = URL(string: imageUrl) {
-					AsyncImage(url: url) { image in
-						image.resizable().aspectRatio(contentMode: .fill)
-					} placeholder: {
+					RemoteImage(url: url, headers: viewModel.imageHeaders) {
 						Color.white.opacity(0.1)
 					}
 				} else {

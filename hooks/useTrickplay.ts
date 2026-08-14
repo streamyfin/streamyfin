@@ -1,8 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
 import { useGlobalSearchParams } from "expo-router";
+import { useAtomValue } from "jotai";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { prefetchServerImage } from "@/components/common/ServerImage";
 import { useDownload } from "@/providers/DownloadProvider";
+import { apiAtom } from "@/providers/JellyfinProvider";
 import { ticksToMs } from "@/utils/time";
 import {
   generateTrickplayUrl,
@@ -18,6 +20,7 @@ interface TrickplayUrl {
 
 /** Hook to handle trickplay logic for a given item. */
 export const useTrickplay = (item: BaseItemDto) => {
+  const api = useAtomValue(apiAtom);
   const { getDownloadedItemById } = useDownload();
   const [trickPlayUrl, setTrickPlayUrl] = useState<TrickplayUrl | null>(null);
   const lastCalculationTime = useRef(0);
@@ -74,13 +77,13 @@ export const useTrickplay = (item: BaseItemDto) => {
       const batch = urls.slice(i, i + maxConcurrent);
       await Promise.all(
         batch.map(
-          (url) => Image.prefetch(url).catch(() => {}), // Ignore errors
+          (url) => prefetchServerImage(url, api?.basePath).catch(() => {}), // Ignore errors
         ),
       );
       // Yield to the event loop between batches to avoid blocking
       await Promise.resolve();
     }
-  }, [trickplayInfo, item, getTrickplayUrl]);
+  }, [trickplayInfo, item, getTrickplayUrl, api?.basePath]);
 
   return {
     trickPlayUrl,

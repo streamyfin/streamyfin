@@ -68,11 +68,13 @@ export interface BackgroundDownloaderModuleType {
     url: string,
     destinationPath?: string,
     metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
   ): Promise<number>;
   enqueueDownload(
     url: string,
     destinationPath?: string,
     metadata?: DownloadActivityMetadata,
+    headers?: Record<string, string>,
   ): Promise<number>;
   cancelDownload(taskId: number): void;
   cancelQueuedDownload(url: string): void;

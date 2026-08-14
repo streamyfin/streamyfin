@@ -1,10 +1,10 @@
 import type { BaseItemDto } from "@jellyfin/sdk/lib/generated-client";
-import { Image } from "expo-image";
 import type React from "react";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Slider } from "react-native-awesome-slider";
 import { type SharedValue } from "react-native-reanimated";
+import { Image } from "@/components/common/ServerImage";
 import { useTrickplay } from "@/hooks/useTrickplay";
 import { formatTimeString, msToTicks, ticksToSeconds } from "@/utils/time";
 

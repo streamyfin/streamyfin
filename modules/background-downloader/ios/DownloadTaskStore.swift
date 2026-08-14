@@ -16,6 +16,15 @@ struct DownloadTaskInfo: Codable {
   let destinationPath: String?
   var metadata: DownloadActivityMetadata?
   var createdAt: Date = Date()
+  /// Custom proxy auth headers. Deliberately left out of `CodingKeys`: these are
+  /// credentials, and this store is an unencrypted App Group container. A
+  /// background transfer already carries them in its own request, so nothing is
+  /// lost by not persisting them.
+  var headers: [String: String]?
+
+  private enum CodingKeys: String, CodingKey {
+    case url, destinationPath, metadata, createdAt
+  }
 }
 
 /// A download waiting behind the active one. Persisted alongside the in-flight tasks so a season
@@ -26,6 +35,14 @@ struct QueuedDownloadInfo: Codable {
   let destinationPath: String?
   var metadata: DownloadActivityMetadata?
   var createdAt: Date = Date()
+  /// See `DownloadTaskInfo.headers`: not persisted. A queued download restored
+  /// after a process death starts without them, so a server behind an access
+  /// gateway rejects it and the item has to be re-queued from the app.
+  var headers: [String: String]?
+
+  private enum CodingKeys: String, CodingKey {
+    case url, destinationPath, metadata, createdAt
+  }
 }
 
 /// Persists in-flight task info so it survives the app being terminated mid-download.

@@ -5,6 +5,7 @@ import type { TFunction } from "i18next";
 import { Platform } from "react-native";
 import { BackgroundDownloader } from "@/modules";
 import type { DownloadActivityMetadata } from "@/modules/background-downloader";
+import { optionsWithOptionalHeaders } from "@/utils/customHeaders";
 import { getItemImage } from "@/utils/getItemImage";
 
 /**
@@ -105,7 +106,7 @@ async function stagePoster(
     await File.downloadFileAsync(
       image.uri as string,
       new File(directory, fileName),
-      { idempotent: true },
+      optionsWithOptionalHeaders({ idempotent: true }, image.headers),
     );
 
     return fileName;

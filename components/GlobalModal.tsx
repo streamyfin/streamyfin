@@ -82,6 +82,12 @@ export const GlobalModal = () => {
       backgroundStyle={modalOptions.backgroundStyle}
       enablePanDownToClose={modalOptions.enablePanDownToClose}
       enableDismissOnClose
+      // Left at gorhom's defaults on purpose. `adjustResize` only means
+      // something when the window actually resizes for the keyboard, and this
+      // app draws edge to edge, so it never does — setting it drove the sheet
+      // down behind the keyboard instead. Sheets with inputs scroll their own
+      // content out of the way (see CustomHeaderSheet).
+      keyboardBlurBehavior='restore'
       stackBehavior='push'
       style={{ zIndex: 1000 }}
     >

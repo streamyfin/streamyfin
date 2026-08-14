@@ -5,13 +5,13 @@ import {
   type RefetchOptions,
   useQuery,
 } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { t } from "i18next";
 import { orderBy } from "lodash";
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, TouchableOpacity, View } from "react-native";
 import { HorizontalScroll } from "@/components/common/HorizontalScroll";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import { Tags } from "@/components/GenreTags";
 import { dateOpts } from "@/components/jellyseerr/DetailFacts";
