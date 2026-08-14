@@ -113,7 +113,7 @@
     "react-native-udp": "^4.1.7",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-volume-manager": "^2.0.8",
-    "react-native-worklets": "0.11.3",
+    "react-native-worklets": "0.11.4",
     "sonner-native": "0.26.4",
     "tailwindcss": "3.3.2",
     "zod": "4.4.3"
