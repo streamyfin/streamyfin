@@ -23,7 +23,8 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
 import {
   PlaybackSpeedScope,
   updatePlaybackSpeedSettings,
@@ -1672,6 +1673,12 @@ const NativePlayerProviderInner: React.FC<{
   return (
     <NativePlayerContext.Provider value={contextValue}>
       {children}
+      {/* The Android player overlays the current screen without navigating,
+          so the layouts' <SystemBars hidden={false} /> stays mounted and
+          react-native-edge-to-edge re-shows the bars on every bar-style
+          re-apply, undoing NativePlayerSession's native hide(). Winning the
+          SystemBars stack for the session's lifetime keeps them hidden. */}
+      {isActive && Platform.OS === "android" && <SystemBars hidden />}
     </NativePlayerContext.Provider>
   );
 };
