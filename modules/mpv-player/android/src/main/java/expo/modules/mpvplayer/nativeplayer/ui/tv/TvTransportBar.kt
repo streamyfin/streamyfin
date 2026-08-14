@@ -98,6 +98,15 @@ fun TvTransportBar(
                 },
                 enabled = isFocusable,
                 shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+                // No focus zoom: the default focusedScale of 1.1 makes the
+                // whole bar rescale when scrubbing starts (focus is evicted
+                // as the Surface disables). Focus is shown by border + track
+                // thickness instead.
+                scale = ClickableSurfaceDefaults.scale(
+                    scale = 1f,
+                    focusedScale = 1f,
+                    pressedScale = 1f
+                ),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.Transparent,
                     focusedContainerColor = Color.Transparent

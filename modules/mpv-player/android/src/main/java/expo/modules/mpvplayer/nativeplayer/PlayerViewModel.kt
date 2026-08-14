@@ -282,6 +282,20 @@ class PlayerViewModel : MPVLayerRenderer.Delegate {
         scheduleAutoHide()
     }
 
+    /**
+     * TV: when a focused composable unmounts (skip-segment button, technical
+     * info close), Compose focus dies with it and the remote goes dead —
+     * the ComposeView keeps view-level focus so keys land in a focus-less
+     * tree. Bump this tick to have TvControlsRow re-grab its default focus.
+     */
+    var tvControlsFocusRestoreTick by mutableStateOf(0)
+        private set
+
+    fun restoreTvControlsFocus() {
+        showControls()
+        tvControlsFocusRestoreTick++
+    }
+
     fun scheduleAutoHide(delayMs: Long = PlayerConstants.AUTO_HIDE_DELAY_MS) {
         autoHideJob?.cancel()
         autoHideJob = scope.launch {

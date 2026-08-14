@@ -26,7 +26,10 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material3.Icon
+// tv-material3's Icon, not compose.material3's: the TV IconButton feeds its
+// content color through the TV library's LocalContentColor, which the mobile
+// Icon never reads (it defaults to black).
+import androidx.tv.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -103,10 +106,21 @@ fun TvControlsRow(
         TvControl.entries.associateWith { FocusRequester() }
     }
 
-    LaunchedEffect(Unit) {
+    // Fires on mount (tick 0) and again whenever the view model asks for a
+    // focus restore — e.g. after a focused overlay/button unmounted and left
+    // the Compose tree without any focused node.
+    LaunchedEffect(viewModel.tvControlsFocusRestoreTick) {
         delay(40L)
         runCatching {
             focusRequesters[defaultFocusTarget]?.requestFocus()
+        }
+    }
+
+    // The skip button can vanish while focused (clicked, or the segment
+    // expired under the user) — put focus back on a control that exists.
+    LaunchedEffect(activeSegment) {
+        if (activeSegment == null && lastFocused == TvControl.SKIP_SEGMENT) {
+            viewModel.restoreTvControlsFocus()
         }
     }
 

@@ -66,7 +66,12 @@ fun TvStatusOverlays(
             ) {
                 TechnicalInfoOverlay(
                     viewModel = viewModel,
-                    onDismiss = { viewModel.showTechnicalInfo = false }
+                    onDismiss = {
+                        viewModel.showTechnicalInfo = false
+                        // The close button had focus; restore it to the
+                        // controls row or the remote goes dead.
+                        viewModel.restoreTvControlsFocus()
+                    }
                 )
             }
         }
