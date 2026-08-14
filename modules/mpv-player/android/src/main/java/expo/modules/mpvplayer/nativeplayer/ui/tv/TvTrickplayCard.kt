@@ -3,6 +3,7 @@ package expo.modules.mpvplayer.nativeplayer.ui.tv
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -44,11 +45,12 @@ fun TvTrickplayCard(
         }
     }
 
+    val shape = RoundedCornerShape(TvMetrics.RADIUS_PANEL)
     Box(
         modifier = modifier
             .size(TvMetrics.POSTER_WIDTH, TvMetrics.POSTER_HEIGHT)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.Black.copy(alpha = 0.6f)),
+            .clip(shape)
+            .background(TvPalette.SurfaceGlassStrong),
         contentAlignment = Alignment.BottomStart
     ) {
         val bmp = imageBitmap
@@ -62,6 +64,13 @@ fun TvTrickplayCard(
         }
 
         TvPosterScrim(modifier = Modifier.align(Alignment.BottomCenter))
+
+        // Hairline drawn over the thumbnail so the edge catch-light survives.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(1.dp, TvPalette.Hairline, shape)
+        )
 
         Text(
             text = formatTimeSec(positionSec),

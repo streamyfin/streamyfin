@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.tv.material3.Border
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.ListItemDefaults
 import androidx.tv.material3.MaterialTheme
@@ -82,7 +84,10 @@ fun TvMenuPanel(
                 .fillMaxHeight()
                 .width(460.dp),
             colors = SurfaceDefaults.colors(
-                containerColor = Color(0xFF181818).copy(alpha = 0.96f)
+                containerColor = TvPalette.SurfaceGlassStrong
+            ),
+            border = Border(
+                border = BorderStroke(1.dp, TvPalette.Hairline)
             ),
             shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
         ) {
@@ -355,15 +360,15 @@ private fun SubtitlesRootMenu(viewModel: PlayerViewModel) {
                         Icon(
                             imageVector = Icons.Filled.Search,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.7f),
+                            tint = TvPalette.OnSurfaceDim,
                             modifier = Modifier.size(20.dp)
                         )
                     },
                     colors = ListItemDefaults.colors(
-                        containerColor = Color(0xFF222222),
-                        focusedContainerColor = Color.White,
-                        contentColor = Color.White,
-                        focusedContentColor = Color.Black
+                        containerColor = TvPalette.RowFill,
+                        focusedContainerColor = TvPalette.FocusFill,
+                        contentColor = TvPalette.OnSurface,
+                        focusedContentColor = TvPalette.OnFocus
                     )
                 )
             }
@@ -512,10 +517,10 @@ private fun TvMenuRow(
             }
         } else null,
         colors = ListItemDefaults.colors(
-            containerColor = Color(0xFF222222),
-            focusedContainerColor = Color.White,
-            contentColor = Color.White,
-            focusedContentColor = Color.Black
+            containerColor = TvPalette.RowFill,
+            focusedContainerColor = TvPalette.FocusFill,
+            contentColor = TvPalette.OnSurface,
+            focusedContentColor = TvPalette.OnFocus
         ),
         modifier = modifier
     )
@@ -541,15 +546,15 @@ private fun TvSubmenuRow(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.5f),
+                tint = TvPalette.OnSurfaceFaint,
                 modifier = Modifier.size(16.dp)
             )
         },
         colors = ListItemDefaults.colors(
-            containerColor = Color(0xFF222222),
-            focusedContainerColor = Color.White,
-            contentColor = Color.White,
-            focusedContentColor = Color.Black
+            containerColor = TvPalette.RowFill,
+            focusedContainerColor = TvPalette.FocusFill,
+            contentColor = TvPalette.OnSurface,
+            focusedContentColor = TvPalette.OnFocus
         ),
         modifier = modifier
     )

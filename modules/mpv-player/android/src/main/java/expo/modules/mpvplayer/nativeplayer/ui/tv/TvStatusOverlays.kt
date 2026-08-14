@@ -44,7 +44,7 @@ fun TvStatusOverlays(
         // 1. Buffering Spinner
         if (viewModel.isBuffering && viewModel.errorMessage == null) {
             CircularProgressIndicator(
-                color = Color.White,
+                color = TvPalette.OnSurface,
                 strokeWidth = 4.dp,
                 modifier = Modifier
                     .size(56.dp)
@@ -126,14 +126,13 @@ fun TvSkipPill(
 
     Box(
         modifier = modifier
-            .clip(CircleShape)
-            .background(Color(0xFF242424).copy(alpha = 0.92f))
+            .tvGlass(CircleShape, strong = true)
             .padding(horizontal = 26.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = TvPalette.OnSurface,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -150,8 +149,7 @@ fun TvCountdownCard(
     Row(
         modifier = modifier
             .widthIn(max = 580.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFF1E1E1E).copy(alpha = 0.94f))
+            .tvGlass(RoundedCornerShape(TvMetrics.RADIUS_PANEL), strong = true)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -168,13 +166,13 @@ fun TvCountdownCard(
         Column(modifier = Modifier.weight(1f, fill = false)) {
             Text(
                 text = "${viewModel.str("nextEpisode", "Next episode")} · ${remaining.toInt()}s",
-                color = Color.White.copy(alpha = 0.7f),
+                color = TvPalette.OnSurfaceDim,
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = next.title,
-                color = Color.White,
+                color = TvPalette.OnSurface,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -184,7 +182,7 @@ fun TvCountdownCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = next.subtitle ?: "",
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = TvPalette.OnSurfaceDim,
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

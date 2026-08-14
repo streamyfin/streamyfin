@@ -1,5 +1,6 @@
 package expo.modules.mpvplayer.nativeplayer.ui.tv
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +33,10 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.tv.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -43,6 +47,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.IconButton
@@ -228,10 +234,15 @@ fun TvControlsRow(
                         }
                     },
                 colors = ButtonDefaults.colors(
-                    containerColor = Color(0xFF2E2E2E),
-                    focusedContainerColor = Color.White,
-                    contentColor = Color.White,
-                    focusedContentColor = Color.Black
+                    containerColor = TvPalette.SurfaceGlass,
+                    focusedContainerColor = TvPalette.FocusFill,
+                    contentColor = TvPalette.OnSurface,
+                    focusedContentColor = TvPalette.OnFocus
+                ),
+                border = ButtonDefaults.border(
+                    border = Border(
+                        border = BorderStroke(1.dp, TvPalette.Hairline)
+                    )
                 )
             ) {
                 Text(
@@ -330,26 +341,34 @@ private fun TvIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     IconButton(
         onClick = onClick,
         modifier = modifier
+            .size(TvMetrics.CONTROL_SIZE)
             .focusRequester(focusRequester)
             .onFocusChanged {
+                isFocused = it.isFocused
                 if (it.isFocused) {
                     onFocused(control)
                 }
-            },
+            }
+            // Hairline only while unfocused; the focused fill is solid white.
+            .then(
+                if (isFocused) Modifier
+                else Modifier.border(1.dp, TvPalette.Hairline, CircleShape)
+            ),
         colors = IconButtonDefaults.colors(
-            containerColor = Color(0xFF2E2E2E),
-            focusedContainerColor = Color.White,
-            contentColor = Color.White,
-            focusedContentColor = Color.Black
+            containerColor = TvPalette.SurfaceGlass,
+            focusedContainerColor = TvPalette.FocusFill,
+            contentColor = TvPalette.OnSurface,
+            focusedContentColor = TvPalette.OnFocus
         )
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(TvMetrics.ICON_SIZE)
         )
     }
 }

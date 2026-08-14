@@ -46,6 +46,7 @@ import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ListItem
 import androidx.tv.material3.ListItemDefaults
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import expo.modules.mpvplayer.nativeplayer.PlayerViewModel
 import expo.modules.mpvplayer.nativeplayer.SubtitleSearchResultRecord
@@ -162,18 +163,20 @@ fun TvSubtitleSearchPanel(
                             },
                             trailingContent = if (isSelected) {
                                 {
+                                    // Follows the row's focus state: white on
+                                    // the dark row, black on the focused one.
                                     Icon(
                                         imageVector = Icons.Filled.Check,
                                         contentDescription = null,
-                                        tint = Color.White
+                                        tint = LocalContentColor.current
                                     )
                                 }
                             } else null,
                             colors = ListItemDefaults.colors(
-                                containerColor = Color(0xFF262626),
-                                focusedContainerColor = Color.White,
-                                contentColor = Color.White,
-                                focusedContentColor = Color.Black
+                                containerColor = TvPalette.RowFill,
+                                focusedContainerColor = TvPalette.FocusFill,
+                                contentColor = TvPalette.OnSurface,
+                                focusedContentColor = TvPalette.OnFocus
                             ),
                             modifier = if (index == 0) Modifier.focusRequester(itemFocusRequester) else Modifier
                         )
@@ -278,6 +281,10 @@ private fun TvSubtitleResultRow(
             )
         },
         supportingContent = {
+            // Everything here derives from LocalContentColor — the ListItem
+            // swaps it white↔black with focus, and hardcoded whites vanish
+            // against the focused row's white fill.
+            val content = LocalContentColor.current
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -287,14 +294,14 @@ private fun TvSubtitleResultRow(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.White.copy(alpha = 0.15f))
+                        .background(content.copy(alpha = 0.15f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = result.providerName,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = content
                     )
                 }
 
@@ -302,7 +309,7 @@ private fun TvSubtitleResultRow(
                     Text(
                         text = (result.format ?: "").uppercase(),
                         fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = content.copy(alpha = 0.7f)
                     )
                 }
 
@@ -319,7 +326,7 @@ private fun TvSubtitleResultRow(
                         Text(
                             text = String.format("%.1f", rating),
                             fontSize = 13.sp,
-                            color = Color.White.copy(alpha = 0.7f)
+                            color = content.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -328,7 +335,7 @@ private fun TvSubtitleResultRow(
                     Icon(
                         imageVector = Icons.Filled.Hearing,
                         contentDescription = "SDH",
-                        tint = Color.White.copy(alpha = 0.7f),
+                        tint = content.copy(alpha = 0.7f),
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -338,7 +345,7 @@ private fun TvSubtitleResultRow(
                         text = "AI",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.7f)
+                        color = content.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -346,7 +353,7 @@ private fun TvSubtitleResultRow(
         trailingContent = {
             if (isDownloading) {
                 CircularProgressIndicator(
-                    color = Color.White,
+                    color = LocalContentColor.current,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(22.dp)
                 )
@@ -360,10 +367,10 @@ private fun TvSubtitleResultRow(
             }
         },
         colors = ListItemDefaults.colors(
-            containerColor = Color(0xFF242424),
-            focusedContainerColor = Color.White,
-            contentColor = Color.White,
-            focusedContentColor = Color.Black
+            containerColor = TvPalette.RowFill,
+            focusedContainerColor = TvPalette.FocusFill,
+            contentColor = TvPalette.OnSurface,
+            focusedContentColor = TvPalette.OnFocus
         ),
         modifier = modifier
     )
