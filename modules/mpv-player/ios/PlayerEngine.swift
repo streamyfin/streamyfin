@@ -492,6 +492,7 @@ final class MPVPlayerEngine: NSObject {
 	func setZoomedToFill(_ zoomed: Bool) {
 		_isZoomedToFill = zoomed
 		displayLayer.videoGravity = zoomed ? .resizeAspectFill : .resizeAspect
+		renderer?.syncSubtitleLayerFrame()
 	}
 
 	func isZoomedToFill() -> Bool {
@@ -594,6 +595,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Reset to fit for PiP (zoomed video doesn't display correctly in PiP)
 		if _isZoomedToFill {
 			displayLayer.videoGravity = .resizeAspect
+			renderer?.syncSubtitleLayerFrame()
 		}
 	}
 
@@ -621,6 +623,7 @@ extension MPVPlayerEngine: PiPControllerDelegate {
 		// Restore the user's zoom preference
 		if _isZoomedToFill {
 			displayLayer.videoGravity = .resizeAspectFill
+			renderer?.syncSubtitleLayerFrame()
 		}
 		// Notify the host that PiP has fully stopped so the controls overlay
 		// can be re-mounted when the user returns to full screen.

@@ -908,11 +908,18 @@ final class MPVLayerRenderer {
         }
     }
 
-    /// MPVKit's non-composited subtitle layer does not follow display-layer
-    /// bounds changes while paused, so keep it aligned during rotation.
+    /// Keep MPVKit's non-composited subtitle layer aligned with the display.
+    /// Portrait fill must crop it with the video; landscape stays aspect-fitted
+    /// so subtitles retain their normal bottom margin.
     func syncSubtitleLayerFrame() {
+        guard let subtitleLayer = displayLayer.sublayers?.last else { return }
+        subtitleLayer.contentsGravity =
+            displayLayer.videoGravity == .resizeAspectFill
+                && displayLayer.bounds.height > displayLayer.bounds.width
+            ? .resizeAspectFill
+            : .resizeAspect
         #if targetEnvironment(simulator)
-        displayLayer.sublayers?.last?.frame = displayLayer.bounds
+        subtitleLayer.frame = displayLayer.bounds
         #endif
     }
     

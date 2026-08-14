@@ -35,7 +35,7 @@ const TV_SUBTITLE_SCALE_MULTIPLIER = 1.25;
 const ANDROID_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 1.15;
 const ANDROID_EXOPLAYER_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 0.6;
 const ANDROID_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.2;
-const IOS_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 1.2;
+const IOS_MOBILE_MPV_SUBTITLE_SCALE_MULTIPLIER = 1.25 * 1.35;
 const ANDROID_TV_MPV_SUBTITLE_SCALE_MULTIPLIER = 0.875 * 0.95 * 0.95;
 const IOS_TV_MPV_SUBTITLE_SCALE_MULTIPLIER = 0.875 * 1.05 * 1.05;
 
@@ -69,7 +69,8 @@ const getPlatformScaleMultiplier = (playerType: "mpv" | "exoplayer") => {
 
 // Keep equal stored margins visually aligned across mobile platforms while
 // preserving the already-tested TV placement.
-const MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER = 1.5;
+const ANDROID_MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER = 1.4;
+const IOS_MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER = 1.2;
 const TV_SUBTITLE_MARGIN_Y_MULTIPLIER = 2;
 
 // mpv's default subtitle font size is calibrated for desktop windowed
@@ -114,28 +115,47 @@ export const getEffectiveSubtitleScale = (
     return scaled;
   }
 
-  // Match the player surface fit: contain letterboxes, cover crops.
-  const fitScale =
+  const containScale = Math.min(
+    screenWidth / videoWidth,
+    screenHeight / videoHeight,
+  );
+  const boost =
+    containScale < 1 ? Math.min(1 / containScale, MAX_SUBTITLE_BOOST) : 1;
+
+  // Cover zoom scales MPV's subtitle plane with the video. Undo only that
+  // extra zoom so subtitle size stays unchanged when toggling fit/fill.
+  const zoomCompensation =
     fitMode === "cover"
-      ? Math.max(screenWidth / videoWidth, screenHeight / videoHeight)
-      : Math.min(screenWidth / videoWidth, screenHeight / videoHeight);
+      ? getZoomSubtitleScaleRatio(
+          videoWidth,
+          videoHeight,
+          screenWidth,
+          screenHeight,
+        )
+      : 1;
+  return Math.round(scaled * boost * zoomCompensation * 100) / 100;
+};
 
-  // Video fills the surface — no compensation needed.
-  if (fitScale >= 1) {
-    return scaled;
-  }
-
-  // Undo the shrinkage, capped so on-screen size never exceeds ~3x the base.
-  const boost = Math.min(1 / fitScale, MAX_SUBTITLE_BOOST);
-  return Math.round(scaled * boost * 100) / 100;
+export const getZoomSubtitleScaleRatio = (
+  videoWidth: number,
+  videoHeight: number,
+  screenWidth: number,
+  screenHeight: number,
+): number => {
+  const widthScale = screenWidth / videoWidth;
+  const heightScale = screenHeight / videoHeight;
+  return Math.min(widthScale, heightScale) / Math.max(widthScale, heightScale);
 };
 
 export const getEffectiveSubtitleMarginY = (margin: number): number => {
   if (Platform.isTV) {
     return Math.round(margin * TV_SUBTITLE_MARGIN_Y_MULTIPLIER);
   }
-  if (Platform.OS === "android" || Platform.OS === "ios") {
-    return Math.round(margin * MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER);
+  if (Platform.OS === "android") {
+    return Math.round(margin * ANDROID_MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER);
+  }
+  if (Platform.OS === "ios") {
+    return Math.round(margin * IOS_MOBILE_SUBTITLE_MARGIN_Y_MULTIPLIER);
   }
   return margin;
 };

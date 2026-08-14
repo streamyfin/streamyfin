@@ -150,6 +150,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
                 isInPictureInPicture = isInPiP
                 if (isInPiP) {
                     renderer?.setSubtitleUseMargins(false)
+                    renderer?.setSubtitleScaleWithWindow(false)
                     // Post size syncs after the PiP layout settles. Two passes
                     // catch both the immediate surface re-attach and the
                     // post-animation layout pass. Replaces the old TextureView
@@ -259,7 +260,11 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     private fun updateSurfaceGeometry(width: Int, height: Int) {
         renderer?.updateSurfaceSize(width, height)
-        renderer?.setSubtitleUseMargins(!isInPictureInPicture && width > height)
+        val useLandscapeMargins = !isInPictureInPicture && width > height
+        renderer?.setSubtitleUseMargins(useLandscapeMargins)
+        renderer?.setSubtitleScaleWithWindow(
+            useLandscapeMargins && renderer?.isTv != true
+        )
     }
 
     // MARK: - Video Loading

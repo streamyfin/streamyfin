@@ -230,7 +230,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	/// More than this far into a chapter, "previous chapter" restarts it.
 	private let chapterRestartThreshold: Double = 3
 	/// Mirrors utils/subtitles.ts for mobile iOS MPV.
-	private let subtitleScaleMultiplier = 0.6 * 1.25 * 1.2
+	private let subtitleScaleMultiplier = 0.6 * 1.25 * 1.35
 
 	/// tvOS uses focusable presets; iOS uses the in-player slider.
 	static let subtitleScalePresets: [Double] = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
@@ -801,21 +801,7 @@ final class PlayerViewModel: NSObject, ObservableObject {
 	func applyZoomState() {
 		guard let engine else { return }
 		engine.setZoomedToFill(isZoomedToFill)
-		if isZoomedToFill {
-			let videoAR = Double(videoWidth ?? 1920) / Double(max(videoHeight ?? 1080, 1))
-			let screenSize = playerSurfaceSize
-			let screenAR = Double(screenSize.width) / Double(max(screenSize.height, 1))
-			if screenAR > videoAR {
-				// Screen wider than video: filling crops top/bottom. Raise the
-				// subtitles by 70% of the bottom crop so they stay visible.
-				let bottomCropPercent = 50.0 * (1.0 - videoAR / screenAR)
-				engine.setSubtitlePosition(Int((100.0 - bottomCropPercent * 0.7).rounded()))
-			} else {
-				engine.setSubtitlePosition(100)
-			}
-		} else {
-			engine.setSubtitlePosition(100)
-		}
+		engine.setSubtitlePosition(100)
 		applySubtitleScale()
 	}
 
@@ -831,11 +817,16 @@ final class PlayerViewModel: NSObject, ObservableObject {
 			let pixelScale = UIScreen.main.scale
 			let width = Double(surface.width * pixelScale)
 			let height = Double(surface.height * pixelScale)
-			let fitScale = isZoomedToFill
-				? max(width / Double(videoWidth), height / Double(videoHeight))
-				: min(width / Double(videoWidth), height / Double(videoHeight))
-			if fitScale > 0, fitScale < 1 {
-				effectiveScale *= min(1 / fitScale, 3)
+			let widthScale = width / Double(videoWidth)
+			let heightScale = height / Double(videoHeight)
+			let containScale = min(widthScale, heightScale)
+			if containScale > 0, containScale < 1 {
+				effectiveScale *= min(1 / containScale, 3)
+			}
+			// In portrait the subtitle CALayer follows aspect-fill, so undo
+			// the same extra zoom. Landscape keeps that layer aspect-fitted.
+			if isZoomedToFill, surface.height > surface.width {
+				effectiveScale *= containScale / max(widthScale, heightScale)
 			}
 		}
 		engine.setSubtitleScale((effectiveScale * 100).rounded() / 100)

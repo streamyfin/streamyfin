@@ -738,6 +738,12 @@ class MPVLayerRenderer(private val context: Context) : MPVLib.EventObserver {
             mpv?.setPropertyString("sub-use-margins", if (useMargins) "yes" else "no")
         }
     }
+
+    fun setSubtitleScaleWithWindow(enabled: Boolean) {
+        if (isRunning) {
+            mpv?.setPropertyString("sub-scale-with-window", if (enabled) "yes" else "no")
+        }
+    }
     
     fun setSubtitleAlignX(alignment: String) {
         mpv?.setPropertyString("sub-align-x", alignment)

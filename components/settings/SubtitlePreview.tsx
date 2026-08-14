@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   PixelRatio,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
@@ -73,8 +74,10 @@ export const SubtitlePreview = React.memo(() => {
       screenHeight * PixelRatio.get(),
     );
 
+    const previewScaleMultiplier =
+      Platform.OS === "ios" ? 1.25 : Platform.OS === "android" ? 1.1 : 1;
     const commands: Array<() => Promise<void>> = [
-      () => player.setSubtitleScale(effectiveScale * 2),
+      () => player.setSubtitleScale(effectiveScale * previewScaleMultiplier),
       () =>
         player.setSubtitleStyle({
           color: settings.subtitleColor,

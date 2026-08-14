@@ -1325,37 +1325,8 @@ export default function DirectPlayerPage() {
     const newZoomState = !isZoomedToFill;
     await videoRef.current?.setZoomedToFill?.(newZoomState);
     setIsZoomedToFill(newZoomState);
-
-    // Adjust subtitle position to compensate for video cropping when zoomed
-    if (newZoomState) {
-      // Get video dimensions from mediaSource
-      const videoStream = stream?.mediaSource?.MediaStreams?.find(
-        (s) => s.Type === "Video",
-      );
-      const videoWidth = videoStream?.Width ?? 1920;
-      const videoHeight = videoStream?.Height ?? 1080;
-
-      const videoAR = videoWidth / videoHeight;
-      const screenAR = screenWidth / screenHeight;
-
-      if (screenAR > videoAR) {
-        // Screen is wider than video - video height extends beyond screen
-        // Calculate how much of the video is cropped at the bottom (as % of video height)
-        const bottomCropPercent = 50 * (1 - videoAR / screenAR);
-        // Only adjust by 70% of the crop to keep a comfortable margin from the edge
-        // (subtitles already have some built-in padding from the bottom)
-        const adjustmentFactor = 0.7;
-        const newSubPos = Math.round(
-          100 - bottomCropPercent * adjustmentFactor,
-        );
-        await videoRef.current?.setSubtitlePosition?.(newSubPos);
-      }
-      // If videoAR >= screenAR, sides are cropped but bottom is visible, no adjustment needed
-    } else {
-      // Restore to default position (bottom of video frame)
-      await videoRef.current?.setSubtitlePosition?.(100);
-    }
-  }, [isZoomedToFill, stream?.mediaSource, screenWidth, screenHeight]);
+    await videoRef.current?.setSubtitlePosition?.(100);
+  }, [isZoomedToFill]);
 
   // TV: Navigate to previous item
   const goToPreviousItem = useCallback(() => {
@@ -1498,13 +1469,17 @@ export default function DirectPlayerPage() {
     const videoStream = stream?.mediaSource?.MediaStreams?.find(
       (mediaStream) => mediaStream.Type === "Video",
     );
+    const effectiveMarginY =
+      settings.subtitleMarginY === undefined
+        ? undefined
+        : getEffectiveSubtitleMarginY(settings.subtitleMarginY);
     const effectiveScale = getEffectiveSubtitleScale(
       settings.subtitleSize,
       videoStream?.Width,
       videoStream?.Height,
       screenWidth * PixelRatio.get(),
       screenHeight * PixelRatio.get(),
-      isZoomedToFill ? "cover" : "contain",
+      isZoomedToFill && screenHeight > screenWidth ? "cover" : "contain",
       getActivePlayerType(settings),
     );
     void applySubtitleStyle(
@@ -1512,9 +1487,12 @@ export default function DirectPlayerPage() {
       buildSubtitleStyle(settings, {
         scale: effectiveScale,
         marginY:
-          settings.subtitleMarginY === undefined
-            ? undefined
-            : getEffectiveSubtitleMarginY(settings.subtitleMarginY),
+          effectiveMarginY !== undefined &&
+          Platform.OS === "android" &&
+          !Platform.isTV &&
+          screenHeight > screenWidth
+            ? Math.round(effectiveMarginY * 0.7)
+            : effectiveMarginY,
       }),
     ).catch((error: unknown) => {
       console.error("Failed to apply subtitle settings:", error);
