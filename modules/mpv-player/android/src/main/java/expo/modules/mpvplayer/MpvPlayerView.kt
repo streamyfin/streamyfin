@@ -88,6 +88,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     // PiP state tracking
     private val pipHandler = Handler(Looper.getMainLooper())
+    private var isInPictureInPicture = false
 
     // Resume-recovery state: recreate the decoder when returning from the
     // screensaver / app background while paused. See
@@ -125,7 +126,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             val oldW = oldRight - oldLeft
             val oldH = oldBottom - oldTop
             if (w > 0 && h > 0 && (w != oldW || h != oldH)) {
-                renderer?.updateSurfaceSize(w, h)
+                updateSurfaceGeometry(w, h)
             }
         }
 
@@ -146,7 +147,9 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
             }
 
             override fun onPictureInPictureModeChanged(isInPiP: Boolean) {
+                isInPictureInPicture = isInPiP
                 if (isInPiP) {
+                    renderer?.setSubtitleUseMargins(false)
                     // Post size syncs after the PiP layout settles. Two passes
                     // catch both the immediate surface re-attach and the
                     // post-animation layout pass. Replaces the old TextureView
@@ -224,7 +227,7 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         if (width > 0 && height > 0) {
-            renderer?.updateSurfaceSize(width, height)
+            updateSurfaceGeometry(width, height)
         }
     }
 
@@ -250,8 +253,13 @@ class MpvPlayerView(context: Context, appContext: AppContext) : ExpoView(context
         val w = surfaceView.width
         val h = surfaceView.height
         if (w > 0 && h > 0) {
-            renderer?.updateSurfaceSize(w, h)
+            updateSurfaceGeometry(w, h)
         }
+    }
+
+    private fun updateSurfaceGeometry(width: Int, height: Int) {
+        renderer?.updateSurfaceSize(width, height)
+        renderer?.setSubtitleUseMargins(!isInPictureInPicture && width > height)
     }
 
     // MARK: - Video Loading
