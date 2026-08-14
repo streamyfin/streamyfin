@@ -8,14 +8,9 @@ import type { Settings } from "@/utils/atoms/settings";
 
 // react-native-mmkv needs a native module. Back it with a Map so the per-series
 // memory under test is exercised for real rather than stubbed out.
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
-  createMMKV: () => ({
-    getString: (key: string) => store.get(key),
-    set: (key: string, value: string) => void store.set(key, value),
-    delete: (key: string) => void store.delete(key),
-  }),
-}));
+import { mmkvMock, mmkvStore } from "@/utils/testing/mmkvMock";
+
+mock.module("react-native-mmkv", mmkvMock);
 
 // BitrateSelector is a React component module; only the BITRATES table matters.
 mock.module("@/components/BitrateSelector", () => ({
@@ -75,7 +70,7 @@ const settingsWith = (patch: Partial<Settings>): Settings =>
 
 const lang = (code: string) => ({ ThreeLetterISOLanguageName: code }) as never;
 
-beforeEach(() => store.clear());
+beforeEach(() => mmkvStore.clear());
 
 describe("language preferences apply on every path", () => {
   // Regression: this block used to be gated behind an `applyLanguagePreferences`

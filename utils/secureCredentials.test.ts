@@ -1,15 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
-const store = new Map<string, string>();
-mock.module("react-native-mmkv", () => ({
-  createMMKV: () => ({
-    getString: (k: string) => store.get(k),
-    getBoolean: (k: string) => store.get(k) === "true",
-    set: (k: string, v: string | boolean) => void store.set(k, String(v)),
-    delete: (k: string) => void store.delete(k),
-    remove: (k: string) => void store.delete(k),
-  }),
-}));
+import { mmkvMock, mmkvStore } from "./testing/mmkvMock";
+
+mock.module("react-native-mmkv", mmkvMock);
 
 import { secureStoreMock, secureStoreValues } from "./testing/secureStoreMock";
 
@@ -60,7 +53,7 @@ const seed = async (
 };
 
 beforeEach(() => {
-  store.clear();
+  mmkvStore.clear();
   storage.delete("previousServers");
   secureStoreValues.clear();
   uuidCounter = 0;
