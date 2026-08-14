@@ -907,6 +907,14 @@ final class MPVLayerRenderer {
             self.commandSync(handle, ["seek", String(seconds), "relative"])
         }
     }
+
+    /// MPVKit's non-composited subtitle layer does not follow display-layer
+    /// bounds changes while paused, so keep it aligned during rotation.
+    func syncSubtitleLayerFrame() {
+        #if targetEnvironment(simulator)
+        displayLayer.sublayers?.last?.frame = displayLayer.bounds
+        #endif
+    }
     
     /// Sync timebase - no-op for vo_avfoundation (mpv handles timing)
     func syncTimebase() {

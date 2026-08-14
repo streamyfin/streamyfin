@@ -330,6 +330,10 @@ final class MPVPlayerEngine: NSObject {
 		renderer?.seek(by: offset)
 	}
 
+	func syncSubtitleLayerFrame() {
+		renderer?.syncSubtitleLayerFrame()
+	}
+
 	func setSpeed(speed: Double) {
 		renderer?.setSpeed(speed)
 	}

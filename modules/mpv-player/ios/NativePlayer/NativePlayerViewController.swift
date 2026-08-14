@@ -309,6 +309,7 @@ final class NativePlayerViewController: UIViewController {
 		videoContainerView.frame = view.bounds
 		engine.displayLayer.frame = zoomAwareLayerFrame()
 		engine.displayLayer.contentsScale = view.window?.screen.scale ?? UIScreen.main.scale
+		engine.syncSubtitleLayerFrame()
 		CATransaction.commit()
 		viewModel.applySubtitleScale()
 	}
