@@ -62,7 +62,8 @@
     "select_your_server": "Select your server",
     "add_server_to_get_started": "Add a server to get started",
     "add_server": "Add server",
-    "change_server": "Change server"
+    "change_server": "Change server",
+    "swipe_for_options": "Swipe a server for options"
   },
   "save_account": {
     "title": "Save account",
@@ -1096,5 +1097,34 @@
     "scan_with_phone": "Scan with the Streamyfin app on your phone",
     "logging_in": "Logging in...",
     "logging_in_description": "Connecting to your server"
+  },
+  "custom_headers": {
+    "title": "Custom headers",
+    "description": "Extra HTTP headers sent with every request to this server. Needed when it sits behind an access gateway such as Cloudflare Zero Trust or Pangolin.",
+    "advanced_title": "Advanced: custom headers",
+    "integration_description": "Which headers to send to this service. Reuse the Jellyfin headers when it sits behind the same gateway.",
+    "no_headers": "No headers configured",
+    "header_key": "Header name",
+    "header_value": "Header value",
+    "header_name_placeholder": "X-Api-Key",
+    "header_value_placeholder": "Value",
+    "add_preset": "Add preset",
+    "add_custom": "Add header",
+    "clear_headers": "Clear headers",
+    "presets_title": "Choose a preset",
+    "source_jellyfin": "Jellyfin",
+    "source_custom": "Custom",
+    "source_none": "None",
+    "using_jellyfin_headers": "Using the Jellyfin headers",
+    "no_jellyfin_headers": "No headers configured for Jellyfin",
+    "integration_none": "No custom headers are sent to this service.",
+    "security_note": "Header values are stored in the device keychain, not in the app's own storage.",
+    "done": "Done",
+    "show_value": "Show value",
+    "hide_value": "Hide value",
+    "enabled": "Enabled",
+    "header_count_one": "{{count}} header",
+    "header_count_other": "{{count}} headers",
+    "header_count": "{{count}} headers"
   }
 }

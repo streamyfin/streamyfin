@@ -162,13 +162,14 @@ final class MPVPlayerEngine: NSObject {
 
 	// MARK: - Now Playing Info
 
-	func setNowPlayingMetadata(_ metadata: [String: String]) {
+	func setNowPlayingMetadata(_ metadata: [String: String], artworkHeaders: [String: String]? = nil) {
 		print("[MPV] setNowPlayingMetadata: \(metadata["title"] ?? "nil")")
 		nowPlayingManager.setMetadata(
 			title: metadata["title"],
 			artist: metadata["artist"],
 			albumTitle: metadata["albumTitle"],
-			artworkUrl: metadata["artworkUri"]
+			artworkUrl: metadata["artworkUri"],
+			artworkHeaders: artworkHeaders
 		)
 	}
 

@@ -5,7 +5,6 @@ import type {
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useNavigation, useSegments } from "expo-router";
 import { useAtom } from "jotai";
 import { orderBy, uniqBy } from "lodash";
@@ -22,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { Platform, ScrollView, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ContinueWatchingPoster from "@/components/ContinueWatchingPoster";
+import { Image } from "@/components/common/ServerImage";
 import { Text } from "@/components/common/Text";
 import {
   getItemNavigation,
@@ -44,6 +44,7 @@ import { useJellyseerr } from "@/hooks/useJellyseerr";
 import { useTVItemActionModal } from "@/hooks/useTVItemActionModal";
 import { apiAtom, userAtom } from "@/providers/JellyfinProvider";
 import { useSettings } from "@/utils/atoms/settings";
+import { getIntegrationHeaders } from "@/utils/customHeaders";
 import { eventBus } from "@/utils/eventBus";
 import { getPrimaryImageUrl } from "@/utils/jellyfin/image/getPrimaryImageUrl";
 import { MediaType } from "@/utils/jellyseerr/server/constants/media";
@@ -205,7 +206,10 @@ export default function SearchPage() {
           .map((type) => encodeURIComponent(type))
           .join("&includeItemTypes=")}`;
 
-        const response1 = await axios.get(url, { signal });
+        const response1 = await axios.get(url, {
+          signal,
+          headers: getIntegrationHeaders("marlin"),
+        });
 
         const ids = response1.data.ids;
 

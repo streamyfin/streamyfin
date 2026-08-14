@@ -544,14 +544,19 @@ final class MPVLayerRenderer {
     }
     
     private func updateHTTPHeaders(_ headers: [String: String]?) {
-        guard let headers, !headers.isEmpty else {
-            clearProperty(name: "http-header-fields")
-            return
-        }
-        
+        // Emptying the list is what clears it; MPV_FORMAT_NONE is rejected for a
+        // string list, which would leave the previous item's headers in place.
+        setProperty(name: "http-header-fields", value: "")
+        guard let headers, !headers.isEmpty else { return }
+
+        // http-header-fields is an mpv string *list*, and through the property
+        // interface only the plain comma-separated form is understood: the
+        // %<len>% escape arrives at the server as part of the field name, and
+        // the -append modifier is ignored outright. A header value containing a
+        // comma therefore cannot be expressed here (it would split into two).
         let headerString = headers
             .map { key, value in "\(key): \(value)" }
-            .joined(separator: "\r\n")
+            .joined(separator: ",")
         setProperty(name: "http-header-fields", value: headerString)
     }
     

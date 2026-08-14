@@ -2,7 +2,6 @@ import type {
   BaseItemDto,
   MediaSourceInfo,
 } from "@jellyfin/sdk/lib/generated-client/models";
-import { Image } from "expo-image";
 import { useNavigation } from "expo-router";
 import { useAtom } from "jotai";
 import React, { useEffect, useMemo, useState } from "react";
@@ -11,6 +10,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Bitrate } from "@/components/BitrateSelector";
 import { HeaderButtonGroup } from "@/components/common/HeaderButton";
 import { ItemImage } from "@/components/common/ItemImage";
+import { Image } from "@/components/common/ServerImage";
 import { DownloadSingleItem } from "@/components/DownloadItem";
 import { ItemPeopleSections } from "@/components/item/ItemPeopleSections";
 import { MediaSourceButton } from "@/components/MediaSourceButton";

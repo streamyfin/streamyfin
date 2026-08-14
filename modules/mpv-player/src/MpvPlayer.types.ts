@@ -34,6 +34,8 @@ export type NowPlayingMetadata = {
   artist?: string;
   albumTitle?: string;
   artworkUri?: string;
+  /** Custom proxy auth headers for fetching the artwork. */
+  artworkHeaders?: Record<string, string>;
 };
 
 export type MpvPlayerModuleEvents = {

@@ -7,11 +7,12 @@ import type { ServerProbe } from "../types";
  * hit the right service. The minimum-version requirement is enforced at login
  * time (see JellyseerrApi.test) — not surfaced here, to keep the field UI clean.
  */
-export const jellyseerrProbe: ServerProbe = async (url, signal) => {
+export const jellyseerrProbe: ServerProbe = async (url, signal, headers) => {
   try {
     const { status, data } = await axios.get(`${url}/api/v1/status`, {
       signal,
       timeout: 8000, // backstop; the resolver aborts via signal first
+      headers,
     });
 
     if (status < 200 || status >= 300) return { status: "unreachable" };

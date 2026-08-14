@@ -8,7 +8,7 @@ import {
 } from "@jellyfin/sdk/lib/generated-client";
 import { t } from "i18next";
 import { atom, useAtom, useAtomValue } from "jotai";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { BITRATES, type Bitrate } from "@/components/BitrateSelector";
 import * as ScreenOrientation from "@/packages/expo-screen-orientation";
@@ -663,6 +663,23 @@ export const pluginSettingsAtom = atom<PluginLockableSettings | undefined>(
   loadPluginSettings(),
 );
 
+/**
+ * User settings with the admin's plugin overrides applied — the same value
+ * `useSettings().settings` returns, as an atom.
+ *
+ * Components that need a single setting should subscribe to this (or a
+ * `selectAtom` of it) instead of calling `useSettings`, which also pulls in the
+ * mutation helpers and a load effect.
+ */
+export const effectiveSettingsAtom = atom<Settings>((get) =>
+  resolveEffectiveSettings(
+    get(settingsAtom),
+    get(pluginSettingsAtom),
+    defaultValues,
+    normalizePluginValue,
+  ),
+);
+
 const loadAppliedPluginDefaults = (): AppliedPluginDefaults => {
   try {
     return storage.get<AppliedPluginDefaults>(PLUGIN_APPLIED_DEFAULTS) ?? {};
@@ -767,16 +784,7 @@ export const useSettings = () => {
     });
   };
 
-  const settings: Settings = useMemo(
-    () =>
-      resolveEffectiveSettings(
-        _settings,
-        pluginSettings,
-        defaultValues,
-        normalizePluginValue,
-      ),
-    [_settings, pluginSettings],
-  );
+  const settings = useAtomValue(effectiveSettingsAtom);
 
   return {
     settings,
