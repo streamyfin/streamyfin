@@ -25,6 +25,12 @@ export const mmkvMock = () => ({
       mmkvStore.set(key, String(value));
     },
     setAny: (key: string, value: unknown) => {
+      // Matches the augmentation in augmentations/mmkv.ts, which removes the
+      // key rather than storing a JSON.stringify(undefined).
+      if (value === undefined) {
+        mmkvStore.delete(key);
+        return;
+      }
       mmkvStore.set(key, JSON.stringify(value));
     },
     remove: (key: string) => mmkvStore.delete(key),
