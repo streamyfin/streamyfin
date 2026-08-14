@@ -887,7 +887,10 @@ export const JellyfinProvider: React.FC<{ children: ReactNode }> = ({
       const accountJellyfin = buildJellyfin(accountDeviceId);
       if (!accountJellyfin) throw new Error("Failed to create SDK instance");
 
-      const apiInstance = createApiWithCustomHeaders(accountJellyfin, serverUrl);
+      const apiInstance = createApiWithCustomHeaders(
+        accountJellyfin,
+        serverUrl,
+      );
       if (!apiInstance) {
         throw new Error("Failed to create API instance");
       }

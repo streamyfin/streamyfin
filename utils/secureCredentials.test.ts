@@ -11,12 +11,9 @@ mock.module("react-native-mmkv", () => ({
   }),
 }));
 
-const secureStore = new Map<string, string>();
-mock.module("expo-secure-store", () => ({
-  getItemAsync: async (k: string) => secureStore.get(k) ?? null,
-  setItemAsync: async (k: string, v: string) => void secureStore.set(k, v),
-  deleteItemAsync: async (k: string) => void secureStore.delete(k),
-}));
+import { secureStoreMock, secureStoreValues } from "./testing/secureStoreMock";
+
+mock.module("expo-secure-store", secureStoreMock);
 
 let uuidCounter = 0;
 mock.module("expo-crypto", () => ({
@@ -65,7 +62,7 @@ const seed = async (
 beforeEach(() => {
   store.clear();
   storage.delete("previousServers");
-  secureStore.clear();
+  secureStoreValues.clear();
   uuidCounter = 0;
 });
 
