@@ -4,7 +4,7 @@ base_path: .
 preserve_hierarchy: 1
 files:
   - source: translations/en.json
-    translation: translations/%two_letters_code%.json
+    translation: translations/%locale%.json
     skip_untranslated_strings: false
     skip_untranslated_files: false
     export_only_approved: false
